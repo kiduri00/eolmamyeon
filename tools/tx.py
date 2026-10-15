@@ -173,11 +173,17 @@ for g, v in RV.items():
     v = [x for x in v if x[0] >= cut6 and x[2] > 0]
     if len(v) >= 30:
         RVJ[g] = {'n': len(v), 'down': round(sum(1 for x in v if x[1] < x[2]) / len(v) * 100), 'chg': round(med([x[1] / x[2] - 1 for x in v]) * 100, 1)}
-# 노후도(추정): 경계 안 필지 중 거래 신고로 준공연도를 아는 건물, 30년·20년 이상 비율
-for rid, v in PAR.items():
-    yrs = [YR[p[0]] for p in v['p'] if p[0] in YR]
-    if len(yrs) >= 10 and rid in OUT:
-        OUT[rid]['old'] = {'n': len(yrs), 'tot': len([p for p in v['p'] if p[3] not in ('도로', '하천', '구거', '공원')]), 'p30': round(sum(1 for y in yrs if NOWY - y >= 30) / len(yrs) * 100), 'p20': round(sum(1 for y in yrs if NOWY - y >= 20) / len(yrs) * 100)}
+# 노후도(직접 계산): 서울도시공간포털 건물 레이어의 경계 안 건축물 전체, 사용승인연도·구조 기준
+BP = os.path.join(ROOT, 'pipeline/cache/bldg.json')
+BL = json.load(open(BP)) if os.path.exists(BP) else {}
+for rid, v in BL.items():
+    bs = [b for b in v['b'] if b[1] > 1900]
+    if len(bs) < 5 or rid not in OUT: continue
+    for b in v['b']:
+        if b[1] > 1900: YR[b[0]] = max(YR.get(b[0], 0), b[1])
+    old = sum(1 for b in bs if NOWY - b[1] >= (30 if b[2] == 'R' else 20))
+    OUT[rid]['old'] = {'n': len(v['b']), 'k': len(bs), 'pol': round(old / len(bs) * 100), 'p30': round(sum(1 for b in bs if NOWY - b[1] >= 30) / len(bs) * 100),
+                       'avg': round(sum(NOWY - b[1] for b in bs) / len(bs), 1), 'new10': sum(1 for b in bs if NOWY - b[1] <= 10)}
 # 동 단위 빌라 시세(최근 12개월, 2010년 이전 준공) — 매수가 빈칸 채우기용
 cut12 = (datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y%m%d')
 DONG = {}

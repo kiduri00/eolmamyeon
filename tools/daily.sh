@@ -17,6 +17,7 @@ python3 tools/newrecs.py || cp src/data.json pipeline/data.base.json
 echo "== 4. 경계 매칭 · 필지"
 python3 tools/bnd_match.py --data pipeline/data.base.json --uq181 pipeline/cache/upis_uq181.json --uq120 pipeline/cache/upis_uq120.json --sgg pipeline/cache/upis_sgg.json --report public/data/geo.json --out public/data/geo.json
 timeout 1800 python3 tools/parcels.py || echo "!! 필지 갱신 일부 실패"
+timeout 1800 python3 tools/bldg.py || echo "!! 건축물 갱신 일부 실패"
 echo "== 5. 구역 실거래 집계"
 SALE=$(ls $RAW/sale_*.csv 2>/dev/null | tr "\n" " " || true)
 RENT=$(ls $RAW/rent_*.csv 2>/dev/null | tr '\n' ' ' || true)

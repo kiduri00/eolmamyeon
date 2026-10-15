@@ -170,6 +170,17 @@
       };
     }
 
+    // ---------- 몇 개만 보여 주고 '더보기' ----------
+    function moreRows(box, n) {
+      const rows = [...box.querySelectorAll("tbody > tr, ul > li")];
+      if (rows.length <= n) return;
+      rows.slice(n).forEach((x) => (x.hidden = true));
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "btn secondary sm more-b"; b.textContent = `더보기 (${rows.length - n}건)`; b.setAttribute("aria-expanded", "false");
+      b.onclick = () => { const open = b.getAttribute("aria-expanded") !== "true"; rows.slice(n).forEach((x) => (x.hidden = !open)); b.setAttribute("aria-expanded", String(open)); b.textContent = open ? "접기" : `더보기 (${rows.length - n}건)`; };
+      box.appendChild(b);
+    }
+
     // ---------- 실거래 탭 ----------
     function chartSVG(r, q) {
       if (!q || q.length < 2) return "";
@@ -213,7 +224,7 @@
         ${t.age ? `<div class="sect"><h3>연식별 대지 3.3㎡당 <small>새 건물일수록 비싸지만 권리산정기준일 뒤 신축이면 입주권이 문제될 수 있어요</small></h3><dl class="facts">
           <div><dt>10년 이하</dt><dd>${age.a ? eok(age.a) : "–"}<small>${agn.a || 0}건</small></dd></div><div><dt>11~30년</dt><dd>${age.b ? eok(age.b) : "–"}<small>${agn.b || 0}건</small></dd></div><div><dt>31년 이상</dt><dd>${age.c ? eok(age.c) : "–"}<small>${agn.c || 0}건</small></dd></div>
           <div><dt>쪼개기 의심 거래</dt><dd>${t.split ? t.split + "건" : "없음"}<small>2016년 이후 준공 · 대지 15㎡ 이하</small></dd></div></dl></div>` : ""}
-        ${t.old ? `<div class="sect"><h3>노후도(추정) <small>구역 안 건물 중 거래 신고로 준공연도를 아는 ${fmt(t.old.n)}동 기준</small></h3><div class="oldbar" role="img" aria-label="30년 이상 ${t.old.p30}%, 20년 이상 ${t.old.p20}%"><i style="width:${t.old.p30}%"></i><s style="left:60%"></s></div><dl class="facts"><div><dt>30년 이상 건물</dt><dd>${t.old.p30}%<small>재개발 구역지정 요건: 노후·불량 건축물 60% 이상(서울 조례)</small></dd></div><div><dt>20년 이상 건물</dt><dd>${t.old.p20}%<small>거래가 잦은 건물 위주라 실제와 다를 수 있어요</small></dd></div></dl></div>` : ""}
+        ${t.old && t.old.k ? `<div class="sect"><h3>노후도 <small>구역 경계 안 건축물 ${fmt(t.old.n)}동 전수 · 사용승인연도 확인 ${fmt(t.old.k)}동 · 서울도시공간포털 건물 정보</small></h3><div class="oldbar" role="img" aria-label="노후·불량 건축물 ${t.old.pol}%, 기준선 60%"><i style="width:${t.old.pol}%"></i><s style="left:60%"></s></div><dl class="facts"><div><dt>노후·불량 건축물</dt><dd>${t.old.pol}%<small>철근콘크리트·철골조 30년, 그 밖의 구조 20년 이상(서울 조례 기준 단순화) · 구역지정 요건 60% 이상</small></dd></div><div><dt>30년 이상 건물</dt><dd>${t.old.p30}%<small>평균 ${t.old.avg}년 된 건물</small></dd></div><div><dt>10년 이하 신축</dt><dd>${fmt(t.old.new10)}동<small>권리산정기준일 뒤 신축이면 입주권 문제 확인</small></dd></div></dl></div>` : ""}
         ${pc ? `<div class="sect"><h3>구역 필지 현황 <small>서울도시공간포털 연속지적 ${fmt(pc.n)}필지 · 합계 ${fmt(pc.ar)}㎡</small></h3><dl class="facts">
           <div><dt>과소필지 (90㎡ 미만)</dt><dd>${pc.sm}%<small>도로·하천 제외 · 재개발 지정 요건 40% 이상</small></dd></div>
           <div><dt>국공유지</dt><dd>${pc.pub}%<small>필지 수 기준 · 많으면 무상양도 협의가 사업성에 영향</small></dd></div>
@@ -228,13 +239,14 @@
         const TY = ["빌라", "단독"];
         const rdY = (() => { const x = rights(r); return x.k === "set" ? +x.d.slice(0, 4) : null; })();
         $("txList").innerHTML = S.length
-          ? `<table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col">유형</th><th scope="col" class="n">준공</th><th scope="col" class="n">전용</th><th scope="col" class="n">대지</th><th scope="col" class="n">가격</th><th scope="col" class="n">대지 3.3㎡당</th></tr></thead><tbody>${S.slice(0, 15)
+          ? `<table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col">유형</th><th scope="col" class="n">준공</th><th scope="col" class="n">전용</th><th scope="col" class="n">대지</th><th scope="col" class="n">가격</th><th scope="col" class="n">대지 3.3㎡당</th></tr></thead><tbody>${S.slice(0, 40)
               .map((x) => `<tr><td>${ymd2(x[0])}</td><td>${TY[x[1]] || ""}${x[6] ? ` ${esc(String(x[6]))}층` : ""}${x[2] >= 2016 && x[4] > 0 && x[4] <= 15 ? ' <em class="flag" title="최근 준공·대지 15㎡ 이하: 지분 쪼개기 신축일 수 있어요">쪼개기 의심</em>' : rdY && x[2] > rdY ? ' <em class="flag" title="권리산정기준일 뒤 준공">기준일 뒤 준공</em>' : ""}</td><td class="n">${x[2] || "–"}</td><td class="n">${x[3]}㎡</td><td class="n">${x[4] || "–"}㎡</td><td class="n"><b>${eok(x[5])}</b></td><td class="n">${x[4] > 0 ? eok(Math.round((x[5] / x[4]) * 3.3058)) : "–"}</td></tr>`)
               .join("")}</tbody></table>`
           : '<p class="note">2024년 이후 구역 안 매매 신고가 없어요.</p>';
         $("jList").innerHTML = J.length
-          ? `<table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col" class="n">준공</th><th scope="col" class="n">임대 면적</th><th scope="col" class="n">보증금</th></tr></thead><tbody>${J.slice(0, 10).map((x) => `<tr><td>${ymd2(x[0])}</td><td class="n">${x[1] || "–"}</td><td class="n">${x[2]}㎡</td><td class="n"><b>${eok(x[3])}</b></td></tr>`).join("")}</tbody></table>`
+          ? `<table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col" class="n">준공</th><th scope="col" class="n">임대 면적</th><th scope="col" class="n">보증금</th></tr></thead><tbody>${J.slice(0, 20).map((x) => `<tr><td>${ymd2(x[0])}</td><td class="n">${x[1] || "–"}</td><td class="n">${x[2]}㎡</td><td class="n"><b>${eok(x[3])}</b></td></tr>`).join("")}</tbody></table>`
           : '<p class="note">2025년 이후 구역 안 빌라 전세 신고가 없어요.</p>';
+        moreRows($("txList"), 5); moreRows($("jList"), 5);
       });
     }
 
@@ -274,6 +286,7 @@
       const feed = `<p class="feedl"><a href="feed/gu/${encodeURIComponent(r.g)}.xml" target="_blank" rel="noopener">${esc(r.g)} 정비사업 새 소식 구독(RSS)</a> <span>단계 변경·새 인가가 생기면 RSS 앱으로 받아 볼 수 있어요 · <a href="feed/">전체 구 목록</a></span></p>`;
       const add = `${paceHTML(r)}${evHTML(r)}${feed}${rightsHTML(r)}`;
       if (lad) lad.insertAdjacentHTML("afterend", add); else p.insertAdjacentHTML("afterbegin", add);
+      const ev = p.querySelector(".evl"); if (ev) moreRows(ev, 3);
       const facts = p.querySelector("dl.facts");
       const sup = supplyHTML(r);
       if (sup) (facts || p.lastElementChild).insertAdjacentHTML("afterend", sup);
@@ -294,6 +307,7 @@
       const h = auctionHTML(r) + nearbyHTML(r);
       if (chk) chk.insertAdjacentHTML("beforebegin", h); else p.insertAdjacentHTML("beforeend", h);
       bindAuction();
+      const hj = p.querySelector(".hjl"); if (hj) moreRows(hj.parentElement, 3);
       p.querySelectorAll(".nc-go").forEach((b) => (b.onclick = () => { curTab = "money"; select(b.dataset.go, false, false, { scroll: !MQ_SHEET.matches }); }));
     };
     return { paneTx, rights, rightsHTML, pace, geoReady, loadTx };
