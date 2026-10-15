@@ -25,6 +25,10 @@ if [ -n "$SALE" ] && [ -n "$RENT" ]; then python3 tools/tx.py --sale $SALE --ren
 echo "== 6. 보강 · 빌드"
 python3 tools/enrich.py
 python3 tools/notice.py || echo "!! 고시·공고 피드 실패"
+# 상권분석(분기 자료): 매주 월요일 또는 파일이 없을 때
+if [ "$(date -u +%u)" = "1" ] || [ ! -f public/data/sang.json ]; then
+  (timeout 1500 node tools/fetch_sang.js pipeline/raw/sang && python3 tools/sang.py) || echo "!! 상권 갱신 실패 — 이전 자료 유지"
+fi
 python3 tools/build.py
 python3 tools/feeds.py || echo "!! 구별 RSS 실패"
 python3 tools/sitemap.py

@@ -15,7 +15,7 @@
     const MODES = [["cash", "내 현금"], ["stage", "단계"], ["kind", "사업 방식"], ["old", "노후도"], ["vol", "거래량"], ["yoy", "1년 가격 변화"]];
     if (!MODES.some(([k]) => k === colorBy)) colorBy = "cash";
     // 겹쳐 보는 레이어(호갱노노식): 지도 바탕 POI는 OpenFreeMap 벡터 타일, 나머지는 사이트 자료
-    const LAYERS = [["hj", "개발 호재", "신설 노선 역·복합개발"], ["hi", "신고가", "최근 3개월 구역 신고가"], ["edu", "학교", "초·중·고"], ["acad", "학원", "학원·교습소"], ["biz", "상권", "가게 밀집도"], ["med", "병원", "종합·대형병원"], ["mart", "대형마트", "이마트·홈플러스 등"]];
+    const LAYERS = [["hj", "개발 호재", "신설 노선 역·복합개발"], ["hi", "신고가", "최근 3개월 구역 신고가"], ["edu", "학교", "초·중·고"], ["acad", "학원가", "학원 점포가 많은 상권"], ["biz", "상권", "점포 수·분기 매출"], ["med", "병원", "종합·대형병원"], ["mart", "대형마트", "이마트·홈플러스 등"]];
     let lyr = (() => { try { return new Set(JSON.parse(store.get("emr.lyr", '["hj"]'))); } catch (e) { return new Set(["hj"]); } })();
     const RAMP = ["#C9D2E3", "#9EB0D3", "#6F89C0", "#3F5FA3", "#1F3A87"];
     const RAMP_D = ["#2B3546", "#33507E", "#4A6DAA", "#7392D0", "#A9C0EE"];
@@ -94,7 +94,7 @@
       if (!map || !geo) return;
       const dk = dark(), P = palette(), halo = dk ? "#11161D" : "#ffffff";
       const add = (id) => { if (!map.getSource(id)) map.addSource(id, { type: "geojson", data: FC([]) }); };
-      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi"].forEach(add);
+      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang"].forEach(add);
       const outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
       map.getSource("mask").setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [outer, ...geo.seoul] }, properties: {} });
       map.getSource("seoul").setData({ type: "Feature", geometry: { type: "MultiLineString", coordinates: geo.seoul }, properties: {} });
@@ -119,9 +119,12 @@
         { id: id + "-lab", type: "symbol", source: "omt", "source-layer": "poi", minzoom: Math.max(minz, 14), filter, layout: { visibility: "none", "text-field": nm, "text-font": ["Noto Sans Regular"], "text-size": 11, "text-offset": [0, 0.9], "text-anchor": "top", "text-optional": true, "text-max-width": 8 }, paint: { "text-color": color, "text-halo-color": halo, "text-halo-width": 1.6 } },
       ];
       const SHOPC = ["shop", "grocery", "restaurant", "cafe", "fast_food", "bar", "beer", "bakery", "clothing_store", "ice_cream", "alcohol_shop", "convenience", "hairdresser", "laundry", "shoe_shop", "jewelry", "optician", "furniture", "mobile_phone", "cosmetics", "florist", "butcher", "deli", "pharmacy"];
-      L({ id: "ly-biz", type: "heatmap", source: "omt", "source-layer": "poi", filter: ["in", ["get", "class"], ["literal", SHOPC]], layout: { visibility: "none" }, paint: { "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 11, 10, 15, 22, 17, 34], "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 11, 0.5, 15, 1], "heatmap-opacity": 0.6, "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(0,0,0,0)", 0.2, dk ? "rgba(214,160,60,.25)" : "rgba(245,190,90,.35)", 0.5, dk ? "rgba(230,140,40,.5)" : "rgba(236,150,40,.5)", 0.8, dk ? "rgba(240,110,50,.65)" : "rgba(220,100,30,.62)", 1, dk ? "rgba(250,90,60,.8)" : "rgba(200,60,30,.75)"] } });
+      const sz = (f, k) => ["interpolate", ["exponential", 1.6], ["zoom"], 10, ["*", ["sqrt", ["get", f]], k * 0.35], 13, ["*", ["sqrt", ["get", f]], k], 16, ["*", ["sqrt", ["get", f]], k * 3.2]];
+      L({ id: "ly-biz", type: "circle", source: "sang", filter: [">=", ["get", "st"], 30], layout: { visibility: "none" }, paint: { "circle-radius": sz("st", 1.05), "circle-color": dk ? "rgba(236,150,60,.28)" : "rgba(232,140,40,.22)", "circle-stroke-color": dk ? "rgba(236,150,60,.7)" : "rgba(200,110,20,.6)", "circle-stroke-width": 1 } });
+      L({ id: "ly-biz-lab", type: "symbol", source: "sang", minzoom: 13, filter: [">=", ["get", "st"], 80], layout: { visibility: "none", "text-field": ["format", ["get", "n"], {}, "\n", {}, ["concat", "점포 ", ["to-string", ["get", "st"]], ["case", [">", ["get", "sa"], 0], ["concat", " · 매출 ", ["to-string", ["get", "sa"]], "억"], ""]], { "font-scale": 0.85 }], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-optional": true, "text-max-width": 9 }, paint: { "text-color": dk ? "#F2B37A" : "#9A4E0C", "text-halo-color": halo, "text-halo-width": 1.8 } });
+      L({ id: "ly-acad", type: "circle", source: "sang", filter: [">=", ["get", "ac"], 15], layout: { visibility: "none" }, paint: { "circle-radius": sz("ac", 1.9), "circle-color": dk ? "rgba(190,150,240,.3)" : "rgba(122,63,184,.2)", "circle-stroke-color": dk ? "#C9A0F0" : "#7A3FB8", "circle-stroke-width": 1.2 } });
+      L({ id: "ly-acad-lab", type: "symbol", source: "sang", minzoom: 11.5, filter: [">=", ["get", "ac"], 40], layout: { visibility: "none", "text-field": ["concat", ["get", "n"], "\n학원 ", ["to-string", ["get", "ac"]]], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-optional": true, "text-max-width": 9 }, paint: { "text-color": dk ? "#D8B8F6" : "#5E2A96", "text-halo-color": halo, "text-halo-width": 2 } });
       poiTxt("ly-edu", ["all", ["in", ["get", "class"], ["literal", ["school"]]], ["any", ["in", "초등학교", nm], ["in", "중학교", nm], ["in", "고등학교", nm]]], dk ? "#7FB2E8" : "#1D5FA8", 12).forEach(L);
-      poiTxt("ly-acad", ["any", ["==", ["get", "subclass"], "prep_school"], ["in", "학원", nm], ["in", "교습소", nm]], dk ? "#C9A0F0" : "#7A3FB8", 12).forEach(L);
       poiTxt("ly-med", ["all", ["==", ["get", "class"], "hospital"], ["any", ["in", "병원", nm], ["in", "의료원", nm], ["in", "의료센터", nm]]], dk ? "#F08A8A" : "#C2272D", 11).forEach(L);
       poiTxt("ly-mart", ["all", ["in", ["get", "subclass"], ["literal", ["supermarket", "department_store", "mall", "wholesale"]]], ["any", ["in", "이마트", nm], ["in", "홈플러스", nm], ["in", "롯데마트", nm], ["in", "코스트코", nm], ["in", "트레이더스", nm], ["in", "백화점", nm], ["in", "하나로", nm]]], dk ? "#6FCF9A" : "#13744A", 11).forEach(L);
       L({ id: "ly-hj", type: "circle", source: "hj", layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4, 15, 8], "circle-color": halo, "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 15, 4] } });
@@ -145,10 +148,11 @@
       const H = [];
       R.forEach((r) => { const t = r.tx && r.tx.hi, z = geo && geo.z[r.id]; if (!t || r.dn) return; const c = z ? z.l : r.ll ? [r.ll[1], r.ll[0]] : null; if (c) H.push({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: { t: `▲ 신고가 ${t[1].slice(2, 4)}.${t[1].slice(4, 6)}` } }); });
       map.getSource("hi").setData(FC(H));
+      if (lyr.has("biz") || lyr.has("acad")) ZXS.load().then((S) => { if (!S || !map.getSource("sang")) return; map.getSource("sang").setData(FC(S.items.map((x) => ({ type: "Feature", geometry: { type: "Point", coordinates: [x[0], x[1]] }, properties: { n: x[2], st: x[4], ac: x[5], sa: x[6] } })))); const q = $("lmSangQ"); if (q) q.textContent = `(${S.q})`; });
     }
     function layers() {
       if (!map || !ready) return;
-      const ids = { hj: ["ly-hj", "ly-hj-lab"], hi: ["ly-hi"], edu: ["ly-edu", "ly-edu-lab"], acad: ["ly-acad", "ly-acad-lab"], biz: ["ly-biz"], med: ["ly-med", "ly-med-lab"], mart: ["ly-mart", "ly-mart-lab"] };
+      const ids = { hj: ["ly-hj", "ly-hj-lab"], hi: ["ly-hi"], edu: ["ly-edu", "ly-edu-lab"], acad: ["ly-acad", "ly-acad-lab"], biz: ["ly-biz", "ly-biz-lab"], med: ["ly-med", "ly-med-lab"], mart: ["ly-mart", "ly-mart-lab"] };
       Object.entries(ids).forEach(([k, ls]) => ls.forEach((l) => map.getLayer(l) && map.setLayoutProperty(l, "visibility", lyr.has(k) ? "visible" : "none")));
     }
     function labelOf(r) {
@@ -217,7 +221,7 @@
       if (!box || $("lmap")) return;
       const d = document.createElement("div");
       d.id = "lmap"; d.className = "lmap"; d.hidden = true;
-      d.innerHTML = `<div class="lm-ctl" role="group" aria-label="지도 보기"><label class="lm-sel"><span>색</span><select id="lmColor" aria-label="구역 색 기준">${MODES.map(([k, t]) => `<option value="${k}"${colorBy === k ? " selected" : ""}>${t}</option>`).join("")}</select></label><button type="button" class="lm-ly" aria-expanded="false" aria-controls="lmLayers">레이어${lyr.size ? ` <b>${lyr.size}</b>` : ""}</button><button type="button" class="lm-lg" aria-expanded="false" aria-controls="lmLegend">범례</button></div><div class="lm-layers" id="lmLayers" hidden><p>겹쳐 보기</p>${LAYERS.map(([k, t, sub]) => `<label><input type="checkbox" value="${k}"${lyr.has(k) ? " checked" : ""}><span>${t}<small>${sub}</small></span></label>`).join("")}<p class="lm-ln">학교·학원·상권·병원·마트는 OpenStreetMap 기준이라 빠진 곳이 있을 수 있어요. 확대할수록 많이 보여요.</p></div><div class="lm-legend" id="lmLegend" hidden></div>`;
+      d.innerHTML = `<div class="lm-ctl" role="group" aria-label="지도 보기"><label class="lm-sel"><span>색</span><select id="lmColor" aria-label="구역 색 기준">${MODES.map(([k, t]) => `<option value="${k}"${colorBy === k ? " selected" : ""}>${t}</option>`).join("")}</select></label><button type="button" class="lm-ly" aria-expanded="false" aria-controls="lmLayers">레이어${lyr.size ? ` <b>${lyr.size}</b>` : ""}</button><button type="button" class="lm-lg" aria-expanded="false" aria-controls="lmLegend">범례</button></div><div class="lm-layers" id="lmLayers" hidden><p>겹쳐 보기</p>${LAYERS.map(([k, t, sub]) => `<label><input type="checkbox" value="${k}"${lyr.has(k) ? " checked" : ""}><span>${t}<small>${sub}</small></span></label>`).join("")}<p class="lm-ln">상권·학원가: 서울시 상권분석서비스 <span id="lmSangQ"></span> 점포 수·추정매출. 학교·병원·마트: OpenStreetMap 기준이라 빠진 곳이 있을 수 있어요.</p></div><div class="lm-legend" id="lmLegend" hidden></div>`;
       d.querySelector(".lm-lg").onclick = (e) => { const lg = $("lmLegend"), on = lg.hidden; lg.hidden = !on; e.currentTarget.setAttribute("aria-expanded", String(on)); if (on) { $("lmLayers").hidden = true; d.querySelector(".lm-ly").setAttribute("aria-expanded", "false"); } };
       box.appendChild(d);
       d.querySelector("#lmColor").addEventListener("change", (e) => {
@@ -236,6 +240,7 @@
         if (c.checked) lyr.add(c.value); else lyr.delete(c.value);
         store.set("emr.lyr", JSON.stringify([...lyr]));
         d.querySelector(".lm-ly").innerHTML = `레이어${lyr.size ? ` <b>${lyr.size}</b>` : ""}`;
+        layerData();
         layers();
       });
       const bar = $("mapBar");
