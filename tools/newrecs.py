@@ -50,7 +50,7 @@ for cafe, o in C.items():
     s = SR2S[row['sr']]
     if s >= 9: stat['done_skip'] += 1; continue
     rid = 'c' + re.sub(r'[^0-9A-Za-z_]', '', cafe)[:24]
-    rec = {'id': rid, 'n': re.sub(r'^\d+\.\s*', '', row['n']), 'g': row['g'], 'j': row['j'], 'k': KIND[row['k']], 'sr': row['sr'], 's': s, 'src': 'official', 'new': 1}
+    rec = {'id': rid, 'n': re.sub(r'^\d+\.\s*|^\[임시\]\s*|^\(임시\)\s*|^\(가칭\)\s*', '', row['n']), 'g': row['g'], 'j': row['j'], 'k': KIND[row['k']], 'sr': row['sr'], 's': s, 'src': 'official', 'new': 1}
     pnu = pnu_of(row['g'], row['j'])
     ll = geocode(pnu) if pnu else None
     if ll: rec['ll'] = ll

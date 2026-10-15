@@ -38,7 +38,7 @@ for r in R:
     ok_ev = ns is not None and (ns - r['s'] == 1 or (KEYS.get(ns) and (c.get('dt') or {}).get(KEYS[ns])))
     if ns is not None and ns > r['s'] and not ok_ev: r['sPend'] = row['sr']; stat['stage_pending'] += 1
     if ok_ev and '(' not in r['sr'] and not r.get('chk') and ns > r['s']:
-        stage_changes.append([r['id'], r['sr'], row['sr']]); r['sr'] = row['sr']; r['s'] = ns; r['sUp'] = 1
+        stage_changes.append([r['id'], r['sr'], row['sr']]); r['sr'] = row['sr']; r['s'] = ns; r['sUp'] = 1; r['eta'] = {'na': '단계 갱신 반영 중'}   # 예전 단계 기준 준공 확률은 버린다(다음 월간 재계산 때 채움)
         stat['stage_up'] += 1
 json.dump(PREM, open(os.path.join(ROOT, 'public/premium.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 if stage_changes: print('단계 변경', stage_changes[:20])
