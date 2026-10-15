@@ -32,45 +32,41 @@ const HM = (() => {
     ["#rules .rules-col", ":scope > article", 99, 2],
     [".rd-card ol, .rd-card ul", ":scope > li", 99, 3],
   ];
+  // 버튼은 상자마다 하나만 만들어 두고 글자·aria만 바꾼다(포커스 유지). 숨김은 속성 변경이라 관찰에 걸리지 않아 루프가 없다.
   function clamp(box, sel, n, nm) {
     const N = (MOB() ? nm : n) || 5;
-    if (box.__hmBusy) return;
-    box.__hmBusy = 1;
-    if (box.__hmBtn) box.__hmBtn.remove(), (box.__hmBtn = null);
-    const rows = [...box.querySelectorAll(sel)].filter((x) => !x.classList.contains("hm-more") && !x.closest(".hm-more"));
-    const open = box.__hmOpen;
+    const rows = [...box.querySelectorAll(sel)].filter((x) => !x.closest(".hm-more"));
+    const open = !!box.__hmOpen;
     rows.forEach((x, i) => (x.hidden = !open && i >= N));
-    if (rows.length > N) {
-      const b = document.createElement("button");
+    let b = box.__hmBtn;
+    if (rows.length <= N) { if (b) b.hidden = true; return; }
+    if (!b) {
+      b = box.__hmBtn = document.createElement("button");
       b.type = "button";
       b.className = "btn secondary sm more-b hm-more";
-      b.textContent = open ? "접기" : `더보기 (${rows.length - N}건)`;
-      b.setAttribute("aria-expanded", String(!!open));
       b.onclick = () => {
         box.__hmOpen = !box.__hmOpen;
         clamp(box, sel, n, nm);
-        if (!box.__hmOpen) {
-          const r = box.getBoundingClientRect();
-          if (r.top < 0) window.scrollBy(0, r.top - 120);
-        }
+        if (!box.__hmOpen) { const r = box.getBoundingClientRect(); if (r.top < 0) window.scrollBy(0, r.top - 120); }
       };
-      const host = /^(TABLE|UL|OL)$/.test(box.tagName) ? box.parentElement : box;
-      host.appendChild(b);
-      box.__hmBtn = b;
     }
-    requestAnimationFrame(() => (box.__hmBusy = 0));
+    b.hidden = false;
+    b.textContent = open ? "접기" : `더보기 (${rows.length - N}건)`;
+    b.setAttribute("aria-expanded", String(open));
+    const host = /^(TABLE|UL|OL)$/.test(box.tagName) ? box.parentElement : box;
+    if (b.parentElement !== host || b.nextSibling) host.appendChild(b);
   }
   function bind(box, sel, n, nm) {
     if (box.__hmOn) return;
     box.__hmOn = 1;
     let t;
-    new MutationObserver((ms) => {
-      if (box.__hmBusy) return;
-      if (ms.every((m) => [...m.addedNodes, ...m.removedNodes].every((x) => x.classList && x.classList.contains("hm-more")))) return;
+    const mo = new MutationObserver((ms) => {
+      if (ms.every((m) => [...m.addedNodes, ...m.removedNodes].every((x) => x === box.__hmBtn))) return;
       box.__hmOpen = 0;
       clearTimeout(t);
-      t = setTimeout(() => clamp(box, sel, n, nm), 30);
-    }).observe(box, { childList: true, subtree: true });
+      t = setTimeout(() => { clamp(box, sel, n, nm); mo.takeRecords(); }, 30);
+    });
+    mo.observe(box, { childList: true, subtree: true });
     clamp(box, sel, n, nm);
   }
   function init() {
@@ -93,3 +89,36 @@ document.addEventListener("click", (e) => {
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   window.scrollTo({ top: 0, behavior: "auto" });
 }, true);
+/* 섹션 이동(탭바·메뉴·다음 단계)도 방문 기록에 남겨, 뒤로가기가 사이트 밖으로 나가지 않고 이전 위치로 돌아오게 */
+(() => {
+  const SEL = '#tabbar a[data-sec], [data-menu], [data-jump2], .next-steps a[href^="#"]';
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest(SEL);
+    if (!a || e.metaKey || e.ctrlKey) return;
+    if (document.getElementById("report").classList.contains("sheet")) return;
+    const id = a.dataset.sec || a.dataset.menu || a.dataset.jump2 || (a.getAttribute("href") || "").slice(1);
+    if (!id || !document.getElementById(id)) return;
+    try {
+      history.replaceState({ ...(history.state || {}), emrY: Math.round(scrollY) }, "");
+      history.pushState({ emrSec: id }, "", location.pathname + location.search);
+    } catch (err) {}
+  }, true);
+  addEventListener("popstate", (e) => {
+    const st = e.state || {};
+    if (st.emrY != null) { JUMP_GEN++; requestAnimationFrame(() => window.scrollTo({ top: st.emrY, behavior: "auto" })); }
+    else if (st.emrSec && document.getElementById(st.emrSec)) requestAnimationFrame(() => jumpTo(st.emrSec));
+  });
+})();
+/* 리포트 탭: 고른 탭이 가로로 보이게 하고, 시트에서 탭 줄이 고정된 상태면 내용 맨 위로 */
+{
+  const _st = setTab;
+  setTab = function (k) {
+    _st(k);
+    const rp = document.getElementById("report"), b = rp && rp.querySelector(`[role=tab][data-tab="${k}"]`);
+    if (b) { const t = b.parentElement; t.scrollLeft = Math.max(0, b.offsetLeft - (t.clientWidth - b.offsetWidth) / 2); }
+    if (rp && rp.classList.contains("sheet")) {
+      const tabs = rp.querySelector(".tabs"), pane = document.getElementById("pane");
+      if (tabs && pane && tabs.getBoundingClientRect().top <= 60) rp.scrollTop += pane.getBoundingClientRect().top - tabs.getBoundingClientRect().bottom - 8;
+    }
+  };
+}

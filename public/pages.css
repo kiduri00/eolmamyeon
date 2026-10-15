@@ -415,3 +415,4 @@ dl.gl div{margin:3px 0}
 .mean{border-left:0!important;padding-left:14px}
 .zc-bw b{display:inline-block;padding:2px 9px;border-radius:999px;background:var(--brand-soft);color:var(--text-1)}
 .zc-bw.no b{background:var(--risk-soft);color:var(--risk-ink)}
+.shot-txt{margin:12px 0;padding:10px 12px;border-left:3px solid var(--brand);background:color-mix(in srgb,var(--brand) 6%,transparent);font-size:14px;line-height:1.6}.shot-txt b{margin-right:6px}

@@ -2,8 +2,8 @@
 const BD = (() => {
   const ymd = (d) => `${d.slice(2, 4)}.${d.slice(4, 6)}.${d.slice(6, 8)}`;
   const eok = (man) => (man >= 10000 ? `${(man / 10000).toFixed(man >= 100000 ? 0 : 1)}억` : `${fmt(man)}만`);
-  const go = (id) => `<button type="button" class="txr-go" data-go="${esc(id)}">${esc(byId[id].n)}</button>`;
-  const okC = (r) => { try { const x = investC(r); return x && x.ok ? `<em class="txr-ok">내 현금 가능</em>` : ""; } catch (e) { return ""; } };
+  const go = (id) => `<button type="button" class="txr-go" data-txgo="${esc(id)}">${esc(byId[id].n)}</button>`;
+  const okC = (r) => { try { return dotState(r) === "y" ? `<em class="txr-ok">${gapMode() ? "전세 끼고 내 현금 가능" : "내 현금 가능"}</em>` : ""; } catch (e) { return ""; } };
   const live = () => R.filter((r) => !r.dn && r.s < 9 && r.tx);
   let K = "n3";
   function rank() {
@@ -12,7 +12,7 @@ const BD = (() => {
     let L = [], head = "", row;
     if (K === "n3") {
       L = live().filter((r) => r.tx.n3 > 0).sort((a, b) => b.tx.n3 - a.tx.n3 || (b.tx.n12 || 0) - (a.tx.n12 || 0));
-      note.textContent = "최근 3개월(신고일 기준이 아니라 계약일 기준) 구역 안 매매 건수 · 거래가 몰리면 손바뀜이 활발하다는 뜻이에요.";
+      note.textContent = "계약일 기준 최근 3개월 구역 안 연립·다세대 매매 건수 · 거래가 몰리면 손바뀜이 활발하다는 뜻이에요.";
       head = "<th class=n>3개월</th><th class=n>12개월</th><th class=n>빌라 가운데 값</th>";
       row = (r) => `<td class=n><b>${r.tx.n3}건</b></td><td class=n>${r.tx.n12 || 0}건</td><td class=n>${r.tx.med ? eok(r.tx.med) : "–"}</td>`;
     } else if (K === "yoy") {
@@ -33,13 +33,13 @@ const BD = (() => {
   }
   const evT = (t) => t.replace(/^\[([^\]]*)\]\s*(.*)$/, (m, a, b) => (b ? `${a} · ${b}` : a));
   let NT = null, C = "";
-  const CL = { ok: "인가·고시", con: "시공자", req: "신청", etc: "기타" };
+  const CL = { ok: "인가·고시", chg: "변경 인가", con: "시공자", req: "신청·공람", etc: "기타" };
   function notice() {
     const out = document.getElementById("ntcOut");
     if (!out || !NT) return;
     const L = NT.items.filter((x) => byId[x[1]] && (C === "fav" ? isFav(x[1]) : C ? x[4] === C : x[4] !== "etc"));
     out.innerHTML = L.length
-      ? `<ul class="ntl">${L.slice(0, 60).map(([d, id, sec, t, c]) => `<li class="c-${c}"><span class="nt-d mono">${d.slice(2).replaceAll("-", ".")}</span><span class="nt-b">${go(id)}<small>${esc(byId[id].g)}</small><span class="nt-t"><em class="nt-c">${CL[c]}</em><b>${esc(sec)}</b> ${esc(evT(t))}</span></span></li>`).join("")}</ul><p class="t-note">출처: 서울시 정비사업 정보몽땅 사업장별 추진경과 · ${esc(NT.asOf.replaceAll("-", "."))} 기준 · '전체'는 계약 변경 같은 기타 기록을 빼고 보여 줘요.</p>`
+      ? `<ul class="ntl">${L.slice(0, 60).map(([d, id, sec, t, c]) => `<li class="c-${c}"><span class="nt-d mono">${d.replaceAll("-", ".")}</span><span class="nt-b">${go(id)}<small>${esc(byId[id].g)}</small><span class="nt-t"><em class="nt-c">${CL[c]}</em><b>${esc(sec)}</b> ${esc(evT(t))}</span></span></li>`).join("")}</ul><p class="t-note">출처: 서울시 정비사업 정보몽땅 사업장별 추진경과 · ${esc(NT.asOf.replaceAll("-", "."))} 기준 · '전체'는 법인등기·용역 계약 변경 같은 기타 기록을 빼고 보여 줘요. '변경 인가'는 이미 받은 인가의 내용을 바꾼 것이라 단계가 올라간 게 아니에요.</p>`
       : `<p class="mut">${C === "fav" ? "찜한 구역의 최근 90일 기록이 없어요. 구역 카드의 ☆로 찜해 보세요." : "최근 90일 기록이 없어요."}</p>`;
   }
   function init() {
@@ -54,8 +54,8 @@ const BD = (() => {
       C = b.dataset.c; f.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); notice();
     });
     document.addEventListener("click", (e) => {
-      const b = e.target.closest && e.target.closest("[data-go]"); if (!b) return;
-      curTab = "money"; select(b.dataset.go, true, false, { scroll: true });
+      const b = e.target.closest && e.target.closest("[data-txgo]"); if (!b) return;
+      curTab = "money"; select(b.dataset.txgo, true, false, { scroll: true });
     });
     const once = (id, fn) => {
       const el = document.getElementById(id); if (!el) return;
@@ -66,7 +66,10 @@ const BD = (() => {
     once("txrTop", rank);
     once("ntcTop", () => fetch("data/notice.json").then((r) => r.json()).then((j) => { NT = j; notice(); }).catch(() => { const o = document.getElementById("ntcOut"); if (o) o.innerHTML = '<p class="mut">소식을 불러오지 못했어요.</p>'; }));
     // 계산기 현금이 바뀌면 '내 현금 가능' 표시 갱신
-    const pc = document.getElementById("pCash"); if (pc) pc.addEventListener("change", () => document.getElementById("txrOut").innerHTML && rank());
+    {
+      const _plan = plan;
+      plan = function () { const r = _plan.apply(this, arguments); try { if (document.getElementById("txrOut").innerHTML) rank(); } catch (e) {} return r; };
+    }
   }
   return { init };
 })();

@@ -2154,7 +2154,7 @@
     return `<p class="cstrip ${left >= 0 ? "ok" : "short"}"><span>${lab}${estN}</span><b>${e2(need)}억</b><small>${left >= 0 ? `내 현금 ${e2(CASH)}억 중 ${e2(left) === "0" ? "남는 돈 없음" : e2(left) + "억 남음"}` : `내 현금 ${e2(CASH)}억보다 ${e2(-left)}억 더 필요`}</small></p>`;
   }
   const HJ_R = 1500;
-  const HJ_BADGE = { 개통: "b-ok", "공사 중": "b-go", 확정: "b-fix", 계획: "b-plan" };
+  const HJ_BADGE = { 개통: "b-ok", "공사 중": "b-go", 확정: "b-fix", "예타 통과": "b-fix", "기본계획 수립": "b-fix", 계획: "b-plan" };
   function nearHojae(r) {
     if (!r || !r.ll) return [];
     if (r._hj) return r._hj;
@@ -4391,7 +4391,7 @@
     if (r.src === "moa" || r.parent)
       body += `<p class="note"><b>모아타운 토지거래허가</b> 토지거래허가로 지정된 모아타운이라도 대상은 지목 '도로'인 토지뿐이라 빌라·단독 매수는 허가·실거주 의무가 없어요. 이 관리지역의 지정 여부는 구청에서 확인하세요.</p>`;
     if (!isRb && !isMoaT) {
-      body += `<div class="sect"><h3>재개발 구역지정 요건 체크 <small>서울 도시정비조례 제6조</small></h3>${r.s >= 2 ? '<p class="note">이미 정비구역으로 지정된 곳이라 이 체크는 참고용이에요. 공식 구역 면적은 지정 고시문으로 확인하세요.</p>' : ""}\n      <div class="f"><label for="q1">노후·불량 건축물 비율<small>동수 기준 · 필수 60% 이상</small></label><div class="inp"><input id="q1" inputmode="decimal" placeholder="예: 72"><span>%</span></div></div>\n      <div class="f"><label for="q2">구역 면적<small>필수 1만㎡ 이상</small></label><div class="inp"><input id="q2" inputmode="decimal" value="${r.sm?.area && !areaSuspect(r) ? Math.round(r.sm.area) : ""}" placeholder="${areaSuspect(r) ? "면적 확인 중" : ""}"><span>㎡</span></div></div>\n      <div class="f"><label for="q3">과소필지(90㎡ 미만) 비율<small>선택 40% 이상</small></label><div class="inp"><input id="q3" inputmode="decimal"><span>%</span></div></div>\n      <div class="f"><label for="q4">주택접도율<small>선택 40% 이하 · 6m 도로 기준</small></label><div class="inp"><input id="q4" inputmode="decimal"><span>%</span></div></div>\n      <div class="f"><label for="q5">호수밀도<small>선택 ha당 60동 이상</small></label><div class="inp"><input id="q5" inputmode="decimal"><span>동/ha</span></div></div>\n      <div class="f"><label for="q6">노후 건축물 연면적 비율<small>선택 60% 이상 (시행령)</small></label><div class="inp"><input id="q6" inputmode="decimal"><span>%</span></div></div>\n      <ul class="checks" id="qOut" aria-live="polite"></ul></div>`;
+      body += `<div class="sect"><h3>재개발 구역지정 요건 체크 <small>서울 도시정비조례 제6조</small></h3>${r.s >= 2 ? '<p class="note">이미 정비구역으로 지정된 곳이라 이 체크는 참고용이에요. 공식 구역 면적은 지정 고시문으로 확인하세요.</p>' : ""}\n      <div class="f"><label for="q1">노후·불량 건축물 비율<small>동수 기준 · 필수 60% 이상</small></label><div class="inp"><input id="q1" inputmode="decimal" placeholder="예: 72" value="${r.tx && r.tx.old && r.s < 7 ? r.tx.old.pol : ""}"><span>%</span></div></div>\n      <div class="f"><label for="q2">구역 면적<small>필수 1만㎡ 이상</small></label><div class="inp"><input id="q2" inputmode="decimal" value="${r.sm?.area && !areaSuspect(r) ? Math.round(r.sm.area) : ""}" placeholder="${areaSuspect(r) ? "면적 확인 중" : ""}"><span>㎡</span></div></div>\n      <div class="f"><label for="q3">과소필지(90㎡ 미만) 비율<small>선택 40% 이상</small></label><div class="inp"><input id="q3" inputmode="decimal"><span>%</span></div></div>\n      <div class="f"><label for="q4">주택접도율<small>선택 40% 이하 · 6m 도로 기준</small></label><div class="inp"><input id="q4" inputmode="decimal"><span>%</span></div></div>\n      <div class="f"><label for="q5">호수밀도<small>선택 ha당 60동 이상</small></label><div class="inp"><input id="q5" inputmode="decimal"><span>동/ha</span></div></div>\n      <div class="f"><label for="q6">노후 건축물 연면적 비율<small>선택 60% 이상 (시행령)</small></label><div class="inp"><input id="q6" inputmode="decimal"><span>%</span></div></div>\n      <ul class="checks" id="qOut" aria-live="polite"></ul></div>`;
     }
     const rule = isRb ? ruleById("rebuild-diagnosis") : isMoaT ? ruleById("moa-town") : ruleById("redev-zone-seoul");
     const cons = ruleById("consent-committee-union");
@@ -6222,7 +6222,7 @@
         ? '<span class="zb warn" title="공공재개발 후보지 상당수가 토지거래허가구역으로 지정돼 왔어요(2026년 1월까지 확인). 지정돼 있으면 실거주 의무로 전세 끼고 사기가 어려워요. 계약 전 구청에서 지금 지정 여부를 확인하세요.">공공재개발: 토지거래허가 여부 확인</span> '
         : "";
     const rent = /장기전세|공공임대/.test(r.n)
-      ? '<span class="zb" title="구역 이름의 장기전세·공공임대는 사업 방식 이름이에요. 조합원(입주권 보유자)은 일반 아파트를 받아요.">장기전세 = 사업 방식 이름</span> '
+      ? '<span class="zb" title="구역 이름의 장기전세·공공임대는 사업 방식 이름이에요. 조합원(입주권 보유자)은 일반 아파트를 받아요.">조합원은 일반 아파트</span> '
       : "";
     const early =
       p != null && p < 0.2
@@ -7535,7 +7535,7 @@
       }
     }
     const d7 = $("d7");
-    if (d7) d7.textContent = `+${fmt(HOOK[2].size - HOOK[1].size)}곳`;
+    if (d7) d7.textContent = `1억보다 +${fmt(HOOK[2].size - HOOK[1].size)}곳`;
     const big = document.querySelector("#inStats .ist.big b");
     if (big) {
       const n = +big.dataset.n || POP.length;

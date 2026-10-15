@@ -25,7 +25,7 @@ for ix, x in rows('area.csv'):
     c = x[ix['상권_코드']]
     lng, lat = T.transform(float(x[ix['엑스좌표_값']]), float(x[ix['와이좌표_값']]))
     area = float(x[ix['영역_면적']] or 0)
-    out.append([round(lng, 5), round(lat, 5), x[ix['상권_코드_명']], K.get(x[ix['상권_구분_코드']], 'a'), st[c], ac[c], round(sal[c] / 1e8, 1), x[ix['자치구_코드_명']], round(math.sqrt(area / math.pi)), x[ix['행정동_코드_명']]])
+    out.append([round(lng, 5), round(lat, 5), x[ix['상권_코드_명']], K.get(x[ix['상권_구분_코드']], 'a'), st[c], ac[c], round(sal[c] / 1e8, 1), x[ix['자치구_코드_명']], round(math.sqrt(area / math.pi)), x[ix['행정동_코드_명']].replace('?', '·')])
 qq = f"{q[:4]}년 {q[4:]}분기" if q else ''
 json.dump({'q': qq, 'f': ['lng', 'lat', 'n', 'k', 'stores', 'acad', 'salesEok', 'gu', 'r', 'dong'], 'items': out}, open(os.path.join(ROOT, 'public/data/sang.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 top = sorted(out, key=lambda x: -x[5])[:8]

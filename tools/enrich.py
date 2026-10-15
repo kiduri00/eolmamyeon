@@ -40,6 +40,23 @@ for r in R:
     if ok_ev and '(' not in r['sr'] and not r.get('chk') and ns > r['s']:
         stage_changes.append([r['id'], r['sr'], row['sr']]); r['sr'] = row['sr']; r['s'] = ns; r['sUp'] = 1; r['eta'] = {'na': '단계 갱신 반영 중'}   # 예전 단계 기준 준공 확률은 버린다(다음 월간 재계산 때 채움)
         stat['stage_up'] += 1
+# 날짜 정리: 오늘 뒤 날짜(원자료 오기, 예: 2033년)는 버리고, 단계 순서가 거꾸로 된 날짜(준공이 착공보다 앞섬 등)는 뒤 단계 쪽을 버린다
+import datetime as _d0
+_today = _d0.date.today().isoformat()
+ORDER = ['구역지정', '추진위', '조합설립', '시행자지정', '사업시행', '관리처분', '착공', '준공']
+for pid, pm in PREM.items():
+    if not isinstance(pm, dict): continue
+    if pm.get('ev'):
+        n0 = len(pm['ev']); pm['ev'] = [e for e in pm['ev'] if e and e[0] <= _today]; stat['ev_future_drop'] += n0 - len(pm['ev'])
+    dt = pm.get('dt')
+    if not isinstance(dt, dict): continue
+    for k in [k for k, v in dt.items() if isinstance(v, str) and v[:10] > _today]: dt.pop(k); stat['dt_future_drop'] += 1
+    last = ''
+    for k in ORDER:
+        v = dt.get(k)
+        if not isinstance(v, str): continue
+        if last and v[:10] < last and k in ('착공', '준공', '관리처분', '사업시행'): dt.pop(k); stat['dt_order_drop'] += 1; continue
+        if k != '시행자지정': last = max(last, v[:10])
 json.dump(PREM, open(os.path.join(ROOT, 'public/premium.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 if stage_changes: print('단계 변경', stage_changes[:20])
 
@@ -130,9 +147,13 @@ for r in R:
         r['tx'] = {k: v for k, v in t.items() if v not in (None, [], {}) and k not in ('q', 'age', 'agn', 'pc')}   # 상세는 data/tx.json에서 지연 로딩
     if not act(r) or r.get('src') == 'moa': continue
     mk = r.setdefault('mk', {}); en = mk.get('entry')
-    villa_kind = r['k'] not in ('재건축', '소규모재건축', '도시정비형 재개발')
-    # (a) 구역 안 실거래가 충분하면 반경 추정보다 우선
-    if t and t.get('no', 0) >= 5 and villa_kind:
+    villa_kind = r['k'] not in ('재건축', '소규모재건축')
+    # (0) 예전 반경 추정값 점검: 범위가 터무니없거나(p75/p25 3배 초과) 원룸 기준(전용 20㎡ 미만), 신축 단지(2005년 이후 준공)·먼 이름 매칭이면 버리고 다시 채운다
+    if en and ((en.get('p25') and en.get('p75') and en['p75'] / max(en['p25'], 1) > 3) or (en.get('area_med') or 99) < 20
+               or (en.get('src') == 'complex' and (en.get('yr') or 0) >= 2005) or (en.get('match') == 'name' and (en.get('radius') or 0) > 50)):
+        mk.pop('entry', None); en = None; stat['entry_drop_bad'] += 1
+    # (a) 구역 안 실거래가 충분하면 반경 추정보다 우선. 3~4건이라도 반경 추정과 25% 넘게 다르면 구역 안 값을 쓴다
+    if t and villa_kind and (t.get('no', 0) >= 5 or (t.get('no', 0) >= 3 and en and en.get('med') and t.get('med') and abs(en['med'] / t['med'] - 1) > 0.25)):
         mk['entry'] = {'src': 'villa', 'scope': '구역 경계 안 2015년 이전 준공 빌라', 'n': t['no'], 'med': t['med'], 'p25': t.get('p25') or t['med'], 'p75': t.get('p75') or t['med'],
                        'radius': 0, 'area_med': t['ar'], 'last': t['last'][2:4] + '.' + t['last'][4:6] + '.' + t['last'][6:8], 'fill': 'zone',
                        **({'prev': {k: en[k] for k in ('n', 'med', 'radius') if k in en}} if en else {})}
@@ -150,11 +171,12 @@ for r in R:
         if not a and PARC.get(r['id'], {}).get('p'):   # 경계 안 필지 중 아파트 거래가 있는 지번
             c = [APT[p[0]] for p in PARC[r['id']]['p'] if p[0] in APT]
             a = max(c, key=lambda v: v['n']) if c else None
+        if a and (a.get('yr') or 0) >= 2005: a = None; stat['apt_new_reject'] += 1   # 재건축 대상이 아닌 신축 단지
         if not a and code:   # 같은 법정동에서 단지 이름이 겹치는 곳
             core = re.sub(r'(아파트|주택|재건축|정비|사업|조합|소규모|추진위원회|위원회|\s|\(.*?\))', '', r['n'])
             core = re.sub(r'^[가-힣]{1,3}동(?=[가-힣])', '', core) if len(core) > 4 else core
             nm = lambda v: re.sub(r'(아파트|\s|\(.*?\))', '', v['name'])
-            c = [v for k, v in APT.items() if k[:10] == code and core and (core in nm(v) or (len(nm(v)) >= 3 and nm(v) in core))]
+            c = [v for k, v in APT.items() if k[:10] == code and core and (v.get('yr') or 0) < 2005 and (core in nm(v) or (len(nm(v)) >= 3 and nm(v) in core))]
             a = max(c, key=lambda v: v['n']) if c else None
         if not a and t and t.get('n', 0) >= 3 and SALES_OK:   # 연립 재건축: 구역 안 매매
             a = {'n': t['n'], 'p25': t.get('p25') or t.get('med'), 'med': t.get('med'), 'p75': t.get('p75') or t.get('med'), 'area_med': t.get('ar'), 'name': '구역 안 연립·다세대', 'yr': None, 'last': t['last'], 'by_area': {}} if t.get('med') else None

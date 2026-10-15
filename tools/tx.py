@@ -63,7 +63,7 @@ for fn in A.sale:
             price = int(float(x[ix['물건금액만원']] if '물건금액만원' in ix else x[ix['물건금액']]))
             area = float(x[ix['건물면적㎡']] if '건물면적㎡' in ix else x[ix['건물면적']] or 0)
             land = float((x[ix['토지면적㎡']] if '토지면적㎡' in ix else x[ix['토지면적']]) or 0)
-            yr = int(float(x[ix['건축년도']] or 0))
+            yv = (x[ix['건축년도']] or '').strip(); yr = int(float(yv)) if yv and yv.lower() != 'null' else 0
         except Exception: continue
         g, dcode = x[ix['자치구코드']], x[ix['법정동코드']]
         p = pnu(g, dcode, x[ix['지번구분']], x[ix['본번']], x[ix['부번']])
@@ -73,7 +73,7 @@ for fn in A.sale:
             if p: apt[p].append([d, round(area, 1), price, x[ix['건물명']], yr])
             continue
         if use not in ('연립다세대', '단독다가구'): continue
-        rec = [d, 0 if use == '연립다세대' else 1, yr, round(area, 1), round(land, 1), price, x[ix['층']]]
+        rec = [d, 0 if use == '연립다세대' else 1, yr, round(area, 1), round(land, 1), price, x[ix['층']], p]
         if p in pnu2rec and yr: YR[p] = max(YR.get(p, 0), yr)
         for rid in pnu2rec.get(p, ()): SALE[rid].append(rec)
         if use == '연립다세대' and area > 0 and yr:
@@ -154,11 +154,17 @@ for r in R:
         c3 = (datetime.date.today() - datetime.timedelta(days=92)).strftime('%Y%m%d')
         c24 = (datetime.date.today() - datetime.timedelta(days=730)).strftime('%Y%m%d')
         t['n3'] = sum(1 for x in s if x[0] >= c3); t['n12'] = sum(1 for x in s if x[0] >= cut12z)
-        lp = [(x[0], x[5]/x[4]*3.3058) for x in s if x[4] >= 5 and x[2] and x[2] <= 2015]
-        a = [v for d, v in lp if d >= cut12z]; b = [v for d, v in lp if c24 <= d < cut12z]
-        if len(a) >= 5 and len(b) >= 5: t['yoy'] = round((med(a) / med(b) - 1) * 100, 1); t['yon'] = [len(a), len(b)]
-        lp.sort()
-        hi = [(d, v) for i, (d, v) in enumerate(lp) if d >= c3 and i >= 5 and v > max(w for _, w in lp[:i]) * 1.0001]
+        # 1년 변화: 한 건물에 거래가 몰리거나 두 기간 대지지분 구성이 크게 다르면 계산하지 않는다(구성 변화가 가격 변화로 보이는 것 방지)
+        lp = [(x[0], x[5]/x[4]*3.3058, x[4], x[7] if len(x) > 7 else None) for x in s if x[4] >= 5 and x[2] and x[2] <= 2015]
+        A_ = [v for v in lp if v[0] >= cut12z]; B_ = [v for v in lp if c24 <= v[0] < cut12z]
+        def ok_mix(L):
+            ps = collections.Counter(v[3] for v in L)
+            return len(L) >= 10 and len(ps) >= 5 and ps.most_common(1)[0][1] / len(L) <= 0.3
+        if ok_mix(A_) and ok_mix(B_) and abs(med([v[2] for v in A_]) / med([v[2] for v in B_]) - 1) <= 0.2:
+            t['yoy'] = round((med([v[1] for v in A_]) / med([v[1] for v in B_]) - 1) * 100, 1); t['yon'] = [len(A_), len(B_)]
+        # 신고가: 대지지분 15㎡ 이상 거래끼리, 2024년 이후 구역 최고가를 3% 넘게 웃돈 최근 3개월 거래(정수 반올림된 대지지분 잡음 방지)
+        lq = sorted((d, v) for d, v, ld, _ in lp if ld >= 15)
+        hi = [(d, v) for i, (d, v) in enumerate(lq) if d >= c3 and i >= 5 and v > max(w for _, w in lq[:i]) * 1.03]
         if hi: t['hi'] = [len(hi), hi[-1][0], round(hi[-1][1])]
     if j:
         t['jn'] = len(j); t['jm'] = med([x[3] for x in j]); t['ja'] = round(med([x[2] for x in j]), 1)
@@ -172,7 +178,7 @@ for r in R:
     if t: OUT[rid] = t
     xt = {k: t[k] for k in ('q', 'age', 'agn', 'pc') if t.get(k)}
     if s or j or xt:
-        DET[rid] = {'s': sorted(s, key=lambda x: x[0], reverse=True)[:40], 'j': sorted(j, key=lambda x: x[0], reverse=True)[:20], 'x': xt}
+        DET[rid] = {'s': [x[:7] for x in sorted(s, key=lambda x: x[0], reverse=True)[:40]], 'j': sorted(j, key=lambda x: x[0], reverse=True)[:20], 'x': xt}
 zr = [v.get('jr') or v.get('jr2') for v in OUT.values() if v.get('jr') or v.get('jr2')]
 jrz = round(med(zr), 3) if zr else None
 
@@ -188,7 +194,8 @@ BP = os.path.join(ROOT, 'pipeline/cache/bldg.json')
 BL = json.load(open(BP)) if os.path.exists(BP) else {}
 for rid, v in BL.items():
     bs = [b for b in v['b'] if b[1] > 1900]
-    if len(bs) < 5 or rid not in OUT: continue
+    # 사용승인연도가 확인된 건물이 20동 미만이거나 절반에 못 미치면 노후도를 내지 않는다(일부만 보고 100%·0%로 보이는 것 방지)
+    if len(bs) < 20 or len(bs) < len(v['b']) * 0.5 or rid not in OUT: continue
     for b in v['b']:
         if b[1] > 1900: YR[b[0]] = max(YR.get(b[0], 0), b[1])
     old = sum(1 for b in bs if NOWY - b[1] >= (30 if b[2] == 'R' else 20))

@@ -14,7 +14,7 @@ const ZXS = (() => {
     const km = (m) => (m < 1000 ? `${Math.round(m / 10) * 10}m` : `${(m / 1000).toFixed(1)}km`);
     return `<div class="sect sang"><h3>주변 상권·학원가 <small>반경 1km · 서울시 상권분석서비스 ${esc(S.q)}</small></h3>
       <dl class="sg-k"><div><dt>상권</dt><dd><b>${fmt(near.length)}</b>곳</dd></div><div><dt>점포</dt><dd><b>${fmt(stores)}</b>개</dd></div><div><dt>학원</dt><dd><b>${fmt(acad)}</b>개</dd></div></dl>
-      ${big.length ? `<ul class="sg-l">${big.map((o) => `<li><b>${esc(o.x[2])}</b><span>${KN[o.x[3]] || ""} · ${km(o.d)} · 점포 ${fmt(o.x[4])}${o.x[5] ? ` · 학원 ${fmt(o.x[5])}` : ""}${o.x[6] ? ` · 추정매출 ${fmt(o.x[6], o.x[6] < 10 ? 1 : 0)}억` : ""}</span></li>`).join("")}</ul>` : `<p class="note">반경 1km 안에 서울시가 정한 상권이 없어요(주거 위주 지역).</p>`}
+      ${big.length ? `<ul class="sg-l">${big.map((o) => `<li><b>${esc(o.x[2])}</b><span>${KN[o.x[3]] || ""} · ${km(o.d)} · 점포 ${fmt(o.x[4])}${o.x[5] ? ` · 학원 ${fmt(o.x[5])}` : ""}${o.x[6] ? ` · 분기 추정매출 ${fmt(o.x[6], o.x[6] < 10 ? 1 : 0)}억` : ""}</span></li>`).join("")}</ul>` : `<p class="note">반경 1km 안에 서울시가 정한 상권이 없어요(주거 위주 지역).</p>`}
       ${hub ? `<p class="note">가장 가까운 큰 학원가(학원 100곳 이상): <b>${esc(hub.x[2])}</b> ${esc(hub.x[7])} · 직선 ${km(hub.d)} · 학원 ${fmt(hub.x[5])}곳</p>` : ""}
       <p class="note src">학원 = 일반교습·외국어·예술·컴퓨터학원 점포 수(체육 강습 제외) · 거리는 구역 대표 좌표에서 상권 중심까지 직선거리.</p></div>`;
   }
