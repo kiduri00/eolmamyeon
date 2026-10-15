@@ -1,3 +1,20 @@
+/* 모바일: 리포트를 연 채 나갔다가 다시 열면(새로고침·탭 복원·뒤로가기) 주소의 #구역이 남아 첫 화면 대신 리포트가 뜨던 문제
+   → 같은 탭에서 돌아온 경우엔 구역·지도 해시를 지우고 첫 화면부터. 처음 받은 공유 링크(#구역)는 그대로 연다. */
+(() => {
+  try {
+    const h = location.hash.slice(1);
+    let back = false;
+    try { back = sessionStorage.getItem("emr_seen") === "1"; sessionStorage.setItem("emr_seen", "1"); } catch (e) {}
+    const nt = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0] || {}).type;
+    if (back || nt === "reload" || nt === "back_forward") {
+      if (h && matchMedia("(max-width:980px)").matches && !/^(join=|membership)/.test(h)) {
+        history.replaceState(null, "", location.pathname + location.search);
+        if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+        window.scrollTo(0, 0);
+      }
+    }
+  } catch (e) {}
+})();
 /* 메인 섹션: '펼쳐 보기' 대신 처음 5건을 보여 주고 '더보기' */
 initFold = function () {};
 const HM = (() => {
@@ -54,3 +71,12 @@ const HM = (() => {
   return { init };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", HM.init) : setTimeout(HM.init, 0);
+/* 로고: 계산기(#planner)가 아니라 맨 위 첫 화면으로 */
+document.addEventListener("click", (e) => {
+  const a = e.target.closest && e.target.closest("a.logo");
+  if (!a || e.metaKey || e.ctrlKey) return;
+  e.preventDefault();
+  if (document.getElementById("report").classList.contains("sheet")) closeSheetNow();
+  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  window.scrollTo({ top: 0, behavior: "auto" });
+}, true);
