@@ -111,3 +111,4 @@ table.txr td.up b{color:var(--risk-ink)}table.txr td.dn b{color:var(--brand)}
 #ntcF{margin:0 0 12px}
 @media (max-width:640px){.ntl li{grid-template-columns:58px 1fr;gap:8px}}
 @media (max-width:640px){table.txr{min-width:0}table.txr th:nth-child(n+5),table.txr td:nth-child(n+5){display:none}table.txr th,table.txr td{padding:7px 5px}.txr-go{max-width:none}}
+.rules-col>article[hidden]{display:none}

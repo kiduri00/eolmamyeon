@@ -12,7 +12,16 @@
     let map = null, libP = null, geo = null, geoP = null, ready = false, active = false, gu = null, failed = false;
     let want = store.get("emr.map", "real") !== "svg";
     let colorBy = store.get("emr.mapc", "cash");
-    if (!["cash", "stage", "kind"].includes(colorBy)) colorBy = "cash";
+    const MODES = [["cash", "내 현금"], ["stage", "단계"], ["kind", "사업 방식"], ["old", "노후도"], ["vol", "거래량"], ["yoy", "1년 가격 변화"]];
+    if (!MODES.some(([k]) => k === colorBy)) colorBy = "cash";
+    // 겹쳐 보는 레이어(호갱노노식): 지도 바탕 POI는 OpenFreeMap 벡터 타일, 나머지는 사이트 자료
+    const LAYERS = [["hj", "개발 호재", "신설 노선 역·복합개발"], ["hi", "신고가", "최근 3개월 구역 신고가"], ["edu", "학교", "초·중·고"], ["acad", "학원", "학원·교습소"], ["biz", "상권", "가게 밀집도"], ["med", "병원", "종합·대형병원"], ["mart", "대형마트", "이마트·홈플러스 등"]];
+    let lyr = (() => { try { return new Set(JSON.parse(store.get("emr.lyr", '["hj"]'))); } catch (e) { return new Set(["hj"]); } })();
+    const RAMP = ["#C9D2E3", "#9EB0D3", "#6F89C0", "#3F5FA3", "#1F3A87"];
+    const RAMP_D = ["#2B3546", "#33507E", "#4A6DAA", "#7392D0", "#A9C0EE"];
+    const BINS = { old: [[40, "40% 미만"], [60, "40~60%"], [67, "60~67%"], [80, "67~80%"], [101, "80% 이상"]], vol: [[1, "0건"], [5, "1~4건"], [15, "5~14건"], [40, "15~39건"], [1e9, "40건 이상"]], yoy: [[-10, "−10% 미만"], [0, "−10~0%"], [10, "0~+10%"], [25, "+10~25%"], [1e9, "+25% 이상"]] };
+    const metric = (r) => { const t = r.tx || {}; if (colorBy === "old") return t.old ? t.old.pol : null; if (colorBy === "vol") return t.n12 != null ? t.n12 : r.tx ? 0 : null; if (colorBy === "yoy") return t.yoy != null && t.yon && t.yon[0] >= 5 && t.yon[1] >= 5 ? t.yoy : null; return null; };
+    const binOf = (v) => BINS[colorBy].findIndex(([hi]) => v < hi);
     const dark = () => { const t = document.documentElement.dataset.theme; return t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches); };
     function loadLib() {
       if (window.maplibregl && window.maplibregl.Map) return Promise.resolve();
@@ -43,6 +52,7 @@
       return { y: v("--brand", "#2B59F0"), n: v("--text-3", "#5c6573"), u: v("--text-4", "#8B95A1"), e: v("--acc2", "#8B6FE8"), x: v("--text-4", "#8B95A1"), ink: v("--text-1", "#191F28"), sub: v("--text-3", "#5F6B7A"), surf: v("--surface", "#fff"), line: v("--border", "#E5E8EB"), sel: v("--focus", "#2B59F0") };
     }
     function colorOf(r, P) {
+      if (BINS[colorBy]) { const v = metric(r); return v == null ? P.x : (dark() ? RAMP_D : RAMP)[binOf(v)]; }
       if (colorBy === "stage") return P["st" + st6(r)] || (P["st" + st6(r)] = probe(STCOL(st6(r))));
       if (colorBy === "kind") return (P.K || (P.K = KIND_COL()))[shapeOf(r)];
       return P[dotState(r)];
@@ -84,7 +94,7 @@
       if (!map || !geo) return;
       const dk = dark(), P = palette(), halo = dk ? "#11161D" : "#ffffff";
       const add = (id) => { if (!map.getSource(id)) map.addSource(id, { type: "geojson", data: FC([]) }); };
-      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel"].forEach(add);
+      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi"].forEach(add);
       const outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
       map.getSource("mask").setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [outer, ...geo.seoul] }, properties: {} });
       map.getSource("seoul").setData({ type: "Feature", geometry: { type: "MultiLineString", coordinates: geo.seoul }, properties: {} });
@@ -102,12 +112,47 @@
       L({ id: "sel-line", type: "line", source: "sel", paint: { "line-color": P.sel, "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.6, 16, 4.5] } });
       L({ id: "stn", type: "circle", source: "stn", minzoom: 12, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 3] } });
       L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 12.8, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } });
+      // ---- 겹쳐 보기 레이어 ----
+      const nm = ["coalesce", ["get", "name:ko"], ["get", "name"], ""];
+      const poiTxt = (id, filter, color, minz) => [
+        { id: id, type: "circle", source: "omt", "source-layer": "poi", minzoom: minz, filter, layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": color, "circle-stroke-color": halo, "circle-stroke-width": 1.4 } },
+        { id: id + "-lab", type: "symbol", source: "omt", "source-layer": "poi", minzoom: Math.max(minz, 14), filter, layout: { visibility: "none", "text-field": nm, "text-font": ["Noto Sans Regular"], "text-size": 11, "text-offset": [0, 0.9], "text-anchor": "top", "text-optional": true, "text-max-width": 8 }, paint: { "text-color": color, "text-halo-color": halo, "text-halo-width": 1.6 } },
+      ];
+      const SHOPC = ["shop", "grocery", "restaurant", "cafe", "fast_food", "bar", "beer", "bakery", "clothing_store", "ice_cream", "alcohol_shop", "convenience", "hairdresser", "laundry", "shoe_shop", "jewelry", "optician", "furniture", "mobile_phone", "cosmetics", "florist", "butcher", "deli", "pharmacy"];
+      L({ id: "ly-biz", type: "heatmap", source: "omt", "source-layer": "poi", filter: ["in", ["get", "class"], ["literal", SHOPC]], layout: { visibility: "none" }, paint: { "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 11, 10, 15, 22, 17, 34], "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 11, 0.5, 15, 1], "heatmap-opacity": 0.6, "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(0,0,0,0)", 0.2, dk ? "rgba(214,160,60,.25)" : "rgba(245,190,90,.35)", 0.5, dk ? "rgba(230,140,40,.5)" : "rgba(236,150,40,.5)", 0.8, dk ? "rgba(240,110,50,.65)" : "rgba(220,100,30,.62)", 1, dk ? "rgba(250,90,60,.8)" : "rgba(200,60,30,.75)"] } });
+      poiTxt("ly-edu", ["all", ["in", ["get", "class"], ["literal", ["school"]]], ["any", ["in", "초등학교", nm], ["in", "중학교", nm], ["in", "고등학교", nm]]], dk ? "#7FB2E8" : "#1D5FA8", 12).forEach(L);
+      poiTxt("ly-acad", ["any", ["==", ["get", "subclass"], "prep_school"], ["in", "학원", nm], ["in", "교습소", nm]], dk ? "#C9A0F0" : "#7A3FB8", 12).forEach(L);
+      poiTxt("ly-med", ["all", ["==", ["get", "class"], "hospital"], ["any", ["in", "병원", nm], ["in", "의료원", nm], ["in", "의료센터", nm]]], dk ? "#F08A8A" : "#C2272D", 11).forEach(L);
+      poiTxt("ly-mart", ["all", ["in", ["get", "subclass"], ["literal", ["supermarket", "department_store", "mall", "wholesale"]]], ["any", ["in", "이마트", nm], ["in", "홈플러스", nm], ["in", "롯데마트", nm], ["in", "코스트코", nm], ["in", "트레이더스", nm], ["in", "백화점", nm], ["in", "하나로", nm]]], dk ? "#6FCF9A" : "#13744A", 11).forEach(L);
+      L({ id: "ly-hj", type: "circle", source: "hj", layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4, 15, 8], "circle-color": halo, "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 15, 4] } });
+      L({ id: "ly-hj-lab", type: "symbol", source: "hj", layout: { visibility: "none", "text-field": ["format", ["get", "n"], {}, "\n", {}, ["get", "s"], { "font-scale": 0.85 }], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-offset": [0, 1.2], "text-anchor": "top", "text-optional": true, "text-max-width": 10 }, paint: { "text-color": ["get", "c"], "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "ly-hi", type: "symbol", source: "hi", layout: { visibility: "none", "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-offset": [0, -1.9], "text-allow-overlap": false, "text-optional": true }, paint: { "text-color": dk ? "#FF9C8A" : "#B42318", "text-halo-color": halo, "text-halo-width": 2.2 } });
       L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 11.8, layout: { "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
       ready = true;
+      layerData();
+      layers();
       paint();
       focus(pendFocus); pendFocus = false;
     }
+    function layerData() {
+      const F = [];
+      (HJD.items || []).forEach((h) => {
+        if (/개통/.test(h.st || "") && !(h.stn || []).some(([, s]) => !/개통/.test(s))) return;
+        (h.stn || []).forEach(([n, s]) => { if (/개통/.test(s)) return; const st = stnBy(n); if (st) F.push({ type: "Feature", geometry: { type: "Point", coordinates: [st.ll[1], st.ll[0]] }, properties: { n: `${h.n} ${n}`, s, c: h.c || "#7A3FB8" } }); });
+        if (h.pt && h.pt.length === 2) { const [a, b] = h.pt; const ll = a > 90 ? [a, b] : [b, a]; F.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { n: h.n.replace(/\s*\(.*\)$/, ""), s: h.st || "", c: h.c || "#7A3FB8" } }); }
+      });
+      map.getSource("hj").setData(FC(F));
+      const H = [];
+      R.forEach((r) => { const t = r.tx && r.tx.hi, z = geo && geo.z[r.id]; if (!t || r.dn) return; const c = z ? z.l : r.ll ? [r.ll[1], r.ll[0]] : null; if (c) H.push({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: { t: `▲ 신고가 ${t[1].slice(2, 4)}.${t[1].slice(4, 6)}` } }); });
+      map.getSource("hi").setData(FC(H));
+    }
+    function layers() {
+      if (!map || !ready) return;
+      const ids = { hj: ["ly-hj", "ly-hj-lab"], hi: ["ly-hi"], edu: ["ly-edu", "ly-edu-lab"], acad: ["ly-acad", "ly-acad-lab"], biz: ["ly-biz"], med: ["ly-med", "ly-med-lab"], mart: ["ly-mart", "ly-mart-lab"] };
+      Object.entries(ids).forEach(([k, ls]) => ls.forEach((l) => map.getLayer(l) && map.setLayoutProperty(l, "visibility", lyr.has(k) ? "visible" : "none")));
+    }
     function labelOf(r) {
+      if (BINS[colorBy]) { const v = metric(r); if (v == null) return "자료 없음"; return colorBy === "old" ? `노후 ${v}%` : colorBy === "vol" ? `1년 ${v}건` : `1년 ${v > 0 ? "+" : ""}${v}%`; }
       if (colorBy === "cash") {
         const k = dotState(r);
         if (k === "y" || k === "n") {
@@ -125,7 +170,7 @@
       const vis = R.filter((r) => r.ll && visible(r));
       const off = [], est = [], lab = [], pts = [];
       for (const r of vis) {
-        const st0 = colorBy === "cash" ? dotState(r) : "", c = colorOf(r, P), z = Z[r.id], o = st0 === "x" ? 0.45 : st0 === "n" || st0 === "u" ? 0.75 : st0 === "y" ? 1.3 : 1;
+        const st0 = colorBy === "cash" ? dotState(r) : "", c = colorOf(r, P), z = Z[r.id], o = BINS[colorBy] ? (metric(r) == null ? 0.4 : 1.25) : st0 === "x" ? 0.45 : st0 === "n" || st0 === "u" ? 0.75 : st0 === "y" ? 1.3 : 1;
         if (z) {
           (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id, c, o } });
           lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r) } });
@@ -162,24 +207,36 @@
       let items;
       if (colorBy === "stage") items = [[1, "계획·지정"], [2, "추진위"], [3, "조합설립"], [4, "사업시행"], [5, "관리처분"], [6, "이주·착공"]].map(([i, t]) => [probe(STCOL(i)), t]);
       else if (colorBy === "kind") { const K = KIND_COL(); items = [[K.rd, "재개발"], [K.rc, "재건축"], [K.sm, "가로·소규모"], [K.moa, "모아타운"]]; }
+      else if (BINS[colorBy]) items = BINS[colorBy].map(([, t], i) => [(dark() ? RAMP_D : RAMP)[i], t]).concat([[P.x, "자료 없음"]]);
       else items = [[P.y, gapMode() ? "전세 끼고 지금 가능" : effBasis() === "total" ? "입주까지 가능" : "지금 매수 가능"], [P.n, "현금 부족"], [P.u, "거래 적어 계산 못 함·제외"]];
-      el.innerHTML = `${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>`;
+      const note = { old: "노후도 = 경계 안 건축물 중 사용승인 후 30년(철근콘크리트)·20년(그 외) 지난 비율 · 서울도시공간포털 건물 레이어로 직접 계산", vol: "최근 12개월 구역 안 매매 신고 건수(국토부 실거래)", yoy: "대지지분 3.3㎡당 매매가 가운데 값, 최근 12개월 vs 그 전 12개월 · 두 기간 5건 이상" }[colorBy];
+      el.innerHTML = `${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
     }
     function ui() {
       const box = $("mapbox");
       if (!box || $("lmap")) return;
       const d = document.createElement("div");
       d.id = "lmap"; d.className = "lmap"; d.hidden = true;
-      d.innerHTML = `<div class="lm-ctl" role="group" aria-label="구역 색 기준"><span>색</span>${[["cash", "내 현금"], ["stage", "단계"], ["kind", "사업 방식"]].map(([k, t]) => `<button type="button" data-c="${k}" aria-pressed="${colorBy === k}">${t}</button>`).join("")}<button type="button" class="lm-lg" aria-expanded="false" aria-controls="lmLegend">범례</button></div><div class="lm-legend" id="lmLegend" hidden></div>`;
-      d.querySelector(".lm-lg").onclick = (e) => { const lg = $("lmLegend"), on = lg.hidden; lg.hidden = !on; e.currentTarget.setAttribute("aria-expanded", String(on)); };
+      d.innerHTML = `<div class="lm-ctl" role="group" aria-label="지도 보기"><label class="lm-sel"><span>색</span><select id="lmColor" aria-label="구역 색 기준">${MODES.map(([k, t]) => `<option value="${k}"${colorBy === k ? " selected" : ""}>${t}</option>`).join("")}</select></label><button type="button" class="lm-ly" aria-expanded="false" aria-controls="lmLayers">레이어${lyr.size ? ` <b>${lyr.size}</b>` : ""}</button><button type="button" class="lm-lg" aria-expanded="false" aria-controls="lmLegend">범례</button></div><div class="lm-layers" id="lmLayers" hidden><p>겹쳐 보기</p>${LAYERS.map(([k, t, sub]) => `<label><input type="checkbox" value="${k}"${lyr.has(k) ? " checked" : ""}><span>${t}<small>${sub}</small></span></label>`).join("")}<p class="lm-ln">학교·학원·상권·병원·마트는 OpenStreetMap 기준이라 빠진 곳이 있을 수 있어요. 확대할수록 많이 보여요.</p></div><div class="lm-legend" id="lmLegend" hidden></div>`;
+      d.querySelector(".lm-lg").onclick = (e) => { const lg = $("lmLegend"), on = lg.hidden; lg.hidden = !on; e.currentTarget.setAttribute("aria-expanded", String(on)); if (on) { $("lmLayers").hidden = true; d.querySelector(".lm-ly").setAttribute("aria-expanded", "false"); } };
       box.appendChild(d);
-      d.querySelector(".lm-ctl").addEventListener("click", (e) => {
-        const b = e.target.closest("button[data-c]");
-        if (b && false) return;
-        if (!b) return;
-        colorBy = b.dataset.c; store.set("emr.mapc", colorBy);
-        d.querySelectorAll(".lm-ctl button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      d.querySelector("#lmColor").addEventListener("change", (e) => {
+        colorBy = e.target.value; store.set("emr.mapc", colorBy);
         paint();
+        if (BINS[colorBy] && $("lmLegend").hidden) d.querySelector(".lm-lg").click();
+      });
+      d.querySelector(".lm-ly").onclick = (e) => {
+        const p = $("lmLayers"), on = p.hidden, c = d.querySelector(".lm-ctl");
+        p.style.top = c.offsetTop + c.offsetHeight + 6 + "px";
+        p.hidden = !on; e.currentTarget.setAttribute("aria-expanded", String(on));
+        if (on) { $("lmLegend").hidden = true; d.querySelector(".lm-lg").setAttribute("aria-expanded", "false"); }
+      };
+      $("lmLayers").addEventListener("change", (e) => {
+        const c = e.target.closest("input[type=checkbox]"); if (!c) return;
+        if (c.checked) lyr.add(c.value); else lyr.delete(c.value);
+        store.set("emr.lyr", JSON.stringify([...lyr]));
+        d.querySelector(".lm-ly").innerHTML = `레이어${lyr.size ? ` <b>${lyr.size}</b>` : ""}`;
+        layers();
       });
       const bar = $("mapBar");
       if (bar && !$("mapKind")) {

@@ -18,21 +18,25 @@
 /* 메인 섹션: '펼쳐 보기' 대신 처음 5건을 보여 주고 '더보기' */
 initFold = function () {};
 const HM = (() => {
+  // [박스 선택자, 줄 선택자, PC 개수, 모바일 개수]
+  const MOB = () => matchMedia("(max-width:640px)").matches;
   const cfg = [
-    ["cmOut", "tbody > tr, ul > li, ol > li, .cm-row, .card", 4],
-    ["rank", "tbody > tr"],
-    ["svOut", "tbody > tr"],
-    ["fvOut", "tbody > tr, ul > li"],
-    ["nwOut", "tbody > tr, ul > li, ol > li"],
-    ["txrOut", "tbody > tr"],
-    ["ntcOut", "ul.ntl > li"],
-    ["rules", ":scope > *"],
+    ["#cmOut", "tbody > tr, ul > li, ol > li, .cm-row, .card", 4, 3],
+    ["#rank", "tbody > tr", 5, 3],
+    ["#svOut", "tbody > tr", 5, 3],
+    ["#fvOut", "tbody > tr, ul > li", 5, 3],
+    ["#nwOut", "tbody > tr, ul > li, ol > li", 5, 3],
+    ["#txrOut", "tbody > tr", 5, 3],
+    ["#ntcOut", "ul.ntl > li", 5, 3],
+    ["#guList", ":scope > li", 99, 6],
+    ["#rules .rules-col", ":scope > article", 99, 2],
+    [".rd-card ol, .rd-card ul", ":scope > li", 99, 3],
   ];
-  function clamp(box, sel, n) {
-    const N = n || 5;
+  function clamp(box, sel, n, nm) {
+    const N = (MOB() ? nm : n) || 5;
     if (box.__hmBusy) return;
     box.__hmBusy = 1;
-    box.querySelectorAll(":scope .hm-more").forEach((b) => b.remove());
+    if (box.__hmBtn) box.__hmBtn.remove(), (box.__hmBtn = null);
     const rows = [...box.querySelectorAll(sel)].filter((x) => !x.classList.contains("hm-more") && !x.closest(".hm-more"));
     const open = box.__hmOpen;
     rows.forEach((x, i) => (x.hidden = !open && i >= N));
@@ -44,31 +48,38 @@ const HM = (() => {
       b.setAttribute("aria-expanded", String(!!open));
       b.onclick = () => {
         box.__hmOpen = !box.__hmOpen;
-        clamp(box, sel, n);
+        clamp(box, sel, n, nm);
         if (!box.__hmOpen) {
           const r = box.getBoundingClientRect();
           if (r.top < 0) window.scrollBy(0, r.top - 120);
         }
       };
-      const host = box.tagName === "TABLE" ? box.parentElement : box;
+      const host = /^(TABLE|UL|OL)$/.test(box.tagName) ? box.parentElement : box;
       host.appendChild(b);
+      box.__hmBtn = b;
     }
     requestAnimationFrame(() => (box.__hmBusy = 0));
   }
+  function bind(box, sel, n, nm) {
+    if (box.__hmOn) return;
+    box.__hmOn = 1;
+    let t;
+    new MutationObserver((ms) => {
+      if (box.__hmBusy) return;
+      if (ms.every((m) => [...m.addedNodes, ...m.removedNodes].every((x) => x.classList && x.classList.contains("hm-more")))) return;
+      box.__hmOpen = 0;
+      clearTimeout(t);
+      t = setTimeout(() => clamp(box, sel, n, nm), 30);
+    }).observe(box, { childList: true, subtree: true });
+    clamp(box, sel, n, nm);
+  }
   function init() {
-    cfg.forEach(([id, sel, n]) => {
-      const box = document.getElementById(id);
-      if (!box) return;
-      let t;
-      new MutationObserver((ms) => {
-        if (box.__hmBusy) return;
-        if (ms.every((m) => [...m.addedNodes, ...m.removedNodes].every((n) => n.classList && n.classList.contains("hm-more")))) return;
-        box.__hmOpen = 0;
-        clearTimeout(t);
-        t = setTimeout(() => clamp(box, sel, n), 30);
-      }).observe(box, { childList: true, subtree: true });
-      clamp(box, sel, n);
-    });
+    const all = () => cfg.forEach(([q, sel, n, nm]) => document.querySelectorAll(q).forEach((box) => bind(box, sel, n, nm)));
+    all();
+    let tt;
+    new MutationObserver(() => { clearTimeout(tt); tt = setTimeout(all, 150); }).observe(document.querySelector("main") || document.body, { childList: true, subtree: true });
+    let w = innerWidth;
+    addEventListener("resize", () => { if ((w <= 640) !== (innerWidth <= 640)) cfg.forEach(([q, sel, n, nm]) => document.querySelectorAll(q).forEach((box) => clamp(box, sel, n, nm))); w = innerWidth; });
   }
   return { init };
 })();

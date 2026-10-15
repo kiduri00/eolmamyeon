@@ -4959,7 +4959,7 @@
       );
     buyer.push(
       ruleCard({
-        title: "재당첨 제한 (도시정비법 §72⑥)",
+        title: "재당첨 제한",
         lead: [
           "투기과열지구에서 정비사업 분양대상자로 선정된 세대(세대원 포함)는 선정일부터 <b>5년</b> 동안 투기과열지구의 다른 정비사업 분양신청을 할 수 없어요.",
           "최근 분양대상자로 선정된 적이 있다면 계산기 조건의 '고급 가정 → 최근 분양대상자 선정 연도'에 넣으면 해당 구역을 걸러 줍니다.",
@@ -5505,6 +5505,9 @@
   }
   let ICACHE = new Map();
   const condKey = () => [P.homes, P.first, P.unit, AV.aUnit, AV.aRatio, AV.aRate, AV.pIncome, AV.aGrowth].join("|");
+  function PLAN0() {
+    return matchMedia("(max-width:640px)").matches ? 5 : 12;
+  }
   function investC(r) {
     const k = condKey();
     let m = ICACHE.get(k);
@@ -5554,7 +5557,7 @@
   const estHide = (r) => !P.est && !!(OV[r.id] && OV[r.id].est);
   window.__est = () => ({ n: EST.size, byGu: EST_N });
   let lastRaw = null,
-    planN = 12,
+    planN = PLAN0(),
     CASH = 1,
     MAXP = 0,
     LAST = [],
@@ -5576,7 +5579,7 @@
             setSeg(id, b.dataset.v);
             P[key] = conv ? conv(b.dataset.v) : b.dataset.v;
             if (key === "homes") syncFirst();
-            planN = 12;
+            planN = PLAN0();
             plan();
           }),
       );
@@ -5610,7 +5613,7 @@
     P.homes = v;
     setSeg("pHomes", v);
     syncFirst();
-    planN = 12;
+    planN = PLAN0();
     plan();
   };
   $("pEst").onclick = () => {
@@ -5618,7 +5621,7 @@
     $("pEst").setAttribute("aria-pressed", String(P.est));
     invalidate();
     GCACHE = new Map();
-    planN = 12;
+    planN = PLAN0();
     plan();
   };
   $("lFilt")
@@ -5630,7 +5633,7 @@
           $("lFilt")
             .querySelectorAll("button")
             .forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.v === LF)));
-          planN = 12;
+          planN = PLAN0();
           plan();
         }),
     );
@@ -5651,7 +5654,7 @@
           PREV_CASH = null;
           $("pCash").value = b.dataset.v;
           cashNote("");
-          planN = 12;
+          planN = PLAN0();
           plan();
         }),
     );
@@ -5659,7 +5662,7 @@
   const debPlan = () => {
     clearTimeout(inT);
     inT = setTimeout(() => {
-      planN = 12;
+      planN = PLAN0();
       plan();
     }, 150);
   };
@@ -5679,7 +5682,7 @@
     convertCash();
     if ($("pCash").value !== lastRaw) {
       clearTimeout(inT);
-      planN = 12;
+      planN = PLAN0();
       plan();
     }
   });
@@ -5687,13 +5690,13 @@
     if (e.key === "Enter") {
       e.preventDefault();
       convertCash();
-      planN = 12;
+      planN = PLAN0();
       plan();
     }
   });
   ["pGu", "pTrade", "pAfford"].forEach((id) =>
     $(id).addEventListener("change", () => {
-      planN = 12;
+      planN = PLAN0();
       plan();
       if (id === "pGu") {
         const g = $("pGu").value;
@@ -6434,7 +6437,7 @@
   function setFund(v) {
     P.fund = v === "gap" ? "gap" : "cash";
     syncFundUI();
-    planN = 12;
+    planN = PLAN0();
     plan();
   }
   $("pFund")
@@ -6903,7 +6906,7 @@
       else PREV_CASH = CASH;
       $("pCash").value = b.dataset.cash;
       cashNote("");
-      planN = 12;
+      planN = PLAN0();
       plan();
       return;
     }
@@ -7008,7 +7011,7 @@
           PREV_CASH = null;
           $("pCash").value = g.dataset.c;
           cashNote("");
-          planN = 12;
+          planN = PLAN0();
           plan();
         };
         g.onkeydown = (e) => {
