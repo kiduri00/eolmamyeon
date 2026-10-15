@@ -24,6 +24,8 @@ const HM = (() => {
     ["svOut", "tbody > tr"],
     ["fvOut", "tbody > tr, ul > li"],
     ["nwOut", "tbody > tr, ul > li, ol > li"],
+    ["txrOut", "tbody > tr"],
+    ["ntcOut", "ul.ntl > li"],
     ["rules", ":scope > *"],
   ];
   function clamp(box, sel, n) {

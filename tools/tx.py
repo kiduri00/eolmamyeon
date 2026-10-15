@@ -150,6 +150,16 @@ for r in R:
         t['q'] = [[k, round(med(v)), len(v)] for k, v in sorted(qs.items())]
         t['last'] = recent[0]
         t['split'] = sum(1 for x in s if x[2] and x[2] >= 2016 and 0 < x[4] <= 15)
+        # 순위용: 최근 3·12개월 거래 수, 대지지분 3.3㎡당 가격 1년 변화, 최근 3개월 신고가
+        c3 = (datetime.date.today() - datetime.timedelta(days=92)).strftime('%Y%m%d')
+        c24 = (datetime.date.today() - datetime.timedelta(days=730)).strftime('%Y%m%d')
+        t['n3'] = sum(1 for x in s if x[0] >= c3); t['n12'] = sum(1 for x in s if x[0] >= cut12z)
+        lp = [(x[0], x[5]/x[4]*3.3058) for x in s if x[4] >= 5 and x[2] and x[2] <= 2015]
+        a = [v for d, v in lp if d >= cut12z]; b = [v for d, v in lp if c24 <= d < cut12z]
+        if len(a) >= 5 and len(b) >= 5: t['yoy'] = round((med(a) / med(b) - 1) * 100, 1); t['yon'] = [len(a), len(b)]
+        lp.sort()
+        hi = [(d, v) for i, (d, v) in enumerate(lp) if d >= c3 and i >= 5 and v > max(w for _, w in lp[:i]) * 1.0001]
+        if hi: t['hi'] = [len(hi), hi[-1][0], round(hi[-1][1])]
     if j:
         t['jn'] = len(j); t['jm'] = med([x[3] for x in j]); t['ja'] = round(med([x[2] for x in j]), 1)
     if rid in PAR:

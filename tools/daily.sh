@@ -24,6 +24,7 @@ RENT=$(ls $RAW/rent_*.csv 2>/dev/null | tr '\n' ' ' || true)
 if [ -n "$SALE" ] && [ -n "$RENT" ]; then python3 tools/tx.py --sale $SALE --rent $RENT || echo "!! 실거래 집계 실패 — 어제 결과 유지"; else echo "!! CSV 없음 — 실거래 집계 건너뜀"; fi
 echo "== 6. 보강 · 빌드"
 python3 tools/enrich.py
+python3 tools/notice.py || echo "!! 고시·공고 피드 실패"
 python3 tools/build.py
 python3 tools/feeds.py || echo "!! 구별 RSS 실패"
 python3 tools/sitemap.py

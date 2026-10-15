@@ -259,7 +259,7 @@
     function evHTML(r) {
       const ev = r.ev;
       if (!Array.isArray(ev) || !ev.length) return "";
-      const rows = ev.slice(0, 6).map(([d, sec, t]) => { const s = SIG.find(([re]) => re.test(t)); return `<li><span class="ev-d mono">${esc(d.replaceAll("-", "."))}</span><span class="ev-t"><b>${esc(sec)}</b> ${esc(t.replace(/^\[|\]/g, (m) => (m === "[" ? "" : " ·")))}${s ? ` <em class="ev-s">${esc(s[1])}</em>` : ""}</span></li>`; }).join("");
+      const rows = ev.slice(0, 6).map(([d, sec, t]) => { const s = SIG.find(([re]) => re.test(t)); return `<li><span class="ev-d mono">${esc(d.replaceAll("-", "."))}</span><span class="ev-t"><b>${esc(sec)}</b> ${esc(t.replace(/^\[([^\]]*)\]\s*(.*)$/, (m, a, b) => (b ? `${a} · ${b}` : a)))}${s ? ` <em class="ev-s">${esc(s[1])}</em>` : ""}</span></li>`; }).join("");
       return `<div class="sect evl"><h3>정보몽땅 최근 기록 <small>추진경과 · 매일 갱신 · 인가 전 신청·총회가 먼저 올라와요</small></h3><ul>${rows}</ul>${r.cafe ? `<p class="note"><a href="https://cleanup.seoul.go.kr/cafe/mainIndx.do?cafeUrl=${encodeURIComponent(r.cafe)}" target="_blank" rel="noopener">정보몽땅 사업장 원문 보기</a></p>` : ""}</div>`;
     }
     // ---------- 역전세 위험(전세 끼고 사기) ----------
