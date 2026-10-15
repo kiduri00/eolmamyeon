@@ -12,6 +12,16 @@ for f in sorted(os.listdir(os.path.join(R, 'public', 'data'))) if os.path.isdir(
     if f.endswith('.json'):
         dv[f[:-5]] = hashlib.md5(open(os.path.join(R, 'public', 'data', f), 'rb').read()).hexdigest()[:8]
 if dv: D['dv'] = dv
+# 첫 화면 '최신 월간 리포트' 배너: 생성기가 만든 최신 호가 더 새로우면 교체
+LT = os.path.join(R, 'pipeline', 'report', 'latest.json')
+if os.path.exists(LT):
+    lt = json.load(open(LT, encoding='utf-8'))
+    m = re.search(r'(<script type="application/json" id="monthlyData">)(.*?)(</script>)', shell, re.S)
+    if m and lt.get('items'):
+        cur = json.loads(m.group(2))
+        if lt['ym'] > cur.get('ym', ''):
+            new = {'ym': lt['ym'], 'no': lt['no'], 'url': lt['url'] + '.html', 'items': [{'id': i['id'], 'step': i['step'], 'date': i['date'], 'src': ''} for i in lt['items']]}
+            shell = shell[:m.start(2)] + json.dumps(new, ensure_ascii=False) + shell[m.end(2):]
 data = json.dumps(D, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
 EXT = os.path.join(R, 'src', 'ext')
 ext_js = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))

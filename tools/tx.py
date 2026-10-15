@@ -109,7 +109,7 @@ for r in R:
     s = SALE.get(rid, []); j = JEON.get(rid, [])
     recent = sorted({x[0] for x in s}, reverse=True)
     cut = (datetime.date.today() - datetime.timedelta(days=550)).strftime('%Y%m%d')
-    old = [x for x in s if x[2] and x[2] <= 2015 and x[0] >= cut]
+    old = [x for x in s if x[1] == 0 and x[2] and x[2] <= 2015 and x[0] >= cut and 20 <= x[3] <= 85]   # 구축 빌라(연립·다세대)만 — 단독 통매매 제외
     if s:
         pp = [x[5]/x[4]*3.3058 for x in s if x[4] > 0]
         t['n'] = len(s)

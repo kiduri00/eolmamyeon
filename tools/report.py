@@ -8,7 +8,7 @@
 import json, os, sys, re, html, math, argparse, datetime, collections, statistics as st
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p, d=None: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else d
-ap = argparse.ArgumentParser(); ap.add_argument('ym'); ap.add_argument('--publish'); ap.add_argument('--draft', action='store_true')
+ap = argparse.ArgumentParser(); ap.add_argument('ym'); ap.add_argument('--publish'); ap.add_argument('--draft', action='store_true'); ap.add_argument('--test', action='store_true')
 A = ap.parse_args()
 YM = A.ym; Y, M = map(int, YM.split('-'))
 PUB = A.publish or datetime.date.today().isoformat()
@@ -16,6 +16,9 @@ SITE = 'https://jaegaebal.alwaysquestions.kr'
 D = J('pipeline/data.enriched.json') or J('src/data.json'); R = D['recs']; byId = {r['id']: r for r in R}
 PREM = J('public/premium.json', {}); CL = J('pipeline/cache/cleanup.json', {}); CALC = J('pipeline/calc.json', {})
 CHK = {(c['id'], c['event']): c for c in (J(f'pipeline/report/checks/{YM}.json', {}) or {}).get('items', [])}
+def josa(w, a, b):
+    c = w[-1]
+    return w + (a if '가' <= c <= '힣' and (ord(c) - 0xAC00) % 28 else b)
 esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 EV5 = [('추진위', '추진위원회 승인'), ('구역지정', '정비구역 지정'), ('조합설립', '조합설립인가'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가')]
 EVX = [('착공', '착공'), ('준공', '준공'), ('시공자', '시공자 선정')]
@@ -63,7 +66,7 @@ n_ok = sum(1 for c in checked if c and c.get('url') and c.get('status') in ('일
 calc = {r['id']: CALC.get(r['id'], {}) for r, _, _ in ev}
 needs = [(calc[i]['need'], i) for i in zones if calc.get(i, {}).get('need')]
 top_k = kinds.most_common(1)[0]
-title = f"{M}월 서울 정비사업 {len(zones)}곳이 다음 단계로, {LAB[top_k[0]]}이 {top_k[1]}건으로 가장 많아" if top_k[1] >= 2 else f"{M}월 서울 정비사업 {len(zones)}곳이 다음 단계로"
+title = f"{M}월 서울 정비사업 {len(zones)}곳이 다음 단계로, {josa(LAB[top_k[0]], "이", "가")} {top_k[1]}건으로 가장 많아" if top_k[1] >= 2 else f"{M}월 서울 정비사업 {len(zones)}곳이 다음 단계로"
 ratio = n_ev / avg_base if avg_base else 0
 s1 = f"{M}월 인가 5종 {n_ev}건. 2016~2024년 월평균(약 {round(avg_base)}건)의 {ratio:.1f}배, 최근 36개월 월평균({round(avg36)}건)과 비교하면 {'많은' if n_ev > avg36 * 1.15 else '적은' if n_ev < avg36 * 0.85 else '비슷한'} 달이에요."
 g1, g1n = gu.most_common(1)[0]
@@ -161,6 +164,9 @@ body = f'''<main>
 <div class="tw cards compact"><table><thead><tr><th>구역</th><th>단계</th><th class="n">인가일(정보몽땅)</th><th>원문</th><th>계산</th></tr></thead><tbody>{table}</tbody></table></div>
 <h2>인용하실 때</h2><p class="meta">출처를 '얼마면 재개발 월간 리포트({Y}년 {M}월분)'로 적고 이 페이지 링크를 붙여 주세요. 날짜는 서울시 정비사업 정보몽땅 등록 기준이고, 투자 권유가 아니에요.</p>
 </main>'''
+if A.test:
+    open(os.path.join(ROOT, f'pipeline/report/test_{YM}.html'), 'w', encoding='utf-8').write((head + body + foot).replace('href="../pages.css"', 'href="../../public/pages.css"'))
+    print('test written', title); raise SystemExit
 open(os.path.join(ROOT, f'public/report/{YM}.html'), 'w', encoding='utf-8').write(head + body + foot)
 # ---- 목록·피드·배너 ----
 ISS = J('pipeline/report/issues.json', []) or []

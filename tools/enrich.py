@@ -15,6 +15,31 @@ stat = collections.Counter()
 SALES_OK = True
 act = lambda r: not (r['s'] >= 9 or (r.get('dn') and r['s'] < 7))
 
+# ---------- 0. 정보몽땅 최신 추진경과 반영(단계·인가일·최근 기록) ----------
+PREM = J('src/premium.json')
+CL = J('pipeline/cache/cleanup.json') if os.path.exists(os.path.join(ROOT, 'pipeline/cache/cleanup.json')) else {}
+SR2S = {'정비계획 수립': 1, '안전진단': 1, '정비구역지정': 2, '추진위원회승인': 3, '조합설립인가': 4, '사업시행자 지정': 4, '사업시행인가': 5, '관리처분인가': 6, '철거': 7, '이주': 7, '착공': 8, '분양': 8,
+        '준공인가': 9, '부분준공인가': 9, '이전고시': 9, '조합해산': 9, '조합청산': 9}
+stage_changes = []
+for r in R:
+    pm = PREM.get(r['id'])
+    cafe = pm and pm.get('cafe')
+    c = CL.get(cafe) if cafe else None
+    if not c: continue
+    if c.get('dt'):
+        dt = pm.setdefault('dt', {})
+        for k, v in c['dt'].items():
+            if k == '해산': continue
+            if dt.get(k) != v: dt[k] = v; stat['dt_update'] += 1
+    if c.get('ev'): pm['ev'] = c['ev'][:6]
+    row = c.get('row') or {}
+    ns = SR2S.get(row.get('sr'))
+    if ns is not None and '(' not in r['sr'] and not r.get('chk') and ns > r['s']:
+        stage_changes.append([r['id'], r['sr'], row['sr']]); r['sr'] = row['sr']; r['s'] = ns; r['sUp'] = 1
+        stat['stage_up'] += 1
+json.dump(PREM, open(os.path.join(ROOT, 'public/premium.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+if stage_changes: print('단계 변경', stage_changes[:20])
+
 # ---------- 1. 좌표: ll → 지도 SVG xy 변환식 (기존 레코드로 최소제곱) ----------
 pairs = [(r['ll'], r['xy']) for r in R if r.get('ll') and r.get('xy')]
 def fit(ix):

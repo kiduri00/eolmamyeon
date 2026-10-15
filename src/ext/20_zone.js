@@ -236,6 +236,14 @@
     let GEO_Z = null;
     const geoReady = () => { if (!GEO_Z && D.dv && D.dv.geo) LMX.geo().then((g) => { GEO_Z = g ? g.z : {}; }); };
 
+    // ---------- 정보몽땅 최근 기록(다음 인가 선행 신호) ----------
+    const SIG = [[/분양신청/, "관리처분인가가 가까워졌다는 신호(조합원 분양신청)"], [/총회개최/, "총회 개최"], [/인가신청|승인신청/, "다음 인가를 신청함"], [/업체선정/, "업체 선정"], [/공람|설명회/, "주민 공람·설명회"]];
+    function evHTML(r) {
+      const ev = r.ev;
+      if (!Array.isArray(ev) || !ev.length) return "";
+      const rows = ev.slice(0, 6).map(([d, sec, t]) => { const s = SIG.find(([re]) => re.test(t)); return `<li><span class="ev-d mono">${esc(d.replaceAll("-", "."))}</span><span class="ev-t"><b>${esc(sec)}</b> ${esc(t.replace(/^\[|\]/g, (m) => (m === "[" ? "" : " ·")))}${s ? ` <em class="ev-s">${esc(s[1])}</em>` : ""}</span></li>`; }).join("");
+      return `<div class="sect evl"><h3>정보몽땅 최근 기록 <small>추진경과 · 매일 갱신 · 인가 전 신청·총회가 먼저 올라와요</small></h3><ul>${rows}</ul>${r.cafe ? `<p class="note"><a href="https://cleanup.seoul.go.kr/cafe/mainIndx.do?cafeUrl=${encodeURIComponent(r.cafe)}" target="_blank" rel="noopener">정보몽땅 사업장 원문 보기</a></p>` : ""}</div>`;
+    }
     // ---------- 기존 탭에 덧붙이기 ----------
     const _biz = paneBiz, _req = paneReq, _near = paneNear;
     paneBiz = function (r) {
@@ -244,7 +252,7 @@
       const old = p.querySelector(".note b");
       p.querySelectorAll("p.note").forEach((n) => { if (/^권리산정기준일/.test((n.querySelector("b") || {}).textContent || "")) n.remove(); });
       const lad = p.querySelector(".sect");
-      const add = `${paceHTML(r)}${rightsHTML(r)}`;
+      const add = `${paceHTML(r)}${evHTML(r)}${rightsHTML(r)}`;
       if (lad) lad.insertAdjacentHTML("afterend", add); else p.insertAdjacentHTML("afterbegin", add);
       const facts = p.querySelector("dl.facts");
       const sup = supplyHTML(r);

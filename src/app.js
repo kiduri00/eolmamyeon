@@ -344,7 +344,7 @@
   const fixZoning = (z) => String(z).replace(/(^|[^\d·])([1-3]{2,3})종/g, (m, a, d) => a + d.split("").join("·") + "종");
   function premApply(r, p) {
     p = p || {};
-    ["dt", "sin", "news", "cafe", "rd", "b", "dq"].forEach((k) => {
+    ["dt", "sin", "news", "cafe", "rd", "b", "dq", "ev"].forEach((k) => {
       if (p[k] !== undefined) r[k] = p[k];
     });
     if (p.sm) {
@@ -1146,7 +1146,7 @@
   const yieldT = () => (window.scheduler && scheduler.yield ? scheduler.yield() : new Promise((r) => setTimeout(r, 0)));
   $("eyebrow").innerHTML =
     `<span class="live" aria-hidden="true"></span><span class="eb-l">서울 진행 중 정비사업 ${fmt(POP.length)}곳 · 모아타운 관리지역 ${fmt(MOA_ALL.length)}곳 별도 · 데이터 갱신 ${ASOF}</span><span class="eb-s">서울 정비사업 ${fmt(POP.length)}곳 · ${+D.asOf.slice(5, 7)}.${+D.asOf.slice(8, 10)} 갱신</span>`;
-  $("asof").textContent = `데이터 갱신 ${ASOF} · 매달 갱신`;
+  $("asof").textContent = D.txAsOf && D.txAsOf.sale ? `실거래 ${D.txAsOf.sale.slice(2, 4)}.${D.txAsOf.sale.slice(4, 6)}.${D.txAsOf.sale.slice(6, 8)}까지 · 매일 갱신` : `데이터 갱신 ${ASOF} · 매달 갱신`;
   const KINDS = [
     ["재개발", (r) => r.k === "재개발" || r.k === "도시정비형 재개발"],
     ["재건축", (r) => r.k === "재건축"],
@@ -6000,7 +6000,7 @@
   const BLOG_URL = "https://blog.naver.com/always_questions";
   const leadCard = (cls = "") =>
     MO
-      ? `<aside class="lead ${cls}" aria-label="월간 단계 변경 리포트"><div class="ld-t"><b>${moLabel()}에 서울 정비사업 인가 ${MO.items.length}건(구역 ${new Set(MO.items.map((x) => x.id)).size}곳)</b><p>매달 추진위 승인·구역지정·조합설립·사업시행·관리처분 인가가 난 구역을 원문 링크, 입주까지 필요한 현금과 함께 정리해요.</p><ul class="ld-p"><li>매달 갱신</li><li>기사·고시 원문 대조</li><li>가입 없이 열람</li></ul></div><div class="ld-a"><a class="btn secondary sm" href="${MO.url}">최신 리포트 보기</a><small><a href="years">우리 단계는 몇 년 걸리나</a> · <a href="z/">구역별 페이지</a></small></div></aside>`
+      ? `<aside class="lead ${cls}" aria-label="월간 단계 변경 리포트"><div class="ld-t"><b>${moLabel()}에 서울 정비사업 인가 ${MO.items.length}건(구역 ${new Set(MO.items.map((x) => x.id)).size}곳)</b><p>매달 추진위 승인·구역지정·조합설립·사업시행·관리처분 인가가 난 구역을 원문 링크, 입주까지 필요한 현금과 함께 정리해요.</p><ul class="ld-p"><li>매달 발행</li><li>기사·고시 원문 대조</li><li>가입 없이 열람</li></ul></div><div class="ld-a"><a class="btn secondary sm" href="${MO.url}">최신 리포트 보기</a><small><a href="years">우리 단계는 몇 년 걸리나</a> · <a href="z/">구역별 페이지</a></small></div></aside>`
       : "";
   const JR_SEOUL = 56.6;
   const JR_GU = { 도봉구: 83.7, 강서구: 76.6, 금천구: 70.3, 종로구: 65.6 };
