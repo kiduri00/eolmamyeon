@@ -544,7 +544,9 @@
             if (!r) return "";
             const fav = FAV.includes(it.id),
               x = investC(r);
-            const can = x.ok
+            const can = buyWindow(r).cls === "no"
+              ? '<span class="mut">지금 사면 입주권 없음</span>'
+              : x.ok
               ? x.needTotal <= CASH
                 ? `<span class="okc">입주까지 ${e2(x.needTotal)}억 · 됨</span>`
                 : `<span class="mut">입주까지 ${e2(x.needTotal)}억</span>`
@@ -3906,7 +3908,7 @@
   function curStageDate(r) {
     const dt = r.dt || {};
     const m = { 2: "구역지정", 3: "추진위", 4: r.trust ? "시행자지정" : "조합설립", 5: "사업시행", 6: "관리처분", 8: "착공", 9: "준공" };
-    const d = dt[m[r.s]] || (r.s === 4 ? dt["조합설립"] || dt["시행자지정"] : null);
+    const d = dt[m[r.s]] || (r.s === 4 ? dt["조합설립"] || dt["시행자지정"] : null) || r.sd;
     return d ? d.replaceAll("-", ".") : "";
   }
   const LOC_GS = ["교통", "일자리", "한강", "호재", "생활"];

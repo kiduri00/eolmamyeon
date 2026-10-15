@@ -90,13 +90,21 @@ for r in R:
 for r in R:
     if r.get('src') == 'sintong' and re.search(r'지구|을지로|공평|무교|소공|관수|남대문로|서소문|충무로|태평로|세운|수표|입정', r['n']): r['nx'] = 'biz'
 
+SDK = {2: '구역지정', 3: '추진위', 4: '조합설립', 5: '사업시행', 6: '관리처분', 8: '착공', 9: '준공'}
 for r in R:
     if PARC.get(r['id'], {}).get('p'): r['pcl'] = 1
+    dt = (PREM.get(r['id']) or {}).get('dt') or {}
+    d = dt.get(SDK.get(r['s'], '')) or (r['s'] == 4 and (dt.get('조합설립') or dt.get('시행자지정')))
+    if d: r['sd'] = d   # 현재 단계 날짜(상세 자료를 불러오기 전에도 '오래 멈춤' 판정이 같도록)
 
 # ---------- 2. 권리산정기준일 ----------
 for r in R:
     x = RT.get(r['id'])
     if x: r['rdx'] = x; stat['rights'] += 1
+    # 공공재개발: 후보지 공모 공고일이 권리산정기준일(1차 2020.9.21, 2차 2021.12.30). 법 원칙 추정값보다 우선
+    pub = re.search(r'공공재개발|\s공공$|공공\s*재개발|공공\)', r['n']) and not re.search(r'공공임대|장기전세', r['n'])
+    if pub and r['k'] in ('재개발', '도시정비형 재개발') and (not x or x.get('c') != 'high'):
+        r['rdx'] = {'d': '2020-09-21', 'b': '공공재개발 1차 후보지 공모 공고일(2차 후보지라면 2021.12.30)', 'u': 'https://www.newsis.com/view/NISX20210329_0001387661', 'c': 'mid'}; stat['rights_pub'] += 1
 
 # ---------- 3. 구역 실거래 요약 병합 + 매수가 ----------
 T = TX['tx']; DONG = TX['dong']; APT = TX['apt']; DC = TX['dcode']

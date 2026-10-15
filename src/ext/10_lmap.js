@@ -8,6 +8,7 @@
     const LINE_COL = { "1호선": "#0052A4", "2호선": "#00A84D", "3호선": "#EF7C1C", "4호선": "#00A5DE", "5호선": "#996CAC", "6호선": "#CD7C2F", "7호선": "#747F00", "8호선": "#E6186C", "9호선": "#BDB092", 신분당선: "#D4003B", 수인분당선: "#F5A200", 경의중앙선: "#77C4A3", 공항철도: "#0090D2", 경춘선: "#0C8E72", 우이신설선: "#B0CE18", 신림선: "#6789CA", "GTX-A": "#9A6292", 서해선: "#8FC31F" };
     const SEOUL_BB = [[126.76, 37.413], [127.185, 37.716]];
     const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+    let pendFocus = false;
     let map = null, libP = null, geo = null, geoP = null, ready = false, active = false, gu = null, failed = false;
     let want = store.get("emr.map", "real") !== "svg";
     let colorBy = store.get("emr.mapc", "cash");
@@ -39,7 +40,7 @@
     const CASH_LAB = { y: null, n: "현금 부족", u: "계산 보류", e: "구 평균 시세 추정", x: "" };
     function palette() {
       const v = (n, d) => probe(`var(${n}, ${d})`);
-      return { y: v("--brand", "#2B59F0"), n: v("--dot-n", "#9AA4B2"), u: v("--text-4", "#8B95A1"), e: v("--acc2", "#8B6FE8"), x: v("--text-4", "#8B95A1"), ink: v("--text-1", "#191F28"), sub: v("--text-3", "#5F6B7A"), surf: v("--surface", "#fff"), line: v("--border", "#E5E8EB"), sel: v("--focus", "#2B59F0") };
+      return { y: v("--brand", "#2B59F0"), n: v("--text-3", "#5c6573"), u: v("--text-4", "#8B95A1"), e: v("--acc2", "#8B6FE8"), x: v("--text-4", "#8B95A1"), ink: v("--text-1", "#191F28"), sub: v("--text-3", "#5F6B7A"), surf: v("--surface", "#fff"), line: v("--border", "#E5E8EB"), sel: v("--focus", "#2B59F0") };
     }
     function colorOf(r, P) {
       if (colorBy === "stage") return P["st" + st6(r)] || (P["st" + st6(r)] = probe(STCOL(st6(r))));
@@ -93,18 +94,18 @@
       L({ id: "mask", type: "fill", source: "mask", paint: { "fill-color": dk ? "#0B0F14" : "#ffffff", "fill-opacity": dk ? 0.7 : 0.75 } });
       L({ id: "gu-line", type: "line", source: "gul", paint: { "line-color": dk ? "#3B4656" : "#AEB7C4", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 1.3], "line-dasharray": [2, 2] } });
       L({ id: "seoul-line", type: "line", source: "seoul", paint: { "line-color": P.sub, "line-width": 1.6, "line-opacity": 0.7 } });
-      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ["get", "c"], "fill-opacity": ["*", ["get", "o"], ["interpolate", ["linear"], ["zoom"], 11, 0.22, 15, 0.1]] } });
-      L({ id: "zest-line", type: "line", source: "zest", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 15, 1.8], "line-dasharray": [2, 1.6], "line-opacity": ["*", ["get", "o"], 0.9] } });
-      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ["get", "c"], "fill-opacity": ["*", ["get", "o"], ["interpolate", ["linear"], ["zoom"], 11, 0.55, 13, 0.38, 16, 0.24]] } });
-      L({ id: "zone-line", type: "line", source: "zones", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 13, 1.7, 16, 2.6], "line-opacity": ["get", "o"] } });
-      L({ id: "pts", type: "circle", source: "pts", maxzoom: 12.6, paint: { "circle-color": ["get", "c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 12.5, 5.5], "circle-stroke-color": halo, "circle-stroke-width": 1.2, "circle-opacity": ["get", "o"], "circle-stroke-opacity": ["get", "o"] } });
+      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ["get", "c"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, ["min", 0.4, ["*", ["get", "o"], 0.22]], 15, ["min", 0.4, ["*", ["get", "o"], 0.1]]] } });
+      L({ id: "zest-line", type: "line", source: "zest", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 15, 1.8], "line-dasharray": [2, 1.6], "line-opacity": ["min", 1, ["*", ["get", "o"], 0.9]] } });
+      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ["get", "c"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, ["min", 0.75, ["*", ["get", "o"], 0.5]], 13, ["min", 0.75, ["*", ["get", "o"], 0.36]], 16, ["min", 0.75, ["*", ["get", "o"], 0.24]]] } });
+      L({ id: "zone-line", type: "line", source: "zones", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 13, 1.7, 16, 2.6], "line-opacity": ["min", 1, ["get", "o"]] } });
+      L({ id: "pts", type: "circle", source: "pts", paint: { "circle-color": ["get", "c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 12.5, 5.5], "circle-stroke-color": halo, "circle-stroke-width": 1.2, "circle-opacity": ["min", 1, ["get", "o"]], "circle-stroke-opacity": ["min", 1, ["get", "o"]] } });
       L({ id: "sel-line", type: "line", source: "sel", paint: { "line-color": P.sel, "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.6, 16, 4.5] } });
       L({ id: "stn", type: "circle", source: "stn", minzoom: 12, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 3] } });
       L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 12.8, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } });
-      L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 12.6, layout: { "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 11.8, layout: { "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
       ready = true;
       paint();
-      focus(false);
+      focus(pendFocus); pendFocus = false;
     }
     function labelOf(r) {
       if (colorBy === "cash") {
@@ -124,12 +125,12 @@
       const vis = R.filter((r) => r.ll && visible(r));
       const off = [], est = [], lab = [], pts = [];
       for (const r of vis) {
-        const c = colorOf(r, P), z = Z[r.id], o = colorBy === "cash" && dotState(r) === "x" ? 0.35 : 1;
+        const st0 = colorBy === "cash" ? dotState(r) : "", c = colorOf(r, P), z = Z[r.id], o = st0 === "x" ? 0.45 : st0 === "n" || st0 === "u" ? 0.75 : st0 === "y" ? 1.3 : 1;
         if (z) {
           (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id, c, o } });
           lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r) } });
         }
-        pts.push({ type: "Feature", geometry: { type: "Point", coordinates: z ? z.l : [r.ll[1], r.ll[0]] }, properties: { id: r.id, c, o } });
+        if (!z) pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, c, o } });
       }
       map.getSource("zones").setData(FC(off));
       map.getSource("zest").setData(FC(est));
@@ -169,10 +170,12 @@
       if (!box || $("lmap")) return;
       const d = document.createElement("div");
       d.id = "lmap"; d.className = "lmap"; d.hidden = true;
-      d.innerHTML = `<div class="lm-ctl" role="group" aria-label="구역 색 기준"><span>색</span>${[["cash", "내 현금"], ["stage", "단계"], ["kind", "사업 방식"]].map(([k, t]) => `<button type="button" data-c="${k}" aria-pressed="${colorBy === k}">${t}</button>`).join("")}</div><div class="lm-legend" id="lmLegend"></div>`;
+      d.innerHTML = `<div class="lm-ctl" role="group" aria-label="구역 색 기준"><span>색</span>${[["cash", "내 현금"], ["stage", "단계"], ["kind", "사업 방식"]].map(([k, t]) => `<button type="button" data-c="${k}" aria-pressed="${colorBy === k}">${t}</button>`).join("")}<button type="button" class="lm-lg" aria-expanded="false" aria-controls="lmLegend">범례</button></div><div class="lm-legend" id="lmLegend" hidden></div>`;
+      d.querySelector(".lm-lg").onclick = (e) => { const lg = $("lmLegend"), on = lg.hidden; lg.hidden = !on; e.currentTarget.setAttribute("aria-expanded", String(on)); };
       box.appendChild(d);
       d.querySelector(".lm-ctl").addEventListener("click", (e) => {
         const b = e.target.closest("button[data-c]");
+        if (b && false) return;
         if (!b) return;
         colorBy = b.dataset.c; store.set("emr.mapc", colorBy);
         d.querySelectorAll(".lm-ctl button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
@@ -258,7 +261,7 @@
           if (mapView !== "gu" || !want) return;
           if (!init()) { show(false); return; }
           map.resize();
-          if (cur && cur.g === n && geo && (geo.z[cur.id] || cur.ll)) focus(true);
+          if (cur && cur.g === n && geo && (geo.z[cur.id] || cur.ll)) { if (ready) focus(true); else pendFocus = true; }
           else fitGu(n);
           if (ready) paint();
         })

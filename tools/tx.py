@@ -149,7 +149,7 @@ for r in R:
     if rid in PAR:
         rs = [bldRatio[p[0]] for p in PAR[rid]['p'] if p[0] in bldRatio and .15 < bldRatio[p[0]] < 1.1]
         if len(rs) >= 3: t['jr'] = round(med(rs), 3); t['jrn'] = len(rs)
-    if t.get('jn', 0) >= 5 and t.get('no', 0) >= 5 and t.get('ja') and t.get('ar'):
+    if t.get('jn', 0) >= 5 and t.get('no', 0) >= 5 and t.get('ja') and t.get('ar') and abs(t['ja'] - t['ar']) / t['ar'] <= 0.3:   # 면적대가 비슷할 때만
         v = (t['jm']/t['ja'])/(t['med']/t['ar'])
         if .08 < v < 1.1: t['jr2'] = round(v, 3)
     if rid in parstat: t['pc'] = parstat[rid]
