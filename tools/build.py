@@ -12,7 +12,11 @@ for f in sorted(os.listdir(os.path.join(R, 'public', 'data'))) if os.path.isdir(
         dv[f[:-5]] = hashlib.md5(open(os.path.join(R, 'public', 'data', f), 'rb').read()).hexdigest()[:8]
 if dv: D['dv'] = dv
 data = json.dumps(D, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
-out = shell.replace('/*APPCSS*/', S('app.css'), 1).replace('/*APPJS*/', S('app.js').replace('</script', '<\\/script'), 1).replace('/*DATA*/', data, 1)
+EXT = os.path.join(R, 'src', 'ext')
+ext_js = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))
+ext_css = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.css'))
+js = S('app.js'); assert js.count('/*EXT*/') == 1; js = js.replace('/*EXT*/', ext_js.strip() + '\n')
+out = shell.replace('/*APPCSS*/', S('app.css') + ext_css, 1).replace('/*APPJS*/', js.replace('</script', '<\\/script'), 1).replace('/*DATA*/', data, 1)
 for k in ('/*APPCSS*/', '/*APPJS*/', '/*DATA*/'): assert k not in out
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)
 print('public/index.html', len(out.encode()), 'bytes')

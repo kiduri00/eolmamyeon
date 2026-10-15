@@ -618,6 +618,7 @@
   const ASOF = D.asOf.replaceAll("-", ".");
   const LADDER = D.ladder;
   const R = D.recs;
+  /*EXT*/
   const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const smooth = () => (reduceMotion() ? "auto" : "smooth");
   const hav = (a, b) => {
@@ -1447,6 +1448,7 @@
     drawOk();
     if (mapView === "gu") {
       paintDots();
+      LMX.paint();
       if ($("report").querySelector(".gu-zones") || $("guListBox")?.dataset.gu) renderGuPanel(!$("report").querySelector(".gu-zones"));
     }
   }
@@ -2730,12 +2732,15 @@
     return [best[0] - w / 2, best[1] - h / 2, w, h];
   };
   $("mzIn").onclick = () => {
+    if (LMX.on()) return LMX.zoom(1);
     if (mapView === "gu" && BASEVB) animTo(mzInVB());
   };
   $("mzOut").onclick = () => {
+    if (LMX.on()) return LMX.zoom(-1);
     if (mapView === "gu" && BASEVB) animTo(zoomVB(0.5, ...mzC(), zAnim && zTo ? zTo : vb));
   };
   $("mzFit").onclick = () => {
+    if (LMX.on()) return LMX.zoom(0);
     if (mapView === "gu" && BASEVB) animTo(BASEVB.slice(), 300);
   };
   svg.addEventListener(
@@ -3054,6 +3059,7 @@
     animateVB(guBox(n), () => {
       if (opts.focusBack) $("mapBack").focus({ preventScroll: true });
     });
+    LMX.enter(n);
     if (from !== "gu") drawLegend();
     setMapSub();
     if (!opts.keepReport) renderGuPanel();
@@ -3174,6 +3180,7 @@
     tip.hidden = true;
     if ($("mpop")) $("mpop").hidden = true;
     POS.clear();
+    LMX.exit();
     restoreSeoulPanels();
     animateVB(VB0.slice(), () => {
       if (opts.focus) {
@@ -3862,6 +3869,7 @@
     renderReport();
     markPick();
     markRankRow();
+    LMX.focus(!!zoom || mapView === "gu");
     if (zoom && cur.xy && GU.has(cur.g) && (mapGu !== cur.g || mapView !== "gu")) {
       const g = cur.g;
       if (MQ_SHEET.matches) requestAnimationFrame(() => setTimeout(() => enterGu(g, { keepReport: true }), 0));
@@ -4050,6 +4058,7 @@
   function showHjOnMap(r, it) {
     const tll = it.at ? (stnBy(it.at) || {}).ll : it.h.pt;
     if (!tll || !r.xy) return;
+    if (LMX.on()) LMX.use(false);
     HJHL = { xy: toXY(tll[0], tll[1]), c: it.h.c };
     if (MQ_SHEET.matches) closeSheet();
     const go = () => {
