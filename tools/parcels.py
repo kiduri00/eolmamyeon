@@ -2,7 +2,7 @@
 """공식 경계가 있는 구역마다 서울도시공간포털 연속지적(layer 1)에서 경계 안 필지(PNU·면적·소유·지목)를 모은다.
 캐시: pipeline/cache/parcels.json {recId: {"h": 경계해시, "p": [[PNU, 면적, 소유, 지목], ...]}}
 경계가 바뀐 구역만 다시 조회한다."""
-import json, os, sys, time, hashlib, subprocess, urllib.parse
+import json, os, sys, time, hashlib, subprocess, urllib.parse, threading
 from concurrent.futures import ThreadPoolExecutor
 from shapely.geometry import Polygon, Point
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,6 +12,21 @@ D = json.load(open(os.path.join(ROOT, 'src/data.json'), encoding='utf-8'))
 act = {r['id'] for r in D['recs'] if not (r['s'] >= 9 or (r.get('dn') and r['s'] < 7))}
 CP = os.path.join(ROOT, 'pipeline/cache/parcels.json')
 cache = json.load(open(CP)) if os.path.exists(CP) else {}
+LOCK = threading.Lock()
+def save():
+    with LOCK: snap = dict(cache)
+    json.dump(snap, open(CP + '.tmp', 'w'), separators=(',', ':')); os.replace(CP + '.tmp', CP)
+SEED = os.environ.get('PARCEL_SEED')   # 예전 실행 결과 재사용: {"match": 예전 매칭 rid→idx 파일, "parcels": idx→필지 파일}
+if SEED and not cache:
+    sd = json.load(open(SEED)); om = json.load(open(sd['match']))['match']; op = json.load(open(sd['parcels']))
+    for rid, z in GEO['z'].items():
+        if z.get('e') or z.get('src') != 'uq181' or rid not in om: continue
+        ps = op.get(str(om[rid]))
+        if ps is None: continue
+        tot = sum(p[1] for p in ps)
+        if z.get('a') and 0.8 <= tot / z['a'] <= 1.15:
+            cache[rid] = {'h': hashlib.md5(json.dumps(z['g']).encode()).hexdigest()[:10], 'p': ps}
+    print('seeded', len(cache), flush=True)
 todo = []
 for rid, z in GEO['z'].items():
     if z.get('e') or rid not in act: continue
@@ -34,10 +49,10 @@ def run(t):
         rg = f['geometry']['rings'][0]; cx = sum(p[0] for p in rg)/len(rg); cy = sum(p[1] for p in rg)/len(rg)
         if g.contains(Point(cx, cy)):
             a = f['attributes']; out.append([a['PNU'], round(a.get('SHAPE.AREA') or 0, 1), a.get('OWN') or '', a.get('JIMOK') or ''])
-    cache[rid] = {'h': h, 'p': out}
+    with LOCK: cache[rid] = {'h': h, 'p': out}
     time.sleep(.3)
 with ThreadPoolExecutor(3) as ex:
     for k, _ in enumerate(ex.map(run, todo)):
         if k % 40 == 0:
-            json.dump(cache, open(CP, 'w'), separators=(',', ':')); print(k, '/', len(todo), flush=True)
-json.dump(cache, open(CP, 'w'), separators=(',', ':')); print('DONE', len(cache), flush=True)
+            save(); print(k, '/', len(todo), flush=True)
+save(); print('DONE', len(cache), flush=True)

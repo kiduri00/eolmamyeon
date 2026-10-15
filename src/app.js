@@ -439,7 +439,7 @@
     p.then(() => PREM_P.delete(r.id));
     return p;
   }
-  const PREM_TABS = new Set(["biz", "loc", "near"]);
+  const PREM_TABS = new Set(["biz", "loc", "near", "tx"]);
   function premPane(r) {
     const p = $("pane");
     p.innerHTML = `<div class="prem-wait" role="status"><span class="sr-only">상세 자료를 불러오는 중</span>${SKEL.note()}</div>`;
@@ -2145,7 +2145,7 @@
       need = tot ? (x.ok ? x.needTotal : null) : x.needBuy,
       lab = tot ? "입주까지 필요한 현금" : "지금 매수에 필요한 현금";
     if (need == null)
-      return `<p class="cstrip na"><span>${lab}</span><b>–</b><small>${x.price == null ? "매수가 추정 불가 · 주변 빌라 거래가 적어요" : "신축 시세·입주 시점 자료가 부족해 입주까지는 계산 보류"}</small></p>`;
+      return `<p class="cstrip na"><span>${lab}</span><b>–</b><small>${x.price == null ? noPriceTxt(r) : "신축 시세·입주 시점 자료가 부족해 입주까지는 계산 보류"}</small></p>`;
     const estN = isEst(r) ? `<span class="zb est">구 평균 시세로 추정${P.est ? "" : " · 곳 수 제외"}</span>` : "";
     const left = CASH - need;
     return `<p class="cstrip ${left >= 0 ? "ok" : "short"}"><span>${lab}${estN}</span><b>${e2(need)}억</b><small>${left >= 0 ? `내 현금 ${e2(CASH)}억 중 ${e2(left) === "0" ? "남는 돈 없음" : e2(left) + "억 남음"}` : `내 현금 ${e2(CASH)}억보다 ${e2(-left)}억 더 필요`}</small></p>`;
@@ -3094,7 +3094,7 @@
         const g = gapOf(r);
         if (g.block) return g.block.split(" · ")[0];
       }
-      return "매수가 추정 불가 · 주변 빌라 거래가 적어요";
+      return noPriceTxt(r);
     };
     const row = (r, k) => {
       const nd = k === "u" || k === "x" ? null : needOf(r);
@@ -3930,6 +3930,7 @@
     ).join("");
   const TABS = [
     ["money", "입주 현금"],
+    ["tx", "실거래"],
     ["loc", "입지·생활"],
     ["near", "호재·매물"],
     ["biz", "사업·일정"],
@@ -4099,7 +4100,7 @@
       premPane(cur);
       return;
     }
-    ({ loc: paneLoc, biz: paneBiz, money: paneMoney, req: paneReq, near: paneNear })[curTab](cur);
+    ({ loc: paneLoc, biz: paneBiz, money: paneMoney, req: paneReq, near: paneNear, tx: paneTx })[curTab](cur);
     if (curTab === "money" && gapMode()) {
       const h = gapPaneHTML(cur);
       if (h) {
@@ -5889,7 +5890,7 @@
         : null,
     ].filter(Boolean);
     const ti = x.ok ? flowParts(x).ti : null;
-    const why = `<details class="why"><summary>계산 근거${notes.length ? ` · 참고 ${notes.length}` : ""}</summary><div class="why-in">\n      ${notes.length ? `<ul class="why-notes">${notes.map(([t, d]) => `<li><b>${esc(t)}</b>${esc(d)}</li>`).join("")}</ul>` : ""}\n      ${x.price != null ? `<dl>\n        <dt>매수가</dt><dd>${e2(x.price)}억 <small>${x.priceSrc === "user" ? "직접 입력" : x.priceSrc === "complex" ? `${esc(en.name)} 실거래 ${en.n}건 가운데 값 (전용 ${en.area_med}㎡ · 계약 2025.10~2026.9)` : x.priceSrc === "villa" ? `반경 ${fmt(en.radius)}m 구축 빌라 실거래 ${en.n}건 가운데 값 (전용 ${en.area_med}㎡ · 계약 2025.10~2026.9)` : ""}</small></dd>\n        <dt>취득세</dt><dd>${won(x.tax)} <small>${taxDesc(x)} · '지금'에 포함</small></dd>\n        ${x.ok ? `<dt>매수 대출</dt><dd>${loanWhy(x)}</dd>` : ""}\n        <dt>감정가 추정</dt><dd>${e2(x.appr)}억 <small>${esc(x.apprWhy)}</small></dd>\n        <dt>권리가액 · 프리미엄</dt><dd>${won(x.right)} · ${won(x.prem)} <small>비례율 ${Math.round(x.ratio * 100)}% 가정</small></dd>\n        ${x.ok ? `<dt>조합원 분양가</dt><dd>${e2(x.unitPrice)}억 <small>${x.unitArea}㎡ · 신축 시세의 ${Math.round((x.unitPrice / x.nv) * 100)}% (${x.unitArea}㎡ 원가 하한 ${e2(x.floor)}억 · 비율은 작성자 가정값)</small></dd>\n        <dt>신축 시세</dt><dd>${e2(x.nv)}억 <small>${x.nvFix ? "구축 ㎡단가 × 1.15로 보정 · " : ""}${x.same ? `같은 평형(${x.unitArea}㎡) 환산 · ` : ""}${esc(x.ref?.scope || "")} 2016년 이후 준공 ${x.ref?.n || ""}건${x.ref?.complexes ? " · " + x.ref.complexes.slice(0, 2).map(esc).join(", ") : ""}</small></dd>\n        <dt>세금·이자 (입주까지)</dt><dd>${e2(ti)}억 <small>${tiParts(x)}</small></dd>\n        <dt>입주까지 들어가는 돈 합계(잔금대출 빼기 전)</dt><dd>${e2(x.total)}억 <small>매수가 + 취득세 + 분담금 + 세금·이자 (각 값은 반올림 전 합계)</small></dd>` : ""}\n      </dl>` : ""}\n      <div class="ov">\n        <label>매수가<span class="inp"><input inputmode="decimal" data-ov="price" data-id="${r.id}" value="${OV[r.id]?.price ?? ""}" placeholder="${x.price != null ? e2(x.price) : "예: 5"}"><span>억</span></span></label>\n        ${x.land != null ? `<label>대지지분${x.landDef ? ' <small class="lab-def">가정값 · 입력으로 수정</small>' : ""}<span class="inp"><input inputmode="decimal" data-ov="land" data-id="${r.id}" value="${OV[r.id]?.land ?? ""}" placeholder="${x.land}"><span>㎡</span></span></label>` : x.price != null ? `<label>감정가<span class="inp"><input inputmode="decimal" data-ov="appr" data-id="${r.id}" value="${OV[r.id]?.appr ?? ""}" placeholder="${e2(x.appr)}"><span>억</span></span></label>` : ""}\n      </div>\n    </div></details>`;
+    const why = `<details class="why"><summary>계산 근거${notes.length ? ` · 참고 ${notes.length}` : ""}</summary><div class="why-in">\n      ${notes.length ? `<ul class="why-notes">${notes.map(([t, d]) => `<li><b>${esc(t)}</b>${esc(d)}</li>`).join("")}</ul>` : ""}\n      ${x.price != null ? `<dl>\n        <dt>매수가</dt><dd>${e2(x.price)}억 <small>${x.priceSrc === "user" ? "직접 입력" : x.priceSrc === "complex" ? `${esc(en.name)} 실거래 ${en.n}건 가운데 값 (전용 ${en.area_med}㎡ · 계약 2025.10~2026.9)` : x.priceSrc === "villa" ? `${en.scope ? esc(en.scope) : `반경 ${fmt(en.radius)}m 구축 빌라`} 실거래 ${en.n}건 가운데 값 (전용 ${en.area_med}㎡ · 계약 2025.10~2026.9)` : ""}</small></dd>\n        <dt>취득세</dt><dd>${won(x.tax)} <small>${taxDesc(x)} · '지금'에 포함</small></dd>\n        ${x.ok ? `<dt>매수 대출</dt><dd>${loanWhy(x)}</dd>` : ""}\n        <dt>감정가 추정</dt><dd>${e2(x.appr)}억 <small>${esc(x.apprWhy)}</small></dd>\n        <dt>권리가액 · 프리미엄</dt><dd>${won(x.right)} · ${won(x.prem)} <small>비례율 ${Math.round(x.ratio * 100)}% 가정</small></dd>\n        ${x.ok ? `<dt>조합원 분양가</dt><dd>${e2(x.unitPrice)}억 <small>${x.unitArea}㎡ · 신축 시세의 ${Math.round((x.unitPrice / x.nv) * 100)}% (${x.unitArea}㎡ 원가 하한 ${e2(x.floor)}억 · 비율은 작성자 가정값)</small></dd>\n        <dt>신축 시세</dt><dd>${e2(x.nv)}억 <small>${x.nvFix ? "구축 ㎡단가 × 1.15로 보정 · " : ""}${x.same ? `같은 평형(${x.unitArea}㎡) 환산 · ` : ""}${esc(x.ref?.scope || "")} 2016년 이후 준공 ${x.ref?.n || ""}건${x.ref?.complexes ? " · " + x.ref.complexes.slice(0, 2).map(esc).join(", ") : ""}</small></dd>\n        <dt>세금·이자 (입주까지)</dt><dd>${e2(ti)}억 <small>${tiParts(x)}</small></dd>\n        <dt>입주까지 들어가는 돈 합계(잔금대출 빼기 전)</dt><dd>${e2(x.total)}억 <small>매수가 + 취득세 + 분담금 + 세금·이자 (각 값은 반올림 전 합계)</small></dd>` : ""}\n      </dl>` : ""}\n      <div class="ov">\n        <label>매수가<span class="inp"><input inputmode="decimal" data-ov="price" data-id="${r.id}" value="${OV[r.id]?.price ?? ""}" placeholder="${x.price != null ? e2(x.price) : "예: 5"}"><span>억</span></span></label>\n        ${x.land != null ? `<label>대지지분${x.landDef ? ' <small class="lab-def">가정값 · 입력으로 수정</small>' : ""}<span class="inp"><input inputmode="decimal" data-ov="land" data-id="${r.id}" value="${OV[r.id]?.land ?? ""}" placeholder="${x.land}"><span>㎡</span></span></label>` : x.price != null ? `<label>감정가<span class="inp"><input inputmode="decimal" data-ov="appr" data-id="${r.id}" value="${OV[r.id]?.appr ?? ""}" placeholder="${e2(x.appr)}"><span>억</span></span></label>` : ""}\n      </div>\n    </div></details>`;
     const cap = `${esc(r.g)} ${esc(DUPN.has(shortName(r.n)) ? r.bj || r.j : (r.bj || r.j).split(" ")[0])} · ${esc(r.k.replace("(모아주택)", ""))}${(() => {
       const x = r.st ? stnInfo(r) : null;
       return !x ? "" : x.min > 20 ? ` · ${esc(x.n)}역 ${(x.d / 1e3).toFixed(1)}km` : ` · ${esc(x.n)}역 ${fmt(x.d)}m·도보 ${x.min}분`;
@@ -7843,7 +7844,7 @@
                   : `<b>${e2(g.now)}억</b><small>${g.x.ok ? `이주 때 +${e2(g.reloc)} · 입주까지 총 ${e2(g.total)}억` : "입주까지 계산 전"}</small>`;
             })
           : ""
-      }\n      ${row("매수가 기준", (o) => (o.x && o.x.price != null ? `${e2(o.x.price)}억<small>${isEst(o.r || o.x.r) ? "구 평균 시세로 추정" : o.x.priceSrc === "user" ? "직접 입력" : o.x.priceSrc === "complex" ? "단지 실거래 가운데 값" : "주변 빌라 실거래 가운데 값"}</small>` : '<span class="mut">매수가 추정 불가 · 주변 빌라 거래가 적어요</span>'))}\n      ${row("단계", (o) => esc(stageName(o.r)))}\n      ${row("10년 안 준공 가능성", (o) => (o.r.eta?.p10 != null ? `${prob(o.r.eta.p10)}%<small>추정</small>` : '<span class="mut">–</span>'), bp)}\n      ${row("가까운 역·도보", (o) => (o.s ? `${esc(o.s.n)}역 ${fmt(o.s.d)}m<small>도보 약 ${o.s.min}분 · 직선거리 기준</small>` : "–"), bw)}\n      ${row(
+      }\n      ${row("매수가 기준", (o) => (o.x && o.x.price != null ? `${e2(o.x.price)}억<small>${isEst(o.r || o.x.r) ? "구 평균 시세로 추정" : o.x.priceSrc === "user" ? "직접 입력" : o.x.priceSrc === "complex" ? "단지 실거래 가운데 값" : "주변 빌라 실거래 가운데 값"}</small>` : `<span class="mut">${noPriceTxt(o.r)}</span>`))}\n      ${row("단계", (o) => esc(stageName(o.r)))}\n      ${row("10년 안 준공 가능성", (o) => (o.r.eta?.p10 != null ? `${prob(o.r.eta.p10)}%<small>추정</small>` : '<span class="mut">–</span>'), bp)}\n      ${row("가까운 역·도보", (o) => (o.s ? `${esc(o.s.n)}역 ${fmt(o.s.d)}m<small>도보 약 ${o.s.min}분 · 직선거리 기준</small>` : "–"), bw)}\n      ${row(
         "GTX·주변 호재",
         (o) =>
           o.hj.length

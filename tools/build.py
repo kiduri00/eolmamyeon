@@ -4,7 +4,8 @@ import json, hashlib, os, re
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 S = lambda p: open(os.path.join(R, 'src', p), encoding='utf-8').read()
 shell = S('shell.html')
-D = json.loads(S('data.json'))
+EN = os.path.join(R, 'pipeline', 'data.enriched.json')
+D = json.load(open(EN, encoding='utf-8')) if os.path.exists(EN) else json.loads(S('data.json'))
 # 지연 로딩 데이터 파일 버전(내용 해시) → 캐시 무효화
 dv = {}
 for f in sorted(os.listdir(os.path.join(R, 'public', 'data'))) if os.path.isdir(os.path.join(R, 'public', 'data')) else []:
