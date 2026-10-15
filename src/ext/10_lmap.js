@@ -42,8 +42,8 @@
       return { y: v("--brand", "#2B59F0"), n: v("--dot-n", "#9AA4B2"), u: v("--text-4", "#8B95A1"), e: v("--acc2", "#8B6FE8"), x: v("--text-4", "#8B95A1"), ink: v("--text-1", "#191F28"), sub: v("--text-3", "#5F6B7A"), surf: v("--surface", "#fff"), line: v("--border", "#E5E8EB"), sel: v("--focus", "#2B59F0") };
     }
     function colorOf(r, P) {
-      if (colorBy === "stage") return probe(STCOL(st6(r)));
-      if (colorBy === "kind") return KIND_COL()[shapeOf(r)];
+      if (colorBy === "stage") return P["st" + st6(r)] || (P["st" + st6(r)] = probe(STCOL(st6(r))));
+      if (colorBy === "kind") return (P.K || (P.K = KIND_COL()))[shapeOf(r)];
       return P[dotState(r)];
     }
     function style() {
@@ -95,13 +95,13 @@
       L({ id: "seoul-line", type: "line", source: "seoul", paint: { "line-color": P.sub, "line-width": 1.6, "line-opacity": 0.7 } });
       L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ["get", "c"], "fill-opacity": ["*", ["get", "o"], ["interpolate", ["linear"], ["zoom"], 11, 0.22, 15, 0.1]] } });
       L({ id: "zest-line", type: "line", source: "zest", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 15, 1.8], "line-dasharray": [2, 1.6], "line-opacity": ["*", ["get", "o"], 0.9] } });
-      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ["get", "c"], "fill-opacity": ["*", ["get", "o"], ["interpolate", ["linear"], ["zoom"], 11, 0.5, 13, 0.32, 16, 0.2]] } });
+      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ["get", "c"], "fill-opacity": ["*", ["get", "o"], ["interpolate", ["linear"], ["zoom"], 11, 0.55, 13, 0.38, 16, 0.24]] } });
       L({ id: "zone-line", type: "line", source: "zones", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 13, 1.7, 16, 2.6], "line-opacity": ["get", "o"] } });
       L({ id: "pts", type: "circle", source: "pts", maxzoom: 12.6, paint: { "circle-color": ["get", "c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 12.5, 5.5], "circle-stroke-color": halo, "circle-stroke-width": 1.2, "circle-opacity": ["get", "o"], "circle-stroke-opacity": ["get", "o"] } });
       L({ id: "sel-line", type: "line", source: "sel", paint: { "line-color": P.sel, "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.6, 16, 4.5] } });
       L({ id: "stn", type: "circle", source: "stn", minzoom: 12, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 3] } });
-      L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 13.4, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } });
-      L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 13.2, layout: { "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 12.8, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } });
+      L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 12.6, layout: { "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
       ready = true;
       paint();
       focus(false);
@@ -161,7 +161,7 @@
       let items;
       if (colorBy === "stage") items = [[1, "계획·지정"], [2, "추진위"], [3, "조합설립"], [4, "사업시행"], [5, "관리처분"], [6, "이주·착공"]].map(([i, t]) => [probe(STCOL(i)), t]);
       else if (colorBy === "kind") { const K = KIND_COL(); items = [[K.rd, "재개발"], [K.rc, "재건축"], [K.sm, "가로·소규모"], [K.moa, "모아타운"]]; }
-      else items = [[P.y, gapMode() ? "전세 끼고 지금 가능" : effBasis() === "total" ? "입주까지 가능" : "지금 매수 가능"], [P.n, "현금 부족"], [P.u, "계산 보류·제외"]];
+      else items = [[P.y, gapMode() ? "전세 끼고 지금 가능" : effBasis() === "total" ? "입주까지 가능" : "지금 매수 가능"], [P.n, "현금 부족"], [P.u, "거래 적어 계산 못 함·제외"]];
       el.innerHTML = `${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>`;
     }
     function ui() {

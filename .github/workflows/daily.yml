@@ -51,4 +51,4 @@ jobs:
           git add -A public pipeline src
           if git diff --cached --quiet; then echo "변경 없음"; exit 0; fi
           git commit -m "데이터 자동 갱신 $(TZ=Asia/Seoul date +%Y-%m-%d)"
-          git push
+          for i in 1 2 3; do git pull --rebase -X theirs origin "${GITHUB_REF_NAME}" && git push && exit 0; sleep 10; done; exit 1

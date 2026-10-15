@@ -20,10 +20,11 @@ const Y = new Date().getFullYear();
         await p.waitForFunction(() => !!(document.frmSheet && window.serviceDownload), null, { timeout: 90000 });
         await p.evaluate(([c, v]) => { document.frmSheet.filterCol.value = c; document.frmSheet.txtFilter.value = v; window.isDown = 'N'; }, [col, val]);
         const [d] = await Promise.all([p.waitForEvent('download', { timeout: 900000 }), p.evaluate(() => serviceDownload('csv'))]);
-        const f = path.join(out, file);
-        await d.saveAs(f);
-        const n = fs.statSync(f).size;
-        if (n < 1e6) throw new Error('too small ' + n);
+        const f = path.join(out, file), tmp = f + '.part';
+        await d.saveAs(tmp);
+        const n = fs.statSync(tmp).size;
+        if (n < 1e6) { fs.unlinkSync(tmp); throw new Error('too small ' + n); }
+        fs.renameSync(tmp, f);
         console.log('ok', file, n);
         return true;
       } catch (e) { console.log('retry', file, e.message.slice(0, 120)); await p.waitForTimeout(5000 * (k + 1)); }

@@ -22,6 +22,10 @@ if os.path.exists(LT):
         if lt['ym'] > cur.get('ym', ''):
             new = {'ym': lt['ym'], 'no': lt['no'], 'url': lt['url'] + '.html', 'items': [{'id': i['id'], 'step': i['step'], 'date': i['date'], 'src': ''} for i in lt['items']]}
             shell = shell[:m.start(2)] + json.dumps(new, ensure_ascii=False) + shell[m.end(2):]
+PJ = os.path.join(R, 'public', 'premium.json')
+if os.path.exists(PJ):
+    pv = hashlib.md5(open(PJ, 'rb').read()).hexdigest()[:8]
+    shell = re.sub(r'("prem":\s*")premium\.json[^"]*(")', lambda m: m.group(1) + 'premium.json?v=' + pv + m.group(2), shell)
 data = json.dumps(D, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
 EXT = os.path.join(R, 'src', 'ext')
 ext_js = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))

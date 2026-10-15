@@ -616,6 +616,7 @@
   const TODAY = new Date(D.asOf + "T00:00:00");
   const ym = (d) => `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
   const ASOF = D.asOf.replaceAll("-", ".");
+  const UPD = (D.upd || D.asOf).replaceAll("-", ".");
   const LADDER = D.ladder;
   const R = D.recs;
   /*EXT*/
@@ -1145,7 +1146,7 @@
   }
   const yieldT = () => (window.scheduler && scheduler.yield ? scheduler.yield() : new Promise((r) => setTimeout(r, 0)));
   $("eyebrow").innerHTML =
-    `<span class="live" aria-hidden="true"></span><span class="eb-l">서울 진행 중 정비사업 ${fmt(POP.length)}곳 · 모아타운 관리지역 ${fmt(MOA_ALL.length)}곳 별도 · 데이터 갱신 ${ASOF}</span><span class="eb-s">서울 정비사업 ${fmt(POP.length)}곳 · ${+D.asOf.slice(5, 7)}.${+D.asOf.slice(8, 10)} 갱신</span>`;
+    `<span class="live" aria-hidden="true"></span><span class="eb-l">서울 진행 중 정비사업 ${fmt(POP.length)}곳 · 모아타운 관리지역 ${fmt(MOA_ALL.length)}곳 별도 · 데이터 갱신 ${UPD}</span><span class="eb-s">서울 정비사업 ${fmt(POP.length)}곳 · ${+(D.upd || D.asOf).slice(5, 7)}.${+(D.upd || D.asOf).slice(8, 10)} 갱신</span>`;
   $("asof").textContent = D.txAsOf && D.txAsOf.sale ? `실거래 ${D.txAsOf.sale.slice(2, 4)}.${D.txAsOf.sale.slice(4, 6)}.${D.txAsOf.sale.slice(6, 8)}까지 · 매일 갱신` : `데이터 갱신 ${ASOF} · 매달 갱신`;
   const KINDS = [
     ["재개발", (r) => r.k === "재개발" || r.k === "도시정비형 재개발"],
@@ -6026,16 +6027,25 @@
   P.fund = "gap";
   P.jr = null;
   const gapMode = () => P.fund === "gap";
-  const jrOf = (r) => (P.jr != null ? P.jr : (JR_GU[r.g] ?? JR_SEOUL));
+  // 구역 경계 안 실거래로 구한 전세가율(같은 건물 매매·전세 비교 5곳 이상 또는 ㎡당 시세 비교)이 있으면 그것을 먼저 쓴다
+  const zoneJr = (r) => {
+    const t = r.tx, en = r.mk && r.mk.entry;
+    if (!t || !en || en.src !== "villa") return null;
+    const v = t.jr && t.jrn >= 5 ? t.jr : t.jr2 && t.jn >= 8 ? t.jr2 : null;
+    return v == null ? null : Math.round(Math.min(0.9, Math.max(0.15, v)) * 1000) / 10;
+  };
+  const jrOf = (r) => (P.jr != null ? P.jr : (zoneJr(r) ?? JR_GU[r.g] ?? JR_SEOUL));
   const jrSrcTxt = (r) =>
-    P.jr != null ? "직접 설정" : JR_GU[r.g] != null ? `${r.g} 연립·다세대 평균(2026.3)` : "서울 연립·다세대 평균(2026.3)";
+    P.jr != null ? "직접 설정" : zoneJr(r) != null ? (r.tx.jr && r.tx.jrn >= 5 ? `구역 안 같은 건물 매매·전세 ${r.tx.jrn}곳 비교` : `구역 안 빌라 전세 ${r.tx.jn}건·매매 시세 비교`) : JR_GU[r.g] != null ? `${r.g} 연립·다세대 평균(2026.3)` : "서울 연립·다세대 평균(2026.3)";
   const CJ = () => (TR.large && TR.large["착공>준공"] && TR.large["착공>준공"].med) || 3;
   function gapBlock(r) {
     if (r.src === "moa" || isDone(r) || r.dn || r.cx) return "계산 대상 아님";
     if (r.s >= 7) return "이주·철거가 시작된 구역이라 세입자가 없어요 (입주권 매수)";
     const lp = landPermit(r);
     if (lp)
-      return lp.t.includes("신속통합기획")
+      return lp.t.includes("공공재개발")
+        ? "전세 낀 매수 불가 · 공공재개발 토지거래허가(실거주 2년)"
+        : lp.t.includes("신속통합기획")
         ? "전세 낀 매수 불가 · 신속통합기획 후보지 토지거래허가(실거주 2년)"
         : "전세 낀 매수 불가 · 아파트 단지 토지거래허가(실거주 2년)";
     const w = buyWindow(r);
@@ -6141,12 +6151,12 @@
     const s1 = `<li class="gt1"><span class="gt-w">지금 · 매수</span><b>${f1(g.now)}억</b><small>매수가 ${e2(x.price)} − 전세 ${e2(g.D)} + 취득세 ${taxT(x.tax)}</small></li>`;
     const s2 =
       x.ok && g.reloc < 0.05
-        ? `<li class="gt2 z"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null ? " 무렵" : ""}</span><b>추가 현금 없음</b><small>이주비 대출 ${e2(g.M)}억으로 전세금 ${e2(g.D)}억 반환 · 추정 · 입주 때 상환</small></li>`
+        ? `<li class="gt2 z"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null ? " 무렵" : ""}</span><b class="z0">이주 때 추가 0원</b><small>이주비 대출 ${e2(g.M)}억으로 전세금 ${e2(g.D)}억 반환 · 추정 · 입주 때 상환</small></li>`
         : x.ok
           ? `<li class="gt2"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null ? " 무렵" : ""}</span><b>+${e2(g.reloc)}억</b><small>전세금 ${e2(g.D)} 반환${g.M > 0.04 ? ` − 이주비 대출 ${e2(g.M)}(추정·입주 때 상환)` : g.Mcap === 0 ? " · 다주택은 이주비 대출 불가" : ""}</small></li>`
           : `<li class="gt2 na"><span class="gt-w">이주</span><b>+${e2(g.D)}억</b><small>전세금 반환 · 이주비 대출로 일부 충당 가능(조합·규제에 따라 다름)</small></li>`;
     const s3 = x.ok
-      ? `<li class="gt3"><span class="gt-w">입주 · ${yrTxt(g.tM)}</span><b>총 ${f1(g.total)}억</b><small>${small ? "분담금·세금·이자 − 잔금대출" : `분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`
+      ? `<li class="gt3"><span class="gt-w">입주 · ${yrTxt(g.tM)}${(() => { const pr = projection(g.r); return pr.stall || pr.nodata ? " (일정 산정 불가 · 계산용 가정)" : ""; })()}</span><b>총 ${f1(g.total)}억</b><small>${small ? "분담금·세금·이자 − 잔금대출" : `분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`
       : `<li class="gt3 na"><span class="gt-w">입주</span><b>계산 전</b><small>입주 시점·신축 시세 자료가 부족해요</small></li>`;
     return `<ol class="gtl${small ? " sm" : ""}">${s1}${s2}${s3}</ol>`;
   }
@@ -6207,7 +6217,7 @@
         ? '<span class="zb warn" title="공공재개발 후보지 상당수가 토지거래허가구역으로 지정돼 왔어요(2026년 1월까지 확인). 지정돼 있으면 실거주 의무로 전세 끼고 사기가 어려워요. 계약 전 구청에서 지금 지정 여부를 확인하세요.">공공재개발: 토지거래허가 여부 확인</span> '
         : "";
     const rent = /장기전세|공공임대/.test(r.n)
-      ? '<span class="zb" title="구역 이름의 장기전세·공공임대는 사업 방식 이름이에요. 조합원(입주권 보유자)은 일반 아파트를 받아요.">이름의 \'장기전세·공공임대\'는 사업 방식</span> '
+      ? '<span class="zb" title="구역 이름의 장기전세·공공임대는 사업 방식 이름이에요. 조합원(입주권 보유자)은 일반 아파트를 받아요.">장기전세 = 사업 방식 이름</span> '
       : "";
     const early =
       p != null && p < 0.2
@@ -6238,7 +6248,7 @@
   const leadAt2 = () => 2;
   function resHead(base, nAll, nShown, nFit) {
     $("resTitle").innerHTML =
-      `${base} <b>${fmt(nAll)}곳</b>${nFit != null ? `<span class="rt-f"> · 입주까지 되는 곳 <b>${fmt(nFit)}곳</b></span>` : ""}${LF ? `<span class="rt-f"> · ${LF_LAB[LF]} ${fmt(nShown)}곳</span>` : ""}`;
+      `${base} <b>${fmt(nAll)}곳</b>${nFit != null ? (nFit ? `<span class="rt-f"> · 입주까지 되는 곳 <b>${fmt(nFit)}곳</b></span>` : `<span class="rt-f rt-0"> · 입주까지 ${e2(CASH)}억 안에 끝나는 곳은 아직 없어요</span>`) : ""}${LF ? `<span class="rt-f"> · ${LF_LAB[LF]} ${fmt(nShown)}곳</span>` : ""}`;
   }
   function planGap(stale) {
     const all = baseList(),
@@ -6280,7 +6290,7 @@
       );
     });
     setMore(
-      `<div class="pm-lv"><p class="pm-h">금액별 전세 끼고 살 수 있는 곳</p><div class="gap-lv" role="group" aria-label="금액별 전세 끼고 살 수 있는 곳">${lv.map(([c, n]) => `<button type="button" data-cash="${c}" aria-pressed="${Math.abs(c - CASH) < 1e-9}"><span>${c}억</span><b>${fmt(n)}곳</b></button>`).join("")}</div></div>\n      ${blocked.length ? `<p class="pm-p">금액으로는 되지만 토지거래허가(실거주 2년)·입주권 문제로 전세를 끼고 살 수 없는 곳 <b>${fmt(blocked.length)}곳</b>은 목록 아래에 따로 모았어요.</p>` : ""}\n      <ul class="gap-as">\n        <li>전세가 = 매수가 × 전세가율 (${P.jr != null ? `직접 설정 ${fmt(P.jr, 1)}%` : `서울 연립·다세대 평균 ${JR_SEOUL}%, 도봉 83.7·강서 76.6·금천 70.3·종로 65.6%는 자치구 값`} · 2026.3). 노후 빌라는 실제 전세가율이 더 낮은 경우가 많아요 → 리포트에서 실제 전세금을 넣어 보세요.</li>\n        <li>제외: 토지거래허가(실거주 2년)로 전세 낀 매수가 막힌 곳, 입주권이 안 나오는 곳, 이주·철거가 시작된 곳${P.est ? "" : ", 주변 빌라 거래가 적어 매수가를 못 정한 곳(조건 더 보기 → 추정 구역 포함)"}.</li>\n        <li>이주비 대출 = min(전세금, 6억, 40% × max(종전자산평가액, 조합원 분양가)) · 다주택은 0 · 조합·은행에 따라 다름 (추정).</li>\n        <li>이주 시점 = 예상 입주 − 착공→준공 가운데 값 ${CJ().toFixed(1)}년 (추정) · 이주비 대출 이자는 이주~입주 동안.</li>\n        <li>취득세는 보유 주택 수 기준 · 매수 대출 없음 · 시세 상승 0% 가정 · 투자 권유 아님.</li>\n      </ul>\n      <p class="gap-src">출처: ${GAP_SRC.map(([t, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(t)}</a>`).join(" · ")}</p>`,
+      `<div class="pm-lv"><p class="pm-h">금액별 전세 끼고 살 수 있는 곳</p><div class="gap-lv" role="group" aria-label="금액별 전세 끼고 살 수 있는 곳">${lv.map(([c, n]) => `<button type="button" data-cash="${c}" aria-pressed="${Math.abs(c - CASH) < 1e-9}"><span>${c}억</span><b>${fmt(n)}곳</b></button>`).join("")}</div></div>\n      ${blocked.length ? `<p class="pm-p">금액으로는 되지만 토지거래허가(실거주 2년)·입주권 문제로 전세를 끼고 살 수 없는 곳 <b>${fmt(blocked.length)}곳</b>은 목록 아래에 따로 모았어요.</p>` : ""}\n      <ul class="gap-as">\n        <li>전세가 = 매수가 × 전세가율 (${P.jr != null ? `직접 설정 ${fmt(P.jr, 1)}%` : `구역 경계 안 실거래로 전세가율을 구할 수 있는 곳은 그 값, 나머지는 서울 연립·다세대 평균 ${JR_SEOUL}%(도봉 83.7·강서 76.6·금천 70.3·종로 65.6%는 자치구 값, 2026.3)`}). 노후 빌라는 실제 전세가율이 더 낮은 경우가 많아요 → 리포트에서 실제 전세금을 넣어 보세요.</li>\n        <li>제외: 토지거래허가(실거주 2년)로 전세 낀 매수가 막힌 곳, 입주권이 안 나오는 곳, 이주·철거가 시작된 곳${P.est ? "" : ", 주변 빌라 거래가 적어 매수가를 못 정한 곳(조건 더 보기 → 추정 구역 포함)"}.</li>\n        <li>이주비 대출 = min(전세금, 6억, 40% × max(종전자산평가액, 조합원 분양가)) · 다주택은 0 · 조합·은행에 따라 다름 (추정).</li>\n        <li>이주 시점 = 예상 입주 − 착공→준공 가운데 값 ${CJ().toFixed(1)}년 (추정) · 이주비 대출 이자는 이주~입주 동안.</li>\n        <li>취득세는 보유 주택 수 기준 · 매수 대출 없음 · 시세 상승 0% 가정 · 투자 권유 아님.</li>\n      </ul>\n      <p class="gap-src">출처: ${GAP_SRC.map(([t, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(t)}</a>`).join(" · ")}</p>`,
       "금액별 곳 수·가정·출처",
     );
     $("qAns").innerHTML =
@@ -6881,7 +6891,7 @@
   function sumBtnPaint() {
     const b = $("sumBtn");
     if (!b) return;
-    b.innerHTML = `${isMember() ? "" : '<span class="sb-lk" aria-hidden="true"></span>'}내 조건 한 장 요약<span class="sr-only">${isMember() ? " (PDF로 저장)" : " · 멤버십 기능"}</span>`;
+    b.innerHTML = `${isMember() ? "" : '<span class="sb-lk" aria-hidden="true"></span>'}내 조건 저장·공유<span class="sr-only">${isMember() ? " (PDF로 저장)" : " · 멤버십 기능"}</span>`;
   }
   $("maxBox").addEventListener("click", (e) => {
     const b = e.target.closest("[data-cash],[data-go],[data-alt],[data-jump]");

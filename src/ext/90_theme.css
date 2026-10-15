@@ -471,3 +471,37 @@ body::before {
 .intro::before{-webkit-mask-image:none;mask-image:none}
 .intro{padding-bottom:56px}
 @media (max-width:640px){.intro{padding-bottom:40px}}
+/* 구 지도 라벨: 칸 색과 상관없이 읽히도록 글자 테두리 */
+#map .glab text{paint-order:stroke;stroke:rgba(255,255,255,.75);stroke-width:2.6px;stroke-linejoin:round}
+#map .glab.hi text{stroke:rgba(11,18,32,.55)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #map .glab text{stroke:rgba(8,10,14,.7)}:root:not([data-theme="light"]) #map .glab.hi text{stroke:rgba(255,255,255,.6)}}
+:root[data-theme="dark"] #map .glab text{stroke:rgba(8,10,14,.7)}
+:root[data-theme="dark"] #map .glab.hi text{stroke:rgba(255,255,255,.6)}
+/* '내 돈으로 되는 곳' 점: 금색(주의색과 겹침) → 흰 채움 + 브랜드 테 */
+#map .okd{fill:#fff;stroke:var(--brand);stroke-width:1.6px}
+#map .okh{fill:var(--brand);opacity:.28}
+#map .mc[data-a="y"]{stroke:var(--brand)!important;filter:none}
+.ml-glow .gd{background:#fff;border:2px solid var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%,transparent)}
+.ml-dots .d.y{box-shadow:0 0 0 2px var(--brand)}
+/* 보조 글자 대비 */
+:root{--text-4:#6f7884}
+/* 모바일: 실제 지도일 때 확대 버튼이 위쪽 바에 가리지 않게 */
+@media (max-width:980px){.mapbox.lm-on .mapzoom{top:calc(var(--lm-top,0px) + 12px)}.mapbox.lm-on .lm-ctl{top:12px}}
+/* 디자이너 2차 검수 반영 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--text-4:#7f8894}}
+:root[data-theme="dark"]{--text-4:#7f8894}
+.intro h1{color:#e3e7ee}
+.h-grad{text-decoration-color:#7f97cf;text-decoration-thickness:3px;text-underline-offset:10px}
+#sumBtn{border:1px solid var(--border);border-radius:999px;padding:8px 14px;background:var(--surface)}
+.gt2 b.z0{color:var(--text-1);font-weight:600}
+/* 단계 램프: 초기(1~3) 회색 · 본궤도(4~6) 네이비 */
+:root{--st-1:#c4cad3;--st-2:#a3abb6;--st-3:#7f8894;--st-4:#9db0d8;--st-5:#4f6bb0;--st-6:#1f3a87}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--st-1:#3a414b;--st-2:#535b67;--st-3:#717a87;--st-4:#2e4c8c;--st-5:#4469b5;--st-6:#93ade6}}
+:root[data-theme="dark"]{--st-1:#3a414b;--st-2:#535b67;--st-3:#717a87;--st-4:#2e4c8c;--st-5:#4469b5;--st-6:#93ade6}
+/* 임시 슬롯처럼 보이는 점선 테두리 → 실선 */
+details.early,.es,.pr-be,.lead,.reads .rd-aside{border-style:solid;border-color:var(--border);background:var(--surface-2)}
+/* 실거래 탭 요약 3칸 */
+@media (min-width:560px){.bigrow.b3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.bigrow.b3 .big:last-child:nth-child(3){grid-column:auto}
+@media (max-width:559px){.bigrow.b3 .big:last-child:nth-child(odd){grid-column:1/-1}}
+svg.txc{padding-right:6px}

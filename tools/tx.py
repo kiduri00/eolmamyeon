@@ -16,10 +16,12 @@ med = lambda a: st.median(a) if a else None
 NOWY = datetime.date.today().year
 
 def opencsv(fn):
-    raw = open(fn, 'rb').read(4096)
-    enc = 'utf-8-sig' if raw.startswith(b'\xef\xbb\xbf') else 'cp949'
-    try: raw.decode(enc)
-    except UnicodeDecodeError: enc = 'utf-8'
+    raw = open(fn, 'rb').read(1 << 20)
+    if raw.startswith(b'\xef\xbb\xbf'): enc = 'utf-8-sig'
+    else:
+        import codecs
+        try: codecs.getincrementaldecoder('utf-8')().decode(raw, final=False); enc = 'utf-8'   # 잘린 마지막 글자는 허용
+        except UnicodeDecodeError: enc = 'cp949'
     f = open(fn, encoding=enc, errors='replace'); rd = csv.reader(f)
     h = [re.sub(r'\(.*?\)|\s|"', '', c) for c in next(rd)]
     return rd, {k: i for i, k in enumerate(h)}
@@ -78,6 +80,7 @@ for fn in A.sale:
             if NOWY - yr >= 15: bldS[p].append(price/area)
 for k in list(SALE): SALE[k] = [list(t) for t in dict.fromkeys(tuple(x) for x in SALE[k])]
 print('sale zones', len(SALE), 'last', last_sale)
+if len(SALE) < 100 or not last_sale: raise SystemExit('매매 자료가 비정상적으로 적어요 — 집계 중단(어제 결과 유지)')
 
 # ---- 전세 ----
 JEON = collections.defaultdict(list); bldJ = collections.defaultdict(list); last_rent = ''
@@ -98,6 +101,7 @@ for fn in A.rent:
         if area > 0 and yr and NOWY - yr >= 15: bldJ[p].append(dep/area)
 for k in list(JEON): JEON[k] = [list(t) for t in dict.fromkeys(tuple(x) for x in JEON[k])]
 print('jeonse zones', len(JEON), 'last', last_rent)
+if len(JEON) < 100: raise SystemExit('전세 자료가 비정상적으로 적어요 — 집계 중단(어제 결과 유지)')
 
 bldRatio = {p: med(bldJ[p])/med(bldS[p]) for p in set(bldS) & set(bldJ)}
 allR = [v for v in bldRatio.values() if .15 < v < 1.1]
@@ -109,12 +113,21 @@ for r in R:
     s = SALE.get(rid, []); j = JEON.get(rid, [])
     recent = sorted({x[0] for x in s}, reverse=True)
     cut = (datetime.date.today() - datetime.timedelta(days=550)).strftime('%Y%m%d')
-    old = [x for x in s if x[1] == 0 and x[2] and x[2] <= 2015 and x[0] >= cut and 20 <= x[3] <= 85]   # 구축 빌라(연립·다세대)만 — 단독 통매매 제외
+    # 구축 빌라(연립·다세대, 전용 20~85㎡)만 — 단독 통매매 제외. 최근 12개월 5건 이상이면 12개월, 아니면 18개월
+    cut12z = (datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y%m%d')
+    base = [x for x in s if x[1] == 0 and x[2] and x[2] <= 2015 and 20 <= x[3] <= 85]
+    cut6z = (datetime.date.today() - datetime.timedelta(days=183)).strftime('%Y%m%d')
+    old, nwin = [x for x in base if x[0] >= cut6z], 6
+    if len(old) < 10: old, nwin = [x for x in base if x[0] >= cut12z], 12
+    if len(old) < 5: old, nwin = [x for x in base if x[0] >= cut], 18
+    if len(old) >= 6:   # ㎡당 가격 이상치 제거(사분위 범위 1.5배 밖)
+        u = sorted(x[5]/x[3] for x in old); q1, q3 = st.quantiles(u, n=4)[0], st.quantiles(u, n=4)[2]; lo, hi = q1 - 1.5*(q3 - q1), q3 + 1.5*(q3 - q1)
+        old = [x for x in old if lo <= x[5]/x[3] <= hi]
     if s:
         pp = [x[5]/x[4]*3.3058 for x in s if x[4] > 0]
         t['n'] = len(s)
         if old:
-            t['no'] = len(old); t['med'] = med([x[5] for x in old]); t['ar'] = round(med([x[3] for x in old]), 1)
+            t['no'] = len(old); t['med'] = med([x[5] for x in old]); t['nwin'] = nwin; t['ar'] = round(med([x[3] for x in old]), 1)
             t['ld'] = round(med([x[4] for x in old if x[4] > 0]) or 0, 1)
             t['p25'] = round(st.quantiles([x[5] for x in old], n=4)[0]) if len(old) >= 4 else None
             t['p75'] = round(st.quantiles([x[5] for x in old], n=4)[2]) if len(old) >= 4 else None
@@ -141,8 +154,9 @@ for r in R:
         if .08 < v < 1.1: t['jr2'] = round(v, 3)
     if rid in parstat: t['pc'] = parstat[rid]
     if t: OUT[rid] = t
-    if s or j:
-        DET[rid] = {'s': sorted(s, key=lambda x: x[0], reverse=True)[:40], 'j': sorted(j, key=lambda x: x[0], reverse=True)[:20]}
+    xt = {k: t[k] for k in ('q', 'age', 'agn', 'pc') if t.get(k)}
+    if s or j or xt:
+        DET[rid] = {'s': sorted(s, key=lambda x: x[0], reverse=True)[:40], 'j': sorted(j, key=lambda x: x[0], reverse=True)[:20], 'x': xt}
 zr = [v.get('jr') or v.get('jr2') for v in OUT.values() if v.get('jr') or v.get('jr2')]
 jrz = round(med(zr), 3) if zr else None
 

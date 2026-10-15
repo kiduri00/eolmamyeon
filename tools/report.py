@@ -36,7 +36,7 @@ DT = {}
 for r in R:
     d = dict((PREM.get(r['id']) or {}).get('dt') or r.get('dt') or {})
     cafe = (PREM.get(r['id']) or {}).get('cafe')
-    if cafe and CL.get(cafe, {}).get('dt'): d.update(CL[cafe]['dt'])
+    if cafe and CL.get(cafe, {}).get('dt'): d.update({k: v for k, v in CL[cafe]['dt'].items() if k not in d})
     DT[r['id']] = d
 def short(n):
     n = re.sub(r'\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발)?\s*(정비)?(사업)?\s*(조합|추진위원회|조합설립추진위원회|주민대표회의)?\s*$', '', n).strip()

@@ -36,7 +36,7 @@ cache = json.load(open(CP, encoding='utf-8')) if os.path.exists(CP) else {}
 # 단계 섹션 → 대표 날짜 규칙 (첫 '인가/승인/고시' 날짜)
 SEC = [('정비구역지정', '구역지정', r'구역지정\(변경\)고시|지정고시'), ('조합설립추진위원회승인', '추진위', r'^\[\(변경\)승인\]'), ('조합설립인가', '조합설립', r'^\[\(변경\)인가\]'),
        ('사업시행자지정', '시행자지정', r'지정고시|^\[\(변경\)지정\]'), ('사업시행인가', '사업시행', r'^\[\(변경\)인가\]'), ('관리처분인가', '관리처분', r'^\[\(변경\)인가\]'),
-       ('시공자선정', '시공자', r'^\[업체선정\]'), ('착공신고', '착공', r'.'), ('준공인가', '준공', r'.'), ('이주', '이주', r'.'), ('조합해산', '해산', r'.')]
+       ('시공자선정', '시공자', r'^\[업체선정\]'), ('착공신고', '착공', r'^(?!.*신청).'), ('준공인가', '준공', r'^(?!.*신청).*(인가|준공)'), ('이주', '이주', r'.'), ('조합해산', '해산', r'.')]
 def progress(cafe):
     main = get(f'{BASE}/cafe/mainIndx.do?cafeUrl={cafe}')
     if not main: return None
@@ -67,7 +67,10 @@ def stale(c):
 order = sorted(rows, key=lambda c: (stale(c), cache.get(c, {}).get('ts', '')))
 todo = [c for c in order if stale(c) < 9][:A.max]
 print('todo', len(todo), 'changed', sum(1 for c in todo if stale(c) == 1), 'new', sum(1 for c in todo if stale(c) == 0), flush=True)
-LOCK = threading.Lock(); changes = []
+LOCK = threading.Lock(); changes = []; done_n = [0]
+def save():
+    with LOCK: snap = json.dumps(cache, ensure_ascii=False, separators=(',', ':'))
+    open(CP + '.tmp', 'w', encoding='utf-8').write(snap); os.replace(CP + '.tmp', CP)
 def run(c):
     p = progress(c)
     time.sleep(0.4)
@@ -79,6 +82,8 @@ def run(c):
                 if old.get(k) != v: changes.append([c, k, old.get(k), v])
             o.update(p); o['ts'] = TODAY
         o['row'] = rows[c]; cache[c] = o
+        done_n[0] += 1; n = done_n[0]
+    if n % 50 == 0: save(); print(n, '/', len(todo), flush=True)
 with ThreadPoolExecutor(4) as ex: list(ex.map(run, todo))
 for c in rows:
     cache.setdefault(c, {})['row'] = rows[c]

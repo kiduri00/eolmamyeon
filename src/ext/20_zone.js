@@ -7,7 +7,7 @@
     let TXD = null, TXP = null;
     const loadTx = () => TXP || (TXP = fetch(`data/tx.json?v=${dv("tx")}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((d) => (TXD = d && typeof d === "object" ? d : {})));
     const PCL = new Map();
-    const loadPcl = (id) => PCL.get(id) || (PCL.set(id, fetch(`data/pcl/${id}.json?v=${dv("geo")}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)), PCL.get(id));
+    const loadPcl = (id) => PCL.get(id) || (PCL.set(id, fetch(`data/pcl/${id}.json?v=${dv("tx")}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)), PCL.get(id));
     const bandOf = (r) => (r.s >= 9 || r.dn ? "done" : r.s <= 2 ? "early" : r.s <= 4 ? "mid" : "late");
 
     // ---------- 권리산정기준일 ----------
@@ -27,8 +27,9 @@
     function rightsHTML(r, compact) {
       const x = rights(r);
       const conf = x.c === "high" ? "고시·보도자료 확인" : x.c === "mid" ? "법 원칙으로 추정" : x.c === "low" ? "추정 · 확인 필요" : "";
+      const old = x.k === "set" && x.c !== "high" && x.d < "2010.07.16" ? " 2010.7.15 이전에 기본계획이 세워진 구역은 옛 서울시 조례 부칙(2003.12.30 다세대 전환 기준·2008.7.30 지분 쪼개기 기준 등)이 따로 적용될 수 있어 날짜가 다를 수 있어요." : "";
       if (x.k === "set")
-        return `<div class="rdx"><div class="rdx-h"><span class="rdx-l">권리산정기준일</span><b class="mono">${esc(x.d)}</b>${conf ? `<span class="rdx-c ${x.c}">${conf}</span>` : ""}</div>${compact ? "" : `<p>${esc(x.b)} · 이날 뒤에 새로 짓거나 쪼갠 지분(신축 빌라·지분 분할)은 입주권이 안 나오거나 여럿이 하나를 나눠 받을 수 있어요. <a href="${esc(x.u)}" target="_blank" rel="noopener">근거</a></p>`}</div>`;
+        return `<div class="rdx"><div class="rdx-h"><span class="rdx-l">권리산정기준일</span><b class="mono">${esc(x.d)}</b>${conf ? `<span class="rdx-c ${x.c}">${conf}</span>` : ""}</div>${compact ? "" : `<p>${esc(x.b)} · 이날 뒤에 새로 짓거나 쪼갠 지분(신축 빌라·지분 분할)은 입주권이 안 나오거나 여럿이 하나를 나눠 받을 수 있어요.${old} <a href="${esc(x.u)}" target="_blank" rel="noopener">근거</a></p>`}</div>`;
       return `<div class="rdx none"><div class="rdx-h"><span class="rdx-l">권리산정기준일</span><b>${x.k === "pre" ? "아직 없음" : "구청 확인 필요"}</b></div>${compact ? "" : `<p>${esc(x.b)} <a href="${esc(x.u)}" target="_blank" rel="noopener">근거</a></p>`}</div>`;
     }
 
@@ -60,7 +61,8 @@
       const units = sm.units ?? (sm.saleUnits != null && sm.rental != null ? sm.saleUnits + sm.rental : null);
       const own = sm.members || sm.owners;
       if (!units || !own || units < own * 0.6) return "";
-      const rent = sm.rental || 0, mem = Math.min(own, units - rent), gen = Math.max(0, units - rent - mem);
+      if (sm.rental == null) return `<div class="sect supply"><h3>공급 계획 <small>계획 세대 ${fmt(units)} · 소유자 ${fmt(own)}명</small></h3><p class="note">임대 세대 수 자료가 없어 일반분양 비율을 계산하지 않았어요. 재개발은 보통 계획 세대의 15~20% 안팎이 임대예요. 정비계획 결정 고시문의 '주택 규모별 건설계획'으로 확인하세요.</p></div>`;
+      const rent = sm.rental, mem = Math.min(own, units - rent), gen = Math.max(0, units - rent - mem);
       const pc = (v) => Math.round((v / units) * 1000) / 10;
       const genR = gen / units;
       const hint = genR >= 0.3 ? "일반분양이 많아 분담금 부담이 줄어드는 쪽이에요" : genR >= 0.15 ? "서울 정비사업 보통 수준이에요" : "일반분양이 적어 사업비를 조합원이 더 나눠 내야 할 수 있어요(비례율 낮아질 가능성)";
@@ -127,7 +129,7 @@
 
     // ---------- 주소로 물건 확인 ----------
     function addrHTML(r) {
-      if (!(D.dv && D.dv.geo) || r.src === "moa") return "";
+      if (!r.pcl || r.src === "moa") return `<div class="sect acheck"><h3>매물 지번으로 확인</h3><p class="note">이 구역은 공식 경계가 공개되지 않아(후보지·구역지정 전 등) 지번별 경계 판정을 할 수 없어요. 구청 도시정비과에 구역계 도면을 확인하세요.</p></div>`;
       return `<div class="sect acheck"><h3>매물 지번으로 확인 <small>구역 경계 안인지 · 언제 지은 건물인지</small></h3>
         <form class="ac-f" id="acForm" autocomplete="off"><label class="sr-only" for="acIn">지번</label><div class="inp"><input id="acIn" placeholder="예: ${esc(((r.bj || r.j || "").split(" ")[1]) || "123-4")}" inputmode="text"></div><button type="submit" class="btn secondary sm">확인</button></form>
         <div id="acOut" aria-live="polite"></div>
@@ -151,7 +153,7 @@
           const hits = d.p.filter((x) => x[1] === key);
           const ri = rights(r);
           if (!hits.length) {
-            out.innerHTML = `<ul class="acl"><li class="bad"><b>구역 경계 밖</b> 공식 경계 안 필지 ${fmt(d.p.length)}개 중에 ${esc(key)}가 없어요. 동이 다르거나 경계 밖이면 입주권 대상이 아니에요.</li></ul>`;
+            out.innerHTML = `<ul class="acl"><li class="warn"><b>경계 안 필지 목록에 없어요</b> 이 구역 공식 경계 안 ${fmt(d.p.length)}필지(${esc(Object.values(d.d).filter(Boolean).join("·"))}) 중에 '${esc(key)}'가 없어요. 지번을 잘못 넣었거나, 합필·분필로 번호가 바뀌었거나, 경계 밖일 수 있어요. 등기부·토지대장의 지번으로 다시 확인하세요.</li></ul>`;
             return;
           }
           out.innerHTML = `<ul class="acl">${hits.map((x) => {
@@ -189,7 +191,9 @@
     }
     const qT = (s) => 2000 + +s.slice(0, 2) + (+s.slice(3) - 1) / 4;
     function paneTx(r) {
-      const p = $("pane"), t = r.tx || {}, z = GEO_Z && GEO_Z[r.id];
+      const p = $("pane"), z = GEO_Z && GEO_Z[r.id];
+      if (!TXD) { p.innerHTML = `<p class="note">구역 실거래를 불러오는 중…</p>`; loadTx().then(() => { if (cur === r && curTab === "tx" && $("pane")) paneTx(r); }); return; }
+      const t = { ...(r.tx || {}), ...((TXD[r.id] && TXD[r.id].x) || {}) };
       if (!t.n && !t.jn && !t.pc) {
         p.innerHTML = `<div class="sect"><p class="note">${z && !z.e ? "2024년 이후 이 구역 경계 안에서 신고된 빌라·단독 매매와 빌라 전세가 없어요." : "이 구역은 공식 경계가 없어(후보지·구역지정 전 등) 경계 안 거래만 따로 모을 수 없어요."} 주변 시세는 '호재·매물' 탭의 KB부동산에서 확인하세요.</p></div>${rightsHTML(r)}`;
         return;
@@ -198,11 +202,12 @@
       const qq = (t.q || []).filter((x) => x[2] >= 3);
       const x = (() => { try { return invest(r); } catch (e) { return {}; } })();
       p.innerHTML = `
-        <div class="bigrow">
-          <div class="big hl"><span>대지 3.3㎡당 가운데 값</span><b>${t.pp ? eok(t.pp) : "–"}</b><small>${t.n ? `매매 ${fmt(t.n)}건 · 2024.1~${ymd2(t.last)}` : ""}</small></div>
-          <div class="big"><span>빌라 매매 가운데 값</span><b>${t.med ? eok(t.med) : "–"}</b><small>${t.no ? `2015년 이전 준공 ${fmt(t.no)}건 · 전용 ${t.ar}㎡ · 대지 ${t.ld}㎡` : "최근 18개월 구축 거래 없음"}</small></div>
+        <div class="bigrow b3">
+          <div class="big hl"><span>땅 1평(3.3㎡)당 가운데 값</span><b>${t.pp ? eok(t.pp) : "–"}</b><small>${t.n ? `매매 ${fmt(t.n)}건 · 2024.1~${ymd2(t.last)}` : ""}</small></div>
+          <div class="big"><span>빌라 매매 가운데 값</span><b>${t.med ? eok(t.med) : "–"}</b><small>${t.no ? `2015년 이전 준공 빌라 최근 ${t.nwin || 18}개월 ${fmt(t.no)}건 · 전용 ${t.ar}㎡ · 대지 ${t.ld}㎡` : "최근 18개월 구축 빌라 거래 없음"}</small></div>
           <div class="big"><span>빌라 전세 가운데 값</span><b>${t.jm ? eok(t.jm) : "–"}</b><small>${t.jn ? `전세 ${fmt(t.jn)}건 · 임대 ${t.ja}㎡${t.jr ? ` · 전세가율 ${Math.round(t.jr * 100)}%` : t.jr2 ? ` · 전세가율 약 ${Math.round(t.jr2 * 100)}%` : ""}` : "전세 거래 없음"}</small></div>
         </div>
+        ${x.price != null && x.priceSrc !== "user" && r.mk?.entry?.fill !== "zone" && t.no ? `<p class="note warnbox"><b>계산은 다른 값을 써요</b> 구역 안 구축 빌라 매매가 ${t.no}건뿐이라(5건 미만이거나 ${r.mk?.entry?.src === "complex" ? "아파트 단지" : "기존 추정"} 기준) 아래 매수가로 계산했어요. 실제 매물가는 '입주 현금' 탭에 넣어 다시 계산하세요.</p>` : ""}
         ${x.price != null ? `<p class="note"><b>계산에 쓴 매수가 ${e2(x.price)}억</b> ${x.priceSrc === "user" ? "직접 입력한 값" : r.mk?.entry?.scope ? esc(r.mk.entry.scope) + " 실거래 가운데 값" : x.priceSrc === "complex" ? "같은 단지 아파트 실거래" : "구역 주변 구축 빌라 실거래"} · '입주 현금' 탭에서 바꿀 수 있어요</p>` : ""}
         ${qq.length > 2 ? `<div class="sect"><h3>대지 3.3㎡당 가격 추이 <small>분기별 가운데 값(3건 이상인 분기) · 연립다세대·단독${Object.keys(r.dt || {}).length ? " · 세로선 = 인가 시점" : ""}</small></h3><div class="txc-w">${chartSVG(r, qq)}</div></div>` : ""}
         ${t.age ? `<div class="sect"><h3>연식별 대지 3.3㎡당 <small>새 건물일수록 비싸지만 권리산정기준일 뒤 신축이면 입주권이 문제될 수 있어요</small></h3><dl class="facts">
@@ -287,4 +292,16 @@
     if (r.s >= 7) return "이주·철거 단계라 현재 매수가 없음";
     if (!r.ll) return "위치가 공개되지 않은 후보지라 주변 시세를 못 찾았어요";
     return "매수가 추정 불가 · 주변 빌라 거래가 적어요";
+  }
+  // 공공재개발 후보지·구역도 토지거래허가(실거주 2년) 대상인 경우가 많아 전세 낀 매수에서 뺀다
+  {
+    const _lp = landPermit;
+    landPermit = function (r) {
+      const x = _lp(r);
+      if (x) return x;
+      const pub = (isPublic(r) || /공공재개발|\s공공$|공공\s*재개발|공공\)/.test(r.n) || (r.pg || []).some((p) => /공공재개발/.test(p))) && !/공공임대|장기전세/.test(r.n);
+      if (pub && isRedev(r))
+        return { t: "토지거래허가 가능성 · 공공재개발", d: "공공재개발 후보지·구역은 토지거래허가구역으로 지정돼 2년 실거주 의무가 붙는 경우가 많아요(2021년 1차 후보지부터). 지정 여부와 기간은 구청에서 확인하세요." };
+      return null;
+    };
   }

@@ -30,11 +30,14 @@ for r in R:
         dt = pm.setdefault('dt', {})
         for k, v in c['dt'].items():
             if k == '해산': continue
-            if dt.get(k) != v: dt[k] = v; stat['dt_update'] += 1
+            if k not in dt: dt[k] = v; stat['dt_add'] += 1   # 기존 날짜(리포트 대조로 검증된 값)는 바꾸지 않고 빈 단계만 채운다
     if c.get('ev'): pm['ev'] = c['ev'][:6]
     row = c.get('row') or {}
     ns = SR2S.get(row.get('sr'))
-    if ns is not None and '(' not in r['sr'] and not r.get('chk') and ns > r['s']:
+    KEYS = {2: '구역지정', 3: '추진위', 4: '조합설립', 5: '사업시행', 6: '관리처분', 8: '착공', 9: '준공'}
+    ok_ev = ns is not None and (ns - r['s'] == 1 or (KEYS.get(ns) and (c.get('dt') or {}).get(KEYS[ns])))
+    if ns is not None and ns > r['s'] and not ok_ev: r['sPend'] = row['sr']; stat['stage_pending'] += 1
+    if ok_ev and '(' not in r['sr'] and not r.get('chk') and ns > r['s']:
         stage_changes.append([r['id'], r['sr'], row['sr']]); r['sr'] = row['sr']; r['s'] = ns; r['sUp'] = 1
         stat['stage_up'] += 1
 json.dump(PREM, open(os.path.join(ROOT, 'public/premium.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
@@ -87,6 +90,9 @@ for r in R:
 for r in R:
     if r.get('src') == 'sintong' and re.search(r'지구|을지로|공평|무교|소공|관수|남대문로|서소문|충무로|태평로|세운|수표|입정', r['n']): r['nx'] = 'biz'
 
+for r in R:
+    if PARC.get(r['id'], {}).get('p'): r['pcl'] = 1
+
 # ---------- 2. 권리산정기준일 ----------
 for r in R:
     x = RT.get(r['id'])
@@ -110,7 +116,7 @@ def parse_j(r):
 for r in R:
     t = T.get(r['id'])
     if t:
-        r['tx'] = {k: v for k, v in t.items() if v not in (None, [], {})}
+        r['tx'] = {k: v for k, v in t.items() if v not in (None, [], {}) and k not in ('q', 'age', 'agn', 'pc')}   # 상세는 data/tx.json에서 지연 로딩
     if not act(r) or r.get('src') == 'moa': continue
     mk = r.setdefault('mk', {}); en = mk.get('entry')
     villa_kind = r['k'] not in ('재건축', '소규모재건축', '도시정비형 재개발')
@@ -158,6 +164,8 @@ for r in R:
         stat['entry_dong'] += 1
     else: stat['entry_miss'] += 1
 D['jrz'] = TX.get('jrz'); D['txAsOf'] = TX.get('asOf')
+import datetime as _dt
+D['upd'] = _dt.date.today().isoformat()
 json.dump(D, open(os.path.join(ROOT, 'pipeline/data.enriched.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print(dict(stat))
 miss = [(r['id'], r['n'], r['k'], r.get('j')) for r in R if act(r) and r.get('src') != 'moa' and not (r.get('mk') or {}).get('entry') and r.get('nx') != 'biz']
