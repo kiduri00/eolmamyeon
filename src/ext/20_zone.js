@@ -213,6 +213,7 @@
         ${t.age ? `<div class="sect"><h3>연식별 대지 3.3㎡당 <small>새 건물일수록 비싸지만 권리산정기준일 뒤 신축이면 입주권이 문제될 수 있어요</small></h3><dl class="facts">
           <div><dt>10년 이하</dt><dd>${age.a ? eok(age.a) : "–"}<small>${agn.a || 0}건</small></dd></div><div><dt>11~30년</dt><dd>${age.b ? eok(age.b) : "–"}<small>${agn.b || 0}건</small></dd></div><div><dt>31년 이상</dt><dd>${age.c ? eok(age.c) : "–"}<small>${agn.c || 0}건</small></dd></div>
           <div><dt>쪼개기 의심 거래</dt><dd>${t.split ? t.split + "건" : "없음"}<small>2016년 이후 준공 · 대지 15㎡ 이하</small></dd></div></dl></div>` : ""}
+        ${t.old ? `<div class="sect"><h3>노후도(추정) <small>구역 안 건물 중 거래 신고로 준공연도를 아는 ${fmt(t.old.n)}동 기준</small></h3><div class="oldbar" role="img" aria-label="30년 이상 ${t.old.p30}%, 20년 이상 ${t.old.p20}%"><i style="width:${t.old.p30}%"></i><s style="left:60%"></s></div><dl class="facts"><div><dt>30년 이상 건물</dt><dd>${t.old.p30}%<small>재개발 구역지정 요건: 노후·불량 건축물 60% 이상(서울 조례)</small></dd></div><div><dt>20년 이상 건물</dt><dd>${t.old.p20}%<small>거래가 잦은 건물 위주라 실제와 다를 수 있어요</small></dd></div></dl></div>` : ""}
         ${pc ? `<div class="sect"><h3>구역 필지 현황 <small>서울도시공간포털 연속지적 ${fmt(pc.n)}필지 · 합계 ${fmt(pc.ar)}㎡</small></h3><dl class="facts">
           <div><dt>과소필지 (90㎡ 미만)</dt><dd>${pc.sm}%<small>도로·하천 제외 · 재개발 지정 요건 40% 이상</small></dd></div>
           <div><dt>국공유지</dt><dd>${pc.pub}%<small>필지 수 기준 · 많으면 무상양도 협의가 사업성에 영향</small></dd></div>
@@ -249,15 +250,29 @@
       const rows = ev.slice(0, 6).map(([d, sec, t]) => { const s = SIG.find(([re]) => re.test(t)); return `<li><span class="ev-d mono">${esc(d.replaceAll("-", "."))}</span><span class="ev-t"><b>${esc(sec)}</b> ${esc(t.replace(/^\[|\]/g, (m) => (m === "[" ? "" : " ·")))}${s ? ` <em class="ev-s">${esc(s[1])}</em>` : ""}</span></li>`; }).join("");
       return `<div class="sect evl"><h3>정보몽땅 최근 기록 <small>추진경과 · 매일 갱신 · 인가 전 신청·총회가 먼저 올라와요</small></h3><ul>${rows}</ul>${r.cafe ? `<p class="note"><a href="https://cleanup.seoul.go.kr/cafe/mainIndx.do?cafeUrl=${encodeURIComponent(r.cafe)}" target="_blank" rel="noopener">정보몽땅 사업장 원문 보기</a></p>` : ""}</div>`;
     }
+    // ---------- 역전세 위험(전세 끼고 사기) ----------
+    function rvjHTML(r) {
+      const v = D.rvj && D.rvj[r.g];
+      if (!v) return "";
+      const lvl = v.down >= 15 || v.chg <= 0 ? "hi" : v.down >= 7 ? "mid" : "lo";
+      const T = { hi: "주의", mid: "보통", lo: "낮음" };
+      return `<div class="rvj ${lvl}"><div class="rvj-h"><b>역전세 위험 · ${esc(r.g)}</b><span>${T[lvl]}</span></div><p>최근 6개월 연립·다세대 전세 <b>갱신계약 ${fmt(v.n)}건</b> 중 보증금을 낮춘 곳 <b>${v.down}%</b>, 보증금 변화 가운데 값 <b>${v.chg > 0 ? "+" : ""}${v.chg}%</b>.</p><p class="note">전세를 끼고 사면 만기 때 보증금을 돌려줘야 할 수 있어요. ${lvl === "hi" ? "이 구는 보증금을 낮춰 재계약하는 비율이 높아, 갭 금액에 여유 자금을 더 두세요." : "새 세입자가 더 낮은 보증금으로 들어올 경우를 대비해 여유 자금을 두세요."} 출처: 서울시 전월세 신고(종전 보증금).</p></div>`;
+    }
+
     // ---------- 기존 탭에 덧붙이기 ----------
-    const _biz = paneBiz, _req = paneReq, _near = paneNear;
+    const _biz = paneBiz, _req = paneReq, _near = paneNear, _money = paneMoney;
+    paneMoney = function (r) {
+      _money(r);
+      if (gapMode() && r.src !== "moa") { const h = rvjHTML(r); if (h) $("pane").insertAdjacentHTML("beforeend", h); }
+    };
     paneBiz = function (r) {
       _biz(r);
       const p = $("pane");
       const old = p.querySelector(".note b");
       p.querySelectorAll("p.note").forEach((n) => { if (/^권리산정기준일/.test((n.querySelector("b") || {}).textContent || "")) n.remove(); });
       const lad = p.querySelector(".sect");
-      const add = `${paceHTML(r)}${evHTML(r)}${rightsHTML(r)}`;
+      const feed = `<p class="feedl"><a href="feed/gu/${encodeURIComponent(r.g)}.xml" target="_blank" rel="noopener">${esc(r.g)} 정비사업 새 소식 구독(RSS)</a> <span>단계 변경·새 인가가 생기면 RSS 앱으로 받아 볼 수 있어요 · <a href="feed/">전체 구 목록</a></span></p>`;
+      const add = `${paceHTML(r)}${evHTML(r)}${feed}${rightsHTML(r)}`;
       if (lad) lad.insertAdjacentHTML("afterend", add); else p.insertAdjacentHTML("afterbegin", add);
       const facts = p.querySelector("dl.facts");
       const sup = supplyHTML(r);

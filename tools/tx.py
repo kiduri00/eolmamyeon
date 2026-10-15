@@ -9,7 +9,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--sale', nargs='+', required=True)
 ap.add_argument('--rent', nargs='+', required=True)
 A = ap.parse_args()
-D = json.load(open(os.path.join(ROOT, 'src/data.json'), encoding='utf-8'))
+_B = os.path.join(ROOT, 'pipeline/data.base.json')
+D = json.load(open(_B if os.path.exists(_B) else os.path.join(ROOT, 'src/data.json'), encoding='utf-8'))
 R = D['recs']
 PAR = json.load(open(os.path.join(ROOT, 'pipeline/cache/parcels.json')))
 med = lambda a: st.median(a) if a else None
@@ -84,6 +85,7 @@ if len(SALE) < 100 or not last_sale: raise SystemExit('매매 자료가 비정�
 
 # ---- 전세 ----
 JEON = collections.defaultdict(list); bldJ = collections.defaultdict(list); last_rent = ''
+RV = collections.defaultdict(list)   # 구 → [(계약일, 보증금, 종전 보증금)] 갱신계약
 for fn in A.rent:
     rd, ix = opencsv(fn)
     kse = '지번구분코드' if '지번구분코드' in ix else '지번구분'
@@ -97,6 +99,10 @@ for fn in A.rent:
         p = pnu(x[ix['자치구코드']], x[ix['법정동코드']], x[ix[kse]], x[ix['본번']], x[ix['부번']])
         d = x[ix['계약일']]; last_rent = max(last_rent, d)
         for rid in pnu2rec.get(p, ()): JEON[rid].append([d, yr, round(area, 1), dep])
+        try:
+            if '갱신' in x[ix.get('신규갱신여부', -1)] and x[ix['종전보증금']].strip():
+                RV[x[ix['자치구명']]].append((d, dep, int(float(x[ix['종전보증금']]))))
+        except Exception: pass
         if p in pnu2rec and yr: YR[p] = max(YR.get(p, 0), yr)
         if area > 0 and yr and NOWY - yr >= 15: bldJ[p].append(dep/area)
 for k in list(JEON): JEON[k] = [list(t) for t in dict.fromkeys(tuple(x) for x in JEON[k])]
@@ -160,6 +166,18 @@ for r in R:
 zr = [v.get('jr') or v.get('jr2') for v in OUT.values() if v.get('jr') or v.get('jr2')]
 jrz = round(med(zr), 3) if zr else None
 
+# 역전세 지표(자치구): 최근 6개월 연립다세대 전세 갱신계약
+cut6 = (datetime.date.today() - datetime.timedelta(days=183)).strftime('%Y%m%d')
+RVJ = {}
+for g, v in RV.items():
+    v = [x for x in v if x[0] >= cut6 and x[2] > 0]
+    if len(v) >= 30:
+        RVJ[g] = {'n': len(v), 'down': round(sum(1 for x in v if x[1] < x[2]) / len(v) * 100), 'chg': round(med([x[1] / x[2] - 1 for x in v]) * 100, 1)}
+# 노후도(추정): 경계 안 필지 중 거래 신고로 준공연도를 아는 건물, 30년·20년 이상 비율
+for rid, v in PAR.items():
+    yrs = [YR[p[0]] for p in v['p'] if p[0] in YR]
+    if len(yrs) >= 10 and rid in OUT:
+        OUT[rid]['old'] = {'n': len(yrs), 'tot': len([p for p in v['p'] if p[3] not in ('도로', '하천', '구거', '공원')]), 'p30': round(sum(1 for y in yrs if NOWY - y >= 30) / len(yrs) * 100), 'p20': round(sum(1 for y in yrs if NOWY - y >= 20) / len(yrs) * 100)}
 # 동 단위 빌라 시세(최근 12개월, 2010년 이전 준공) — 매수가 빈칸 채우기용
 cut12 = (datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y%m%d')
 DONG = {}
@@ -183,7 +201,7 @@ for p, v0 in apt.items():
 DCODE = {}
 for k, (gu, dn) in dongName.items(): DCODE[(gu, dn)] = k
 asof = {'sale': last_sale, 'rent': last_rent}
-json.dump({'tx': OUT, 'jrz': jrz, 'jr0': round(med(allR), 3) if allR else None, 'asOf': asof, 'dong': DONG, 'apt': APT,
+json.dump({'tx': OUT, 'rvj': RVJ, 'jrz': jrz, 'jr0': round(med(allR), 3) if allR else None, 'asOf': asof, 'dong': DONG, 'apt': APT,
            'dcode': {f"{a}|{b}": c for (a, b), c in DCODE.items()}},
           open(os.path.join(ROOT, 'pipeline/txsum.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 os.makedirs(os.path.join(ROOT, 'public/data'), exist_ok=True)

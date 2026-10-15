@@ -8,7 +8,8 @@ from shapely.geometry import Polygon, Point
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 B = "https://urban.seoul.go.kr/proxy/proxy.jsp?http://98.33.2.225:6080/arcgis/rest/services/UPIS/20200526_WFS/MapServer"
 GEO = json.load(open(os.path.join(ROOT, 'public/data/geo.json'), encoding='utf-8'))
-D = json.load(open(os.path.join(ROOT, 'src/data.json'), encoding='utf-8'))
+_B = os.path.join(ROOT, 'pipeline/data.base.json')
+D = json.load(open(_B if os.path.exists(_B) else os.path.join(ROOT, 'src/data.json'), encoding='utf-8'))
 act = {r['id'] for r in D['recs'] if not (r['s'] >= 9 or (r.get('dn') and r['s'] < 7))}
 CP = os.path.join(ROOT, 'pipeline/cache/parcels.json')
 cache = json.load(open(CP)) if os.path.exists(CP) else {}

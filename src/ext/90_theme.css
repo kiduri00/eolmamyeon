@@ -505,3 +505,9 @@ details.early,.es,.pr-be,.lead,.reads .rd-aside{border-style:solid;border-color:
 .bigrow.b3 .big:last-child:nth-child(3){grid-column:auto}
 @media (max-width:559px){.bigrow.b3 .big:last-child:nth-child(odd){grid-column:1/-1}}
 svg.txc{padding-right:6px}
+/* 리포트 요약: 두 줄로 */
+.gstrip b{display:block}
+.gstrip .gs-sh{font-style:normal;font-weight:600;font-size:.82em;color:var(--warn-ink);margin-left:6px}
+.gstrip .gs-2{display:block;margin-top:4px;font-size:14px;color:var(--text-2)}
+/* 모바일 실제 지도: 위쪽 바 얇게 */
+@media (max-width:640px){.mapbox.lm-on .map-bar{padding:4px 8px;gap:6px}.mapbox.lm-on .map-bar .btn{min-height:34px;padding:0 10px}.mapbox.lm-on .map-kind button{min-height:30px}.mapbox.lm-on #mapGuCnt{font-size:12px}}

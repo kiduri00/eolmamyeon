@@ -6,7 +6,7 @@
 import json, os, re, math, collections
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p: json.load(open(os.path.join(ROOT, p), encoding='utf-8'))
-D = J('src/data.json'); R = D['recs']
+D = J('pipeline/data.base.json') if os.path.exists(os.path.join(ROOT, 'pipeline/data.base.json')) else J('src/data.json'); R = D['recs']
 GEO = J('public/data/geo.json')['z']
 TX = J('pipeline/txsum.json')
 PARC = J('pipeline/cache/parcels.json') if os.path.exists(os.path.join(ROOT, 'pipeline/cache/parcels.json')) else {}
@@ -16,7 +16,7 @@ SALES_OK = True
 act = lambda r: not (r['s'] >= 9 or (r.get('dn') and r['s'] < 7))
 
 # ---------- 0. 정보몽땅 최신 추진경과 반영(단계·인가일·최근 기록) ----------
-PREM = J('src/premium.json')
+PREM = J('pipeline/premium.base.json') if os.path.exists(os.path.join(ROOT, 'pipeline/premium.base.json')) else J('src/premium.json')
 CL = J('pipeline/cache/cleanup.json') if os.path.exists(os.path.join(ROOT, 'pipeline/cache/cleanup.json')) else {}
 SR2S = {'정비계획 수립': 1, '안전진단': 1, '정비구역지정': 2, '추진위원회승인': 3, '조합설립인가': 4, '사업시행자 지정': 4, '사업시행인가': 5, '관리처분인가': 6, '철거': 7, '이주': 7, '착공': 8, '분양': 8,
         '준공인가': 9, '부분준공인가': 9, '이전고시': 9, '조합해산': 9, '조합청산': 9}
@@ -64,8 +64,11 @@ HB = {'광화문·시청(CBD)': (37.5714, 126.9768), '강남역(GBD)': (37.4979,
 withH = [r for r in R if r.get('ll') and r.get('h') is not None]
 for r in R:
     z = GEO.get(r['id'])
-    if r.get('ll') or not z or z.get('e'): continue
-    lng, lat = z['l']; r['ll'] = [lat, lng]; r['xy'] = toXY(lat, lng); r['llFix'] = 'bnd'
+    if r.get('ll') and r.get('xy'): continue
+    if r.get('ll'): lat, lng = r['ll']
+    elif z and not z.get('e'): lng, lat = z['l']; r['ll'] = [lat, lng]; r['llFix'] = 'bnd'
+    else: continue
+    r['xy'] = toXY(lat, lng)
     ds = sorted(((hav((lat, lng), (s[1], s[2])), s) for s in ST), key=lambda t: t[0])
     r['st'] = {'n': ds[0][1][0], 'd': round(ds[0][0])}
     r['s3'] = [[s[0], round(d), s[3]] for d, s in ds[:3]]
@@ -172,6 +175,7 @@ for r in R:
         stat['entry_dong'] += 1
     else: stat['entry_miss'] += 1
 D['jrz'] = TX.get('jrz'); D['txAsOf'] = TX.get('asOf')
+D['rvj'] = TX.get('rvj')
 import datetime as _dt
 D['upd'] = _dt.date.today().isoformat()
 json.dump(D, open(os.path.join(ROOT, 'pipeline/data.enriched.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))

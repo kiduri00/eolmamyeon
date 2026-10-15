@@ -75,3 +75,16 @@ em.flag{font-style:normal;font-size:10.5px;font-weight:700;color:var(--warn-ink)
 .evl .ev-t{color:var(--text-2);min-width:0}
 .evl .ev-t b{color:var(--text-1);font-weight:600;margin-right:4px}
 .evl .ev-s{display:inline-block;font-style:normal;font-size:11px;font-weight:700;color:var(--brand);background:var(--brand-soft);border-radius:99px;padding:1px 7px;margin-left:4px}
+.oldbar{position:relative;height:10px;border-radius:99px;background:var(--surface-3);margin:8px 0 10px}
+.oldbar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--text-2)}
+.oldbar s{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--brand)}
+.rvj{margin:14px 0;padding:12px 14px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--surface-2)}
+.rvj-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rvj-h span{font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;background:var(--surface-3);color:var(--text-2)}
+.rvj.hi .rvj-h span{background:var(--risk-soft);color:var(--risk-ink)}
+.rvj.mid .rvj-h span{background:var(--warn-soft);color:var(--warn-ink)}
+.rvj p{margin:6px 0 0;font-size:var(--fs-label);line-height:1.55;color:var(--text-2)}
+.feedl{margin:12px 0;font-size:var(--fs-label)}
+.feedl a{font-weight:600;color:var(--text-1)}
+.feedl span{color:var(--text-3)}
+.feedl span a{font-weight:500;color:var(--text-3)}

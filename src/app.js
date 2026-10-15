@@ -6367,8 +6367,8 @@
     if (g.block === "계산 대상 아님") return "";
     if (g.block) return `<p class="cstrip gblock"><span>전세 끼고 사기</span><b class="gb-t">불가</b><small>${esc(g.block)}</small></p>`;
     if (g.na)
-      return `<p class="cstrip na"><span>전세 끼고 지금 필요한 돈</span><b>–</b><small>매수가 추정 불가 · 주변 빌라 거래가 적어요</small></p>`;
-    return `<div class="cstrip gstrip ${CASH - g.now >= 0 ? "ok" : "short"}"><span>전세 끼고 사면${isEst(r) ? `<span class="zb est">구 평균 시세로 추정${P.est ? "" : " · 곳 수 제외"}</span>` : ""}</span><b>${gapFrame(g)}</b></div>`;
+      return `<p class="cstrip na"><span>전세 끼고 지금 필요한 돈</span><b>–</b><small>${noPriceTxt(r)}</small></p>`;
+    return `<div class="cstrip gstrip ${CASH - g.now >= 0 ? "ok" : "short"}"><span>전세 끼고 사면${isEst(r) ? `<span class="zb est">구 평균 시세로 추정${P.est ? "" : " · 곳 수 제외"}</span>` : ""}</span><b>${g.now <= CASH + 1e-9 ? `지금 ${f1(g.now)}억이면 계약 가능` : `지금 ${f1(g.now)}억 필요 <em class="gs-sh">${f1(g.now - CASH)}억 모자라요</em>`}</b><small class="gs-2">${g.x.ok ? `입주까지 총 ${f1(g.total)}억${g.total > CASH ? ` · 내 돈 ${e2(CASH)}억 빼면 ${f1(g.total - CASH)}억 더` : ""}` : "입주까지는 계산 전"}</small></div>`;
   }
   function gapFrame(g) {
     const ok = g.now <= CASH + 1e-9;
