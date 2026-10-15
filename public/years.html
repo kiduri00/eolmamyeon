@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<base href="/">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>재개발 단계별로 몇 년 걸리나 (서울 실제 기록) | 얼마면 재개발</title>
+<meta name="description" content="추진위·조합설립·사업시행·관리처분 등 지금 단계를 고르면 서울 정비사업이 다음 단계까지 실제로 걸린 기간과 5년 안 도달률을 보여 줍니다.">
+<meta name="color-scheme" content="light dark">
+<link rel="canonical" href="https://jaegaebal.alwaysquestions.kr/years">
+<meta property="og:title" content="재개발 단계별로 몇 년 걸리나 (서울 실제 기록) | 얼마면 재개발">
+<meta property="og:description" content="추진위·조합설립·사업시행·관리처분 등 지금 단계를 고르면 서울 정비사업이 다음 단계까지 실제로 걸린 기간과 5년 안 도달률을 보여 줍니다.">
+<meta property="og:url" content="https://jaegaebal.alwaysquestions.kr/years">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://jaegaebal.alwaysquestions.kr/og.png">
+<meta property="og:locale" content="ko_KR">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232B59F0'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'%3E%E2%82%A9%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
+<link rel="stylesheet" href="pages.css">
+<link rel="alternate" type="application/rss+xml" title="서울 정비사업 단계 변경 리포트" href="report/feed.xml">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>
+
+</head>
+<body>
+<header class="top"><div class="in"><a class="logo" href="./">얼마면 <span>재개발</span></a><nav aria-label="사이트 메뉴"><a href="./">계산기</a><a href="report/">월간 리포트</a><a href="z/">구역별 페이지</a><a href="guide/">가이드·분석</a></nav></div></header>
+<main>
+<p class="eyebrow">데이터 기준 2026.09.26</p>
+<h1>비슷한 단계의 구역은 실제로 몇 년 걸렸나</h1>
+<p class="byline">정리: 얼마면 재개발 운영자 · 서울 사업장 인가일로 직접 계산</p>
+<p class="lede">우리 동네가 지금 어느 단계인지 고르면, 서울에서 같은 단계를 지난 구역들이 다음 단계까지 실제로 얼마나 걸렸는지 보여 줘요. 신속통합기획·모아타운 동의서를 받기 전 이웃과 함께 보기 좋아요.</p>
+<label for="stage">지금 단계</label>
+<select id="stage">
+<option value="구역지정">정비구역 지정됨</option>
+<option value="추진위" selected>추진위원회 승인됨</option>
+<option value="조합설립">조합설립인가 받음</option>
+<option value="사업시행">사업시행인가 받음</option>
+<option value="관리처분">관리처분인가 받음</option>
+<option value="착공">착공함</option>
+</select>
+<label for="kind">사업 종류</label>
+<select id="kind"><option value="large" selected>재개발·재건축</option><option value="small">가로주택·소규모</option></select>
+<div id="out" aria-live="polite"></div>
+<p class="note">'표본 적음·불안정'은 다음 단계에 실제로 닿은 구역이 50곳이 안 되거나, 가운데 값이 관측된 가장 긴 기간 끝자락에 걸린 경우예요. 이때 숫자는 실제보다 짧을 수 있어요. '가운데 값'은 절반이 그보다 빨리, 절반이 늦게 간 기간이에요. 아직 다음 단계에 못 간 구역도 기준일까지 걸린 기간으로 넣어 계산했어요(생존분석). '닿은 구역만' 범위는 이미 다음 단계에 간 구역만 본 값이라 실제보다 짧게 나와요. 단계별 가운데 값을 더한 합계는 참고용이에요. 해제·취소된 구역은 자료에 없어 실제보다 빠르게 보일 수 있어요.</p>
+<p class="mbline">구역마다 지금 단계에 몇 개월째 머물러 있는지까지 넣은 준공 가능성은 <a href="./?from=years">계산기</a>의 구역 리포트에 있어요.</p>
+<h2>한눈에 보기: 재개발·재건축 단계별 실제 소요 기간</h2>
+<p>위에서 단계를 고르지 않아도 되도록 전체 표를 같이 둬요. 가운데 값과 5년 안 도달 비율은 아직 다음 단계에 못 간 사업장까지 넣어 계산했고(카플란-마이어), 빠른·느린 25%는 이미 닿은 사업장만 본 값이에요.</p>
+<div class="tw cards"><table><thead><tr><th>단계</th><th class="n">가운데 값</th><th class="n">5년 안 도달</th><th class="n">닿은 구역만: 빠른 25%~느린 25%</th><th class="n">표본(닿음/전체)</th></tr></thead><tbody><tr><td class="t" data-l="단계">정비구역 지정 → 조합설립인가</td><td class="n" data-l="가운데 값">1.8년</td><td class="n" data-l="5년 안 도달">78%</td><td class="n" data-l="닿은 구역만: 빠른 25%~느린 25%">0.7~4.0년</td><td class="n" data-l="표본(닿음/전체)">274/311</td></tr><tr><td class="t" data-l="단계">추진위원회 승인 → 조합설립인가</td><td class="n" data-l="가운데 값">3.0년</td><td class="n" data-l="5년 안 도달">65%</td><td class="n" data-l="닿은 구역만: 빠른 25%~느린 25%">1.1~6.2년</td><td class="n" data-l="표본(닿음/전체)">381/477</td></tr><tr><td class="t" data-l="단계">조합설립인가 → 사업시행인가</td><td class="n" data-l="가운데 값">4.1년</td><td class="n" data-l="5년 안 도달">60%</td><td class="n" data-l="닿은 구역만: 빠른 25%~느린 25%">1.7~5.1년</td><td class="n" data-l="표본(닿음/전체)">305/448</td></tr><tr><td class="t" data-l="단계">사업시행인가 → 관리처분인가</td><td class="n" data-l="가운데 값">2.3년</td><td class="n" data-l="5년 안 도달">76%</td><td class="n" data-l="닿은 구역만: 빠른 25%~느린 25%">1.4~3.7년</td><td class="n" data-l="표본(닿음/전체)">270/325</td></tr><tr><td class="t" data-l="단계">관리처분인가 → 착공</td><td class="n" data-l="가운데 값">2.4년</td><td class="n" data-l="5년 안 도달">81%</td><td class="n" data-l="닿은 구역만: 빠른 25%~느린 25%">1.4~3.7년</td><td class="n" data-l="표본(닿음/전체)">193/252</td></tr><tr><td class="t" data-l="단계">착공 → 준공</td><td class="n" data-l="가운데 값">3.0년</td><td class="n" data-l="5년 안 도달">95%</td><td class="n" data-l="닿은 구역만: 빠른 25%~느린 25%">2.5~3.3년</td><td class="n" data-l="표본(닿음/전체)">152/182</td></tr></tbody></table></div>
+<p class="meta">가운데 값·5년 안 도달은 아직 다음 단계에 못 간 구역까지 기준일까지의 기간으로 넣어 계산했어요(생존분석). 오른쪽 범위는 이미 닿은 구역만 본 값이라 실제보다 짧게 나와요. 해제·취소된 구역은 자료에 없어요.</p>
+<h2>표를 읽을 때 알아 둘 점</h2>
+<ul>
+<li>가운데 값은 '절반이 이 기간 안에 다음 단계로 갔다'는 뜻이에요. 우리 구역도 그만큼 걸린다는 예측은 아니에요.</li>
+<li>조합설립 뒤 사업시행인가까지가 가장 길고 편차도 커요. 설계·건축심의와 조합원 의견 조율이 이 구간에 몰려 있어서예요.</li>
+<li>관리처분 뒤 착공·준공은 사례 대부분이 몇 년 안에 끝나요. 이미 분담금과 배정 계획이 정해진 단계라서예요.</li>
+<li>신속통합기획·모아타운처럼 최근 생긴 제도는 아직 끝까지 간 사례가 적어서 이 표에 따로 나누지 않았어요.</li>
+</ul>
+<p class="disc">투자 권유가 아닌 공개 자료 통계예요. 출처: 서울시 '정비사업 정보몽땅' 추진경과 실제 인가일.</p>
+<script>
+(function(){
+const S={"large": {"구역지정>조합설립": {"km_med": 1.79, "reach5": 0.778, "n": 311, "nEv": 274, "p25": 0.7, "p75": 3.98, "na": 280, "unstable": false, "own": true}, "추진위>조합설립": {"km_med": 2.97, "reach5": 0.653, "n": 477, "nEv": 381, "p25": 1.06, "p75": 6.17, "na": 379, "unstable": false, "own": true}, "조합설립>사업시행": {"km_med": 4.09, "reach5": 0.603, "n": 448, "nEv": 305, "p25": 1.69, "p75": 5.09, "na": 301, "unstable": false, "own": true}, "사업시행>관리처분": {"km_med": 2.34, "reach5": 0.764, "n": 325, "nEv": 270, "p25": 1.36, "p75": 3.71, "na": 270, "unstable": false, "own": true}, "관리처분>착공": {"km_med": 2.41, "reach5": 0.813, "n": 252, "nEv": 193, "p25": 1.44, "p75": 3.7, "na": 192, "unstable": false, "own": true}, "착공>준공": {"km_med": 2.98, "reach5": 0.949, "n": 182, "nEv": 152, "p25": 2.55, "p75": 3.3, "na": 152, "unstable": false, "own": true}}, "small": {"구역지정>조합설립": {"km_med": 1.79, "reach5": 0.778, "n": 311, "nEv": 274, "p25": 0.7, "p75": 3.98, "na": 280, "unstable": false, "own": false}, "추진위>조합설립": {"km_med": 2.97, "reach5": 0.653, "n": 477, "nEv": 381, "p25": 1.06, "p75": 6.17, "na": 379, "unstable": false, "own": false}, "조합설립>사업시행": {"km_med": 6.25, "reach5": 0.28800000000000003, "n": 168, "nEv": 29, "p25": 2.49, "p75": 4.1, "na": 29, "unstable": true, "own": true}, "사업시행>관리처분": {"km_med": 2.34, "reach5": 0.764, "n": 325, "nEv": 270, "p25": 1.36, "p75": 3.71, "na": 270, "unstable": false, "own": false}, "관리처분>착공": {"km_med": 2.41, "reach5": 0.813, "n": 252, "nEv": 193, "p25": 1.44, "p75": 3.7, "na": 192, "unstable": false, "own": false}, "착공>준공": {"km_med": 2.98, "reach5": 0.949, "n": 182, "nEv": 152, "p25": 2.55, "p75": 3.3, "na": 152, "unstable": false, "own": false}}};
+const N={'구역지정':'정비구역 지정','추진위':'추진위원회 승인','조합설립':'조합설립인가','사업시행':'사업시행인가','관리처분':'관리처분인가','착공':'착공','준공':'준공'};
+const NEXT={'구역지정':'조합설립','추진위':'조합설립','조합설립':'사업시행','사업시행':'관리처분','관리처분':'착공','착공':'준공'};
+const st=document.getElementById('stage'), kd=document.getElementById('kind'), out=document.getElementById('out');
+function draw(){
+  let s=st.value, rows='', sum=0, first=null;
+  while(NEXT[s]){ const n=NEXT[s], k=s+'>'+n; const v=(S[kd.value]||{})[k]||S.large[k]; if(!v) break;
+    const fb=kd.value==='small'&&!v.own; if(!first) first=v; sum+=v.km_med;
+    rows+='<tr><td class="t" data-l="단계">'+N[s]+' → '+N[n]+(fb?' <span class="pill p-mute">재개발·재건축 값</span>':'')+(v.unstable&&!fb?' <span class="pill p-warn">표본 적음·불안정</span>':'')+'</td><td class="n" data-l="가운데 값">'+v.km_med.toFixed(1)+'년'+(v.unstable&&!fb?' 이상일 수 있음':'')+'</td><td class="n" data-l="5년 안 도달">'+Math.round(v.reach5*100)+'%</td><td class="n" data-l="닿은 구역만">'+(v.p25!=null?v.p25.toFixed(1)+'~'+v.p75.toFixed(1)+'년':'–')+'</td><td class="n" data-l="표본(닿음/전체)">'+v.nEv.toLocaleString()+'/'+v.n.toLocaleString()+'</td></tr>'; s=n; }
+  out.innerHTML='<div class="kpis"><div class="kpi"><span>다음 단계('+N[NEXT[st.value]]+')까지 가운데 값</span><b>'+first.km_med.toFixed(1)+'년</b><small>5년 안에 닿은 비율 '+Math.round(first.reach5*100)+'%</small></div><div class="kpi"><span>준공까지 단계별 가운데 값 합</span><b>약 '+sum.toFixed(0)+'년</b><small>참고용 단순 합계 · 구역 페이지의 준공 시점은 늦는 구간이 겹치는 경우까지 넣어 4,000번 뽑은 값이라 이보다 늦게 나와요</small></div></div>'+(kd.value==='large'?'<p class="meta">단계별 값은 아래 전체 표에서 '+N[st.value]+' 줄부터 보면 돼요.</p>':'<div class="tw cards"><table><thead><tr><th>단계</th><th class="n">가운데 값</th><th class="n">5년 안 도달</th><th class="n">닿은 구역만: 빠른 25%~느린 25%</th><th class="n">표본(닿음/전체)</th></tr></thead><tbody>'+rows+'</tbody></table></div>');
+}
+st.onchange=draw; kd.onchange=draw; draw();
+})();
+</script>
+
+</main>
+<footer class="f"><p><a href="report/">월간 리포트</a> · <a href="z/">구역별 페이지</a> · <a href="guide/">가이드·분석</a> · <a href="years">몇 년 걸리나</a> · <a href="about">소개</a> · <a href="contact">문의하기</a> · <a href="method">출처·계산 방법</a> · <a href="terms">이용약관</a> · <a href="privacy"><b>개인정보처리방침</b></a> · <a href="https://blog.naver.com/always_questions" rel="noopener">블로그</a></p><p class="f-c">© 2026 얼마면 재개발 · 데이터 기준 2026.09.26</p></footer>
+</body>
+</html>
