@@ -94,11 +94,11 @@ page = f'''<!doctype html>
 <meta charset="utf-8">
 <base href="/guide/">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>서울 재건축 연한 30년 넘은 아파트 {len(rows):,}단지 실거래 | 얼마면 재개발</title>
+<title>서울 재건축 연한 30년 넘은 아파트 {len(rows):,}단지 실거래 | 집핀 - 서울 재개발 지도</title>
 <meta name="description" content="{esc(desc)}">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="https://jaegaebal.alwaysquestions.kr/guide/rebuild-30y">
-<meta property="og:title" content="서울 재건축 연한 30년 넘은 아파트 실거래">
+<meta property="og:site_name" content="집핀"><meta property="og:title" content="서울 재건축 연한 30년 넘은 아파트 실거래">
 <meta property="og:description" content="{esc(desc)}">
 <meta property="og:image" content="https://jaegaebal.alwaysquestions.kr/og.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
@@ -106,7 +106,7 @@ page = f'''<!doctype html>
 <style>.rb-f{{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}}.rb-f select,.rb-f input{{min-height:38px;padding:0 10px;border:1px solid var(--border,#d6dae1);border-radius:10px;background:var(--surface,#fff);color:inherit;font:inherit}}.rb-w{{overflow-x:auto}}table.rb{{width:100%;border-collapse:collapse;font-size:14px;min-width:720px}}table.rb th,table.rb td{{padding:9px 8px;border-bottom:1px solid var(--border,#e5e7eb);text-align:left;vertical-align:top}}table.rb th{{font-size:12.5px;color:var(--text-3);font-weight:600;white-space:nowrap}}table.rb .n{{text-align:right;white-space:nowrap}}table.rb small{{display:block;font-size:12px;color:var(--text-3);margin-top:2px}}table.rb tr[hidden]{{display:none}}#rbCnt{{font-size:13px;color:var(--text-3)}}</style>
 </head>
 <body>
-<header class="top"><div class="in"><a class="logo" href="../">얼마면 <span>재개발</span></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/">구역별 페이지</a><a href="../guide/" aria-current="page">가이드·분석</a></nav></div></header>
+<header class="top"><div class="in"><a class="logo" href="../" aria-label="집핀 처음으로"><img class="logo-i" src="/icon.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/">구역별 페이지</a><a href="../guide/" aria-current="page">가이드·분석</a></nav></div></header>
 <main>
 <p class="eyebrow">재건축 · 데이터 기준 {UPD}</p>
 <h1>준공 30년 넘은 서울 아파트 {len(rows):,}단지</h1>
@@ -116,7 +116,7 @@ page = f'''<!doctype html>
 <div class="rb-w"><table class="rb"><thead><tr><th>구·동</th><th>단지</th><th class="n">준공</th><th class="n">용적률</th><th class="n">대지지분</th><th class="n">실거래 가운데 값</th><th class="n">거래 수</th></tr></thead><tbody id="rbB">{trs}</tbody></table></div>
 <p class="note">자료: 서울시 건축물대장 총괄표제부(서울 열린데이터광장), 서울시 부동산 실거래가(아파트 매매, {esc(T['asOf']['sale'][:4])}.{esc(T['asOf']['sale'][4:6])}.{esc(T['asOf']['sale'][6:])}까지), 정비구역 필지 서울도시공간포털. 단지 이름은 실거래 신고 이름이라 실제 단지명과 다를 수 있어요. 투자 권유가 아니에요.</p>
 </main>
-<footer class="f"><p><a href="../report/">월간 리포트</a> · <a href="../z/">구역별 페이지</a> · <a href="../guide/">가이드·분석</a> · <a href="../about">소개</a> · <a href="../method">출처·계산 방법</a> · <a href="../privacy"><b>개인정보처리방침</b></a></p><p class="f-c">© 2026 얼마면 재개발 · 데이터 기준 {UPD}</p></footer>
+<footer class="f"><p><a href="../report/">월간 리포트</a> · <a href="../z/">구역별 페이지</a> · <a href="../guide/">가이드·분석</a> · <a href="../about">소개</a> · <a href="../method">출처·계산 방법</a> · <a href="../privacy"><b>개인정보처리방침</b></a></p><p class="f-c">© 2026 집핀 · 데이터 기준 {UPD}</p></footer>
 <script>
 (function(){{var G=document.getElementById('rbG'),Z=document.getElementById('rbZ'),F=document.getElementById('rbF'),Q=document.getElementById('rbQ'),C=document.getElementById('rbCnt'),R=[].slice.call(document.querySelectorAll('#rbB tr'));
 function f(){{var g=G.value,z=Z.checked,q=Q.value.trim(),n=0;R.forEach(function(r){{var ok=(!g||r.dataset.g===g)&&(!z||r.dataset.z==='0')&&(!F.checked||+r.dataset.far<=200)&&(!q||r.textContent.indexOf(q)>=0);r.hidden=!ok;if(ok)n++;}});C.textContent=n.toLocaleString()+'단지';}}

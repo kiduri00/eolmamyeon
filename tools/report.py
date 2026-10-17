@@ -124,12 +124,12 @@ desc = f"{title}. 구역별 입주까지 필요한 현금·준공 가능성·입
 url = f"{SITE}/report/{YM}"
 tpl = open(os.path.join(ROOT, 'public/report/2026-09.html'), encoding='utf-8').read()
 head = tpl[:tpl.index('<main>')]; foot = tpl[tpl.index('</main>') + 7:]
-head = re.sub(r'<title>.*?</title>', f'<title>{Y}년 {M}월 서울 정비사업 단계 변경 리포트 | 얼마면 재개발</title>', head)
+head = re.sub(r'<title>.*?</title>', f'<title>{Y}년 {M}월 서울 정비사업 단계 변경 리포트 | 집핀 - 서울 재개발 지도</title>', head)
 head = re.sub(r'(name="description" content=")[^"]*', lambda m: m.group(1) + esc(desc), head)
 head = re.sub(r'(property="og:description" content=")[^"]*', lambda m: m.group(1) + esc(desc), head)
-head = re.sub(r'(property="og:title" content=")[^"]*', lambda m: m.group(1) + f'{Y}년 {M}월 서울 정비사업 단계 변경 리포트 | 얼마면 재개발', head)
+head = re.sub(r'(property="og:title" content=")[^"]*', lambda m: m.group(1) + f'{Y}년 {M}월 서울 정비사업 단계 변경 리포트 | 집핀 - 서울 재개발 지도', head)
 head = head.replace(f'{SITE}/report/2026-09', url)
-head = re.sub(r'<script type="application/ld\+json">.*?</script>', '<script type="application/ld+json">' + json.dumps({"@context": "https://schema.org", "@type": "Article", "headline": title, "inLanguage": "ko", "datePublished": PUB, "mainEntityOfPage": url, "author": {"@type": "Person", "name": "얼마면 재개발 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "얼마면 재개발", "url": SITE}}, ensure_ascii=False) + '</script>', head, flags=re.S)
+head = re.sub(r'<script type="application/ld\+json">.*?</script>', '<script type="application/ld+json">' + json.dumps({"@context": "https://schema.org", "@type": "Article", "headline": title, "inLanguage": "ko", "datePublished": PUB, "mainEntityOfPage": url, "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "집핀", "url": SITE}}, ensure_ascii=False) + '</script>', head, flags=re.S)
 if A.draft: head = head.replace('<head>', '<head>\n<meta name="robots" content="noindex">', 1)
 asof = D.get('asOf', '')
 foot = re.sub(r'데이터 기준 [0-9.]+', f'데이터 기준 {asof.replace("-", ".")}', foot)
@@ -137,7 +137,7 @@ pd = datetime.date.fromisoformat(PUB)
 body = f'''<main>
 <p class="eyebrow">서울 정비사업 단계 변경 리포트 · {no}호 · {Y}년 {M}월분</p>
 <h1>{esc(title)}</h1>
-<p class="byline">정리: 얼마면 재개발 · 정보몽땅 추진경과 자동 집계{' + 원문 대조' if CHK else ''} · 발행 {pd.year}년 {pd.month}월 {pd.day}일</p>
+<p class="byline">정리: 집핀 · 정보몽땅 추진경과 자동 집계{' + 원문 대조' if CHK else ''} · 발행 {pd.year}년 {pd.month}월 {pd.day}일</p>
 <div class="sum3"><b>3줄 요약</b><ol>{''.join(f'<li>{esc(s)}</li>' for s in SUM3)}</ol></div>
 <div class="kpis">
 <div class="kpi"><span>인가 이벤트</span><b>{n_ev}건</b><small>추진위·구역지정·조합설립·사업시행·관리처분</small></div>
@@ -162,7 +162,7 @@ body = f'''<main>
 <p><a href="../years">우리 동네가 지금 어느 단계인지 고르고 보기 →</a></p>
 <h2>한눈에 보기 (표)</h2>
 <div class="tw cards compact"><table><thead><tr><th>구역</th><th>단계</th><th class="n">인가일(정보몽땅)</th><th>원문</th><th>계산</th></tr></thead><tbody>{table}</tbody></table></div>
-<h2>인용하실 때</h2><p class="meta">출처를 '얼마면 재개발 월간 리포트({Y}년 {M}월분)'로 적고 이 페이지 링크를 붙여 주세요. 날짜는 서울시 정비사업 정보몽땅 등록 기준이고, 투자 권유가 아니에요.</p>
+<h2>인용하실 때</h2><p class="meta">출처를 '집핀 월간 리포트({Y}년 {M}월분)'로 적고 이 페이지 링크를 붙여 주세요. 날짜는 서울시 정비사업 정보몽땅 등록 기준이고, 투자 권유가 아니에요.</p>
 </main>'''
 if A.test:
     open(os.path.join(ROOT, f'pipeline/report/test_{YM}.html'), 'w', encoding='utf-8').write((head + body + foot).replace('href="../pages.css"', 'href="../../public/pages.css"'))
@@ -191,5 +191,5 @@ if pubs:
 '''
     open(os.path.join(ROOT, 'public/report/index.html'), 'w', encoding='utf-8').write(idx[:a] + main + idx[b:])
     items = ''.join(f'<item><title>{ym2(i["ym"])} 서울 정비사업 단계 변경 리포트 ({i["no"]}호)</title><link>{SITE}/report/{i["ym"]}</link><guid>{SITE}/report/{i["ym"]}</guid><pubDate>{datetime.datetime.fromisoformat(i["pub"]).strftime("%a, %d %b %Y 09:00:00 +0900")}</pubDate><description>{esc(i["title"])} · 인가 {i["n"]}건 · 원문 확인 {i["ok"]}건</description></item>' for i in pubs)
-    open(os.path.join(ROOT, 'public/report/feed.xml'), 'w', encoding='utf-8').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>얼마면 재개발 · 서울 정비사업 단계 변경 리포트</title><link>{SITE}/report/</link><description>매달 서울에서 인가 단계가 바뀐 정비사업</description><language>ko</language>{items}</channel></rss>')
+    open(os.path.join(ROOT, 'public/report/feed.xml'), 'w', encoding='utf-8').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>집핀 · 서울 정비사업 단계 변경 리포트</title><link>{SITE}/report/</link><description>매달 서울에서 인가 단계가 바뀐 정비사업</description><language>ko</language>{items}</channel></rss>')
 print(YM, 'no', no, 'events', n_ev, 'zones', len(zones), 'checked', n_ok, '→', title)

@@ -416,3 +416,6 @@ dl.gl div{margin:3px 0}
 .zc-bw b{display:inline-block;padding:2px 9px;border-radius:999px;background:var(--brand-soft);color:var(--text-1)}
 .zc-bw.no b{background:var(--risk-soft);color:var(--risk-ink)}
 .shot-txt{margin:12px 0;padding:10px 12px;border-left:3px solid var(--brand);background:color-mix(in srgb,var(--brand) 6%,transparent);font-size:14px;line-height:1.6}.shot-txt b{margin-right:6px}
+
+/* 집핀 로고(앱 헤더와 같은 모양) */
+.logo{display:inline-flex;align-items:center;gap:8px;text-decoration:none!important}.logo-i{width:28px;height:28px;border-radius:7px;flex:none}.logo .logo-t{font-size:19px;font-weight:800;letter-spacing:-.04em;color:var(--text-1)}.logo .logo-s{font-size:12px;font-weight:600;color:var(--text-3);letter-spacing:-.01em}@media (max-width:640px){.logo-i{width:26px;height:26px}.logo .logo-s{display:none}}

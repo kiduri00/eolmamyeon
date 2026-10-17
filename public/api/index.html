@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <base href="/api/">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>공개 데이터 API | 얼마면 재개발</title>
-<meta name="description" content="얼마면 재개발이 매일 갱신하는 서울 정비사업 데이터(구역·필요한 현금·실거래·고시·토지거래허가·재건축 연한 단지)를 앱·서비스에서 바로 쓸 수 있는 JSON으로 공개합니다.">
+<title>공개 데이터 API | 집핀 - 서울 재개발 지도</title>
+<meta name="description" content="집핀이 매일 갱신하는 서울 정비사업 데이터(구역·필요한 현금·실거래·고시·토지거래허가·재건축 연한 단지)를 앱·서비스에서 바로 쓸 수 있는 JSON으로 공개합니다.">
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
 <link rel="stylesheet" href="../pages.css">
 <style>code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}pre{overflow-x:auto;padding:12px 14px;border-radius:12px;background:var(--surface-2,#f3f4f6);line-height:1.55}table.ep{width:100%;border-collapse:collapse;font-size:14px}table.ep th,table.ep td{padding:8px;border-bottom:1px solid var(--border,#e5e7eb);text-align:left;vertical-align:top}table.ep td:first-child{white-space:nowrap}.tw{overflow-x:auto}</style>
 </head>
 <body>
-<header class="top"><div class="in"><a class="logo" href="../">얼마면 <span>재개발</span></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav></div></header>
+<header class="top"><div class="in"><a class="logo" href="../" aria-label="집핀 처음으로"><img class="logo-i" src="/icon.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav></div></header>
 <main>
 <p class="eyebrow">개발자용 · 매일 갱신</p>
 <h1>공개 데이터 API</h1>
@@ -36,7 +36,7 @@ const { items } = await (await fetch("https://jaegaebal.alwaysquestions.kr/api/v
 const ok = items.filter(z =&gt; z.need.gap.eligible &amp;&amp; z.need.gap.now != null &amp;&amp; z.need.gap.now &lt;= 2)
                 .sort((a, b) =&gt; a.need.gap.now - b.need.gap.now);</pre>
 <h2>이용 조건</h2>
-<p>원자료는 서울시·국토교통부 공공데이터(공공누리 1유형 등), 서울도시공간포털, 서울시 상권분석서비스, 서울부동산정보광장이에요. 쓰실 때 "얼마면 재개발(jaegaebal.alwaysquestions.kr)"과 원자료 출처를 밝혀 주세요. 계산값은 공개 자료와 가정으로 낸 추정치이고 투자 권유가 아니에요. 파일 구조가 바뀌면 <code>v2</code>로 새로 열고 <code>v1</code>은 유지해요.</p>
+<p>원자료는 서울시·국토교통부 공공데이터(공공누리 1유형 등), 서울도시공간포털, 서울시 상권분석서비스, 서울부동산정보광장이에요. 쓰실 때 "집핀(jaegaebal.alwaysquestions.kr)"과 원자료 출처를 밝혀 주세요. 계산값은 공개 자료와 가정으로 낸 추정치이고 투자 권유가 아니에요. 파일 구조가 바뀌면 <code>v2</code>로 새로 열고 <code>v1</code>은 유지해요.</p>
 </main>
 <footer class="f"><p><a href="../">계산기</a> · <a href="../method">출처·계산 방법</a> · <a href="../privacy"><b>개인정보처리방침</b></a></p></footer>
 </body>

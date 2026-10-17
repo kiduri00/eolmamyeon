@@ -1,0 +1,11 @@
+/* 홈 화면에 추가 안내 카드 */
+.zi{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:58;display:flex;align-items:center;gap:12px;padding:12px 10px 12px 14px;border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text-1);box-shadow:0 10px 30px rgba(15,23,42,.18);opacity:0;transform:translateY(12px);transition:opacity .22s,transform .22s;font-family:var(--font)}
+.zi.on{opacity:1;transform:none}
+.zi img{border-radius:10px;flex:none}
+.zi-t{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;font-size:13px;line-height:1.4;color:var(--text-2)}
+.zi-t>b{font-size:15px;color:var(--text-1)}
+.zi-ios{display:flex;align-items:center;gap:3px;flex-wrap:wrap;color:var(--text-1)}
+.zi-ios svg{color:var(--brand,#1f3a87)}
+.zi-go{flex:none;min-height:40px;padding:0 16px;border:0;border-radius:10px;background:var(--brand,#1f3a87);color:#fff;font:700 14px var(--font);cursor:pointer}
+.zi-x{flex:none;width:36px;height:36px;border:0;border-radius:50%;background:none;color:var(--text-3);font-size:15px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.zi{transition:none}}
