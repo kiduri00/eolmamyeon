@@ -31,7 +31,19 @@ EXT = os.path.join(R, 'src', 'ext')
 ext_js = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))
 ext_css = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.css'))
 js = S('app.js'); assert js.count('/*EXT*/') == 1; js = js.replace('/*EXT*/', ext_js.strip() + '\n')
-out = shell.replace('/*APPCSS*/', S('app.css') + ext_css, 1).replace('/*APPJS*/', js.replace('</script', '<\\/script'), 1).replace('/*DATA*/', data, 1)
+css = S('app.css') + ext_css
+# 배포본만 줄이기(원본 src는 그대로): esbuild가 있으면 JS·CSS를 압축. 없으면 그대로 둔다.
+import shutil, subprocess
+ESB = os.environ.get('ESBUILD') or shutil.which('esbuild') or next((x for x in (os.path.join(R, 'node_modules/.bin/esbuild'), '/tmp/esb/node_modules/.bin/esbuild') if os.path.exists(x)), None)
+if ESB and not os.environ.get('NO_MINIFY'):
+    def mini(src, loader):
+        r = subprocess.run([ESB, f'--loader={loader}', '--minify', '--target=es2020,chrome90,safari14', '--log-level=error'], input=src, capture_output=True, text=True)
+        if r.returncode: raise SystemExit('esbuild 실패: ' + r.stderr[:500])
+        return r.stdout
+    js0, css0 = len(js), len(css)
+    js = mini(js, 'js'); css = mini(css, 'css')
+    print(f'minify js {js0}->{len(js)} css {css0}->{len(css)}')
+out = shell.replace('/*APPCSS*/', css, 1).replace('/*APPJS*/', js.replace('</script', '<\\/script'), 1).replace('/*DATA*/', data, 1)
 for k in ('/*APPCSS*/', '/*APPJS*/', '/*DATA*/'): assert k not in out
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)
 print('public/index.html', len(out.encode()), 'bytes')

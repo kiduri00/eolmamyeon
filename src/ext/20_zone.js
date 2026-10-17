@@ -310,7 +310,7 @@
       const hj = p.querySelector(".hjl"); if (hj) moreRows(hj.parentElement, 3);
       p.querySelectorAll(".nc-go").forEach((b) => (b.onclick = () => { curTab = "money"; select(b.dataset.go, false, false, { scroll: !MQ_SHEET.matches }); }));
     };
-    return { paneTx, rights, rightsHTML, pace, geoReady, loadTx };
+    return { paneTx, rights, rightsHTML, pace, geoReady, loadTx, moreRows, geoZ: () => GEO_Z };
   })();
   function paneTx(r) { ZX.geoReady(); ZX.paneTx(r); }
   // 매수가가 없을 때 이유를 구역 성격에 맞게

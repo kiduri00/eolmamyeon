@@ -30,8 +30,12 @@ if [ "$(date -u +%u)" = "1" ] || [ ! -f public/data/sang.json ]; then
   (timeout 1500 node tools/fetch_sang.js pipeline/raw/sang && python3 tools/sang.py) || echo "!! 상권 갱신 실패 — 이전 자료 유지"
 fi
 python3 tools/build.py
+# 토지거래허가 내역(최근 62일만 조회되므로 매일 모아 쌓는다)
+timeout 600 python3 tools/toheo.py || echo "!! 토지거래허가 수집 실패 — 이전 자료 유지"
 # 구역별 정적 페이지(검색 노출용): 계산 엔진 결과를 새로 뽑아 만든다
 (timeout 900 node tools/calc.js && python3 tools/zpages.py) || echo "!! 구역 페이지 갱신 실패 — 이전 페이지 유지"
+# 건축물대장 총괄표제부(용적률·세대수): 매주 월요일 또는 캐시가 없을 때
+if [ "$(date -u +%u)" = "1" ] || [ ! -f pipeline/cache/ledger.json ]; then timeout 1200 node tools/fetch_ledger.js pipeline/raw/ledger || echo "!! 건축물대장 갱신 실패 — 이전 자료 유지"; fi
 python3 tools/rebuild.py || echo "!! 재건축 연한 단지 목록 실패"
 python3 tools/feeds.py || echo "!! 구별 RSS 실패"
 python3 tools/sitemap.py
