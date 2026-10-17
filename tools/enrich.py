@@ -403,6 +403,99 @@ for r in R:
         if c and c[0] <= 300: r['dg'] = c[1]; stat['dong_fix_near'] += 1; continue
     if nm: r['dg'] = nm; stat['dong_fix_name'] += 1; continue   # 필지·좌표로 못 찾으면 이름으로
     stat['dong_missing'] += 1
+# ---------- 6. 준공 시점 다시 계산 + 오래 멈춘 구역 표시 ----------
+#   예전 값(data.base.json eta)은 2026.09.26 한 번 계산한 것이라 그 뒤 단계가 바뀐 구역은 비고, 구역마다 현재 단계에 머문 기간이 거의 반영되지 않아
+#   같은 단계 구역이 같은 해에 몰렸다(eMid 2039년 122곳, 2030년 0곳 · eHi 2049~51년 186곳). 그래서 매일 여기서 다시 뽑는다.
+#   방법: 단계 전이마다 로그정규분포. 가운데 값 = etaMeta 생존분석(KM) 가운데 값(아직 못 넘어간 구역까지 반영), 퍼짐 = stats의 서울 실제 소요기간
+#   25~75% 범위. 현재 단계는 '지금까지 머문 기간(정보몽땅 인가일)보다 길다'는 조건으로 남은 기간을 뽑고(절단 분포), 그 뒤 단계를 이어 붙인다.
+#   각 전이의 '정체(끝내 못 넘어감)' 비율은 KM의 stalled 값 · 현재 단계는 머문 기간만큼 정체 비율을 키운다(베이즈). 4,000회 몬테카를로.
+#   ① 착공·이주 단계인데 5년 넘게 새 기록(인가·추진경과)이 없거나 ② 착공일 없이 관리처분 뒤 7년이 지났거나 ③ 착공 뒤 관측된 가장 긴 공사기간을 넘긴 구역은
+#   준공됐는지 멈췄는지 자료로 알 수 없어 r.stale(진행 확인 필요)로 두고 준공 확률·시점을 싣지 않는다(지난 입주 시점·100% 같은 값이 나오지 않게).
+import numpy as _np, hashlib as _hl
+from statistics import NormalDist as _NDc
+_ND = _NDc()
+_EM = D.get('etaMeta') or {}; _TRN = _EM.get('transitions') or {}; _STT = D.get('stats') or {}
+_TODAY = _d0.date.fromisoformat(_today)
+_CHAIN = ['조합설립>사업시행', '사업시행>관리처분', '관리처분>착공', '착공>준공']
+_FIRST = {2: '구역지정>조합설립', 3: '추진위>조합설립', 4: '조합설립>사업시행', 5: '사업시행>관리처분', 6: '관리처분>착공', 7: '관리처분>착공', 8: '착공>준공'}
+_ANCH = {2: ['구역지정'], 3: ['추진위'], 4: ['조합설립', '시행자지정'], 5: ['사업시행'], 6: ['관리처분'], 7: ['관리처분'], 8: ['착공']}
+def _yrs(d): d = _d0.date.fromisoformat((d + '-15')[:10] if len(d) == 7 else d[:10]); return (_TODAY - d).days / 365.25
+def _ym(t): m = _TODAY.year * 12 + _TODAY.month - 1 + int(round(t * 12)); return f"{m // 12:04d}-{m % 12 + 1:02d}"
+def _par(g, tr):
+    k = (_TRN.get(g) or {}).get(tr) or (_TRN.get('large') or {}).get(tr) or {}
+    s = (_STT.get(g) or {}).get(tr) or (_STT.get('large') or {}).get(tr) or {}
+    med = k.get('med') or s.get('med') or 3.0
+    sig = math.log(s['p75'] / s['p25']) / 1.349 if s.get('p25') and s.get('p75') else 0.6
+    return math.log(med), min(0.85, max(0.25, sig)), k.get('stalled') or 0.0, k.get('tLastEv') or 20
+def _grp(r):
+    g = (r.get('eta') or {}).get('grp')
+    return g if g in ('large', 'small') else ('small' if re.search(r'가로|소규모', r.get('k', '')) else 'large')
+def _last(rid, r):
+    pm = PREM.get(rid) or {}; ds = [v[:10] for v in (pm.get('dt') or {}).values() if isinstance(v, str)]
+    ds += [e[0][:10] for e in (pm.get('ev') or []) if e and isinstance(e[0], str)]
+    ds += [v.get('d', '')[:10] for v in (pm.get('cs') or r.get('cs') or {}).values() if isinstance(v, dict) and v.get('d')]
+    return max([d for d in ds if re.match(r'\d{4}-\d{2}', d)], default='')
+_Phi = lambda z: 0.5 * (1 + math.erf(z / math.sqrt(2)))
+_old = collections.Counter((r.get('eta') or {}).get('eMid', '')[:4] for r in R if act(r))
+# 날짜가 없는 구역의 '머문 기간': 같은 단계에서 날짜가 있는 구역들의 가운데 값(이전 단계 날짜가 있으면 그보다 길 수 없음)
+_pool = collections.defaultdict(list)
+for r in R:
+    if not act(r) or r.get('src') == 'moa' or not (2 <= r.get('s', 0) <= 8): continue
+    dt = (PREM.get(r['id']) or {}).get('dt') or {}
+    a = next((dt[k] for k in _ANCH[r['s']] if isinstance(dt.get(k), str)), None)
+    if a: _pool[r['s']].append(max(0.0, _yrs(a)))
+N_DRAW = 4000; H = 35.0; _mix = collections.Counter()
+for r in R:
+    if not act(r) or r.get('src') == 'moa' or not (2 <= r.get('s', 0) <= 8): continue
+    s = r['s']; g = _grp(r); dt = (PREM.get(r['id']) or {}).get('dt') or {}
+    a = next((dt[k] for k in _ANCH[s] if isinstance(dt.get(k), str)), None)
+    last = _last(r['id'], r); ly = _yrs(last) if last else None
+    # 오래 멈춘 구역(착공·이주 단계)
+    why = None
+    if s >= 7 and ly is not None and ly >= 5: why = f"{last[:4]}.{last[5:7]} 뒤로 5년 넘게 새 기록이 없어요"
+    elif s == 8 and not dt.get('착공') and isinstance(dt.get('관리처분'), str) and _yrs(dt['관리처분']) >= 7:
+        why = f"착공일 기록이 없고 관리처분인가({dt['관리처분'][:7].replace('-', '.')}) 뒤 {int(_yrs(dt['관리처분']))}년이 지났어요"
+    elif s == 8 and a and _yrs(a) > _par(g, '착공>준공')[3]: why = f"착공({a[:7].replace('-', '.')}) 뒤 {int(_yrs(a))}년이 지났는데 준공 기록이 없어요"
+    if why:
+        r['stale'] = {'why': why, 'last': last[:7]}; r['eta'] = {'na': '진행 확인 필요', 'stale': 1}; stat['eta_stale'] += 1; continue
+    r.pop('stale', None)
+    if a: e0 = max(0.0, _yrs(a)); src = 'date'
+    else:
+        prev = [_yrs(v) for k, v in dt.items() if isinstance(v, str) and k in ('구역지정', '추진위', '조합설립', '시행자지정', '사업시행', '관리처분')]
+        cap = min(prev) if prev else None
+        pl = sorted(x for x in _pool[s] if cap is None or x <= cap) or sorted(_pool[s]) or [1.0]
+        e0 = pl[len(pl) // 2]; src = 'pool'
+    rng = _np.random.default_rng(int(_hl.md5(r['id'].encode()).hexdigest()[:8], 16))
+    first = _FIRST[s]; trs = [first] + _CHAIN[_CHAIN.index(first) + 1:] if first in _CHAIN else [first] + _CHAIN
+    mu, sg, st, tl = _par(g, first)
+    if e0 > max(tl, 8): r['eta'] = {'p10': 0.0, 'p15': 0.0, 'cond': 0.0, 'grp': g, 'noDate': src != 'date', 'e': round(e0, 1), 'tr': first, 'beyond': 1}; stat['eta_beyond'] += 1; continue
+    surv = 1 - _Phi((math.log(max(e0, 1e-3)) - mu) / sg)
+    st_c = st / (st + (1 - st) * surv) if st else 0.0
+    u = rng.uniform(1 - surv, 1, N_DRAW).clip(1e-9, 1 - 1e-9)
+    z = _np.array([_ND.inv_cdf(x) for x in u])
+    tot = _np.exp(mu + sg * z) - e0
+    dead = rng.uniform(0, 1, N_DRAW) < st_c
+    for tr in trs[1:]:
+        m2, s2, st2, _ = _par(g, tr)
+        tot = tot + _np.exp(m2 + s2 * rng.standard_normal(N_DRAW)); dead |= rng.uniform(0, 1, N_DRAW) < st2
+    tot = _np.where(dead, _np.inf, tot)
+    _mix.update(collections.Counter((_TODAY.year + _np.floor(tot[tot <= 20] + (_TODAY.month - 0.5) / 12)).astype(int).tolist())) if True else None
+    ok = tot[tot <= H]
+    if len(ok) < N_DRAW * 0.05: r['eta'] = {'p10': float(_np.mean(tot <= 10)), 'p15': float(_np.mean(tot <= 15)), 'cond': len(ok) / N_DRAW, 'grp': g, 'noDate': src != 'date'}; continue
+    lo, md, hi = _np.percentile(ok, [25, 50, 75])
+    r['eta'] = {'p10': round(float(_np.mean(tot <= 10)), 3), 'p15': round(float(_np.mean(tot <= 15)), 3), 'cond': round(len(ok) / N_DRAW, 3),
+                'eLo': _ym(max(lo, 1 / 12)), 'eMid': _ym(max(md, 1 / 12)), 'eHi': _ym(max(hi, 1 / 12)), 'noDate': src != 'date', 'grp': g, 'e': round(e0, 1), 'tr': first, 'eSrc': src}
+    stat['eta_model'] += 1
+if _EM:
+    _EM['asOf'] = _today; _EM['model'] = 'lognormal-v2'
+    _EM['method'] = ("단계 전이마다 걸린 기간을 서울 사업장 기록으로 추정했어요. 가운데 값은 카플란–마이어(KM) 생존분석(아직 다음 단계에 못 간 구역까지 반영), 퍼짐은 실제로 넘어간 구역의 25~75% 범위를 쓴 로그정규분포예요. "
+                     "구역마다 지금 단계에 머문 기간(정보몽땅 인가일)보다 길다는 조건으로 남은 기간을 뽑고 이후 단계를 이어 붙이는 몬테카를로(4,000회)로 준공 확률과 시점을 계산했어요. "
+                     "끝내 다음 단계로 못 간 비율(정체)도 넣었고, 오래 머문 구역일수록 정체 가능성을 더 크게 봐요. 착공·이주 단계인데 5년 넘게 새 기록이 없는 구역은 '진행 확인 필요'로 두고 확률·시점을 싣지 않아요. "
+                     "해제·취소된 구역은 자료에 없어 확률은 다소 낙관적이에요.")
+_new = collections.Counter((r.get('eta') or {}).get('eMid', '')[:4] for r in R if act(r))
+print('eta eMid by year old', sorted((k, v) for k, v in _old.items() if k)); print('eta eMid by year new', sorted((k, v) for k, v in _new.items() if k))
+print('eta expected completions/yr (mixture)', [(y, round(v / N_DRAW, 1)) for y, v in sorted(_mix.items())])
+print('eta stale', [(r['id'], r['n'][:14], r['stale']['why']) for r in R if r.get('stale')][:30])
 D['jrz'] = TX.get('jrz'); D['txAsOf'] = TX.get('asOf')
 D['rvj'] = TX.get('rvj')
 import datetime as _dt

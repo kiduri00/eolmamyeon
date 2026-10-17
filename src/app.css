@@ -29,11 +29,11 @@
   --text-3: #5f6b7a;
   --text-4: #8b95a1;
   /* brand */
-  --brand: #2b59f0;
-  --brand-hover: #1e47d6;
-  --brand-soft: #ebf0ff;
+  --brand: #1f3a87;
+  --brand-hover: #172d6b;
+  --brand-soft: #eaeef6;
   --on-brand: #ffffff;
-  --focus: #2b59f0;
+  --focus: #1f3a87;
   /* meaning — 차익·수익: 이익=빨강, 손실=파랑 (한국 관례) */
   --pos: #e8344e;
   --pos-ink: #d0223d;
@@ -117,11 +117,11 @@
     --text-2: #b0b8c1;
     --text-3: #8b95a1;
     --text-4: #6b7684;
-    --brand: #5b8cff;
-    --brand-hover: #7aa2ff;
-    --brand-soft: #17223f;
+    --brand: #93ade6;
+    --brand-hover: #afc3ee;
+    --brand-soft: #1a2338;
     --on-brand: #0b0d10;
-    --focus: #5b8cff;
+    --focus: #93ade6;
     --pos: #ff6b7f;
     --pos-ink: #ff8595;
     --pos-soft: #3a1820;
@@ -165,11 +165,11 @@
   --text-2: #b0b8c1;
   --text-3: #8b95a1;
   --text-4: #6b7684;
-  --brand: #5b8cff;
-  --brand-hover: #7aa2ff;
-  --brand-soft: #17223f;
+  --brand: #93ade6;
+  --brand-hover: #afc3ee;
+  --brand-soft: #1a2338;
   --on-brand: #0b0d10;
-  --focus: #5b8cff;
+  --focus: #93ade6;
   --pos: #ff6b7f;
   --pos-ink: #ff8595;
   --pos-soft: #3a1820;

@@ -76,3 +76,40 @@ html.simple .s-lyr+.mapcard{margin-top:0}
   .s-rail button:nth-child(n+3){border-top:1px solid rgba(31,58,135,.10)!important}
   .s-rail button:nth-child(odd){border-right:1px solid rgba(31,58,135,.10)}
 }
+/* ===== 도구 화면 폭·입주 물량 가로 막대·검색 결과 (도구/검색 담당) ===== */
+@media (min-width:981px){
+  #txrTop .tpanel,#txrTop .txr-seg,#supplyTop .tpanel,#saveTop .tpanel,#gapTop .tpanel,#diagTop .tpanel,#ntcTop .tpanel,#txrTop .sec-h p,#saveTop .sec-h p{max-width:760px}
+}
+td.txr-m small{font-size:11px}
+.sp-key{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:0 0 10px;font-size:12.5px;color:var(--text-2)}
+.sp-key span{display:inline-flex;align-items:center;gap:6px}
+.sp-key i{display:inline-block;width:16px;height:10px;border-radius:3px}
+.sp-k0,.sp-r .sp-t i{background:var(--brand)}
+.sp-k1,.sp-r.est .sp-t i{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--brand) 55%,transparent) 0 4px,color-mix(in srgb,var(--brand) 30%,transparent) 4px 8px)}
+.sp-tot{margin-left:auto;font-weight:600;color:var(--text-1)}
+.sp-hb{display:flex;flex-direction:column;gap:2px;margin:0 0 14px}
+.sp-r{display:grid;grid-template-columns:62px minmax(0,1fr) 92px;gap:10px;align-items:center;width:100%;min-height:40px;padding:4px 6px;border:0;border-radius:10px;background:none;color:var(--text-1);font:inherit;text-align:left;cursor:pointer}
+.sp-r:hover:not(:disabled),.sp-r[aria-pressed="true"]{background:var(--surface-2)}
+.sp-r:disabled{cursor:default;opacity:.6}
+.sp-y{display:flex;flex-direction:column;font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;line-height:1.15}
+.sp-y small{font-size:11px;font-weight:500;color:var(--text-3)}
+.sp-t{display:block;height:14px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.sp-t i{display:block;height:100%;border-radius:4px}
+.sp-r b{font-size:13.5px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sp-r.est b{color:var(--text-2);font-weight:600}
+.dg-ex{margin:2px 0 8px;padding:8px 12px;border-radius:10px;background:var(--surface-2);font-size:13px;color:var(--text-2)}
+.sv-unit{font-weight:700}
+.sv-gn{display:block;margin-top:4px;font-size:12.5px;font-weight:500;color:var(--text-3)}
+/* 검색 결과: 필요한 돈 + 살 수 있음 */
+.sugg em.sg-c{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+.sugg em.sg-c b{font-size:15px;font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums}
+.sugg em.sg-c small{margin:0;font-size:11.5px}
+.sg-ok{display:inline-block;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,#16a34a 14%,transparent);color:#15803d;font:700 11px/18px var(--font);font-style:normal}
+.sg-done{display:inline-block;margin-left:4px;padding:0 6px;border-radius:6px;background:var(--surface-2);color:var(--text-3);font:600 11px/18px var(--font);font-style:normal;vertical-align:1px}
+.sugg button.sg-stn{border-bottom:1px solid var(--divider);border-radius:var(--r-sm) var(--r-sm) 0 0}
+.sugg button.sg-stn>span{font-weight:700}
+.sugg button.sg-stn svg{vertical-align:-3px;margin-right:6px;color:var(--brand)}
+.sugg button.sg-stn em{color:var(--brand);font-weight:600}
+.sugg .s-none b{color:var(--text-1)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sg-ok{color:#4ade80}}
+:root[data-theme="dark"] .sg-ok{color:#4ade80}

@@ -43,7 +43,25 @@ if ESB and not os.environ.get('NO_MINIFY'):
     js0, css0 = len(js), len(css)
     js = mini(js, 'js'); css = mini(css, 'css')
     print(f'minify js {js0}->{len(js)} css {css0}->{len(css)}')
-out = shell.replace('/*APPCSS*/', css, 1).replace('/*APPJS*/', js.replace('</script', '<\\/script'), 1).replace('/*DATA*/', data, 1)
+# 큰 데이터·앱 코드는 내용 해시가 박힌 파일로 따로(브라우저·서비스 워커가 오래 저장) → index.html은 작게
+B = os.path.join(R, 'public', 'b'); os.makedirs(B, exist_ok=True)
+def emit(prefix, body):
+    h = hashlib.md5(body.encode()).hexdigest()[:10]; fn = f'{prefix}.{h}.js'
+    open(os.path.join(B, fn), 'w', encoding='utf-8').write(body)
+    return '/b/' + fn
+d_url = emit('d', "window.__ZPD=JSON.parse('" + data.replace('\\', '\\\\').replace("'", "\\'") + "');")
+a_url = emit('a', js)
+# 지난 빌드 파일은 최근 6개만 남김(오래된 화면이 잠깐 참조할 수 있게)
+for pre in ('d', 'a'):
+    fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.js')], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
+    for f in fs[6:]: os.remove(os.path.join(B, f))
+shell = shell.replace('<script type="application/json" id="data">/*DATA*/</script>', f'<script src="{d_url}"></script>', 1)
+shell = shell.replace('<script>/*APPJS*/</script>', f'<script src="{a_url}"></script>', 1)
+shell = shell.replace('</head>', f'<link rel="preload" href="{d_url}" as="script"><link rel="preload" href="{a_url}" as="script">\n</head>', 1)
+c_h = hashlib.md5(css.encode()).hexdigest()[:10]
+open(os.path.join(B, f'c.{c_h}.css'), 'w', encoding='utf-8').write(css)
+for f in sorted([f for f in os.listdir(B) if f.startswith('c.') and f.endswith('.css')], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)[6:]: os.remove(os.path.join(B, f))
+out = shell.replace('<style>/*APPCSS*/</style>', f'<link rel="stylesheet" href="/b/c.{c_h}.css">', 1)
 for k in ('/*APPCSS*/', '/*APPJS*/', '/*DATA*/'): assert k not in out
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)
 print('public/index.html', len(out.encode()), 'bytes')

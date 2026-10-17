@@ -9,21 +9,20 @@ const OVX = (() => {
   function gauge(pct) {
     const R = 54, C = Math.PI * R, v = Math.max(0, Math.min(100, pct));
     const lv = v >= 60 ? "hi" : "lo";
-    const ang = Math.PI * (1 - 0.6), tx = 70 + Math.cos(ang) * R, ty = 66 - Math.sin(ang) * R;
-    const ang2 = Math.PI * (1 - 2 / 3);
-    return `<svg class="ov-g ${lv}" viewBox="0 -12 140 92" role="img" aria-label="노후 건축물 ${v}%, 재개발 기준 60%">
+    const ang = Math.PI * (1 - 0.6);
+    const ox = 70 + Math.cos(ang) * (R + 10), oy = 66 - Math.sin(ang) * (R + 10);
+    return `<svg class="ov-g ${lv}" viewBox="0 -12 140 92" role="img" aria-label="노후 건축물 ${v}%, 재개발 요건 60% 이상">
       <path d="M16 66a54 54 0 0 1 108 0" class="tr"/>
       <path d="M16 66a54 54 0 0 1 108 0" class="fg" stroke-dasharray="${(C * v / 100).toFixed(1)} ${C.toFixed(1)}"/>
       <line x1="${(70 + Math.cos(ang) * (R - 10)).toFixed(1)}" y1="${(66 - Math.sin(ang) * (R - 10)).toFixed(1)}" x2="${(70 + Math.cos(ang) * (R + 10)).toFixed(1)}" y2="${(66 - Math.sin(ang) * (R + 10)).toFixed(1)}" class="tk"/>
-      <line x1="${(70 + Math.cos(ang2) * (R - 8)).toFixed(1)}" y1="${(66 - Math.sin(ang2) * (R - 8)).toFixed(1)}" x2="${(70 + Math.cos(ang2) * (R + 8)).toFixed(1)}" y2="${(66 - Math.sin(ang2) * (R + 8)).toFixed(1)}" class="tk t2"/>
-      <text x="${(tx - 4).toFixed(1)}" y="${(ty - 13).toFixed(1)}" class="tl" text-anchor="end">60</text>
+      <text x="${(ox + 3).toFixed(1)}" y="${(oy + 3).toFixed(1)}" class="tl">기준 60%</text>
       <text x="70" y="62" class="v">${v}<tspan>%</tspan></text></svg>`;
   }
   function oldHTML(t, r) {
     const o = t.old;
     if (!o || !o.k || r.s >= 7 || /재건축/.test(r.k)) return "";   // 재건축은 노후도 요건이 아니라 준공 30년 기준
     const ok = o.pol >= 60;
-    return `<div class="ov-c ov-old"><div class="ov-gw">${gauge(o.pol)}<div class="ov-gs"><h3>노후도</h3><b class="${ok ? "ok" : "no"}">${ok ? "요건 충족" : "요건 미달"}</b><span>평균 ${Math.round(o.avg)}년${o.new10 ? ` · 신축 ${o.new10}동` : ""}</span></div></div></div>`;
+    return `<div class="ov-c ov-old"><div class="ov-gw">${gauge(o.pol)}<div class="ov-gs"><h3>노후도</h3><b class="${ok ? "ok" : "no"}">${ok ? "요건 충족" : "요건 미달"}</b><span>요건 60% 이상 · 평균 ${Math.round(o.avg)}년${o.new10 ? ` · 신축 ${o.new10}동` : ""}</span></div></div></div>`;
   }
 
   // ---------- 판정: 입주권 · 전세 끼고 · 단계 (누르면 한 줄 이유) ----------
@@ -73,8 +72,8 @@ const OVX = (() => {
 
   // ---------- 단계 타임라인 ----------
   function tlSteps(r) {
-    const sm = isSmallR(r);
-    return [["구역지정", 2], ["추진위", 3], [r.trust ? "시행자지정" : "조합설립", 4], ["사업시행", 5], ["관리처분", 6], ["착공", 8], ["준공", 9]].filter(([k]) => !(sm && (k === "구역지정" || k === "관리처분")) && !(r.trust && k === "추진위"));
+    const sm = isSmallR(r), early = (r.s || 0) < 2;   // 정비계획 수립·후보지: '계획' 칸을 앞에(추진위는 건너뛰는 곳이 많아 생략)
+    return [["계획", 0], ["구역지정", 2], ["추진위", 3], [r.trust ? "시행자지정" : "조합설립", 4], ["사업시행", 5], ["관리처분", 6], ["착공", 8], ["준공", 9]].filter(([k]) => (k !== "계획" || early) && !(early && k === "추진위") && !(sm && (k === "구역지정" || k === "관리처분")) && !(r.trust && k === "추진위"));
   }
   const stepDate = (r, k, dt) => { dt = dt || r.dt || {}; return dt[k] || (k === "조합설립" ? dt["시행자지정"] : k === "시행자지정" ? dt["조합설립"] : null) || null; };
   const yrs = (a, b) => (new Date(b) - new Date(a)) / (365.25 * 864e5);
@@ -111,14 +110,16 @@ const OVX = (() => {
   function tlHTML(r) {
     if (r.src === "moa") return "";
     const [T, i] = curStep(r), done = isDone(r);
-    const pre = i < 0 ? `<span class="ov-tl-now">지금 ${esc(stageName(r))}</span>` : "";
-    const li = T.map(([k], n) => { const d = stepDate(r, k), st = n < i || (n === i && done) ? "dn" : n === i ? "on" : ""; return `<li class="${st}"><i></i><b>${k === "시행자지정" ? "시행자" : k}</b><small>${d ? esc(d.slice(2, 7).replace("-", ".")) : n <= i ? "–" : ""}</small></li>`; }).join("");
-    return `<div class="ov-c ov-tl"><h3>진행 단계 ${pre}<em class="ov-pv" hidden></em></h3><div class="ov-tl-sc"><ol style="--n:${T.length}">${li}</ol></div></div>`;
+    // 단계 이름이 칸 이름과 다르면(정비계획 수립·이주·철거 등) 머리에 '지금 ○○'
+    const sn = stageName(r), nz = (x) => String(x).replace(/인가|\s|·/g, "");
+    const pre = !done && (i < 0 || !nz(sn).startsWith(nz(T[i][0]))) ? `<span class="ov-tl-now">지금 ${esc(sn)}</span>` : "";
+    const li = T.map(([k], n) => { const d = stepDate(r, k), st = n < i || (n === i && done) ? "dn" : n === i ? "on" : ""; return `<li class="${st}"${n === i && !done ? ' aria-current="step"' : ""}><i></i><b>${k === "시행자지정" ? "시행자" : k}</b><small>${d ? esc(d.slice(2, 7).replace("-", ".")) : n === i && !done ? "지금" : n < i ? "–" : ""}</small></li>`; }).join("");
+    return `<div class="ov-c ov-tl"><h3>진행 단계 ${pre}<em class="ov-pv" hidden></em></h3><div class="ov-tl-sc" tabindex="0" role="group" aria-label="진행 단계 ${T.length}칸${i >= 0 ? ` · 지금 ${esc(sn)}` : ""}"><ol style="--n:${T.length}">${li}</ol></div></div>`;
   }
   function srcHTML(r) {
     const s = D.txAsOf && D.txAsOf.sale, d = s && s.length >= 8 ? `${s.slice(0, 4)}.${s.slice(4, 6)}.${s.slice(6, 8)}` : "";
     const cafe = r.cafe ? `<a href="https://cleanup.seoul.go.kr/cafe/mainIndx.do?cafeUrl=${encodeURIComponent(r.cafe)}" target="_blank" rel="noopener">정비몽땅 ↗</a>` : "정비몽땅";
-    return `<p class="ov-src">자료 기준${d ? ` 실거래 ${d}` : ""} · ${cafe} · <a href="https://www.eum.go.kr/" target="_blank" rel="noopener">토지이음 ↗</a></p>`;
+    return `<p class="ov-src"><span>자료 기준${d ? ` 실거래 ${d}` : ""}</span>${cafe.startsWith("<a") ? cafe : `<span>${cafe}</span>`}<a href="https://www.eum.go.kr/" target="_blank" rel="noopener">토지이음 ↗</a></p>`;
   }
   // 단계 날짜·사업장 주소는 따로 불러오는 자료라, 오면 타임라인·출처 줄을 다시 그린다
   function late(r, w) {
@@ -134,24 +135,38 @@ const OVX = (() => {
       em.hidden = false;
     }).catch(() => {});
   }
-  // 분기별 가운데 값 막대(최근 3년): 마지막 분기 값과 최고 값만 숫자로
+  // 분기별 가운데 값 막대(최근 3년): 0부터 그린 막대 + 눈금 2~3줄 · 막대 아래 거래 수 · 마지막 분기 값과 최고 값만 숫자로
+  const nice = (v) => { const p = Math.pow(10, Math.floor(Math.log10(Math.max(1, v)))), m = v / p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; };
   function chart(r, q, unit) {
     const cut = String(new Date().getFullYear() - 3).slice(-2);
     const nd = new Date(), curQ = `${String(nd.getFullYear()).slice(2)}Q${Math.floor(nd.getMonth() / 3) + 1}`;
     const qq = q.filter((x) => x[0].slice(0, 2) >= cut && x[0] !== curQ).slice(-12);
     if (qq.length < 3) return "";
-    const W = 320, H = 132, pb = 20, pt = 18, n = qq.length, gap = 4, bw = Math.min(26, (W - gap * (n - 1)) / n);
-    const mx = Math.max(...qq.map((x) => x[1])), mn = Math.min(...qq.map((x) => x[1])) * 0.7;
-    const X = (i) => i * (bw + gap) + (W - n * (bw + gap) + gap) / 2, Y = (v) => pt + (H - pt - pb) * (1 - (v - mn) / Math.max(1, mx - mn));
+    const W = 320, H = 150, pl = 42, pr = 2, pt = 18, pb = 32, n = qq.length, gap = 4, bw = Math.min(24, (W - pl - pr - gap * (n - 1)) / n);
+    const mx = Math.max(...qq.map((x) => x[1])), st = nice(mx / 2), ticks = [];
+    for (let t = st; t <= mx * 1.02 || ticks.length < 1; t += st) ticks.push(t);
+    const top = Math.max(mx, ticks[ticks.length - 1]), base = H - pb;
+    const off = pl + (W - pl - pr - (n * (bw + gap) - gap)) / 2;
+    const X = (i) => off + i * (bw + gap), Y = (v) => pt + (base - pt) * (1 - v / top);
     const imx = qq.findIndex((x) => x[1] === mx);
+    const grid = ticks.map((t) => `<line x1="${pl}" x2="${W - pr}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}" class="gl"/><text x="${pl - 6}" y="${(Y(t) + 3.5).toFixed(1)}" class="ax">${eok(t)}</text>`).join("") + `<line x1="${pl}" x2="${W - pr}" y1="${base}" y2="${base}" class="gl b"/>`;
     let lastYr = "";
     const bars = qq.map((x, i) => {
-      const y = Y(x[1]), yr = "20" + x[0].slice(0, 2), lab = yr !== lastYr ? ((lastYr = yr), `<text x="${(X(i)).toFixed(1)}" y="${H - 4}" class="yr">${yr}</text>`) : "";
-      const cx = X(i) + bw / 2, anc = i === n - 1 && cx > W - 90 ? "end" : cx > W - 24 ? "end" : cx < 24 ? "start" : "middle", tx = anc === "end" ? X(i) + bw : anc === "start" ? X(i) : cx;
+      const y = Y(x[1]), yr = "20" + x[0].slice(0, 2), lab = yr !== lastYr ? ((lastYr = yr), `<text x="${X(i).toFixed(1)}" y="${H - 3}" class="yr">${yr}</text>`) : "";
+      const cx = X(i) + bw / 2, anc = cx > W - 40 ? "end" : "middle", tx = anc === "end" ? X(i) + bw : cx;
       const v = i === n - 1 || (i === imx && imx < n - 2) ? `<text x="${tx.toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="${anc}" class="bv${i === n - 1 ? " last" : ""}">${eok(x[1])}</text>` : "";
-      return `<rect x="${X(i).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pb - y).toFixed(1)}" rx="4" class="${i === n - 1 ? "on" : ""}"><title>${x[0]} · ${eok(x[1])} · ${x[2]}건</title></rect>${v}${lab}`;
+      const cls = [i === n - 1 ? "on" : "", x[2] < 3 ? "lo" : ""].filter(Boolean).join(" ");
+      return `<rect x="${X(i).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, base - y).toFixed(1)}" rx="3"${cls ? ` class="${cls}"` : ""}><title>${x[0]} · ${eok(x[1])} · ${x[2]}건</title></rect>${v}<text x="${cx.toFixed(1)}" y="${base + 12}" class="bn">${x[2]}</text>${lab}`;
     }).join("");
-    return `<div class="ov-ch"><div class="ov-cht">${unit} · 분기별 <b>최근 ${eok(qq[n - 1][1])}</b></div><svg class="ov-bar" viewBox="0 0 ${W} ${H}" role="img" aria-label="${unit} 분기별 가운데 값">${bars}</svg></div>`;
+    const anyLo = qq.some((x) => x[2] < 3);
+    return `<div class="ov-ch"><div class="ov-cht">${unit} 가운데 값 · 분기별 <b>최근 ${eok(qq[n - 1][1])}</b></div><svg class="ov-bar" viewBox="0 0 ${W} ${H}" role="img" aria-label="${unit} 분기별 가운데 값, 최근 ${eok(qq[n - 1][1])}, 최고 ${eok(mx)}">${grid}${bars}</svg><p class="ov-chn">막대 아래 숫자는 분기 거래 수${anyLo ? " · 흐린 막대는 3건 미만" : ""}</p></div>`;
+  }
+  // 표본이 얇은 값(3건 미만이거나 마지막 거래가 1년 넘음)은 큰 숫자를 회색으로 + '거래 적음' 표시
+  const monthsAgo = (d) => { if (!d || String(d).length < 6) return null; d = String(d); const nd = new Date(); return (nd.getFullYear() - +d.slice(0, 4)) * 12 + (nd.getMonth() + 1 - +d.slice(4, 6)); };
+  function thinTag(n, to) {
+    const ma = monthsAgo(to), few = n != null && n < 3, old = ma != null && ma > 12;
+    if (!few && !old) return "";
+    return `${few ? "거래 적음" : "오래된 거래"}${to ? ` · 최근 ${ym(to)}` : ""}`;
   }
   // 파이프라인이 만든 한 기준(hd)으로 큰 숫자·칩·그래프·최근 거래를 모두 맞춘다
   function hdHTML(h, t, r) {
@@ -160,11 +175,12 @@ const OVX = (() => {
     const per = `${BN} 3.3㎡당`;
     const win = h.w === 0 ? "최근 거래" : h.w === 24 ? "2년" : "1년";
     const sz = h.b !== "v" && h.pa ? `전용 ${Math.round(h.pa)}㎡ 기준 ${eok(h.p)}` : h.p ? `가운데 거래가 ${eok(h.p)}` : "";
-    const chips = [sz, `${win} ${h.n}건`, h.to ? `최근 ${ym(h.to)}` : ""].filter(Boolean);
+    const thin = thinTag(h.n, h.to) || (h.st || h.w === 0 ? `오래된 거래${h.to ? ` · 최근 ${ym(h.to)}` : ""}` : "");
+    const chips = thin ? [sz, `${win} ${h.n}건`] : [sz, `${win} ${h.n}건`, h.to ? `최근 ${ym(h.to)}` : ""].filter(Boolean);
     const TY = ["빌라", "단독", "아파트", "입주권"], S = (h.r || []).slice(0, matchMedia("(max-width:640px)").matches ? 2 : 3);
-    return `<div class="ov-c ov-tx"><h3>실거래 ${yoy}</h3>
-      <div class="ov-big"><span>${per}</span><b>${eok(h.u)}</b></div>
-      <div class="ov-chips">${chips.map((c) => `<span>${c}</span>`).join("")}</div>
+    return `<div class="ov-c ov-tx${thin ? " thin" : ""}"><h3>실거래 ${yoy}</h3>
+      <div class="ov-big"><span>${per}</span><b${thin ? ' title="표본이 적거나 오래돼 지금 시세와 다를 수 있어요"' : ""}>${eok(h.u)}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>
+      <div class="ov-chips">${chips.filter(Boolean).map((c) => `<span>${c}</span>`).join("")}</div>
       ${h.q && h.q.length > 2 ? chart(r, h.q, per) : ""}
       ${S.length ? `<ul class="ov-l">${S.map((x) => `<li><span>${esc(ym(x[0]))}</span><span>${TY[x[1]] || ""}${x[6] ? ` ${+x[6] < 0 ? "지하" + -x[6] : esc(String(x[6]))}층` : ""}${x[3] ? ` · ${x[3]}㎡` : ""}</span><b>${eok(x[5])}</b></li>`).join("")}</ul>` : ""}
       <button type="button" class="ov-more" data-tab="tx">거래 전체 보기 →</button></div>`;
@@ -181,9 +197,10 @@ const OVX = (() => {
     const IP = r.s >= 8 && t.im;                                        // 착공 뒤엔 입주권 거래가 기준
     const big = IP ? ["입주권 · 1년", eok(t.im)] : A ? ["아파트 매매 · 1년", eok(t.am)] : t.pp ? ["대지 3.3㎡당 · 1년", eok(t.pp)] : t.med ? ["빌라 매매 · 1년", eok(t.med)] : t.am ? ["아파트 매매 · 1년", eok(t.am)] : null;
     const ser = IP ? [t.qi, "입주권"] : A || (!t.pp && t.am) ? [t.qa, "아파트 매매"] : t.pp ? [(t.q || []).filter((x) => x[2] >= 2), "대지 3.3㎡당"] : [null, ""];
-    const chips = [!IP && !A && t.med && big && !/빌라/.test(big[0]) ? `빌라 ${eok(t.med)}` : "", (t.n12 || t.n) ? `거래 ${t.n12 || t.n}건` : "", last ? `최근 ${last}` : ""].filter(Boolean);
-    return `<div class="ov-c ov-tx"><h3>실거래 ${yoy}</h3>
-      ${big ? `<div class="ov-big"><span>${big[0]}</span><b>${big[1]}</b></div>` : ""}
+    const nn = t.n12 || t.n, thin = big ? thinTag(nn == null ? null : nn, S[0] ? S[0][0] : null) : "";
+    const chips = [!IP && !A && t.med && big && !/빌라/.test(big[0]) ? `빌라 ${eok(t.med)}` : "", nn ? `거래 ${nn}건` : "", last && !thin ? `최근 ${last}` : ""].filter(Boolean);
+    return `<div class="ov-c ov-tx${thin ? " thin" : ""}"><h3>실거래 ${yoy}</h3>
+      ${big ? `<div class="ov-big"><span>${big[0]}</span><b>${big[1]}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>` : ""}
       ${chips.length ? `<div class="ov-chips">${chips.map((c) => `<span>${c}</span>`).join("")}</div>` : ""}
       ${ser[0] && ser[0].length > 2 ? chart(r, ser[0], ser[1]) : ""}
       ${S.length ? `<ul class="ov-l">${S.map((x) => `<li><span>${esc(ym(x[0]))}</span><span>${TY[x[1]] || ""}${x[6] ? ` ${+x[6] < 0 ? "지하" + -x[6] : esc(String(x[6]))}층` : ""}${x[3] ? ` · ${x[3]}㎡` : ""}</span><b>${eok(x[5])}</b></li>`).join("")}</ul>` : ""}
@@ -236,9 +253,10 @@ const OVX = (() => {
     const V = verdicts(r);
     w.innerHTML = `<div class="ov-vdw">${vdHTML(V)}</div><div class="ov-map" id="ovMap" role="img" aria-label="${esc(shortName(r.n))} 위치"></div><div class="ov-row"><div class="ov-oldw">${oldHTML(t0, r)}</div><div class="ov-txw">${txHTML(t0, r, null)}</div></div><div class="ov-tlw">${tlHTML(r)}</div><div class="ov-srcw">${srcHTML(r)}</div>`;
     vdBind(w, V);
+    locWhy(head, w, r);
     // 주소 줄: 구 동 · 단계 · 역 도보
     const wh = head.querySelector(".where");
-    if (wh) { const dong = ((r.j || r.bj || "").match(/^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)/) || [, r.dg || ""])[1]; const wm = r.st && r.st.d ? Math.max(1, Math.round(r.st.d * 1.3 / 67)) : 0, st = wm ? (wm > 20 ? "역에서 멀어요" : `${r.st.n.replace(/역$/, "")}역 ${wm}분`) : ""; wh.classList.add("ov-w"); wh.removeAttribute("title"); wh.innerHTML = `<b>${esc(r.g)} ${esc(dong)}</b><span class="ov-chip">${esc(stageName(r))}</span>${st ? `<span class="ov-chip g">${esc(st)}</span>` : ""}${r.lc ? `<span class="ov-chip w">거래 적어 추정</span>` : r.nbp ? `<span class="ov-chip g">주변 시세 기준</span>` : ""}${r.sl && r.sl.k ? `<span class="ov-chip g ov-sl"${r.sl.d != null && isFinite(r.sl.d) ? ` title="고저차 ${Math.round(+r.sl.d)}m"` : ""}>경사 ${esc(r.sl.k)}</span>` : ""}`; }
+    if (wh) { const dong = ((r.j || r.bj || "").match(/^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)/) || [, r.dg || ""])[1]; const wm = r.st && r.st.d ? Math.max(1, Math.round(r.st.d * 1.3 / 67)) : 0, st = wm ? (wm > 20 ? "역에서 멀어요" : `${r.st.n.replace(/역$/, "")}역 ${wm}분`) : ""; wh.classList.add("ov-w"); wh.removeAttribute("title"); wh.innerHTML = `<b>${esc(r.g)} ${esc(dong)}</b>${st ? `<span class="ov-chip g">${esc(st)}</span>` : ""}${r.lc ? `<span class="ov-chip w">거래 적어 추정</span>` : r.nbp ? `<span class="ov-chip g">주변 시세 기준</span>` : ""}${r.sl && r.sl.k ? `<span class="ov-chip g ov-sl"${r.sl.d != null && isFinite(r.sl.d) ? ` title="고저차 ${Math.round(+r.sl.d)}m"` : ""}>${esc(/경사/.test(r.sl.k) ? (r.sl.k === "경사" ? "경사 있음" : r.sl.k) : "경사 " + r.sl.k)}</span>` : ""}`; }
     const where = head.querySelector(".where");
     (where || head.firstElementChild).after(w);
     w.addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; const tb = document.getElementById("tab-" + b.dataset.tab); if (tb) { tb.click(); tb.scrollIntoView({ block: "start", behavior: "smooth" }); } });
@@ -256,6 +274,41 @@ const OVX = (() => {
       if (ow && !ow.innerHTML.trim()) ow.innerHTML = oldHTML(t, r);
     }).catch(() => {});
   }
+  // 머리의 '입지 50' 칩: 눌러서 무슨 점수인지 한 줄(판정 줄 설명 자리 재사용)
+  function locWhy(head, w, r) {
+    const g = head.querySelector(".gb.lb"); if (!g || r.score == null) return;
+    const why = w.querySelector(".ov-why");
+    g.removeAttribute("title");
+    g.setAttribute("role", "button"); g.tabIndex = 0; g.setAttribute("aria-expanded", "false");
+    g.setAttribute("aria-label", `입지 점수 ${r.score}점, 100점 만점 · 설명 보기`);
+    const tog = () => {
+      const on = g.getAttribute("aria-expanded") === "true";
+      w.querySelectorAll(".ov-p").forEach((x) => x.setAttribute("aria-expanded", "false"));
+      g.setAttribute("aria-expanded", String(!on));
+      if (on) { why.hidden = true; return; }
+      why.className = "ov-why st";
+      why.innerHTML = `입지 ${r.score}/100 · 역·업무지구·한강·호재·생활시설까지 거리로 매긴 서울 구역 비교용 점수예요(투자 등급 아님). <button type="button" class="ov-wl" data-tab="loc">항목별 점수 →</button>`;
+      why.hidden = false;
+    };
+    g.addEventListener("click", (e) => { e.stopPropagation(); tog(); });
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tog(); } });
+    w.querySelectorAll(".ov-p").forEach((b) => b.addEventListener("click", () => g.setAttribute("aria-expanded", "false")));
+  }
+  // 입주 현금 탭 시간표: 입주 시기가 추정돼 있으면 '시점 미정' 대신 그 값(진행이 멈춘 구역은 '진행 확인 필요')
+  function etaLabel(r) {
+    try {
+      const pr = projection(r);
+      if (r.stale || pr.stall || pr.past) return "진행 확인 필요";
+      if (hasEta(pr) || pr.pre) return etaSpan(r, pr);
+    } catch (e) {}
+    return "";
+  }
+  function fixGtl(p, r) {
+    const gt = p.querySelector(".gtl"); if (!gt) return;
+    const e3 = gt.querySelector(".gt3 .gt-w"), e2w = gt.querySelector(".gt2 .gt-w"), lab = etaLabel(r);
+    if (e3 && lab && (r.stale || /시점 미정|일정 산정 불가/.test(e3.textContent))) e3.textContent = `입주 · ${lab}`;
+    if (e2w && /시점 미정/.test(e2w.textContent)) e2w.textContent = r.s >= 7 ? "이주 · 진행 중" : "이주 · 관리처분 뒤";
+  }
   function tidyPane() {
     const p = document.getElementById("pane"); if (!p || !cur) return;
     const r = cur, apt = /재건축/.test(r.k) || !!(r.tx && r.tx.hd && r.tx.hd.b && r.tx.hd.b !== "v");
@@ -266,6 +319,7 @@ const OVX = (() => {
       p.querySelectorAll("table tr").forEach((tr) => { const td = [...tr.querySelectorAll("td")]; if (td.length > 1 && td.slice(1).every((c) => /^\s*[–-]?\s*$/.test(c.textContent))) tr.hidden = true; });
       p.querySelectorAll(".chk3, .lead-card, .leadc, [class*=lead]").forEach((x) => (x.hidden = true));
     }
+    if (curTab === "money") try { fixGtl(p, r); } catch (e) {}
     if (curTab === "money" && apt) p.querySelectorAll(".rvj").forEach((x) => (x.hidden = true));
     if (curTab === "req") hideSect(/적용 기준|동의 기준|접도|조례/);
     // 입주 현금 탭이 접힌 근거만 남아 비면, 위 카드의 결론을 한 번 더 크게

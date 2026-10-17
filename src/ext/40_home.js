@@ -23,7 +23,7 @@ const HM = (() => {
   const cfg = [
     ["#cmOut", "tbody > tr, ul > li, ol > li, .cm-row, .card", 4, 3],
     ["#rank", "tbody > tr", 5, 3],
-    ["#svOut", "tbody > tr", 5, 3],
+    ["#svOut", "table.gsv-t tbody > tr", 5, 3],
     ["#fvOut", "tbody > tr, ul > li", 5, 3],
     ["#nwOut", "tbody > tr, ul > li, ol > li", 5, 3],
     ["#txrOut", "tbody > tr", 5, 3],

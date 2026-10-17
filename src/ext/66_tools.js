@@ -43,9 +43,17 @@ const TOOLS = (() => {
       sl.innerHTML = hits.map((r) => `<li><button type="button" data-d="${r.id}">${esc(shortName(r.n))}<small>${esc(r.g)} · ${esc(stageName(r))}</small></button></li>`).join("") || '<li class="tl-e">찾는 구역이 없어요</li>';
       sl.querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => { dSel = byId[b.dataset.d]; sl.innerHTML = ""; q.value = shortName(dSel.n); diagShow(); }));
     };
-    if (dSel) { q.value = shortName(dSel.n); diagShow(); }
+    // 처음 열면 빈 화면 대신 예시 구역을 보여 준다
+    let ex = false;
+    if (!dSel) {
+      const pick = (t) => R.find((r) => r.src !== "moa" && !(r.s >= 9) && !r.dn && shortName(r.n).replace(/\s/g, "") === t);
+      dSel = pick("한남3구역") || pick("성수1지구") || R.filter((r) => r.tx && r.tx.n3 && !(r.s >= 9) && r.src !== "moa").sort((a, b) => b.tx.n3 - a.tx.n3)[0] || null;
+      ex = !!dSel;
+    }
+    if (dSel) { q.value = shortName(dSel.n); diagShow(ex); }
+    q.addEventListener("focus", () => { if (ex) { q.select(); } }, { once: true });
   }
-  function diagShow() {
+  function diagShow(ex) {
     const r = dSel, box = document.getElementById("dgR"); if (!r || !box) return;
     const items = [];
     const w = buyWindow(r);
@@ -56,7 +64,7 @@ const TOOLS = (() => {
     items.push(["warn", "여러 채 보유", "한 구역에 여러 채면 입주권 1개만(다물권) · 세대원 합산"]);
     items.push(["warn", "재당첨 제한", "투기과열지구 조합원 분양을 5년 안에 받았으면 제한"]);
     if (/재건축/.test(r.k) && r.s >= 4) items.push(["warn", "조합원 지위양도", "조합설립인가 뒤 매수는 원칙적으로 조합원 지위 승계 불가(예외 매물만)"]);
-    box.innerHTML = `<div class="dg-h"><b>${esc(shortName(r.n))}</b><span>${esc(r.g)} · ${esc(stageName(r))}</span><button type="button" class="btn text sm" data-open="${r.id}">구역 보기 →</button></div>
+    box.innerHTML = `${ex ? '<p class="dg-ex">예시로 한 곳을 보여 드려요 · 위에서 다른 구역을 찾아 보세요</p>' : ""}<div class="dg-h"><b>${esc(shortName(r.n))}</b><span>${esc(r.g)} · ${esc(stageName(r))}</span><button type="button" class="btn text sm" data-open="${r.id}">구역 보기 →</button></div>
       <ul class="dg-l">${items.map(([c, k, v]) => `<li class="${c}"><i aria-hidden="true">${c === "ok" ? "✓" : c === "no" ? "✕" : c === "na" ? "?" : "!"}</i><span><b>${k}</b><small>${esc(v)}</small></span></li>`).join("")}</ul>`;
     box.querySelector("[data-open]").onclick = () => { curTab = "money"; select(r.id, true, false, { scroll: true }); };
   }
@@ -74,13 +82,17 @@ const TOOLS = (() => {
     });
     const ys = Object.keys(Y).map(Number), mx = Math.max(1, ...ys.map((y) => Y[y].n));
     const gus = [...new Set(R.map((r) => r.g))].sort();
-    out.innerHTML = `<label class="tl-q"><span>구</span><select id="supG"><option value="">서울 전체</option>${gus.map((g) => `<option${g === supGu ? " selected" : ""}>${esc(g)}</option>`).join("")}</select></label>
-      <p class="tl-lead">사업시행인가 이후 정비구역의 예상 입주 세대(년) · 일반 분양 아파트는 빠져요</p><div class="sp-ch">${ys.map((y) => `<button type="button" class="sp-b" data-y="${y}" style="--h:${Math.round((Y[y].n / mx) * 100)}%"><i></i><b>${Y[y].n ? (Y[y].n >= 1000 ? (Y[y].n / 1000).toFixed(1) + "천세대" : Y[y].n + "세대") : ""}</b><span>${String(y).slice(2)}년</span></button>`).join("")}</div>
+    const tot = ys.reduce((a, y) => a + Y[y].n, 0);
+    out.innerHTML = `<label class="tl-q"><span>지역</span><select id="supG"><option value="">서울 전체</option>${gus.map((g) => `<option${g === supGu ? " selected" : ""}>${esc(g)}</option>`).join("")}</select></label>
+      <p class="tl-lead">사업시행인가 이후 정비구역의 예상 입주 세대 · 일반 분양 아파트는 빠져요 · 입주 시점은 단계별 평균 기간으로 낸 <b>추정</b>이라 해가 멀수록 크게 달라질 수 있어요</p>
+      <p class="sp-key"><span><i class="sp-k0"></i>올해</span><span><i class="sp-k1"></i>추정</span><span class="sp-tot">10년 합계 ${fmt(tot)}세대</span></p>
+      <div class="sp-hb" role="list">${ys.map((y) => `<button type="button" role="listitem" class="sp-r${y > now ? " est" : ""}" data-y="${y}" aria-label="${y}년 ${y > now ? "추정 " : ""}${fmt(Y[y].n)}세대, ${Y[y].z.length}곳"${Y[y].n ? "" : " disabled"}><span class="sp-y">${y}${y > now ? "<small>추정</small>" : "<small>올해</small>"}</span><span class="sp-t"><i style="width:${Y[y].n ? Math.max(2, Math.round((Y[y].n / mx) * 100)) : 0}%"></i></span><b>${Y[y].n ? fmt(Y[y].n) + "세대" : "–"}</b></button>`).join("")}</div>
       <div id="supZ"></div>`;
     document.getElementById("supG").onchange = (e) => { supGu = e.target.value; supRender(); };
     out.querySelectorAll("[data-y]").forEach((b) => (b.onclick = () => {
       const y = +b.dataset.y, z = Y[y].z.sort((a, c) => (c.sm.units || 0) - (a.sm.units || 0));
-      document.getElementById("supZ").innerHTML = `<h3>${y}년 무렵 입주 예상 · ${z.length}곳</h3><ul class="tl-l">${z.map((r) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="tl-n"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} · ${esc(stageName(r))}</small></span><span class="tl-v"><b>${(r.sm.units || r.sm.hh).toLocaleString()}세대</b></span></a></li>`).join("")}</ul>`;
+      out.querySelectorAll("[data-y]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      document.getElementById("supZ").innerHTML = `<h3>${y}년 무렵 입주 ${y > now ? "추정" : "예상"} · ${z.length}곳</h3><ul class="tl-l">${z.map((r) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="tl-n"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} · ${esc(stageName(r))}</small></span><span class="tl-v"><b>${(r.sm.units || r.sm.hh).toLocaleString()}세대</b></span></a></li>`).join("")}</ul>`;
     }));
   }
   const RENDER = { gapTop: gapRender, diagTop: diagRender, supplyTop: supRender };

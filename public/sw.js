@@ -6,9 +6,10 @@ const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
 const CDN = "eolma-cdn-" + V;
-const KEEP = [SHELL, DATA, TILE, CDN];
+const BUND = "eolma-bund-" + V;
+const KEEP = [SHELL, DATA, TILE, CDN, BUND];
 const PRE = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png"];
-const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30 };
+const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30, [BUND]: 6 };
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => Promise.all(PRE.map((u) => c.add(new Request(u, { cache: "reload" })).catch(() => {})))).then(() => self.skipWaiting()));
@@ -44,6 +45,16 @@ const swr = async (e, name, opts) => {
   return net;
 };
 
+// 해시가 박힌 파일(/b/): 저장본이 있으면 그대로(내용이 바뀌면 이름이 바뀜)
+const cacheFirst = async (e, name) => {
+  const c = await caches.open(name);
+  const hit = await c.match(e.request);
+  if (hit) return hit;
+  const r = await fetch(e.request);
+  if (okToCache(r)) { const cp = r.clone(); e.waitUntil(c.put(e.request, cp).then(() => trim(name))); }
+  return r;
+};
+
 // HTML: 네트워크 우선, 실패하면 같은 주소 저장본 → 첫 화면 저장본
 const page = async (e) => {
   const c = await caches.open(SHELL);
@@ -65,6 +76,7 @@ self.addEventListener("fetch", (e) => {
   if (u.origin === location.origin) {
     if (u.pathname === "/sw.js") return;
     if (req.mode === "navigate") return e.respondWith(page(e));
+    if (u.pathname.startsWith("/b/")) return e.respondWith(cacheFirst(e, BUND)); // 해시가 박힌 앱 코드·데이터
     if (u.pathname.startsWith("/data/") || u.pathname.startsWith("/api/") || /^\/(premium\.json|manifest\.webmanifest|icon[^/]*\.(png|svg)|og\.png)$/.test(u.pathname)) return e.respondWith(swr(e, u.pathname.startsWith("/icon") || u.pathname.startsWith("/manifest") ? SHELL : DATA));
     return; // 그 밖의 같은 출처 파일은 브라우저 기본 동작
   }

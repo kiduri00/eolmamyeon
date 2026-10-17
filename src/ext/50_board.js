@@ -13,8 +13,10 @@ const BD = (() => {
     if (K === "n3") {
       L = live().filter((r) => r.tx.n3 > 0).sort((a, b) => b.tx.n3 - a.tx.n3 || (b.tx.n12 || 0) - (a.tx.n12 || 0));
       note.textContent = "계약일 기준 최근 3개월 구역 안 매매 건수(빌라·단독·아파트) · 거래가 몰리면 손바뀜이 활발하다는 뜻이에요.";
-      head = "<th class=n>3개월</th><th class=n>12개월</th><th class=n>빌라 가운데 값</th>";
-      row = (r) => `<td class=n><b>${r.tx.n3}건</b></td><td class=n>${r.tx.n12 || 0}건</td><td class=n>${r.tx.med ? eok(r.tx.med) : "–"}</td>`;
+      head = "<th class=n>3개월</th><th class=n>12개월</th><th class=n>한 채 가운데 값</th>";
+      // 빌라 표본이 없으면 아파트 매매 → 입주권 순으로 가운데 값을 보여 준다(종류를 함께 적음)
+      const mid = (t) => (t.med ? [t.med, "빌라", t.no] : t.am ? [t.am, "아파트", t.an] : t.im ? [t.im, "입주권", t.in] : null);
+      row = (r) => { const m = mid(r.tx); return `<td class=n><b>${r.tx.n3}건</b></td><td class=n>${r.tx.n12 || 0}건</td><td class="n txr-m">${m ? `${eok(m[0])}<small>${m[1]}${m[2] ? ` · ${m[2]}건` : ""}</small>` : '<small class="mut">표본 적음</small>'}</td>`; };
     } else if (K === "yoy") {
       L = live().filter((r) => r.tx.yoy != null && r.tx.yon && r.tx.yon[0] >= 10 && r.tx.yon[1] >= 10).sort((a, b) => b.tx.yoy - a.tx.yoy);
       note.textContent = "대지지분 3.3㎡당 매매가 가운데 값: 최근 12개월 vs 그 전 12개월 · 두 기간 모두 10건 이상인 구역만 · 표본이 바뀌면 크게 흔들려요.";

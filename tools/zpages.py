@@ -30,6 +30,16 @@ def man(v):
     return f"{v/10000:.1f}억".replace('.0억', '억') if v >= 10000 else f"{v:,.0f}만원"
 KIND = {'재개발': '재개발', '재건축': '재건축', '도시정비형 재개발': '도시정비형 재개발', '가로주택(모아주택)': '가로주택정비', '소규모재건축': '소규모재건축', '소규모재개발': '소규모재개발'}
 DTK = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 승인'), ('조합설립', '조합설립인가'), ('시행자지정', '사업시행자 지정'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가'), ('착공', '착공'), ('준공', '준공')]
+SKEY = {2: ('구역지정',), 3: ('추진위',), 4: ('조합설립', '시행자지정'), 5: ('사업시행',), 6: ('관리처분',), 7: ('관리처분',), 8: ('착공',)}
+PSRC = {'villa': '빌라 실거래 가운데 값', 'complex': '단지 실거래 가운데 값', 'apt': '단지 실거래 가운데 값', 'est': '구 평균 시세로 추정'}
+def gapWhy(c):   # 전세 끼고 계산이 안 되는 이유(화면 gapBlock과 같은 문구에서) → (표 칸 짧은 말, 설명)
+    b = str(c.get('gapBlock') or '')
+    if b.startswith('전세 낀 매수 불가'): return ('토허제', '토지거래허가구역이라 불가(2년 실거주)')
+    if b.startswith('이주·철거'): return ('세입자 없음', '이주·철거가 시작돼 세입자가 없어요')
+    if b.startswith('입주권 없음'): return ('입주권 없음', b.split('·')[-1].strip() + '라 입주권이 없어요')
+    if b.startswith('입주권 판정 보류'): return ('판정 보류', '입주권 판정 자료가 부족해요')
+    if b == '계산 대상 아님': return ('계산 안 함', '아파트 입주권 계산 대상이 아니에요')
+    return None
 def dist(a, b, c, d):
     k = math.pi / 180; x = (d - b) * k * math.cos((a + c) / 2 * k); y = (c - a) * k
     return math.sqrt(x * x + y * y) * 6371000
@@ -80,18 +90,20 @@ def page(r):
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld)]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or r.get("dg") or "")} · {esc(kind)} · 데이터 기준 {UPD}</p>')
     o.append(f'<h1>{esc(nm)} {esc(kind)} 진행 단계와 입주까지 필요한 현금</h1>')
-    cur = None
-    for k, lab in reversed(DTK):
-        if dt.get(k): cur = (lab, dt[k]); break
-    sd = (cur[1] if cur else r.get('sd') or '')[:7].replace('-', '.')
-    lede = f"{esc(nm)}{josa(nm)} 지금 <b>{esc(stage)}</b> 단계예요" + (f" ({sd} 기준)." if sd else ".")
-    if c.get('p10') is not None: lede += f" 서울 사업장 기록으로 낸 10년 안 준공 가능성은 약 {round(c['p10'] * 100)}%예요(예측이 아닌 통계)."
+    # 현재 단계의 인가·고시일만 쓴다(예전엔 기록 중 가장 늦은 날짜를 써서 '착공' 구역에 관리처분일이 붙었다 · o747)
+    sk = SKEY.get(r.get('s', 0)) or ()
+    sd = next((dt[k] for k in sk if dt.get(k)), '')[:7].replace('-', '.')
+    prevd = next(((lab, dt[k]) for k, lab in reversed(DTK) if dt.get(k) and k not in sk), None) if not sd else None
+    lede = f"{esc(nm)}{josa(nm)} 지금 <b>{esc(stage)}</b> 단계예요" + (f" ({sd} 인가·고시)." if sd else ".")
+    stl = r.get('stale')
+    if stl: lede += f" 다만 {esc(stl['why'])}. 준공됐는지 멈췄는지 자료로 확인되지 않아 준공 가능성과 입주 시점은 싣지 않았어요."
+    elif c.get('p10') is not None: lede += f" 서울 사업장 기록으로 낸 10년 안 준공 가능성은 약 {min(97, round(c['p10'] * 100))}%예요(예측이 아닌 통계)."
     o.append(f'<p class="lede">{lede} 아래 숫자는 무주택·84㎡ 기본 가정이고, 첫 화면 계산기와 같은 <b>전세 끼고 사는</b> 기준이에요. 내 조건은 <a href="../#{rid}">계산기에서 이 구역 열기</a>로 바꿔 볼 수 있어요.</p>')
     k = []
-    k.append(('현재 단계', esc(stage), f'{sd} 인가·고시' if sd else '날짜 확인 중'))
+    k.append(('현재 단계', esc(stage), f'{sd} 인가·고시' if sd else ('진행 확인 필요' if stl else '아직 구역지정 전이라 인가일이 없어요' if r.get('s', 0) <= 1 else f'이 단계 인가일 기록 없음 · 직전 {prevd[0]} {prevd[1][:7].replace("-", ".")}' if prevd else '이 단계 인가일 기록 없음')))
     if c.get('gapOk') and c.get('gapTotal') is not None:   # 첫 화면 기본 모드(전세 끼고)와 같은 숫자
-        k.append(('전세 끼고 입주까지', eok(c['gapTotal']), f'지금 {eok(c.get("gapNow"))} · 매수가 {eok(c.get("price"))}' + (f' · 현금으로 사면 {eok(c["need"])}' if c.get('cashOk') and c.get('need') is not None else '')))
-    elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk': k.append(('현금으로 사면 입주까지', eok(c['need']), f'기본 가정 · 매수가 {eok(c.get("price"))} 기준'))
+        k.append(('전세 끼고 입주까지', eok(c['gapTotal']), f'지금 {eok(c.get("gapNow"))} · 매수가 {eok(c.get("price"))}({PSRC.get(c.get("priceSrc"), "실거래 가운데 값")})' + (f' · 현금으로 사면 {eok(c["need"])}' if c.get('cashOk') and c.get('need') is not None else '')))
+    elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk': k.append(('현금으로 사면 입주까지', eok(c['need']), f'기본 가정 · 매수가 {eok(c.get("price"))} 기준' + (f' · 전세 끼고는 {esc(gapWhy(c)[1])}' if gapWhy(c) else '')))
     elif c.get('winT'): k.append(('입주권', esc(c['winT']), '기본 가정 판정'))
     if c.get('st'): k.append(('가까운 역', f"{esc(c['st']['n'])} 도보 {max(1, round(c['st']['d'] * 1.3 / 67))}분", ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])))
     if c.get('owners'): k.append(('토지등소유자', f"{int(c['owners']):,}명", f"구역 면적 {int((r.get('sm') or {}).get('area') or 0):,}㎡" if (r.get('sm') or {}).get('area') else ''))
@@ -110,9 +122,12 @@ def page(r):
         if hd:   # 화면 머리글과 같은 기준·기간·건수
             lab, what = HDB[hd['b']]; f, to = hd['from'], hd['to']
             per = f"가장 최근 1건({to[:4]}.{to[4:6]})" if hd['w'] == 0 else f"최근 {hd['w']}개월 {hd['n']}건({f[2:4]}.{f[4:6]}~{to[2:4]}.{to[4:6]})"
-            rows.append((lab, man(hd['u']), f"{what} · {per} · 전용 {hd['pa']:g}㎡ 기준 {man(hd['p'])}" + (f" · 시세와 크게 다른 {hd['xo']}건 제외" if hd['xo'] else '')))
+            rows.append((lab, man(hd['u']), f"{what} · {per}" + (f" · 시세와 크게 다른 {hd['xo']}건 제외" if hd['xo'] else '')))
         elif t.get('pp'): rows.append(('대지 3.3㎡당', man(t['pp']), f"빌라·단독 매매 {t.get('nv', t.get('n', 0))}건 · 2024년~"))
-        if t.get('med'): rows.append(('빌라 매매', man(t['med']), f"2015년 이전 준공 · 최근 {t.get('nwin', 18)}개월 {t.get('no', 0)}건 · 전용 {t.get('ar', '–')}㎡"))
+        if c.get('price') is not None and c.get('priceSrc') in PSRC:   # 화면 계산기 '매수가'와 같은 값(calc.json) — 한 구역에 '가운데 값'은 이것 하나만
+            en = (r.get('mk') or {}).get('entry') or {}
+            rows.append(('계산에 쓴 매수가', eok(c['price']), f"{PSRC[c['priceSrc']]}" + (f" · {en['n']}건" if en.get('n') else '') + (f" · 전용 {en['area_med']:g}㎡ 안팎" if en.get('area_med') else '') + (f" · {esc(en['scope'])}" if en.get('scope') else '')))
+        elif t.get('med'): rows.append(('빌라 매매', man(t['med']), f"2015년 이전 준공 · 최근 {t.get('nwin', 18)}개월 {t.get('no', 0)}건 · 전용 {t.get('ar', '–')}㎡"))
         if t.get('im'): rows.append(('입주권 매매', man(t['im']), f"아파트 입주권 · 최근 {t.get('iw', 12)}개월 {t.get('in', 0)}건"))
         if t.get('jm'): rows.append(('빌라 전세', man(t['jm']), f"전세 {t.get('jn', 0)}건 · 임대 {t.get('ja', '–')}㎡"))
         if t.get('n12') is not None: rows.append(('12개월 거래', f"{t['n12']}건", '빌라·단독·아파트 · 계약일 기준'))
@@ -191,11 +206,23 @@ def guPage(g, L):
         if v.get('gapOk') and v.get('gapNow') is not None: return (0, v['gapNow'], short(x['n']))
         if v.get('cashOk') and v.get('need') is not None: return (1, v['need'], short(x['n']))
         return (2, -x.get('s', 0), short(x['n']))
-    rows = ''.join(f'<tr><td><a href="{x["id"]}">{esc(short(x["n"]))}</a><br><small>{esc(KIND.get(x["k"], x["k"]))} · {esc(c(x).get("stage") or x.get("sr") or "")}</small></td><td class="n">{eok(c(x).get("gapNow")) if c(x).get("gapOk") else "–"}</td><td class="n">{eok(c(x).get("need")) if c(x).get("cashOk") else "–"}</td></tr>' for x in sorted(L, key=rowkey))
+    rows = ''.join(f'<tr><td><a href="{x["id"]}">{esc(short(x["n"]))}</a><br><small>{esc(KIND.get(x["k"], x["k"]))} · {esc(c(x).get("stage") or x.get("sr") or "")}</small></td><td class="n">{eok(c(x).get("gapNow")) if c(x).get("gapOk") else ('<small>' + gapWhy(c(x))[0] + '</small>' if gapWhy(c(x)) else "–")}</td><td class="n">{eok(c(x).get("need")) if c(x).get("cashOk") else "–"}</td></tr>' for x in sorted(L, key=rowkey))
     o.append(f'<div class="tw"><table class="t" style="min-width:0;width:100%"><thead><tr><th>구역</th><th class="n">전세 끼고 지금</th><th class="n">입주까지 현금</th></tr></thead><tbody>{rows}</tbody></table></div>')
+    why = collections.Counter(gapWhy(c(x))[0] for x in L if not c(x).get('gapOk') and gapWhy(c(x)))
+    EXP = {'토허제': '토지거래허가구역이라 사면 2년 실거주해야 해서 전세를 끼고 살 수 없어요', '세입자 없음': '이주·철거가 시작돼 전세를 낄 세입자가 없어요(입주권으로 사야 해요)',
+           '입주권 없음': '지금 사면 입주권이 안 나오는 시점이에요(조합설립인가 등 이후 매수분)', '판정 보류': '입주권이 나오는지 판단할 자료가 부족해요', '계산 안 함': '상가·업무 중심 사업 등 아파트 입주권 계산 대상이 아니에요'}
+    if why: o.append('<p class="meta">전세 끼고 칸이 비어 있는 이유: ' + ' · '.join(f'<b>{k}</b>({v}곳) {EXP[k]}' for k, v in why.most_common()) + '. –는 매수가·전세 자료가 부족한 곳이에요.</p>')
     o.append(f'<p class="meta">새 소식 받기: <a href="../feed/gu/{esc(g)}.xml">{esc(g)} RSS</a></p>')
     o.append('<p class="note">무주택·84㎡·시세 상승 0% 같은 기본 가정으로 계산한 추정이에요. 내 조건은 <a href="../">계산기</a>에서 바꿔 볼 수 있어요. 투자 권유가 아니에요.</p>')
     o.append(FOOT.format(upd=UPD))
     return ''.join(o)
 for g in sorted(byg): open(os.path.join(GD, g + '.html'), 'w', encoding='utf-8').write(guPage(g, byg[g]))
 print('gu pages', len(byg))
+# 손으로 쓴 소개·기간 페이지의 '데이터 기준' 날짜를 앱과 같은 갱신일로 맞춘다(예전엔 2026.09.26에 멈춰 있었다)
+for fn, pats in (('years.html', [(r'(<p class="eyebrow">데이터 기준 )[\d.]+(</p>)', r'\g<1>' + UPD + r'\2')]),
+                 ('about.html', [(r'(지금 기준일은 )[\d.]+(이에요)', r'\g<1>' + UPD + r'\2')])):
+    fp = os.path.join(ROOT, 'public', fn)
+    if not os.path.exists(fp): continue
+    h0 = open(fp, encoding='utf-8').read(); h1 = h0
+    for a, b in pats: h1 = re.sub(a, b, h1)
+    if h1 != h0: open(fp, 'w', encoding='utf-8').write(h1); print('date synced', fn, UPD)

@@ -6,14 +6,14 @@ const EXTRA = (() => {
   let HOT = null;
   // 인기 = 최근 3개월 구역 안 거래가 많은 곳(진행 중만)
   const hot = () => HOT || (HOT = R.filter((r) => r.tx && r.tx.n3 && !(r.s >= 9) && r.src !== "moa").sort((a, b) => b.tx.n3 - a.tx.n3).slice(0, 8).map((r) => r.id));
-  const chip = (id) => `<button type="button" class="x-chip" role="option" data-id="${id}">${esc(shortName(byId[id].n))}<small>${esc(byId[id].g.replace(/구$/, ""))}</small></button>`;
+  const chip = (id) => `<button type="button" class="x-chip" role="option" data-id="${id}" tabindex="-1">${esc(shortName(byId[id].n))}<small>${esc(byId[id].g.replace(/구$/, ""))}</small></button>`;
   function empty() {
     const q = $("q");
     if (!q || q.value.trim() || document.activeElement !== q) return false;
     const rc = getR(), ht = hot().filter((id) => !rc.includes(id)).slice(0, 6);
     if (!rc.length && !ht.length) return false;
     const s = $("sugg");
-    s.innerHTML = (rc.length ? `<div class="x-h" role="presentation">최근 본 구역<button type="button" class="x-clr" id="xClr">지우기</button></div><div class="x-row">${rc.map(chip).join("")}</div>` : "") +
+    s.innerHTML = (rc.length ? `<div class="x-h" role="presentation">최근 본 구역<button type="button" class="x-clr" id="xClr" tabindex="-1">지우기</button></div><div class="x-row">${rc.map(chip).join("")}</div>` : "") +
       (ht.length ? `<div class="x-h" role="presentation">요즘 거래 많은 구역</div><div class="x-row">${ht.map(chip).join("")}</div>` : "");
     s.hidden = false; q.setAttribute("aria-expanded", "true");
     s.querySelectorAll(".x-chip").forEach((b) => (b.onmousedown = (e) => e.preventDefault(), b.onclick = () => pickSugg(b.dataset.id)));

@@ -13,6 +13,8 @@ const PINS = (() => {
   let SORT = lsR(SORTK, "news"); if (!["news", "need", "recent"].includes(SORT)) SORT = "news";
   let SEL = false, CMPON = false, EDIT = "", LAST = null, toastT = 0, PEND = 0, ACT = null, TRADE0 = null;
   const cbs = [];
+  // 받은 핀 링크(?fav=)는 앱 본문이 12곳까지만 꽂는다 → 나머지(핀 최대 ${MAX}곳)를 init에서 마저 꽂도록 원래 값을 먼저 잡아 둔다
+  const FAV_IN = (() => { try { return new URLSearchParams(location.search).get("fav") || ""; } catch (e) { return ""; } })();
   const saveS = () => lsW(SK, SNAP);
 
   // ---------- 아이콘 ----------
@@ -105,11 +107,12 @@ const PINS = (() => {
       <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><b>${alt ? '<small class="pn-alt" title="전세 끼고는 살 수 없는 구역이라 대출 끼고 금액">대출</small>' : ""}${now != null ? `${e2(now)}억` : "–"}</b>${salt ? "" : chip}</span><small title="${salt ? `꽂을 때와 같은 ${MODE_T[sm]} 기준 비교` : ""}">${then}</small></span>`;
     const head = SEL
       ? `<button type="button" class="pn-main sel" data-cmp="${r.id}" aria-pressed="${CMP.includes(r.id)}"><span class="pn-ck" aria-hidden="true"></span>${main}</button>`
-      : `<button type="button" class="pn-main" data-open="${r.id}" aria-label="${esc(shortName(r.n))} 리포트 열기">${main}</button><button type="button" class="pn-more" data-pedit="${r.id}" aria-expanded="${EDIT === r.id}" aria-controls="pnEd${i}" title="메모·목표"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg><span class="sr-only">${esc(shortName(r.n))} 메모·목표</span></button>`;
+      : `<button type="button" class="pn-main" data-open="${r.id}" aria-label="${esc(shortName(r.n))} 리포트 열기">${main}</button><button type="button" class="pn-more" data-pedit="${r.id}" aria-expanded="${EDIT === r.id}" aria-controls="pnEd${i}" title="목표·핀 빼기"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg><span class="sr-only">${esc(shortName(r.n))} 메모·목표·핀 빼기</span></button>`;
     const ed = !SEL && EDIT === r.id
       ? `<div class="pn-ed" id="pnEd${i}"><label class="sr-only" for="pnMemo${i}">메모</label><input id="pnMemo${i}" class="pn-memo-in" data-pmemo="${r.id}" maxlength="20" placeholder="메모 (예: 부모님 근처)" value="${esc(sp.memo || "")}" enterkeyhint="done">${!sp.goal && now != null && now <= CASH + 1e-9 ? `<span class="pn-gok">${pinY(14)}이미 살 수 있어요</span>` : `<button type="button" class="btn secondary sm" data-pgoal="${r.id}" aria-pressed="${!!sp.goal}">${sp.goal ? "목표 지우기" : "목표 세우기"}</button>`}<button type="button" class="btn text sm" data-punpin="${r.id}">핀 빼기</button><small class="pn-since">${dot(sp.t)}에 꽂음${sp.mig ? " · 찜에서 옮겨 옴" : ""}</small></div>`
       : "";
-    return `<div class="pn-row${nw ? " new" : ""}${SEL && CMP.includes(r.id) ? " on" : ""}" role="listitem"><div class="pn-top">${head}</div>${bd}${goal}${ed}</div>`;
+    const mb = !SEL && EDIT !== r.id ? `<div class="pn-foot"><button type="button" class="pn-addm" data-pedit="${r.id}" aria-expanded="false" aria-label="${esc(shortName(r.n))} ${sp.memo ? "메모 고치기" : "메모 추가"}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">${sp.memo ? '<path d="M4 20h4L19 9l-4-4L4 16z"/>' : '<path d="M12 5v14M5 12h14"/>'}</svg>${sp.memo ? "메모 고치기" : "메모 추가"}</button></div>` : "";
+    return `<div class="pn-row${nw ? " new" : ""}${SEL && CMP.includes(r.id) ? " on" : ""}" role="listitem"><div class="pn-top">${head}</div>${bd}${goal}${mb}${ed}</div>`;
   }
   function sorted() {
     const L = all(), ix = (n) => FAV.indexOf(n.r.id);
@@ -127,8 +130,11 @@ const PINS = (() => {
       ? `<div class="pn-selbar" role="group" aria-label="비교할 구역 고르기"><span><b>비교할 구역 2~3곳</b>을 골라 주세요</span><button type="button" class="btn text sm" id="pnSelX">취소</button><button type="button" class="btn primary sm" id="pnGo"${CMP.length >= 2 ? "" : " disabled"}>비교하기 (${CMP.length})</button></div>`
       : `<div class="pn-h"><p><b>내 핀 ${L.length}곳</b>${nw ? `<span class="pn-nwn">새 소식 ${nw}곳</span>` : ""}</p><div class="pn-ha">${L.length >= 2 ? '<button type="button" class="btn secondary sm" id="pnCmp">비교</button>' : ""}<button type="button" class="btn secondary sm" id="pnShare">내 핀 지도 공유</button></div></div>
       <div class="pn-tools"><div class="pn-sort" role="group" aria-label="정렬">${srt}</div><label class="pn-money"><input type="checkbox" id="pnMoney"${MONEY ? " checked" : ""}>공유 이미지에 금액 넣기</label></div>`;
-    return `${condHTML()}${top}<p class="pn-base">오른쪽은 ${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 살 때 필요한 돈 · 내 현금 ${e2(CASH)}억 기준 · 꽂은 날과 비교</p><div class="pn-list" role="list" aria-label="내 핀 목록">${L.map(rowHTML).join("")}</div><span class="share-fb" id="pnShareFb" role="status"></span>`;
+    return `${condHTML()}${top}<p class="pn-base">오른쪽은 ${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 살 때 필요한 돈 · 내 현금 ${e2(CASH)}억 기준 · 꽂은 날과 비교</p><div class="pn-list" role="list" aria-label="내 핀 목록">${L.map(rowHTML).join("")}</div><span class="share-fb" id="pnShareFb" role="status"></span>${SEL ? "" : moveHTML(L.length)}`;
   }
+  // 다른 기기로 옮기기: 핀 목록을 주소(?fav=)에 담아 복사 → 다른 폰·PC에서 열면 그대로 꽂힘(로그인 불필요)
+  const moveHTML = (n) => `<div class="pn-move"><div><b>다른 기기로 옮기기</b><small>링크를 다른 폰·PC에서 열면 핀 ${n}곳이 그대로 꽂혀요</small></div><button type="button" class="btn secondary sm" id="pnMove">링크 복사</button><span class="share-fb" id="pnMoveFb" role="status"></span></div>`;
+  const moveURL = () => { const q = new URLSearchParams(condQuery().slice(1)); q.set("fav", FAV.filter((id) => byId[id]).join(".")); return pageURL() + "?" + q.toString() + "#favTop"; };
   const emptyHTML = () => `${condHTML()}<div class="x-empty pn-empty">${pinY(36)}<p><b>아직 꽂은 핀이 없어요</b><br>구역을 눌러 핀을 꽂으면 다시 열 때 바뀐 소식을 모아 보여 드려요</p><button type="button" class="btn primary sm" id="pnEmptyGo">지도 보기</button></div>`;
   let MONEY = false;
 
@@ -154,7 +160,7 @@ const PINS = (() => {
     let t = $("pnToast");
     if (!t) { t = document.createElement("div"); t.id = "pnToast"; t.className = "pn-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
     clearTimeout(toastT);
-    t.innerHTML = `<span>${pinY(18)}<b>${esc(msg)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span>${act ? `<button type="button">${esc(act)}</button>` : ""}`;
+    t.innerHTML = `<span>${pinY(18)}<span class="pn-tt"><b>${esc(msg)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span></span>${act ? `<button type="button">${esc(act)}</button>` : ""}`;
     const bt = t.querySelector("button"); if (bt) bt.onclick = () => { clearTimeout(toastT); t.classList.remove("on"); fn && fn(); };
     t.classList.add("on");
     toastT = setTimeout(() => t.classList.remove("on"), 4000);
@@ -431,7 +437,7 @@ const PINS = (() => {
     const cnt = () => `조건에 맞는 곳 <b>${fmt(evalCond(c).length)}곳</b>`;
     const body = () => full
       ? `<h3 id="pcST">조건 핀은 ${CMAX}개까지예요</h3><p>하나를 지우고 다시 저장해 주세요.</p><div class="pn-old">${CONDS.map((x) => `<button type="button" data-cdel2="${x.id}">${pinY(18)}<span><b>${esc(x.name)}</b><small>${esc(condSum(x))}</small></span><em>지우기</em></button>`).join("")}</div><div class="pc-btns"><button type="button" class="btn secondary sm" data-cx>닫기</button></div>`
-      : `<h3 id="pcST">${edit ? "조건 핀 수정" : "이 조건으로 핀 꽂기"}</h3><p class="pc-cash">현금 <b>${cashT(c.cash)}</b> · ${c.mode === "gap" ? "전세 끼고" : "대출 끼고"}${edit ? "" : " <small>(금액·방식은 홈 게이지에서)</small>"}</p>
+      : `<h3 id="pcST">${edit ? "조건 핀 수정" : "이 조건으로 핀 꽂기"}</h3><div class="pc-cashf"><div class="pc-cin"><label for="pcCash">내 현금</label><span class="pc-cbox"><button type="button" data-cstep="-0.5" aria-label="0.5억 줄이기">−</button><input id="pcCash" data-ccash inputmode="decimal" autocomplete="off" value="${Math.round(c.cash * 100) / 100}"><i aria-hidden="true">억</i><button type="button" data-cstep="0.5" aria-label="0.5억 늘리기">+</button></span></div><div class="pc-mode" role="group" aria-label="사는 방법"><button type="button" data-cmode="gap" aria-pressed="${c.mode === "gap"}">전세 끼고</button><button type="button" data-cmode="cash" aria-pressed="${c.mode !== "gap"}">대출 끼고</button></div></div>
         <label class="pc-nm"><span>이름</span><input data-cn maxlength="30" value="${esc(c.name || autoName(c))}" placeholder="${esc(autoName(c))}"></label>
         <div data-cchips>${chips()}</div>
         <p class="pc-cnt" data-ccnt aria-live="polite">${cnt()}</p>
@@ -445,12 +451,21 @@ const PINS = (() => {
     const close = () => { ov.remove(); document.removeEventListener("keydown", kd); try { back && back.focus(); } catch (e) {} };
     const kd = (e) => { if (e.key === "Escape") close(); };
     document.addEventListener("keydown", kd);
-    dlg.addEventListener("input", (e) => { if (e.target.matches("[data-cn]")) named = true; });
+    const lite = () => { const nm = dlg.querySelector("[data-cn]"); if (nm && !named) nm.value = autoName(c); dlg.querySelector("[data-ccnt]").innerHTML = cnt(); };
+    let cT = 0;
+    dlg.addEventListener("input", (e) => {
+      if (e.target.matches("[data-cn]")) named = true;
+      if (e.target.matches("[data-ccash]")) { const v = parseFloat(String(e.target.value).replace(/[^\d.]/g, "")); if (isFinite(v) && v > 0 && v <= 100) { c.cash = Math.round(v * 100) / 100; clearTimeout(cT); cT = setTimeout(lite, 160); } }
+    });
     dlg.addEventListener("change", (e) => { if (e.target.matches("[data-cg]")) { c.gu = e.target.value; refresh(); dlg.querySelector("[data-cg]").focus(); } });
     ov.addEventListener("click", (e) => {
       if (e.target === ov || e.target.closest("[data-cx]")) return close();
       const d2 = e.target.closest("[data-cdel2]");
       if (d2) { CONDS = CONDS.filter((x) => x.id !== d2.dataset.cdel2); saveC(); close(); renderFav(); badges(); condSheet(); return; }
+      const cs = e.target.closest("[data-cstep]");
+      if (cs) { c.cash = Math.min(100, Math.max(0.1, Math.round((c.cash + +cs.dataset.cstep) * 10) / 10)); const i = dlg.querySelector("[data-ccash]"); if (i) i.value = String(c.cash); lite(); return; }
+      const cmd = e.target.closest("[data-cmode]");
+      if (cmd) { c.mode = cmd.dataset.cmode; dlg.querySelectorAll("[data-cmode]").forEach((b) => b.setAttribute("aria-pressed", String(b === cmd))); lite(); return; }
       const ch = e.target.closest("[data-cc]");
       if (ch) {
         const k = ch.dataset.cc;
@@ -557,7 +572,7 @@ const PINS = (() => {
 
   // ---------- 화면 이벤트 ----------
   function onClick(e) {
-    const t = e.target.closest && e.target.closest("[data-capply],[data-cedit],[data-cdel],[data-crebase],[data-psort],[data-pedit],[data-pgoal],[data-punpin],#pnCmp,#pnSelX,#pnGo,#pnShare,#pnEmptyGo,#pnCmpX");
+    const t = e.target.closest && e.target.closest("[data-capply],[data-cedit],[data-cdel],[data-crebase],[data-psort],[data-pedit],[data-pgoal],[data-punpin],#pnCmp,#pnSelX,#pnGo,#pnShare,#pnEmptyGo,#pnCmpX,#pnMove");
     if (!t) return;
     const cf = (id) => CONDS.find((x) => x.id === id);
     if (t.dataset.capply) { const c = cf(t.dataset.capply); if (c) applyCond(c); return; }
@@ -573,13 +588,25 @@ const PINS = (() => {
     if (t.id === "pnGo") { if (CMP.length < 2) return; SEL = false; CMPON = true; renderFav(); requestAnimationFrame(() => { const h = $("pnCmpT"); if (h) { h.scrollIntoView({ block: "start", behavior: smooth() }); h.focus({ preventScroll: true }); } }); return; }
     if (t.id === "pnCmpX") { CMPON = false; renderFav(); const b = $("pnCmp"); b && b.focus(); return; }
     if (t.id === "pnShare") { shareMap(); return; }
+    if (t.id === "pnMove") { shareLink(moveURL(), $("pnMoveFb")); return; }
     if (t.id === "pnEmptyGo") { try { SIMPLE.close(); } catch (e2) {} requestAnimationFrame(() => { const m = $("mapTop"); if (m) window.scrollTo({ top: m.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); }); }
   }
   function after() {
     const out = $("fvOut"); if (!out) return;
     const go = $("pnGo"); if (go) { go.disabled = CMP.length < 2; go.textContent = `비교하기 (${CMP.length})`; }
+    const fs = $("fvShare"); if (fs && $("pnMove")) { fs.hidden = true; const fb = $("fvShareFb"); if (fb) fb.hidden = true; }
+  }
+  function favRest() {
+    if (!FAV_IN) return;
+    const ids = [...new Set(FAV_IN.split(/[.,]/))].filter((id) => byId[id]).slice(0, MAX);
+    const add = ids.filter((id) => !isFav(id)).slice(0, Math.max(0, MAX - FAV.length));
+    if (!add.length) return;
+    FAV = FAV.concat(add); saveFav();
+    FAV_NOTE = `받은 링크의 ${ids.length}곳에 핀을 꽂았어요.`;
+    try { syncFav(); } catch (e) {}
   }
   function init() {
+    try { favRest(); } catch (e) {}
     const out = $("fvOut");
     if (out) {
       out.addEventListener("click", onClick);

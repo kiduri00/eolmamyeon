@@ -74,7 +74,9 @@
           { id: "rail", type: "line", source: "omt", "source-layer": "transportation", filter: ["in", ["get", "class"], ["literal", ["rail", "transit"]]], paint: { "line-color": C.rail, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 15, 1.6], "line-dasharray": [3, 2] } },
           { id: "water-name-l", type: "symbol", source: "omt", "source-layer": "water_name", filter: ["==", ["geometry-type"], "LineString"], layout: { "text-field": name, "text-font": ["Noto Sans Italic"], "text-size": 13, "symbol-placement": "line" }, paint: { "text-color": C.wtxt, "text-halo-color": C.halo, "text-halo-width": 1.5 } },
           { id: "water-name-p", type: "symbol", source: "omt", "source-layer": "water_name", filter: ["==", ["geometry-type"], "Point"], layout: { "text-field": name, "text-font": ["Noto Sans Italic"], "text-size": 13 }, paint: { "text-color": C.wtxt, "text-halo-color": C.halo, "text-halo-width": 1.5 } },
-          { id: "road-name", type: "symbol", source: "omt", "source-layer": "transportation_name", minzoom: 14.5, filter: ["in", ["get", "class"], ["literal", ["primary", "secondary", "tertiary", "motorway", "trunk"]]], layout: { "text-field": name, "text-font": ["Noto Sans Regular"], "text-size": 11.5, "symbol-placement": "line" }, paint: { "text-color": C.txt2, "text-halo-color": C.halo, "text-halo-width": 1.6 } },
+          // 도로 이름: 큰길(고속·간선)은 13부터, 나머지 큰 도로는 15부터. 분기점·나들목 같은 이름은 뺀다. 구역 카드보다 늘 뒤에 자리 잡는다(겹치면 숨음)
+          { id: "road-name-mj", type: "symbol", source: "omt", "source-layer": "transportation_name", minzoom: 13, filter: ["all", ["in", ["get", "class"], ["literal", ["motorway", "trunk", "primary"]]], ["!", ["in", "분기점", name]], ["!", ["in", "나들목", name]], ["!", ["in", "IC", name]]], layout: { "text-field": name, "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 13, 10.5, 16, 12], "symbol-placement": "line", "symbol-spacing": 420, "text-padding": 6, "text-max-angle": 30 }, paint: { "text-color": C.txt2, "text-opacity": 0.85, "text-halo-color": C.halo, "text-halo-width": 1.6 } },
+          { id: "road-name", type: "symbol", source: "omt", "source-layer": "transportation_name", minzoom: 15, filter: ["all", ["in", ["get", "class"], ["literal", ["secondary", "tertiary"]]], ["!", ["in", "분기점", name]]], layout: { "text-field": name, "text-font": ["Noto Sans Regular"], "text-size": 11, "symbol-placement": "line", "symbol-spacing": 360, "text-padding": 6 }, paint: { "text-color": C.txt2, "text-opacity": 0.8, "text-halo-color": C.halo, "text-halo-width": 1.6 } },
           { id: "place", type: "symbol", source: "omt", "source-layer": "place", minzoom: 12.5, filter: ["in", ["get", "class"], ["literal", ["suburb", "quarter", "neighbourhood"]]], layout: { "text-field": name, "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 12.5, 11, 16, 14] }, paint: { "text-color": C.txt2, "text-halo-color": C.halo, "text-halo-width": 1.6 } },
         ],
       };
@@ -83,8 +85,10 @@
     function overlays() {
       if (!map || !geo) return;
       const dk = dark(), P = palette(), halo = dk ? "#11161D" : "#ffffff";
-      const add = (id) => { if (!map.getSource(id)) map.addSource(id, { type: "geojson", data: FC([]) }); };
-      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway"].forEach(add);
+      const add = (id) => { if (!map.getSource(id)) map.addSource(id, Object.assign({ type: "geojson", data: FC([]) }, /^(zones|zest|zlab|pts)$/.test(id) ? { promoteId: "id" } : {})); };
+      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gun", "dong"].forEach(add);
+      map.getSource("gun").setData(guLabels());
+      map.getSource("dong").setData(dongLabels());
       if (!map.getSource("zpa")) map.addSource("zpa", { type: "geojson", data: FC([]), cluster: true, clusterRadius: 8, clusterMaxZoom: 15 });
       ["zpm", "zps", "zpsh"].forEach(add);
       map.getSource("subway").setData(subwayGeo());
@@ -92,24 +96,38 @@
       map.getSource("mask").setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [outer, ...geo.seoul] }, properties: {} });
       map.getSource("seoul").setData({ type: "Feature", geometry: { type: "MultiLineString", coordinates: geo.seoul }, properties: {} });
       map.getSource("gul").setData(FC(geo.gu.map((g) => ({ type: "Feature", geometry: { type: "MultiLineString", coordinates: g.r }, properties: { n: g.n } }))));
-      map.getSource("stn").setData(FC(D.stations.map((s) => ({ type: "Feature", geometry: { type: "Point", coordinates: [s[2], s[1]] }, properties: { n: s[0].replace(/역$/, ""), c: LINE_COL[(s[3] || [])[0]] || "#7A8594" } }))));
+      map.getSource("stn").setData(FC(D.stations.map((s) => ({ type: "Feature", geometry: { type: "Point", coordinates: [s[2], s[1]] }, properties: { n: s[0].replace(/역$/, ""), c: LINE_COL[(s[3] || [])[0]] || "#7A8594", t: (s[3] || []).length } }))));
       const L = (o) => { if (!map.getLayer(o.id)) map.addLayer(o); };
       L({ id: "mask", type: "fill", source: "mask", paint: { "fill-color": dk ? "#0B0F14" : "#ffffff", "fill-opacity": dk ? 0.7 : 0.75 } });
       L({ id: "gu-line", type: "line", source: "gul", paint: { "line-color": dk ? "#3B4656" : "#AEB7C4", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 1.3], "line-dasharray": [2, 2] } });
       L({ id: "seoul-line", type: "line", source: "seoul", paint: { "line-color": P.sub, "line-width": 1.6, "line-opacity": 0.7 } });
       L({ id: "subway-case", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": halo, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.8, 14, 4], "line-opacity": 0.5 } });
       L({ id: "subway", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 12, 1.2, 14, 2, 16, 2.6], "line-opacity": 0.5 } });
+      // 바탕 이름: 구(줌 9.5~13.4) → 동(13.2부터) → 큰 역(12부터, 환승역). 회색으로 작게, 구역 카드가 먼저 자리 잡는다
+      const T1 = dk ? "#8A95A5" : "#6A7482", T2 = dk ? "#7A8696" : "#7C8693";
+      L({ id: "gu-lab", type: "symbol", source: "gun", minzoom: 9.5, maxzoom: 13.4, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10.5, 12.5, 12.5], "text-padding": 4, "text-letter-spacing": 0.04 }, paint: { "text-color": T1, "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.6, 0.95, 13.4, 0], "text-halo-color": halo, "text-halo-width": 1.6 } });
+      L({ id: "dong-lab", type: "symbol", source: "dong", minzoom: 13.2, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 13.2, 10.5, 16, 12], "text-padding": 6, "symbol-sort-key": ["get", "k"] }, paint: { "text-color": T2, "text-halo-color": halo, "text-halo-width": 1.6 } });
       // 구역: 네이버 부동산처럼 한 가지 색(브랜드 남색) 반투명 면 + 같은 색 선. 공식 경계 없는 추정 범위는 점선.
+      // 내 돈으로 안 되는 곳은 같은 남색을 아주 옅게(feature-state a=false) → 되는 곳만 또렷하게
       const ZC = dk ? "#5B8CFF" : "#1F3A87", ZL = dk ? "#7FA6FF" : "#1F3A87";
-      const zop = dk ? ["interpolate", ["linear"], ["zoom"], 10, 0.42, 12, 0.32, 14, 0.22, 16, 0.18] : ["interpolate", ["linear"], ["zoom"], 10, 0.38, 12, 0.28, 14, 0.18, 16, 0.14];
-      const zlw = ["interpolate", ["linear"], ["zoom"], 10, 0.9, 12, 1.3, 14, 1.7, 16, 2];
-      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ZC, "fill-opacity": ["*", 0.8, zop] } });
-      L({ id: "zest-line", type: "line", source: "zest", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-dasharray": [2.2, 1.6], "line-opacity": 0.9 } });
+      const A = ["boolean", ["feature-state", "a"], true];
+      const zo = (k) => (dk ? [10, 0.46, 12, 0.36, 14, 0.25, 16, 0.2] : [10, 0.42, 12, 0.32, 14, 0.2, 16, 0.16]).map((v, i) => (i % 2 ? ["case", A, v * k, (dk ? 0.07 : 0.05) * k] : v));
+      const zop = ["interpolate", ["linear"], ["zoom"], ...zo(1)];
+      const zlw = ["interpolate", ["linear"], ["zoom"], 10, ["case", A, 0.9, 0.5], 12, ["case", A, 1.3, 0.7], 14, ["case", A, 1.8, 0.9], 16, ["case", A, 2.1, 1]];
+      const zlo = ["case", A, 0.95, dk ? 0.32 : 0.26];
+      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ZC, "fill-opacity": ["interpolate", ["linear"], ["zoom"], ...zo(0.8)] } });
+      L({ id: "zest-line", type: "line", source: "zest", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-dasharray": [2.2, 1.6], "line-opacity": zlo } });
       L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ZC, "fill-opacity": zop, "fill-antialias": true } });
-      L({ id: "zone-line", type: "line", source: "zones", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-opacity": 0.95 } });
-      L({ id: "pts", type: "circle", source: "pts", minzoom: 13, paint: { "circle-color": ZC, "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 4, 16, 6], "circle-stroke-color": halo, "circle-stroke-width": 1.5, "circle-opacity": 0.85 } });
-      L({ id: "sel-line", type: "line", source: "sel", paint: { "line-color": P.sel, "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.6, 16, 4.5] } });
+      L({ id: "zone-line", type: "line", source: "zones", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-opacity": zlo } });
+      L({ id: "pts", type: "circle", source: "pts", minzoom: 13, paint: { "circle-color": ZC, "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 4, 16, 6], "circle-stroke-color": halo, "circle-stroke-width": 1.5, "circle-opacity": ["case", A, 0.85, 0.3] } });
+      // 고른 구역: 면은 조금 진하게 + 굵은 테두리(바깥 흰 테 + 안쪽 남색)
+      L({ id: "sel-fill", type: "fill", source: "sel", paint: { "fill-color": ZC, "fill-opacity": dk ? 0.32 : 0.26 } });
+      L({ id: "sel-case", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": halo, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 5, 16, 8], "line-opacity": 0.9 } });
+      L({ id: "sel-line", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": dk ? "#9DBBFF" : "#1F3A87", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2.6, 16, 4.5] } });
       L({ id: "stn", type: "circle", source: "stn", minzoom: 14, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 3.5, 16, 5.5], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 14, 2, 16, 2.6] } });
+      // 큰 역(환승역)은 12부터 작은 점 + '○○역'
+      L({ id: "stn-mj", type: "circle", source: "stn", minzoom: 12, maxzoom: 14, filter: [">=", ["get", "t"], 2], paint: { "circle-radius": 2.6, "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": dk ? "#8A95A5" : "#5F6B7A", "circle-stroke-width": 1.4 } });
+      L({ id: "stn-mj-lab", type: "symbol", source: "stn", minzoom: 12, maxzoom: 14, filter: [">=", ["get", "t"], 2], layout: { "text-field": ["concat", ["get", "n"], "역"], "text-font": ["Noto Sans Regular"], "text-size": 10.5, "text-offset": [0, 0.75], "text-anchor": "top", "text-padding": 4, "text-optional": true }, paint: { "text-color": T1, "text-halo-color": halo, "text-halo-width": 1.6 } });
       L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 14, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": 11, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.sub, "text-halo-color": halo, "text-halo-width": 1.6 } });
       // ---- 겹쳐 보기 레이어 ----
       const nm = ["coalesce", ["get", "name:ko"], ["get", "name"], ""];
@@ -128,7 +146,8 @@
       poiTxt("ly-mart", ["all", ["in", ["get", "subclass"], ["literal", ["supermarket", "department_store", "mall", "wholesale"]]], ["any", ["in", "이마트", nm], ["in", "홈플러스", nm], ["in", "롯데마트", nm], ["in", "코스트코", nm], ["in", "트레이더스", nm], ["in", "백화점", nm], ["in", "하나로", nm]]], dk ? "#6FCF9A" : "#13744A", 11).forEach(L);
       L({ id: "ly-hj", type: "circle", source: "hj", layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4, 15, 8], "circle-color": halo, "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 15, 4] } });
       L({ id: "ly-hj-lab", type: "symbol", source: "hj", minzoom: 13.5, layout: { visibility: "none", "text-field": ["get", "sn"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14, 10, 16, 11], "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true, "text-max-width": 8, "symbol-sort-key": 10 }, paint: { "text-color": dk ? "#AAB3C0" : "#5B6472", "text-halo-color": halo, "text-halo-width": 1 } });
-      L({ id: "ly-hi", type: "symbol", source: "hi", layout: { visibility: "none", "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-offset": [0, -1.9], "text-allow-overlap": false, "text-optional": true }, paint: { "text-color": dk ? "#FF9C8A" : "#B42318", "text-halo-color": halo, "text-halo-width": 2.2 } });
+      // 신고가: 줌 13 아래는 구역 가운데 작은 빨간 점, 13부터는 구역 카드 아래 칸에 '▲신고가' 배지(카드 데이터 h)
+      L({ id: "ly-hi", type: "circle", source: "hi", maxzoom: 13, layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3, 13, 4.5], "circle-color": dk ? "#FF8A75" : "#D92D20", "circle-stroke-color": halo, "circle-stroke-width": 1.4 } });
       // ---- 구역 카드(네이버·리치고식): 위 칸 남색에 이름, 아래 흰 칸에 핵심 숫자. 줌 13부터(그 아래는 면만, 살 수 있는 곳엔 핀) ----
       // 9-patch 이미지 하나로 두 칸 배경을 만들고 icon-text-fit으로 글자에 맞춘다(위·아래 늘림 구간이 같아 두 줄 경계가 가운데에 온다)
       const CARD_TOP = dk ? "#3E6AE0" : "#1F3A87", CARD_BOT = dk ? "#1A2130" : "#FFFFFF", CARD_INK = dk ? "#E8EDF5" : "#191F28";
@@ -145,9 +164,11 @@
         const m = H / 2;
         map.addImage(id, x.getImageData(0, 0, W * k, (H + sh) * k), { pixelRatio: k, stretchX: [[8 * k, 32 * k]], stretchY: two ? [[5 * k, (m - 4) * k], [(m + 4) * k, (H - 5) * k]] : [[7 * k, (H - 7) * k]], content: two ? [7 * k, 4 * k, 33 * k, (H - 4) * k] : [7 * k, 4 * k, 33 * k, (H - 4) * k] });
       };
-      img("zcard", true);
+      img("zcard", true); img("zcard1", false);
       const csz = ["interpolate", ["linear"], ["zoom"], 13, 11, 16, 12.5];
-      const card = (id, f, maxz) => L({ id, type: "symbol", source: "zlab", minzoom: 13, maxzoom: maxz || 24, filter: f, layout: { "icon-image": "zcard", "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["format", ["get", "n"], { "text-color": "#FFFFFF" }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 4, "text-anchor": "top", "text-offset": [0, 0.35], "symbol-sort-key": ["get", "k"], "symbol-avoid-edges": true }, paint: {} });
+      // 카드 형식은 하나: 금액이 있으면 '이름 / X억'(두 칸), 없으면 이름만(한 칸). 신고가를 켜면 아래 칸에 빨간 '▲신고가'
+      const HI = dk ? "#FF9C8A" : "#C0261B", two = ["any", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]];
+      const card = (id, f, maxz) => L({ id, type: "symbol", source: "zlab", minzoom: 13, maxzoom: maxz || 24, filter: f, layout: { "icon-image": ["case", two, "zcard", "zcard1"], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": "#FFFFFF" }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": "#FFFFFF" }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, "text-anchor": "top", "text-offset": [0, 0.35], "symbol-sort-key": ["get", "k"] }, paint: {} });
       card("zone-lab", ["==", ["get", "p"], 0]);
       card("zone-lab-p", ["==", ["get", "p"], 1], 16);   // 핀 있는 곳은 16부터 핀 라벨('이름 · X억')로
       // ---- 핀: 핀 끝 = 구역 중심. 순서 선택 > 내 핀 > 살 수 있는 핀(위 레이어가 먼저 자리 잡음) ----
@@ -164,6 +185,31 @@
       layers();
       paint();
       focus(pendFocus); pendFocus = false;
+    }
+    // 구 이름 자리: 가장 큰 고리의 면적 중심. 동 이름 자리: 그 동(지번 주소 첫 낱말) 구역들의 평균 위치
+    function guLabels() {
+      const F = [];
+      ((geo && geo.gu) || []).forEach((g) => {
+        let best = null, ba = 0;
+        (g.r || []).forEach((rg) => {
+          let a = 0, x = 0, y = 0;
+          for (let i = 0, n = rg.length - 1; i < n; i++) { const [x0, y0] = rg[i], [x1, y1] = rg[i + 1], f = x0 * y1 - x1 * y0; a += f; x += (x0 + x1) * f; y += (y0 + y1) * f; }
+          if (Math.abs(a) > ba) { ba = Math.abs(a); best = [x / (3 * a), y / (3 * a)]; }
+        });
+        if (best && isFinite(best[0])) F.push({ type: "Feature", geometry: { type: "Point", coordinates: best }, properties: { n: g.n } });
+      });
+      return FC(F);
+    }
+    function dongLabels() {
+      const M = new Map();
+      R.forEach((r) => {
+        if (!r.ll) return;
+        const t = String(r.j || "").trim().split(/\s+/)[0] || "";
+        if (!/^[가-힣\d]{1,8}(동|가)$/.test(t)) return;
+        const k = r.g + t, m = M.get(k) || { n: t, a: 0, b: 0, c: 0 };
+        m.a += r.ll[0]; m.b += r.ll[1]; m.c++; M.set(k, m);
+      });
+      return FC([...M.values()].map((m) => ({ type: "Feature", geometry: { type: "Point", coordinates: [m.b / m.c, m.a / m.c] }, properties: { n: m.n, k: -m.c } })));
     }
     // 노선: 사이트 SVG 지도 좌표(xy)를 역 좌표로 맞춘 1차 변환의 역변환으로 위경도로 바꿔 그린다
     let SUBG = null;
@@ -195,7 +241,7 @@
     function affBB() {
       let [[a, b], [c, d]] = CORE;
       try {
-        const P = R.filter((r) => r.ll && visible(r) && dotState(r) === "y").map((r) => r.ll);
+        const f = okSafe(), P = R.filter((r) => r.ll && f(r)).map((r) => r.ll);
         if (P.length) {
           const la = P.map((x) => x[0]).sort((x, y) => x - y), lo = P.map((x) => x[1]).sort((x, y) => x - y);
           const q = (A, f) => A[Math.max(0, Math.min(A.length - 1, Math.round((A.length - 1) * f)))];
@@ -205,10 +251,34 @@
       } catch (e) {}
       return [[a, b], [c, d]];
     }
+    // 지도 위에 떠 있는 것(위 게이지·아래 '목록 보기')을 피한 여백
+    function fitPad() {
+      const P = { top: 14, bottom: 14, left: 10, right: 10 };
+      try {
+        const cv = map.getCanvas().getBoundingClientRect();
+        const ov = (sel) => { const e = document.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; const b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
+        const m = ov(".s-mini"); if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
+        const x = ov(".s-fullx"); if (x) P.bottom = Math.round(cv.bottom - x.top + 6);
+      } catch (e) {}
+      return P;
+    }
+    function fitTo(bb, anim, maxZ) {
+      const pad = fitPad(), cam = map.cameraForBounds(bb, { padding: pad, maxZoom: maxZ });
+      if (!cam) return;
+      let z = cam.zoom;
+      // 세로로 긴 폰 화면: 서울(가로로 넓음)이 위아래로 남으면 조금 더 당겨서 채운다(양옆은 살짝 잘려도 손가락으로 밀어 봄)
+      try {
+        const cv = map.getCanvas(), H = cv.clientHeight - pad.top - pad.bottom, W = cv.clientWidth;
+        const y0 = maplibregl.MercatorCoordinate.fromLngLat([bb[0][0], bb[1][1]]).y, y1 = maplibregl.MercatorCoordinate.fromLngLat([bb[0][0], bb[0][1]]).y;
+        const h = (y1 - y0) * 512 * Math.pow(2, z);
+        if (H > W * 1.15 && h > 0 && H / h > 1.3) z += Math.min(0.75, Math.log2(H / h) * 0.6);
+      } catch (e) {}
+      map.easeTo({ center: cam.center, zoom: Math.min(z, maxZ + 0.75), duration: anim && !reduceMotion() ? 700 : 0 });
+    }
     function fitAff(anim) {
       if (!map || !ready || mapView !== "seoul" || gu) return;
       map.resize();
-      map.fitBounds(affBB(), { padding: { top: 24, bottom: 24, left: 20, right: 52 }, maxZoom: 12, duration: anim && !reduceMotion() ? 700 : 0 });
+      fitTo(affBB(), anim, 12);
     }
     function seoul() {
       gu = null;
@@ -220,7 +290,7 @@
           if (mapView !== "seoul") return;
           if (!init()) { show(false); return; }
           // 처음엔 서울 전체가 아니라 '내 돈으로 되는 구역'이 모인 곳에 맞춘다(폰 지도는 작아서 전체는 답답함)
-          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); map.fitBounds(CORE, { padding: { top: 20, bottom: 20, left: 6, right: 44 }, duration: 0 }); } };
+          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); if (ready) fitTo(affBB(), false, 12); else map.fitBounds(CORE, { padding: 12, duration: 0 }); } };
           fitS(); requestAnimationFrame(fitS); map.once("idle", fitS);
           if (ready) paint();
         })
@@ -258,26 +328,30 @@
       return r.src === "moa" ? "모아타운" : stageName(r);
     }
     // 카드 아래 칸: 값이 있으면 금액(지금 X억), 없으면 단계
+    // 카드 아래 칸: 금액(X억)만. 금액이 없으면 빈칸 → 카드는 이름만 한 칸
     function cardVal(r) {
       const t = labelOf(r);
-      if (t && (/\d/.test(t) || BINS[colorBy])) return t;
-      return r.src === "moa" ? "모아타운" : stageName(r) || t || "";
+      if (BINS[colorBy]) return t || "";
+      const m = /([\d.]+억)/.exec(t || "");
+      return m ? m[1] : "";
     }
+    const cardName = (r) => { const n = shortName(r.n) || ""; return n.length > 10 ? n.slice(0, 9) + "…" : n; };
+    const hiOf = (r) => { const t = r.tx && r.tx.hi; return t && !r.dn ? t : null; };
     function paint() {
       if (!map || !ready || !geo) return;
       const Z = geo.z;
       const vis = R.filter((r) => r.ll && visible(r));
-      const off = [], est = [], lab = [], pts = [], MS = mineSet();
+      const off = [], est = [], lab = [], pts = [], MS = mineSet(), okF = okSafe(), hiOn = lyr.has("hi");
       for (const r of vis) {
-        const st0 = colorBy === "cash" ? dotState(r) : "", z = Z[r.id];
-        const s = cardVal(r), y = st0 === "y" ? 1 : 0, pp = y || MS.has(r.id) ? 1 : 0;
-        // 정렬 키: 살 수 있는 곳 → 금액 있는 곳 → 나머지 (작을수록 먼저 자리 잡음)
-        const k = y ? 0 : /\d/.test(s) ? 1 : 2;
+        const z = Z[r.id];
+        const s = cardVal(r), y = okF(r) ? 1 : 0, pp = y || MS.has(r.id) ? 1 : 0, h = hiOn && hiOf(r) ? "▲신고가" : "";
+        // 정렬 키: 살 수 있는 곳 → 신고가(켰을 때) → 금액 있는 곳 → 나머지 (작을수록 먼저 자리 잡음)
+        const k = (y ? 0 : s ? 2 : 3) - (h ? 1 : 0);
         if (z) {
           (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id } });
-          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s, y, k, p: pp } });
+          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: cardName(r), s, h, y, k, p: pp } });
         } else {
-          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: shortName(r.n), s, y, k: k + 0.5, p: pp } });
+          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: cardName(r), s, h, y, k: k + 0.5, p: pp } });
           pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id } });
         }
       }
@@ -377,13 +451,15 @@
       const now = performance.now();
       if (!force && now - pinT < 120) { clearTimeout(pinTm); pinTm = setTimeout(() => pins(false), 124 - (now - pinT)); return; }
       clearTimeout(pinTm); pinT = now;
-      const next = new Map(), okF = pinOkF();
+      const next = new Map(), okF = pinOkF(), okS = new Set();
       for (const r of R) {
         let y = false; try { y = okF(r); } catch (e) {}
         if (!y) continue;
+        okS.add(r.id);
         const ll = llOf(r);
         if (ll) next.set(r.id, { ll, r });
       }
+      affState(okS, force);
       const key = [...next.keys()].join(",");
       if (key === pinK) { if (force) { LB.clear(); pinDraw(); } return; }
       LB.clear();
@@ -408,6 +484,23 @@
     // 게이지를 놓으면: 진동 한 번 + '핀 4개 새로 꽂혔어요 · 2개 빠졌어요'(바뀐 게 있을 때만, 2초)
     // 핀 = 홈 '살 수 있는 곳' 숫자와 같은 판정(70_pins.js window.ZP_ok). 없으면 예전 점 상태
     const pinOkF = () => (typeof window.ZP_ok === "function" ? window.ZP_ok : (r) => r.ll && visible(r) && dotState(r) === "y");
+    const okSafe = () => { const f = pinOkF(); return (r) => { try { return !!f(r); } catch (e) { return false; } }; };
+    // 예산 반영: 되는 구역만 진한 남색, 나머지는 옅게(feature-state a). 게이지를 끄는 중에도 바로 바뀐다
+    let affK = null;
+    function affState(okS, force) {
+      if (!map || !ready || !geo) return;
+      const key = okS.size + ":" + [...okS].join(",");
+      if (key === affK && !force) return;
+      affK = key;
+      const Z = geo.z;
+      for (const r of R) {
+        if (!r.ll) continue;
+        const z = Z[r.id], src = z ? (z.e ? "zest" : "zones") : "pts";
+        try { map.setFeatureState({ source: src, id: r.id }, { a: okS.has(r.id) }); } catch (e) {}
+      }
+    }
+    // 내 돈으로 되는데 위치(좌표)가 없어 지도에 못 그리는 구역 → 홈 카드 등에서 '위치 미확인 n곳'
+    function noLoc() { const f = okSafe(), ids = R.filter((r) => f(r) && !llOf(r)).map((r) => r.id); return { n: ids.length, ids }; }
     const okIds = () => { const f = pinOkF(), S = new Set(); R.forEach((r) => { try { if (f(r)) S.add(r.id); } catch (e) {} }); return S; };
     function pinToast(msg) {
       if (!toastEl) { toastEl = document.createElement("div"); toastEl.className = "app-toast lm-toast"; toastEl.setAttribute("role", "status"); toastEl.setAttribute("aria-live", "polite"); document.body.appendChild(toastEl); }
@@ -598,5 +691,8 @@
       fitAff: (anim) => fitAff(anim),
       fit: () => { if (!map) return; map.resize(); fitAff(false); },
       lib: () => loadLib(), style: () => style(), subway: () => subwayGeo(),
+      map: () => map,
+      _dbg: () => ({ R, D, geo, byId }),
     };
   })();
+  try { window.__lmx = LMX; } catch (e) {}

@@ -405,3 +405,48 @@ html.sheet-open .s-why.bs,html.menu-open .s-why.bs{bottom:calc(12px + env(safe-a
 /* 입주 계산: '← 지도로'가 격자 칸을 먹어 모바일에서 두 칸으로 갈라지던 문제 */
 html.simple #planner.s-on>.s-back{grid-column:1/-1;justify-self:start;height:auto;align-self:start}
 @media (max-width:980px){html.simple #planner.s-on{grid-template-columns:minmax(0,1fr)!important}}
+
+/* ===== 레드팀 8차 반영 ===== */
+/* 눈금 15억 · 게이지 막대 색을 네이비 계열로 통일 */
+.s-ticks span:nth-child(5){right:0;left:auto;transform:none}
+#sCash::-webkit-slider-runnable-track{background:linear-gradient(90deg,#4a64b0 0,var(--brand) var(--p),var(--surface-3) var(--p) 100%)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #sCash::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f86c4 0,#93ade6 var(--p),#3a4252 var(--p) 100%)}:root:not([data-theme="light"]) #sCash::-webkit-slider-thumb{box-shadow:0 0 0 1px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.5),inset 0 0 0 7px #93ade6}:root:not([data-theme="light"]) #sMiniR::-webkit-slider-runnable-track{background:linear-gradient(90deg,#93ade6 0 var(--p),#3a4252 var(--p) 100%)}:root:not([data-theme="light"]) #sMiniR::-webkit-slider-thumb{border-color:#93ade6}}
+:root[data-theme="dark"] #sCash::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f86c4 0,#93ade6 var(--p),#3a4252 var(--p) 100%)}
+:root[data-theme="dark"] #sCash::-webkit-slider-thumb{box-shadow:0 0 0 1px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.5),inset 0 0 0 7px #93ade6}
+:root[data-theme="dark"] #sMiniR::-webkit-slider-runnable-track{background:linear-gradient(90deg,#93ade6 0 var(--p),#3a4252 var(--p) 100%)}
+/* 첫 방문 안내: 손잡이 옆(트랙 높이), 화살표는 손잡이 쪽 */
+.s-coach::after{left:-4px;top:50%;margin:-5px 0 0}
+.s-coach.l::after{left:auto;right:-4px}
+/* 대출 가정 칩 */
+.s-asm{position:relative;margin:0;display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:0 6px 0 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text-2);font:600 12px var(--font);white-space:nowrap;cursor:pointer}
+.s-asm[hidden]{display:none}
+.s-asm i{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--surface-3);color:var(--text-2);font:700 10.5px var(--font);font-style:normal}
+.s-asm:hover{border-color:var(--brand-line,var(--border));color:var(--text-1)}
+.s-asm::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:44px;transform:translate(-50%,-50%)}
+.s-ghead{justify-content:flex-start;column-gap:8px}
+.s-ghead .s-h1{flex:1 1 auto}
+/* 목록: 정렬 선택(글자만, 눌러 바꾸기) */
+.s-lsub{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.s-sort{position:relative;display:inline-flex;align-items:center}
+.s-sort::before{content:"·";margin-right:6px;color:var(--text-4)}
+.s-sort select{field-sizing:content;-webkit-appearance:none;appearance:none;min-height:32px;margin:-8px 0;padding:0 16px 0 2px;border:0;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5l3 3 3-3' fill='none' stroke='%238a929d' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 2px center;color:var(--text-1);font:700 12.5px var(--font);cursor:pointer}
+.s-sort select:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:6px}
+@media (max-width:980px),(pointer:coarse){.s-sort select{min-height:44px;margin:-14px 0}}
+/* 기능 화면 첫 줄이 포커스 테두리에 눌려 보이지 않게(섹션 자체는 컨테이너) */
+html.simple section[tabindex="-1"]:focus{outline:none}
+/* 터치 영역 44px(겉모습은 그대로) */
+@media (max-width:980px),(pointer:coarse){
+  .s-back,.s-tolist{min-height:44px}
+  .s-more{min-height:44px}
+  .s-wh button{width:44px;height:44px;margin:-12px -12px -12px 0}
+  .s-wgo{min-height:44px;padding:0}
+  #sugg .x-chip{min-height:40px}
+  .s-nav button{min-height:52px}
+}
+/* PC 첫 화면: 지도·목록과 '더 알아보기' 사이, 푸터 위 빈 띠 줄이기 */
+html.simple #sTiles{padding-top:0;margin-top:32px}
+html.simple .site-foot .f-grid{display:none}
+html.simple .site-foot .f-bot{margin-top:0;padding-top:0;border-top:0}
+html.simple .site-foot{padding-bottom:24px}
+/* 목록 머리 한 줄: '지금 필요한 돈 · 추정 · 맞춤순▾' (정렬을 고를 수 있게 다시 보인다) */
+html.simple .s-lh .s-lsub{display:flex!important;margin-top:2px}
