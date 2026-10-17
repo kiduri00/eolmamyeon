@@ -64,7 +64,7 @@ const BD = (() => {
       io.observe(el);
     };
     once("txrTop", rank);
-    once("ntcTop", () => fetch("data/notice.json").then((r) => r.json()).then((j) => { NT = j; notice(); }).catch(() => { const o = document.getElementById("ntcOut"); if (o) o.innerHTML = '<p class="mut">소식을 불러오지 못했어요.</p>'; }));
+    once("ntcTop", () => fetch(`data/notice.json?v=${(D.dv && D.dv.notice) || D.upd || ""}`).then((r) => r.json()).then((j) => { NT = j; notice(); }).catch(() => { const o = document.getElementById("ntcOut"); if (o) o.innerHTML = '<p class="mut">소식을 불러오지 못했어요.</p>'; }));
     // 계산기 현금이 바뀌면 '내 현금 가능' 표시 갱신
     {
       const _plan = plan;

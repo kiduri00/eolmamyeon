@@ -76,6 +76,7 @@ for p, v in T['apt'].items():
                  'zs': (byId[zid].get('sr') if zid else ''), 'far': far, 'hh': hh, 'ld': ld})
 for r in rows: r['farS'] = f"{round(r['far'])}%" if r['far'] else '–'; r['hhS'] = f"{r['hh']:,}세대" if r['hh'] else ''; r['ldS'] = f"{r['ld']}㎡" if r['ld'] else '–'
 rows.sort(key=lambda x: (x['g'], -x['c']))
+json.dump({'asOf': (D.get('upd') or ''), 'items': [{k: r[k] for k in ('g', 'd', 'n', 'y', 'c', 'w', 'm', 'a', 'l', 'z', 'far', 'hh', 'ld')} for r in rows]}, open(os.path.join(ROOT, 'pipeline/rebuild.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 UPD = (D.get('upd') or '').replace('-', '.')
 guN = collections.Counter(r['g'] for r in rows)
 zN = sum(1 for r in rows if r['z'])

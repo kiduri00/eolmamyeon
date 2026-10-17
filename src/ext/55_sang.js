@@ -1,7 +1,7 @@
 /* 서울시 상권분석서비스: 지도 레이어용 로더 + 구역 리포트 '주변 상권·학원가' */
 const ZXS = (() => {
   let S = null, P = null;
-  const load = () => (S ? Promise.resolve(S) : P || (P = fetch("data/sang.json").then((r) => (r.ok ? r.json() : null)).then((j) => (S = j)).catch(() => ((P = null), null))));
+  const load = () => (S ? Promise.resolve(S) : P || (P = fetch(`data/sang.json?v=${(D.dv && D.dv.sang) || D.upd || ""}`).then((r) => (r.ok ? r.json() : null)).then((j) => (S = j)).catch(() => ((P = null), null))));
   const dist = (a, b, c, d) => { const k = Math.PI / 180, x = (d - b) * k * Math.cos(((a + c) / 2) * k), y = (c - a) * k; return Math.sqrt(x * x + y * y) * 6371000; };
   const KN = { a: "골목상권", d: "발달상권", r: "전통시장", u: "관광특구" };
   function centerOf(r) { return r.ll ? [r.ll[0], r.ll[1]] : null; }

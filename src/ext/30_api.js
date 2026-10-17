@@ -10,7 +10,12 @@
         let x = {};
         try { x = invest(r); } catch (e) {}
         const w = buyWindow(r);
-        out[id] = { price: x.price ?? null, priceSrc: x.priceSrc ?? null, need: x.ok ? x.needTotal : null, now: x.needBuy ?? null, p10: r.eta?.p10 ?? null, eMid: r.eta?.eMid ?? null, win: w.cls, winT: w.t, st: r.st ? { n: r.st.n, d: r.st.d } : null, ln: r.ln || [], owners: r.sm?.owners || r.sm?.members || null, stage: stageName(r) };
+        let g = null;
+        let gE = false, cE = false;
+        try { P.fund = "gap"; g = gapOf(r); gE = gapOk(r, 1e9); } catch (e) {} finally { P.fund = "cash"; }
+        try { cE = !estHide(r) && !r.dn && r.s < 9 && !r.cx && r.src !== "moa" && !($("pTrade").checked && restricted(r)) && !rewinBlocked(r); } catch (e) {}
+        out[id] = { gapOk: gE, cashOk: cE, gapNow: g && !g.block && !g.na ? g.now : null, gapTotal: g && !g.block && !g.na ? g.total ?? null : null, gapBlock: g ? (g.block ? String(g.block === true ? "block" : g.block) : g.na ? "na" : null) : null, jeonse: g && g.D != null ? g.D : null,
+          price: x.price ?? null, priceSrc: x.priceSrc ?? null, need: x.ok ? x.needTotal : null, now: x.needBuy ?? null, p10: r.eta?.p10 ?? null, eMid: r.eta?.eMid ?? null, win: w.cls, winT: w.t, st: r.st ? { n: r.st.n, d: r.st.d } : null, ln: r.ln || [], owners: r.sm?.owners || r.sm?.members || null, stage: stageName(r) };
       }
     } finally { Object.assign(P, keep); }
     return out;

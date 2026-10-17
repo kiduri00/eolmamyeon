@@ -37,6 +37,7 @@ timeout 600 python3 tools/toheo.py || echo "!! 토지거래허가 수집 실패 
 # 건축물대장 총괄표제부(용적률·세대수): 매주 월요일 또는 캐시가 없을 때
 if [ "$(date -u +%u)" = "1" ] || [ ! -f pipeline/cache/ledger.json ]; then timeout 1200 node tools/fetch_ledger.js pipeline/raw/ledger || echo "!! 건축물대장 갱신 실패 — 이전 자료 유지"; fi
 python3 tools/rebuild.py || echo "!! 재건축 연한 단지 목록 실패"
+python3 tools/api.py || echo "!! 앱용 데이터(API) 생성 실패"
 python3 tools/feeds.py || echo "!! 구별 RSS 실패"
 python3 tools/sitemap.py
 # 월간 리포트: 매달 5일에 지난달 호 생성

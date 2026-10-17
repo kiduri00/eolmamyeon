@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<base href="/api/">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>공개 데이터 API | 얼마면 재개발</title>
+<meta name="description" content="얼마면 재개발이 매일 갱신하는 서울 정비사업 데이터(구역·필요한 현금·실거래·고시·토지거래허가·재건축 연한 단지)를 앱·서비스에서 바로 쓸 수 있는 JSON으로 공개합니다.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
+<link rel="stylesheet" href="../pages.css">
+<style>code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}pre{overflow-x:auto;padding:12px 14px;border-radius:12px;background:var(--surface-2,#f3f4f6);line-height:1.55}table.ep{width:100%;border-collapse:collapse;font-size:14px}table.ep th,table.ep td{padding:8px;border-bottom:1px solid var(--border,#e5e7eb);text-align:left;vertical-align:top}table.ep td:first-child{white-space:nowrap}.tw{overflow-x:auto}</style>
+</head>
+<body>
+<header class="top"><div class="in"><a class="logo" href="../">얼마면 <span>재개발</span></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav></div></header>
+<main>
+<p class="eyebrow">개발자용 · 매일 갱신</p>
+<h1>공개 데이터 API</h1>
+<p class="lede">사이트와 같은 자료, 같은 계산 엔진 결과를 JSON 파일로 공개해요. 로그인·키 없이 GET으로 읽으면 되고, 어떤 도메인에서든 불러올 수 있어요(CORS 허용). 실거래·고시·토지거래허가는 매일 새벽에 갱신돼요.</p>
+<h2>엔드포인트</h2>
+<div class="tw"><table class="ep"><thead><tr><th>주소</th><th>내용</th></tr></thead><tbody>
+<tr><td><a href="v1/meta.json">v1/meta.json</a></td><td>갱신 시각, 실거래 기준일, 계산 가정, 엔드포인트 목록</td></tr>
+<tr><td><a href="v1/zones.json">v1/zones.json</a></td><td>진행 중 구역 전체 요약(목록·지도용). 위치, 단계, 가까운 역, 필요한 현금(전세 끼고/현금만), 입주권 판정, 10년 준공 확률, 권리산정기준일, 노후도, 실거래 요약, 최근 30일 토지거래허가 수</td></tr>
+<tr><td><code>v1/zones/{id}.json</code></td><td>구역 상세: 인가 이력, 정보몽땅 최근 기록, 최근 매매 20건·전세 10건, 토지거래허가 내역, 반경 1km 상권</td></tr>
+<tr><td><a href="v1/cash.json">v1/cash.json</a></td><td>현금 0.5억~15억(0.5억 단위)별 가능 구역 수: 전체·구별, 전세 끼고/현금만. 사이트 첫 화면 게이지와 같은 숫자</td></tr>
+<tr><td><a href="v1/rank.json">v1/rank.json</a></td><td>구역 실거래 순위: 최근 3개월 거래량, 1년 변화, 최근 신고가</td></tr>
+<tr><td><a href="v1/notice.json">v1/notice.json</a></td><td>최근 90일 고시·공고(인가·고시 / 변경 인가 / 시공자 선정 / 신청·공람)</td></tr>
+<tr><td><a href="v1/rebuild.json">v1/rebuild.json</a></td><td>준공 30년 넘은 서울 아파트 단지: 실거래, 용적률, 세대수, 세대당 대지</td></tr>
+<tr><td><a href="../data/sang.json">data/sang.json</a></td><td>서울시 상권분석서비스 상권 1,650곳(좌표·점포·학원·분기 매출)</td></tr>
+<tr><td><a href="../data/geo.json">data/geo.json</a></td><td>정비구역 경계(공식 경계 + 추정 범위)</td></tr>
+</tbody></table></div>
+<h2>필요한 현금(need) 읽는 법</h2>
+<p>단위는 억원이고 무주택·84㎡·시세 상승 0%·비례율 100% 기본 가정이에요. <code>gap.now</code>는 전세를 끼고 지금 계약할 때 드는 돈(매수가 − 전세 + 취득세), <code>gap.total</code>은 입주까지 드는 돈이에요. <code>cash.now</code>는 대출을 끼고 지금 살 때, <code>cash.total</code>은 현금으로 입주까지예요. <code>eligible</code>이 false면 입주권·토지거래허가(실거주 의무) 등으로 그 방식으로는 살 수 없다는 뜻이라 개수에서 빼요.</p>
+<pre>// 내 현금 2억, 전세 끼고 살 수 있는 구역
+const { items } = await (await fetch("https://jaegaebal.alwaysquestions.kr/api/v1/zones.json")).json();
+const ok = items.filter(z =&gt; z.need.gap.eligible &amp;&amp; z.need.gap.now != null &amp;&amp; z.need.gap.now &lt;= 2)
+                .sort((a, b) =&gt; a.need.gap.now - b.need.gap.now);</pre>
+<h2>이용 조건</h2>
+<p>원자료는 서울시·국토교통부 공공데이터(공공누리 1유형 등), 서울도시공간포털, 서울시 상권분석서비스, 서울부동산정보광장이에요. 쓰실 때 "얼마면 재개발(jaegaebal.alwaysquestions.kr)"과 원자료 출처를 밝혀 주세요. 계산값은 공개 자료와 가정으로 낸 추정치이고 투자 권유가 아니에요. 파일 구조가 바뀌면 <code>v2</code>로 새로 열고 <code>v1</code>은 유지해요.</p>
+</main>
+<footer class="f"><p><a href="../">계산기</a> · <a href="../method">출처·계산 방법</a> · <a href="../privacy"><b>개인정보처리방침</b></a></p></footer>
+</body>
+</html>
