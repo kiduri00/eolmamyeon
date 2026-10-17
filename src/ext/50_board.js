@@ -40,7 +40,7 @@ const BD = (() => {
     const L = NT.items.filter((x) => byId[x[1]] && (C === "fav" ? isFav(x[1]) : C ? x[4] === C : x[4] !== "etc"));
     out.innerHTML = L.length
       ? `<ul class="ntl">${L.slice(0, 60).map(([d, id, sec, t, c]) => `<li class="c-${c}"><span class="nt-d mono">${d.replaceAll("-", ".")}</span><span class="nt-b">${go(id)}<small>${esc(byId[id].g)}</small><span class="nt-t"><em class="nt-c">${CL[c]}</em><b>${esc(sec)}</b> ${esc(evT(t))}</span></span></li>`).join("")}</ul><p class="t-note">출처: 서울시 정비사업 정보몽땅 사업장별 추진경과 · ${esc(NT.asOf.replaceAll("-", "."))} 기준 · '전체'는 법인등기·용역 계약 변경 같은 기타 기록을 빼고 보여 줘요. '변경 인가'는 이미 받은 인가의 내용을 바꾼 것이라 단계가 올라간 게 아니에요.</p>`
-      : `<p class="mut">${C === "fav" ? "찜한 구역의 최근 90일 기록이 없어요. 구역 카드의 ☆로 찜해 보세요." : "최근 90일 기록이 없어요."}</p>`;
+      : `<p class="mut">${C === "fav" ? "핀 꽂은 구역의 최근 90일 기록이 없어요. 구역을 열고 핀을 꽂아 보세요." : "최근 90일 기록이 없어요."}</p>`;
   }
   function init() {
     const seg = document.getElementById("txrSeg");

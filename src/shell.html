@@ -55,7 +55,7 @@
     <div class="hdr-r">
       <span class="asof" id="asof"></span>
       <button type="button" class="icon-btn s-open" id="sOpen" aria-label="검색 열기"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
-      <a class="hu-fav" href="#favTop" id="huFav" data-menu="favTop" aria-label="찜·비교"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.3s-7.6-4.6-7.6-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.6 2.5c0 5.6-7.6 10.2-7.6 10.2z"/></svg><span class="hu-l">찜·비교</span><b class="tb-n" id="favN" hidden></b></a>
+      <a class="hu-fav" href="#favTop" id="huFav" data-menu="favTop" aria-label="내 핀"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6z"/><circle cx="12" cy="9.4" r="2.6"/></svg><span class="hu-l">내 핀</span><b class="tb-n" id="favN" hidden></b></a>
       <a class="hu-txt" href="z/">구역별 페이지</a><a class="hu-txt" href="guide/">가이드·분석</a>
       <a class="hu-lead" href="report/">월간 리포트</a>
       <div class="mb-hdr" id="mbHdr"></div>
@@ -76,7 +76,7 @@
         <p class="mp-h" aria-hidden="true">더 보기</p>
         <a href="#rulesTop" data-menu="rulesTop"><b>매수 전 규정</b><small>지위양도·토지거래허가·재당첨 등 현행 기준</small></a>
         <a href="#statsTop" data-menu="statsTop"><b>통계</b><small>자치구별 사업장 · 단계별 실제 소요 기간</small></a>
-        <a href="#favTop" data-menu="favTop" class="mp-fav"><b>찜·비교</b><small>☆ 찜한 구역 2~3곳 나란히</small></a>
+        <a href="#favTop" data-menu="favTop" class="mp-fav"><b>내 핀</b><small>핀 꽂은 구역 소식 · 2~3곳 나란히</small></a>
         <a href="#txrTop" data-menu="txrTop"><b>구역 실거래 순위</b><small>거래 많은 곳 · 1년 상승률 · 신고가</small></a>
         <a href="#ntcTop" data-menu="ntcTop"><b>고시·공고 소식</b><small>최근 90일 인가·시공자 선정·신청</small></a>
         <a href="guide/rebuild-30y"><b>재건축 연한 30년 단지</b><small>준공 30년 넘은 서울 아파트 실거래</small></a>
@@ -118,7 +118,7 @@
         <a href="#commuteTop" data-jump2="commuteTop" class="imc"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M9 20l-2 2M15 20l2 2M9 14h.01M15 14h.01"/></svg></i>회사까지 50분 안에서 찾기</a>
         <a href="#planner" data-gapgo="1" class="imc"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-5h4v5"/></svg></i>전세 끼고 1억부터 보기</a>
         <a href="#saveTop" data-jump2="saveTop" class="imc"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M10 2h4"/></svg></i>매달 모으면 언제 몇 곳?</a>
-        <a href="#favTop" data-jump2="favTop" class="imc"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg></i>찜한 구역 나란히 비교</a>
+        <a href="#favTop" data-jump2="favTop" class="imc"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6z"/><circle cx="12" cy="9.4" r="2.6"/></svg></i>내 핀 소식·비교</a>
       </div>
     </div>
     <div class="in-r" aria-hidden="true"><div class="in-art"><svg id="introArt" viewBox="-4 -26 1008 865" preserveAspectRatio="xMidYMid meet"></svg><div class="in-cap" aria-live="off"><span><i class="d y"></i>전세 끼고 <b id="artCash">1</b>억 → <b id="artN">–</b>곳 계약 가능(추정)</span><span><i class="d n"></i>그 밖의 진행 중 구역</span></div></div></div>
@@ -210,7 +210,7 @@
     <details class="res-note" id="resNote"><summary>계산 기준<span class="xtra"> · 시세 상승 0% · 재건축부담금 미반영 · 실거래 기준 추정</span></summary><ul id="resNoteList"></ul></details>
     <div id="planList"></div>
     <div id="leadRes"></div>
-      <nav class="next-steps" aria-label="다음 단계"><span class="ns-h">다음 단계</span><a href="#mapTop" data-jump2="mapTop">지도에서 위치 보기</a><a href="#commuteTop" data-jump2="commuteTop">출퇴근 시간으로 좁히기</a><a href="#saveTop" data-jump2="saveTop">모으면 언제 되나</a><a href="#favTop" data-jump2="favTop">찜한 곳 비교</a></nav>
+      <nav class="next-steps" aria-label="다음 단계"><span class="ns-h">다음 단계</span><a href="#mapTop" data-jump2="mapTop">지도에서 위치 보기</a><a href="#commuteTop" data-jump2="commuteTop">출퇴근 시간으로 좁히기</a><a href="#saveTop" data-jump2="saveTop">모으면 언제 되나</a><a href="#favTop" data-jump2="favTop">내 핀 보기</a></nav>
   </section>
   <aside class="ad-slot" data-slot="mid" aria-label="광고" hidden></aside>
 
@@ -292,18 +292,18 @@
   </section>
 
   <section class="sec tool" id="favTop" aria-labelledby="fvT">
-    <div class="sec-h"><div><h2 id="fvT">비교·찜</h2><p>구역 카드·리포트의 ☆ 찜으로 모은 구역을 2~3곳 골라 나란히 봐요. 링크로 가족에게 보낼 수 있어요.</p></div></div>
-    <div class="panel tpanel"><div id="fvOut" aria-live="polite"></div></div>
+    <div class="sec-h"><div><h2 id="fvT">내 핀</h2><p>핀 꽂은 구역의 단계·신고가·필요한 돈 변화를 꽂은 날과 비교해 모아 봐요. 2~3곳은 나란히 비교할 수 있어요.</p></div></div>
+    <div class="panel tpanel pn-panel"><div id="fvOut"></div><div id="pnCmpOut" aria-live="polite"></div></div>
   </section>
 
   <section class="sec tool" id="newTop" aria-labelledby="nwT">
-    <div class="sec-h"><div><h2 id="nwT">최근 단계 변경</h2><p>가장 최근 집계된 달에 단계가 바뀐(지정·승인·인가) 구역을 내 찜 표시, 내 현금으로 되는지와 함께 보여 줘요. 목록만은 <a href="report/">공개 리포트</a>에서 누구나 볼 수 있어요.</p></div></div>
+    <div class="sec-h"><div><h2 id="nwT">최근 단계 변경</h2><p>가장 최근 집계된 달에 단계가 바뀐(지정·승인·인가) 구역을 내 핀 표시, 내 현금으로 되는지와 함께 보여 줘요. 목록만은 <a href="report/">공개 리포트</a>에서 누구나 볼 수 있어요.</p></div></div>
     <div class="panel tpanel"><div id="nwOut"></div></div>
   </section>
 
   <section class="sec tool" id="ntcTop" aria-labelledby="ntT">
     <div class="sec-h"><div><h2 id="ntT">고시·공고 소식</h2><p>정보몽땅 추진경과에 최근 90일 동안 올라온 인가·승인·고시, 시공자 선정, 인가 신청·주민공람을 날짜순으로 모았어요. 매일 갱신.</p></div></div>
-    <div class="fchips" id="ntcF" role="group" aria-label="소식 거르기"><button type="button" class="ichip" data-c="" aria-pressed="true">전체</button><button type="button" class="ichip" data-c="ok" aria-pressed="false">인가·고시</button><button type="button" class="ichip" data-c="con" aria-pressed="false">시공자 선정</button><button type="button" class="ichip" data-c="req" aria-pressed="false">신청·공람</button><button type="button" class="ichip" data-c="fav" aria-pressed="false">☆ 찜한 구역</button></div>
+    <div class="fchips" id="ntcF" role="group" aria-label="소식 거르기"><button type="button" class="ichip" data-c="" aria-pressed="true">전체</button><button type="button" class="ichip" data-c="ok" aria-pressed="false">인가·고시</button><button type="button" class="ichip" data-c="con" aria-pressed="false">시공자 선정</button><button type="button" class="ichip" data-c="req" aria-pressed="false">신청·공람</button><button type="button" class="ichip" data-c="fav" aria-pressed="false">내 핀 구역</button></div>
     <div class="panel tpanel"><div id="ntcOut"></div></div>
   </section>
 

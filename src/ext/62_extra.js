@@ -1,4 +1,4 @@
-/* ===================== 검색 최근·인기 · 찜 빈 화면 · 공유 카드 ===================== */
+/* ===================== 검색 최근·인기 · 공유 카드 (내 핀 빈 화면은 70_pins.js) ===================== */
 const EXTRA = (() => {
   const RK = "emr.recent";
   const getR = () => { try { return JSON.parse(localStorage.getItem(RK) || "[]").filter((id) => byId[id]); } catch (e) { return []; } };
@@ -54,13 +54,15 @@ const EXTRA = (() => {
   const dongOfR = (r) => { const m = /^([가-힣0-9]+?(?:동\d*가|동|가))\s/.exec((r.j || "") + " "); return m ? m[1] : ""; };
   async function shareCard(r, fb) {
     try { await (document.fonts && document.fonts.ready); } catch (e) {}
-    const cv = card(r);
-    const blob = await new Promise((ok) => cv.toBlob(ok, "image/png"));
-    const name = `jaegaebal_${r.id}.png`;
-    const file = blob && typeof File === "function" ? new File([blob], name, { type: "image/png" }) : null;
     const url = `https://jaegaebal.alwaysquestions.kr/z/${r.id}`;
+    return shareCv(card(r), `jaegaebal_${r.id}.png`, shortName(r.n), `${shortName(r.n)} · 집핀 ${url}`, fb);
+  }
+  // 캔버스를 공유 시트로(안 되면 파일로 저장)
+  async function shareCv(cv, name, title, text, fb) {
+    const blob = await new Promise((ok) => cv.toBlob(ok, "image/png"));
+    const file = blob && typeof File === "function" ? new File([blob], name, { type: "image/png" }) : null;
     try {
-      if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: shortName(r.n), text: `${shortName(r.n)} · 집핀 ${url}` }); return; }
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title, text }); return; }
     } catch (e) { if (e && e.name === "AbortError") return; }
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
@@ -77,20 +79,6 @@ const EXTRA = (() => {
     select = function (id) { const x = _sel.apply(this, arguments); try { if (byId[id]) pushR(id); } catch (e) {} return x; };
     const _rr = renderReport; renderReport = function () { const x = _rr.apply(this, arguments); try { addCardBtn(cur); } catch (e) {} return x; };
     try { addCardBtn(cur); } catch (e) {}
-    // 찜이 비었을 때: 한 줄 + 버튼
-    const _rf = renderFav;
-    renderFav = function () {
-      const x = _rf.apply(this, arguments);
-      try {
-        const out = $("fvOut");
-        if (out && !FAV.length && out.querySelector(".t-empty")) {
-          out.innerHTML = `<div class="x-empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20.3s-7.6-4.6-7.6-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.6 2.5c0 5.6-7.6 10.2-7.6 10.2z"/></svg><p>아직 찜한 구역이 없어요.<br>구역을 열고 <b>☆ 찜</b>을 누르면 여기서 나란히 비교해요.</p><button type="button" class="btn primary sm" id="xFavGo">지도에서 고르기</button></div>`;
-          $("xFavGo").onclick = () => { try { SIMPLE.close(true); } catch (e) {} };
-        }
-      } catch (e) {}
-      return x;
-    };
-    try { renderFav(); } catch (e) {}
   }
   function addCardBtn(r) {
     const acts = document.querySelector("#report .rep-acts");
@@ -100,6 +88,6 @@ const EXTRA = (() => {
     b.onclick = () => shareCard(r, $("zoneShareFb"));
     const sh = $("zoneShare"); sh ? sh.after(b) : acts.appendChild(b);
   }
-  return { init, card };
+  return { init, card, shareCv, rr };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", EXTRA.init) : setTimeout(EXTRA.init, 0);

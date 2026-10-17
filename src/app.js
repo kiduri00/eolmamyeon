@@ -532,8 +532,8 @@
     else if (!isMember())
       html = lockCard({
         kind: "note",
-        title: `${moLabel()} 단계 변경 ${MO.items.length}곳 · 내 찜과 내 현금으로 보기`,
-        line: `목록 자체는 <a href="${MO.url}">공개 리포트</a>에서 무료로 볼 수 있어요. 멤버십은 여기서 찜한 구역 표시와 '내 현금으로 되나'까지 한 번에 보여 줘요.`,
+        title: `${moLabel()} 단계 변경 ${MO.items.length}곳 · 내 핀과 내 현금으로 보기`,
+        line: `목록 자체는 <a href="${MO.url}">공개 리포트</a>에서 무료로 볼 수 있어요. 멤버십은 여기서 핀 꽂은 구역 표시와 '내 현금으로 되나'까지 한 번에 보여 줘요.`,
         ctx: "new",
       });
     else {
@@ -551,7 +551,7 @@
                 ? `<span class="okc">입주까지 ${e2(x.needTotal)}억 · 됨</span>`
                 : `<span class="mut">입주까지 ${e2(x.needTotal)}억</span>`
               : '<span class="mut">계산 전</span>';
-            return `<tr${fav ? ' class="cur"' : ""}><td>${fav ? "★ " : ""}<a href="#${esc(it.id)}">${esc(shortName(r.n))}</a><small class="mut"> ${esc(r.g)}</small></td><td>${STEP_K[it.step] || esc(it.step)}</td><td class="n">${it.date.slice(5).replace("-", ".")}</td><td>${it.src ? `<a href="${esc(it.src)}" target="_blank" rel="noopener" data-nw="1">원문<span class="sr-only"> (새 창)</span></a>` : '<span class="mut">원문 미확인</span>'}</td><td>${can}</td></tr>`;
+            return `<tr${fav ? ' class="cur"' : ""}><td>${fav ? SVG_PIN(true) + " " : ""}<a href="#${esc(it.id)}">${esc(shortName(r.n))}</a><small class="mut"> ${esc(r.g)}</small></td><td>${STEP_K[it.step] || esc(it.step)}</td><td class="n">${it.date.slice(5).replace("-", ".")}</td><td>${it.src ? `<a href="${esc(it.src)}" target="_blank" rel="noopener" data-nw="1">원문<span class="sr-only"> (새 창)</span></a>` : '<span class="mut">원문 미확인</span>'}</td><td>${can}</td></tr>`;
           })
           .join("");
         const NX = {
@@ -590,17 +590,17 @@
           })
           .join("");
         const favT = FAV.length
-          ? `<p style="margin-top:14px"><b>내 찜 구역은 지금</b> · 같은 단계 서울 사업장의 가운데 값(아직 못 간 구역 포함)과 비교</p><div class="tbl-wrap"><table class="nw-t"><thead><tr><th>구역</th><th>단계</th><th class="n">지금 단계</th><th>같은 단계와 비교</th></tr></thead><tbody>${favRows}</tbody></table></div>`
-          : `<p class="mut" style="margin-top:12px">구역 카드나 리포트에서 ☆ 찜을 누르면 여기서 그 구역이 같은 단계 가운데 값보다 빠른지 늦은지 매달 보여 줘요.</p>`;
+          ? `<p style="margin-top:14px"><b>내 핀 구역은 지금</b> · 같은 단계 서울 사업장의 가운데 값(아직 못 간 구역 포함)과 비교</p><div class="tbl-wrap"><table class="nw-t"><thead><tr><th>구역</th><th>단계</th><th class="n">지금 단계</th><th>같은 단계와 비교</th></tr></thead><tbody>${favRows}</tbody></table></div>`
+          : `<p class="mut" style="margin-top:12px">구역 카드나 리포트에서 핀을 꽂으면 여기서 그 구역이 같은 단계 가운데 값보다 빠른지 늦은지 매달 보여 줘요.</p>`;
         const chg = MO.items.filter((it) => FAV.includes(it.id)).length;
         {
           const hf = $("huFav");
           if (hf) {
             hf.classList.toggle("chg", chg > 0);
-            if (chg) hf.setAttribute("title", `찜한 구역 ${chg}곳이 ${moLabel()}에 단계가 바뀌었어요`);
+            if (chg) hf.setAttribute("title", `핀 꽂은 구역 ${chg}곳이 ${moLabel()}에 단계가 바뀌었어요`);
           }
         }
-        html = `${chg ? `<p class="nw-chg"><b>찜한 구역 ${chg}곳이 ${moLabel()}에 다음 단계로 넘어갔어요.</b> 아래 표에서 ★로 표시돼요.</p>` : ""}<div class="nw-note"><p><b>${moLabel()}에 인가 ${MO.items.length}건(구역 ${new Set(MO.items.map((x) => x.id)).size}곳)</b> · 계산기 현금 ${e2(CASH)}억 기준 · ★ 내가 찜한 구역</p><div class="tbl-wrap"><table class="nw-t"><thead><tr><th>구역</th><th>단계</th><th class="n">인가일</th><th>원문</th><th>내 현금으로</th></tr></thead><tbody>${rows}</tbody></table></div><p class="mut">전체 리포트(자치구 집계·10년 흐름): <a href="${MO.url}">${moLabel()} 리포트</a></p>${favT}</div>`;
+        html = `${chg ? `<p class="nw-chg"><b>핀 꽂은 구역 ${chg}곳이 ${moLabel()}에 다음 단계로 넘어갔어요.</b> 아래 표에 핀 아이콘으로 표시돼요.</p>` : ""}<div class="nw-note"><p><b>${moLabel()}에 인가 ${MO.items.length}건(구역 ${new Set(MO.items.map((x) => x.id)).size}곳)</b> · 계산기 현금 ${e2(CASH)}억 기준 · 핀 아이콘은 내가 핀 꽂은 구역</p><div class="tbl-wrap"><table class="nw-t"><thead><tr><th>구역</th><th>단계</th><th class="n">인가일</th><th>원문</th><th>내 현금으로</th></tr></thead><tbody>${rows}</tbody></table></div><p class="mut">전체 리포트(자치구 집계·10년 흐름): <a href="${MO.url}">${moLabel()} 리포트</a></p>${favT}</div>`;
       } catch (e) {
         html = `<div class="t-empty"><b>${moLabel()} 단계 변경 ${MO.items.length}곳</b><p><a href="${MO.url}">리포트에서 보기</a></p></div>`;
       }
@@ -5993,8 +5993,10 @@
           : "";
   const cheapSentence = (x, need, lab) =>
     `가장 적게 드는 곳은 <b>${esc(shortName(x.r.n))}</b>, ${lab} <b>${e2(need)}억</b>이에요${cheapFlag(x) ? ` <span class="flag">(${cheapFlag(x)})</span>` : ""}.`;
-  const SVG_STAR = (on) =>
-    `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+  // 내 핀 아이콘: 남색 물방울 핀 + 노란 점(public/icon.svg와 같은 모양)
+  const SVG_PIN = (on) =>
+    `<svg class="pin-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6z" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="9.4" r="2.6" fill="${on ? "var(--pin-dot, #F5C33B)" : "none"}" stroke="${on ? "none" : "currentColor"}" stroke-width="1.7"/></svg>`;
+  const SVG_STAR = SVG_PIN;
   const byName = (a, b) => a.localeCompare(b, "ko");
   const FAV_KEY = "jg-fav";
   let FAV = [];
@@ -6012,7 +6014,7 @@
   const isFav = (id) => FAV.includes(id);
   const favBtn = (r, cls = "") =>
     r
-      ? `<button type="button" class="favb ${cls}" data-fav="${r.id}" aria-pressed="${isFav(r.id)}" aria-label="${esc(shortName(r.n))} ${isFav(r.id) ? "찜 해제" : "찜하기"}">${SVG_STAR(isFav(r.id))}<span>${isFav(r.id) ? "찜함" : "찜"}</span></button>`
+      ? `<button type="button" class="favb ${cls}" data-fav="${r.id}" aria-pressed="${isFav(r.id)}" aria-label="${esc(shortName(r.n))} ${isFav(r.id) ? "핀 빼기" : "핀 꽂기"}">${SVG_PIN(isFav(r.id))}<span>${isFav(r.id) ? "꽂음" : "핀 꽂기"}</span></button>`
       : "";
   const BLOG_URL = "https://blog.naver.com/always_questions";
   const leadCard = (cls = "") =>
@@ -6868,7 +6870,7 @@
         ? `<table class="sm-t"><caption class="sr-only">${cap}</caption><thead><tr><th scope="col">구역</th><th scope="col">단계</th><th scope="col" class="n">① 지금</th><th scope="col" class="n">③ 입주까지</th><th scope="col" class="n">10년 준공</th><th scope="col">입주(추정)</th><th scope="col">가까운 역</th></tr></thead><tbody>${rows.map((x) => `<tr><th scope="row">${esc(shortName(x.r.n))}<small>${esc(x.r.g)}</small></th><td>${esc(x.stg)}</td><td class="n">${eok(x.now)}</td><td class="n"><b>${eok(x.tot)}</b></td><td class="n">${pc(x.p10)}</td><td>${yr(x.eta)}</td><td>${esc(x.stn)}</td></tr>`).join("")}</tbody></table>`
         : "";
     const nowLab = gap ? "전세 끼고 지금 드는 돈(매수가 − 전세금 + 취득세)" : "지금 드는 돈(매수가 + 취득세 − 매수 대출)";
-    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${e2(CASH)}억으로 ${gap ? "전세 끼고 지금 살 수 있는" : P.basis === "now" ? "지금 살 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>입주까지 총액이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>내가 찜한 구역 ${fav.length}곳</h3>${tbl(fav, "찜한 구역")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 필요한 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
+    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${e2(CASH)}억으로 ${gap ? "전세 끼고 지금 살 수 있는" : P.basis === "now" ? "지금 살 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>입주까지 총액이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>내 핀 ${fav.length}곳</h3>${tbl(fav, "내 핀")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 필요한 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
   }
   function sumOpen() {
     if (!isMember()) {
@@ -7735,9 +7737,10 @@
     if (isFav(id)) {
       FAV = FAV.filter((x) => x !== id);
       CMP = CMP.filter((x) => x !== id);
+      PINS.drop(id);
     } else {
       FAV.push(id);
-      if (CMP.length < 3) CMP.push(id);
+      PINS.add(id);
     }
     saveFav();
     syncFav();
@@ -7747,17 +7750,12 @@
       const on = isFav(b.dataset.fav),
         r = byId[b.dataset.fav];
       b.setAttribute("aria-pressed", String(on));
-      b.setAttribute("aria-label", `${r ? shortName(r.n) : ""} ${on ? "찜 해제" : "찜하기"}`);
-      b.innerHTML = `${SVG_STAR(on)}<span>${on ? "찜함" : "찜"}</span>`;
+      b.setAttribute("aria-label", `${r ? shortName(r.n) : ""} ${on ? "핀 빼기" : "핀 꽂기"}`);
+      b.innerHTML = `${SVG_PIN(on)}<span>${on ? "꽂음" : "핀 꽂기"}</span>`;
     });
-    const n = $("favN");
-    if (n) {
-      n.hidden = !FAV.length;
-      n.textContent = FAV.length;
-    }
-    const hf = $("huFav");
-    if (hf) hf.setAttribute("aria-label", `찜·비교${FAV.length ? ` ${FAV.length}곳` : ""}`);
     renderFav();
+    PINS.badges();
+    PINS.emit();
   }
   document.addEventListener(
     "click",
@@ -7770,14 +7768,10 @@
         mbOpen("fav");
         return;
       }
-      toggleFav(b.dataset.fav);
-      const lv = $("mapLive");
-      if (lv) {
-        lv.textContent = "";
-        setTimeout(() => {
-          lv.textContent = isFav(b.dataset.fav) ? "찜에 담았어요" : "찜에서 뺐어요";
-        }, 30);
-      }
+      const id = b.dataset.fav;
+      if (!isFav(id) && !PINS.room(id)) return;
+      toggleFav(id);
+      PINS.feedback(b, id, isFav(id));
     },
     true,
   );
@@ -7794,7 +7788,7 @@
         FAV = FAV.concat(add);
         saveFav();
         CMP = ids.slice(0, 3);
-        FAV_NOTE = `공유 링크로 받은 ${ids.length}곳을 찜에 담았어요${add.length < ids.length ? ` (${ids.length - add.length}곳은 이미 찜)` : ""}.`;
+        FAV_NOTE = `공유 링크로 받은 ${ids.length}곳에 핀을 꽂았어요${add.length < ids.length ? ` (${ids.length - add.length}곳은 이미 꽂혀 있어요)` : ""}.`;
       }
       q.delete("fav");
       try {
@@ -7808,39 +7802,9 @@
     q.set("fav", (CMP.length >= 2 ? CMP : FAV).join("."));
     return pageURL() + "?" + q.toString() + "#favTop";
   }
-  function renderFav() {
-    const out = $("fvOut");
-    if (!out) return;
-    if (!isMember()) {
-      setHTML(
-        out,
-        lockCard({
-          kind: "table",
-          title: "찜·비교",
-          line: `찜한 구역 2~3곳을 필요한 돈·입주 시점·준공 확률로 나란히 비교하고 링크로 보낼 수 있어요.${FAV.length ? ` 지금까지 찜한 ${fmt(FAV.length)}곳은 그대로 남아 있어요.` : ""}`,
-          ctx: "fav",
-        }),
-      );
-      return;
-    }
-    const note = FAV_NOTE ? `<p class="t-ok">${esc(FAV_NOTE)}</p>` : "";
-    if (!FAV.length) {
-      setHTML(
-        out,
-        `${note}<div class="t-empty"><b>찜·비교 쓰는 법</b><p>계산 결과 카드, 구역 리포트, 출퇴근 결과의 <span class="favb demo" aria-hidden="true">${SVG_STAR(false)}<span>찜</span></span> 버튼을 누르면 여기에 모여요. 2~3곳을 찜하면 입주까지 필요한 현금, 지금 계약할 때 드는 돈, 현재 단계, 10년 안 준공 가능성을 한 표로 나란히 볼 수 있어요. 찜 목록은 이 브라우저에만 저장되고 서버로 보내지 않아요.</p><div class="t-acts"><a class="btn secondary sm" href="#results" data-jump2="results">계산 결과로 가기</a></div></div>`,
-      );
-      return;
-    }
-    CMP = CMP.filter(isFav).slice(0, 3);
-    const picks = FAV.map((id) => byId[id])
-      .map(
-        (r) =>
-          `<button type="button" class="fv-pick" data-cmp="${r.id}" aria-pressed="${CMP.includes(r.id)}">${esc(shortName(r.n))}<small>${esc(r.g)}</small></button>`,
-      )
-      .join("");
-    const sel = CMP.map((id) => byId[id]);
+  // 내 핀: 목록·소식은 PINS(ext/70_pins.js), 나란히 보기 표는 여기서
+  function favCmpTable(sel) {
     let table = "";
-    if (sel.length >= 2) {
       const xs = sel.map((r) => ({ r, x: r.src === "moa" ? null : investC(r), w: buyWindow(r), s: stnInfo(r), hj: nearHojae(r) }));
       const tot = (o) => {
         if (gapMode()) {
@@ -7867,7 +7831,7 @@
       const cell = (i, b, html) =>
         `<td${i === b ? ' class="bst"' : ""}>${html}${i === b ? '<i class="bdot" aria-label="이 줄에서 가장 유리한 값"></i>' : ""}</td>`;
       const row = (lab, f, b = -1) => `<tr><th scope="row">${lab}</th>${xs.map((o, i) => cell(i, b, f(o, i))).join("")}</tr>`;
-      table = `<p class="fv-base">비교 기준: ${gapMode() ? "전세 끼고 " : "현금 "}${e2(CASH)}억${num("pIncome") != null ? ` · 연소득 ${fmt(num("pIncome"))}만원` : " · 연소득 미입력"} (계산기에 넣은 조건)</p>${84 + xs.length * 120 > 340 ? '<p class="fv-hint" aria-hidden="true">옆으로 밀어서 더 보기 →</p>' : ""}<div class="fv-tw"><table class="fv-t" style="min-width:${84 + xs.length * 120}px"><caption class="sr-only">찜한 구역 비교</caption><thead><tr><th scope="col"><span class="sr-only">항목</span></th>${xs.map((o) => `<th scope="col"><button type="button" class="fv-open" data-open="${o.r.id}">${esc(shortName(o.r.n))}</button><small>${esc(o.r.g)} ${esc((o.r.bj || o.r.j || "").split(" ")[0])}</small></th>`).join("")}</tr></thead><tbody>\n      ${row("입주까지 현금", (o, i) => (cash[i] != null ? `<b>${e2(cash[i])}억</b><small>${cash[i] <= CASH ? `내 현금 ${e2(CASH)}억으로 가능` : `${e2(cash[i] - CASH)}억 부족`}</small>` : '<span class="mut">계산 불가</span>'), bc)}\n      ${
+      table = `<p class="fv-base">비교 기준: ${gapMode() ? "전세 끼고 " : "현금 "}${e2(CASH)}억${num("pIncome") != null ? ` · 연소득 ${fmt(num("pIncome"))}만원` : " · 연소득 미입력"} (계산기에 넣은 조건)</p>${84 + xs.length * 120 > 340 ? '<p class="fv-hint" aria-hidden="true">옆으로 밀어서 더 보기 →</p>' : ""}<div class="fv-tw"><table class="fv-t" style="min-width:${84 + xs.length * 120}px"><caption class="sr-only">핀 꽂은 구역 나란히 보기</caption><thead><tr><th scope="col"><span class="sr-only">항목</span></th>${xs.map((o) => `<th scope="col"><button type="button" class="fv-open" data-open="${o.r.id}">${esc(shortName(o.r.n))}</button><small>${esc(o.r.g)} ${esc((o.r.bj || o.r.j || "").split(" ")[0])}</small></th>`).join("")}</tr></thead><tbody>\n      ${row("입주까지 현금", (o, i) => (cash[i] != null ? `<b>${e2(cash[i])}억</b><small>${cash[i] <= CASH ? `내 현금 ${e2(CASH)}억으로 가능` : `${e2(cash[i] - CASH)}억 부족`}</small>` : '<span class="mut">계산 불가</span>'), bc)}\n      ${
         gapMode()
           ? row("전세 끼고 지금 ①", (o) => {
               const g = gapOf(o.r);
@@ -7891,11 +7855,39 @@
             : '<span class="mut">1.5km 안 없음</span>',
         bh,
       )}\n      ${row("입주권 판단", (o) => `<span class="io ${o.w.cls}">${esc(o.w.t)}</span>${o.w.due ? `<small>${esc(o.w.due)}</small>` : ""}`)}\n      ${row("매물", (o) => (listingURL(o.r) ? `<a class="btn text sm" href="${esc(listingURL(o.r))}" target="_blank" rel="noopener">${noTicket(o.r) ? "주변 시세 보기" : "매물 보기"} ↗</a>` : "–"))}\n    </tbody></table></div><p class="t-note"><i class="bdot" aria-hidden="true"></i> 표시는 그 줄에서 숫자가 가장 유리한 칸(현금·도보는 적은 쪽, 확률·호재는 많은 쪽)이에요. 어느 구역이 낫다는 뜻은 아니에요 · 추정치 · 투자 권유 아님</p>`;
-    } else table = `<p class="t-hint">비교할 구역을 2~3곳 골라 주세요 (지금 ${sel.length}곳)</p>`;
+    return table;
+  }
+  function renderFav() {
+    const out = $("fvOut");
+    if (!out) return;
+    const co = $("pnCmpOut");
+    if (!isMember()) {
+      setHTML(
+        out,
+        lockCard({
+          kind: "table",
+          title: "내 핀",
+          line: `핀 꽂은 구역의 단계·신고가·필요한 돈 변화를 모아 보고, 2~3곳을 나란히 비교해요.${FAV.length ? ` 지금까지 꽂은 핀 ${fmt(FAV.length)}곳은 그대로 남아 있어요.` : ""}`,
+          ctx: "fav",
+        }),
+      );
+      if (co) setHTML(co, "");
+      return;
+    }
+    const note = FAV_NOTE ? `<p class="t-ok">${esc(FAV_NOTE)}</p>` : "";
+    if (!FAV.length) {
+      setHTML(out, `${note}${PINS.emptyHTML()}`);
+      if (co) setHTML(co, "");
+      return;
+    }
+    CMP = CMP.filter(isFav).slice(0, 3);
     setHTML(
       out,
-      `${note}<div class="fv-h"><b>찜 ${FAV.length}곳</b><span>눌러서 비교할 구역 고르기 (최대 3곳)</span></div><div class="fv-picks">${picks}</div>${table}\n    <div class="t-acts"><button type="button" class="btn secondary sm" id="fvShare">찜 목록 링크 복사</button><span class="share-fb" id="fvShareFb" role="status"></span><button type="button" class="btn text sm" id="fvClear">찜 모두 지우기</button></div>`,
+      `${note}${PINS.listHTML()}
+    <div class="t-acts pn-acts"><button type="button" class="btn secondary sm" id="fvShare">핀 목록 링크 복사</button><span class="share-fb" id="fvShareFb" role="status"></span><button type="button" class="btn text sm" id="fvClear">핀 모두 빼기</button></div>`,
     );
+    if (co) setHTML(co, PINS.cmpShown() && CMP.length >= 2 ? `<div class="pn-cmp"><div class="pn-cmp-h"><h3 id="pnCmpT" tabindex="-1">나란히 보기</h3><button type="button" class="btn text sm" id="pnCmpX">닫기</button></div>${favCmpTable(CMP.map((id) => byId[id]))}</div>` : "");
+    PINS.after();
   }
   document.addEventListener("click", (e) => {
     const t = e.target.closest && e.target.closest("[data-cmp],[data-open],#fvShare,#fvClear,[data-jump2]");
@@ -7924,6 +7916,7 @@
       FAV = [];
       CMP = [];
       FAV_NOTE = "";
+      PINS.clear();
       saveFav();
       syncFav();
       return;
