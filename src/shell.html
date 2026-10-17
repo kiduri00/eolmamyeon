@@ -10,6 +10,10 @@
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#14171C" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="얼마면 재개발">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" media="print" onload="this.media='all'" crossorigin>
@@ -365,5 +369,6 @@
 <script type="application/json" id="freeMode">{"prem": "premium.json", "preview": false}</script>
 <script type="application/json" id="adsCfg">{"adsense":{"client":"ca-pub-9772652926977648","slots":{"mid":"","bottom":"","page":""}}}</script>
 <script>/*APPJS*/</script>
+<script>if("serviceWorker"in navigator&&location.protocol==="https:")addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})});</script>
 </body>
 </html>

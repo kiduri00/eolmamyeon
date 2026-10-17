@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "얼마면 재개발 · 서울 재개발 계산기",
+  "short_name": "얼마면 재개발",
+  "description": "가진 현금으로 들어갈 수 있는 서울 재개발·재건축 구역과 입주까지 필요한 돈을 계산합니다.",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "/?utm_source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#1F3A87",
+  "categories": ["finance", "productivity", "utilities"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "찜한 구역", "short_name": "찜", "url": "/?utm_source=pwa#favTop", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "월간 리포트", "short_name": "리포트", "url": "/report/?utm_source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
