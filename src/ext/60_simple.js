@@ -61,7 +61,21 @@ const SIMPLE = (() => {
     const g = hero.querySelector(".s-gauge"), sen = document.createElement("i");
     hero.after(g); sen.className = "s-sen"; g.before(sen);
     document.documentElement.style.setProperty("--hdr-h", (HDR() || 60) + "px");
-    if (window.IntersectionObserver) new IntersectionObserver((es) => es.forEach((x) => g.classList.toggle("stuck", !x.isIntersecting && x.boundingClientRect.top < 0)), { rootMargin: `-${(HDR() || 60) + 1}px 0px 0px 0px` }).observe(sen);
+    // 큰 게이지가 화면 위로 지나가면, 지도·목록을 보는 동안만 머리 아래에 한 줄짜리 게이지를 띄운다(흐름 높이는 그대로)
+    const mini = document.createElement("div");
+    mini.className = "s-mini"; mini.id = "sMini"; mini.hidden = true;
+    mini.innerHTML = `<b id="sMiniV">1억</b><input type="range" id="sMiniR" min="0.5" max="15" step="0.5" value="1" aria-label="가진 현금(억)"><span><b id="sMiniN">0</b>곳</span>`;
+    document.body.appendChild(mini);
+    const mr = mini.querySelector("#sMiniR");
+    mr.addEventListener("input", () => { $("sCash").value = mr.value; label(+mr.value); clearTimeout(timer); timer = setTimeout(() => setCash(+mr.value), 90); });
+    mr.addEventListener("change", () => { clearTimeout(timer); setCash(+mr.value); });
+    let gaugeOut = false, areaIn = true;
+    const sync = () => { mini.hidden = !(gaugeOut && areaIn && !document.documentElement.classList.contains("s-view")) || !matchMedia("(max-width:980px)").matches; };
+    if (window.IntersectionObserver) {
+      new IntersectionObserver((es) => es.forEach((x) => { gaugeOut = !x.isIntersecting && x.boundingClientRect.top < (x.rootBounds ? x.rootBounds.top : 0) + 1; sync(); }), { rootMargin: `-${(HDR() || 56)}px 0px 0px 0px` }).observe(g);
+      new IntersectionObserver((es) => es.forEach((x) => { areaIn = x.isIntersecting; sync(); }), { rootMargin: `-${(HDR() || 56) + 60}px 0px -40% 0px` }).observe(list);
+      new IntersectionObserver((es) => es.forEach((x) => { if (x.isIntersecting) { areaIn = true; sync(); } }), { rootMargin: `-${(HDR() || 56) + 60}px 0px 0px 0px` }).observe(map.querySelector(".main"));
+    }
     const tiles = document.createElement("section");
     tiles.className = "sec s-tiles"; tiles.id = "sTiles"; tiles.setAttribute("aria-labelledby", "sTT");
     const ic = (d, c) => `<i aria-hidden="true" style="--ic:${c}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg></i>`;
@@ -99,7 +113,7 @@ const SIMPLE = (() => {
     const sl = $("sCash");
     sl.addEventListener("input", () => { label(+sl.value); clearTimeout(timer); timer = setTimeout(() => setCash(+sl.value), 90); });
     sl.addEventListener("change", () => { clearTimeout(timer); setCash(+sl.value); });
-    map.querySelector(".s-mode").addEventListener("click", (e) => { const b = e.target.closest("button[data-f]"); if (b) setFund(b.dataset.f); });
+    map.querySelector(".s-mode").addEventListener("click", (e) => { const b = e.target.closest("button[data-f]"); if (!b) return; if (b.dataset.f === "cash") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (er) {} } setFund(b.dataset.f); });
     list.querySelector(".s-flt").addEventListener("click", (e) => {
       const b = e.target.closest("button[data-k]"); if (!b) return;
       kind = b.dataset.k; shown = 6;
@@ -118,8 +132,10 @@ const SIMPLE = (() => {
     if (b && getComputedStyle(b).display !== "none") b.click();
     else { window.scrollTo({ top: 0, behavior: "smooth" }); $("q").focus(); }
   }
-  function label(v) {
-    $("sCashV").textContent = `${String(v).replace(/\.0$/, "")}억`;
+  function label(v, real) {
+    const t = real != null && real > 15 ? "15억+" : `${String(real != null ? Math.round(real * 100) / 100 : v).replace(/\.0$/, "")}억`;
+    $("sCashV").textContent = t;
+    if ($("sMiniV")) { $("sMiniV").textContent = t; $("sMiniR").value = v; }
     const pct = ((v - 0.5) / 14.5) * 100;
     $("sCash").style.setProperty("--p", pct + "%");
   }
@@ -137,21 +153,22 @@ const SIMPLE = (() => {
     const gap = gapMode();
     const v = +$("pCash").value || 1;
     if (+$("sCash").value !== v) { $("sCash").value = Math.min(15, Math.max(0.5, v)); }
-    label(+$("sCash").value);
+    label(+$("sCash").value, v);
     $$(".s-mode button").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.f === "gap") === gap)));
     gu = mapView === "gu" && mapGu ? mapGu : "";
     const L = rows();
     const all = R.filter(okR).length;
     $("sN").textContent = fmt(all);
+    if ($("sMiniN")) $("sMiniN").textContent = fmt(all);
     $("sNL").textContent = gap ? "곳 전세 끼고 살 수 있어요" : effBasis() === "total" ? "곳 입주까지 내 돈으로 돼요" : "곳 대출 끼고 살 수 있어요";
     $("sLT").textContent = gu ? `${gu} · ${fmt(L.length)}곳` : `살 수 있는 곳 · ${fmt(L.length)}곳`;
     $("sLS").textContent = gap || effBasis() !== "total" ? "큰 숫자 = 지금 필요한 돈" : "큰 숫자 = 입주까지 필요한 돈";
     const sg = $("sGu");
     sg.hidden = !gu;
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
-    if (gu) $("sGuX").onclick = () => { exitGu({}); };
+    if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
-      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? `입주까지 ${n.total != null ? eokS(n.total) : "–"}` : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
+      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "") : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
       : `<li class="s-empty">${gu ? `${esc(gu)}에는 이 금액으로 되는 곳이 없어요.` : "이 금액으로 되는 곳이 없어요."} 게이지를 올려 보세요.</li>`;
     const m = $("sMore");
     m.hidden = L.length <= shown;
@@ -175,11 +192,18 @@ const SIMPLE = (() => {
     IDS.forEach((x) => { const s = $(x); if (s) s.classList.remove("s-on"); });
     document.documentElement.classList.remove("s-view");
     cur = "";
-    if (location.hash && IDS.includes(location.hash.slice(1))) try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) {}
+    if (history.state && history.state.sView) { try { history.back(); } catch (e) {} }
+    else if (location.hash && IDS.includes(location.hash.slice(1))) try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) {}
     if (scroll) requestAnimationFrame(() => { const t = $("sTiles"); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); });
   }
   function init() {
+    if (P.fund === "cash" && P.basis !== "now") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (e) {} }
     build();
+    // 메뉴(⋯)에 타일에서 뺀 화면도 넣는다
+    try {
+      const mp = $("menuPop"), anchor = mp && mp.querySelector('[data-menu="ntcTop"]');
+      if (anchor) anchor.insertAdjacentHTML("afterend", [["newTop", "이번 달 단계 변경", "인가·승인 받은 구역"], ["readsTop", "읽을거리", "월간 리포트·가이드"], ["results", "구역 카드로 자세히", "계산 카드 전체"]].map(([id, t, sm]) => `<a href="#${id}" data-menu="${id}"><b>${t}</b><small>${sm}</small></a>`).join(""));
+    } catch (e) {}
     try { SECT.mapTop(); } catch (e) {}
     // 기존 '바로가기'(메뉴·다음 단계·히어로 링크)는 해당 기능 화면을 연다
     document.addEventListener("click", (e) => {
@@ -192,6 +216,9 @@ const SIMPLE = (() => {
     const fromHash = () => { const h = location.hash.slice(1); if (IDS.includes(h)) open(h, false); else if (cur && !byId[h]) close(); };
     addEventListener("popstate", fromHash);
     fromHash();
+    // 딥링크: 브라우저 앵커 이동이 끝난 뒤 다시 맞춘다
+    const fix = () => { if (cur) { const el = $(cur); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } };
+    if (document.readyState === "complete") setTimeout(fix, 60); else addEventListener("load", () => setTimeout(fix, 60), { once: true });
     const _p = plan;
     plan = function () { const x = _p.apply(this, arguments); try { render(); } catch (e) {} return x; };
     const _eg = enterGu, _xg = exitGu;

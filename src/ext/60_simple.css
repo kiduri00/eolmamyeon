@@ -88,24 +88,10 @@ html:not(.simple) .s-back{display:none}
   .s-list a{padding:13px 14px}
 }
 
-/* 게이지 고정: 지도·목록을 보는 동안 머리 아래에 작게 */
-.s-sen{display:block;height:1px}
-.s-gauge{position:sticky;top:calc(var(--hdr-h,60px) + 6px);z-index:5;transition:padding .15s}
-.s-gauge.stuck{padding:10px 16px 8px;box-shadow:0 6px 18px rgba(15,23,42,.10)}
-.s-gauge.stuck .s-cash b{font-size:28px}
-.s-gauge.stuck .s-ticks,.s-gauge.stuck .s-hint{display:none}
-.s-gauge.stuck .s-count{margin-top:4px;padding-top:4px;border:0}
-.s-gauge.stuck .s-count b{font-size:18px}
-.s-gauge.stuck .s-mode button{min-height:30px;padding:0 11px}
 @media (min-width:981px){.s-search{display:none}}
 
 html.simple .s-on{padding-top:14px!important}
 html.simple #mapTop>.s-gauge{margin:0 0 14px}
-.s-gauge.stuck{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:8px 14px}
-.s-gauge.stuck .s-gtop{margin:0}.s-gauge.stuck .s-gtop .s-mode,.s-gauge.stuck .s-cash span{display:none}
-.s-gauge.stuck .s-cash b{font-size:24px}
-.s-gauge.stuck .s-count{margin:0;padding:0;white-space:nowrap}
-.s-gauge.stuck .s-count b{font-size:18px}.s-gauge.stuck .s-count span{font-size:13px}
 /* 레드팀 반영: 지도 주변 잔글씨 최소화 */
 html.simple #legend>:not(.ml-scale){display:none!important}
 html.simple #mapbox[data-view="gu"] ~ * #legend,html.simple #legend[data-view="gu"]{display:none!important}
@@ -118,12 +104,27 @@ html.simple #report .rep-empty .gl-cap{display:none}
 /* 목록 머리 */
 .s-lsub{margin:2px 0 0;font-size:12.5px;color:var(--text-3)}
 /* 게이지는 모바일에서만 붙인다 */
-@media (min-width:981px){.s-gauge,.s-gauge.stuck{position:static;display:block;padding:18px 20px 12px;box-shadow:none}}
 .s-hint{display:inline}
 @media (max-width:640px){.s-hint{display:block;margin:2px 0 0;width:100%}}
-.s-gauge.stuck .s-hint{display:none}
 /* 아래 탭바 선택 표시 */
 .s-nav button[aria-current="page"]{color:var(--brand)}
 .s-nav button:first-child:not([aria-current]){color:var(--text-2)}
 @media (max-width:980px){html.simple #report:not(.sheet){display:none!important}}
 html.simple .s-on>.sec-h p,html.simple .s-on .t-note,html.simple .s-on .loc-key{display:none!important}
+
+/* 한 줄 게이지(스크롤 중 머리 아래) */
+.s-mini{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));top:calc(var(--hdr-h,56px) + 6px);z-index:30;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:8px 14px;border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:0 6px 18px rgba(15,23,42,.12)}
+.s-mini[hidden]{display:none}
+.s-mini>b{font-size:22px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;min-width:3.2em}
+.s-mini span{font-size:13px;color:var(--text-2);white-space:nowrap}.s-mini span b{font-size:18px;color:var(--text-1);margin-right:2px}
+#sMiniR{-webkit-appearance:none;appearance:none;width:100%;height:24px;background:transparent}
+#sMiniR::-webkit-slider-runnable-track{height:8px;border-radius:99px;background:var(--surface-3)}
+#sMiniR::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-8px;border-radius:50%;background:var(--surface);border:3px solid var(--brand)}
+#sMiniR::-moz-range-track{height:8px;border-radius:99px;background:var(--surface-3)}
+#sMiniR::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--surface);border:3px solid var(--brand)}
+html.sheet-open .s-mini,html.menu-open .s-mini{display:none}
+/* 딥링크로 연 화면이 머리 밑에 깔리지 않게 */
+html.simple .s-on{scroll-margin-top:calc(var(--hdr-h,56px) + 8px)}
+/* 다크 모드 아이콘 대비 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-t i{color:color-mix(in srgb,var(--ic) 45%,#fff)}}
+:root[data-theme="dark"] .s-t i{color:color-mix(in srgb,var(--ic) 45%,#fff)}
