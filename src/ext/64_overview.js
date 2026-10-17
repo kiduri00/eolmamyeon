@@ -215,7 +215,7 @@ const OVX = (() => {
     const near = !sm && !wait && !usr && h.b === "v" && !est && en.src === "villa" && (en.radius || en.fill === "dong") && en.n > (h.n || 0) && en.med > 0;
     const nTo = en.last ? "20" + en.last.slice(0, 2) + en.last.slice(3, 5) : "";
     const u = sm ? sm.u : h.u;
-    const basis = near ? `${smpTxt(r)}${en.area_med ? ` · 전용 ${en.area_med}㎡ 안팎` : ""} · 계산 매수가와 같은 표본` : sm ? `${smpTxt(r) || `${sm.n}건 가운데 값`}${sm.nl < sm.n ? ` · 대지 면적 있는 ${sm.nl}건` : ""} · 매수가와 같은 표본` : hdBasis;
+    const basis = near ? `${smpTxt(r)}${en.area_med ? ` · 전용 ${en.area_med}㎡ 안팎` : ""}` : sm ? `${smpTxt(r) || `${sm.n}건 가운데 값`}${sm.nl < sm.n ? ` · 대지 면적 있는 ${sm.nl}건` : ""} · 매수가와 같은 표본` : hdBasis;
     const thin = near ? thinTag(en.n, nTo) : sm ? thinTag(sm.n, sm.to) : thinTag(h.n, h.to) || (h.st || h.w === 0 ? `오래된 거래${h.to ? ` · 최근 ${ym(h.to)}` : ""}` : "");
     const S = txRows(dd, h.r);
     const lq = lastQ(h.q), ag = dd && dd.x && dd.x.age, agn = (dd && dd.x && dd.x.agn) || {};
@@ -426,7 +426,7 @@ const OVX = (() => {
     }
     if (curTab === "money") try { fixGtl(p, r); } catch (e) {}
     // 입주 현금 탭이 짧아 아래가 비면 '계산 근거 · 숫자 바꿔 보기'를 펼쳐 둔다(한 번만 · 사용자가 접으면 그대로)
-    if (curTab === "money") requestAnimationFrame(() => { const pp = document.getElementById("pane"), f = pp && pp.querySelector(".s-fold"); if (!f || f.dataset.auto || cur !== r) return; f.dataset.auto = "1"; if (pp.getBoundingClientRect().height < innerHeight * 0.55) f.open = true; });
+    if (curTab === "money") requestAnimationFrame(() => { const pp = document.getElementById("pane"), f = pp && pp.querySelector(".s-fold"); if (!f || f.dataset.auto || cur !== r) return; f.dataset.auto = "1"; if (pp.getBoundingClientRect().height < innerHeight * 0.9) f.open = true; });
     if (curTab === "money" && apt) p.querySelectorAll(".rvj").forEach((x) => (x.hidden = true));
     if (curTab === "req") hideSect(/적용 기준|동의 기준|접도|조례/);
     // 입주 현금 탭이 접힌 근거만 남아 비면, 위 카드의 결론을 한 번 더 크게
