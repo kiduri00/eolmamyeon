@@ -227,7 +227,7 @@ const OVX = (() => {
     ];
     const ch = h.q && h.q.length > 2 ? chart(r, h.q, per) : "";
     return `<div class="ov-c ov-tx${thin ? " thin" : ""}"><h3>실거래 ${yoy}</h3>
-      <div class="ov-big"><span>${near ? "주변 빌라 매매가" : per}</span><b${thin ? ' title="표본이 적거나 오래돼 지금 시세와 다를 수 있어요"' : ""}${wait ? ' aria-busy="true"' : ""}>${wait ? "…" : near ? manT(en.med / 1e4) : eok(u)}</b>${thin && !wait ? `<em class="ov-thin">${thin}</em>` : ""}</div>
+      <div class="ov-big"><span>${near ? "주변 빌라 매매가 · 계산 매수가" : per}</span><b${thin ? ' title="표본이 적거나 오래돼 지금 시세와 다를 수 있어요"' : ""}${wait ? ' aria-busy="true"' : ""}>${wait ? "…" : near ? manT(en.med / 1e4) : eok(u)}</b>${thin && !wait ? `<em class="ov-thin">${thin}</em>` : ""}</div>
       <p class="ov-basis">${wait ? "매수가 표본 기준 불러오는 중" : `기준 · ${esc(basis)}`}</p>
       ${near ? calcRow(r, false, en.med) : calcRow(r, sm && !usr)}
       ${altHTML(alts, ch)}
@@ -257,7 +257,7 @@ const OVX = (() => {
   function calcRow(r, same, dup) {
     let x = null; try { x = investC(r); } catch (e) {}
     if (!x || x.price == null || !isFinite(x.price)) return "";
-    if (dup && x.priceSrc !== "user" && Math.abs(x.price * 1e4 - dup) < 1) return `<div class="ov-calc"><span>계산 매수가</span><b>${manT(x.price)}</b><small>= 위 값 · 입주 현금 계산 기준</small></div>`;
+    if (dup && x.priceSrc !== "user" && Math.abs(x.price * 1e4 - dup) < 1) return "";   // 위 큰 숫자가 곧 계산 매수가(기준 줄에 '계산 매수가와 같은 표본')
     let est = false; try { est = isEst(r); } catch (e) {}
     const en = (r.mk && r.mk.entry) || {};
     const smp = x.priceSrc === "user" && !est ? "직접 입력" : same ? `위와 같은 ${en.n}건의 매매가 가운데 값` : smpTxt(r, x);
@@ -363,7 +363,8 @@ const OVX = (() => {
       let fn = String(r.n || "").replace(/^\s*(\(가칭\)|\[임시\]|\(임시\))\s*/, "").replace(/\s*(\(가칭\)|\[임시\]|\(임시\))\s*$/, "").replace(/\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?(사업)?\s*(조합|추진위원회|조합설립추진위원회|주민대표회의)?\s*$/, "").trim();
       for (let i = 0; i < 3; i++) fn = fn.replace(/\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)\s*(정비)?(사업|구역)?\s*$/, "").trim();   // '도시정비형 재개발사업' 같은 겹친 꼬리(tools/zpages.py short와 같은 규칙)
       const h2 = head.querySelector("#repTitle");
-      if (h2 && fn && fn.replace(/\s/g, "") !== shortName(r.n).replace(/\s/g, "") && !head.querySelector(".ov-formal")) h2.insertAdjacentHTML("afterend", `<p class="ov-formal">공식 이름 ${esc(fn)}</p>`);
+      const f0 = fn.replace(/\s/g, ""), s0 = shortName(r.n).replace(/\s/g, "");
+      if (h2 && fn && f0 !== s0 && !(f0.startsWith(s0) && f0.length - s0.length <= 3) && !head.querySelector(".ov-formal")) h2.insertAdjacentHTML("afterend", `<p class="ov-formal">공식 이름 ${esc(fn)}</p>`);
     } catch (e) {}
     // 주소 줄: 구 동 · 단계 · 역 도보
     const wh = head.querySelector(".where");

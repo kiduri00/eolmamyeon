@@ -8290,7 +8290,7 @@
     const key = (i, li) => i + "|" + li;
     const addE = (i, j, li, km) => {
       const gtx = /^GTX/.test(LNS[li]);
-      const w = gtx ? Math.max(2.2, km * 0.75) : km > 1.4 ? Math.max(2.2, km * 1.6) : 2.2;
+      const w = gtx ? Math.max(2.2, km * 0.75) : Math.max(2, km * 1.6);   // 역 사이 최소 2분(정차 포함), 먼 구간은 km당 1.6분
       [
         [i, j],
         [j, i],
@@ -8384,6 +8384,9 @@
     });
     return (GRAPH = { adj, byN, key, gl });
   }
+  // 노선별 평균 대기(배차 간격의 절반, 분): 배차가 긴 경의중앙·경춘·지선은 갈아타거나 처음 탈 때 더 기다린다
+  const HW = { "1호선": 3, 경의중앙선: 6, 경춘선: 8, 서해선: 6, 공항철도: 4, 수인분당선: 4, 우이신설선: 2.5, 신림선: 2.5, "GTX-A": 5 };
+  const hw = (li) => (li >= LNS.length ? 4 : HW[LNS[li]] ?? 2.5);
   function commuteFrom(dest) {
     const g = buildGraph(),
       D = new Map(),
@@ -8433,7 +8436,7 @@
       (g.byN.get(STN[i].n) || []).forEach((j) =>
         g.gl[j].forEach((l2) => {
           const k2 = g.key(j, l2);
-          if (k2 !== k) nb.push([k2, 5]);
+          if (k2 !== k) nb.push([k2, 6 + hw(li)]);   // 환승 = 갈아타는 길 6분 + 갈아탈 노선 평균 대기
         }),
       );
       nb.forEach(([k2, w]) => {
@@ -8445,11 +8448,13 @@
       });
     }
     const best = new Map();
-    D.forEach((d, k) => {
-      const i = +k.split("|")[0],
-        n = STN[i].n;
+    D.forEach((d0, k) => {
+      const [i, li] = k.split("|").map(Number),
+        n = STN[i].n,
+        d = d0 + (n === dest ? 0 : hw(li));   // 출발역에서 처음 탈 때 대기
+
       const b = best.get(n);
-      if (!b || d < b.d) best.set(n, { d, k });
+      if (!b || d < b.d) best.set(n, { d, k, m: d0 });   // 고를 때는 첫 대기까지, 보여 줄 때는 타고 가는 시간(m)
     });
     const route = (n) => {
       const b = best.get(n);
@@ -8464,7 +8469,7 @@
       const tr = [];
       for (let a = 1; a < st.length; a++)
         if (st[a][1] !== st[a - 1][1] && STN[st[a][0]].n === STN[st[a - 1][0]].n && !tr.includes(STN[st[a][0]].n)) tr.push(STN[st[a][0]].n);
-      return { min: b.d, tr, first: LNS[st[0][1]] || "2호선", path: st.map(([i, l]) => STN[i].n + ":" + (LNS[l] || "2지선")) };
+      return { min: b.m, tr, first: LNS[st[0][1]] || "2호선", path: st.map(([i, l]) => STN[i].n + ":" + (LNS[l] || "2지선")) };
     };
     return { best, route };
   }

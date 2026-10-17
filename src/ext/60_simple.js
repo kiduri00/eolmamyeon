@@ -614,7 +614,7 @@ const SIMPLE = (() => {
       const go = () => { requestAnimationFrame(back); setTimeout(back, 80); setTimeout(back, 200); };
       go();
       // history.back()이면 브라우저가 popstate 때 예전 자리(홈이 숨은 뒤 줄어든 값)로 되돌리므로 그 뒤에 한 번 더
-      if (popB) { addEventListener("popstate", go, { once: true }); setTimeout(() => removeEventListener("popstate", go), 1500); }
+      if (popB) { addEventListener("popstate", go, { once: true }); setTimeout(() => removeEventListener("popstate", go), 8000); }
     }
     if (wasOpen) fitSp();
   }
