@@ -16,7 +16,7 @@
     if (!MODES.some(([k]) => k === colorBy)) colorBy = "cash";
     // 겹쳐 보는 레이어(호갱노노식): 지도 바탕 POI는 OpenFreeMap 벡터 타일, 나머지는 사이트 자료
     const LAYERS = [["hj", "개발 호재", "신설 노선 역·복합개발"], ["hi", "신고가", "최근 3개월, 2024년 이후 최고가"], ["edu", "학교", "초·중·고"], ["acad", "학원가", "학원 점포가 많은 상권"], ["biz", "상권", "점포 수·분기 매출"], ["med", "병원", "종합·대형병원"], ["mart", "대형마트", "이마트·홈플러스 등"]];
-    let lyr = (() => { try { return new Set(JSON.parse(store.get("emr.lyr", '["hj"]'))); } catch (e) { return new Set(["hj"]); } })();
+    let lyr = (() => { try { return new Set(JSON.parse(store.get("emr.lyr", '[]'))); } catch (e) { return new Set(); } })();
     const RAMP = ["#C9D2E3", "#9EB0D3", "#6F89C0", "#3F5FA3", "#1F3A87"];
     const RAMP_D = ["#2B3546", "#33507E", "#4A6DAA", "#7392D0", "#A9C0EE"];
     const BINS = { old: [[40, "40% 미만"], [60, "40~60%"], [67, "60~67%"], [80, "67~80%"], [101, "80% 이상"]], vol: [[1, "0건"], [5, "1~4건"], [15, "5~14건"], [40, "15~39건"], [1e9, "40건 이상"]], yoy: [[-10, "−10% 미만"], [0, "−10~0%"], [10, "0~+10%"], [25, "+10~25%"], [1e9, "+25% 이상"]] };

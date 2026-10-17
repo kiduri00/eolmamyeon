@@ -1,0 +1,130 @@
+/* ===== 단순 첫 화면 ===== */
+/* 첫 화면에서 숨기는 것: 옛 히어로·계산기·탭바·각 기능 섹션(타일로 연다)·지도 설명 글 */
+html.simple #intro,html.simple .tabbar,html.simple #blogCta,html.simple .ad-slot[data-slot="mid"]{display:none!important}
+html.simple #planner:not(.s-on),html.simple #results:not(.s-on),html.simple #commuteTop:not(.s-on),html.simple #rankTop:not(.s-on),html.simple #txrTop:not(.s-on),html.simple #ntcTop:not(.s-on),html.simple #saveTop:not(.s-on),
+html.simple #favTop:not(.s-on),html.simple #newTop:not(.s-on),html.simple #statsTop:not(.s-on),html.simple #rulesTop:not(.s-on),html.simple #readsTop:not(.s-on){display:none!important}
+/* 푸터의 긴 설명 글은 '출처·계산 방법' 페이지로 */
+html.simple .site-foot .disc,html.simple .site-foot .srcs{display:none}
+html.simple .s-on{display:block!important}
+html.simple #planner.s-on{display:grid!important}
+html.simple.s-view #mapTop,html.simple.s-view #sTiles{display:none}
+html.simple #mapTop>.sec-h,html.simple #mapTop .map-attr,html.simple #mapTop .map-hint,html.simple #guListBox,html.simple #mapTop .mlg .ml-k,html.simple #mapTop .ml-h,html.simple #mapTop .ml-glow,html.simple #mapTop .ml-stk,html.simple #mapTop .gl-cap{display:none!important}
+html.simple main.wrap{padding-top:8px}
+html.simple #mapTop{padding-top:12px}
+.s-back{display:inline-flex;align-items:center;gap:4px;margin:0 0 14px;padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text-1);font:600 14px var(--font);cursor:pointer}
+html:not(.simple) .s-back{display:none}
+
+/* 히어로: 제목 + 방식 + 게이지 + 곳 수 */
+.s-hero{display:flex;flex-direction:column;gap:12px;margin:0 0 14px}
+.s-h1{margin:2px 0 0;font-size:clamp(22px,3.6vw,34px);line-height:1.18;letter-spacing:-.03em;font-weight:800;color:var(--text-1);text-wrap:balance}
+.s-gtop{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 6px}
+.s-mode{display:inline-flex;padding:3px;border-radius:999px;background:var(--surface-2)}
+.s-mode button{min-height:34px;padding:0 14px;border:0;border-radius:999px;background:none;color:var(--text-2);font:700 13.5px var(--font);cursor:pointer}
+.s-mode button[aria-pressed="true"]{background:var(--text-1);color:var(--surface)}
+.s-gauge{padding:18px 20px 12px;border:1px solid var(--border);border-radius:20px;background:var(--surface);box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.s-cash{display:flex;align-items:baseline;gap:8px;margin:0;cursor:pointer}
+.s-cash b{font-size:clamp(40px,8vw,56px);line-height:1;font-weight:800;letter-spacing:-.04em;color:var(--brand);font-variant-numeric:tabular-nums}
+.s-cash span{font-size:16px;color:var(--text-2);font-weight:600}
+#sCash{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;cursor:pointer;--p:3.4%}
+#sCash::-webkit-slider-runnable-track{height:10px;border-radius:99px;background:linear-gradient(90deg,var(--brand) 0 var(--p),var(--surface-3) var(--p) 100%)}
+#sCash::-moz-range-track{height:10px;border-radius:99px;background:var(--surface-3)}
+#sCash::-moz-range-progress{height:10px;border-radius:99px;background:var(--brand)}
+#sCash::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;margin-top:-9px;border-radius:50%;background:var(--surface);border:3px solid var(--brand);box-shadow:0 2px 6px rgba(15,23,42,.25)}
+#sCash::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:var(--surface);border:3px solid var(--brand)}
+#sCash:focus-visible{outline:2px solid var(--focus);outline-offset:4px;border-radius:8px}
+.s-ticks{display:flex;justify-content:space-between;margin-top:4px;font-size:12px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.s-count{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;margin:10px 0 0;padding-top:10px;border-top:1px solid var(--divider)}
+.s-hint{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--text-3)}
+.s-count b{font-size:26px;color:var(--brand);font-weight:800;letter-spacing:-.03em;color:var(--text-1);font-variant-numeric:tabular-nums}
+.s-count span{font-size:16px;font-weight:600;color:var(--text-2)}
+
+/* 목록: 지역 + 필요한 돈만 */
+.s-list-w{margin:18px 0 0}
+.s-lh{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px}
+.s-lh h2{margin:0;font-size:20px;letter-spacing:-.02em}
+.s-flt{display:flex;gap:6px;flex-wrap:wrap}
+.s-flt button{min-height:34px;padding:0 12px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text-2);font:600 13px var(--font);cursor:pointer}
+.s-flt button[aria-pressed="true"]{background:var(--text-1);border-color:var(--text-1);color:var(--surface)}
+.s-gu{margin:0 0 6px;font-size:14px;color:var(--text-2)}
+.s-list{list-style:none;margin:0;padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden}
+.s-list li+li{border-top:1px solid var(--divider)}
+.s-list a{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;color:inherit;text-decoration:none}
+.s-list a:hover{background:var(--surface-2)}
+.s-nm{min-width:0;display:flex;flex-direction:column;gap:2px}
+.s-nm b{font-size:16px;font-weight:700;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-nm small{font-size:13px;color:var(--text-3)}
+.s-nm em{font-style:normal;color:var(--warn-ink)}
+.s-amt{flex:none;text-align:right;display:flex;flex-direction:column;gap:2px}
+.s-amt b{font-size:20px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.s-amt small{font-size:12px;color:var(--text-3)}
+.s-empty{padding:22px 16px;text-align:center;color:var(--text-2);font-size:15px}
+.s-more{display:block;margin:10px auto 0;min-width:160px}
+
+/* 검색 바 */
+.s-search{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;margin:0 0 14px;padding:0 18px;border:0;border-radius:16px;background:var(--surface-2);color:var(--text-3);font:500 15.5px var(--font);text-align:left;cursor:text}
+.s-search svg{color:var(--text-2);flex:none}
+/* 아이콘 격자(앱 첫 화면처럼) */
+.s-tiles{margin:26px 0 8px}
+.s-tg{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px 8px}
+.s-t{display:flex;flex-direction:column;align-items:center;gap:7px;color:var(--text-1);text-decoration:none;text-align:center}
+.s-t i{display:grid;place-items:center;width:56px;height:56px;border-radius:18px;background:var(--surface-2);color:var(--ic,var(--brand));transition:transform .15s}
+.s-t:hover i,.s-t:focus-visible i{transform:translateY(-2px)}
+.s-t b{font-size:13px;font-weight:600;letter-spacing:-.02em;white-space:nowrap}
+/* 아래 탭바: 모바일만 */
+.s-nav{display:none}
+@media (max-width:980px){
+  html.simple body{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+  .s-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-template-columns:repeat(5,1fr);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-right,0px));background:color-mix(in srgb,var(--surface) 96%,transparent);border-top:1px solid var(--border);backdrop-filter:blur(10px)}
+  .s-nav button{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:50px;border:0;background:none;color:var(--text-2);font:600 11.5px var(--font);cursor:pointer}
+  .s-nav button:first-child{color:var(--text-1)}
+  html.sheet-open .s-nav,html.menu-open .s-nav{display:none}
+}
+@media (max-width:640px){
+  .s-gauge{padding:16px 16px 10px}
+  .s-tg{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 4px}
+  .s-t i{width:50px;height:50px;border-radius:16px}
+  .s-hint{display:none}
+  .s-t b{font-size:12.5px}
+  .s-list a{padding:13px 14px}
+}
+
+@media (min-width:981px){.s-search{display:none}}
+
+html.simple .s-on{padding-top:14px!important}
+html.simple #mapTop>.s-gauge{margin:0 0 14px}
+/* 레드팀 반영: 지도 주변 잔글씨 최소화 */
+html.simple #legend>:not(.ml-scale){display:none!important}
+html.simple #mapbox[data-view="gu"] ~ * #legend,html.simple #legend[data-view="gu"]{display:none!important}
+html.simple #mapGuCnt,html.simple #mapKind,html.simple .lm-sel,html.simple .lm-ctl .lm-lg,html.simple .lm-legend{display:none!important}
+html.simple .maplibregl-ctrl-attrib:not(.maplibregl-compact-show) .maplibregl-ctrl-attrib-inner{display:none}
+/* 데스크톱 구별 요약: 숫자만, 막대·'지도 N곳' 빼고 가능 0곳 구는 숨김 */
+html.simple .gu-list .stbar,html.simple .gu-list .gl-p{display:none}
+html.simple .gu-list li.s-zero{display:none}
+html.simple #report .rep-empty .gl-cap{display:none}
+/* 목록 머리 */
+.s-lsub{margin:2px 0 0;font-size:12.5px;color:var(--text-3)}
+/* 게이지는 모바일에서만 붙인다 */
+.s-hint{display:inline}
+@media (max-width:640px){.s-hint{display:block;margin:2px 0 0;width:100%}}
+/* 아래 탭바 선택 표시 */
+.s-nav button[aria-current="page"]{color:var(--brand)}
+.s-nav button:first-child:not([aria-current]){color:var(--text-2)}
+@media (max-width:980px){html.simple #report:not(.sheet){display:none!important}}
+html.simple .s-on>.sec-h p,html.simple .s-on .t-note,html.simple .s-on .loc-key{display:none!important}
+
+/* 한 줄 게이지(스크롤 중 머리 아래) */
+.s-mini{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));top:calc(var(--hdr-h,56px) + 6px);z-index:30;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:8px 14px;border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:0 6px 18px rgba(15,23,42,.12)}
+.s-mini[hidden]{display:none}
+.s-mini>b{font-size:22px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;min-width:3.2em}
+.s-mini span{font-size:13px;color:var(--text-2);white-space:nowrap}.s-mini span b{font-size:18px;color:var(--text-1);margin-right:2px}
+#sMiniR{-webkit-appearance:none;appearance:none;width:100%;height:24px;background:transparent}
+#sMiniR::-webkit-slider-runnable-track{height:8px;border-radius:99px;background:var(--surface-3)}
+#sMiniR::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-8px;border-radius:50%;background:var(--surface);border:3px solid var(--brand)}
+#sMiniR::-moz-range-track{height:8px;border-radius:99px;background:var(--surface-3)}
+#sMiniR::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--surface);border:3px solid var(--brand)}
+html.sheet-open .s-mini,html.menu-open .s-mini{display:none}
+/* 딥링크로 연 화면이 머리 밑에 깔리지 않게 */
+html.simple .s-on{scroll-margin-top:calc(var(--hdr-h,56px) + 8px)}
+/* 다크 모드 아이콘 대비 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-t i{color:color-mix(in srgb,var(--ic) 45%,#fff)}}
+:root[data-theme="dark"] .s-t i{color:color-mix(in srgb,var(--ic) 45%,#fff)}

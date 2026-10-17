@@ -5128,7 +5128,7 @@
     $("srcEtcH").textContent = `기타 공개 자료 ${etc.length}건`;
     $("srcPress").innerHTML = press.map(li).join("");
     $("pressSum").textContent = `언론·보도자료 ${press.length}건 보기 (구역별 최신 소식 근거)`;
-    $("footAsof").textContent = `데이터 갱신 ${ASOF} · 매달 갱신 · 원자료별 기준일은 출처 참고`;
+    $("footAsof").textContent = `데이터 갱신 ${(D.upd || ASOF).replaceAll("-", ".")} · 실거래 매일 갱신 · 원자료별 기준일은 출처 참고`;
     markNewWin(document.querySelector(".site-foot"));
   }
   $("pGu").innerHTML = '<option value="">서울 전체</option>' + GUS.map((g) => `<option>${g}</option>`).join("");
