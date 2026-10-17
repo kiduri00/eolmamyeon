@@ -58,3 +58,21 @@ html.simple .s-lyr+.mapcard{margin-top:0}
 .tl-lead{margin:0 0 12px;font-size:14px;color:var(--text-2)}
 .fchips.tl-f .ichip::before{display:none!important}
 .sp-b b{font-size:10px}
+/* 레일: 아이콘 + 짧은 글자, 6개 고정 */
+.s-rail button,.s-fly button{width:44px!important;height:46px!important;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.s-rail button span{font:600 10px/1 var(--font);letter-spacing:-.02em}
+.s-rail svg{width:18px!important;height:18px!important}
+@media (min-width:981px){.s-rail button{width:52px!important;height:50px!important}.s-rail button span{font-size:11px}}
+.s-fly{display:none!important}
+@media (max-width:980px){
+  .s-rail{display:grid!important;grid-template-columns:repeat(2,44px)}
+  .s-rail button{height:42px!important;border-top:0!important}
+  .s-rail button:nth-child(n+3){border-top:1px solid rgba(31,58,135,.10)!important}
+  .s-rail button:nth-child(odd){border-right:1px solid rgba(31,58,135,.10)}
+}
+@media (max-width:980px){
+  .s-rail{display:grid!important;grid-template-columns:repeat(2,44px)}
+  .s-rail button{height:42px!important;border-top:0!important}
+  .s-rail button:nth-child(n+3){border-top:1px solid rgba(31,58,135,.10)!important}
+  .s-rail button:nth-child(odd){border-right:1px solid rgba(31,58,135,.10)}
+}

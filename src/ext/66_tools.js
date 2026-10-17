@@ -112,7 +112,7 @@ document.readyState === "loading" ? document.addEventListener("DOMContentLoaded"
     more: P('<path d="M6 12h.01M12 12h.01M18 12h.01" stroke-width="3"/>'),
   };
   const NM = { hj: "호재", hi: "신고가", edu: "학교", acad: "학원가", biz: "상권", med: "병원", mart: "마트" };
-  const MAIN = ["hj", "hi", "edu"], EXTRA = ["acad", "biz", "med", "mart"];
+  const MAIN = ["hj", "hi", "edu", "acad", "biz", "med"], EXTRA = [];
   function build() {
     const p = document.getElementById("lmLayers"), box = document.getElementById("mapbox");
     if (!p || !box) return false;
@@ -120,16 +120,16 @@ document.readyState === "loading" ? document.addEventListener("DOMContentLoaded"
     if (!p.querySelector("input[type=checkbox]")) return false;
     document.querySelectorAll(".s-lyr").forEach((x) => x.remove());
     const chk = (k) => p.querySelector(`input[value="${k}"]`);
-    const btn = (k) => { const c = chk(k); return c ? `<button type="button" data-l="${k}" aria-pressed="${c.checked}" aria-label="${NM[k]} 겹쳐 보기" title="${NM[k]}">${IC[k]}</button>` : ""; };
+    const btn = (k) => { const c = chk(k); return c ? `<button type="button" data-l="${k}" aria-pressed="${c.checked}" aria-label="${NM[k]} 겹쳐 보기">${IC[k]}<span>${NM[k]}</span></button>` : ""; };
     const w = document.createElement("div");
     w.className = "s-rail-w";
-    w.innerHTML = `<div class="s-rail" role="group" aria-label="지도에 겹쳐 보기">${MAIN.map(btn).join("")}<button type="button" class="s-rmore" aria-expanded="false" aria-label="겹쳐 보기 더보기">${IC.more}<i></i></button></div><div class="s-fly" role="group" aria-label="겹쳐 보기 더보기" hidden>${EXTRA.map(btn).join("")}</div><span class="s-tip" aria-live="polite"></span>`;
+    w.innerHTML = `<div class="s-rail" role="group" aria-label="지도에 겹쳐 보기">${MAIN.map(btn).join("")}</div><div class="s-fly" role="group" aria-label="겹쳐 보기 더보기" hidden>${EXTRA.map(btn).join("")}</div><span class="s-tip" aria-live="polite"></span>`;
     box.appendChild(w);
-    const fly = w.querySelector(".s-fly"), more = w.querySelector(".s-rmore"), tip = w.querySelector(".s-tip");
-    const dot = () => more.classList.toggle("on", EXTRA.some((k) => chk(k) && chk(k).checked));
+    const fly = w.querySelector(".s-fly"), more = null, tip = w.querySelector(".s-tip");
+    const dot = () => {};
     let tt = 0;
     w.addEventListener("click", (e) => {
-      if (e.target.closest(".s-rmore")) { const o = fly.hidden; fly.hidden = !o; more.setAttribute("aria-expanded", String(o)); return; }
+      
       const b = e.target.closest("button[data-l]"); if (!b) return;
       const c = chk(b.dataset.l); if (!c) return;
       c.checked = !c.checked; c.dispatchEvent(new Event("change", { bubbles: true }));
@@ -138,7 +138,7 @@ document.readyState === "loading" ? document.addEventListener("DOMContentLoaded"
       tip.textContent = `${NM[b.dataset.l]} ${c.checked ? "켜짐" : "꺼짐"}`; tip.classList.add("on");
       clearTimeout(tt); tt = setTimeout(() => tip.classList.remove("on"), 1200);
     });
-    document.getElementById("lmap")?.addEventListener("pointerdown", () => { if (!fly.hidden) { fly.hidden = true; more.setAttribute("aria-expanded", "false"); } });
+    
     dot();
     return true;
   }
