@@ -4514,7 +4514,7 @@
       ? hits
           .map(
             (h, i) =>
-              `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${h.r.id}" tabindex="-1"><span>${esc(shortName(h.r.n))}${h.r.s >= 9 ? " (완료)" : ""}<small>${esc(h.r.g)} ${esc(h.r.j)} · ${esc(h.r.k)} · ${esc(stageName(h.r))}</small></span><em>${h.r.st ? esc(h.r.st.n.replace(/역$/, "")) + "역 " + Math.max(1, Math.round((h.r.st.d * 1.3) / 67)) + "분" : ""}</em></button>`,
+              `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${h.r.id}" tabindex="-1"><span>${esc(shortName(h.r.n))}${h.r.s >= 9 ? " (완료)" : ""}<small>${esc(h.r.g)} ${esc(h.r.j)} · ${esc(h.r.k)} · ${esc(stageName(h.r))}</small></span><em>${h.r.st ? (Math.round((h.r.st.d * 1.3) / 67) > 20 ? "역에서 멀어요" : esc(h.r.st.n.replace(/역$/, "")) + "역 " + Math.max(1, Math.round((h.r.st.d * 1.3) / 67)) + "분") : ""}</em></button>`,
           )
           .join("") +
         (all.length > hits.length
@@ -6385,7 +6385,7 @@
     if (g.block) {
       // 전세 끼고는 안 되면 대출 끼고 사는 길을 바로 보여 준다
       let alt = "";
-      try { const x = investC(r); if (x && x.needBuy != null && !r.lc && r.tag !== "mk") alt = `<b class="gb-alt">대출 끼고 사면 지금 ${f1(x.needBuy)}억${x.ok ? ` · 입주까지 ${f1(x.needTotal)}억` : ""}</b>`; } catch (e) {}
+      try { const x = investC(r); if (x && x.needBuy != null && !r.lc && r.tag !== "mk") alt = `<b class="gb-alt">대출 끼고 사면 지금 ${f1(x.needBuy)}억${x.ok && !noTicket(r) ? ` · 입주까지 ${f1(x.needTotal)}억` : ""}</b>`; } catch (e) {}
       return `<p class="cstrip gblock"><span>전세 끼고 사기 <b class="gb-t">불가</b></span>${alt}<small>${esc(g.block)}</small></p>`;
     }
     if (g.na)

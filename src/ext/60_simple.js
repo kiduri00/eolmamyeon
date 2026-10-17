@@ -16,7 +16,7 @@ const SIMPLE = (() => {
   const MORE = ["results", "newTop", "rulesTop", "readsTop", "statsTop"];
   const LINKS = [["guide/rebuild-30y", "재건축 30년", "M4 21V8l8-5 8 5v13M9 21v-6h6v6", "#b45309"], ["report/", "월간 리포트", "M5 4h14v17H5zM8 9h8M8 13h8M8 17h5", "#1f3a87"]];
   const IDS = VIEWS.map((v) => v[0]).concat(MORE, ["favTop"]);
-  const KN = [[0, 0.5], [25, 2], [50, 5], [75, 10], [100, 15]];
+  const KN = [[0, 0.5], [28, 2], [58, 5], [88, 10], [100, 15]];
   const toCash = (p) => { for (let i = 1; i < KN.length; i++) if (p <= KN[i][0]) { const [a, x] = KN[i - 1], [b, y] = KN[i]; return Math.round((x + ((p - a) / (b - a)) * (y - x)) * 10) / 10; } return 15; };
   const toPos = (c) => { c = Math.min(15, Math.max(0.5, c)); for (let i = 1; i < KN.length; i++) if (c <= KN[i][1]) { const [a, x] = KN[i - 1], [b, y] = KN[i]; return a + ((c - x) / (y - x)) * (b - a); } return 100; };
   let POPS = null;   // POP은 앱 본문에서 나중에 만들어지므로 처음 쓸 때 채운다
@@ -35,7 +35,7 @@ const SIMPLE = (() => {
   function rows() {
     return R.filter((r) => okR(r) && !r.lc && (!gu || r.g === gu) && (!kind || KIND(r) === kind))
       .map((r) => ({ r, n: needOf(r), early: r.s <= 1 || r.eta?.p10 == null }))
-      .sort((a, b) => a.early - b.early || (gapMode() || effBasis() !== "total" ? (a.n.now ?? 99) - (b.n.now ?? 99) : (a.n.total ?? 99) - (b.n.total ?? 99)));
+      .sort((a, b) => (gapMode() || effBasis() !== "total" ? (a.n.now ?? 99) - (b.n.now ?? 99) : (a.n.total ?? 99) - (b.n.total ?? 99)));
   }
   // 폰: 하단 '지도'를 누르면 지도를 화면 가득(호갱노노처럼). 게이지는 위 작은 막대로.
   function fullMap(on) {
@@ -267,7 +267,7 @@ const SIMPLE = (() => {
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
     if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
-      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "") : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
+      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "입주까지 계산 전") : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
       : `<li class="s-empty">${gu ? `${esc(gu)}에는 이 금액으로 되는 곳이 없어요.` : "이 금액으로 되는 곳이 없어요."} 게이지를 올려 보세요.</li>`;
     const m = $("sMore");
     m.hidden = L.length <= shown;

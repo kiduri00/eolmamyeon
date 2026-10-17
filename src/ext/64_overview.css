@@ -100,3 +100,8 @@ html.simple #pane .gj-f label small{display:none}
 .ov-msg{margin:0 0 12px;font-size:15px;line-height:1.6}
 .ov-msg span,.ov-msg small{display:block}
 @media (max-width:640px) and (max-height:760px){html.simple #mapbox.lm-on{height:200px}}
+.ov-chip.w{background:color-mix(in srgb,#f59e0b 14%,transparent);color:#b45309}
+.ov-msg{color:var(--text-2)}
+/* 주황은 경고에만: '초기 단계'는 회색 */
+html.simple .s-nm small em:not(.s-tag){font-style:normal;color:var(--text-3)}
+#pane .txl{overflow-x:auto;max-width:100%}
