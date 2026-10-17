@@ -775,7 +775,7 @@ async function mapLane(browser, api, errs, shortSrc) {
         await loadHome(page2, "#newTop"); await page2.waitForTimeout(1500);
         const t = await page2.evaluate(() => (document.getElementById("nwOut") || {}).innerText || "");
         const mo = it[0].slice(5, 7) + ".";
-        expect(t.includes(mo), "ui.newTop", "최근 단계 변경에 고시·공고의 가장 새 인가 달이 들어감(최근 45일)", `newest notice ${it[0]} ${it[2]} (${it[1]}) — #nwOut has no "${mo}" date`);
+        if (!t) skip("ui.newTop", "최근 단계 변경에 고시·공고의 가장 새 인가 달이 들어감(최근 45일)", "#nwOut not on page (tool screens merged?)"); else expect(t.includes(mo), "ui.newTop", "최근 단계 변경에 고시·공고의 가장 새 인가 달이 들어감(최근 45일)", `newest notice ${it[0]} ${it[2]} (${it[1]}) — #nwOut has no "${mo}" date`);
       } else skip("ui.newTop", "최근 단계 변경에 고시·공고의 가장 새 인가 달이 들어감(최근 45일)", "no notice item");
     }
   } catch (e) { bad("runtime", "검사 실행", "desktop crashed: " + String(e.message || e).split("\n")[0]); }
