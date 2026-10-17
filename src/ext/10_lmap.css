@@ -50,3 +50,4 @@
 .lm-legend .lm-note{flex-basis:100%;font-size:11px;color:var(--text-3);line-height:1.4}
 @media (max-width:600px){.lm-layers{top:100px}.lm-sel select{max-width:110px}}
 .lm-legend[hidden],.lm-layers[hidden]{display:none}
+.lm-legend i.lm-pin{width:10px;height:10px;border-radius:50% 50% 50% 0;transform:rotate(-45deg)}

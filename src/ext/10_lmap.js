@@ -17,11 +17,8 @@
     // 겹쳐 보는 레이어(호갱노노식): 지도 바탕 POI는 OpenFreeMap 벡터 타일, 나머지는 사이트 자료
     const LAYERS = [["hj", "개발 호재", "신설 노선 역·복합개발"], ["hi", "신고가", "최근 3개월, 2024년 이후 최고가"], ["edu", "학교", "초·중·고"], ["acad", "학원가", "학원 점포가 많은 상권"], ["biz", "상권", "점포 수·분기 매출"], ["med", "병원", "종합·대형병원"], ["mart", "대형마트", "이마트·홈플러스 등"]];
     let lyr = (() => { try { return new Set(JSON.parse(store.get("emr.lyr", '[]'))); } catch (e) { return new Set(); } })();
-    const RAMP = ["#C9D2E3", "#9EB0D3", "#6F89C0", "#3F5FA3", "#1F3A87"];
-    const RAMP_D = ["#2B3546", "#33507E", "#4A6DAA", "#7392D0", "#A9C0EE"];
     const BINS = { old: [[40, "40% 미만"], [60, "40~60%"], [67, "60~67%"], [80, "67~80%"], [101, "80% 이상"]], vol: [[1, "0건"], [5, "1~4건"], [15, "5~14건"], [40, "15~39건"], [1e9, "40건 이상"]], yoy: [[-10, "−10% 미만"], [0, "−10~0%"], [10, "0~+10%"], [25, "+10~25%"], [1e9, "+25% 이상"]] };
     const metric = (r) => { const t = r.tx || {}; if (colorBy === "old") return t.old && r.s < 7 ? t.old.pol : null; if (colorBy === "vol") return t.n12 != null ? t.n12 : r.tx ? 0 : null; if (colorBy === "yoy") return t.yoy != null && t.yon && t.yon[0] >= 10 && t.yon[1] >= 10 ? t.yoy : null; return null; };
-    const binOf = (v) => BINS[colorBy].findIndex(([hi]) => v < hi);
     const dark = () => { const t = document.documentElement.dataset.theme; return t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches); };
     function loadLib() {
       if (window.maplibregl && window.maplibregl.Map) return Promise.resolve();
@@ -45,17 +42,10 @@
     }
     // 색: 페이지 CSS 토큰에서 읽어 디자인 변경을 그대로 따른다
     const probe = (() => { let el = null; return (css) => { if (!el) { el = document.createElement("i"); el.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;visibility:hidden"; document.body.appendChild(el); } el.style.color = ""; el.style.color = css; return getComputedStyle(el).color; }; })();
-    const KIND_COL = () => ({ rd: probe("var(--k-rd, #2F6FEB)"), rc: probe("var(--k-rc, #C2410C)"), sm: probe("var(--k-sm, #0E7490)"), moa: probe("var(--k-moa, #7C5CDB)") });
     const CASH_LAB = { y: null, n: "현금 부족", u: "계산 보류", e: "구 평균 시세 추정", x: "" };
     function palette() {
       const v = (n, d) => probe(`var(${n}, ${d})`);
       return { y: v("--brand", "#2B59F0"), n: v("--text-3", "#5c6573"), u: v("--text-4", "#8B95A1"), e: v("--acc2", "#8B6FE8"), x: v("--text-4", "#8B95A1"), ink: v("--text-1", "#191F28"), sub: v("--text-3", "#5F6B7A"), surf: v("--surface", "#fff"), line: v("--border", "#E5E8EB"), sel: v("--focus", "#2B59F0") };
-    }
-    function colorOf(r, P) {
-      if (BINS[colorBy]) { const v = metric(r); return v == null ? P.x : (dark() ? RAMP_D : RAMP)[binOf(v)]; }
-      if (colorBy === "stage") return P["st" + st6(r)] || (P["st" + st6(r)] = probe(STCOL(st6(r))));
-      if (colorBy === "kind") return (P.K || (P.K = KIND_COL()))[shapeOf(r)];
-      return P[dotState(r)];
     }
     function style() {
       const dk = dark();
@@ -94,7 +84,9 @@
       if (!map || !geo) return;
       const dk = dark(), P = palette(), halo = dk ? "#11161D" : "#ffffff";
       const add = (id) => { if (!map.getSource(id)) map.addSource(id, { type: "geojson", data: FC([]) }); };
-      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gub"].forEach(add);
+      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway"].forEach(add);
+      if (!map.getSource("zpa")) map.addSource("zpa", { type: "geojson", data: FC([]), cluster: true, clusterRadius: 8, clusterMaxZoom: 15 });
+      ["zpm", "zps", "zpsh"].forEach(add);
       map.getSource("subway").setData(subwayGeo());
       const outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
       map.getSource("mask").setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [outer, ...geo.seoul] }, properties: {} });
@@ -107,17 +99,18 @@
       L({ id: "seoul-line", type: "line", source: "seoul", paint: { "line-color": P.sub, "line-width": 1.6, "line-opacity": 0.7 } });
       L({ id: "subway-case", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": halo, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.8, 14, 4], "line-opacity": 0.5 } });
       L({ id: "subway", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 12, 1.2, 14, 2, 16, 2.6], "line-opacity": 0.5 } });
-      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ["match", ["get", "st"], "y", dk ? "#5B8CFF" : "#1F3A87", "n", dk ? "#FF8A5C" : "#D9653B", "c", ["get", "c"], dk ? "#8C7BD6" : "#7B6FC4"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 10, ["match", ["get", "st"], "y", .5, "n", .35, .12], 14, ["match", ["get", "st"], "y", .32, "n", .22, .08]] } });
-      L({ id: "zest-line", type: "line", source: "zest", paint: { "line-color": ["match", ["get", "st"], "y", dk ? "#5B8CFF" : "#1F3A87", "n", dk ? "#FF8A5C" : "#D9653B", "c", ["get", "c"], dk ? "#6B7686" : "#8A94A3"], "line-width": ["match", ["get", "st"], "y", 1.4, "n", 1.2, 0], "line-dasharray": [2, 1.5], "line-opacity": 0.85 } });
-      // 구역이 지도의 주인공: 내 돈으로 되는 곳(y) 남색, 가격은 있지만 모자란 곳(n) 주황, 나머지는 점선 테두리만
-      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ["match", ["get", "st"], "y", dk ? "#5B8CFF" : "#1F3A87", "n", dk ? "#FF8A5C" : "#D9653B", "c", ["get", "c"], dk ? "#6B7686" : "#8A94A3"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 10, ["match", ["get", "st"], "y", .62, "n", .45, "c", .5, .2], 12, ["match", ["get", "st"], "y", .55, "n", .4, "c", .45, .18], 14, ["match", ["get", "st"], "y", .42, "n", .3, "c", .35, .14], 16, ["match", ["get", "st"], "y", .3, "n", .22, "c", .25, .1]], "fill-antialias": true } });
-      L({ id: "zone-case", type: "line", source: "zones", layout: { "line-join": "round" }, paint: { "line-color": dk ? "#11161D" : "#FFFFFF", "line-width": ["interpolate", ["linear"], ["zoom"], 10, ["match", ["get", "st"], "y", 3.5, "n", 3, "c", 3.2, 2.8], 12, ["match", ["get", "st"], "y", 4, "n", 3.2, "c", 3.5, 3], 14, ["match", ["get", "st"], "y", 4.5, "n", 3.5, "c", 4, 3.2], 16, ["match", ["get", "st"], "y", 5, "n", 4, "c", 4.5, 3.5]], "line-opacity": 0.9 } });
-      L({ id: "zone-line", type: "line", source: "zones", filter: ["!", ["in", ["get", "st"], ["literal", ["u", "x"]]]], layout: { "line-join": "round" }, paint: { "line-color": ["match", ["get", "st"], "y", dk ? "#8FB0FF" : "#1F3A87", "n", dk ? "#FF9A70" : "#C2532B", "c", ["get", "c"], dk ? "#6B7686" : "#8A94A3"], "line-width": ["interpolate", ["linear"], ["zoom"], 10, ["match", ["get", "st"], "y", 1.5, "n", 1, "c", 1.2, 0.8], 12, ["match", ["get", "st"], "y", 2, "n", 1.2, "c", 1.5, 1], 14, ["match", ["get", "st"], "y", 2.5, "n", 1.5, "c", 2, 1.2], 16, ["match", ["get", "st"], "y", 3, "n", 2, "c", 2.5, 1.5]] } });
-      L({ id: "zone-line-u", type: "line", source: "zones", filter: ["in", ["get", "st"], ["literal", ["u", "x"]]], layout: { "line-join": "round" }, paint: { "line-color": dk ? "#A79BE6" : "#6E62B8", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 12, 1, 14, 1.2, 16, 1.5], "line-opacity": 0.8 } });
-      L({ id: "pts", type: "circle", source: "pts", minzoom: 10.8, paint: { "circle-color": ["get", "c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 12.5, 5.5], "circle-stroke-color": halo, "circle-stroke-width": 1.2, "circle-opacity": ["min", 1, ["get", "o"]], "circle-stroke-opacity": ["min", 1, ["get", "o"]] } });
+      // 구역: 네이버 부동산처럼 한 가지 색(브랜드 남색) 반투명 면 + 같은 색 선. 공식 경계 없는 추정 범위는 점선.
+      const ZC = dk ? "#5B8CFF" : "#1F3A87", ZL = dk ? "#7FA6FF" : "#1F3A87";
+      const zop = dk ? ["interpolate", ["linear"], ["zoom"], 10, 0.42, 12, 0.32, 14, 0.22, 16, 0.18] : ["interpolate", ["linear"], ["zoom"], 10, 0.38, 12, 0.28, 14, 0.18, 16, 0.14];
+      const zlw = ["interpolate", ["linear"], ["zoom"], 10, 0.9, 12, 1.3, 14, 1.7, 16, 2];
+      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ZC, "fill-opacity": ["*", 0.8, zop] } });
+      L({ id: "zest-line", type: "line", source: "zest", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-dasharray": [2.2, 1.6], "line-opacity": 0.9 } });
+      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ZC, "fill-opacity": zop, "fill-antialias": true } });
+      L({ id: "zone-line", type: "line", source: "zones", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-opacity": 0.95 } });
+      L({ id: "pts", type: "circle", source: "pts", minzoom: 13, paint: { "circle-color": ZC, "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 4, 16, 6], "circle-stroke-color": halo, "circle-stroke-width": 1.5, "circle-opacity": 0.85 } });
       L({ id: "sel-line", type: "line", source: "sel", paint: { "line-color": P.sel, "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.6, 16, 4.5] } });
-      L({ id: "stn", type: "circle", source: "stn", minzoom: 11.3, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 3] } });
-      L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 12.8, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } });
+      L({ id: "stn", type: "circle", source: "stn", minzoom: 14, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 3.5, 16, 5.5], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 14, 2, 16, 2.6] } });
+      L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 14, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": 11, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.sub, "text-halo-color": halo, "text-halo-width": 1.6 } });
       // ---- 겹쳐 보기 레이어 ----
       const nm = ["coalesce", ["get", "name:ko"], ["get", "name"], ""];
       const poiTxt = (id, filter, color, minz) => [
@@ -136,12 +129,36 @@
       L({ id: "ly-hj", type: "circle", source: "hj", layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4, 15, 8], "circle-color": halo, "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 15, 4] } });
       L({ id: "ly-hj-lab", type: "symbol", source: "hj", minzoom: 13.5, layout: { visibility: "none", "text-field": ["get", "sn"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14, 10, 16, 11], "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true, "text-max-width": 8, "symbol-sort-key": 10 }, paint: { "text-color": dk ? "#AAB3C0" : "#5B6472", "text-halo-color": halo, "text-halo-width": 1 } });
       L({ id: "ly-hi", type: "symbol", source: "hi", layout: { visibility: "none", "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-offset": [0, -1.9], "text-allow-overlap": false, "text-optional": true }, paint: { "text-color": dk ? "#FF9C8A" : "#B42318", "text-halo-color": halo, "text-halo-width": 2.2 } });
-      // 구 화면 줌(11.8 아래)에서도 내 돈으로 되는 구역은 값만 보이게
-      L({ id: "zone-lab-y", type: "symbol", source: "zlab", minzoom: 10.6, maxzoom: 11.8, filter: ["all", ["==", ["get", "y"], 1], ["!=", ["get", "p"], ""]], layout: { "text-field": ["format", ["get", "n"], { "font-scale": 0.85 }, " ", {}, ["get", "p"], {}], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-padding": 2, "text-variable-anchor": ["top", "bottom", "left", "right"], "text-radial-offset": 0.7, "text-justify": "auto", "symbol-avoid-edges": true }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
-      L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 11.8, layout: { "symbol-sort-key": ["case", ["==", ["get", "y"], 1], 0, 1], "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
-      const pill = (id, bg, bd) => { if (map.hasImage(id)) return; const c = document.createElement("canvas"), r = 2, w = 40 * r, h = 28 * r; c.width = w; c.height = h; const x = c.getContext("2d"); x.fillStyle = bg; x.strokeStyle = bd; x.lineWidth = 2 * r; const rr = 12 * r; x.beginPath(); x.moveTo(rr, r); x.arcTo(w - r, r, w - r, h - r, rr); x.arcTo(w - r, h - r, r, h - r, rr); x.arcTo(r, h - r, r, r, rr); x.arcTo(r, r, w - r, r, rr); x.closePath(); x.fill(); x.stroke(); map.addImage(id, { width: w, height: h, data: x.getImageData(0, 0, w, h).data }, { pixelRatio: r, stretchX: [[14 * r, 26 * r]], stretchY: [[12 * r, 16 * r]], content: [8 * r, 5 * r, 32 * r, 23 * r] }); };
-      pill("pill-on", P.y, P.y); pill("pill-off", dk ? "#1b2230" : "#ffffff", dk ? "#3a4556" : "#c9d0da");
-      L({ id: "gub", type: "symbol", source: "gub", maxzoom: 12.2, layout: { "icon-image": ["case", [">", ["get", "k"], 0], "pill-on", ""], "icon-text-fit": "both", "icon-allow-overlap": true, "text-field": ["case", [">", ["get", "k"], 0], ["format", ["get", "n"], { "font-scale": 0.82 }, " ", {}, ["get", "v"], { "font-scale": 1.12 }], ["format", ["get", "n"], { "font-scale": 0.78 }]], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 9.5, 10, 10.6, 12.5], "symbol-sort-key": ["-", 0, ["get", "k"]], "text-allow-overlap": true, "text-padding": 0 }, paint: { "text-color": ["case", [">", ["get", "k"], 0], "#ffffff", dk ? "#8e99a8" : "#8a93a1"], "text-halo-color": ["case", [">", ["get", "k"], 0], "rgba(0,0,0,0)", dk ? "#11161D" : "#ffffff"], "text-halo-width": 1.4 } });
+      // ---- 구역 카드(네이버·리치고식): 위 칸 남색에 이름, 아래 흰 칸에 핵심 숫자. 줌 13부터(그 아래는 면만, 살 수 있는 곳엔 핀) ----
+      // 9-patch 이미지 하나로 두 칸 배경을 만들고 icon-text-fit으로 글자에 맞춘다(위·아래 늘림 구간이 같아 두 줄 경계가 가운데에 온다)
+      const CARD_TOP = dk ? "#3E6AE0" : "#1F3A87", CARD_BOT = dk ? "#1A2130" : "#FFFFFF", CARD_INK = dk ? "#E8EDF5" : "#191F28";
+      const rr = (x, X, Y, w, h, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
+      const img = (id, two) => {
+        if (map.hasImage(id)) map.removeImage(id);
+        const k = 2, W = 40, H = two ? 38 : 22, sh = 2, c = document.createElement("canvas"); c.width = W * k; c.height = (H + sh) * k;
+        const x = c.getContext("2d"); x.scale(k, k);
+        x.fillStyle = dk ? "rgba(0,0,0,.35)" : "rgba(15,30,70,.16)"; rr(x, 0.5, 1.5, W - 1, H - 1, 6); x.fill();   // 아래로 살짝 그림자
+        rr(x, 0.5, 0.5, W - 1, H - 1, 6); x.save(); x.clip();
+        x.fillStyle = CARD_TOP; x.fillRect(0, 0, W, H);
+        if (two) { x.fillStyle = CARD_BOT; x.fillRect(0, H / 2, W, H / 2); }
+        x.restore(); x.strokeStyle = CARD_TOP; x.lineWidth = 1; rr(x, 0.5, 0.5, W - 1, H - 1, 6); x.stroke();
+        const m = H / 2;
+        map.addImage(id, x.getImageData(0, 0, W * k, (H + sh) * k), { pixelRatio: k, stretchX: [[8 * k, 32 * k]], stretchY: two ? [[5 * k, (m - 4) * k], [(m + 4) * k, (H - 5) * k]] : [[7 * k, (H - 7) * k]], content: two ? [7 * k, 4 * k, 33 * k, (H - 4) * k] : [7 * k, 4 * k, 33 * k, (H - 4) * k] });
+      };
+      img("zcard", true);
+      const csz = ["interpolate", ["linear"], ["zoom"], 13, 11, 16, 12.5];
+      const card = (id, f, maxz) => L({ id, type: "symbol", source: "zlab", minzoom: 13, maxzoom: maxz || 24, filter: f, layout: { "icon-image": "zcard", "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["format", ["get", "n"], { "text-color": "#FFFFFF" }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 4, "text-anchor": "top", "text-offset": [0, 0.35], "symbol-sort-key": ["get", "k"], "symbol-avoid-edges": true }, paint: {} });
+      card("zone-lab", ["==", ["get", "p"], 0]);
+      card("zone-lab-p", ["==", ["get", "p"], 1], 16);   // 핀 있는 곳은 16부터 핀 라벨('이름 · X억')로
+      // ---- 핀: 핀 끝 = 구역 중심. 순서 선택 > 내 핀 > 살 수 있는 핀(위 레이어가 먼저 자리 잡음) ----
+      pinImgs(dk);
+      const pinL = (id, src, minz, extra) => L(Object.assign({ id, type: "symbol", source: src, minzoom: minz || 0, layout: { "icon-image": ["step", ["zoom"], ["concat", "zdot-", ["get", "t"]], 12, ["concat", "zpin-", ["get", "t"], ["get", "x"]]], "icon-anchor": "bottom", "icon-size": ["get", "s"], "icon-offset": ["get", "off"], "icon-allow-overlap": false, "icon-ignore-placement": src === "zpa", "icon-padding": 0, "symbol-sort-key": ["get", "k"], "text-field": ["step", ["zoom"], "", 16, ["get", "lb"]], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-anchor": "left", "text-offset": [0.9, -1.25], "text-max-width": 16, "text-optional": true }, paint: { "icon-opacity": ["get", "o"], "text-opacity": ["get", "o"], "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } }, extra || {}));
+      L({ id: "pin-sh", type: "circle", source: "zpsh", minzoom: 12, paint: { "circle-radius": ["get", "r"], "circle-opacity": ["get", "o"], "circle-color": dk ? "#000000" : "#1F3A87", "circle-blur": 0.5, "circle-pitch-alignment": "map" } });
+      L({ id: "pin-clu", type: "symbol", source: "zpa", filter: ["has", "point_count"], layout: { "icon-image": ["step", ["zoom"], "zdot-a", 12, "zclu"], "icon-size": ["step", ["zoom"], 1.3, 12, 1], "icon-allow-overlap": false, "icon-ignore-placement": true, "text-field": ["step", ["zoom"], "", 12, ["get", "point_count_abbreviated"]], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#FFFFFF" } });
+      pinL("pin-a", "zpa", 0, { filter: ["!", ["has", "point_count"]] });
+      pinL("pin-m", "zpm", 10);
+      pinL("pin-s", "zps", 0);
+      PIN.clear(); pinAnim.clear(); pinK = null;
       ready = true;
       layerData();
       layers();
@@ -172,57 +189,6 @@
         });
       });
       return (SUBG = FC(F));
-    }
-    // 서울 전체 화면: 구 이름 + 가능 구역 수(확대하면 사라지고 구역 경계가 보인다)
-    // 구별 말풍선: 면적 중심에 두고, 화면에서 서로 겹치면 밀어내 겹침 없이 배치
-    let GUB = null, OVR = null, LASTB = [];   // OVR: 게이지를 끄는 동안 쓰는 임시 구별 숫자
-    function guCenters() {
-      if (GUB) return GUB;
-      GUB = geo.gu.map((g) => {
-        const rings = g.r.flat ? g.r : [g.r]; let A = 0, cx = 0, cy = 0;
-        rings.forEach((rg) => { for (let i = 0, n = rg.length; i < n; i++) { const [x1, y1] = rg[i], [x2, y2] = rg[(i + 1) % n], f = x1 * y2 - x2 * y1; A += f; cx += (x1 + x2) * f; cy += (y1 + y2) * f; } });
-        return { n: g.n, ll: A ? [cx / (3 * A), cy / (3 * A)] : rings[0][0] };
-      });
-      return GUB;
-    }
-    function guBubbles() {
-      if (!map || !ready || !geo || !map.getSource("gub")) return;
-      if (typeof mapView !== "undefined" && mapView !== "seoul") { map.getSource("gub").setData(FC([])); return; }
-      const C = guCenters(), z = map.getZoom();
-      const fs = Math.max(10, Math.min(12.5, 10 + (z - 9.5) * (2.5 / 1.1)));
-      const B = C.map((c) => {
-        const k = OVR ? OVR[c.n] || 0 : typeof guMetric === "function" ? guMetric(c.n) : 0;
-        const nm = c.n.length <= 2 ? c.n : c.n.replace(/구$/, ""), v = String(k);
-        const p = map.project(c.ll), w = k > 0 ? (nm.length * 0.82 + v.length * 0.62 + 0.4) * fs + 16 : nm.length * 0.8 * fs + 4, h = k > 0 ? fs * 1.25 + 10 : fs + 4;
-        return { c, k, nm, v, x: p.x, y: p.y, x0: p.x, y0: p.y, w, h };
-      });
-      const cv = map.getCanvas(), VW = cv.clientWidth, VH = cv.clientHeight, TOP = 8, M = 8, RR = innerWidth > 980 ? 176 : 144;   // 오른쪽 위 RR px 높이까지는 겹쳐 보기 레일 자리
-      const xMax = (P) => VW - M - P.w / 2 - (P.y < RR ? 44 : 0);
-      const AR = (dx, dy) => (Math.abs(dx) > Math.abs(dy) * 1.6 ? (dx < 0 ? "←" : "→") : Math.abs(dy) > Math.abs(dx) * 1.6 ? (dy < 0 ? "↑" : "↓") : (dy < 0 ? (dx < 0 ? "↖" : "↗") : (dx < 0 ? "↙" : "↘")));
-      for (let i = B.length - 1; i >= 0; i--) {
-        const P = B[i], out = P.x < 0 || P.x > VW || P.y < TOP - 10 || P.y > VH;
-        if (!out) continue;
-        if (!P.k) { B.splice(i, 1); continue; }
-        const cy = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y)); P.y = cy; const cx = Math.min(xMax(P) - 7, Math.max(M + P.w / 2 + 7, P.x));
-        P.edge = AR(P.x - VW / 2, P.y - VH / 2); P.x = P.x0 = cx; P.y = P.y0 = cy; P.w += 14;
-      }
-      for (let it = 0; it < 200; it++) {
-        let moved = false;
-        B.forEach((P) => { P.y = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y)); P.x = Math.min(xMax(P), Math.max(M + P.w / 2, P.x)); });
-        for (let a = 0; a < B.length; a++) for (let b = a + 1; b < B.length; b++) {
-          const P = B[a], Q = B[b], dx = Q.x - P.x, dy = Q.y - P.y;
-          const ox = (P.w + Q.w) / 2 + 2 - Math.abs(dx), oy = (P.h + Q.h) / 2 + 2 - Math.abs(dy);
-          if (ox <= 0 || oy <= 0) continue;
-          moved = true;
-          if (ox < oy * 1.6) { const m = ox / 2 * (dx < 0 ? -1 : 1); P.x -= m; Q.x += m; } else { const m = oy / 2 * (dy < 0 ? -1 : 1) || oy / 2; P.y -= m; Q.y += m; }
-        }
-        B.forEach((P) => { P.x += (P.x0 - P.x) * 0.02; P.y += (P.y0 - P.y) * 0.02; });
-        if (!moved) break;
-      }
-      B.forEach((P) => { P.y = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y)); P.x = Math.min(xMax(P), Math.max(M + P.w / 2, P.x)); });   // 밀려도 화면 안
-      LASTB = B.map((P) => ({ g: P.c.n, x: P.x, y: P.y, w: P.w, h: P.h, k: P.k }));
-      const F = B.map((P) => ({ type: "Feature", geometry: { type: "Point", coordinates: map.unproject([P.x, P.y]).toArray() }, properties: { n: P.edge ? P.edge + " " + P.nm : P.nm, g: P.c.n, v: P.v, k: P.k } }));
-      map.getSource("gub").setData(FC(F));
     }
     // 기본은 압구정을 가운데 둔 한강 W자 구간. 내 돈으로 되는 구역이 그 밖에 있으면 거기까지 넓힌다.
     const CORE = [[126.882, 37.494], [127.118, 37.562]];   // 망원~잠실, 가운데가 반포·압구정 사이(한강 W자가 좌우 대칭으로 들어오게)
@@ -291,62 +257,215 @@
       }
       return r.src === "moa" ? "모아타운" : stageName(r);
     }
+    // 카드 아래 칸: 값이 있으면 금액(지금 X억), 없으면 단계
+    function cardVal(r) {
+      const t = labelOf(r);
+      if (t && (/\d/.test(t) || BINS[colorBy])) return t;
+      return r.src === "moa" ? "모아타운" : stageName(r) || t || "";
+    }
     function paint() {
       if (!map || !ready || !geo) return;
-      const P = palette(), Z = geo.z;
+      const Z = geo.z;
       const vis = R.filter((r) => r.ll && visible(r));
-      const off = [], est = [], lab = [], pts = [];
+      const off = [], est = [], lab = [], pts = [], MS = mineSet();
       for (const r of vis) {
-        const st0 = colorBy === "cash" ? dotState(r) : "", c = colorOf(r, P), z = Z[r.id], o = BINS[colorBy] ? (metric(r) == null ? 0.4 : 1.25) : st0 === "x" ? 0.45 : st0 === "n" || st0 === "u" ? 0.75 : st0 === "y" ? 1.3 : 1;
+        const st0 = colorBy === "cash" ? dotState(r) : "", z = Z[r.id];
+        const s = cardVal(r), y = st0 === "y" ? 1 : 0, pp = y || MS.has(r.id) ? 1 : 0;
+        // 정렬 키: 살 수 있는 곳 → 금액 있는 곳 → 나머지 (작을수록 먼저 자리 잡음)
+        const k = y ? 0 : /\d/.test(s) ? 1 : 2;
         if (z) {
-          (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id, c, o, st: colorBy === "cash" ? "y" : "c" } });
-          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), p: /\d/.test(labelOf(r)) ? labelOf(r).replace(/^지금\s*/, "") : "", y: st0 === "y" ? 1 : 0 } });
+          (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id } });
+          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s, y, k, p: pp } });
+        } else {
+          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: shortName(r.n), s, y, k: k + 0.5, p: pp } });
+          pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id } });
         }
-        if (!z && st0 === "y") lab.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), p: /\d/.test(labelOf(r)) ? labelOf(r).replace(/^지금\s*/, "") : "", y: 1 } });
-        if (!z) pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, c, o } });
       }
       map.getSource("zones").setData(FC(off));
       map.getSource("zest").setData(FC(est));
       map.getSource("zlab").setData(FC(lab));
       map.getSource("pts").setData(FC(pts));
-      requestAnimationFrame(guBubbles);
       legend();
+      pins(true);
     }
+    // ===================== 핀: 핀이 꽂힌 구역 = 내 돈으로 살 수 있는 곳 =====================
+    // 크기: 줌 12 아래 6px 점, 12~13 16px, 14~15 22px, 16 이상 28px(+'이름 · X억'). 핀 끝이 구역 중심.
+    // 살 수 있는 핀 = 남색 머리 + 흰 ₩, 내 핀 = 노란 머리 + 남색 ₩(줌 10부터 늘 보임), 선택 = 1.25배 + 후광.
+    // 게이지를 움직이면 새로 되는 곳은 24px 위에서 떨어져 꽂히고(320ms, 살짝 튕김 + 그림자 펄스), 안 되는 곳은 줄며 사라진다.
+    const PIN = new Map();      // id → { ll, r } 지금 꽂혀 있어야 하는 '살 수 있는' 핀
+    const pinAnim = new Map();  // id → { kind: drop|fi|fo|out, t0, d, ll, r }
+    let pinK = null, pinRaf = 0, pinT = 0, pinTm = 0, pinSnap = null, pinHooked = false, toastEl = null, toastTm = 0;
+    const PIN_COL = (dk) => (dk ? { a: "#6C8CFF", m: "#FFD45C", b: "#0F1730", wa: "#FFFFFF", wm: "#0F1730", halo: "rgba(108,140,255,.30)" } : { a: "#1F3A87", m: "#F5C33B", b: "#FFFFFF", wa: "#FFFFFF", wm: "#1F3A87", halo: "rgba(31,58,135,.24)" });
+    function pinImgs(dk) {
+      const C = PIN_COL(dk), k = 3;
+      const put = (id, W, H, draw) => { if (map.hasImage(id)) map.removeImage(id); const c = document.createElement("canvas"); c.width = W * k; c.height = H * k; const x = c.getContext("2d"); x.scale(k, k); draw(x); map.addImage(id, x.getImageData(0, 0, W * k, H * k), { pixelRatio: k }); };
+      // 핀 28px(머리 r10) + 후광 자리 5px. 아래 끝이 앵커
+      const PAD = 5, R0 = 9.6, W = 2 * (R0 + PAD) + 2, H = 28 + PAD, cx = W / 2, cy = PAD + R0 + 1;
+      const tear = (x) => { x.beginPath(); x.moveTo(cx, H - 0.6); x.bezierCurveTo(cx - 2, H - 6, cx - R0, cy + 7.5, cx - R0, cy); x.arc(cx, cy, R0, Math.PI, 0); x.bezierCurveTo(cx + R0, cy + 7.5, cx + 2, H - 6, cx, H - 0.6); x.closePath(); };
+      ["a", "m"].forEach((t) => ["", "-s"].forEach((sx) => put(`zpin-${t}${sx}`, W, H, (x) => {
+        if (sx) { x.beginPath(); x.arc(cx, cy, R0 + 4, 0, Math.PI * 2); x.fillStyle = C.halo; x.fill(); }
+        tear(x); x.fillStyle = C[t]; x.fill(); x.lineWidth = 2; x.strokeStyle = C.b; x.stroke();
+        x.fillStyle = t === "a" ? C.wa : C.wm; x.font = "800 12px 'Pretendard Variable','Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("₩", cx, cy + 0.8);
+      })));
+      ["a", "m"].forEach((t) => put(`zdot-${t}`, 7, 7, (x) => { x.beginPath(); x.arc(3.5, 3.5, 3, 0, Math.PI * 2); x.fillStyle = C[t]; x.fill(); x.lineWidth = 1; x.strokeStyle = C.b; x.stroke(); }));
+      put("zclu", 22, 22, (x) => { x.beginPath(); x.arc(11, 11, 9.5, 0, Math.PI * 2); x.fillStyle = C.a; x.fill(); x.lineWidth = 2; x.strokeStyle = C.b; x.stroke(); });
+    }
+    function mineSet() {
+      let L = null;
+      try { const PZ = typeof PINS !== "undefined" ? PINS : window.PINS; if (PZ && typeof PZ.list === "function") L = PZ.list(); } catch (e) {}
+      if (!Array.isArray(L)) { try { L = FAV; } catch (e) { L = []; } }
+      return new Set((L || []).map((x) => (x && typeof x === "object" ? x.id : x)).filter(Boolean));
+    }
+    // cubic-bezier(.34,1.56,.64,1): 살짝 넘쳤다 돌아오는 낙하
+    const bez = (() => { const X1 = 0.34, Y1 = 1.56, X2 = 0.64, Y2 = 1; const f = (t, a, b) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t; return (x) => { let t = x; for (let i = 0; i < 6; i++) { const d = (f(t + 1e-4, X1, X2) - f(t, X1, X2)) / 1e-4; if (!d) break; t -= (f(t, X1, X2) - x) / d; t = Math.min(1, Math.max(0, t)); } return f(t, Y1, Y2); }; })();
+    const llOf = (r) => { const z = geo && geo.z[r.id]; return z ? z.l : r.ll ? [r.ll[1], r.ll[0]] : null; };
+    const LB = new Map();
+    function pinLab(r) {
+      if (LB.has(r.id)) return LB.get(r.id);
+      const t = labelOf(r), m = /([\d.]+억)/.exec(t || "");
+      const v = `${shortName(r.n)} · ${m ? m[1] : cardVal(r) || ""}`.replace(/ · $/, "");
+      LB.set(r.id, v); return v;
+    }
+    // 줌 구간별 핀 배율(이미지 높이 28px 기준): 12 아래는 6px 점 이미지라 1
+    const pinBand = () => { const z = map.getZoom(); return z < 12 ? 1 : z < 14 ? 16 / 28 : z < 16 ? 22 / 28 : 1; };
+    let pinB = 0;
+    function pinDraw(now) {
+      if (!map || !ready || !map.getSource("zpa")) return;
+      now = now || performance.now();
+      const sz = pinBand();
+      const mine = mineSet(), sel = cur && cur.id, A = [], M = [], S = [], SH = [];
+      const F = (r, ll, t, o, dy, sc, k) => {
+        const s0 = (r.id === sel ? 1.25 : 1) * sc * sz;   // 크기는 줌 구간마다 JS에서 정한다(배치 계산이 타일 줌 기준이라 식으로는 어긋남)
+        return { type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { id: r.id, t, x: r.id === sel ? "-s" : "", s: s0, o, off: [0, dy / (s0 || 1)], k, lb: pinLab(r) } };
+      };
+      const st = (a, ll) => {
+        const e = now - a.t0;
+        if (e < 0) return { o: 0, dy: 0, sc: 1 };
+        if (a.kind === "drop") {
+          if (e >= 320 && e < 440) { const q = (e - 320) / 120; SH.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { r: (2 + 7 * q) * Math.max(sz, 0.6), o: 0.34 * (1 - q) } }); }
+          return { o: Math.min(1, e / 90), dy: -24 * (1 - bez(Math.min(1, e / 320))), sc: 1 };
+        }
+        if (a.kind === "fi") return { o: Math.min(1, e / a.d), dy: 0, sc: 1 };
+        if (a.kind === "fo") return { o: Math.max(0, 1 - e / a.d), dy: 0, sc: 1 };
+        const t = Math.min(1, e / 180); return { o: 1 - t, dy: 0, sc: 1 - 0.55 * t };
+      };
+      PIN.forEach((p, id) => {
+        if (id === sel || mine.has(id)) return;
+        const a = pinAnim.get(id), v = a ? st(a, p.ll) : { o: 1, dy: 0, sc: 1 };
+        A.push(F(p.r, p.ll, "a", v.o, v.dy, v.sc, 2));
+      });
+      pinAnim.forEach((a, id) => { if (PIN.has(id) || id === sel || mine.has(id)) return; const v = st(a, a.ll); A.push(F(a.r, a.ll, "a", v.o, v.dy, v.sc, 2)); });
+      mine.forEach((id) => { const r = byId[id]; if (!r || id === sel) return; const ll = llOf(r); if (ll) M.push(F(r, ll, "m", 1, 0, 1, 1)); });
+      if (sel && (PIN.has(sel) || mine.has(sel))) { const r = byId[sel], ll = r && llOf(r); if (ll) S.push(F(r, ll, mine.has(sel) ? "m" : "a", 1, 0, 1, 0)); }
+      map.getSource("zpa").setData(FC(A));
+      map.getSource("zpm").setData(FC(M));
+      map.getSource("zps").setData(FC(S));
+      map.getSource("zpsh").setData(FC(SH));
+    }
+    function pinTick() {
+      pinRaf = 0;
+      if (!map || !ready) return;
+      const now = performance.now();
+      pinDraw(now);
+      pinAnim.forEach((a, id) => { const end = a.kind === "drop" ? 440 : a.kind === "out" ? 180 : a.d; if (now - a.t0 >= end) pinAnim.delete(id); });
+      if (pinAnim.size) pinRaf = requestAnimationFrame(pinTick);
+      else pinDraw(now);
+    }
+    function pins(force) {
+      if (!map || !ready || !geo || !map.getSource("zpa")) return;
+      pinHooks();
+      const now = performance.now();
+      if (!force && now - pinT < 120) { clearTimeout(pinTm); pinTm = setTimeout(() => pins(false), 124 - (now - pinT)); return; }
+      clearTimeout(pinTm); pinT = now;
+      const next = new Map();
+      for (const r of R) {
+        if (!r.ll || !visible(r)) continue;
+        let y = false; try { y = dotState(r) === "y"; } catch (e) {}
+        if (y) next.set(r.id, { ll: llOf(r), r });
+      }
+      const key = [...next.keys()].join(",");
+      if (key === pinK) { if (force) { LB.clear(); pinDraw(); } return; }
+      LB.clear();
+      // 처음 로딩·지도 움직이는 중·움직임 줄이기 → 150ms 페이드만
+      const calm = pinK == null || reduceMotion() || map.isMoving();
+      pinK = key;
+      const add = [], rm = [];
+      next.forEach((p, id) => { if (!PIN.has(id) || (pinAnim.get(id) || {}).kind === "out" || (pinAnim.get(id) || {}).kind === "fo") add.push([id, p]); });
+      PIN.forEach((p, id) => { if (!next.has(id)) rm.push([id, p]); });
+      rm.forEach(([id, p]) => pinAnim.set(id, calm ? { kind: "fo", t0: now, d: 150, ll: p.ll, r: p.r } : { kind: "out", t0: now, ll: p.ll, r: p.r }));
+      if (calm) add.forEach(([id, p]) => pinAnim.set(id, { kind: "fi", t0: now, d: 150, ll: p.ll, r: p.r }));
+      else {
+        // 30개 넘게 바뀌면 화면 가운데 가까운 30개만 떨어뜨리고 나머지는 200ms 페이드. 30ms 간격이라 한 프레임에 6개를 넘지 않는다
+        const cv = map.getCanvas(), c = [cv.clientWidth / 2, cv.clientHeight / 2];
+        const d2 = (ll) => { try { const q = map.project(ll); return (q.x - c[0]) ** 2 + (q.y - c[1]) ** 2; } catch (e) { return 1e12; } };
+        add.map(([id, p]) => [id, p, d2(p.ll)]).sort((a, b) => a[2] - b[2]).forEach(([id, p], i) => pinAnim.set(id, i < 30 ? { kind: "drop", t0: now + i * 30, ll: p.ll, r: p.r } : { kind: "fi", t0: now, d: 200, ll: p.ll, r: p.r }));
+      }
+      PIN.clear(); next.forEach((p, id) => PIN.set(id, p));
+      if (pinAnim.size) { if (!pinRaf) pinRaf = requestAnimationFrame(pinTick); }
+      else pinDraw(now);
+    }
+    // 게이지를 놓으면: 진동 한 번 + '핀 4개 새로 꽂혔어요 · 2개 빠졌어요'(바뀐 게 있을 때만, 2초)
+    function pinToast(msg) {
+      if (!toastEl) { toastEl = document.createElement("div"); toastEl.className = "app-toast lm-toast"; toastEl.setAttribute("role", "status"); toastEl.setAttribute("aria-live", "polite"); document.body.appendChild(toastEl); }
+      toastEl.textContent = msg; toastEl.classList.add("on");
+      clearTimeout(toastTm); toastTm = setTimeout(() => toastEl.classList.remove("on"), 2000);
+    }
+    function pinHooks() {
+      if (pinHooked) return; pinHooked = true;
+      map.on("zoom", () => { const b = pinBand(); if (b !== pinB) { pinB = b; if (!pinRaf) pinDraw(); } });
+      const isG = (t) => t && (t.id === "sCash" || t.id === "sMiniR");
+      document.addEventListener("pointerdown", (e) => { if (isG(e.target)) pinSnap = new Set(PIN.keys()); }, true);
+      document.addEventListener("change", (e) => {
+        if (!isG(e.target) || !pinSnap) return;
+        const snap = pinSnap; pinSnap = null;
+        try { if (navigator.vibrate) navigator.vibrate(10); } catch (er) {}
+        setTimeout(() => {
+          if (!map || !$("lmap") || $("lmap").hidden) return;
+          pins(true);
+          let a = 0, b = 0; PIN.forEach((p, id) => { if (!snap.has(id)) a++; }); snap.forEach((id) => { if (!PIN.has(id)) b++; });
+          if (a || b) pinToast([a ? `핀 ${a}개 새로 꽂혔어요` : "", b ? `${a ? "" : "핀 "}${b}개 빠졌어요` : ""].filter(Boolean).join(" · "));
+        }, 380);
+      }, true);
+      // 내 핀(관심 구역) 토글 → 노란 핀 다시 그리기
+      document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("[data-fav]")) setTimeout(() => pinDraw(), 60); }, true);
+      addEventListener("storage", () => pinDraw());
+    }
+    // 오른쪽 위 겹쳐 보기 레일 폭만큼 오른쪽 여백(카드가 레일 밑에 깔리지 않게)
+    function railPad() { try { const w = $("mapbox") && $("mapbox").querySelector(".s-rail"); const cv = map.getCanvas().getBoundingClientRect(); if (w && w.offsetWidth) return Math.max(16, Math.round(cv.right - w.getBoundingClientRect().left) + 8); } catch (e) {} return 16; }
     function bboxOf(rings) { let a = 180, b = 90, c = -180, d = -90; rings.forEach((rg) => rg.forEach(([x, y]) => { if (x < a) a = x; if (y < b) b = y; if (x > c) c = x; if (y > d) d = y; })); return [[a, b], [c, d]]; }
     function focus(zoom) {
       if (!map || !ready) return;
       const src = map.getSource("sel");
       const z = cur && geo && geo.z[cur.id];
-      if (!cur || !(z || cur.ll)) { src.setData(FC([])); return; }
+      if (!cur || !(z || cur.ll)) { src.setData(FC([])); pinDraw(); return; }
       src.setData(z ? { type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: {} } : FC([]));
+      pinDraw();
       if (!zoom) return;
       const dur = reduceMotion() ? 0 : 650;
-      if (z) map.fitBounds(bboxOf(z.g), { padding: 70, maxZoom: 16.3, duration: dur });
+      if (z) map.fitBounds(bboxOf(z.g), { padding: { top: 70, bottom: 70, left: 60, right: Math.max(60, railPad()) }, maxZoom: 16.3, duration: dur });
       else map.flyTo({ center: [cur.ll[1], cur.ll[0]], zoom: Math.max(map.getZoom(), 15), duration: dur });
     }
     function fitGu(n) {
       if (!map || !geo) return;
       const g = geo.gu.find((x) => x.n === n);
-      if (g) map.fitBounds(bboxOf(g.r.flat ? g.r : [g.r]), { padding: 18, duration: reduceMotion() ? 0 : 500 });
+      if (g) map.fitBounds(bboxOf(g.r.flat ? g.r : [g.r]), { padding: { top: 18, bottom: 18, left: 14, right: railPad() }, duration: reduceMotion() ? 0 : 500 });
     }
     function legend() {
       const el = $("lmLegend");
       if (!el) return;
       const P = palette();
-      let items;
-      if (colorBy === "stage") items = [[1, "계획·지정"], [2, "추진위"], [3, "조합설립"], [4, "사업시행"], [5, "관리처분"], [6, "이주·착공"]].map(([i, t]) => [probe(STCOL(i)), t]);
-      else if (colorBy === "kind") { const K = KIND_COL(); items = [[K.rd, "재개발"], [K.rc, "재건축"], [K.sm, "가로·소규모"], [K.moa, "모아타운"]]; }
-      else if (BINS[colorBy]) items = BINS[colorBy].map(([, t], i) => [(dark() ? RAMP_D : RAMP)[i], t]).concat([[P.x, "자료 없음"]]);
-      else items = [[P.y, gapMode() ? "전세 끼고 지금 가능" : effBasis() === "total" ? "입주까지 가능" : "지금 매수 가능"], [P.n, "현금 부족"], [P.u, "거래 적어 계산 못 함·제외"]];
+      // 구역 색은 한 가지. 고른 기준(내 현금·단계 등)은 카드 아래 칸 값으로 보여 준다
+      const items = [[dark() ? "#5B8CFF" : "#1F3A87", "정비구역 (카드 아래 칸 = " + (MODES.find(([k]) => k === colorBy) || ["", "내 현금"])[1] + ")"]];
       const note = { old: "노후도 = 경계 안 건축물 중 사용승인 후 30년(철근콘크리트)·20년(그 외) 지난 비율 · 서울도시공간포털 건물 레이어(사용승인 2022년까지 반영)로 직접 계산 · 이주·철거 이후 구역과 연도 확인 건물이 적은 곳은 빼요", vol: "최근 12개월 구역 안 연립·다세대 매매 건수(단독·아파트 제외, 서울시 실거래)", yoy: "대지지분 3.3㎡당 매매가 가운데 값, 최근 12개월 vs 그 전 12개월 · 두 기간 5건 이상" }[colorBy];
-      el.innerHTML = `${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
+      const PC = PIN_COL(dark());
+      el.innerHTML = `<span><i class="lm-pin" style="background:${PC.a}"></i>핀 = 내 돈으로 살 수 있는 곳</span><span><i class="lm-pin" style="background:${PC.m}"></i>내 핀</span>${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
     }
     function ui() {
       const box = $("mapbox");
       if (!box || $("lmap")) return;
       const d = document.createElement("div");
       d.id = "lmap"; d.className = "lmap"; d.hidden = true;
-      d.innerHTML = `<div class="lm-ctl" role="group" aria-label="지도 보기"><label class="lm-sel"><span>색</span><select id="lmColor" aria-label="구역 색 기준">${MODES.map(([k, t]) => `<option value="${k}"${colorBy === k ? " selected" : ""}>${t}</option>`).join("")}</select></label><button type="button" class="lm-ly" aria-expanded="false" aria-controls="lmLayers" aria-label="겹쳐 보기(학교·학원·상권 등)" title="겹쳐 보기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 13 10 5 10-5"/></svg>${lyr.size ? ` <b>${lyr.size}</b>` : ""}</button><button type="button" class="lm-lg" aria-expanded="false" aria-controls="lmLegend">범례</button></div><div class="lm-layers" id="lmLayers" hidden><p>겹쳐 보기</p>${LAYERS.map(([k, t, sub]) => `<label><input type="checkbox" value="${k}"${lyr.has(k) ? " checked" : ""}><span>${t}<small>${sub}</small></span></label>`).join("")}<p class="lm-ln">상권·학원가: 서울시 상권분석서비스 <span id="lmSangQ"></span> 점포 수·추정매출. 학교·병원·마트: OpenStreetMap 기준이라 빠진 곳이 있을 수 있어요.</p></div><div class="lm-legend" id="lmLegend" hidden></div>`;
+      d.innerHTML = `<div class="lm-ctl" role="group" aria-label="지도 보기"><label class="lm-sel"><span>카드 값</span><select id="lmColor" aria-label="구역 카드에 보일 값">${MODES.map(([k, t]) => `<option value="${k}"${colorBy === k ? " selected" : ""}>${t}</option>`).join("")}</select></label><button type="button" class="lm-ly" aria-expanded="false" aria-controls="lmLayers" aria-label="겹쳐 보기(학교·학원·상권 등)" title="겹쳐 보기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 13 10 5 10-5"/></svg>${lyr.size ? ` <b>${lyr.size}</b>` : ""}</button><button type="button" class="lm-lg" aria-expanded="false" aria-controls="lmLegend">범례</button></div><div class="lm-layers" id="lmLayers" hidden><p>겹쳐 보기</p>${LAYERS.map(([k, t, sub]) => `<label><input type="checkbox" value="${k}"${lyr.has(k) ? " checked" : ""}><span>${t}<small>${sub}</small></span></label>`).join("")}<p class="lm-ln">상권·학원가: 서울시 상권분석서비스 <span id="lmSangQ"></span> 점포 수·추정매출. 학교·병원·마트: OpenStreetMap 기준이라 빠진 곳이 있을 수 있어요.</p></div><div class="lm-legend" id="lmLegend" hidden></div>`;
       d.querySelector(".lm-lg").onclick = (e) => { const lg = $("lmLegend"), on = lg.hidden; lg.hidden = !on; e.currentTarget.setAttribute("aria-expanded", String(on)); if (on) { $("lmLayers").hidden = true; d.querySelector(".lm-ly").setAttribute("aria-expanded", "false"); } };
       box.appendChild(d);
       d.querySelector("#lmColor").addEventListener("change", (e) => {
@@ -390,7 +509,6 @@
       map.touchZoomRotate.disableRotation();
       map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '정비구역 경계 <a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a>' }), "bottom-right");
       map.on("style.load", () => { ready = false; loadGeo().then(overlays); });
-      map.on("moveend", () => { if (ready && map.getZoom() < 12.3) guBubbles(); });
       map.once("load", () => { const a = $("lmap").querySelector(".maplibregl-ctrl-attrib"); if (a) a.classList.remove("maplibregl-compact-show"); });
       map.on("error", (e) => {
         const m = String((e && e.error && e.error.message) || "");
@@ -410,15 +528,13 @@
         map.on("mouseleave", l, () => { map.getCanvas().style.cursor = ""; pop.remove(); });
       });
       map.on("click", (e) => {
-        const gb = map.getLayer("gub") ? map.queryRenderedFeatures(e.point, { layers: ["gub"] }) : [];
-        if (gb.length && mapView === "seoul") { enterGu(gb[0].properties.g, {}); return; }
-        if (mapView === "seoul" && map.getZoom() < 12.2) { const hit = LASTB.find((b) => b.k > 0 && Math.abs(e.point.x - b.x) <= b.w / 2 + 6 && Math.abs(e.point.y - b.y) <= b.h / 2 + 6); if (hit) { enterGu(hit.g, {}); return; } }
-        const ls = hit.concat(["zone-lab", "zone-lab-y"]).filter((l) => map.getLayer(l));
+        const ls = ["pin-s", "pin-m", "pin-a", "pin-clu", "zone-lab", "zone-lab-p"].concat(hit).filter((l) => map.getLayer(l));
         const fs = map.queryRenderedFeatures(e.point, { layers: ls });
         if (!fs.length) return;
+        if (fs[0].layer.id === "pin-clu") { const c = fs[0]; Promise.resolve(map.getSource("zpa").getClusterExpansionZoom(c.properties.cluster_id)).then((zm) => map.easeTo({ center: c.geometry.coordinates, zoom: zm + 0.2, duration: reduceMotion() ? 0 : 400 })).catch(() => {}); return; }
         // 겹치면 작은(구체적인) 구역 우선
         const area = (f) => { const z = geo && geo.z[f.properties.id]; return z ? z.a || 1e9 : 1e9; };
-        const f = fs.slice().sort((a, b) => (a.layer.id === "zest-fill") - (b.layer.id === "zest-fill") || area(a) - area(b))[0];
+        const f = fs.find((x) => /^(pin-[sma]|zone-lab(-p)?)$/.test(x.layer.id)) || fs.slice().sort((a, b) => (a.layer.id === "zest-fill") - (b.layer.id === "zest-fill") || area(a) - area(b))[0];
         const id = f.properties.id;
         if (!byId[id]) return;
         pop.remove();
@@ -469,7 +585,8 @@
       enter, exit, use, seoul,
       on: () => !!(map && $("lmap") && !$("lmap").hidden),
       paint: () => { if (map && ready) paint(); },
-      counts: (o) => { OVR = o; if (map && ready) guBubbles(); },
+      counts: () => { if (map && ready) pins(false); },
+      pins: () => { if (map && ready) pins(true); },   // 내 핀이 바뀌면 불러 주세요   // 구별 숫자 말풍선은 없앰. 끄는 동안 핀만 다시 꽂는다(120ms 간격)
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
       zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else fitAff(true); },
       geo: () => loadGeo(),
