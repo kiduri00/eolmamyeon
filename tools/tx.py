@@ -158,15 +158,29 @@ def _q_idx(d): return int(d[:4]) * 4 + (int(d[4:6]) - 1) // 3
 HDQ0 = _q_idx(last_sale) - 11   # 최근 12개 분기
 def _unit(x, b): return x[5] / x[4] * 3.3058 if b == 'v' else x[5] / x[3] * 3.3058
 def _okrow(x, b): return (x[1] in (0, 1) and x[4] > 0) if b == 'v' else (x[1] == (3 if b == 'i' else 2) and x[3] > 0)
-def _filt(rows, b):   # 같은 기준 가운데 값의 0.6~1.8배 밖(직거래·특수관계 의심) 제외 — 3건 이상일 때만
+def _filt(rows, b, ref=None):
+    """직거래·특수관계 의심 거래 제외. 반환 (남긴 행, 뺀 건수). 3건 이상일 때만.
+    빌라(v): 같은 기준 가운데 값의 0.6~1.8배 밖. 아파트·입주권(a·i): 면적대마다 값이 달라 전용 ±10㎡ 같은 면적대(같은 기간, 3건 미만이면 ref = 최근 24개월)의
+    가운데 값과 비교해 0.75~1.35배 밖(같은 단지·같은 평형 시세 차이는 보통 이 안). 같은 면적대 비교 거래가 3건 미만이면 전체 가운데 값 0.6~1.8배."""
     if len(rows) < 3: return rows, 0
-    m = med([_unit(x, b) for x in rows]); k = [x for x in rows if .6 * m <= _unit(x, b) <= 1.8 * m]
+    m = med([_unit(x, b) for x in rows])
+    if b == 'v':
+        k = [x for x in rows if .6 * m <= _unit(x, b) <= 1.8 * m]
+        return k, len(rows) - len(k)
+    k = []
+    for x in rows:   # 같은 기간 같은 면적대가 먼저(값이 빠르게 오른 단지), 3건 미만이면 ref(더 긴 기간)
+        band = [_unit(y, b) for y in rows if abs(y[3] - x[3]) <= 10]
+        if len(band) < 3 and ref: band = [_unit(y, b) for y in ref if abs(y[3] - x[3]) <= 10]
+        if len(band) >= 3:
+            mb = med(band)
+            if .75 * mb <= _unit(x, b) <= 1.35 * mb: k.append(x)
+        elif .6 * m <= _unit(x, b) <= 1.8 * m: k.append(x)
     return k, len(rows) - len(k)
 def headline(s, r):
     in24 = [x for x in s if x[0] >= HD24]
     n_i = sum(1 for x in in24 if x[1] == 3); n_a = sum(1 for x in in24 if x[1] == 2 and x[3] > 0); n_v = sum(1 for x in in24 if x[1] in (0, 1))
     if r.get('s', 0) >= 8 and n_i: b = 'i'
-    elif n_a and ('재건축' in (r.get('k') or '') or not n_v): b = 'a'
+    elif n_a and ('재건축' in (r.get('k') or '') or not n_v or n_a >= 3 * n_v): b = 'a'   # 아파트 거래가 빌라·단독의 3배 이상이면 아파트 기준
     else: b = 'v'
     rows = [x for x in s if _okrow(x, b)]
     if not rows:   # 빌라·단독 대지면적이 없는 경우 등: 있는 쪽으로
@@ -174,19 +188,29 @@ def headline(s, r):
             rows = [x for x in s if _okrow(x, b)]
             if rows: break
     if not rows: return None
-    used, xo, w = _filt([x for x in rows if x[0] >= HD12], b) + (12,)
-    if len(used) < 3: used, xo, w = _filt([x for x in rows if x[0] >= HD24], b) + (24,)
-    if not used: used, xo, w = [max(rows, key=lambda x: x[0])], 0, 0
+    ref = [x for x in rows if x[0] >= HD24]   # 면적대 비교 기준(아파트·입주권)
+    used, xo, w = _filt([x for x in rows if x[0] >= HD12], b, ref) + (12,)
+    if len(used) < 3: used, xo, w = _filt([x for x in rows if x[0] >= HD24], b, ref) + (24,)
+    if not used:
+        last = max(rows, key=lambda x: x[0]); used, xo, w = [last], 0, 0
+        if b != 'v':   # 단 1건이라도 같은 면적대 시세와 크게 다르면 그다음 거래
+            ok, _ = _filt(rows, b, rows)
+            if ok: used = [max(ok, key=lambda x: x[0])]
     used = sorted(used, key=lambda x: x[0], reverse=True)
     qq = collections.defaultdict(list)
     for x in rows:
         if _q_idx(x[0]) >= HDQ0: qq[q_of(x[0])].append(x)
+    qref = [x for x in rows if _q_idx(x[0]) >= HDQ0]
     q = []
-    for k in sorted(qq):
-        v, _ = _filt(qq[k], b)
+    uset = {tuple(x) for x in used}; u0 = used[-1][0] if w else '99999999'
+    for k in sorted(qq):   # 머리글 기간 안 거래는 머리글이 남긴 거래만(차트와 큰 숫자가 같은 거래를 본다), 그 전 분기는 분기마다 걸러서
+        inw = [x for x in qq[k] if x[0] >= u0]; v = [x for x in inw if tuple(x) in uset]
+        v += _filt([x for x in qq[k] if x[0] < u0], b, qref)[0]
         if v: q.append([k, round(med([_unit(x, b) for x in v])), len(v)])
-    return {'b': b, 'u': round(med([_unit(x, b) for x in used])), 'w': w, 'n': len(used), 'xo': xo, 'from': used[-1][0], 'to': used[0][0],
-            'p': round(med([x[5] for x in used])), 'pa': round(med([x[3] for x in used]), 1), 'q': q, 'r': [x[:7] for x in used[:5]]}
+    h = {'b': b, 'u': round(med([_unit(x, b) for x in used])), 'w': w, 'n': len(used), 'xo': xo, 'from': used[-1][0], 'to': used[0][0],
+         'p': round(med([x[5] for x in used])), 'pa': round(med([x[3] for x in used]), 1), 'q': q, 'r': [x[:7] for x in used[:5]]}
+    if w == 0 and used[0][0] < HD12: h['st'] = 1   # 오래된 거래 1건뿐(원자료 최근 계약일 기준 12개월보다 전)
+    return h
 
 OUT = {}; DET = {}
 for r in R:
@@ -218,6 +242,17 @@ for r in R:
         t['n'] = len(s)            # 매매 전체(빌라·단독·아파트·입주권)
         t['nv'] = len(sv)          # 빌라·단독만(예전 n)
         if sv: t['lv'] = max(x[0] for x in sv)   # 빌라·단독 최근 계약일
+        t['na'] = len(sa)          # 아파트 매매 수(입주권 제외, 전체 기간)
+        ay = collections.Counter(x[2] for x in sa if x[2] >= 2015)
+        if ay: t['ay'] = {str(k): v for k, v in sorted(ay.items())}   # 2015년 이후 준공 아파트 매매(준공 뒤 단계 확인용)
+        so = [x for x in sa if x[3] >= 20 and 0 < x[2] < 2005]   # 정비 대상인 옛 단지만(2005년 이후 준공 신축 단지 제외 — enrich.py 재건축 단지와 같은 기준)
+        ae, aw = [x for x in so if x[0] >= cut12z], 12
+        if len(ae) < 3: ae, aw = [x for x in so if x[0] >= c24i], 24
+        ae, _ = _filt(ae, 'a', [x for x in so if x[0] >= c24i])
+        if len(ae) >= 3:   # 구역 경계 안 아파트 매매(아파트 위주 구역의 매수가 — enrich.py)
+            ps = sorted(x[5] for x in ae); qa4 = st.quantiles(ps, n=4)
+            t['ae'] = {'n': len(ae), 'med': round(med(ps)), 'p25': round(qa4[0]), 'p75': round(qa4[2]), 'area_med': round(med([x[3] for x in ae]), 1),
+                       'yr': collections.Counter(x[2] for x in ae).most_common(1)[0][0], 'last': max(x[0] for x in ae), 'win': aw}
         if sa:   # 아파트 매매: 최근 12개월 가운데 값·건수, 가장 최근 거래가, 분기별 가운데 값
             a12 = [x[5] for x in sa if x[0] >= cut12z]
             t['an'] = len(a12)
@@ -288,7 +323,9 @@ for r in R:
     if t: OUT[rid] = t
     xt = {k: t[k] for k in ('q', 'qa', 'qi', 'age', 'agn', 'pc') if t.get(k)}
     hd = headline(s, r) if s else None
-    if hd: xt['hd'] = hd
+    if hd:
+        xt['hd'] = hd
+        OUT.setdefault(rid, t)['hd'] = {k: hd[k] for k in ('b', 'u', 'w', 'n', 'to', 'st') if k in hd}   # 목록·인근 비교용 요약(같은 값)
     if s or j or xt:
         DET[rid] = {'s': [x[:7] for x in sorted(s, key=lambda x: x[0], reverse=True)[:40]], 'j': sorted(j, key=lambda x: x[0], reverse=True)[:20], 'x': xt}
 zr = [v.get('jr') or v.get('jr2') for v in OUT.values() if v.get('jr') or v.get('jr2')]
@@ -337,6 +374,10 @@ for p, v0 in apt.items():
     v = [x for x in v0 if x[0] >= cut12]
     win = 12
     if len(v) < 3: v, win = v0, 24   # 조합설립 뒤 거래가 드문 재건축 단지: 2024년 이후 전체
+    # 머리글(hd)과 같은 이상치 기준: 같은 면적대(전용 ±10㎡) 가운데 값 0.75~1.35배 밖 거래 제외
+    _as = lambda L: [[y[0], 2, y[4], y[1], 0, y[2]] for y in L]   # 단지 행 → 구역 거래 행 모양
+    keep = {tuple(y) for y in _filt(_as(v), 'a', _as(v0))[0]}
+    v = [x for x in v if (x[0], 2, x[4], x[1], 0, x[2]) in keep]
     if len(v) >= (3 if win == 12 else 2):
         by = collections.defaultdict(list)
         for x in v: by[round(x[1])].append(x[2])

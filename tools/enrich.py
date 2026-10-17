@@ -43,6 +43,16 @@ for r in R:
     if ok_ev and '(' not in r['sr'] and not r.get('chk') and ns > r['s']:
         stage_changes.append([r['id'], r['sr'], row['sr']]); r['sr'] = row['sr']; r['s'] = ns; r['sUp'] = 1; r['eta'] = {'na': '단계 갱신 반영 중'}   # 예전 단계 기준 준공 확률은 버린다(다음 월간 재계산 때 채움)
         stat['stage_up'] += 1
+# 수동 보정(tools/overrides.json): 정보몽땅 단계가 늦은 곳(준공했는데 착공으로 남은 곳 등). 실거래로 확인한 것만 넣는다
+_OVP = os.path.join(ROOT, 'tools/overrides.json')
+OVR = {k: v for k, v in (json.load(open(_OVP, encoding='utf-8')) if os.path.exists(_OVP) else {}).items() if not k.startswith('_')}
+for r in R:
+    o = OVR.get(r['id'])
+    if not o: continue
+    for k, v in o.items():
+        if k != 'why': r[k] = v
+    r['ovr'] = 1; r.pop('sPend', None); r.pop('sUp', None); stat['override'] += 1
+    if r.get('s', 0) >= 9: r['eta'] = {'na': '준공'}
 # 날짜 정리: 오늘 뒤 날짜(원자료 오기, 예: 2033년)는 버리고, 단계 순서가 거꾸로 된 날짜(준공이 착공보다 앞섬 등)는 뒤 단계 쪽을 버린다
 import datetime as _d0
 _today = _d0.date.today().isoformat()
@@ -151,8 +161,24 @@ def parse_j(r):
     if not code: return None, None
     pnu = f"{code}{'2' if m.group(2) else '1'}{int(m.group(3)):04d}{int(m.group(4) or 0):04d}"
     return code, pnu
+# ---------- 특수 사업 표시: 역세권 장기전세주택(lt) · 시장·상가 정비(mk) — 매수가 계산 전에 정한다 ----------
 for r in R:
+    r.pop('tag', None)
+    if '장기전세' in r['n']: r['tag'] = 'lt'; stat['tag_lt'] += 1
+    elif re.search(r'시장|상가', r['n']): r['tag'] = 'mk'; stat['tag_mk'] += 1
+# 매수가(mk.entry) 신뢰도 표시: r['lc'] = 1 · mk.entry.lc = 1 → 표본이 적거나 구역 거래 구성과 다른 매물로 계산한 값.
+#   화면 '살 수 있는 곳' 순위에서 빼는 용도(구역 상세에는 값과 함께 '참고' 표시). 조건: 구역 안 빌라 3~4건으로 정한 값 ·
+#   아파트 위주 구역(머리글 기준 아파트 또는 아파트 매매 ≥ 빌라·단독 3배)인데 구역 안 아파트 매매가 3건 미만이라 빌라로 계산한 값.
+# 시장·상가 정비(tag 'mk')는 빌라 시세가 상가 지분 값을 대신하지 못해 매수가를 내지 않는다(계산 전).
+def apt_dom(t):
+    return bool(t) and ((t.get('hd') or {}).get('b') == 'a' or (t.get('na', 0) >= 3 and t.get('na', 0) >= 3 * t.get('nv', 0)))
+for r in R:
+    r.pop('lc', None)
     t = T.get(r['id'])
+    if r.get('tag') == 'mk' and act(r) and r.get('src') != 'moa':
+        if t: r['tx'] = {k: v for k, v in t.items() if v not in (None, [], {}) and k not in ('q', 'qa', 'qi', 'age', 'agn', 'pc')}
+        if (r.get('mk') or {}).pop('entry', None): stat['entry_drop_mk'] += 1
+        r['nx'] = 'mk'; continue
     if t:
         r['tx'] = {k: v for k, v in t.items() if v not in (None, [], {}) and k not in ('q', 'qa', 'qi', 'age', 'agn', 'pc')}   # 상세는 data/tx.json에서 지연 로딩
     if not act(r) or r.get('src') == 'moa': continue
@@ -162,6 +188,14 @@ for r in R:
     if en and ((en.get('p25') and en.get('p75') and en['p75'] / max(en['p25'], 1) > 3) or (en.get('area_med') or 99) < 20
                or (en.get('src') == 'complex' and (en.get('yr') or 0) >= 2005) or (en.get('match') == 'name' and (en.get('radius') or 0) > 50)):
         mk.pop('entry', None); en = None; stat['entry_drop_bad'] += 1
+    # (a0) 아파트 위주 구역(재개발 안 기존 아파트 단지 등): 구역 경계 안 아파트 매매로
+    if t and villa_kind and apt_dom(t) and t.get('ae'):
+        a = t['ae']
+        mk['entry'] = {'src': 'complex', 'scope': '구역 경계 안 아파트', 'n': a['n'], 'p25': a['p25'], 'med': a['med'], 'p75': a['p75'], 'radius': 0, 'area_med': a['area_med'],
+                       'name': '구역 안 아파트', 'yr': a['yr'], 'last': a['last'][2:4] + '.' + a['last'][4:6] + '.' + a['last'][6:8], 'match': 'zone', 'by_area': {}, 'fill': 'zoneapt',
+                       **({'prev': {k: en[k] for k in ('n', 'med', 'radius', 'src') if k in en}} if en else {})}
+        stat['entry_zone_apt'] += 1
+        continue
     # (a) 구역 안 실거래가 충분하면 반경 추정보다 우선. 3~4건이라도 반경 추정과 25% 넘게 다르면 구역 안 값을 쓴다
     if t and villa_kind and (t.get('no', 0) >= 5 or (t.get('no', 0) >= 3 and en and en.get('med') and t.get('med') and abs(en['med'] / t['med'] - 1) > 0.25)):
         lv = t.get('lv') or t['last']   # 빌라·단독 최근 거래일(아파트 거래가 섞인 last 대신)
@@ -169,7 +203,10 @@ for r in R:
                        'radius': 0, 'area_med': t['ar'], 'last': lv[2:4] + '.' + lv[4:6] + '.' + lv[6:8], 'fill': 'zone', **({'m': 'jibun'} if t.get('m') == 'jibun' else {}),
                        **({'prev': {k: en[k] for k in ('n', 'med', 'radius') if k in en}} if en else {})}
         stat['entry_zone' if en else 'entry_zone_new'] += 1
+        if t['no'] < 5 or apt_dom(t): mk['entry']['lc'] = 1; r['lc'] = 1; stat['entry_lc'] += 1
         continue
+    if en and en.get('src') == 'villa' and t and villa_kind and apt_dom(t):   # 아파트 위주 구역인데 주변 빌라 값으로 계산
+        en['lc'] = 1; r['lc'] = 1; stat['entry_lc'] += 1
     if en: continue
     code, pnu = parse_j(r)
     if not code and PARC.get(r['id'], {}).get('p'):   # 주소가 없으면 경계 안 필지의 법정동
@@ -206,12 +243,8 @@ for r in R:
         mk['entry'] = {'src': 'villa', 'scope': f"{nm} 전체 2010년 이전 준공 빌라(전용 30~70㎡)", 'n': dg['n'], 'p25': dg['p25'], 'med': dg['med'], 'p75': dg['p75'], 'radius': 0,
                        'area_med': dg['area_med'], 'last': dg['last'][2:4] + '.' + dg['last'][4:6] + '.' + dg['last'][6:8], 'yr_cap': 2010, 'fill': 'dong'}
         stat['entry_dong'] += 1
+        if apt_dom(t): mk['entry']['lc'] = 1; r['lc'] = 1; stat['entry_lc'] += 1
     else: stat['entry_miss'] += 1
-# ---------- 4. 특수 사업 표시: 역세권 장기전세주택(lt) · 시장·상가 정비(mk) ----------
-for r in R:
-    r.pop('tag', None)
-    if '장기전세' in r['n']: r['tag'] = 'lt'; stat['tag_lt'] += 1
-    elif re.search(r'시장|상가', r['n']): r['tag'] = 'mk'; stat['tag_mk'] += 1
 # ---------- 5. 법정동이 비어 있는 구역(주소 없음·이름에 동 없음): 경계 안 필지 PNU 앞 10자리 → 법정동 이름(dg) ----------
 # api.py dong()과 같은 규칙으로 비어 있는지 본다
 DONG_RE = re.compile(r'^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)')
@@ -244,5 +277,5 @@ import datetime as _dt
 D['upd'] = _dt.date.today().isoformat()
 json.dump(D, open(os.path.join(ROOT, 'pipeline/data.enriched.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print(dict(stat))
-miss = [(r['id'], r['n'], r['k'], r.get('j')) for r in R if act(r) and r.get('src') != 'moa' and not (r.get('mk') or {}).get('entry') and r.get('nx') != 'biz']
+miss = [(r['id'], r['n'], r['k'], r.get('j')) for r in R if act(r) and r.get('src') != 'moa' and not (r.get('mk') or {}).get('entry') and r.get('nx') not in ('biz', 'mk')]
 print('still no price', len(miss)); [print(' ', m) for m in miss[:40]]

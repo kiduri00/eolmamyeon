@@ -33,7 +33,7 @@ const SIMPLE = (() => {
     return { now: x.needBuy, total: x.ok ? x.needTotal : null };
   }
   function rows() {
-    return R.filter((r) => okR(r) && (!gu || r.g === gu) && (!kind || KIND(r) === kind))
+    return R.filter((r) => okR(r) && !r.lc && (!gu || r.g === gu) && (!kind || KIND(r) === kind))
       .map((r) => ({ r, n: needOf(r), early: r.s <= 1 || r.eta?.p10 == null }))
       .sort((a, b) => a.early - b.early || (gapMode() || effBasis() !== "total" ? (a.n.now ?? 99) - (b.n.now ?? 99) : (a.n.total ?? 99) - (b.n.total ?? 99)));
   }

@@ -97,12 +97,12 @@
         ["사업", (q) => esc(SHAPE[shapeOf(q)])],
         ["단계", (q) => esc(stageName(q))],
         ["계획 세대", (q) => (q.sm?.units ? fmt(q.sm.units) : "–")],
-        ["대지 3.3㎡당", (q) => (q.tx?.pp ? eok(q.tx.pp) : "–")],
+        ["3.3㎡당 실거래", (q) => { const h = q.tx?.hd; return h && h.u ? `${eok(h.u)}<small class="dim" style="display:block;font-size:11px">${HDB[h.b] || ""}${h.st ? " · 오래된 거래" : ""}</small>` : "–"; }],
         [lab, (q) => { const n = needOf(q); return n == null ? "–" : `${e2(n)}억`; }, (q) => needOf(q)],
         ["10년 안 준공", (q) => (q.eta?.p10 != null ? prob(q.eta.p10) + "%" : "–"), (q) => (q.eta?.p10 != null ? -q.eta.p10 : null)],
       ];
       const best = rows.map(([, , k]) => { if (!k) return null; const v = cols.map(([q]) => k(q)).filter((x) => x != null); return v.length ? Math.min(...v) : null; });
-      return `<div class="sect nearcmp"><h3>1km 안 다른 구역과 비교 <small>${near.length}곳 · 같은 내 조건으로 계산 · 굵은 값이 가장 유리</small></h3><div class="nc-wrap"><table class="nc"><thead><tr><th scope="col"></th>${cols.map(([q], i) => `<th scope="col">${i ? `<button type="button" class="nc-go" data-go="${q.id}">${esc(shortName(q.n))}</button>` : `<b>${esc(shortName(q.n))}</b>`}</th>`).join("")}</tr></thead><tbody>${rows
+      return `<div class="sect nearcmp"><h3>1km 안 다른 구역과 비교 <small>${near.length}곳 · 같은 내 조건으로 계산 · 굵은 값이 가장 유리 · 3.3㎡당 값은 각 구역 실거래 탭 맨 위와 같은 기준</small></h3><div class="nc-wrap"><table class="nc"><thead><tr><th scope="col"></th>${cols.map(([q], i) => `<th scope="col">${i ? `<button type="button" class="nc-go" data-go="${q.id}">${esc(shortName(q.n))}</button>` : `<b>${esc(shortName(q.n))}</b>`}</th>`).join("")}</tr></thead><tbody>${rows
         .map(([t, f, k], ri) => `<tr><th scope="row">${t}</th>${cols.map(([q, d]) => { const v = k ? k(q) : null; return `<td${v != null && v === best[ri] ? ' class="b"' : ""}>${f(q, d)}</td>`; }).join("")}</tr>`)
         .join("")}</tbody></table></div></div>`;
     }
@@ -182,7 +182,7 @@
     }
 
     // ---------- 실거래 탭 ----------
-    function chartSVG(r, q) {
+    function chartSVG(r, q, lab) {
       if (!q || q.length < 2) return "";
       const W = 560, H = 150, pl = 8, pr = 8, pt = 16, pb = 22;
       const vs = q.map((x) => x[1]), mn = Math.min(...vs), mx = Math.max(...vs), rg = Math.max(1, mx - mn);
@@ -193,7 +193,7 @@
       const area = `${line}L${pts[pts.length - 1][0].toFixed(1)},${H - pb}L${pts[0][0].toFixed(1)},${H - pb}Z`;
       const ms = Object.entries(r.dt || {}).filter(([k, d]) => d && ["구역지정", "추진위", "조합설립", "사업시행", "관리처분"].includes(k)).map(([k, d]) => [k, +d.slice(0, 4) + (+d.slice(5, 7) - 1) / 12]).filter(([, t]) => t >= t0 && t <= t1);
       const yr0 = Math.ceil(t0), ticks = []; for (let y = yr0; y <= t1; y++) ticks.push(y);
-      return `<svg class="txc" viewBox="0 0 ${W} ${H}" role="img" aria-label="분기별 대지 3.3㎡당 가격 가운데 값 추이${ms.length ? "와 인가 시점" : ""}">
+      return `<svg class="txc" viewBox="0 0 ${W} ${H}" role="img" aria-label="분기별 ${lab || "대지 3.3㎡당"} 가격 가운데 값 추이${ms.length ? "와 인가 시점" : ""}">
         ${ticks.map((y) => `<line x1="${X(y).toFixed(1)}" x2="${X(y).toFixed(1)}" y1="${pt}" y2="${H - pb}" class="g"/><text x="${X(y).toFixed(1)}" y="${H - 6}" class="x">${y}</text>`).join("")}
         ${ms.map(([k, t]) => `<line x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${pt - 6}" y2="${H - pb}" class="m"/><text x="${(X(t) + 3).toFixed(1)}" y="${pt - 4}" class="mt">${k}</text>`).join("")}
         <path d="${area}" class="a"/><path d="${line}" class="l"/>
@@ -201,28 +201,71 @@
         <text x="${(pts[pts.length - 1][0] - 2).toFixed(1)}" y="${(pts[pts.length - 1][1] - 7).toFixed(1)}" class="v" text-anchor="end">${eok(vs[vs.length - 1])}</text></svg>`;
     }
     const qT = (s) => 2000 + +s.slice(0, 2) + (+s.slice(3) - 1) / 4;
+    // 실거래 머리글 기준(tools/tx.py headline): v 빌라·단독 대지 · a 아파트 전용 · i 입주권 전용
+    const HDB = { v: "빌라·단독 대지", a: "아파트 전용", i: "입주권 전용" };
+    const hdWin = (h) => (h.w === 0 ? "가장 최근 1건" : `최근 ${h.w === 24 ? "2년" : "1년"} ${fmt(h.n)}건`);
+    function noTxHTML(r, t, z) {
+      const nb = t.nb;
+      return `<div class="sect"><h3>실거래</h3><p class="note keep">${(z && !z.e) || r.pcl ? "최근 구역 안 거래 없음" : "이 구역은 공식 경계가 없어(후보지·구역지정 전 등) 경계 안 거래만 따로 모을 수 없어요."}</p>${nb && nb.n ? `<div class="bigrow"><div class="big"><span>같은 동${nb.dong ? `(${esc(nb.dong)})` : ""} 빌라 매매 가운데 값 · 참고</span><b>${eok(nb.med)}</b><small>최근 1년 ${fmt(nb.n)}건 · 구역 밖 거래 포함</small></div></div>` : ""}<p class="note">주변 시세는 '호재·매물' 탭의 KB부동산에서도 확인할 수 있어요.</p></div>`;
+    }
     function paneTx(r) {
       const p = $("pane"), z = GEO_Z && GEO_Z[r.id];
       if (!TXD) { p.innerHTML = `<p class="note">구역 실거래를 불러오는 중…</p>`; loadTx().then(() => { if (cur === r && curTab === "tx" && $("pane")) paneTx(r); }); return; }
-      const t = { ...(r.tx || {}), ...((TXD[r.id] && TXD[r.id].x) || {}) };
-      if (!t.n && !t.jn && !t.pc) {
-        p.innerHTML = `<div class="sect"><p class="note keep">${z && !z.e ? "최근 구역 안 거래가 없어요." : "이 구역은 공식 경계가 없어(후보지·구역지정 전 등) 경계 안 거래만 따로 모을 수 없어요."} 주변 시세는 '호재·매물' 탭의 KB부동산에서 확인하세요.</p></div>${rightsHTML(r)}`;
+      const z0 = TXD[r.id] || {}, S = Array.isArray(z0.s) ? z0.s : [], J = Array.isArray(z0.j) ? z0.j : [];
+      const t = { ...(r.tx || {}), ...(z0.x || {}) }, h = t.hd && t.hd.u ? t.hd : null;
+      const rdx = rights(r);
+      if (!h && !S.length && !J.length) {   // 거래가 없으면 짧게(필지·노후도만 따로)
+        p.innerHTML = noTxHTML(r, t, z) + (rdx.k === "set" ? rightsHTML(r, true) : "");
         return;
       }
       const pc = t.pc, age = t.age || {}, agn = t.agn || {};
-      const qq = (t.q || []).filter((x) => x[2] >= 3);
       const x = (() => { try { return invest(r); } catch (e) { return {}; } })();
+      const en = r.mk?.entry;
+      const per = h ? `${HDB[h.b]} 3.3㎡당` : "";
+      const big = [];
+      if (h) big.push(`<div class="big hl"><span>${per} 가운데 값</span><b>${eok(h.u)}</b><small>${hdWin(h)} · ${esc(ymd2(h.from))}${h.from !== h.to ? "~" + esc(ymd2(h.to)) : ""}${h.st ? ' · <em class="flag">오래된 거래</em>' : ""}${h.xo ? ` · 시세와 크게 다른 ${h.xo}건 제외` : ""}</small></div>`);
+      if (h && h.b !== "v") big.push(`<div class="big"><span>${h.b === "i" ? "입주권" : "아파트"} 거래가 가운데 값</span><b>${eok(h.p)}</b><small>같은 ${fmt(h.n)}건 · 전용 ${h.pa}㎡ 가운데</small></div>`);
+      else if (t.med) big.push(`<div class="big"><span>구축 빌라 매매 가운데 값</span><b>${eok(t.med)}</b><small>2015년 이전 준공 빌라 최근 ${t.nwin || 18}개월 ${fmt(t.no)}건 · 전용 ${t.ar}㎡ · 대지 ${t.ld}㎡</small></div>`);
+      if (t.jm) big.push(`<div class="big"><span>빌라 전세 가운데 값</span><b>${eok(t.jm)}</b><small>전세 ${fmt(t.jn)}건 · 임대 ${t.ja}㎡${t.jr ? ` · 전세가율 ${Math.round(t.jr * 100)}%` : t.jr2 ? ` · 전세가율 약 ${Math.round(t.jr2 * 100)}%` : ""}</small></div>`);
+      const qq = h ? (h.q || []).filter((v) => v[2] >= 2) : [];
+      const villaSec = h && h.b === "v";
+      const ageOk = villaSec && ["a", "b", "c"].some((k) => age[k] != null);
+      const doneI = h && h.b === "i" && r.s >= 9;
+      const TY = ["빌라", "단독", "아파트", "입주권"];
+      const rdY = rdx.k === "set" ? +rdx.d.slice(0, 4) : null;
+      const hasV = S.some((v) => v[1] <= 1);
+      const unitCell = (v) => (v[1] <= 1 ? (v[4] > 0 ? `${eok(Math.round((v[5] / v[4]) * 3.3058))}${hasV && S.some((w) => w[1] >= 2) ? ' <small class="dim">대지</small>' : ""}` : "–") : v[3] > 0 ? `${eok(Math.round((v[5] / v[3]) * 3.3058))}${hasV ? ' <small class="dim">전용</small>' : ""}` : "–");
+      const unitHead = hasV ? (S.some((v) => v[1] >= 2) ? "3.3㎡당" : "대지 3.3㎡당") : "전용 3.3㎡당";
+      // 아파트·입주권: 같은 유형·전용 ±10㎡·앞뒤 1년 거래 가운데 값의 0.75~1.35배 밖이면 표시(머리글 이상치 기준과 같음)
+      const dd = (v) => Date.UTC(+v.slice(0, 4), +v.slice(4, 6) - 1, +v.slice(6, 8));
+      const odd = (v) => {
+        if (v[1] < 2 || !(v[3] > 0)) return false;
+        const u = (w) => w[5] / w[3], band = S.filter((w) => w[1] === v[1] && w[3] > 0 && Math.abs(w[3] - v[3]) <= 10 && Math.abs(dd(w[0]) - dd(v[0])) <= 365 * 864e5).map(u).sort((a, b) => a - b);
+        if (band.length < 3) return false;
+        const m = band.length % 2 ? band[band.length >> 1] : (band[band.length / 2 - 1] + band[band.length / 2]) / 2;
+        return u(v) < 0.75 * m || u(v) > 1.35 * m;
+      };
+      const txTable = S.length
+        ? `<table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col">유형</th><th scope="col" class="n">준공</th><th scope="col" class="n">전용</th>${hasV ? '<th scope="col" class="n">대지</th>' : ""}<th scope="col" class="n">가격</th><th scope="col" class="n">${unitHead}</th></tr></thead><tbody>${S.slice(0, 40)
+            .map((v) => `<tr><td>${ymd2(v[0])}</td><td>${TY[v[1]] || ""}${v[6] ? ` ${+v[6] < 0 ? "지하" + -v[6] : esc(String(v[6]))}층` : ""}${v[2] >= 2016 && v[4] > 0 && v[4] <= 15 ? ' <em class="flag" title="최근 준공·대지 15㎡ 이하: 지분 쪼개기 신축일 수 있어요">쪼개기 의심</em>' : rdY && v[2] > rdY && v[1] <= 1 ? ' <em class="flag" title="권리산정기준일 뒤 준공">기준일 뒤 준공</em>' : odd(v) ? ' <em class="flag" title="같은 면적대 시세와 크게 달라 큰 숫자·추이 계산에서 뺀 거래(직거래·특수관계 등일 수 있어요)">시세와 다름</em>' : ""}</td><td class="n">${v[2] || "–"}</td><td class="n">${v[3]}㎡</td>${hasV ? `<td class="n">${v[4] ? v[4] + "㎡" : "–"}</td>` : ""}<td class="n"><b>${eok(v[5])}</b></td><td class="n">${unitCell(v)}</td></tr>`)
+            .join("")}</tbody></table>`
+        : "";
+      const calcNote = (() => {
+        if (x.price == null) return "";
+        const lc = en && en.lc && x.priceSrc !== "user" ? ` <em class="flag">참고값</em> 구역 안 비교 거래가 적거나 구역 거래 구성(${h && h.b === "a" ? "아파트 위주" : "표본 적음"})과 달라 '살 수 있는 곳' 순위에서는 빼요.` : "";
+        const warn = x.priceSrc !== "user" && en?.fill !== "zone" && en?.fill !== "zoneapt" && t.no
+          ? `<p class="note warnbox"><b>계산은 다른 값을 써요</b> ${r.src === "moa" ? "모아타운 관리지역은 블록별로 사업이 따로 진행돼, 관리지역 전체가 아니라 주변 빌라 시세로 계산했어요." : en?.src === "complex" ? "재건축 단지라 같은 단지 아파트 매매로 계산했어요." : `구역 안 구축 빌라 매매(최근 ${t.nwin || 18}개월 ${t.no}건)가 기준(5건)에 못 미쳐 주변 빌라 시세로 계산했어요.`} 실제 매물가는 '입주 현금' 탭에 넣어 다시 계산하세요.</p>` : "";
+        return `${warn}<p class="note"><b>계산에 쓴 매수가 ${e2(x.price)}억</b> ${x.priceSrc === "user" ? "직접 입력한 값" : en?.scope ? esc(en.scope) + ` 실거래 가운데 값${en.n ? ` (${fmt(en.n)}건${en.area_med ? ` · 전용 ${en.area_med}㎡` : ""})` : ""}` : x.priceSrc === "complex" ? "같은 단지 아파트 실거래" : "구역 주변 구축 빌라 실거래"} · '입주 현금' 탭에서 바꿀 수 있어요${lc}</p>`;
+      })();
       p.innerHTML = `
-        <div class="bigrow b3">
-          <div class="big hl"><span>땅 1평(3.3㎡)당 가운데 값</span><b>${t.pp ? eok(t.pp) : "–"}</b><small>${t.nv || t.n ? `빌라·단독 ${fmt(t.nv || t.n)}건` : ""}</small></div>
-          <div class="big"><span>빌라 매매 가운데 값</span><b>${t.med ? eok(t.med) : "–"}</b><small>${t.no ? `2015년 이전 준공 빌라 최근 ${t.nwin || 18}개월 ${fmt(t.no)}건 · 전용 ${t.ar}㎡ · 대지 ${t.ld}㎡` : "최근 18개월 구축 빌라 거래 없음"}</small></div>
-          <div class="big"><span>빌라 전세 가운데 값</span><b>${t.jm ? eok(t.jm) : "–"}</b><small>${t.jn ? `전세 ${fmt(t.jn)}건 · 임대 ${t.ja}㎡${t.jr ? ` · 전세가율 ${Math.round(t.jr * 100)}%` : t.jr2 ? ` · 전세가율 약 ${Math.round(t.jr2 * 100)}%` : ""}` : "전세 거래 없음"}</small></div>
-        </div>
-        ${x.price != null && x.priceSrc !== "user" && r.mk?.entry?.fill !== "zone" && t.no ? `<p class="note warnbox"><b>계산은 다른 값을 써요</b> ${r.src === "moa" ? "모아타운 관리지역은 블록별로 사업이 따로 진행돼, 관리지역 전체가 아니라 주변 빌라 시세로 계산했어요." : r.mk?.entry?.src === "complex" ? "재건축 단지라 같은 단지 아파트 매매로 계산했어요." : `구역 안 구축 빌라 매매(최근 ${t.nwin || 18}개월 ${t.no}건)가 기준(5건)에 못 미쳐 주변 빌라 시세로 계산했어요.`} 실제 매물가는 '입주 현금' 탭에 넣어 다시 계산하세요.</p>` : ""}
-        ${x.price != null ? `<p class="note"><b>계산에 쓴 매수가 ${e2(x.price)}억</b> ${x.priceSrc === "user" ? "직접 입력한 값" : r.mk?.entry?.scope ? esc(r.mk.entry.scope) + " 실거래 가운데 값" : x.priceSrc === "complex" ? "같은 단지 아파트 실거래" : "구역 주변 구축 빌라 실거래"} · '입주 현금' 탭에서 바꿀 수 있어요</p>` : ""}
-        ${qq.length > 2 ? `<div class="sect"><h3>대지 3.3㎡당 가격 추이 <small>분기별 가운데 값(3건 이상인 분기) · 연립다세대·단독${Object.keys(r.dt || {}).length ? " · 세로선 = 인가 시점" : ""}</small></h3><div class="txc-w">${chartSVG(r, qq)}</div></div>` : ""}
-        ${t.age ? `<div class="sect"><h3>연식별 대지 3.3㎡당 <small>새 건물일수록 비싸지만 권리산정기준일 뒤 신축이면 입주권이 문제될 수 있어요</small></h3><dl class="facts">
-          <div><dt>10년 이하</dt><dd>${age.a ? eok(age.a) : "–"}<small>${agn.a || 0}건</small></dd></div><div><dt>11~30년</dt><dd>${age.b ? eok(age.b) : "–"}<small>${agn.b || 0}건</small></dd></div><div><dt>31년 이상</dt><dd>${age.c ? eok(age.c) : "–"}<small>${agn.c || 0}건</small></dd></div>
+        ${h || S.length ? "" : noTxHTML(r, t, z)}
+        ${big.length ? `<div class="bigrow${big.length >= 2 ? " b3" : ""}">${big.join("")}</div>` : ""}
+        ${h && h.st ? `<p class="note warnbox"><b>오래된 거래</b> 위 값은 ${esc(ymd(h.to))} 거래 1건이에요. 1년 넘게 같은 기준 거래가 없어 지금 시세와 다를 수 있어요.</p>` : ""}
+        ${doneI ? `<p class="note"><b>준공한 단지예요</b> 입주는 끝났지만 이전고시·소유권 보존등기 전이라 실거래 신고상 '입주권'으로 올라와요.</p>` : ""}
+        ${calcNote}
+        ${qq.length > 2 ? `<div class="sect"><h3>${per} 가격 추이 <small>분기별 가운데 값(2건 이상인 분기) · 위 큰 숫자와 같은 기준${Object.keys(r.dt || {}).length ? " · 세로선 = 인가 시점" : ""}</small></h3><div class="txc-w">${chartSVG(r, qq, per)}</div></div>` : ""}
+        ${ageOk ? `<div class="sect"><h3>연식별 대지 3.3㎡당 <small>구역 안 빌라·단독 전체 기간 · 새 건물일수록 비싸지만 권리산정기준일 뒤 신축이면 입주권이 문제될 수 있어요</small></h3><dl class="facts">
+          ${[["a", "10년 이하"], ["b", "11~30년"], ["c", "31년 이상"]].filter(([k]) => age[k] != null).map(([k, l]) => `<div><dt>${l}</dt><dd>${eok(age[k])}<small>${agn[k] || 0}건</small></dd></div>`).join("")}
           <div><dt>쪼개기 의심 거래</dt><dd>${t.split ? t.split + "건" : "없음"}<small>2016년 이후 준공 · 대지 15㎡ 이하</small></dd></div></dl></div>` : ""}
         ${t.old && t.old.k && r.s < 7 ? `<div class="sect"><h3>노후도 <small>구역 경계 안 건축물 ${fmt(t.old.n)}동 전수 · 사용승인연도 확인 ${fmt(t.old.k)}동 · 서울도시공간포털 건물 정보(사용승인 2022년까지 반영)</small></h3><div class="oldbar" role="img" aria-label="노후·불량 건축물 ${t.old.pol}%, 기준선 60%"><i style="width:${t.old.pol}%"></i><s style="left:60%"></s></div><dl class="facts"><div><dt>노후·불량 건축물</dt><dd>${t.old.pol}%<small>철근콘크리트·철골조 30년, 그 밖의 구조 20년 이상(서울 조례 기준 단순화) · 구역지정 요건 60% 이상</small></dd></div><div><dt>30년 이상 건물</dt><dd>${t.old.p30}%<small>평균 ${t.old.avg}년 된 건물</small></dd></div><div><dt>10년 이하 신축</dt><dd>${fmt(t.old.new10)}동<small>권리산정기준일 뒤 신축이면 입주권 문제 확인</small></dd></div></dl></div>` : ""}
         ${pc ? `<div class="sect"><h3>구역 필지 현황 <small>서울도시공간포털 연속지적 ${fmt(pc.n)}필지 · 합계 ${fmt(pc.ar)}㎡</small></h3><dl class="facts">
@@ -230,24 +273,11 @@
           <div><dt>국공유지</dt><dd>${pc.pub}%<small>필지 수 기준 · 많으면 무상양도 협의가 사업성에 영향</small></dd></div>
           <div><dt>도로 필지</dt><dd>${pc.rd}%<small>필지 수 기준</small></dd></div>
           ${pc.jm ? `<div><dt>지목 구성</dt><dd class="tx">${pc.jm.map(([k, v]) => `${esc(k)} ${fmt(v)}`).join(" · ")}</dd></div>` : ""}</dl></div>` : ""}
-        <div class="sect"><h3>최근 매매 <small>구역 경계 안 · 국토부 신고 기준</small></h3><div id="txList" class="txl"><p class="note">불러오는 중…</p></div></div>
-        <div class="sect"><h3>최근 전세 <small>연립다세대</small></h3><div id="jList" class="txl"></div></div>
+        ${S.length ? `<div class="sect"><h3>최근 매매 <small>${t.m === "jibun" ? "대표지번과 같은 본번" : "구역 경계 안"} · 국토부 신고 기준 · 위 큰 숫자는 이 가운데 ${h ? HDB[h.b] + " 기준 거래만" : ""}</small></h3><div id="txList" class="txl">${txTable}</div></div>` : ""}
+        ${J.length ? `<div class="sect"><h3>최근 전세 <small>연립다세대</small></h3><div id="jList" class="txl"><table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col" class="n">준공</th><th scope="col" class="n">임대 면적</th><th scope="col" class="n">보증금</th></tr></thead><tbody>${J.slice(0, 20).map((v) => `<tr><td>${ymd2(v[0])}</td><td class="n">${v[1] || "–"}</td><td class="n">${v[2]}㎡</td><td class="n"><b>${eok(v[3])}</b></td></tr>`).join("")}</tbody></table></div></div>` : ""}
         <p class="note src">자료: 서울시 부동산 실거래가·전월세가 정보(서울 열린데이터광장, 매매 ${esc(ymd(D.txAsOf?.sale))}·전세 ${esc(ymd(D.txAsOf?.rent))}까지), 정비구역 경계·필지 서울도시공간포털. 구역 경계 안 필지 번호와 맞춘 거래만 셉니다.</p>`;
-      loadTx().then((d) => {
-        if (cur !== r || !$("txList")) return;
-        const z0 = d[r.id] || {}, S = Array.isArray(z0.s) ? z0.s : [], J = Array.isArray(z0.j) ? z0.j : [];
-        const TY = ["빌라", "단독", "아파트", "입주권"];
-        const rdY = (() => { const x = rights(r); return x.k === "set" ? +x.d.slice(0, 4) : null; })();
-        $("txList").innerHTML = S.length
-          ? `<table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col">유형</th><th scope="col" class="n">준공</th><th scope="col" class="n">전용</th><th scope="col" class="n">대지</th><th scope="col" class="n">가격</th><th scope="col" class="n">대지 3.3㎡당</th></tr></thead><tbody>${S.slice(0, 40)
-              .map((x) => `<tr><td>${ymd2(x[0])}</td><td>${TY[x[1]] || ""}${x[6] ? ` ${+x[6] < 0 ? "지하" + -x[6] : esc(String(x[6]))}층` : ""}${x[2] >= 2016 && x[4] > 0 && x[4] <= 15 ? ' <em class="flag" title="최근 준공·대지 15㎡ 이하: 지분 쪼개기 신축일 수 있어요">쪼개기 의심</em>' : rdY && x[2] > rdY ? ' <em class="flag" title="권리산정기준일 뒤 준공">기준일 뒤 준공</em>' : ""}</td><td class="n">${x[2] || "–"}</td><td class="n">${x[3]}㎡</td><td class="n">${x[4] ? x[4] + "㎡" : "–"}</td><td class="n"><b>${eok(x[5])}</b></td><td class="n">${x[4] > 0 ? eok(Math.round((x[5] / x[4]) * 3.3058)) : "–"}</td></tr>`)
-              .join("")}</tbody></table>`
-          : '<p class="note keep">최근 구역 안 매매가 없어요.</p>';
-        $("jList").innerHTML = J.length
-          ? `<table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col" class="n">준공</th><th scope="col" class="n">임대 면적</th><th scope="col" class="n">보증금</th></tr></thead><tbody>${J.slice(0, 20).map((x) => `<tr><td>${ymd2(x[0])}</td><td class="n">${x[1] || "–"}</td><td class="n">${x[2]}㎡</td><td class="n"><b>${eok(x[3])}</b></td></tr>`).join("")}</tbody></table>`
-          : '<p class="note">2025년 이후 구역 안 빌라 전세 신고가 없어요.</p>';
-        moreRows($("txList"), 5); moreRows($("jList"), 5);
-      });
+      if ($("txList")) moreRows($("txList"), 5);
+      if ($("jList")) moreRows($("jList"), 5);
     }
 
     // 지도 경계 데이터(경계 유무 판정용)
@@ -317,6 +347,7 @@
   function noPriceTxt(r) {
     if (!r) return "매수가 추정 불가";
     if (r.nx === "biz") return "업무·상업 중심 도시정비형이라 아파트 입주권 계산 대상 아님";
+    if (r.tag === "mk" || r.nx === "mk") return "시장·상가 정비사업이라 빌라 시세로 매수가를 계산하지 않아요(계산 전)";
     if (r.k === "재건축" || r.k === "소규모재건축") return "단지 매매가 최근 2년 2건 미만이라 매수가 추정 불가";
     if (r.s >= 7) return "이주·철거 단계라 현재 매수가 없음";
     if (!r.ll) return "위치가 공개되지 않은 후보지라 주변 시세를 못 찾았어요";
