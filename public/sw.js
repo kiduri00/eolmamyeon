@@ -1,7 +1,7 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "85a67ec3"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "1335baba"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
@@ -9,12 +9,15 @@ const CDN = "eolma-cdn-" + V;
 const BUND = "eolma-bund-" + V;
 const PAGES = "eolma-pages"; // 다녀간 구역·구·리포트 페이지(버전과 무관하게 유지 · 오프라인에서 다시 열기)
 const KEEP = [SHELL, DATA, TILE, CDN, BUND, PAGES];
-const PRE = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-small.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png"];
+const PRE = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-small.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/pages.css"];
+// 구 페이지(목록 + 25개 구)는 설치 때 미리 저장 → 오프라인에서도 구별 구역 목록을 연다
+const GUS = "강남구 강동구 강북구 강서구 관악구 광진구 구로구 금천구 노원구 도봉구 동대문구 동작구 마포구 서대문구 서초구 성동구 성북구 송파구 양천구 영등포구 용산구 은평구 종로구 중구 중랑구".split(" ");
+const PRE_PAGES = ["/gu/"].concat(GUS.map((g) => "/gu/" + encodeURIComponent(g)));
 const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30, [BUND]: 6, [PAGES]: 80 };
 const isDoc = (p) => /^\/(z|gu|report|guide|feed)\//.test(p) || /^\/(years|about|method|contact|terms|privacy)$/.test(p);
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(SHELL).then((c) => Promise.all(PRE.map((u) => c.add(new Request(u, { cache: "reload" })).catch(() => {})))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(SHELL).then((c) => Promise.all(PRE.map((u) => c.add(new Request(u, { cache: "reload" })).catch(() => {})))).then(() => keep(PRE_PAGES).catch(() => {})).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
@@ -99,7 +102,10 @@ const keep = async (urls, force) => {
       if (u.origin !== self.location.origin || !isDoc(u.pathname)) continue;
       const k = keyOf(u.href);
       if (!force && (await pc.match(k))) continue;
-      const r = await fetch(u.href, { credentials: "same-origin" });
+      let r = await fetch(u.href, { credentials: "same-origin" });
+      // 확장자 없는 주소를 못 여는 서버(로컬 등)면 .html로 한 번 더
+      if (!r.ok && !/\/$|\.html$/.test(u.pathname)) r = await fetch(u.href.replace(/([^/])$/, "$1.html"), { credentials: "same-origin" });
+      if (r.redirected) r = new Response(await r.blob(), { status: r.status, headers: r.headers }); // 리디렉트 거친 응답은 탐색 응답으로 못 쓰므로 새로 감쌈
       if (okToCache(r) && /text\/html/.test(r.headers.get("content-type") || "")) await pc.put(k, r);
     } catch (_) {}
   }

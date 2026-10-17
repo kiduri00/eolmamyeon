@@ -39,8 +39,8 @@ const EXTRA = (() => {
     const rowsC = [];
     if (gp && gp.now != null) rowsC.push(["전세 끼고 지금", eokT(gp.now)]);
     else if (x && x.needBuy != null) rowsC.push(["지금 살 때 필요한 돈", eokT(x.needBuy)]);
-    if (gp && gp.total != null) rowsC.push(["입주까지 총", eokT(gp.total)]);
-    else if (x && x.ok) rowsC.push(["입주까지 총", eokT(x.needTotal)]);
+    if (gp && gp.total != null) rowsC.push(["입주까지 현금", eokT(gp.total)]);
+    else if (x && x.ok) rowsC.push(["입주까지 현금", eokT(x.needTotal)]);
     try { const pr = projection(r); if (hasEta(pr) && !pr.past) rowsC.push(["예상 입주", etaSpan(r, pr)]); } catch (e) {}
     let y = 520;
     rowsC.forEach(([k, v]) => {

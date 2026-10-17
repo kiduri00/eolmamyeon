@@ -19,7 +19,10 @@ const PINS = (() => {
   // 옛 링크(?fav=id.id)는 핀 목록만. 앱 본문은 주소만 지우고, 여기서 '가져올까요?' 시트로 묻는다
   const FAV_IN = (() => { try { return new URLSearchParams(location.search).get("fav") || ""; } catch (e) { return ""; } })();
   // 새 링크(#pins=…): 핀·메모·목표·꽂을 때 값·조건 핀까지 압축해 담는다. 열자마자 주소에서 지우고 내 핀 화면으로
-  const PIN_IN = (() => { try { const m = /^#pins=([jz][A-Za-z0-9_-]+)$/.exec(location.hash || ""); if (m) { history.replaceState(history.state, "", location.pathname + location.search + "#favTop"); return m[1]; } } catch (e) {} return ""; })();
+  // 잘못된 #pins= 링크도 조용히 넘기지 않는다: PIN_BAD로 표시해 토스트로 알린다
+  let PIN_BAD = false;
+  const pinHash = () => { try { const h = location.hash || ""; if (!/^#pins=/.test(h)) return null; history.replaceState(history.state, "", location.pathname + location.search + "#favTop"); const m = /^#pins=([jz][A-Za-z0-9_-]+)$/.exec(h); return m ? m[1] : ""; } catch (e) { return null; } };
+  const PIN_IN = (() => { const v = pinHash(); if (v === "") PIN_BAD = true; return v || ""; })();
   const saveS = () => lsW(SK, SNAP);
 
   // ---------- 아이콘 ----------
@@ -112,7 +115,7 @@ const PINS = (() => {
       <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><b>${alt ? '<small class="pn-alt" title="전세 끼고는 살 수 없는 구역이라 대출 끼고 금액">대출</small>' : ""}${now != null ? `${e2(now)}억` : "–"}</b>${salt ? "" : chip}</span><small title="${salt ? `꽂을 때와 같은 ${MODE_T[sm]} 기준 비교` : ""}">${then}</small></span>`;
     const head = SEL
       ? `<button type="button" class="pn-main sel" data-cmp="${r.id}" aria-pressed="${CMP.includes(r.id)}"><span class="pn-ck" aria-hidden="true"></span>${main}</button>`
-      : `<button type="button" class="pn-main" data-open="${r.id}" aria-label="${esc(shortName(r.n))} 리포트 열기">${main}</button><button type="button" class="pn-more" data-pedit="${r.id}" aria-expanded="${EDIT === r.id}" aria-controls="pnEd${i}" title="목표·핀 빼기"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg><span class="sr-only">${esc(shortName(r.n))} 메모·목표·핀 빼기</span></button>`;
+      : `<button type="button" class="pn-main" data-open="${r.id}" aria-label="${esc(shortName(r.n))} 리포트 열기">${main}</button><button type="button" class="pn-more" data-pedit="${r.id}" aria-expanded="${EDIT === r.id}" aria-controls="pnEd${i}" title="메모·목표·핀 빼기" aria-label="${esc(shortName(r.n))} 메모·목표·핀 빼기"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>`;
     const ed = !SEL && EDIT === r.id
       ? `<div class="pn-ed" id="pnEd${i}"><label class="sr-only" for="pnMemo${i}">메모</label><input id="pnMemo${i}" class="pn-memo-in" data-pmemo="${r.id}" maxlength="20" placeholder="메모 (예: 부모님 근처)" value="${esc(sp.memo || "")}" enterkeyhint="done">${!sp.goal && now != null && now <= CASH + 1e-9 ? `<span class="pn-gok">${pinY(14)}이미 살 수 있어요</span>` : `<button type="button" class="btn secondary sm" data-pgoal="${r.id}" aria-pressed="${!!sp.goal}">${sp.goal ? "목표 지우기" : "목표 세우기"}</button>`}<button type="button" class="btn text sm" data-punpin="${r.id}">핀 빼기</button><small class="pn-since">${dot(sp.t)}에 꽂음${sp.mig ? " · 찜에서 옮겨 옴" : ""}</small></div>`
       : "";
@@ -188,7 +191,8 @@ const PINS = (() => {
   // 받은 링크 미리보기: 합치기 / 바꾸기 / 취소 — 묻지 않고 덮어쓰지 않는다
   function importSheet(d) {
     const P = d.pins, C = d.conds, nm = P.filter((x) => x.sp && x.sp.memo).length, ng = P.filter((x) => x.sp && x.sp.goal).length;
-    if (!P.length && !C.length) return;
+    if (!P.length && !C.length) return badLink();
+    const old0 = $("pnImp"); if (old0) old0.remove();
     const back = document.activeElement, has = FAV.length || CONDS.length;
     const parts = [P.length ? `핀 ${P.length}곳` : "", C.length ? `조건 ${C.length}개` : "", nm ? `메모 ${nm}개` : "", ng ? `목표 ${ng}개` : ""].filter(Boolean).join(" · ");
     const nNew = P.filter((x) => !isFav(x.id)).length, over = FAV.length + nNew > MAX;
@@ -232,11 +236,13 @@ const PINS = (() => {
     const sub = np || nc ? `핀 ${np}곳${nc ? ` · 조건 ${nc}개` : ""} 더함` : "새로 더할 핀이 없어요";
     toast(rep ? "받은 핀으로 바꿨어요" : "받은 핀 합쳤어요", "되돌리기", () => { FAV = bk.fav; SNAP = bk.snap; CONDS = bk.conds; CMP = CMP.filter(isFav); saveFav(); saveS(); saveC(); syncFav(); toast("가져오기 되돌렸어요"); }, sub);
   }
+  function badLink() { const o = $("pnImp"); if (o) o.remove(); toast("링크가 손상됐어요", "", null, "보낸 기기에서 다시 복사해 주세요"); }
+  const readPins = (v) => unpack(v).then((d) => setTimeout(() => importSheet(d), 250)).catch(() => setTimeout(badLink, 80));
+  // 같은 탭에서 다른 #pins= 링크를 열면: 열려 있던 가져오기 창을 닫고 새 링크로 다시
+  addEventListener("hashchange", () => { if (!/^#pins=/.test(location.hash || "")) return; const o = $("pnImp"); if (o) o.remove(); const v = pinHash(); if (v) readPins(v); else if (v === "") setTimeout(badLink, 80); });   // 같은 hashchange의 hideToast 뒤에 띄움
   function importIn() {
-    if (PIN_IN) {
-      unpack(PIN_IN).then((d) => setTimeout(() => importSheet(d), 250)).catch(() => toast("핀 링크를 읽지 못했어요", "", null, "링크가 잘렸거나 이 브라우저가 지원하지 않아요"));
-      return;
-    }
+    if (PIN_BAD) return setTimeout(badLink, 900);   // 첫 화면 이동(hashchange → 토스트 숨김)이 끝난 뒤
+    if (PIN_IN) return readPins(PIN_IN);
     if (!FAV_IN) return;
     const ids = [...new Set(FAV_IN.split(/[.,]/))].filter((id) => byId[id]).slice(0, MAX);
     if (ids.length) setTimeout(() => importSheet({ old: 1, pins: ids.map((id) => ({ id })), conds: [] }), 250);
@@ -540,8 +546,8 @@ const PINS = (() => {
     ov.className = "pn-ov"; ov.id = "pcSheet";
     const chips = () => `<div class="pc-chips" role="group" aria-label="조건">
       <label class="pc-chip sel"><span class="sr-only">구</span><select data-cg>${['<option value="">서울 전체</option>'].concat(GUS.map((g) => `<option${g === c.gu ? " selected" : ""}>${g}</option>`)).join("")}</select></label>
-      <button type="button" class="pc-chip" data-cc="kind" aria-pressed="${!!c.kind}">${KINDS.find((k) => k[0] === (c.kind || ""))[1]}</button>
-      <button type="button" class="pc-chip" data-cc="minS" aria-pressed="${!!c.minS}">${STAGES.find((x) => x[0] === (c.minS || 0))[1]}</button>
+      <label class="pc-chip sel${c.kind ? " on" : ""}"><span class="sr-only">유형</span><select data-ck>${KINDS.map(([v, t]) => `<option value="${v}"${v === (c.kind || "") ? " selected" : ""}>유형: ${v ? t : "전체"}</option>`).join("")}</select></label>
+      <label class="pc-chip sel${c.minS ? " on" : ""}"><span class="sr-only">단계</span><select data-cs>${STAGES.map(([v, t]) => `<option value="${v}"${v === (c.minS || 0) ? " selected" : ""}>단계: ${v ? t : "상관없음"}</option>`).join("")}</select></label>
       ${cmAvail ? `<button type="button" class="pc-chip" data-cc="cm" aria-pressed="${!!c.cm}">출퇴근 ${esc(cm0.dest)} ${cm0.max}분</button>` : ""}
       <button type="button" class="pc-chip" data-cc="sure" aria-pressed="${!!c.sure}">입주권 확실만</button>
       <button type="button" class="pc-chip" data-cc="strict" aria-pressed="${!!c.strict}" title="토지거래허가 구역·구 평균 시세로 추정한 구역 빼기">토지거래허가·추정치 빼기</button>
@@ -571,7 +577,15 @@ const PINS = (() => {
       if (e.target.matches("[data-cn]")) named = true;
       if (e.target.matches("[data-ccash]")) { const v = parseFloat(String(e.target.value).replace(/[^\d.]/g, "")); if (isFinite(v) && v > 0 && v <= 100) { c.cash = Math.round(v * 100) / 100; clearTimeout(cT); cT = setTimeout(lite, 160); } }
     });
-    dlg.addEventListener("change", (e) => { if (e.target.matches("[data-cg]")) { c.gu = e.target.value; refresh(); dlg.querySelector("[data-cg]").focus(); } });
+    dlg.addEventListener("change", (e) => {
+      const t = e.target;
+      if (t.matches("[data-cg]")) c.gu = t.value;
+      else if (t.matches("[data-ck]")) c.kind = t.value;
+      else if (t.matches("[data-cs]")) c.minS = +t.value;
+      else return;
+      const sel = ["[data-cg]", "[data-ck]", "[data-cs]"].find((q) => t.matches(q));
+      refresh(); const f = dlg.querySelector(sel); f && f.focus();
+    });
     ov.addEventListener("click", (e) => {
       if (e.target === ov || e.target.closest("[data-cx]")) return close();
       const d2 = e.target.closest("[data-cdel2]");

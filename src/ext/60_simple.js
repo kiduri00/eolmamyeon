@@ -21,7 +21,7 @@ const SIMPLE = (() => {
   const GRID_N = 7;
   const VIEWS = TOOLS_ALL.slice(0, GRID_N);
   // ⋯ 메뉴 '도구' 묶음: 전부(shell.html #mpTools는 비워 두고 여기서 채운다)
-  { const g = document.getElementById("mpTools"); if (g) g.innerHTML = TOOLS_ALL.map(([id, t]) => `<a href="#${id}" data-menu="${id}"><b>${t}</b></a>`).join(""); }
+  { const g = document.getElementById("mpTools"); if (g) g.innerHTML = TOOLS_ALL.map(([id, t, d, c]) => `<a href="#${id}" data-menu="${id}"><i class="mp-ic" aria-hidden="true" style="--ic:${c}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg></i><b>${t}</b></a>`).join(""); }
   // 아이콘 격자에는 안 넣지만 메뉴(⋯)·링크로 여는 화면
   const MORE = ["results", "newTop", "rulesTop", "readsTop", "statsTop"].concat(TOOLS_ALL.slice(GRID_N).map((v) => v[0]).filter((id) => id !== "favTop"));
   const LINKS = [];
@@ -46,11 +46,24 @@ const SIMPLE = (() => {
   // 처음 보이는 줄 수: PC는 옆 지도 높이(창 높이 − 79, 최대 902)를 채울 만큼(줄 75px · 제목·칩 두 줄·더보기 144px), 폰은 6줄
   const SHOW0 = () => { try { return matchMedia("(min-width:981px)").matches ? Math.max(6, Math.min(10, Math.floor((Math.min(innerHeight - 79, 902) - 144) / 75))) : 6; } catch (e) { return 6; } };
   // 지도 범위만: 전체 지도를 확대해 둔 채 '목록 보기'를 누르면 그 화면 안 구역만(칩 ✕로 해제). [서,남,동,북]
-  let bbF = null;
+  // 줌 12.5 이상(구보다 확대)인 서울 지도면 '이 지도 범위만 보기' 칩을 띄우고(PC·폰 공통), 켜 두면 지도를 옮길 때마다 목록이 따라온다.
+  // 12.5 아래로 빼면 저절로 풀린다. 켜 둔 동안은 금액을 바꿔도 지도가 자동으로 옮겨 가지 않는다(10_lmap.js fitAff가 ZP_bbOn을 봄)
+  let bbF = null, bbCan = false;
+  const bbGet = () => { try { const m = LMX.map(), dv = $("mapbox") && $("mapbox").dataset.view; if (m && LMX.on() && dv !== "gu" && mapView === "seoul" && m.getZoom() >= 12.5) {
+    // PC 끼운 지도는 아래쪽이 창 밖일 수 있다 → 화면에 보이는 부분만(머리 아래 ~ 창 아래)
+    const cv = m.getCanvas(), r = cv.getBoundingClientRect(), y0 = Math.max(0, (HDR() || 56) - r.top), y1 = Math.min(r.height, innerHeight - r.top);
+    if (matchMedia("(min-width:981px)").matches && y1 - y0 > 120 && (y0 > 0 || y1 < r.height)) { const a = m.unproject([0, y0]), c = m.unproject([r.width, y1]); return [a.lng, c.lat, c.lng, a.lat]; }
+    const b = m.getBounds(); return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]; } } catch (e) {} return null; };
+  window.ZP_bbOn = () => !!bbF;
+  const bbMove = () => { const b = bbGet(), was = bbCan; bbCan = !!b; if (bbF) { if (String(b) !== String(bbF)) { bbF = b; render(); } } else if (was !== bbCan) render(); };
+  addEventListener("zp:mapmove", bbMove);
+  // PC: 페이지를 내려 지도 칸이 머리 밑에 붙으면 보이는 부분이 바뀐다
+  { let t = 0; addEventListener("scroll", () => { if (!bbF) return; clearTimeout(t); t = setTimeout(() => { if (matchMedia("(min-width:981px)").matches) bbMove(); }, 180); }, { passive: true }); }
   const inBB = (r) => !bbF || (r.ll && r.ll[1] >= bbF[0] && r.ll[1] <= bbF[2] && r.ll[0] >= bbF[1] && r.ll[0] <= bbF[3]);
   let listGu = "", gu = "", kind = "", shown = SHOW0(), timer = 0, keepY = null;
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-  const eokS = (v) => (v == null || !isFinite(v) ? "–" : v < 0.05 ? "0원" : `${(Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, "")}억`);
+  // 1억 아래는 소수 둘째 자리까지(9,515만 → 0.95억, '1억'으로 올려 보이지 않게)
+  const eokS = (v) => (v == null || !isFinite(v) ? "–" : v < 0.005 ? "0원" : v < 0.995 ? `${(Math.round(v * 100) / 100).toFixed(2).replace(/0$/, "")}억` : `${(Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, "")}억`);
   const dongOf = (r) => { const m = /^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)/.exec(r.j || r.bj || ""); return m ? m[1] : r.dg || ""; };
   const KIND = (r) => (/재건축/.test(r.k) ? "rebuild" : /가로|소규모/.test(r.k) ? "small" : "redev");
   function needOf(r) {
@@ -59,6 +72,7 @@ const SIMPLE = (() => {
     return { now: x.needBuy, total: x.ok ? x.needTotal : null };
   }
   const NA_WHY = "입주 시점·신축 시세 자료가 부족해요";
+  const NA_L = "입주 비용 자료 부족";
   function rows() {
     const nowK = gapMode() || effBasis() !== "total";
     const etaT = (r) => { try { const p = projection(r); return p && p.eMid && !p.past ? +p.eMid : Infinity; } catch (e) { return Infinity; } };
@@ -76,12 +90,15 @@ const SIMPLE = (() => {
     let lo = Infinity;
     try {
       CASH = 999;
-      R.forEach((r) => { if (KIND(r) !== kind || r.lc || (gu && r.g !== gu) || !okR(r)) return; const n = needOf(r), m = nowK ? n.now : n.total; if (m != null && isFinite(m) && m < lo) lo = m; });
+      R.forEach((r) => { if ((kind && KIND(r) !== kind) || r.lc || (gu && r.g !== gu) || (!gu && !inBB(r)) || !okR(r)) return; const n = needOf(r), m = nowK ? n.now : n.total; if (m != null && isFinite(m) && m < lo) lo = m; });
     } catch (e) {} finally { CASH = save; }
-    const nm = KNAME[kind] || "이 유형";
+    // 이름: 유형 > 구 > 지도 범위 순으로 무엇을 거르고 있는지
+    const nm0 = kind ? `${gu ? `${esc(gu)} ` : ""}${KNAME[kind] || "이 유형"}` : gu ? esc(gu) : bbF ? "이 지도 범위" : "서울";
+    const lc = nm0.charCodeAt(nm0.length - 1), nm = nm0 + (lc >= 0xac00 && lc <= 0xd7a3 && (lc - 0xac00) % 28 ? "은" : "는");
     const up = isFinite(lo) ? Math.max(0.1, Math.ceil(lo * 10) / 10) : null;
-    const msg = up != null ? `${nm}은 최소 <b>${eokS(up)}</b>부터 살 수 있어요` : `${nm}은 ${gapMode() ? "전세 끼고" : "지금 방식으로"} 살 수 있는 곳이 없어요`;
-    return `${gu ? `${esc(gu)} · ` : ""}${msg}<span class="s-eact">${up != null ? `<button type="button" class="btn primary" id="sKindUp" data-v="${up}">${eokS(up)}으로 올려 보기</button>` : ""}<button type="button" class="btn secondary" id="sKindAll">전체 유형 보기</button></span>`;
+    const msg = up != null ? `${nm} 최소 <b>${eokS(up)}</b>부터 살 수 있어요` : `${nm} ${gapMode() ? "전세 끼고" : "지금 방식으로"} 살 수 있는 곳이 없어요`;
+    const wide = kind ? `<button type="button" class="btn secondary" id="sKindAll">전체 유형 보기</button>` : gu ? `<button type="button" class="btn secondary" id="sGuAll">서울 전체</button>` : bbF ? `<button type="button" class="btn secondary" id="sBbAll">서울 전체</button>` : "";
+    return `${msg}<span class="s-eact">${up != null ? `<button type="button" class="btn primary" id="sKindUp" data-v="${up}">${eokS(up)}으로 올려 보기</button>` : ""}${wide}</span>`;
   }
   // 아래 탭바: 지금 보는 화면에 맞는 탭을 켠다
   function navMark(k) {
@@ -159,8 +176,9 @@ const SIMPLE = (() => {
     // 머리 높이가 바뀌면(화면 회전·검색 열기) 붙는 막대 위치도 같이
     try { new ResizeObserver(() => { const h = $("hdr").offsetHeight; if (h) { try { hdrH = h; } catch (e) {} document.documentElement.style.setProperty("--hdr-h", h + "px"); } }).observe($("hdr")); } catch (e) {}
     // 큰 게이지가 화면 위로 지나가면, 지도·목록을 보는 동안만 머리 아래에 한 줄짜리 게이지를 띄운다(흐름 높이는 그대로)
-    const mini = document.createElement("div");
-    mini.className = "s-mini"; mini.id = "sMini"; mini.hidden = true;
+    // 랜드마크 밖에 떠 있는 막대라 aside로(화면 읽기 '영역' 목록에 '내 현금 요약')
+    const mini = document.createElement("aside");
+    mini.className = "s-mini"; mini.id = "sMini"; mini.hidden = true; mini.setAttribute("aria-label", "내 현금 요약");
     mini.innerHTML = `<b id="sMiniV">1억</b><input type="range" id="sMiniR" min="0" max="100" step="0.1" value="8.33" aria-label="가진 현금(억)"><span><i id="sMiniM">전세</i> <b id="sMiniN">0</b>곳</span><div class="s-mode s-mm" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">대출 끼고</button></div>`;
     document.body.appendChild(mini);
     // 전체 지도 위 막대에서도 전세 끼고/대출 끼고 전환(본 버튼을 대신 누른다 → 상태·목록·지도 모두 같은 길)
@@ -194,8 +212,7 @@ const SIMPLE = (() => {
     const toList = () => { const l = $("sListW"); if (l) window.scrollTo({ top: l.getBoundingClientRect().top + scrollY - HDR() - 8 - (matchMedia("(max-width:980px)").matches ? 66 : 0), behavior: "auto" }); };
     fx.onclick = () => {
       // 구 단위보다 확대해 둔 지도(줌 12.5 이상)면 목록도 그 화면 안 구역만. 서울 전체 줌이면 거르지 않는다
-      bbF = null;
-      try { const m = LMX.map(), dv = $("mapbox") && $("mapbox").dataset.view; if (m && LMX.on() && dv !== "gu" && m.getZoom() >= 12.5) { const b = m.getBounds(); bbF = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]; } } catch (e) { bbF = null; }
+      bbF = bbGet();
       shown = SHOW0(); render();
       fullMap(false); requestAnimationFrame(toList); setTimeout(toList, 120); };
     document.body.appendChild(fx);
@@ -426,17 +443,23 @@ const SIMPLE = (() => {
     const ln = (op, k, m, c) => `<li${c ? ` class="${c}"` : ""}><span>${op ? `<i>${op}</i>` : ""}${k}</span><b>${wS(m)}</b></li>`;
     const sum3 = (a, b, c) => Math.max(0, M(a) - M(b) + M(c));
     let rowsH = "", tail = "";
+    // 매수가 바로 밑에 표본 한 줄(어떤 거래 몇 건의 가운데 값인지)
+    const en = (r.mk || {}).entry || {}, ps = x.priceSrc;
+    const src = est ? `같은 구 빌라 시세로 추정` : ps === "user" ? "직접 넣은 값" : ps === "complex" && en.n ? `${esc(en.name || "이 단지")} ${fmt(en.n)}건 가운데 값` : ps === "villa" && en.n ? `${en.scope ? esc(en.scope) : `주변 ${fmt(en.radius)}m 빌라`} ${fmt(en.n)}건 가운데 값` : "";
+    const srcL = src ? `<li class="s-wbase">${src}</li>` : "";
     if (gap) {
       const g = gapOf(r);
       if (g.na) rowsH = `<li class="s-wna">매수가 자료가 아직 없어요</li>`;
       else {
-        rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + ln("−", `전세${g.userJ ? "" : ` <small>(${Math.round(g.jr)}%)</small>`}`, M(g.D)) + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, g.D, x.tax), "s-wsum");
+        rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + srcL + ln("−", `전세${g.userJ ? "" : ` <small>(${Math.round(g.jr)}%)</small>`}`, M(g.D)) + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, g.D, x.tax), "s-wsum");
         if (g.total != null) tail = `입주까지 현금 ${eokS(g.total)} · 이주비·분담금 포함, 잔금대출 제외`;
+        else tail = `${NA_L} · ${NA_WHY}`;
       }
     } else if (x.price == null) rowsH = `<li class="s-wna">매수가 자료가 아직 없어요</li>`;
     else {
-      rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + ln("−", "대출", M(x.loanCap)) + `<li class="s-wbase">${loanBasis(r, x, wS, M)}</li>` + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, x.loanCap, x.tax), "s-wsum");
+      rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + srcL + ln("−", "대출", M(x.loanCap)) + `<li class="s-wbase">${loanBasis(r, x, wS, M)}</li>` + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, x.loanCap, x.tax), "s-wsum");
       if (x.ok && x.needTotal != null) tail = `입주까지 현금 ${eokS(x.needTotal)} · 분담금·이자 포함, 잔금대출 제외`;
+      else tail = `${NA_L} · ${NA_WHY}`;
     }
     whyShow(btn, `<div class="s-wh"><b id="sWhyT">왜 이 금액?</b><span>${esc(shortName(r.n))}</span><button type="button" data-x aria-label="닫기">×</button></div><ul>${rowsH}</ul><p>${tail ? `${tail} · ` : ""}공개 자료로 낸 추정치예요</p><button type="button" class="s-wgo" data-go="${r.id}">계산 근거 자세히 →</button>`);
   }
@@ -446,20 +469,27 @@ const SIMPLE = (() => {
     const g = document.querySelector(".s-gauge"), sl = $("sCash"); if (!g || !sl || g.querySelector(".s-coach")) return;
     const t = document.createElement("div"); t.className = "s-coach"; t.setAttribute("role", "status"); t.textContent = "끌어서 내 현금을 맞춰 보세요";
     // 손잡이 옆(트랙 높이)에 띄워 눈금·숫자를 가리지 않는다. 손잡이가 오른쪽 절반이면 왼쪽에
+    // 자리는 레이아웃이 끝난 뒤(rAF)에 잰다 — 도구 화면에서 돌아올 때처럼 막대가 아직 0폭이면 숨겨 두고 다음 크기 변화 때 다시
     const place = () => {
-      const gr = g.getBoundingClientRect(), sr = sl.getBoundingClientRect(), w = t.offsetWidth, h = t.offsetHeight;
+      const gr = g.getBoundingClientRect(), sr = sl.getBoundingClientRect();
+      t.classList.toggle("off", !sr.width || !gr.width);
+      if (!sr.width || !gr.width) return;
+      const w = t.offsetWidth, h = t.offsetHeight;
       const x = sr.left - gr.left + 12 + ((sr.width - 24) * (parseFloat(sl.style.getPropertyValue("--p")) || 8)) / 100;
       const right = x < gr.width / 2, L = right ? x + 22 : x - 22 - w;
       t.classList.toggle("l", !right);
       t.style.top = Math.round(sr.top - gr.top + sr.height / 2 - h / 2) + "px"; t.style.left = Math.round(Math.max(4, Math.min(gr.width - w - 4, L))) + "px";
     };
-    g.appendChild(t); place(); addEventListener("resize", place);
+    let pf = 0; const later = () => { cancelAnimationFrame(pf); pf = requestAnimationFrame(() => requestAnimationFrame(place)); };
+    let ro = null; try { ro = new ResizeObserver(later); ro.observe(g); ro.observe(sl); } catch (e) {}
+    g.appendChild(t); later(); addEventListener("resize", later); addEventListener("hashchange", later); addEventListener("popstate", later);
     const ev = ["pointerdown", "keydown", "wheel", "touchstart"];
-    const done = () => { t.remove(); removeEventListener("resize", place); ev.forEach((k) => removeEventListener(k, done, true)); [sl, $("sMiniR")].forEach((x) => x && x.removeEventListener("input", done)); try { localStorage.setItem("emr.coach1", "1"); } catch (e) {} };
+    const done = () => { t.remove(); cancelAnimationFrame(pf); try { ro && ro.disconnect(); } catch (e) {} removeEventListener("resize", later); removeEventListener("hashchange", later); removeEventListener("popstate", later); ev.forEach((k) => removeEventListener(k, done, true)); [sl, $("sMiniR")].forEach((x) => x && x.removeEventListener("input", done)); try { localStorage.setItem("emr.coach1", "1"); } catch (e) {} };
     ev.forEach((k) => addEventListener(k, done, { capture: true, passive: true }));
     [sl, $("sMiniR")].forEach((x) => x && x.addEventListener("input", done));
   }
   // ---------- 목록 ----------
+  let capC = ["", 0];
   function render() {
     if (!$("sList")) return;
     const gap = gapMode();
@@ -472,21 +502,32 @@ const SIMPLE = (() => {
     $("sN").textContent = fmt(all);   // 굴러가는 숫자 대신 바로(목록 곳 수와 어긋나 보이지 않게)
     const ab = $("sAsm"); if (ab) { ab.hidden = gap; if (!gap) { const t = asmText(); ab.innerHTML = `${t}<i aria-hidden="true">?</i>`; ab.setAttribute("aria-label", `대출 가정: ${t} · 설명 보기`); } }
     try { if (!dragging) { const o = {}; R.forEach((r) => { if (okR(r)) o[r.g] = (o[r.g] || 0) + 1; }); LMX.counts(o); } } catch (e) {}
-    if ($("sMiniN")) { $("sMiniN").textContent = fmt(kind ? R.filter((r) => okR(r) && KIND(r) === kind).length : all); $("sMiniM").textContent = kind ? ({ redev: "재개발", rebuild: "재건축", small: "가로·소규모" })[kind] : gap ? "전세 끼고" : "대출 끼고"; }
+    // 한 줄 막대도 목록과 같은 거르기(구·지도 범위·유형)를 그대로: 숫자 = 목록 곳 수
+    if ($("sMiniN")) {
+      const area = gu || (bbF ? "지도 범위" : ""), kn = kind ? ({ redev: "재개발", rebuild: "재건축", small: area ? "가로" : "가로·소규모" })[kind] : "";
+      $("sMiniN").textContent = fmt(area || kind ? L.length : all);
+      $("sMiniM").textContent = area && kn ? `${bbF && !gu ? "범위" : area}·${kn}` : area || kn || (gap ? "전세 끼고" : "대출 끼고");
+    }
     // 전세 끼고는 전세 시세가 있는 구역만 셀 수 있어 금액을 올려도 상한이 있다 → 그 상한을 같이 보여 준다
-    const cap = gap ? countAt(999) : 0;
-    $("sNL").textContent = gap ? (cap ? `전세 시세 있는 ${fmt(cap)}곳 중` : "전세 끼고 살 수 있는 곳") : effBasis() === "total" ? "입주까지 되는 곳" : "대출 끼고 살 수 있는 곳";
+    // 대출 끼고도 분모를 같이(전세 끼고와 같은 꼴): 15억까지 올렸을 때 셀 수 있는 곳
+    const capK = `${gap}|${effBasis()}`;
+    if (!dragging || capK !== capC[0]) capC = [capK, countAt(999)];   // 금액과 무관 → 끄는 동안엔 다시 세지 않는다
+    const cap = capC[1];
+    $("sNL").textContent = gap ? (cap ? `전세 시세 있는 ${fmt(cap)}곳 중` : "전세 끼고 살 수 있는 곳") : cap ? `${effBasis() === "total" ? "입주까지 계산되는" : "매수가 계산되는"} ${fmt(cap)}곳 중` : effBasis() === "total" ? "입주까지 되는 곳" : "대출 끼고 살 수 있는 곳";
     $("sLT").textContent = gu ? `${gu} · ${fmt(L.length)}곳` : `살 수 있는 곳 · ${fmt(L.length)}곳`;
     $("sLS").textContent = gap || effBasis() !== "total" ? "지금 필요한 돈 · 추정" : "입주까지 필요한 돈 · 추정";
     const sg = $("sGu");
-    sg.hidden = !gu && !bbF;
-    if (!gu && bbF) { sg.innerHTML = `<button type="button" class="s-bbx" id="sBbX" aria-label="지도 범위만 보기 해제 · 지금 ${fmt(L.length)}곳">지도 범위만 · ${fmt(L.length)}곳<i aria-hidden="true">✕</i></button>`; $("sBbX").onclick = () => { bbF = null; render(); const f = $("sList").querySelector("[data-id]"); if (f) f.focus({ preventScroll: true }); }; }
+    sg.hidden = !gu && !bbF && !bbCan;
+    if (!gu && bbF) { sg.innerHTML = `<button type="button" class="s-bbx" id="sBbX" aria-label="지도 범위만 보기 해제 · 지금 ${fmt(L.length)}곳">지도 범위만 · ${fmt(L.length)}곳<i aria-hidden="true">✕</i></button>`; $("sBbX").onclick = () => { bbF = null; render(); const f = $("sBbO") || $("sList").querySelector("[data-id]"); if (f) f.focus({ preventScroll: true }); }; }
+    else if (!gu && bbCan) { sg.innerHTML = `<button type="button" class="s-bbx s-bbo" id="sBbO"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></svg>이 지도 범위만 보기</button>`; $("sBbO").onclick = () => { bbF = bbGet(); shown = SHOW0(); render(); const x = $("sBbX"); if (x) x.focus({ preventScroll: true }); }; }
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
     if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
-      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.nbp ? ' · <em class="s-tag nb">주변 시세 기준</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span>${spark(r.id)}</a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(shortName(r.n))} 필요한 돈 추정 ${eokS(gap || effBasis() !== "total" ? n.now : n.total)}${n.total == null ? ` · 입주 계산 불가: ${NA_WHY}` : ` · 입주까지 내 현금 ${eokS(n.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog" title="${n.total == null ? `입주 계산 불가 · ${NA_WHY}` : "입주까지 현금: 분담금·이자 포함, 입주 잔금대출은 뺀 금액"}"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small${n.total == null ? ' class="s-na"' : ""}>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 현금 ${eokS(n.total)}` : "입주 계산 불가") : `계약 ${eokS(n.now)}`}</small></button></li>`).join("")
-      : `<li class="s-empty">${!gu && bbF ? "지도 범위 안에는 이 금액으로 되는 곳이 없어요. 칩의 ✕를 눌러 서울 전체를 보세요." : kind ? kindEmpty() : `${gu ? `${esc(gu)}에는 이 금액으로 되는 곳이 없어요.` : "이 금액으로 되는 곳이 없어요."} 게이지를 올려 보세요.`}</li>`;
+      ? L.slice(0, shown).map(({ r, n, early }) => `<li${TX && NOSP.get(r.id) ? ' class="s-nosp"' : ""}><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.nbp ? ' · <em class="s-tag nb">주변 시세 기준</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span>${spark(r.id)}</a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(shortName(r.n))} 필요한 돈 추정 ${eokS(gap || effBasis() !== "total" ? n.now : n.total)}${n.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · 입주까지 내 현금 ${eokS(n.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog" title="${n.total == null ? `${NA_L} · ${NA_WHY}` : "입주까지 현금: 분담금·이자 포함, 입주 잔금대출은 뺀 금액"}"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small${n.total == null ? ' class="s-na"' : ""}>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 현금 ${eokS(n.total)}` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(n.now)}`}</small></button></li>`).join("")
+      : `<li class="s-empty">${kindEmpty()}</li>`;
     { const kx = $("sKindAll"); if (kx) kx.onclick = () => { const b = $$(".s-flt button", $("sListW")).find((x) => x.dataset.k === ""); if (b) b.click(); }; }
+    { const gx = $("sGuAll"); if (gx) gx.onclick = () => { const x = $("sGuX"); if (x) x.click(); }; }
+    { const bx = $("sBbAll"); if (bx) bx.onclick = () => { bbF = null; render(); }; }
     { const ku = $("sKindUp"); if (ku) ku.onclick = () => { setCash(+ku.dataset.v, true); const f = $("sList").querySelector("[data-id]"); if (f) f.focus({ preventScroll: true }); }; }
     sumR(L);
     const m = $("sMore");
@@ -496,35 +537,51 @@ const SIMPLE = (() => {
     askTx();
     if (TX) fitSp();
   }
-  // 게이지 오른쪽 '이 돈이면' 칸(넓은 PC만 보임): 지금 방식 기준 가장 싼 3곳 + 입주까지 현금 범위
+  // 게이지 '이 돈이면' 칸: 넓은 PC는 오른쪽 칸(3곳 · 입주까지 현금 범위), 좁은 화면은 숫자 밑 한 줄 칩(첫 목록 줄이 화면 아래로 밀려도 바로 열 수 있게)
+  // 입주까지 계산되는 곳을 먼저(계산 불가 곳만 3개 뜨지 않게), 그 안에서 적은 돈순
   const MQ_SUM = matchMedia("(min-width:1180px)");
   function sumR(L) {
-    const el = $("sSum"); if (!el || !MQ_SUM.matches) return;
-    const top = L.filter((o) => o.m < 99).sort((a, b) => a.m - b.m).slice(0, 3);
+    const el = $("sSum"); if (!el) return;
+    const ok = L.filter((o) => o.m < 99);
+    const top = ok.slice().sort((a, b) => (a.n.total == null) - (b.n.total == null) || a.m - b.m).slice(0, 3);
+    const skip = top.length && ok.some((o) => o.n.total == null && o.m < top[top.length - 1].m - 1e-9);
     const tt = L.map((o) => o.n.total).filter((v) => v != null && isFinite(v));
     const lo = tt.length ? Math.min(...tt) : null, hi = tt.length ? Math.max(...tt) : null;
     el.innerHTML = top.length
-      ? `<p class="s-sum-h"><b>이 돈이면</b><span>가장 싼 ${top.length}곳</span></p><ol>${top.map(({ r, m }) => `<li><button type="button" data-id="${r.id}"><span>${esc(shortName(r.n))}<small>${esc(r.g)}</small></span><b>${eokS(m)}</b></button></li>`).join("")}</ol>${lo != null ? `<p class="s-sum-f"><span>입주까지 현금 <b>${lo === hi ? eokS(lo) : `${eokS(lo)}~${eokS(hi)}`}</b><small> · 잔금대출 제외</small></span></p>` : ""}`
+      ? `<p class="s-sum-h"><b>이 돈이면</b><span>${skip ? "입주 계산되는 곳 중 " : "가장 싼 "}${top.length}곳</span></p><ol>${top.map(({ r, m, n }) => `<li><button type="button" data-id="${r.id}" aria-label="${esc(shortName(r.n))} ${esc(r.g)} · 지금 ${eokS(m)}${n.total != null ? ` · 입주까지 현금 ${eokS(n.total)}` : ""} · 리포트 열기"><span>${esc(shortName(r.n))}<small>${esc(r.g)}</small></span><b>${eokS(m)}</b></button></li>`).join("")}</ol>${lo != null ? `<p class="s-sum-f"><span>입주까지 현금 <b>${lo === hi ? eokS(lo) : `${eokS(lo)}~${eokS(hi)}`}</b><small> · 잔금대출 제외</small></span></p>` : ""}`
       : `<p class="s-sum-h"><b>이 돈이면</b></p><p class="s-sum-e">아직 되는 곳이 없어요.<br>게이지를 올려 보세요.</p>`;
   }
   MQ_SUM.addEventListener("change", () => { try { render(); } catch (e) {} });
   // 좁은 화면: 흐름선 때문에 이름·동네가 잘리거나 줄이 바뀌면 그 줄만 흐름선을 뺀다
-  let fitT = 0;
+  // 판정은 목록 폭마다 한 번(같은 폭이면 다시 그려도 같은 결과). 목록이 숨어 있으면(도구 화면) 재지 않고 다음에
+  let fitT = 0, fitW = 0;
+  const NOSP = new Map();
   function fitSp() {
     cancelAnimationFrame(fitT);
-    fitT = requestAnimationFrame(() => $$("#sList li").forEach((li) => {
-      const sp = li.querySelector(".s-sp"); if (!sp) return;
-      li.classList.remove("s-nosp");
-      const b = li.querySelector(".s-nm b"), sm = li.querySelector(".s-nm small");
-      if ((b && b.scrollWidth > b.clientWidth + 1) || (sm && sm.getClientRects().length && sm.offsetHeight > parseFloat(getComputedStyle(sm).lineHeight || "0") * 1.5)) li.classList.add("s-nosp");
-    }));
+    fitT = requestAnimationFrame(() => {
+      const ol = $("sList"), w = ol ? ol.clientWidth : 0; if (!w) return;
+      if (w !== fitW) { fitW = w; NOSP.clear(); }
+      $$("#sList li").forEach((li) => {
+        const sp = li.querySelector(".s-sp"), a = li.querySelector("[data-id]"); if (!sp || !a) return;
+        const k = a.dataset.id;
+        if (!NOSP.has(k)) {
+          li.classList.remove("s-nosp");
+          const b = li.querySelector(".s-nm b"), sm = li.querySelector(".s-nm small");
+          NOSP.set(k, !!((b && b.scrollWidth > b.clientWidth + 1) || (sm && sm.getClientRects().length && sm.offsetHeight > parseFloat(getComputedStyle(sm).lineHeight || "0") * 1.5)));
+        }
+        li.classList.toggle("s-nosp", NOSP.get(k));
+      });
+    });
   }
   // ---------- 기능 화면 열기/닫기 ----------
   let cur = "";
   function open(id, noScroll) {
     if (!IDS.includes(id)) return false;
+    if (!cur && !noScroll) tileY = scrollY;   // 홈 화면이 숨기 전에(숨으면 문서가 짧아져 scrollY가 줄어든다)
     IDS.forEach((x) => { const s = $(x); if (s) s.classList.toggle("s-on", x === id); });
     document.documentElement.classList.add("s-view");
+    // 홈 제목(h1)이 숨는 동안은 이 도구의 제목을 1단계 제목으로(화면 읽기·axe page-has-heading-one)
+    lvl(id);
     cur = id;
     navMark(id === "favTop" ? "fav" : "more");
     const f = SECT[id]; if (f) f();
@@ -534,14 +591,32 @@ const SIMPLE = (() => {
     try { if (location.hash.slice(1) !== id) history.pushState({ sView: id }, "", "#" + id); } catch (e) {}
     return true;
   }
+  let tileY = null, h1El = null;
+  function lvl(id) {
+    if (h1El) { h1El.removeAttribute("aria-level"); h1El = null; }
+    const s = id && $(id); if (!s) return;
+    const h = s.querySelector("h1, h2"); if (h && h.tagName === "H2") { h.setAttribute("aria-level", "1"); h1El = h; }
+  }
   function close(scroll) {
     IDS.forEach((x) => { const s = $(x); if (s) s.classList.remove("s-on"); });
     document.documentElement.classList.remove("s-view");
+    lvl(null);
+    const wasOpen = !!cur;
     cur = "";
     if (!document.documentElement.classList.contains("s-full")) navMark("home");
-    if (history.state && history.state.sView) { try { history.back(); } catch (e) {} }
+    let popB = false;
+    if (history.state && history.state.sView) { try { history.back(); popB = true; } catch (e) {} }
     else if (location.hash && IDS.includes(location.hash.slice(1))) try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) {}
-    if (scroll) requestAnimationFrame(() => { const t = $("sTiles"); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); });
+    // 돌아가기·뒤로: 도구를 열기 전 보던 자리(타일 격자 등)로. history.back()의 스크롤 복원이 늦게 덮어쓰므로 한 번 더
+    const y0 = tileY; tileY = null;
+    const back = () => { if (y0 != null) window.scrollTo({ top: y0, behavior: "auto" }); else if (scroll) { const t = $("sTiles"); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } };
+    if (wasOpen && scroll) {
+      const go = () => { requestAnimationFrame(back); setTimeout(back, 80); setTimeout(back, 200); };
+      go();
+      // history.back()이면 브라우저가 popstate 때 예전 자리(홈이 숨은 뒤 줄어든 값)로 되돌리므로 그 뒤에 한 번 더
+      if (popB) { addEventListener("popstate", go, { once: true }); setTimeout(() => removeEventListener("popstate", go), 1500); }
+    }
+    if (wasOpen) fitSp();
   }
   function init() {
     // 같은 페이지에서 주소의 #도구 이름만 바뀌어도(링크·뒤로가기) 그 도구를 연다
@@ -563,7 +638,7 @@ const SIMPLE = (() => {
       if (IDS.includes(id)) { e.preventDefault(); e.stopImmediatePropagation(); if (a.closest("#menuPop")) $("menuBtn").click(); open(id); }
       else if (id === "mapTop" || id === "planner0") { e.preventDefault(); close(); }
     }, true);
-    const fromHash = () => { const h = location.hash.slice(1); if (IDS.includes(h)) open(h, false); else if (cur && !byId[h]) close(); };
+    const fromHash = () => { const h = location.hash.slice(1); if (IDS.includes(h)) open(h, false); else if (cur && !byId[h]) close("pop"); };
     addEventListener("popstate", fromHash);
     fromHash();
     // 딥링크: 브라우저 앵커 이동이 끝난 뒤 다시 맞춘다

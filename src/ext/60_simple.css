@@ -486,12 +486,13 @@ html.simple #mapbox:not(.lm-on){min-height:560px}
 /* 넓은 PC: 게이지를 두 칸으로 — 왼쪽 숫자·막대(최대 640px), 오른쪽 '이 돈이면' 요약. 핀 꽂기 알약은 요약 칸 아래에 얹는다 */
 .s-sum{display:none}
 @media (min-width:1180px){
-  html.simple .s-gauge{display:grid;grid-template-columns:minmax(0,640px) minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto auto;column-gap:44px;align-items:start}
+  /* 왼쪽 칸: 숫자 바로 밑에 막대(사이 빈 띠 없이), 남는 높이는 위아래로 나눠 오른쪽 칸과 가운데를 맞춘다 */
+  html.simple .s-gauge{display:grid;grid-template-columns:minmax(0,640px) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto auto minmax(0,1fr);column-gap:44px;align-items:start}
   html.simple .s-gauge>.s-ghead{grid-column:1/-1;grid-row:1}
-  html.simple .s-gauge>.s-gmain{grid-column:1;grid-row:2;margin-top:20px}
-  html.simple .s-gauge>#sCash{grid-column:1;grid-row:4}
+  html.simple .s-gauge>.s-gmain{grid-column:1;grid-row:3;margin-top:16px}
+  html.simple .s-gauge>#sCash{grid-column:1;grid-row:4;margin-top:18px}
   html.simple .s-gauge>.s-ticks{grid-column:1;grid-row:5}
-  .s-sum{display:flex;flex-direction:column;grid-column:2;grid-row:2/6;align-self:stretch;min-height:206px;margin:12px 0 0;padding:12px 14px;border-radius:16px;background:var(--surface-2);border:1px solid var(--divider);box-sizing:border-box}
+  .s-sum{display:flex;flex-direction:column;grid-column:2;grid-row:2/7;align-self:stretch;min-height:206px;margin:12px 0 0;padding:12px 14px;border-radius:16px;background:var(--surface-2);border:1px solid var(--divider);box-sizing:border-box}
   .s-sum-h{display:flex;align-items:baseline;gap:8px;margin:0 0 4px;font-size:13px;color:var(--text-3)}
   .s-sum-h b{font-size:14px;font-weight:800;color:var(--text-1)}
   .s-sum ol{list-style:none;margin:0;padding:0}
@@ -508,3 +509,32 @@ html.simple #mapbox:not(.lm-on){min-height:560px}
   html.simple #mapTop .pc-save{padding-right:40px}
   html.simple #mapTop .pc-save>button{top:-42px}
 }
+
+/* 좁은 화면(폰·작은 PC): '이 돈이면'을 숫자·막대 밑 한 줄 칩으로 — 첫 목록 줄이 화면 아래여도 가장 싼 곳을 바로 연다.
+   자리(40px)는 첫 페인트부터 잡아 둔다(shell.html #sSum → 높이 그대로) */
+@media (max-width:1179px){
+  html.simple .s-sum{display:flex;align-items:center;gap:2px;height:40px;margin:8px -16px 0 0;padding-right:16px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+  html.simple .s-sum::-webkit-scrollbar{display:none}
+  .s-sum-h{flex:none;margin:0 6px 0 0;font-size:12.5px;color:var(--text-3)}
+  .s-sum-h b{font-weight:600}
+  .s-sum-h span{display:none}
+  .s-sum ol{display:flex;gap:6px;list-style:none;margin:0;padding:0}
+  .s-sum li{flex:none}
+  .s-sum button{position:relative;z-index:0;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:0;background:none;color:var(--text-1);font:600 13px var(--font);cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .s-sum button::before{content:"";position:absolute;inset:5px 0;z-index:-1;border:1px solid var(--border);border-radius:999px;background:var(--surface)}
+  .s-sum button:hover::before{border-color:color-mix(in srgb,var(--brand) 45%,var(--border))}
+  .s-sum button:focus-visible{outline:none}.s-sum button:focus-visible::before{outline:2px solid var(--focus);outline-offset:1px}
+  .s-sum button span{max-width:9.5em;overflow:hidden;text-overflow:ellipsis}
+  .s-sum button small{display:none}
+  .s-sum button b{font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}
+  .s-sum-f{display:none}
+  .s-sum-e{margin:0;font-size:12.5px;color:var(--text-3)}
+  .s-sum-e br{display:none}
+}
+@media (max-width:640px){html.simple .s-sum{margin-right:-14px;padding-right:14px}}
+/* 첫 방문 안내: 자리를 못 잰 때·대화상자/시트/메뉴/도구 화면이 열려 있을 땐 숨김 */
+.s-coach.off,html.s-view .s-coach,html.s-full .s-coach,html.sheet-open .s-coach,html.menu-open .s-coach,body:has([aria-modal="true"]:not([hidden])) .s-coach,body:has(dialog[open]) .s-coach,body:has(#menuPop:not([hidden])) .s-coach{visibility:hidden}
+/* '더 알아보기' 제목과 격자 사이 16px */
+html.simple #sTT{margin-bottom:16px}
+/* 목록 '입주 비용 자료 부족 ⓘ' — 눌러 왜 이 금액?(이유 한 줄)을 연다 */
+.s-amt .s-nai{display:inline-grid;place-items:center;width:13px;height:13px;margin-left:3px;border:1px solid currentColor;border-radius:50%;font:700 9px/1 var(--font);font-style:normal;vertical-align:1px;opacity:.8}

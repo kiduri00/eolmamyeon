@@ -162,3 +162,11 @@ html.s-full .s-mini{row-gap:6px;padding-top:7px;padding-bottom:7px}
 .lm-snote[hidden]{display:none}
 .lm-snote span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lm-snote button{flex:none;min-height:40px;padding:0 14px;border:0;border-radius:999px;background:var(--surface,#fff);color:var(--text-1,#191f28);font:inherit;font-weight:700;cursor:pointer}
+/* 상권 열지도(줌 13 아래) 범례: 번진 주황 */
+.lm-notes .lm-n-biz.lm-n-heat{background:radial-gradient(circle,rgba(190,95,10,.85) 0,rgba(226,128,32,.45) 55%,rgba(232,140,40,0) 100%);box-shadow:none}
+/* '이 지도 범위만 보기' 제안 칩(켜기 전): 테두리만 */
+.s-gu .s-bbo{gap:6px;padding:0 14px 0 12px;background:var(--surface);border-color:var(--border);color:var(--text-1)}
+.s-gu .s-bbo svg{color:var(--brand)}
+.s-gu .s-bbo:hover{border-color:color-mix(in srgb,var(--brand) 45%,transparent)}
+/* 확대·축소 단추는 출처 ⓘ(아래 10px + 26px) 위로 8px 띄운다(모든 폭·전체 지도) */
+#mapbox .lm-zoom,#mapbox.lm-short .lm-zoom{bottom:44px}

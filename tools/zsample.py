@@ -1,6 +1,6 @@
 """계산 매수가 표본 한 문장·'이 숫자 믿어도 될까' 신뢰도 — zpages.py(/z/ 페이지)와 api.py가 같이 쓴다.
 화면 쪽 같은 규칙: src/ext/64_overview.js smpTxt · trustHTML."""
-import datetime
+import datetime, re
 PSRC = {'villa': '빌라 실거래 가운데 값', 'complex': '단지 실거래 가운데 값', 'apt': '단지 실거래 가운데 값', 'est': '구 평균 시세로 추정'}
 def isEst(r, c):   # 매수가 표본이 없어 같은 구 빌라 시세로 채운 값(화면 isEst · calc.json에는 priceSrc 'user'로 남음)
     return c.get('priceSrc') == 'est' or r.get('lcw') == 'est' or (c.get('priceSrc') == 'user' and not ((r.get('mk') or {}).get('entry') or {}).get('n'))
@@ -30,3 +30,11 @@ def trust(r, c):   # '이 숫자 믿어도 될까' — 화면 64_overview.js tru
     if n < 10: why.append(f'표본 {n}건이라 몇 건에 값이 흔들릴 수 있어요')
     if ma is not None and ma > 6: why.append('마지막 거래 6개월 넘음')
     return ('보통' if why else '높음'), why or ['구역 안 최근 거래가 충분해요']
+def short(n):   # 구역 짧은 이름(/z/ 제목·API name) — 사업 종류 꼬리를 뗀다
+    n0 = n
+    n = re.sub(r'^\s*(\(가칭\)|\[임시\]|\(임시\))\s*', '', n)
+    n = re.sub(r'\s*(\(가칭\)|\[임시\]|\(임시\))\s*$', '', n)
+    n = re.sub(r'\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?(사업)?\s*(조합|추진위원회|조합설립추진위원회|주민대표회의)?\s*$', '', n).strip()
+    for _ in range(3):   # '…도시정비형 재개발사업'처럼 사업 종류 말이 겹친 꼬리(제목에 '도시정비형 도시정비형'이 되던 것)
+        n = re.sub(r'\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)\s*(정비)?(사업|구역)?\s*$', '', n).strip()
+    return n or n0

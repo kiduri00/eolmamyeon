@@ -242,3 +242,7 @@ svg.ov-bar .bn.on{fill:#fff}
 .ov-formal{margin:2px 0 0;font-size:12.5px;line-height:1.4;color:var(--text-3);overflow-wrap:anywhere}
 #pane details.ov-alt.sect>summary h3::after{content:" ▾";font-size:12px}
 #pane details.ov-alt.sect[open]>summary h3::after{content:" ▴"}
+/* 핀 꽂기는 머리(제목 줄·시트 위 줄) 하나만: 아래 동작 줄의 같은 버튼은 숨긴다 */
+#report:has(.pn-hpin) .rep-acts>.favb{display:none}
+/* 시트를 열 때 제목에 포커스(읽기 시작점) · 마우스·터치로 연 경우엔 링 없이 */
+#repTitle:focus:not(:focus-visible){outline:none}

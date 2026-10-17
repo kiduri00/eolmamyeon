@@ -53,3 +53,8 @@ html.is-app .s-nav{-webkit-user-select:none;user-select:none;-webkit-touch-callo
   .mp-v2 .mp-grid a,.mp-v2 .mp-row a{padding:0 12px;min-height:44px}
 }
 @media (min-width:641px){.mp-v2 .mp-h{display:none}}
+/* ⋯ 메뉴 '도구' 묶음: 홈 격자와 같은 아이콘(작게) */
+.mp-v2 .mp-grid a{gap:10px}
+.mp-v2 .mp-ic{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:color-mix(in srgb,var(--ic,var(--brand)) 12%,var(--surface));color:var(--ic,var(--brand))}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .mp-v2 .mp-ic{background:color-mix(in srgb,var(--ic,#8fa8ff) 22%,#1b2029);color:color-mix(in srgb,var(--ic) 45%,#fff)}}
+:root[data-theme="dark"] .mp-v2 .mp-ic{background:color-mix(in srgb,var(--ic,#8fa8ff) 22%,#1b2029);color:color-mix(in srgb,var(--ic) 45%,#fff)}

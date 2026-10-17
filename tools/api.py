@@ -11,7 +11,7 @@
 """
 import json, os, re, math, datetime, collections, shutil
 import sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from zsample import smpTxt, trust, isEst   # /z/ 페이지와 같은 표본 문장·신뢰도
+from zsample import smpTxt, trust, isEst, short   # /z/ 페이지와 같은 표본 문장·신뢰도
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p, d=None: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else d
 D = J('pipeline/data.enriched.json') or J('src/data.json'); P = J('public/premium.json', {}); C = J('pipeline/calc.json', {})
@@ -23,9 +23,6 @@ os.makedirs(os.path.join(OUT, 'zones'), exist_ok=True)
 W = lambda name, obj: json.dump(obj, open(os.path.join(OUT, name), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 r2 = lambda v: None if v is None else round(v, 3)
 LAD = D.get('ladder') or []
-def short(n):
-    n = re.sub(r'^\s*(\(가칭\)|\[임시\]|\(임시\))\s*', '', n)
-    return re.sub(r'\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?(사업)?\s*(조합|추진위원회|조합설립추진위원회|주민대표회의)?\s*$', '', n).strip() or n
 # 법정동 이름 전체: 'OO동', 'OO동N가', 'OON가', 'OO로N가', 'OO로'(세종로 등). 지번이 바로 붙은 '수유동392-9'도. '구로동'을 '구로'로 자르지 않는다
 DONG_RE = re.compile(r'^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)')
 def dong(r):

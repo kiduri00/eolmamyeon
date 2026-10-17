@@ -558,8 +558,8 @@
               ? '<span class="mut">지금 사면 입주권 없음</span>'
               : x.ok
               ? x.needTotal <= CASH
-                ? `<span class="okc">입주까지 ${e2(x.needTotal)}억 · 됨</span>${asm}`
-                : `<span class="mut">입주까지 ${e2(x.needTotal)}억</span>${asm}`
+                ? `<span class="okc">입주까지 현금 ${e2(x.needTotal)}억 · 됨</span>${asm}`
+                : `<span class="mut">입주까지 현금 ${e2(x.needTotal)}억</span>${asm}`
               : `<span class="mut">${x.needBuy != null ? `지금 매수 ${e2(x.needBuy)}억 · ` : ""}입주까지 계산 불가</span><small class="mut asm">${x.nvThin ? "주변 신축 시세 표본 부족" : "입주 시점·신축 시세 자료 부족"}</small>`;
             return `<tr${fav ? ' class="cur"' : ""}><td>${fav ? SVG_PIN(true) + " " : ""}<a href="#${esc(it.id)}">${esc(shortName(r.n))}</a><small class="mut"> ${esc(r.g)}</small></td><td data-l="단계">${it.steps.length > 1 ? `${it.steps.map((k) => esc(k)).join("·")}인가 <small class="mut">같은 날</small>` : STEP_K[it.step] || esc(it.step)}</td><td class="n" data-l="인가일">${it.date.slice(5).replace("-", ".")}</td><td data-l="고시 원문">${it.src ? `<a href="${esc(it.src)}" target="_blank" rel="noopener" data-nw="1">보기 ↗<span class="sr-only"> (새 창)</span></a>` : '<span class="mut">원문 미확인</span>'}</td><td data-l="내 현금으로" class="nw-can">${can}</td></tr>`;
           })
@@ -3790,10 +3790,25 @@
       }
     } else if (!opts.noHistory) replSt({ sheet: cur.id }, cur.id);
     rp.scrollTop = 0;
-    requestAnimationFrame(() => {
-      const x = $("sheetClose");
-      if (x) x.focus({ preventScroll: true });
-    });
+    // 처음 포커스는 제목(닫기 버튼에 포커스 링이 뜨지 않게) · 시트 안에서 Tab이 끝에서 처음으로 돈다
+    let ft = 0;   // 리포트가 비동기로 그려져 아직 없으면 몇 프레임 기다린다
+    const fx = () => {
+      const x = $("repTitle") || $("sheetClose");
+      if (!rp.classList.contains("sheet") || rp.contains(document.activeElement)) return;
+      if (x && rp.contains(x)) x.focus({ preventScroll: true });
+      if (document.activeElement !== x && ft++ < 90) requestAnimationFrame(fx);
+    };
+    requestAnimationFrame(fx);
+    if (!rp.dataset.trap) {
+      rp.dataset.trap = "1";
+      rp.addEventListener("keydown", (e) => {
+        if (e.key !== "Tab" || !rp.classList.contains("sheet")) return;
+        const F = [...rp.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea,summary,[tabindex]:not([tabindex="-1"])')].filter((el) => el.tabIndex >= 0 && el.getClientRects().length && !el.closest("[hidden],[inert]"));
+        if (!F.length) return;
+        const a0 = F[0], z = F[F.length - 1], ae = document.activeElement;
+        if (e.shiftKey ? ae === a0 || !F.includes(ae) && !(a0.compareDocumentPosition(ae) & 4) : ae === z) { e.preventDefault(); (e.shiftKey ? z : a0).focus(); }
+      });
+    }
   }
   function closeSheetNow() {
     const rp = $("report");
@@ -4662,7 +4677,14 @@
     const stnW = (r) => { if (!stn) return Infinity; if (r.st && r.st.n && r.st.n.replace(/역$/, "") === stn[0].replace(/역$/, "")) return r.st.d; if (!r.ll) return Infinity; const dx = (r.ll[1] - stn[2]) * 88200, dy = (r.ll[0] - stn[1]) * 111000; return Math.hypot(dx, dy); };
     const stnZ = stn ? R.filter((r) => !isDone(r) && r.src !== "moa" && stnW(r) <= 773).sort((a, b) => stnW(a) - stnW(b)).slice(0, 8) : [];
     const stnSet = new Set(stnZ.map((r) => r.id));
-    const hits = stnZ.map((r) => ({ r, near: true })).concat(all.filter((x) => !stnSet.has(x.r.id))).slice(0, 20);
+    // 같은 지번의 모아타운 관리지역은 따로 줄을 세우지 않고 사업 구역 줄에 '모아타운' 꼬리표로 합친다
+    const pk = (r) => `${r.g}|${(r.j || "").replace(/\s+/g, "")}`;
+    const zoneJ = new Set(R.filter((r) => r.src !== "moa" && r.j).map(pk));
+    const moaJ = new Set(R.filter((r) => r.src === "moa" && r.j).map(pk));
+    const hits = stnZ
+      .map((r) => ({ r, near: true }))
+      .concat(all.filter((x) => !stnSet.has(x.r.id) && !(x.r.src === "moa" && x.r.j && zoneJ.has(pk(x.r)))))
+      .slice(0, 20);
     sIdx = -1;
     $("q").removeAttribute("aria-activedescendant");
     const walkT = (r) => (r.st ? (Math.round((r.st.d * 1.3) / 67) > 20 ? "역에서 멀어요" : esc(r.st.n.replace(/역$/, "")) + "역 " + Math.max(1, Math.round((r.st.d * 1.3) / 67)) + "분") : "");
@@ -4670,7 +4692,7 @@
     const row = (r, i, near) => {
       const n = needS(r), ok = okZ(r);
       const wt = near ? `${esc(stn[0].replace(/역$/, ""))}역 ${Math.max(1, Math.round((stnW(r) * 1.3) / 67))}분` : r.st ? walkT(r) : "";
-      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b>${e1S(n.v)}</b><small>${n.l}</small>` : ""}${ok ? '<i class="sg-ok">살 수 있음</i>' : ""}</em></button>`;
+      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b>${e1S(n.v)}</b><small>${n.l}</small>` : ""}${ok ? '<i class="sg-ok">살 수 있음</i>' : ""}</em></button>`;
     };
     const stnRow = stn
       ? `<button type="button" role="option" id="sgS" aria-selected="false" data-stn="${esc(stn[0])}" tabindex="-1" class="sg-stn"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="14" rx="3"/><path d="M6 10h12M8 21l2-4M16 21l-2-4"/></svg>${esc(stn[0])}<small>${esc((stn[3] || []).join(" · "))} · 지도에서 역 주변 보기</small></span><em>지도 →</em></button>`
@@ -4689,7 +4711,17 @@
       guRow +
       stnRow +
       (hits.length
-        ? hits.map((h, i) => (h.near && i === 0 ? `<div class="x-h" role="presentation">${esc(stn[0].replace(/역$/, ""))}역 걸어서 15분 안 · ${fmt(stnZ.length)}곳${stnZ.length >= 8 ? " (가까운 순)" : ""}</div>` : !h.near && i === stnZ.length && stnZ.length ? `<div class="x-h" role="presentation">이름에 '${esc(q)}'</div>` : "") + row(h.r, i, h.near)).join("") +
+        ? hits.map((h, i) => {
+            // 역 주변 목록 뒤: 이름이 실제로 맞는 곳만 "이름에 'q'", 주소·역 글자로 걸린 곳은 "주변 더 보기"
+            let hd = "";
+            if (h.near && i === 0) hd = `<div class="x-h" role="presentation">${esc(stn[0].replace(/역$/, ""))}역 걸어서 15분 안 · ${fmt(stnZ.length)}곳${stnZ.length >= 8 ? " (가까운 순)" : ""}</div>`;
+            else if (!h.near && stnZ.length) {
+              const grp = (x) => (x && !x.near && x.nh <= 2 ? "n" : "m");
+              if (i === stnZ.length || grp(hits[i - 1]) !== grp(h))
+                hd = `<div class="x-h" role="presentation">${grp(h) === "n" ? `이름에 '${esc(q)}'` : `${esc(stn[0].replace(/역$/, ""))}역 주변 더 보기`}</div>`;
+            }
+            return hd + row(h.r, i, h.near);
+          }).join("") +
           (all.length > hits.length
             ? `<div class="more-hits" role="presentation">외 ${all.length - hits.length}곳 · 지번이나 구 이름을 더 넣어 좁혀 보세요</div>`
             : "")
@@ -6629,7 +6661,7 @@
     }
     if (g.na)
       return `<p class="cstrip na"><span>전세 끼고 지금 필요한 돈</span><b>–</b><small>${noPriceTxt(r)}</small></p>`;
-    return `<div class="cstrip gstrip ${CASH - g.now >= -0.05 ? "ok" : "short"}"><span>전세 끼고 사면${isEst(r) ? `<span class="zb est">구 평균 시세로 추정${P.est ? "" : " · 곳 수 제외"}</span>` : ""}</span><b>${g.now <= CASH + 0.05 ? `지금 ${f1(g.now)}억이면 계약 가능` : `지금 ${f1(g.now)}억 필요 <em class="gs-sh">${f1(g.now - CASH)}억 모자라요</em>`}</b><small class="gs-2">${g.x.ok ? `입주까지 총 ${f1(g.total)}억${g.total > CASH ? ` · 내 돈 ${e2(CASH)}억 빼면 ${f1(g.total - CASH)}억 더` : ""}` : "입주까지는 계산 전"}</small></div>`;
+    return `<div class="cstrip gstrip ${CASH - g.now >= -0.05 ? "ok" : "short"}"><span>전세 끼고 사면${isEst(r) ? `<span class="zb est">구 평균 시세로 추정${P.est ? "" : " · 곳 수 제외"}</span>` : ""}</span><b>${g.now <= CASH + 0.05 ? `지금 ${f1(g.now)}억이면 계약 가능` : `지금 ${f1(g.now)}억 필요 <em class="gs-sh">${f1(g.now - CASH)}억 모자라요</em>`}</b><small class="gs-2">${g.x.ok ? `입주까지 현금 ${f1(g.total)}억${g.total > CASH ? ` · 내 돈 ${e2(CASH)}억 빼면 ${f1(g.total - CASH)}억 더` : ""}` : "입주까지는 계산 전"}</small></div>`;
   }
   function gapFrame(g) {
     const ok = g.now <= CASH + 1e-9;
@@ -6637,7 +6669,7 @@
       ? `지금 ${f1(g.now)}억이면 계약 가능(내 현금 ${e2(CASH)}억 안)`
       : `지금 ${f1(g.now)}억 필요 · 내 현금보다 ${f1(g.now - CASH)}억 부족`;
     if (!g.x.ok) return `${a} · 입주까지는 계산 전`;
-    return `${a} · 입주까지 총 ${f1(g.total)}억${g.total > CASH ? ` → 입주 전까지 ${f1(g.total - CASH)}억 더 필요` : ""}`;
+    return `${a} · 입주까지 현금 ${f1(g.total)}억${g.total > CASH ? ` → 입주 전까지 ${f1(g.total - CASH)}억 더 필요` : ""}`;
   }
   function gapPaneHTML(r) {
     const g = gapOf(r);
@@ -6653,7 +6685,7 @@
     if (g.block || g.na || !g.x.ok) return;
     const c = p.querySelector(".bigrow .big.cash");
     if (c)
-      c.outerHTML = `<div class="big cash"><span>전세 끼고 입주까지 총 필요한 돈</span><b>${f1(g.total)}억</b><small>${esc(gapFrame(g))}</small></div>`;
+      c.outerHTML = `<div class="big cash"><span>전세 끼고 입주까지 현금</span><b>${f1(g.total)}억</b><small>${esc(gapFrame(g))}</small></div>`;
     const gn = p.querySelector(".bigrow .big.gain");
     if (gn)
       gn.outerHTML = `<div class="big gain ${g.gain >= 0.05 ? "up" : g.gain <= -0.05 ? "dn" : ""}"><span>입주 때 시세 차이 (전세 끼고 산 경우·추정)</span><b>${sg(g.gain)}억</b><small>${g.gain > -0.3 && g.gain < 0.3 ? "시세 그대로면 차익 거의 없음 · " : ""}${g.x.annual != null ? `연수익 ${pcIrr(g.x.annual)}(현금으로 샀을 때) · ` : ""}추정 · 시세 상승 0% 가정</small></div>`;
@@ -8268,10 +8300,21 @@
         adj.get(k).push([key(b, li), w]);
       });
     };
-    LNS.forEach((ln, li) => {
-      const S = STN.map((s, i) => i).filter((i) => STN[i].ls.includes(li));
+    // 2호선 지선은 본선과 따로 — 신정지선(신도림–까치산)·성수지선(성수–신설동)은 갈아타야 한다
+    const L2 = LNS.indexOf("2호선");
+    const BR = [
+      ["신도림", ["도림천", "양천구청", "신정네거리", "까치산"]],
+      ["성수", ["용답", "신답", "용두", "신설동"]],
+    ];
+    const brOf = new Map();
+    BR.forEach(([, a], bi) => a.forEach((n) => brOf.set(n, bi)));
+    const gl = STN.map((s) => s.ls.flatMap((li) => (li === L2 && brOf.has(s.n) ? [LNS.length + brOf.get(s.n)] : [li])));
+    BR.forEach(([h], bi) => STN.forEach((s, i) => s.n === h && s.ls.includes(L2) && gl[i].push(LNS.length + bi)));
+    const GL = LNS.map((ln, li) => [li, li]).concat(BR.map((b, bi) => [LNS.length + bi, L2]));
+    GL.forEach(([li, pl]) => {
+      const S = STN.map((s, i) => i).filter((i) => gl[i].includes(li));
       if (S.length < 2) return;
-      const G = segOf(li);
+      const G = segOf(pl);
       const cell = 40,
         grid = new Map();
       G.forEach((g, gi) => {
@@ -8339,7 +8382,7 @@
       if (!byN.has(s.n)) byN.set(s.n, []);
       byN.get(s.n).push(i);
     });
-    return (GRAPH = { adj, byN, key });
+    return (GRAPH = { adj, byN, key, gl });
   }
   function commuteFrom(dest) {
     const g = buildGraph(),
@@ -8376,7 +8419,7 @@
       return top;
     };
     (g.byN.get(dest) || []).forEach((i) =>
-      STN[i].ls.forEach((li) => {
+      g.gl[i].forEach((li) => {
         const k = g.key(i, li);
         D.set(k, 0);
         push(0, k);
@@ -8388,7 +8431,7 @@
       const [i, li] = k.split("|").map(Number);
       const nb = (g.adj.get(k) || []).slice();
       (g.byN.get(STN[i].n) || []).forEach((j) =>
-        STN[j].ls.forEach((l2) => {
+        g.gl[j].forEach((l2) => {
           const k2 = g.key(j, l2);
           if (k2 !== k) nb.push([k2, 5]);
         }),
@@ -8421,7 +8464,7 @@
       const tr = [];
       for (let a = 1; a < st.length; a++)
         if (st[a][1] !== st[a - 1][1] && STN[st[a][0]].n === STN[st[a - 1][0]].n && !tr.includes(STN[st[a][0]].n)) tr.push(STN[st[a][0]].n);
-      return { min: b.d, tr, first: LNS[st[0][1]] };
+      return { min: b.d, tr, first: LNS[st[0][1]] || "2호선" };
     };
     return { best, route };
   }
@@ -8484,11 +8527,11 @@
           ? `<span class="cm-m u">${esc(o.g.block)}</span>`
           : o.g.na
             ? '<span class="cm-m u">매수가 추정 불가 · 주변 빌라 거래가 적어요</span>'
-            : `<span class="cm-m ${o.st}">전세 끼고 지금 <b>${e2(o.g.now)}억</b>${o.g.x.ok ? ` · 입주까지 총 ${e2(o.g.total)}억` : ""}${o.st === "n" ? ` · ${e2(o.g.now - CASH)}억 부족` : ""}</span>`
+            : `<span class="cm-m ${o.st}">전세 끼고 지금 <b>${e2(o.g.now)}억</b>${o.g.x.ok ? ` · 입주까지 현금 ${e2(o.g.total)}억` : ""}${o.st === "n" ? ` · ${e2(o.g.now - CASH)}억 부족` : ""}</span>`
         : o.st === "y"
-          ? `<span class="cm-m y">입주까지 <b>${e2(x.needTotal)}억</b> · 내 현금으로 가능</span>`
+          ? `<span class="cm-m y">입주까지 현금 <b>${e2(x.needTotal)}억</b> · 내 현금으로 가능</span>`
           : o.st === "n"
-            ? `<span class="cm-m n">입주까지 <b>${e2(x.needTotal)}억</b> · ${e2(x.needTotal - CASH)}억 부족</span>`
+            ? `<span class="cm-m n">입주까지 현금 <b>${e2(x.needTotal)}억</b> · ${e2(x.needTotal - CASH)}억 부족</span>`
             : `<span class="cm-m u">${x.needBuy != null ? `지금 매수 ${e2(x.needBuy)}억 · 입주까지는 계산 전` : "시세 자료 부족 · 계산 불가"}</span>`;
       return `<li class="cm-c ${o.st}"><div class="cm-top"><div><b class="cm-n">${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc((r.bj || r.j || "").split(" ")[0])} · ${esc(stageName(r))}</small></div>${favBtn(r, "sm")}</div>\n      <p class="cm-t"><b>${o.tot}분</b> <span>예상 출퇴근</span></p>\n      <p class="cm-r">도보 ${o.z.walk}분 · ${esc(o.z.n)}역${via} → ${esc(CM.dest)}</p>\n      ${money}\n      <div class="cm-a"><button type="button" class="btn text sm" data-open="${r.id}">리포트</button><button type="button" class="btn text sm" data-cmmap="${r.id}">지도에서 보기</button></div></li>`;
     };
@@ -8697,7 +8740,8 @@
       ymax = Math.max(5, ...pts.map((p) => p.n)),
       niceMax = (v) => {
         const e = Math.pow(10, Math.floor(Math.log10(v)));
-        return Math.ceil(v / e / (v / e > 5 ? 2 : 1)) * e * (v / e > 5 ? 2 : 1);
+        // 축 끝이 최댓값의 두 배 가까이 가지 않게(120 → 200이던 것) 촘촘한 단계로 올림
+        return [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((k) => k * e >= v - 1e-9) * e;
       },
       top = niceMax(Math.max(ymax, ...mpts.map((p) => p.n)));
     const X = (y) => pl + ((W - pl - pr) * y) / YMAX,
@@ -8785,12 +8829,17 @@
     }
   });
   function gapSavePlan(cash0, m, at) {
+    // 홈 플래너와 같은 기준(참고값 lc 제외)으로 센다 → '살 수 있는 N곳 · ③ 계산 M곳'이 두 곳에서 같게
     const buy = baseList()
       .map(gapOf)
-      .filter((g) => !g.block && !g.na && g.now != null && g.now <= cash0 + 1e-9);
-    const gs = buy.filter((g) => g.x.ok && g.tR != null).sort((a, b) => a.total - b.total);
-    // 머리말: 지금 살 수 있는 곳 가운데 입주까지 돈·시점이 계산되는 곳만 셈(나머지는 신축 시세·단계 날짜가 없어 제외)
-    const sub = buy.length > gs.length ? `지금 전세 끼고 살 수 있는 ${fmt(buy.length)}곳 중 입주까지 돈·시점이 계산되는 ` : "";
+      .filter((g) => !g.r.lc && !g.block && !g.na && g.now != null && g.now <= cash0 + 1e-9);
+    const tot = buy.filter((g) => g.x.ok);
+    const gs = tot.filter((g) => g.tR != null).sort((a, b) => a.total - b.total);
+    // 머리말: 살 수 있는 곳 → ③(입주까지 총액) 계산되는 곳 → 이주 시점까지 나온 곳, 빠지는 단계를 숫자로 밝힘
+    const sub =
+      buy.length > gs.length
+        ? `지금 전세 끼고 살 수 있는 ${fmt(buy.length)}곳 중 ③이 계산되는 ${tot.length > gs.length ? `${fmt(tot.length)}곳, 그중 이주 시점까지 나온 ` : ""}`
+        : "";
     if (!gs.length) return `<p class="t-hint">지금 ${e2(cash0)}억으로 전세 끼고 살 수 있고 입주 시점까지 계산되는 곳이 없어요.</p>`;
     if (!isMember())
       return `<div class="gsv"><h3>전세 끼고 지금 ${e2(cash0)}억으로 사면, 매달 ${fmt(Math.round(m * 1e4))}만 원으로 제때 모을 수 있을까?</h3>${lockCard({ kind: "table", title: `구역별 표 · ${fmt(gs.length)}곳`, line: "구역마다 지금 ①·이주 ②·입주까지 총 ③과 매달 필요한 돈을 표로 보여 줘요.", ctx: "save" })}</div>`;
