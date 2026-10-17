@@ -8464,13 +8464,13 @@
       const tr = [];
       for (let a = 1; a < st.length; a++)
         if (st[a][1] !== st[a - 1][1] && STN[st[a][0]].n === STN[st[a - 1][0]].n && !tr.includes(STN[st[a][0]].n)) tr.push(STN[st[a][0]].n);
-      return { min: b.d, tr, first: LNS[st[0][1]] || "2호선" };
+      return { min: b.d, tr, first: LNS[st[0][1]] || "2호선", path: st.map(([i, l]) => STN[i].n + ":" + (LNS[l] || "2지선")) };
     };
     return { best, route };
   }
   window.__cmTrip = (o, d) => {
     const rt = commuteFrom(d).route(o);
-    return rt ? { min: Math.round(rt.min * 10) / 10, via: rt.tr } : null;
+    return rt ? { min: Math.round(rt.min * 10) / 10, via: rt.tr, path: rt.path } : null;
   };
   let CM = { dest: "강남", max: 50, n: 18 },
     CM_SET = new Set(),

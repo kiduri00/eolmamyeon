@@ -453,13 +453,13 @@ const SIMPLE = (() => {
       else {
         rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + srcL + ln("−", `전세${g.userJ ? "" : ` <small>(${Math.round(g.jr)}%)</small>`}`, M(g.D)) + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, g.D, x.tax), "s-wsum");
         if (g.total != null) tail = `입주까지 현금 ${eokS(g.total)} · 이주비·분담금 포함, 잔금대출 제외`;
-        else tail = `${NA_L} · ${NA_WHY}`;
+        else tail = "입주까지 현금은 계산 못 함: 입주 시점·신축 시세 자료 부족";
       }
     } else if (x.price == null) rowsH = `<li class="s-wna">매수가 자료가 아직 없어요</li>`;
     else {
       rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + srcL + ln("−", "대출", M(x.loanCap)) + `<li class="s-wbase">${loanBasis(r, x, wS, M)}</li>` + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, x.loanCap, x.tax), "s-wsum");
       if (x.ok && x.needTotal != null) tail = `입주까지 현금 ${eokS(x.needTotal)} · 분담금·이자 포함, 잔금대출 제외`;
-      else tail = `${NA_L} · ${NA_WHY}`;
+      else tail = "입주까지 현금은 계산 못 함: 입주 시점·신축 시세 자료 부족";
     }
     whyShow(btn, `<div class="s-wh"><b id="sWhyT">왜 이 금액?</b><span>${esc(shortName(r.n))}</span><button type="button" data-x aria-label="닫기">×</button></div><ul>${rowsH}</ul><p>${tail ? `${tail} · ` : ""}공개 자료로 낸 추정치예요</p><button type="button" class="s-wgo" data-go="${r.id}">계산 근거 자세히 →</button>`);
   }
