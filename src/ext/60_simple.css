@@ -266,3 +266,11 @@ html.simple .s-hero{gap:10px}
   .s-ghead .s-mode{flex:none;padding:3px}
   .s-ghead .s-mode button{min-height:28px;padding:0 9px;font-size:12px}
 }
+/* 카드 제목: 짧고 크게 */
+.s-gauge .s-h1{font-size:24px;font-weight:800;letter-spacing:-.035em;color:var(--text-1)}
+@media (max-width:640px){.s-gauge .s-h1{font-size:21px}}
+@media (min-width:641px){
+  .s-gauge .s-h1{font-size:30px}
+  .s-cash b,.s-count b{font-size:clamp(52px,6vw,72px)}
+  .s-cash small,.s-count small{font-size:14px}
+}
