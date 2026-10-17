@@ -22,6 +22,8 @@ echo "== 5. 구역 실거래 집계"
 SALE=$(ls $RAW/sale_*.csv 2>/dev/null | tr "\n" " " || true)
 RENT=$(ls $RAW/rent_*.csv 2>/dev/null | tr '\n' ' ' || true)
 if [ -n "$SALE" ] && [ -n "$RENT" ]; then python3 tools/tx.py --sale $SALE --rent $RENT || echo "!! 실거래 집계 실패 — 어제 결과 유지"; else echo "!! CSV 없음 — 실거래 집계 건너뜀"; fi
+echo "== 5b. 주변 빌라 매수가 표본(구역 경계 반경 안 거래 · 필지 좌표 캐시)"
+timeout 1800 python3 tools/near.py || echo "!! 주변 표본 갱신 실패 — 이전 표본 유지"
 echo "== 6. 보강 · 빌드"
 python3 tools/enrich.py
 python3 tools/notice.py || echo "!! 고시·공고 피드 실패"

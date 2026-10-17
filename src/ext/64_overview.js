@@ -191,7 +191,9 @@ const OVX = (() => {
     const P = H.kind === "p", U = H.kind === "u";
     const basis = U || P ? H.basis : hdBasis;
     const thin = U || P ? thinTag(H.n, H.to) : thinTag(h.n, h.to) || (h.st || h.w === 0 ? `오래된 거래${h.to ? ` · 최근 ${ym(h.to)}` : ""}` : "");
-    const S = txRows(dd, h.r);
+    // 계산 매수가가 주변 빌라 표본이면 아래 몇 건도 그 표본에서(머리 '마지막 거래'와 같은 거래가 맨 위) — 표본 목록이 없으면 구역 안 거래에 '표본 아님' 이름표
+    const NZ = ZX.near && ZX.near(r), nearB = !!(r.mk && r.mk.entry && r.mk.entry.src === "villa" && (r.mk.entry.radius || 0) >= 100);
+    const S = NZ ? NZ.s.slice(0, matchMedia("(max-width:640px)").matches ? 2 : 3).map((v) => [v[0], 0, v[3], v[1], v[2], v[4], v[5]]) : txRows(dd, h.r);
     const lq = lastQ(h.q), ag = dd && dd.x && dd.x.age, agn = (dd && dd.x && dd.x.agn) || {};
     const alts = [
       P ? [h.b === "v" ? `구역 안 대표 거래 · 대지 3.3㎡` : `구역 안 ${per}`, eok(h.u), hdBasis] : null,
@@ -207,7 +209,7 @@ const OVX = (() => {
       <p class="ov-basis">기준 · ${esc(basis)}</p>
       ${P ? calcRow(r, false, H.v) : calcRow(r, U)}
       ${altHTML(alts, ch)}
-      ${P && li ? `<p class="ov-lh">구역 안 최근 거래</p>` : ""}${li}
+      ${li ? (NZ ? `<p class="ov-lh">매수가 표본 최근 거래 · 주변 ${NZ.r}m</p>` : P || nearB ? `<p class="ov-lh">구역 안 최근 거래(매수가 표본 아님)</p>` : "") : ""}${li}
       <button type="button" class="ov-more" data-tab="tx">거래 전체 보기 →</button></div>`;
   }
   // 입주 현금 계산에 실제로 쓴 매수가와 그 표본 — /z/ 페이지·API와 같은 한 문장(ZF.smpTxt)
@@ -235,7 +237,9 @@ const OVX = (() => {
     let x = null; try { x = investC(r); } catch (e) {}
     const en = (r.mk && r.mk.entry) || {}, t = r.tx || {};
     const H = (lv, cls, rows, msg) => `<div class="ov-c ov-trust ${cls}"><div class="ov-trh"><h3>이 숫자 믿어도 될까</h3><b class="ov-lv">${lv}</b></div>${rows.length ? `<dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}<p>${msg}</p></div>`;
-    const n12 = t.n12 != null ? [["구역 안 12개월 거래", `${t.n12}건`]] : [];
+    // 구역 안 거래 줄: 거래 탭 '구축 빌라 매매'와 같은 정의·기간(2015년 이전 준공 빌라 · 최근 nwin개월)을 쓰고, 그 값이 없을 때만 모든 거래 12개월
+    const n12 = t.no != null ? [[`구역 안 구축 빌라 · 최근 ${t.nwin || 18}개월`, `${t.no}건`]] : t.n12 != null ? [["구역 안 모든 거래 · 최근 12개월", `${t.n12}건`]] : [];
+    const nearL = en.src === "villa" && (en.radius || 0) >= 100 ? `주변 ${en.radius}m 빌라 ` : en.fill === "dong" ? "같은 동 빌라 " : "";
     if (!x || x.price == null || !isFinite(x.price)) return H("계산 안 함", "na", n12, "입주 현금을 자동으로 계산할 매수가 표본이 없어요. 아는 매물가를 입주 현금 탭에 넣어 보세요.");
     let est = false; try { est = isEst(r); } catch (e) {}
     if (est) return H("낮음", "lo", n12, `구역 안 거래가 적어 같은 구(${esc(r.g)}) 빌라 시세로 추정한 값이에요 · 계약 전 매물 시세로 꼭 확인`);
@@ -253,7 +257,7 @@ const OVX = (() => {
       if (ma != null && ma > 6) why.push("마지막 거래 6개월 넘음");
     }
     const [lv, cls] = low ? ["낮음", "lo"] : why.length ? ["보통", "md"] : ["높음", "hi"];
-    const rows = [["매수가 표본", n ? `${n}건` : "–"], ["마지막 거래", last ? esc(last) : "–"], ...(en.p25 && en.p75 && en.p75 > en.p25 ? [["가운데 50%", `${eok(en.p25)}~${eok(en.p75)}`]] : []), ...n12];
+    const rows = [["매수가 표본", n ? `${nearL}${n}건` : "–"], [nearL ? "표본 마지막 거래" : "마지막 거래", last ? esc(last) : "–"], ...(en.p25 && en.p75 && en.p75 > en.p25 ? [["가운데 50%", `${eok(en.p25)}~${eok(en.p75)}`]] : []), ...n12];
     return H(lv, cls, rows, why.length ? why.join(" · ") + (low ? " · 계약 전 매물 시세로 꼭 확인" : "") : "구역 안 최근 거래가 충분해요");
   }
   function txHTML(t, r, d) {
@@ -346,7 +350,7 @@ const OVX = (() => {
     if (!r._prem && FREE) premLoad(r).then(() => late(r, w)).catch(() => {});
     // 착공 뒤: 입주권 거래는 있지만 투기과열지구라 예외 매물만 — 한 줄로
     const rk = head.querySelector(".lb-risk"); if (rk && r.s >= 8) rk.textContent = "착공 구역 · 입주권은 예외 매물만 살 수 있어요";
-    ZX.loadTx().then((d) => {
+    Promise.all([ZX.loadTx(), ZX.loadNear ? ZX.loadNear() : null]).then(([d]) => {
       if (cur !== r || !document.getElementById("ovTop")) return;
       const t = { ...(r.tx || {}), ...((d && d[r.id] && d[r.id].x) || {}) };
       const tw = w.querySelector(".ov-txw");

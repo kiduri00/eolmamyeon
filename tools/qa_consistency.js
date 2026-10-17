@@ -62,6 +62,31 @@ const eqMoney = (a, b) => a && b && Math.abs(a.v - b.v) <= Math.max(a.tol, b.tol
 const eqApi = (disp, api) => disp && api != null && Math.abs(disp.v - api) <= disp.tol + 0.001;
 const fm = (m) => (!m ? "–" : m.v < 1 ? `${Math.round(m.v * 1e4).toLocaleString("en-US")}만` : `${+m.v.toFixed(4)}억`);
 
+// 억 금액 한 꼴(src/ext/05_facts.js ZF.num·ZF.cash와 같은 규칙): 1억 아래 소수 둘째 자리, 1억부터 첫째 자리
+const zfNum = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (a < 0.995) return sg + (Math.round(a * 100) / 100).toFixed(2).replace(/0$/, ""); return sg + (Math.round(a * 10) / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
+const zfCash = (v) => { const t = zfNum(v); return t === "–" ? t : t === "0" ? "0원" : t + "억"; };
+// WCAG 대비(페이지 안): 글자색(불투명도 곱) vs 조상 배경을 겹쳐 만든 실제 바탕
+const CONTRAST_JS = (rootSel) => {
+  const P = (c) => { const m = String(c).match(/rgba?\(([^)]+)\)/); if (!m) return null; const a = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [a[0], a[1], a[2], a.length > 3 ? a[3] : 1]; };
+  const L = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  const over = (top, bot) => { const a = top[3]; return [top[0] * a + bot[0] * (1 - a), top[1] * a + bot[1] * (1 - a), top[2] * a + bot[2] * (1 - a), 1]; };
+  const bgOf = (el) => { const st = []; for (let e = el; e; e = e.parentElement) { const cs = getComputedStyle(e); if (cs.backgroundImage && cs.backgroundImage !== "none") return null; const c = P(cs.backgroundColor); if (c && c[3] > 0) { st.push(c); if (c[3] >= 1) break; } } let b = [255, 255, 255, 1]; if (!st.length || st[st.length - 1][3] < 1) b = P(getComputedStyle(document.body).backgroundColor) || b; for (let i = st.length - 1; i >= 0; i--) b = over(st[i], b); return b; };
+  const out = [];
+  for (const root of document.querySelectorAll(rootSel)) for (const el of root.querySelectorAll("*")) {
+    if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+    if (!window.__qc.vis(el) || el.closest("[aria-hidden=true],svg,.sr-only")) continue;
+    const cs = getComputedStyle(el); if (cs.clip !== "auto") continue;
+    let op = 1; for (let e = el; e; e = e.parentElement) op *= +getComputedStyle(e).opacity;
+    const fg0 = P(cs.color), bg = bgOf(el); if (!fg0 || !bg) continue;
+    const fg = over([fg0[0], fg0[1], fg0[2], fg0[3] * op], bg);
+    const l1 = L(fg), l2 = L(bg), cr = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    const px = parseFloat(cs.fontSize), big = px >= 24 || (px >= 18.66 && +cs.fontWeight >= 700);
+    if (el.closest("button:disabled,[aria-disabled=true],input:disabled")) continue;
+    if (cr < (big ? 3 : 4.5)) out.push(`${window.__qc.sel(el)} "${el.textContent.trim().slice(0, 16)}" ${cr.toFixed(2)}:1`);
+  }
+  return [...new Set(out)];
+};
+
 // 화면 글자에 나오면 안 되는 것(회차별 보고서에서 실제로 나왔던 것들)
 const BAD_TOKENS = [
   [/\bNaN\b/, "NaN"], [/\bundefined\b/, "undefined"], [/\bnull\b/, "null"], [/\bInfinity\b/, "Infinity"], [/\[object/, "[object"],
@@ -407,6 +432,35 @@ async function countsLane(browser, api, errs, shared) {
     // 입주 계산 불가 줄은 아래로
     { const firstNA = rowsG.findIndex((r) => !/입주까지 현금/.test(r.amt)), lastOK = rowsG.map((r) => /입주까지 현금/.test(r.amt)).lastIndexOf(true);
       expect(firstNA < 0 || firstNA > lastOK, "list.order", "'입주 계산 불가' 줄은 계산되는 줄보다 아래", `first n/a row #${firstNA} (${rowsG[firstNA] && rowsG[firstNA].name}) above calculable row #${lastOK}`); }
+    // 맞춤순(기본 정렬): 지금 필요한 돈이 내 현금(15억)에 가까운 줄부터 — |현금 − 금액| 오름차순(표시 반올림 허용), 계산 불가 줄은 아래(list.order)
+    {
+      const sk = await page.evaluate(() => { try { return localStorage.getItem("emr.sort") || "fit"; } catch (e) { return "fit"; } });
+      if (sk === "fit") {
+        const ok = rowsG.filter((r) => /입주까지 현금/.test(r.amt)).map((r) => ({ r, m: money((/([\d.,]+억|[\d,]+만|0원)/.exec(r.amt) || [])[1]) })).filter((x) => x.m);
+        let at = -1; for (let i = 1; i < ok.length; i++) { const a = Math.abs(15 - ok[i - 1].m.v), b = Math.abs(15 - ok[i].m.v); if (b + ok[i].m.tol + ok[i - 1].m.tol + 1e-6 < a) { at = i; break; } }
+        expect(ok.length > 5 && at < 0, "list.fitSort", "맞춤순: 내 현금에 가까운 금액부터(|현금−금액| 오름차순 · 계산 불가는 아래)", at < 0 ? `only ${ok.length} rows` : `15억: row ${at - 1} ${ok[at - 1].r.name} ${ok[at - 1].r.amt.split("\n")[0]} before row ${at} ${ok[at].r.name} ${ok[at].r.amt.split("\n")[0]}`);
+      } else skip("list.fitSort", "맞춤순: 내 현금에 가까운 금액부터(|현금−금액| 오름차순 · 계산 불가는 아래)", `stored sort ${sk}`);
+    }
+    // 금액 꼴 하나(ZF.cash): 1억 전세 끼고 목록 첫 줄들 '지금' == ZF 꼴(api 값) == 지도 이름표 == 리포트 시간표 '지금 · 매수'
+    {
+      await setMode(page, "gap"); await setCash(page, 1);
+      const L1 = await page.evaluate(() => [...document.querySelectorAll("#sList li")].slice(0, 4).map((li) => { const a = li.querySelector("a[data-id]"), b = li.querySelector(".s-amt b"); return a && b ? { id: a.dataset.id, v: b.textContent.trim() } : null; }).filter(Boolean));
+      const T = "금액 꼴 하나(ZF.cash · 1억 아래 소수 둘째 자리): 목록 == /api 값 꼴 == 지도 이름표 == 리포트 시간표";
+      const labs = await page.evaluate((ids) => { try { const m = window.ZP_lmx && window.ZP_lmx.map && window.ZP_lmx.map(); const src = m && m.getSource("zlab"); const d = src && (src.serialize ? src.serialize().data : src._data); const F = (d && d.features) || []; const o = {}; ids.forEach((id) => { const f = F.find((x) => x.properties.id === id); if (f) o[id] = f.properties.s; }); return o; } catch (e) { return {}; } }, L1.map((x) => x.id));
+      for (const x of L1) {
+        const a = api.zones.find((z) => z.id === x.id); if (!a || a.need.gap.now == null) continue;
+        const want = zfCash(a.need.gap.now);
+        expect(x.v === want, "term.cashFmt", T, `${x.id}: list "${x.v}" vs ZF꼴(api ${a.need.gap.now}) "${want}"`);
+        if (labs[x.id] != null) expect(labs[x.id] === "" || labs[x.id] === want, "term.cashFmt", T, `${x.id}: map label "${labs[x.id]}" vs list "${x.v}"`);
+      }
+      if (L1[0]) {
+        await loadHome(page, "#" + L1[0].id); await page.waitForTimeout(1500);
+        const g = await page.evaluate(() => { const b = document.querySelector("#report .gtl .gt1 b"); return b ? b.textContent.trim() : null; });
+        if (g != null) expect(g === L1[0].v, "term.cashFmt", T, `${L1[0].id}: report timeline "${g}" vs list "${L1[0].v}"`);
+        else wrn("term.cashFmt", T, `${L1[0].id}: no .gtl .gt1 in report`);
+        await loadHome(page);
+      }
+    }
     shared.listMap = listMap;
     // '왜 이 금액?' 만원 더하기 == 합계, 목록 숫자와 같음
     for (const [mode, c] of [["gap", 3], ["cash", 3]]) {
@@ -593,6 +647,15 @@ async function uiLane(browser, api, errs, shared) {
       const bad2 = domTexts.map(([id, t]) => [id, badText(t).filter((x) => !/겹친 낱말/.test(x))]).filter(([, b]) => b.length);
       expect(!bad2.length, "ui.domText", "앱 DOM 전체 글자(숨은 화면 포함) 결함 없음", bad2.slice(0, 3).map(([id, b]) => `#${id}: ${b.slice(0, 2).join(" ; ")}`).join(" | "));
     }
+    // 내 핀(핀 3곳 꽂은 상태): 정렬 칩·'공유 이미지에 금액 넣기' 눌리는 상자 40px 이상(체크박스는 감싼 label 크기로)
+    if (!over()) {
+      const ids = api.zones.slice(0, 3).map((z) => z.id);
+      await page.evaluate((ids) => { try { localStorage.setItem("jg-fav", JSON.stringify(ids)); } catch (e) {} }, ids);
+      await loadHome(page, "#favTop"); await page.waitForTimeout(1200);
+      const t = await page.evaluate(() => { const out = []; const root = document.getElementById("favTop"); if (!root) return ["#favTop missing"]; for (const el of root.querySelectorAll("button, a[href], label, [role=button]")) { if (!window.__qc.vis(el) || el.closest("[hidden],.pn-ov")) continue; const cs = getComputedStyle(el); if (cs.display === "inline" && el.tagName === "A") continue; if (el.tagName === "LABEL" && !el.querySelector("input")) continue; const r = el.getBoundingClientRect(); if (r.width < 40 || r.height < 40) out.push(`${window.__qc.sel(el)} "${(el.innerText || el.getAttribute("aria-label") || "").trim().slice(0, 16)}" ${Math.round(r.width)}×${Math.round(r.height)}`); } return [...new Set(out)]; });
+      expect(!t.length, "ui.touchFav", "내 핀 화면 터치 타깃 40px 이상(정렬 칩·금액 넣기 체크 줄)", `${t.length} small: ${t.slice(0, 5).join(" ; ")}`);
+      await page.evaluate(() => { try { localStorage.removeItem("jg-fav"); } catch (e) {} });
+    }
     // 망가진 핀 링크: 알려 줌
     if (!over()) {
       await loadHome(page, "#pins=garbage!!"); await page.waitForTimeout(1200);
@@ -643,14 +706,18 @@ async function mapLane(browser, api, errs, shortSrc) {
       await page.evaluate(() => document.getElementById("sSearch").click()); await page.waitForTimeout(300);
       await page.fill("#q", stn); await page.waitForTimeout(700);
       const clicked = await page.evaluate((stn) => { const b = [...document.querySelectorAll("#sugg [data-stn]")].find((x) => x.dataset.stn === stn) || document.querySelector("#sugg [data-stn]"); if (!b) return false; b.click(); return true; }, stn);
-      if (!clicked) { bad("map.station", "역 고르면 지도가 z≥13.5(15분 원 전체)로 역 300m 안에", `${stn}: no station row in search`); continue; }
-      await page.waitForTimeout(2600);
-      const r = await page.evaluate((stn) => { const L = window.ZP_lmx, m = L && L.map && L.map(); const st = (window.__ZPD.stations || []).find((s) => s[0] === stn); if (!m) return { nomap: 1 }; const c = m.getCenter(); return { z: m.getZoom(), lat: c.lat, lng: c.lng, st }; }, stn);
-      if (r.nomap || !r.st) { bad("map.station", "역 고르면 지도가 z≥13.5(15분 원 전체)로 역 300m 안에", `${stn}: map ${r.nomap ? "missing" : "ok"} station ${r.st ? "ok" : "missing"}`); continue; }
+      const ST = "역 고르면 지도가 z≥14(걸어서 10분 원 전체)로 역 300m 안에 — 첫 맞춤과 겹쳐도";
+      if (!clicked) { bad("map.station", ST, `${stn}: no station row in search`); continue; }
+      // 비행이 끝나고 지도가 멈출 때까지(최대 6초) 기다린 뒤, 0.8초 더 지나도 그 자리인지(첫 맞춤이 뒤늦게 끼어들지 않는지) 본다
+      const rd = () => page.evaluate((stn) => { const L = window.ZP_lmx, m = L && L.map && L.map(); const st = (window.__ZPD.stations || []).find((s) => s[0] === stn); if (!m) return { nomap: 1 }; const c = m.getCenter(); return { z: m.getZoom(), lat: c.lat, lng: c.lng, st, mv: m.isMoving() }; }, stn);
+      let r = null; const t0 = Date.now();
+      await page.waitForTimeout(1200);
+      while (Date.now() - t0 < 6000) { r = await rd(); if (r.nomap || (!r.mv && r.st && r.z >= 14 && hav(r.lat, r.lng, r.st[1], r.st[2]) <= 300)) break; await page.waitForTimeout(250); }
+      await page.waitForTimeout(800); r = await rd();
+      if (r.nomap || !r.st) { bad("map.station", ST, `${stn}: map ${r.nomap ? "missing" : "ok"} station ${r.st ? "ok" : "missing"}`); continue; }
       const d = hav(r.lat, r.lng, r.st[1], r.st[2]);
-      // 줌 하한 13.5: 지도는 역을 고르면 '역에서 15분' 걸어서 닿는 원 전체가 보이게 맞춘다(10_lmap.js) → 390px 폰에서 약 13.7~13.8.
-      // 원을 자르는 z14 강제보다 원 전체가 보이는 쪽이 맞아 하한을 낮추고, 역 300m 안 가운데 검사는 그대로 둔다.
-      expect(r.z >= 13.5 && d <= 300, "map.station", "역 고르면 지도가 z≥13.5(15분 원 전체)로 역 300m 안에", `${stn}: zoom ${r.z.toFixed(2)} · center ${Math.round(d)}m from station`);
+      // 줌 하한 14: 역을 고르면 '걸어서 10분' 원이 화면 안에 다 들어오고(15분 원은 가장자리 밖으로 나갈 수 있음) 390px 폰에서 약 14.4(10_lmap.js stnGo)
+      expect(r.z >= 14 && d <= 300, "map.station", ST, `${stn}: zoom ${r.z.toFixed(2)} · center ${Math.round(d)}m from station`);
     }
   } catch (e) { bad("runtime", "검사 실행", "mapLane crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await ctx.close().catch(() => {}); }
@@ -670,6 +737,47 @@ async function mapLane(browser, api, errs, shortSrc) {
     const r = await page2.evaluate(() => { const m = window.ZP_lmx && window.ZP_lmx.map && window.ZP_lmx.map(); const a = document.activeElement; return { z: m ? m.getZoom() : null, focus: a ? (a.getAttribute("aria-label") || a.textContent || "").trim().slice(0, 20) : "" }; });
     if (r.z != null) expect(r.z <= 16.01, "map.deepZoom", "구역 딥링크 줌 ≤ 16(대략 범위 구역 과확대 금지)", `desktop #o1059 zoom ${r.z.toFixed(2)}`);
     expect(!/^닫기$/.test(r.focus), "ui.focus", "구역 딥링크로 열면 초점이 '닫기'가 아닌 제목에", `desktop #o1059 focus on "${r.focus}"`);
+    // PC 상세: 칸 안 스크롤 없이 페이지와 함께 흐름 · 딥링크로 열면 상세 머리가 머리줄 바로 밑 · 휠은 페이지를 내림
+    {
+      const T = "PC 상세는 칸 안에서 따로 스크롤하지 않음 · 딥링크 열면 상세 머리가 머리줄 밑 · 휠이 페이지를 내림";
+      await loadHome(page2, "#o337"); await page2.waitForTimeout(2200);
+      const a = await page2.evaluate(() => { const e = document.getElementById("report"), cs = getComputedStyle(e), h = document.getElementById("hdr").getBoundingClientRect().bottom; return { ov: cs.overflowY, sh: e.scrollHeight, ch: e.clientHeight, top: Math.round(e.getBoundingClientRect().top), hb: Math.round(h), y: Math.round(scrollY) }; });
+      expect(!((a.ov === "auto" || a.ov === "scroll") && a.sh > a.ch + 2), "ui.repFlow", T, `#report overflow-y ${a.ov} scrollHeight ${a.sh} > clientHeight ${a.ch}`);
+      expect(a.top >= a.hb - 2 && a.top <= a.hb + 120, "ui.repFlow", T, `#o337 deep link: report top ${a.top} vs header bottom ${a.hb} (scrollY ${a.y})`);
+      await page2.mouse.move(1100, 600); await page2.mouse.wheel(0, 600); await page2.waitForTimeout(500);
+      const y2 = await page2.evaluate(() => scrollY);
+      expect(y2 > a.y + 300, "ui.repFlow", T, `wheel over report: page scrollY ${a.y} → ${Math.round(y2)}`);
+      // 목록 → 상세 → Esc: 열기 전 보던 자리로
+      await loadHome(page2); await settle(page2, 400);
+      await page2.evaluate(() => scrollTo(0, 700)); await page2.waitForTimeout(300);
+      const y0 = await page2.evaluate(() => scrollY);
+      const bb = await page2.evaluate(() => { const a = [...document.querySelectorAll("#sList [data-id]")].find((e) => { const b = e.getBoundingClientRect(); return b.top > 90 && b.bottom < innerHeight - 10; }); if (!a) return null; const b = a.getBoundingClientRect(); return { x: b.x + 30, y: b.y + b.height / 2 }; });
+      if (bb) {
+        await page2.mouse.click(bb.x, bb.y); await page2.waitForTimeout(1200);
+        await page2.keyboard.press("Escape"); await page2.waitForTimeout(700);
+        const y3 = await page2.evaluate(() => [scrollY, document.documentElement.classList.contains("s-rep")]);
+        expect(!y3[1] && Math.abs(y3[0] - y0) <= 30, "ui.repBack", "PC 목록 → 상세 → Esc 하면 열기 전 스크롤 자리로", `scrollY before ${Math.round(y0)} → after Esc ${Math.round(y3[0])} (s-rep ${y3[1]})`);
+      } else skip("ui.repBack", "PC 목록 → 상세 → Esc 하면 열기 전 스크롤 자리로", "no visible list row at scrollY 700");
+    }
+    // 입주 계산(#planner) 글자 대비 4.5:1(큰 글자 3:1) — 밝은·어두운 화면
+    for (const scheme of ["light", "dark"]) {
+      await page2.emulateMedia({ colorScheme: scheme });
+      await loadHome(page2, "#planner"); await page2.waitForTimeout(1200);
+      const c = await page2.evaluate(CONTRAST_JS, "#planner");
+      expect(!c.length, "ui.contrast", "입주 계산(#planner) 글자 대비 4.5:1 이상(밝은·어두운)", `${scheme}: ${c.length} low: ${c.slice(0, 4).join(" ; ")}`);
+    }
+    await page2.emulateMedia({ colorScheme: "light" });
+    // 최근 단계 변경: 정비사업 정보몽땅 고시·공고에 올라온 가장 새 인가(신청·공람 제외) 달이 목록에 있음
+    {
+      const nt = await get(BASE + "/data/notice.json");
+      let it = null; try { const j = JSON.parse(nt.text); it = (j.items || []).filter((x) => x[4] === "ok" && /인가|지정|승인/.test(x[2]) && !/신청|공람/.test(x[3])).sort((a, b) => (a[0] < b[0] ? 1 : -1))[0]; } catch (e) {}
+      if (it) {
+        await loadHome(page2, "#newTop"); await page2.waitForTimeout(1500);
+        const t = await page2.evaluate(() => (document.getElementById("nwOut") || {}).innerText || "");
+        const mo = it[0].slice(5, 7) + ".";
+        expect(t.includes(mo), "ui.newTop", "최근 단계 변경에 고시·공고의 가장 새 인가 달이 들어감(최근 45일)", `newest notice ${it[0]} ${it[2]} (${it[1]}) — #nwOut has no "${mo}" date`);
+      } else skip("ui.newTop", "최근 단계 변경에 고시·공고의 가장 새 인가 달이 들어감(최근 45일)", "no notice item");
+    }
   } catch (e) { bad("runtime", "검사 실행", "desktop crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await D.ctx.close().catch(() => {}); }
 }

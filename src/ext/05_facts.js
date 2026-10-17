@@ -46,7 +46,7 @@
       return h && h.u ? { kind: "hd", v: h.u, n: h.n, to: h.to } : null;
     }
     // 1km 비교표 같은 곳의 '3.3㎡당' 칸: 머리 큰 숫자가 3.3㎡당이면 그 값, 아니면 구역 대표 거래 값
-    const u33 = (r) => { const h = r.tx && r.tx.hd; if (!h || !h.u) return null; const H = headline(r, h); return { v: H && H.kind === "u" ? H.v : h.u, b: h.b, st: !!h.st, zone: !!(H && H.kind === "p") }; };
+    const u33 = (r) => { const h = r.tx && r.tx.hd; if (!h || !h.u) return null; const H = headline(r, h); return { v: H && H.kind === "u" ? H.v : h.u, b: h.b, st: !!h.st, zone: !!(H && H.kind === "p"), n: h.n }; };
     // 입주까지 현금(잔금대출 뺀 값): 전세 끼고면 갭 총액, 아니면 계산기 총액 — 목록·왜 시트·리포트가 같은 함수
     function cashToMoveIn(r, gap) {
       try {

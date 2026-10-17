@@ -20,6 +20,7 @@ TX = J('pipeline/txsum.json')
 PARC = J('pipeline/cache/parcels.json') if os.path.exists(os.path.join(ROOT, 'pipeline/cache/parcels.json')) else {}
 RT = J('pipeline/rights.json') if os.path.exists(os.path.join(ROOT, 'pipeline/rights.json')) else {}
 stat = collections.Counter()
+NEAR = (J('pipeline/near.json') or {}).get('z', {}) if os.path.exists(os.path.join(ROOT, 'pipeline/near.json')) else {}   # tools/near.py
 SALES_OK = True
 act = lambda r: not (r['s'] >= 9 or (r.get('dn') and r['s'] < 7))
 
@@ -320,6 +321,14 @@ for r in R:
             if fr[2]: mk['entry']['u'], mk['entry']['nl'] = fr[2], fr[3]
         if t['no'] < 5 or apt_dom(t): mk['entry']['lc'] = 1; r['lc'] = 1; stat['entry_lc'] += 1
         continue
+    # (b) 주변 빌라 표본(반경 300·500·800m): tools/near.py가 원자료에서 다시 뽑은 값으로(거래 하나하나가 public/data/near.json에 남아 거래 탭에서 확인 가능)
+    #     예전 기준 자료의 반경 값은 어떤 거래였는지 남아 있지 않았다. 다시 뽑은 표본이 3건 미만이면 예전 값을 그대로 둔다
+    if en and en.get('src') == 'villa' and (en.get('radius') or 0) >= 100 and (NEAR.get(r['id']) or {}).get('n', 0) >= 3:
+        nz = NEAR[r['id']]
+        for k in ('f', 't', 'u', 'nl', 'lc', 'lcw', 'nbp'): en.pop(k, None)
+        en.update({k: nz[k] for k in ('n', 'p25', 'med', 'p75', 'area_med', 'last', 'f', 't', 'w', 'radius', 'yr_cap', 'u', 'nl') if k in nz})
+        en['scope'] = f"구역 경계에서 {nz['radius']}m 안 {nz['yr_cap']}년 이전 준공 빌라(전용 30~70㎡) 최근 {nz['w']}개월"
+        stat['entry_near'] += 1
     if en and en.get('src') == 'villa' and t and villa_kind and apt_dom(t):   # 아파트 위주 구역인데 주변 빌라 값으로 계산
         en['lc'] = 1; r['lc'] = 1; stat['entry_lc'] += 1
     if en: continue
