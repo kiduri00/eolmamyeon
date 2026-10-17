@@ -104,6 +104,12 @@ td.txr-m small{font-size:11px}
 .sugg button.sg-stn>span{font-weight:700}
 .sugg button.sg-stn svg{vertical-align:-3px;margin-right:6px;color:var(--brand)}
 .sugg button.sg-stn em{color:var(--brand);font-weight:600}
+.sugg .sg-gu{display:flex;align-items:stretch;gap:4px;border-bottom:1px solid var(--divider)}
+.sugg .sg-gu button.sg-stn{flex:1;min-width:0;border-bottom:0}
+.sugg .sg-gup{display:flex;align-items:center;padding:0 12px;border-radius:var(--r-sm);font-size:var(--fs-cap);font-weight:600;color:var(--text-2);white-space:nowrap;text-decoration:none;min-height:44px}
+.sugg .sg-gup:hover,.sugg .sg-gup.on{background:var(--surface-3);color:var(--brand)}
+.sugg .x-q{font-weight:500}
+.sugg .x-q svg{vertical-align:-2px;margin-right:4px;color:var(--text-4)}
 .sugg .s-none b{color:var(--text-1)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sg-ok{color:#4ade80}}
 :root[data-theme="dark"] .sg-ok{color:#4ade80}
@@ -120,3 +126,4 @@ td.txr-m small{font-size:11px}
 }
 /* #report 딥링크(모바일): 구별 요약 대신 '살 수 있는 곳' 목록 머리로 — 헤더+고정 게이지 아래 */
 html.simple #sListW{scroll-margin-top:calc(var(--hdr-h,56px) + 72px)}
+small.asm{display:block;font-size:11px;line-height:1.3;margin-top:1px}

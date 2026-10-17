@@ -14,7 +14,10 @@ const PINS = (() => {
   let SEL = false, CMPON = false, EDIT = "", LAST = null, toastT = 0, PEND = 0, ACT = null, TRADE0 = null;
   const cbs = [];
   // 받은 핀 링크(?fav=)는 앱 본문이 12곳까지만 꽂는다 → 나머지(핀 최대 ${MAX}곳)를 init에서 마저 꽂도록 원래 값을 먼저 잡아 둔다
+  // 옛 링크(?fav=id.id)는 핀 목록만. 앱 본문은 주소만 지우고, 여기서 '가져올까요?' 시트로 묻는다
   const FAV_IN = (() => { try { return new URLSearchParams(location.search).get("fav") || ""; } catch (e) { return ""; } })();
+  // 새 링크(#pins=…): 핀·메모·목표·꽂을 때 값·조건 핀까지 압축해 담는다. 열자마자 주소에서 지우고 내 핀 화면으로
+  const PIN_IN = (() => { try { const m = /^#pins=([jz][A-Za-z0-9_-]+)$/.exec(location.hash || ""); if (m) { history.replaceState(history.state, "", location.pathname + location.search + "#favTop"); return m[1]; } } catch (e) {} return ""; })();
   const saveS = () => lsW(SK, SNAP);
 
   // ---------- 아이콘 ----------
@@ -132,9 +135,110 @@ const PINS = (() => {
       <div class="pn-tools"><div class="pn-sort" role="group" aria-label="정렬">${srt}</div><label class="pn-money"><input type="checkbox" id="pnMoney"${MONEY ? " checked" : ""}>공유 이미지에 금액 넣기</label></div>`;
     return `${condHTML()}${top}<p class="pn-base">오른쪽은 ${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 살 때 필요한 돈 · 내 현금 ${e2(CASH)}억 기준 · 꽂은 날과 비교</p><div class="pn-list" role="list" aria-label="내 핀 목록">${L.map(rowHTML).join("")}</div><span class="share-fb" id="pnShareFb" role="status"></span>${SEL ? "" : moveHTML(L.length)}`;
   }
-  // 다른 기기로 옮기기: 핀 목록을 주소(?fav=)에 담아 복사 → 다른 폰·PC에서 열면 그대로 꽂힘(로그인 불필요)
-  const moveHTML = (n) => `<div class="pn-move"><div><b>다른 기기로 옮기기</b><small>링크를 다른 폰·PC에서 열면 핀 ${n}곳이 그대로 꽂혀요</small></div><button type="button" class="btn secondary sm" id="pnMove">링크 복사</button><span class="share-fb" id="pnMoveFb" role="status"></span></div>`;
-  const moveURL = () => { const q = new URLSearchParams(condQuery().slice(1)); q.set("fav", FAV.filter((id) => byId[id]).join(".")); return pageURL() + "?" + q.toString() + "#favTop"; };
+  // 다른 기기로 옮기기: 핀·메모·목표·꽂을 때 값·조건 핀을 압축해 주소(#pins=)에 담아 복사(로그인 불필요)
+  const moveHTML = (n) => { const m = FAV.filter((id) => SNAP[id] && SNAP[id].memo).length; return `<div class="pn-move"><div><b>다른 기기로 옮기기</b><small>다른 폰·PC에서 열면 핀 ${n}곳${CONDS.length ? ` · 조건 ${CONDS.length}개` : ""}${m ? ` · 메모` : ""}를 그대로 가져와요</small></div><button type="button" class="btn secondary sm" id="pnMove">링크 복사</button><span class="share-fb" id="pnMoveFb" role="status"></span></div>`; };
+  // ----- 옮기기 링크 인코딩: [1, 핀[], 조건[]] JSON → deflate-raw(되면) → base64url. 키 없이 배열·뒤쪽 빈 값 생략
+  // 핀: [id, 꽂은 날(일-19000), 단계, 필요한 돈, 전세끼고1, 그때 현금, 신고가일-20000000, 메모, 목표1, 찜이전1, 그때 단계 이름(바뀐 경우만)]
+  // 조건: [이름(자동이면 ""), 현금, 전세끼고1, 구, 유형, 최소 단계, 출퇴근 역, 분, 입주권1|토허2|확실성4]
+  const r2 = (v) => (v == null || !isFinite(v) ? null : Math.round(v * 100) / 100);
+  const trimA = (a) => { while (a.length > 1 && (a[a.length - 1] == null || a[a.length - 1] === "" || a[a.length - 1] === 0)) a.pop(); return a; };
+  function packJSON() {
+    ensure();
+    const P = FAV.filter((id) => byId[id]).map((id) => {
+      const sp = SNAP[id] || {}, r = byId[id], hi = sp.hi && /^\d{8}$/.test(String(sp.hi)) ? +sp.hi - 2e7 : sp.hi || 0;
+      return trimA([id, sp.t ? Math.round(sp.t / 864e5) - 19000 : 0, sp.s || 0, r2(sp.now), sp.m === "gap" ? 1 : 0, r2(sp.c), hi, sp.memo || "", sp.goal ? 1 : 0, sp.mig ? 1 : 0, sp.sn && r.s !== sp.s ? sp.sn : ""]);
+    });
+    const C = CONDS.map((c) => trimA([c.name && c.name !== autoName(c) ? c.name : "", r2(c.cash), c.mode === "gap" ? 1 : 0, c.gu || "", c.kind || "", c.minS || 0, c.cm ? c.cm.dest : "", c.cm ? c.cm.max : 0, (c.sure ? 1 : 0) | (c.strict ? 2 : 0) | (c.firm ? 4 : 0)]));
+    return JSON.stringify(C.length ? [1, P, C] : [1, P]);
+  }
+  const b64u = (u8) => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+  const unb64u = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/")), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+  const zpipe = async (u8, S) => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new S("deflate-raw"))).arrayBuffer());
+  let MV = { k: "", u: "" };
+  async function moveURL() {
+    const js = packJSON();
+    if (MV.k === js && MV.u) return MV.u;
+    const u8 = new TextEncoder().encode(js);
+    let s = "j" + b64u(u8);
+    try { if (typeof CompressionStream !== "undefined") { const z = "z" + b64u(await zpipe(u8, CompressionStream)); if (z.length < s.length) s = z; } } catch (e) {}
+    const u = pageURL() + condQuery() + "#pins=" + s;
+    MV = { k: js, u };
+    return u;
+  }
+  async function unpack(s) {
+    const u = unb64u(s.slice(1));
+    const raw = s[0] === "z" ? await zpipe(u, DecompressionStream) : u;
+    const a = JSON.parse(new TextDecoder().decode(raw));
+    if (!Array.isArray(a) || a[0] !== 1) throw new Error("ver");
+    const pins = (a[1] || []).filter((x) => Array.isArray(x) && byId[x[0]]).slice(0, MAX).map(([id, d, s0, now, g, c, hi, memo, goal, mig, sn]) => {
+      const r = byId[id], c0 = c == null ? CASH : +c, n0 = now == null ? null : +now, st = s0 == null ? r.s : +s0;
+      const sp = { t: d ? (+d + 19000) * 864e5 : Date.now(), s: st, sn: sn || (st === r.s ? stageName(r) : stageName(Object.assign({}, r, { s: st }))), now: n0, m: g ? "gap" : "cash", c: c0, ok: n0 == null ? null : n0 <= c0 + 1e-9, hi: hi ? (typeof hi === "number" ? String(hi + 2e7) : hi) : null };
+      if (memo) sp.memo = String(memo).slice(0, 20); if (goal) sp.goal = true; if (mig) sp.mig = 1;
+      return { id, sp };
+    });
+    const conds = (a[2] || []).filter(Array.isArray).slice(0, CMAX).map(([nm, cash, g, gu, kind, minS, dest, max, fl]) => {
+      const c = { cash: +cash || 1, mode: g ? "gap" : "cash", gu: GUS.includes(gu) ? gu : "", kind: KINDS.some((k) => k[0] === kind) ? kind || "" : "", minS: +minS || 0, cm: dest && max ? { dest: String(dest), max: +max } : null, sure: !!(fl & 1), strict: !!(fl & 2), firm: !!(fl & 4) };
+      c.name = String(nm || "").slice(0, 30) || autoName(c);
+      return c;
+    });
+    return { pins, conds };
+  }
+  // 받은 링크 미리보기: 합치기 / 바꾸기 / 취소 — 묻지 않고 덮어쓰지 않는다
+  function importSheet(d) {
+    const P = d.pins, C = d.conds, nm = P.filter((x) => x.sp && x.sp.memo).length, ng = P.filter((x) => x.sp && x.sp.goal).length;
+    if (!P.length && !C.length) return;
+    const back = document.activeElement, has = FAV.length || CONDS.length;
+    const parts = [P.length ? `핀 ${P.length}곳` : "", C.length ? `조건 ${C.length}개` : "", nm ? `메모 ${nm}개` : "", ng ? `목표 ${ng}개` : ""].filter(Boolean).join(" · ");
+    const nNew = P.filter((x) => !isFav(x.id)).length, over = FAV.length + nNew > MAX;
+    const ov = document.createElement("div");
+    ov.className = "pn-ov"; ov.id = "pnImp";
+    ov.innerHTML = `<div class="pn-dlg pi-dlg" role="dialog" aria-modal="true" aria-labelledby="piT" aria-describedby="piD"><h3 id="piT">${parts} 가져올까요?</h3>
+      <p id="piD">${d.old ? "받은 링크의 핀 목록이에요." : "다른 기기에서 보낸 내 핀이에요."}${has ? ` 이 기기에 있는 것: 핀 ${FAV.length}곳${CONDS.length ? ` · 조건 ${CONDS.length}개` : ""}` : ""}</p>
+      ${P.length ? `<ul class="pi-nm" aria-label="받은 핀">${P.slice(0, 6).map((x) => `<li>${pinY(14)}${esc(shortName(byId[x.id].n))}${isFav(x.id) ? "<small>이미 꽂음</small>" : ""}</li>`).join("")}${P.length > 6 ? `<li class="pi-more">외 ${P.length - 6}곳</li>` : ""}</ul>` : ""}
+      ${C.length ? `<ul class="pi-nm pi-c" aria-label="받은 조건 핀">${C.map((c) => `<li>${esc(c.name)}</li>`).join("")}</ul>` : ""}
+      ${has ? `<p class="pi-how"><b>합치기</b> 지금 핀은 두고 더해요${over ? ` (핀은 ${MAX}곳까지)` : ""} · <b>바꾸기</b> 받은 것으로 바꿔요</p>` : ""}
+      <div class="pc-btns pi-btns"><button type="button" class="btn text sm" data-pix>취소</button>${has ? `<button type="button" class="btn secondary sm" data-pirep>바꾸기</button><button type="button" class="btn primary sm" data-pimrg>합치기</button>` : `<button type="button" class="btn primary sm" data-pimrg>가져오기</button>`}</div></div>`;
+    document.body.appendChild(ov);
+    const close = () => { ov.remove(); document.removeEventListener("keydown", kd); try { back && back.focus && back.focus(); } catch (e) {} };
+    const kd = (e) => { if (e.key === "Escape") { close(); toast("가져오지 않았어요", "", null, "지금 핀은 그대로예요"); } };
+    document.addEventListener("keydown", kd);
+    ov.addEventListener("click", (e) => {
+      if (e.target === ov || e.target.closest("[data-pix]")) { close(); toast("가져오지 않았어요", "", null, "지금 핀은 그대로예요"); return; }
+      const rep = !!e.target.closest("[data-pirep]");
+      if (rep || e.target.closest("[data-pimrg]")) { close(); doImport(d, rep); }
+    });
+    const f = ov.querySelector("[data-pimrg]"); f && f.focus();
+  }
+  function doImport(d, rep) {
+    const bk = { fav: FAV.slice(), snap: JSON.parse(JSON.stringify(SNAP)), conds: JSON.parse(JSON.stringify(CONDS)) };
+    if (rep) { FAV = []; SNAP = {}; CONDS = []; }
+    let np = 0, nc = 0;
+    d.pins.forEach((x) => {
+      if (isFav(x.id)) { const sp = SNAP[x.id]; if (sp && x.sp) { if (!sp.memo && x.sp.memo) sp.memo = x.sp.memo; if (!sp.goal && x.sp.goal) sp.goal = true; } return; }
+      if (FAV.length >= MAX) return;
+      FAV.push(x.id); SNAP[x.id] = x.sp || snapOf(byId[x.id]); if (!SEEN.sig[x.id]) SEEN.sig[x.id] = ""; np++;
+    });
+    d.conds.forEach((c) => {
+      if (CONDS.length >= CMAX || CONDS.some((o) => ckey(o) === ckey(c))) return;
+      const ids = evalCond(c);
+      CONDS.push(Object.assign(c, { id: "c" + (Date.now() + nc).toString(36), base: ids, sv: snapVals(c, ids), at: Date.now(), seen: "", asOf: D.upd || D.asOf })); nc++;
+    });
+    CMP = CMP.filter(isFav); if (!CMP.length) CMP = FAV.slice(0, 3);
+    FAV_NOTE = "";
+    saveFav(); saveS(); saveC(); lsW(SEENK, SEEN);
+    syncFav();
+    const sub = np || nc ? `핀 ${np}곳${nc ? ` · 조건 ${nc}개` : ""} 더함` : "새로 더할 핀이 없어요";
+    toast(rep ? "받은 핀으로 바꿨어요" : "받은 핀 합쳤어요", "되돌리기", () => { FAV = bk.fav; SNAP = bk.snap; CONDS = bk.conds; CMP = CMP.filter(isFav); saveFav(); saveS(); saveC(); syncFav(); toast("가져오기 되돌렸어요"); }, sub);
+  }
+  function importIn() {
+    if (PIN_IN) {
+      unpack(PIN_IN).then((d) => setTimeout(() => importSheet(d), 250)).catch(() => toast("핀 링크를 읽지 못했어요", "", null, "링크가 잘렸거나 이 브라우저가 지원하지 않아요"));
+      return;
+    }
+    if (!FAV_IN) return;
+    const ids = [...new Set(FAV_IN.split(/[.,]/))].filter((id) => byId[id]).slice(0, MAX);
+    if (ids.length) setTimeout(() => importSheet({ old: 1, pins: ids.map((id) => ({ id })), conds: [] }), 250);
+  }
   const emptyHTML = () => `${condHTML()}<div class="x-empty pn-empty">${pinY(36)}<p><b>아직 꽂은 핀이 없어요</b><br>구역을 눌러 핀을 꽂으면 다시 열 때 바뀐 소식을 모아 보여 드려요</p><button type="button" class="btn primary sm" id="pnEmptyGo">지도 보기</button></div>`;
   let MONEY = false;
 
@@ -152,9 +256,15 @@ const PINS = (() => {
   function feedback(b, id, on) {
     try { navigator.vibrate && navigator.vibrate(10); } catch (e) {}
     if (on && !reduceMotion()) { b.classList.remove("pn-drop"); void b.offsetWidth; b.classList.add("pn-drop"); setTimeout(() => b.classList.remove("pn-drop"), 320); }
+    // 토스트는 toggleFav 감싼 notify가 띄운다(모든 꽂기·빼기 경로 공통)
+  }
+  // 핀 꽂기·빼기 확인 토스트 + 되돌리기: toggleFav를 감싸서 구역 시트·출퇴근·비교·지도·목록 어디서 바꿔도 한 곳에서
+  let QUIET = 0;
+  const quiet = (f) => { QUIET++; try { return f(); } finally { QUIET--; } };
+  function notify(id, on) {
     const nm = byId[id] ? shortName(byId[id].n) : "";
-    if (on) toast(`핀 꽂음`, "실행 취소", () => { if (isFav(id)) { toggleFav(id); toast("핀 뺐어요"); } }, nm);
-    else toast("핀 뺐어요", "", null, nm);
+    if (on) toast("핀 꽂음", "실행 취소", () => { if (isFav(id)) quiet(() => toggleFav(id)); toast("핀 뺐어요", "", null, nm); }, `${nm} · 내 핀 ${FAV.length}곳`);
+    else toast("핀 뺐어요", "되돌리기", () => { if (!isFav(id) && room(id)) { quiet(() => toggleFav(id)); toast("다시 꽂았어요", "", null, nm); } }, nm);
   }
   function toast(msg, act, fn, sub) {
     let t = $("pnToast");
@@ -190,10 +300,9 @@ const PINS = (() => {
       if (e.target === ov || e.target.closest("#pnFullX")) return close();
       const s = e.target.closest("[data-pswap]"); if (!s) return;
       const o = s.dataset.pswap; close();
-      if (isFav(o)) toggleFav(o);
-      if (!isFav(id)) toggleFav(id);
+      quiet(() => { if (isFav(o)) toggleFav(o); if (!isFav(id)) toggleFav(id); });
       try { navigator.vibrate && navigator.vibrate(10); } catch (e2) {}
-      toast("핀 꽂음", "", null, `${shortName(byId[o].n)} 빼고 ${shortName(byId[id].n)}`);
+      toast("핀 꽂음", "실행 취소", () => { quiet(() => { if (isFav(id)) toggleFav(id); if (!isFav(o)) toggleFav(o); }); toast("되돌렸어요", "", null, shortName(byId[o].n)); }, `${shortName(byId[o].n)} 빼고 ${shortName(byId[id].n)}`);
     });
     const f = ov.querySelector("[data-pswap]") || ov.querySelector("#pnFullX"); f && f.focus();
   }
@@ -238,7 +347,7 @@ const PINS = (() => {
     if (c.nextElementSibling !== hero) hero.before(c);
     const f = U[0], cn = CN[0];
     const txt = f
-      ? `<b>내 핀 ${U.length}곳에 소식</b> · ${esc(shortName(f.r.n))} ${esc(f.b[0].h)}${cn && cn.add.length ? ` · 새로 들어온 곳 ${cn.add.length}` : ""}`
+      ? `<b>내 핀 ${U.length}곳에 소식</b> · ${esc(shortName(f.r.n))} ${esc(f.b[0].h)}${cn && cn.add.length ? ` · 조건 핀 새 구역 ${freshIds().length || newIds().length}` : ""}`
       : `<b>${esc(cn.c.name)}</b> · ${cn.add.length ? `새로 들어온 곳 ${cn.add.length}` : ""}${cn.add.length && cn.out.length ? " · " : ""}${cn.out.length ? `빠진 곳 ${cn.out.length}` : ""}`;
     c.innerHTML = `<button type="button" class="pn-hm-go">${pinY(22)}<span>${txt}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button><button type="button" class="pn-hm-x" aria-label="이번 주 동안 닫기"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
     c.hidden = false;
@@ -572,12 +681,16 @@ const PINS = (() => {
       w.querySelector(".pc-sv-n").onclick = () => { openView(); setTimeout(() => { const h = $("pcT"); if (h) { h.scrollIntoView({ block: "start", behavior: "auto" }); h.tabIndex = -1; h.focus({ preventScroll: true }); } }, 120); };
       g0 ? g0.after(w) : hero.appendChild(w);
     } else if (g0 && w.previousElementSibling !== g0 && !(w.previousElementSibling && w.previousElementSibling.id === "pcAct")) g0.after(w);
-    const n = CONDS.length ? newIds().length : 0, nb = w.querySelector(".pc-sv-n");
+    const n = CONDS.length ? newIds().length : 0, f = CONDS.length ? freshIds().length : 0, nb = w.querySelector(".pc-sv-n");
     if (!CONDS.length) { nb.hidden = true; return; }
     nb.hidden = false;
-    nb.innerHTML = n ? `새로 들어온 곳 <b>${n}곳</b> →` : `조건 핀 ${CONDS.length}개 보기 →`;
+    // 마지막으로 본 뒤 새로 조건에 들어온 구역 = '+N 새 구역' 배지(내 핀에서 보면 지워짐)
+    nb.innerHTML = f ? `<b class="pc-nb">+${f} 새 구역</b><span class="pc-nbt">조건 핀</span> →` : n ? `새로 들어온 곳 <b>${n}곳</b> →` : `조건 핀 ${CONDS.length}개 보기 →`;
+    nb.setAttribute("aria-label", f ? `조건 핀에 새로 들어온 구역 ${f}곳 보기` : n ? `조건 핀에 새로 들어온 곳 ${n}곳 보기` : `조건 핀 ${CONDS.length}개 보기`);
   }
   const newIds = () => [...new Set(condsAll().flatMap((n) => n.add))];
+  // 본 적 없는 새 구역만: seen(마지막으로 본 sig)의 '새로 들어온' id 목록을 빼고 센다
+  const freshIds = () => [...new Set(condsAll().flatMap((n) => { const sn = new Set(String(n.c.seen || "").split("/")[0].split(",").filter(Boolean)); return n.add.filter((id) => !sn.has(id)); }))];
 
   // ---------- 화면 이벤트 ----------
   function onClick(e) {
@@ -591,31 +704,30 @@ const PINS = (() => {
     if (t.dataset.psort) { SORT = t.dataset.psort; lsW(SORTK, SORT); renderFav(); return; }
     if (t.dataset.pedit) { EDIT = EDIT === t.dataset.pedit ? "" : t.dataset.pedit; renderFav(); const i = EDIT && $("fvOut").querySelector(`[data-pmemo="${EDIT}"]`); if (i) i.focus(); else { const b = $("fvOut").querySelector(`[data-pedit="${t.dataset.pedit}"]`); b && b.focus(); } return; }
     if (t.dataset.pgoal) { const sp = SNAP[t.dataset.pgoal], r = byId[t.dataset.pgoal]; if (sp && r) { if (!sp.goal) { const nw = needNow(r, modeFor(r)); if (nw != null && nw <= CASH + 1e-9) { renderFav(); return; } } sp.goal = !sp.goal; PEND = 0; saveS(); renderFav(); const b = $("fvOut").querySelector(`[data-pgoal="${t.dataset.pgoal}"]`); b && b.focus(); } return; }
-    if (t.dataset.punpin) { PEND = 0; const id = t.dataset.punpin; if (isFav(id)) { toggleFav(id); toast("핀 뺐어요", "되돌리기", () => { if (!isFav(id) && room(id)) toggleFav(id); }, byId[id] ? shortName(byId[id].n) : ""); } return; }
+    if (t.dataset.punpin) { PEND = 0; const id = t.dataset.punpin; if (isFav(id)) toggleFav(id); return; }
     if (t.id === "pnCmp") { SEL = true; CMPON = false; CMP = []; renderFav(); const s = $("pnSelX"); s && s.focus(); return; }
     if (t.id === "pnSelX") { SEL = false; renderFav(); const b = $("pnCmp"); b && b.focus(); return; }
     if (t.id === "pnGo") { if (CMP.length < 2) return; SEL = false; CMPON = true; renderFav(); requestAnimationFrame(() => { const h = $("pnCmpT"); if (h) { h.scrollIntoView({ block: "start", behavior: smooth() }); h.focus({ preventScroll: true }); } }); return; }
     if (t.id === "pnCmpX") { CMPON = false; renderFav(); const b = $("pnCmp"); b && b.focus(); return; }
     if (t.id === "pnShare") { shareMap(); return; }
-    if (t.id === "pnMove") { shareLink(moveURL(), $("pnMoveFb")); return; }
+    if (t.id === "pnMove") { const fb = $("pnMoveFb"); moveURL().then((u) => shareLink(u, fb)); return; }
     if (t.id === "pnEmptyGo") { try { SIMPLE.close(); } catch (e2) {} requestAnimationFrame(() => { const m = $("mapTop"); if (m) window.scrollTo({ top: m.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); }); }
   }
   function after() {
     const out = $("fvOut"); if (!out) return;
     const go = $("pnGo"); if (go) { go.disabled = CMP.length < 2; go.textContent = `비교하기 (${CMP.length})`; }
+    if ($("pnMove")) moveURL().catch(() => {});   // 미리 만들어 둠 → 누르는 순간 바로 복사(사파리 사용자 동작 제한)
     const fs = $("fvShare"); if (fs && $("pnMove")) { fs.hidden = true; const fb = $("fvShareFb"); if (fb) fb.hidden = true; }
   }
-  function favRest() {
-    if (!FAV_IN) return;
-    const ids = [...new Set(FAV_IN.split(/[.,]/))].filter((id) => byId[id]).slice(0, MAX);
-    const add = ids.filter((id) => !isFav(id)).slice(0, Math.max(0, MAX - FAV.length));
-    if (!add.length) return;
-    FAV = FAV.concat(add); saveFav();
-    FAV_NOTE = `받은 링크의 ${ids.length}곳에 핀을 꽂았어요.`;
-    try { syncFav(); } catch (e) {}
-  }
   function init() {
-    try { favRest(); } catch (e) {}
+    try { const _tf = toggleFav; toggleFav = function (id) { const was = isFav(id), x = _tf.apply(this, arguments); try { if (!QUIET && isFav(id) !== was) notify(id, !was); } catch (e) {} return x; }; } catch (e) {}
+    // '핀 모두 빼기'(앱 본문)도 되돌리기
+    document.addEventListener("click", (e) => {
+      if (!(e.target.closest && e.target.closest("#fvClear")) || !FAV.length) return;
+      const bk = { fav: FAV.slice(), snap: JSON.parse(JSON.stringify(SNAP)) };
+      setTimeout(() => toast(`핀 ${bk.fav.length}곳 모두 뺐어요`, "되돌리기", () => { FAV = bk.fav; SNAP = bk.snap; saveFav(); saveS(); syncFav(); toast("다시 꽂았어요"); }), 0);
+    }, true);
+    try { importIn(); } catch (e) {}
     const out = $("fvOut");
     if (out) {
       out.addEventListener("click", onClick);

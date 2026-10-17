@@ -93,7 +93,7 @@ def card(r, k, d):
     nk = NEXT.get(k); nx = D['stats']['large'].get(nk) if nk else None
     kv = []
     if c.get('price') is not None: kv.append(('지금 매수가(실거래 추정)', f"{c['price']:.1f}억"))
-    if c.get('need') is not None: kv.append(('입주까지 필요한 현금', f"약 {c['need']:.1f}억"))
+    if c.get('need') is not None: kv.append(('입주까지 필요한 현금 <small>발행 당시 시세·현금 매수 가정</small>', f"약 {c['need']:.1f}억"))
     if c.get('p10') is not None: kv.append(('10년 안 준공 가능성', f"{min(97, round(c['p10'] * 100))}%"))
     if nx: kv.append(('다음 인가까지 보통', f"{nx['med']:.1f}년"))
     zp = os.path.exists(os.path.join(ROOT, 'public/z', r['id'] + '.html'))

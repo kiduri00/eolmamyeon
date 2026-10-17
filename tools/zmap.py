@@ -171,11 +171,12 @@ def _geo():
         try: _G = json.load(open(os.path.join(ROOT, 'public/data/geo.json'), encoding='utf-8'))
         except Exception: _G = {}
     return _G
-def og_card(rid, nm, sub, stage, money_lab, money, loc, gu, upd):
+def og_card(rid, nm, sub, stage, money_lab, money, loc, gu, upd, text_only=False):
+    """text_only=True: 지도 없이 글자만(손으로 쓴 페이지 등 위치 그림을 쓰지 않는 카드)."""
     """public/og/z/<rid>.png를 만든다(내용이 같으면 건너뜀). 성공하면 사이트 경로, 아니면 None."""
     global _OGH
     out = os.path.join(ROOT, 'public/og/z', rid + '.png')
-    key = hashlib.md5(json.dumps([nm, sub, stage, money_lab, money, upd[:7], [round(v, 3) for v in (loc or [])], gu, 4]).encode()).hexdigest()[:12]
+    key = hashlib.md5(json.dumps([nm, sub, stage, money_lab, money, upd[:7], [round(v, 3) for v in (loc or [])], gu, 4, text_only]).encode()).hexdigest()[:12]
     if _OGH is None:
         try: _OGH = json.load(open(_OGHF))
         except Exception: _OGH = {}
@@ -188,9 +189,9 @@ def og_card(rid, nm, sub, stage, money_lab, money, loc, gu, upd):
         d.rectangle([0, 0, W, 14], fill=NAVY)
         # 오른쪽: 서울 지도 위 위치(구 경계 · 이 구 칠하기 · 구역 점)
         bx0, by0, bx1, by1 = 740, 96, 1150, 534
-        d.rounded_rectangle([bx0, by0, bx1, by1], 28, fill='#f3f6fb')
+        if not text_only: d.rounded_rectangle([bx0, by0, bx1, by1], 28, fill='#f3f6fb')
         G = _geo()
-        if G.get('seoul') and loc:
+        if G.get('seoul') and loc and not text_only:
             allp = [p for rg in _rings(G['seoul']) for p in rg]
             x0, x1 = min(p[0] for p in allp), max(p[0] for p in allp); y0, y1 = min(p[1] for p in allp), max(p[1] for p in allp)
             kx = math.cos(math.radians((y0 + y1) / 2))
@@ -209,7 +210,7 @@ def og_card(rid, nm, sub, stage, money_lab, money, loc, gu, upd):
         d.text((64, 56), '집핀', font=_font('k', 40), fill=NAVY)
         d.text((160, 70), '서울 재개발 지도', font=_font('b', 24), fill=MUT)
         f = 72
-        while f > 40 and d.textlength(nm, font=_font('k', f)) > 660: f -= 4
+        while f > 40 and d.textlength(nm, font=_font('k', f)) > (1070 if text_only else 660): f -= 4
         d.text((64, 150), nm, font=_font('k', f), fill=INK)
         d.text((66, 150 + f + 22), sub, font=_font('r', 30), fill=MUT)
         y = 150 + f + 90

@@ -92,7 +92,7 @@
       if (!map || !geo) return;
       const dk = dark(), P = palette(), halo = dk ? "#11161D" : "#ffffff";
       const add = (id) => { if (!map.getSource(id)) map.addSource(id, Object.assign({ type: "geojson", data: FC([]) }, /^(zones|zest|zlab|pts)$/.test(id) ? { promoteId: "id" } : {})); };
-      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gun", "dong"].forEach(add);
+      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gun", "dong", "sdim", "sring", "spt", "hov", "sellab"].forEach(add);
       map.getSource("gun").setData(guLabels());
       map.getSource("dong").setData(dongLabels());
       if (!map.getSource("zpa")) map.addSource("zpa", { type: "geojson", data: FC([]), cluster: true, clusterRadius: 8, clusterMaxZoom: 15 });
@@ -111,7 +111,7 @@
       L({ id: "subway", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 12, 1.2, 14, 2, 16, 2.6], "line-opacity": 0.5 } });
       // 바탕 이름: 구(줌 9.5~13.4) → 동(13.2부터) → 큰 역(12부터, 환승역). 회색으로 작게, 구역 카드가 먼저 자리 잡는다
       const T1 = dk ? "#8A95A5" : "#6A7482", T2 = dk ? "#7A8696" : "#7C8693";
-      L({ id: "gu-lab", type: "symbol", source: "gun", minzoom: 9.5, maxzoom: 13.4, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10.5, 12.5, 12.5], "text-padding": 4, "text-letter-spacing": 0.04 }, paint: { "text-color": T1, "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.6, 0.95, 13.4, 0], "text-halo-color": halo, "text-halo-width": 1.6 } });
+      L({ id: "gu-lab", type: "symbol", source: "gun", minzoom: 8.8, maxzoom: 13.4, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10.5, 12.5, 12.5], "text-padding": 4, "text-letter-spacing": 0.04 }, paint: { "text-color": T1, "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.6, 0.95, 13.4, 0], "text-halo-color": halo, "text-halo-width": 1.6 } });
       L({ id: "dong-lab", type: "symbol", source: "dong", minzoom: 13.2, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 13.2, 10.5, 16, 12], "text-padding": 6, "symbol-sort-key": ["get", "k"] }, paint: { "text-color": T2, "text-halo-color": halo, "text-halo-width": 1.6 } });
       // 구역: 네이버 부동산처럼 한 가지 색(브랜드 남색) 반투명 면 + 같은 색 선. 공식 경계 없는 추정 범위는 점선.
       // 내 돈으로 안 되는 곳은 같은 남색을 아주 옅게(feature-state a=false) → 되는 곳만 또렷하게
@@ -126,6 +126,13 @@
       L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ZC, "fill-opacity": zop, "fill-antialias": true } });
       L({ id: "zone-line", type: "line", source: "zones", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-opacity": zlo } });
       L({ id: "pts", type: "circle", source: "pts", minzoom: 13, paint: { "circle-color": ZC, "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 4, 16, 6], "circle-stroke-color": halo, "circle-stroke-width": 1.5, "circle-opacity": ["case", A, 0.85, 0.3] } });
+      // 역으로 찾기: 걸어서 1km 밖은 옅게 덮고, 500m·1km 고리를 흐리게
+      L({ id: "stn-dim", type: "fill", source: "sdim", paint: { "fill-color": dk ? "#0B0F14" : "#F3F4F6", "fill-opacity": dk ? 0.55 : 0.6 } });
+      L({ id: "stn-ring", type: "line", source: "sring", filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": dk ? "#9DBBFF" : "#1F3A87", "line-width": 1.4, "line-opacity": ["case", ["==", ["get", "m"], 500], 0.55, 0.35], "line-dasharray": [3, 2] } });
+      // 목록에 마우스를 올린 구역(데스크톱)
+      L({ id: "hov-fill", type: "fill", source: "hov", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": dk ? "#F5C33B" : "#E8A400", "fill-opacity": 0.22 } });
+      L({ id: "hov-line", type: "line", source: "hov", filter: ["==", ["geometry-type"], "Polygon"], layout: { "line-join": "round" }, paint: { "line-color": dk ? "#F5C33B" : "#C98A00", "line-width": 3 } });
+      L({ id: "hov-pt", type: "circle", source: "hov", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 9, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": dk ? "#F5C33B" : "#C98A00", "circle-stroke-width": 3 } });
       // 고른 구역: 면은 조금 진하게 + 굵은 테두리(바깥 흰 테 + 안쪽 남색)
       L({ id: "sel-fill", type: "fill", source: "sel", paint: { "fill-color": ZC, "fill-opacity": dk ? 0.32 : 0.26 } });
       L({ id: "sel-case", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": halo, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 5, 16, 8], "line-opacity": 0.9 } });
@@ -177,7 +184,7 @@
       // 내 돈으로 되는 곳 = 남색 카드, 안 되는 곳 = 옅은 회청색 카드(면과 같은 규칙)
       const NM_C = ["case", ["==", ["get", "y"], 1], "#FFFFFF", dk ? "#C3CCD8" : "#2E3A55"];
       const HI = dk ? "#FF9C8A" : "#C0261B", two = ["any", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]];
-      const card = (id, f, maxz) => L({ id, type: "symbol", source: "zlab", minzoom: 13, maxzoom: maxz || 24, filter: f, layout: { "icon-image": ["concat", ["case", ["==", ["get", "y"], 1], "zcard", "zcardL"], ["case", two, "", "1"]], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": NM_C }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": NM_C }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, "text-anchor": "top", "text-offset": [0, 0.35], "symbol-sort-key": ["get", "k"] }, paint: {} });
+      const card = (id, f, maxz, src, top) => L({ id, type: "symbol", source: src || "zlab", minzoom: top ? 11 : 13, maxzoom: maxz || 24, filter: f, layout: { ...(top ? { "icon-allow-overlap": true, "text-allow-overlap": true } : {}), "icon-image": ["concat", ["case", ["==", ["get", "y"], 1], "zcard", "zcardL"], ["case", two, "", "1"]], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": NM_C }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": NM_C }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, "text-anchor": "top", "text-offset": [0, 0.35], "symbol-sort-key": ["get", "k"] }, paint: {} });
       card("zone-lab", ["==", ["get", "p"], 0]);
       card("zone-lab-p", ["==", ["get", "p"], 1], 16);   // 핀 있는 곳은 16부터 핀 라벨('이름 · X억')로
       // ---- 핀: 핀 끝 = 구역 중심. 순서 선택 > 내 핀 > 살 수 있는 핀(위 레이어가 먼저 자리 잡음) ----
@@ -188,12 +195,20 @@
       pinL("pin-a", "zpa", 0, { filter: ["!", ["has", "point_count"]] });
       pinL("pin-m", "zpm", 10);
       pinL("pin-s", "zps", 0);
+      // 고른 구역 카드: 다른 카드·핀에 밀려 숨지 않게 맨 위에 늘 그린다(값은 그 구역 id로 계산)
+      card("sel-lab", ["==", ["get", "p"], 0], 24, "sellab", true);
+      card("sel-lab-p", ["==", ["get", "p"], 1], 16, "sellab", true);
+      // 역 표시: 흰 점 + 남색 테두리 + '○○역'
+      L({ id: "spt-c", type: "circle", source: "spt", filter: ["==", ["get", "k"], "s"], paint: { "circle-radius": 7, "circle-color": dk ? "#151B23" : "#FFFFFF", "circle-stroke-color": dk ? "#9DBBFF" : "#1F3A87", "circle-stroke-width": 3 } });
+      L({ id: "spt-lab", type: "symbol", source: "spt", layout: { "text-field": ["get", "n"], "text-font": ["case", ["==", ["get", "k"], "s"], ["literal", ["Noto Sans Bold"]], ["literal", ["Noto Sans Regular"]]], "text-size": ["case", ["==", ["get", "k"], "s"], 13, 10.5], "text-anchor": ["case", ["==", ["get", "k"], "s"], "top", "bottom"], "text-offset": ["case", ["==", ["get", "k"], "s"], ["literal", [0, 0.8]], ["literal", [0, -0.2]]], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": dk ? "#C7D6FF" : "#1F3A87", "text-halo-color": halo, "text-halo-width": 2 } });
+      stnDraw(); hovDraw();
       PIN.clear(); pinAnim.clear(); pinK = null;
       ready = true;
       layerData();
       layers();
       paint();
       focus(pendFocus); pendFocus = false;
+      if (stnF && stnPend) stnGo();
       notes(); edgeSoon();
     }
     // 구 이름 자리: 가장 큰 고리의 면적 중심. 동 이름 자리: 그 동(지번 주소 첫 낱말) 구역들의 평균 위치
@@ -291,6 +306,7 @@
     function fitAff(anim) {
       if (!map || !ready || mapView !== "seoul" || gu) return;
       map.resize();
+      if (stnF) return;   // 역을 보고 있는 동안은 자동 맞춤으로 옮기지 않는다
       fitTo(affBB(), anim, 12);
     }
     function seoul() {
@@ -303,7 +319,7 @@
           if (mapView !== "seoul") return;
           if (!init()) { show(false); return; }
           // 처음엔 서울 전체가 아니라 '내 돈으로 되는 구역'이 모인 곳에 맞춘다(폰 지도는 작아서 전체는 답답함)
-          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); if (ready) fitTo(affBB(), false, 12); else map.fitBounds(CORE, { padding: 12, duration: 0 }); } };
+          const fitS = () => { if (stnF) { if (stnPend) stnGo(); return; } if (mapView === "seoul" && !gu) { map.resize(); if (ready) fitTo(affBB(), false, 12); else map.fitBounds(CORE, { padding: 12, duration: 0 }); } };
           fitS(); requestAnimationFrame(fitS); map.once("idle", fitS);
           if (ready) paint();
         })
@@ -348,29 +364,47 @@
       const m = /([\d.]+억)/.exec(t || "");
       return m ? m[1] : "";
     }
-    const cardName = (r) => { const n = shortName(r.n) || ""; return n.length > 10 ? n.slice(0, 9) + "…" : n; };
+    // 같은 짧은 이름이 둘 이상이면(예: '역촌역세권 장기전세' 3곳) 지도 글자에 동을 붙여 구분한다
+    let NMC = null;
+    const dongOfR = (r) => { const t = String(r.j || "").trim().split(/\s+/)[0] || ""; return /^[가-힣\d]{1,8}(동|가)$/.test(t) ? t : r.g || ""; };
+    const nmOf = (r) => {
+      if (!NMC) { NMC = new Map(); R.forEach((x) => { const k = shortName(x.n) || ""; NMC.set(k, (NMC.get(k) || 0) + 1); }); }
+      const n = shortName(r.n) || "";
+      return NMC.get(n) > 1 ? { n, d: dongOfR(r) } : { n, d: "" };
+    };
+    const cardName = (r) => {
+      let { n, d } = nmOf(r);
+      // 이름이 이미 '…(동)'으로 끝나면(검색 쪽 shortName이 붙인 구분) 그 괄호는 자르지 않는다
+      const m = /^(.*\S)\s*\(([^()]{1,8})\)$/.exec(n);
+      if (m) { n = m[1]; d = d || m[2]; }
+      if (!d) return n.length > 10 ? n.slice(0, 9) + "…" : n;
+      const a = n.length + d.length + 2 <= 13 ? n : n.split(/\s+/)[0].slice(0, 9);
+      return `${a}(${d})`;
+    };
+    const fullName = (r) => { const { n, d } = nmOf(r); return d ? `${n}(${d})` : n; };
+    let labSel = null;
     const hiOf = (r) => { const t = r.tx && r.tx.hi; return t && !r.dn ? t : null; };
     function paint() {
       if (!map || !ready || !geo) return;
       const Z = geo.z;
       const vis = R.filter((r) => r.ll && visible(r) && kindOk(r));
-      const off = [], est = [], lab = [], pts = [], MS = mineSet(), okF = okSafe(), hiOn = lyr.has("hi");
+      const off = [], est = [], lab = [], pts = [], MS = mineSet(), okF = okSafe(), hiOn = lyr.has("hi"), selId = cur && cur.id;
+      let selF = null;
       for (const r of vis) {
         const z = Z[r.id];
         const s = cardVal(r), y = okF(r) ? 1 : 0, pp = y || MS.has(r.id) ? 1 : 0, h = hiOn && hiOf(r) ? "▲신고가" : "";
         // 정렬 키: 살 수 있는 곳 → 신고가(켰을 때) → 금액 있는 곳 → 나머지 (작을수록 먼저 자리 잡음)
         const k = (y ? 0 : s ? 2 : 3) - (h ? 1 : 0);
-        if (z) {
-          (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id } });
-          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: cardName(r), s, h, y, k, p: pp } });
-        } else {
-          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: cardName(r), s, h, y, k: k + 0.5, p: pp } });
-          pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id } });
-        }
+        const lf = { type: "Feature", geometry: { type: "Point", coordinates: z ? z.l : [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: cardName(r), s, h, y, k: z ? k : k + 0.5, p: pp } };
+        if (r.id === selId) selF = lf; else lab.push(lf);   // 고른 구역 카드는 따로(sel-lab) 늘 보이게
+        if (z) (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id } });
+        else pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id } });
       }
+      labSel = selId || null;
       map.getSource("zones").setData(FC(off));
       map.getSource("zest").setData(FC(est));
       map.getSource("zlab").setData(FC(lab));
+      map.getSource("sellab").setData(FC(selF ? [selF] : []));
       map.getSource("pts").setData(FC(pts));
       legend();
       pins(true);
@@ -410,7 +444,7 @@
     function pinLab(r) {
       if (LB.has(r.id)) return LB.get(r.id);
       const t = labelOf(r), m = /([\d.]+억)/.exec(t || "");
-      const v = `${shortName(r.n)} · ${m ? m[1] : cardVal(r) || ""}`.replace(/ · $/, "");
+      const v = `${fullName(r)} · ${m ? m[1] : cardVal(r) || ""}`.replace(/ · $/, "");
       LB.set(r.id, v); return v;
     }
     // 줌 구간별 핀 배율(이미지 높이 28px 기준)
@@ -547,6 +581,7 @@
     function bboxOf(rings) { let a = 180, b = 90, c = -180, d = -90; rings.forEach((rg) => rg.forEach(([x, y]) => { if (x < a) a = x; if (y < b) b = y; if (x > c) c = x; if (y > d) d = y; })); return [[a, b], [c, d]]; }
     function focus(zoom) {
       if (!map || !ready) return;
+      if (((cur && cur.id) || null) !== labSel) paint();
       const src = map.getSource("sel");
       const z = cur && geo && geo.z[cur.id];
       if (!cur || !(z || cur.ll)) { src.setData(FC([])); pinDraw(); return; }
@@ -566,6 +601,76 @@
       }
       if (z) map.fitBounds(bboxOf(z.g), { padding: { top: 70, bottom: 70, left: 60, right: Math.max(60, railPad()) }, maxZoom: 16.3, duration: dur });
       else map.flyTo({ center: [cur.ll[1], cur.ll[0]], zoom: Math.max(map.getZoom(), 15), duration: dur });
+    }
+    // ===================== 역으로 찾기: flyTo · 역 표시 · 걸어서 500m/1km 고리 =====================
+    // stnF = { ll:[lng,lat], z, n } 지금 보고 있는 역(없으면 null). 있는 동안은 자동 맞춤(fitAff·fit)이 화면을 옮기지 않는다.
+    // 사용자가 2km 넘게 밀거나 줌 12 아래로 빼면, 또는 clearStation()·확대 초기화(zoom(0))면 풀린다.
+    let stnF = null, stnPend = false;
+    const circ = (ll, m, n) => { const [lo, la] = ll, dy = m / 111320, dx = m / (111320 * Math.cos((la * Math.PI) / 180)), P = []; for (let i = 0; i <= (n || 72); i++) { const a = (i / (n || 72)) * 2 * Math.PI; P.push([lo + dx * Math.sin(a), la + dy * Math.cos(a)]); } return P; };
+    function stnDraw() {
+      if (!map || !ready || !map.getSource("sdim")) return;
+      if (!stnF) { ["sdim", "sring", "spt"].forEach((s) => map.getSource(s).setData(FC([]))); return; }
+      const ll = stnF.ll, outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
+      map.getSource("sdim").setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [outer, circ(ll, 1000).reverse()] }, properties: {} });
+      map.getSource("sring").setData(FC([500, 1000].map((m) => ({ type: "Feature", geometry: { type: "LineString", coordinates: circ(ll, m) }, properties: { m } }))));
+      const top = (m) => [ll[0], ll[1] + m / 111320];
+      map.getSource("spt").setData(FC([
+        { type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { k: "s", n: stnF.n ? stnF.n.replace(/역$/, "") + "역" : "" } },
+        { type: "Feature", geometry: { type: "Point", coordinates: top(500) }, properties: { k: "r", n: "500m" } },
+        { type: "Feature", geometry: { type: "Point", coordinates: top(1000) }, properties: { k: "r", n: "1km" } },
+      ]));
+    }
+    function stnGo() {
+      if (!map || !stnF) return;
+      stnPend = false;
+      try { map.resize(); } catch (e) {}
+      map.stop();
+      map.flyTo({ center: stnF.ll, zoom: stnF.z, duration: reduceMotion() ? 0 : 900, essential: true });
+      stnDraw();
+    }
+    function flyTo(lng, lat, zoom, name) {
+      lng = +lng; lat = +lat;
+      if (!isFinite(lng) || !isFinite(lat)) return false;
+      if (lng < 90 && lat > 90) { const t = lng; lng = lat; lat = t; }   // [lat,lng]로 넘겨도 받아 준다
+      stnF = { ll: [lng, lat], z: isFinite(+zoom) && +zoom > 0 ? +zoom : 14.5, n: name || "" };
+      stnPend = true;
+      // 아직 지도가 없으면(간단 지도 → 실제 지도, 첫 로딩) 만들고, 준비되면 이어서 옮긴다
+      if (!want || failed) return false;
+      if (!map) { if (mapView === "seoul" || !mapView) { try { seoul(); } catch (e) {} } return true; }
+      stnGo();
+      // 전체 지도가 열리며 크기가 바뀌는 동안(60·300·800ms) 다른 맞춤이 끼어들어도 마지막에 한 번 더 제자리로
+      [350, 950].forEach((t) => setTimeout(() => { if (!stnF || !map) return; map.resize(); const c = map.getCenter(); if (Math.hypot((c.lng - stnF.ll[0]) * 88, (c.lat - stnF.ll[1]) * 111) > 0.25 && !map.isMoving()) map.jumpTo({ center: stnF.ll, zoom: Math.max(map.getZoom(), stnF.z - 0.3) }); }, t + (reduceMotion() ? 0 : 900)));
+      return true;
+    }
+    function stnFind(q) {
+      if (Array.isArray(q)) return q.length >= 3 && isFinite(q[1]) ? q : null;
+      const b = String(q || "").replace(/\s/g, "").replace(/역$/, "");
+      if (!b) return null;
+      const L = (D.stations || []).filter((s) => isFinite(s[1]) && isFinite(s[2]));
+      return L.find((s) => s[0].replace(/역$/, "") === b) || L.find((s) => s[0].replace(/역$/, "").startsWith(b)) || null;
+    }
+    function flyToStation(q, zoom) {
+      const s = stnFind(q);
+      if (!s) return false;
+      return flyTo(s[2], s[1], zoom, s[0]);
+    }
+    function clearStation() { if (!stnF) return; stnF = null; stnPend = false; stnDraw(); }
+    // ===================== 목록 ↔ 지도 마우스 연결(데스크톱) =====================
+    let hovId = null;
+    function hovDraw() {
+      if (!map || !ready || !map.getSource("hov")) return;
+      const r = hovId && byId[hovId], z = r && geo && geo.z[r.id];
+      map.getSource("hov").setData(!r ? FC([]) : z ? { type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: {} } : r.ll ? { type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: {} } : FC([]));
+    }
+    function hover(id) { id = id || null; if (id === hovId) return; hovId = id; hovDraw(); }
+    // 지도 위 구역에 마우스 → 목록 줄에 .lm-hov
+    let rowHov = null;
+    function rowMark(id) {
+      const el = id ? document.querySelector(`#sList [data-id="${CSS.escape(id)}"]`) : null, li = el && (el.closest("li") || el);
+      if (li === rowHov) return;
+      if (rowHov) rowHov.classList.remove("lm-hov");
+      rowHov = li || null;
+      if (rowHov) rowHov.classList.add("lm-hov");
     }
     function fitGu(n) {
       if (!map || !geo) return;
@@ -696,7 +801,9 @@
       map.touchZoomRotate.disableRotation();
       map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '정비구역 경계 <a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a>' }), "bottom-right");
       map.on("style.load", () => { ready = false; loadGeo().then(overlays); });
-      map.on("moveend", edgeSoon); map.on("resize", () => { shortMark(); edgeSoon(); });
+      map.on("moveend", edgeSoon);
+      // 사용자가 역에서 2km 넘게 밀거나 크게 빼면 역 표시(어둡게 덮기·고리)를 푼다
+      map.on("moveend", (e) => { if (!stnF || !e || !e.originalEvent) return; const c = map.getCenter(); if (map.getZoom() < 12 || Math.hypot((c.lng - stnF.ll[0]) * 88, (c.lat - stnF.ll[1]) * 111) > 2) clearStation(); }); map.on("resize", () => { shortMark(); edgeSoon(); });
       let nRaf = 0;
       map.on("zoom", () => { if (!nRaf) nRaf = requestAnimationFrame(() => { nRaf = 0; notes(); }); });
       // 출처는 접힌 'i' 단추로만(라이브러리가 로딩 중 저절로 펼쳤다 접으면 자리가 흔들림 = CLS). 사람이 누를 때만 펼친다
@@ -722,10 +829,10 @@
       });
       const pop = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: "lm-pop", offset: 10, maxWidth: "260px" });
       const hit = ["zone-fill", "zest-fill", "pts"];
-      const tipOf = (r) => `<b>${esc(shortName(r.n))}</b><small>${esc([SHAPE[shapeOf(r)], r.src === "moa" ? srLabel(r) : stageName(r)].join(" · "))}</small><small>${esc(labelOf(r))}${geo && geo.z[r.id] && geo.z[r.id].e ? " · 경계 추정" : ""}</small>`;
+      const tipOf = (r) => `<b>${esc(fullName(r))}</b><small>${esc([SHAPE[shapeOf(r)], r.src === "moa" ? srLabel(r) : stageName(r)].join(" · "))}</small><small>${esc(labelOf(r))}${geo && geo.z[r.id] && geo.z[r.id].e ? " · 경계 추정" : ""}</small>`;
       hit.forEach((l) => {
-        map.on("mousemove", l, (e) => { const r = byId[e.features[0].properties.id]; if (!r) return; map.getCanvas().style.cursor = "pointer"; pop.setLngLat(e.lngLat).setHTML(tipOf(r)).addTo(map); });
-        map.on("mouseleave", l, () => { map.getCanvas().style.cursor = ""; pop.remove(); });
+        map.on("mousemove", l, (e) => { const r = byId[e.features[0].properties.id]; if (!r) return; map.getCanvas().style.cursor = "pointer"; pop.setLngLat(e.lngLat).setHTML(tipOf(r)).addTo(map); rowMark(r.id); });
+        map.on("mouseleave", l, () => { map.getCanvas().style.cursor = ""; pop.remove(); rowMark(null); });
       });
       let lastPT = "touch";
       map.getCanvasContainer().addEventListener("pointerdown", (e) => { lastPT = e.pointerType || "mouse"; }, true);
@@ -810,21 +917,43 @@
       pins: () => { if (map && ready) pins(true); },   // 내 핀이 바뀌면 불러 주세요   // 구별 숫자 말풍선은 없앰. 끄는 동안 핀만 다시 꽂는다(120ms 간격)
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
       noLoc: () => noLoc(),
-      zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else fitAff(true); },
+      zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else { clearStation(); if (gu) fitGu(gu); else fitAff(true); } },
       geo: () => loadGeo(),
       fitAff: (anim) => fitAff(anim),
       fit: () => { shortMark(); if (!map) return; map.resize(); if (!cur) fitAff(false); },   // 고른 구역이 있으면 보던 자리 그대로
       lib: () => loadLib(), style: () => style(), subway: () => subwayGeo(),
       map: () => map,
+      // 역·좌표로 지도 옮기기(검색에서 역을 고를 때). 끼워 둔 지도·전체 지도 모두, 지도가 아직 준비 전이면 준비되면 이어서 옮긴다.
+      // flyToStation('봉천' | '봉천역' | D.stations 한 줄[이름,lat,lng,…], zoom?=14.5) → true/false(역 못 찾음·간단 지도)
+      // flyTo(lng, lat, zoom?=14.5, 이름?) · clearStation() · station() = 지금 보는 역 {ll,z,n} 또는 null
+      flyToStation: (q, z) => flyToStation(q, z),
+      flyTo: (lng, lat, z, n) => flyTo(lng, lat, z, n),
+      clearStation: () => clearStation(),
+      station: () => (stnF ? { ll: stnF.ll.slice(), z: stnF.z, n: stnF.n } : null),
+      hover: (id) => hover(id),
     };
   })();
-  window.ZP_lmx = LMX;   // 점검(QA)·다른 화면에서 지도 상태를 읽을 때
+  window.ZP_lmx = window.__lmx = LMX;
+  // 데스크톱: 목록 줄에 마우스를 올리면 지도에서 그 구역 테두리를 노랗게(목록 코드는 그대로, 이벤트 위임)
+  {
+    let hv = null;
+    const fine = () => matchMedia("(hover:hover) and (pointer:fine)").matches;
+    document.addEventListener("mouseover", (e) => { if (!fine()) return; const a = e.target.closest && e.target.closest("#sList [data-id]"), li = e.target.closest && e.target.closest("#sList li"); const id = a ? a.dataset.id : li && li.querySelector("[data-id]") ? li.querySelector("[data-id]").dataset.id : null; if (id === hv) return; hv = id; try { LMX.hover(id); } catch (er) {} });
+    document.addEventListener("mouseout", (e) => { if (!hv || !e.target.closest || !e.target.closest("#sList")) return; const to = e.relatedTarget; if (to && to.closest && to.closest("#sList li")) return; hv = null; try { LMX.hover(null); } catch (er) {} });
+  }   // 점검(QA)·다른 화면에서 지도 상태를 읽을 때
   // 데스크톱: 목록·검색에서 구역을 고르면 실제 지도가 그 구역으로 가서 굵은 테두리로 보여 준다
   {
     const _selL = select;
     select = function (id) {
       const x = _selL.apply(this, arguments);
       try { if (!MQ_SHEET.matches && cur && cur.id === id && LMX.on()) setTimeout(() => LMX.focus("soft"), 30); } catch (e) {}
+      // 데스크톱: 상세로 스크롤한 뒤 지도 칸이 머리 밑으로 밀려 올라가면(붙는 칸의 끝) 머리+8 자리까지 되돌린다
+      try {
+        if (!MQ_SHEET.matches) {
+          const fix = () => { const mc = document.querySelector("#mapTop .main>.mapcard"); if (!mc || document.documentElement.classList.contains("s-full")) return; const t = mc.getBoundingClientRect().top, want = (HDR() || 56) + 8; if (t < want - 2 && t > want - 400) window.scrollBy({ top: t - want, behavior: "auto" }); };
+          [450, 1000].forEach((t) => setTimeout(fix, t));
+        }
+      } catch (e) {}
       return x;
     };
   }

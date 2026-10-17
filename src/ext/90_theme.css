@@ -294,7 +294,7 @@ body::before {
 }
 
 /* ---- 헤드라인: 그라데이션 글자 → 흰 강조 + 얇은 네이비-아이스 밑줄 (L6923 .h-grad) ---- */
-.intro h1 {
+.intro h2.in-h {
   color: #c9d0da;
 }
 .h-grad {
@@ -490,7 +490,7 @@ body::before {
 /* 디자이너 2차 검수 반영 */
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--text-4:#7f8894}}
 :root[data-theme="dark"]{--text-4:#7f8894}
-.intro h1{color:#e3e7ee}
+.intro h2.in-h{color:#e3e7ee}
 .h-grad{text-decoration-color:#7f97cf;text-decoration-thickness:3px;text-underline-offset:10px}
 #sumBtn{border:1px solid var(--border);border-radius:999px;padding:8px 14px;background:var(--surface)}
 .gt2 b.z0{color:var(--text-1);font-weight:600}

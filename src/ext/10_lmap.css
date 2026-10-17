@@ -120,3 +120,32 @@ html.simple.s-full body{overflow:visible}
   html.simple.s-full body .s-right .s-list-w{position:static;max-height:none}
   html.simple.s-full .s-mini{left:16px;right:auto;width:min(520px,calc(100vw - 620px));top:calc(var(--hdr-h,60px) + 12px)}
 }
+/* ===== r10 지도: 폰 끼운 지도 높이·작은 레일·호버·출처 단추 ===== */
+/* 폰(≤640): 끼운 지도는 360~390 폭에서도 280px 이상(구 이름이 보이고 손가락으로 밀 자리) */
+@media (max-width:640px){
+  html.simple body #mapbox.lm-on:not([data-view="gu"]),html.simple body #mapbox:not(.lm-on):not([data-view="gu"]){height:clamp(280px,80vw,340px);min-height:280px;max-height:340px}
+  html.simple.s-full body #mapbox{height:auto!important;min-height:0!important;max-height:none!important}
+}
+/* 키 작은 지도: 레일·확대 버튼은 40px(터치 기준) 그대로, 가장자리 여백만 줄여 지도를 덜 가린다(360폭 기준 면적 약 14%) */
+#mapbox.lm-short .s-rail-w{top:6px;right:6px}
+#mapbox.lm-short .lm-zoom{right:6px;bottom:30px}
+/* 데스크톱 목록 ↔ 지도: 지도에서 구역에 마우스를 올리면 목록 줄도 표시 */
+#sList li.lm-hov{background:color-mix(in srgb,#E8A400 12%,transparent);border-radius:12px;box-shadow:inset 3px 0 0 #E8A400}
+/* 전체 지도 위 한 줄 막대: 전세 끼고/대출 끼고 전환(전체 지도에서만) */
+.s-mini .s-mm{display:none}
+html.s-full .s-mini .s-mm{display:inline-flex;grid-column:1/-1;justify-self:start;padding:2px}
+html.s-full .s-mini .s-mm button{min-height:30px;padding:0 12px;font-size:12.5px;position:relative}
+html.s-full .s-mini .s-mm button::after{content:"";position:absolute;inset:-7px 0}
+html.s-full .s-mini{row-gap:6px;padding-top:7px;padding-bottom:7px}
+/* 다크: 출처 ⓘ 단추를 어두운 바탕 + 밝은 아이콘으로 */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .lmap .maplibregl-ctrl-attrib.maplibregl-compact{background:rgba(24,28,40,.94);color:#AAB3C0}
+  :root:not([data-theme="light"]) .lmap .maplibregl-ctrl-attrib-button{filter:none;opacity:1;background-color:transparent;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg width='24' height='24' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg' fill-rule='evenodd' fill='%23C3CAD9'%3E%3Cpath d='M4 10a6 6 0 1 0 12 0 6 6 0 1 0-12 0m5-3a1 1 0 1 0 2 0 1 1 0 1 0-2 0m0 3a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0'/%3E%3C/svg%3E")}
+  :root:not([data-theme="light"]) .lmap .maplibregl-ctrl-attrib a{color:#AAB3C0}
+  :root:not([data-theme="light"]) #sList li.lm-hov{background:color-mix(in srgb,#F5C33B 12%,transparent);box-shadow:inset 3px 0 0 #F5C33B}
+}
+:root[data-theme="dark"] .lmap .maplibregl-ctrl-attrib.maplibregl-compact{background:rgba(24,28,40,.94);color:#AAB3C0}
+:root[data-theme="dark"] .lmap .maplibregl-ctrl-attrib-button{filter:none;opacity:1;background-color:transparent;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg width='24' height='24' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg' fill-rule='evenodd' fill='%23C3CAD9'%3E%3Cpath d='M4 10a6 6 0 1 0 12 0 6 6 0 1 0-12 0m5-3a1 1 0 1 0 2 0 1 1 0 1 0-2 0m0 3a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0'/%3E%3C/svg%3E")}
+:root[data-theme="dark"] .lmap .maplibregl-ctrl-attrib a{color:#AAB3C0}
+:root[data-theme="dark"] #sList li.lm-hov{background:color-mix(in srgb,#F5C33B 12%,transparent);box-shadow:inset 3px 0 0 #F5C33B}
+@media (max-width:980px){html.simple.s-full body #mapbox .s-rail-w{top:92px}}

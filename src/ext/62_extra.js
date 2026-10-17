@@ -3,6 +3,8 @@ const EXTRA = (() => {
   const RK = "emr.recent";
   const getR = () => { try { return JSON.parse(localStorage.getItem(RK) || "[]").filter((id) => byId[id]); } catch (e) { return []; } };
   const pushR = (id) => { try { const a = [id].concat(getR().filter((x) => x !== id)).slice(0, 6); localStorage.setItem(RK, JSON.stringify(a)); } catch (e) {} };
+  const QK = "emr.recentQ";   // 최근 검색어(app.js saveQ가 고를 때 저장)
+  const getQ = () => { try { return JSON.parse(localStorage.getItem(QK) || "[]").filter((x) => typeof x === "string" && x).slice(0, 5); } catch (e) { return []; } };
   let HOT = null;
   // 인기 = 최근 3개월 구역 안 거래가 많은 곳(진행 중만)
   const hot = () => HOT || (HOT = R.filter((r) => r.tx && r.tx.n3 && !(r.s >= 9) && r.src !== "moa").sort((a, b) => b.tx.n3 - a.tx.n3).slice(0, 8).map((r) => r.id));
@@ -10,13 +12,16 @@ const EXTRA = (() => {
   function empty() {
     const q = $("q");
     if (!q || q.value.trim() || document.activeElement !== q) return false;
-    const rc = getR(), ht = hot().filter((id) => !rc.includes(id)).slice(0, 6);
-    if (!rc.length && !ht.length) return false;
+    const rc = getR(), ht = hot().filter((id) => !rc.includes(id)).slice(0, 6), rq = getQ();
+    if (!rc.length && !ht.length && !rq.length) return false;
     const s = $("sugg");
-    s.innerHTML = (rc.length ? `<div class="x-h" role="presentation">최근 본 구역<button type="button" class="x-clr" id="xClr" tabindex="-1">지우기</button></div><div class="x-row">${rc.map(chip).join("")}</div>` : "") +
+    const qChip = (v) => `<button type="button" class="x-chip x-q" role="option" data-q="${esc(v)}" tabindex="-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>${esc(v)}</button>`;
+    s.innerHTML = (rq.length ? `<div class="x-h" role="presentation">최근 검색<button type="button" class="x-clr" id="xClrQ" tabindex="-1">지우기</button></div><div class="x-row">${rq.map(qChip).join("")}</div>` : "") + (rc.length ? `<div class="x-h" role="presentation">최근 본 구역<button type="button" class="x-clr" id="xClr" tabindex="-1">지우기</button></div><div class="x-row">${rc.map(chip).join("")}</div>` : "") +
       (ht.length ? `<div class="x-h" role="presentation">요즘 거래 많은 구역</div><div class="x-row">${ht.map(chip).join("")}</div>` : "");
     s.hidden = false; q.setAttribute("aria-expanded", "true");
-    s.querySelectorAll(".x-chip").forEach((b) => (b.onmousedown = (e) => e.preventDefault(), b.onclick = () => pickSugg(b.dataset.id)));
+    s.querySelectorAll(".x-chip[data-id]").forEach((b) => (b.onmousedown = (e) => e.preventDefault(), b.onclick = () => pickSugg(b.dataset.id)));
+    s.querySelectorAll(".x-chip[data-q]").forEach((b) => (b.onmousedown = (e) => e.preventDefault(), b.onclick = () => { q.value = b.dataset.q; renderSugg(); }));
+    const cq = $("xClrQ"); if (cq) { cq.onmousedown = (e) => e.preventDefault(); cq.onclick = () => { try { localStorage.removeItem(QK); } catch (e) {} empty(); }; }
     const c = $("xClr"); if (c) { c.onmousedown = (e) => e.preventDefault(); c.onclick = () => { try { localStorage.removeItem(RK); } catch (e) {} empty(); }; }
     return true;
   }

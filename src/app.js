@@ -552,12 +552,14 @@
             if (!r) return "";
             const fav = FAV.includes(it.id),
               x = investC(r);
+            // 가정 표시: 월간 리포트(발행 당시 기본 가정)와 숫자가 다를 수 있어 '지금 시세·내 조건'임을 붙인다
+            const asm = `<small class="mut asm">현금 매수·지금 시세·내 조건</small>`;
             const can = buyWindow(r).cls === "no"
               ? '<span class="mut">지금 사면 입주권 없음</span>'
               : x.ok
               ? x.needTotal <= CASH
-                ? `<span class="okc">입주까지 ${e2(x.needTotal)}억 · 됨</span>`
-                : `<span class="mut">입주까지 ${e2(x.needTotal)}억</span>`
+                ? `<span class="okc">입주까지 ${e2(x.needTotal)}억 · 됨</span>${asm}`
+                : `<span class="mut">입주까지 ${e2(x.needTotal)}억</span>${asm}`
               : '<span class="mut">계산 전</span>';
             return `<tr${fav ? ' class="cur"' : ""}><td>${fav ? SVG_PIN(true) + " " : ""}<a href="#${esc(it.id)}">${esc(shortName(r.n))}</a><small class="mut"> ${esc(r.g)}</small></td><td>${it.steps.length > 1 ? `${it.steps.map((k) => esc(k)).join("·")}인가 <small class="mut">같은 날</small>` : STEP_K[it.step] || esc(it.step)}</td><td class="n">${it.date.slice(5).replace("-", ".")}</td><td>${it.src ? `<a href="${esc(it.src)}" target="_blank" rel="noopener" data-nw="1">원문<span class="sr-only"> (새 창)</span></a>` : '<span class="mut">원문 미확인</span>'}</td><td>${can}</td></tr>`;
           })
@@ -1817,9 +1819,14 @@
   const LNS = TRD.lines,
     LCOL = TRD.col;
   const STN = TRD.st.map(([n, lat, lng, ls, k]) => ({ n, ll: [lat, lng], ls, k, xy: toXY(lat, lng), gx: [] }));
+  // 역 이름 → 역(시작 때 구역×호재마다 불려 전체 훑기가 수백 ms였다 → 이름별로 한 번만)
+  const STN_BY = new Map();
   const stnBy = (n) => {
+    if (STN_BY.has(n)) return STN_BY.get(n);
     const a = STN.filter((s) => s.n === n);
-    return a.find((s) => s.ls.some((i) => i < 9)) || a[0] || null;
+    const v = a.find((s) => s.ls.some((i) => i < 9)) || a[0] || null;
+    STN_BY.set(n, v);
+    return v;
   };
   HJD.items
     .filter((h) => /^gtx/.test(h.id))
@@ -3680,6 +3687,11 @@
     const s = r.s || 0;
     return s >= 6 ? "4~7년 뒤" : s === 5 ? "7~10년 뒤" : s === 4 ? "10~15년 뒤" : "15년 넘게";
   }
+  // 리포트의 입주 시점 표시(사업·일정 큰 숫자 · 입주 현금 시간표)는 모두 이 한 값을 쓴다
+  function etaShow(r) {
+    const pr = projection(r);
+    return pr.done ? "완료" : pr.moa ? "사업구역별" : pr.stale ? "진행 확인 필요" : pr.nodata || pr.stall ? "산정 불가" : pr.past ? "준공 여부 확인 필요" : etaSpan(r, pr);
+  }
   function etaYearTxt(r) {
     const pr = projection(r);
     return pr.done
@@ -3966,13 +3978,14 @@
       (g) => `<span class="lk2"><i class="${LOC_G[g]}"></i>${g} ${LOC_AX.reduce((s, a) => s + (a.g === g ? a.w * 100 : 0), 0)}</span>`,
     ).join("");
   const TABS = [
-    ["money", "입주 현금"],
-    ["tx", "실거래"],
-    ["loc", "입지·생활"],
-    ["near", "호재·매물"],
-    ["biz", "사업·일정"],
-    ["req", "규제·요건"],
+    ["money", "현금"],
+    ["tx", "거래"],
+    ["loc", "입지"],
+    ["near", "호재"],
+    ["biz", "일정"],
+    ["req", "규제"],
   ];
+  const TABF = { money: "입주 현금", tx: "실거래", loc: "입지·생활", near: "호재·매물", biz: "사업·일정", req: "규제·요건" };
   function renderReport() {
     keepFocus(() => {
       const r = cur;
@@ -3992,7 +4005,7 @@
       const extra = (r.pg || []).map((p) => `<span class="pill">${esc(p)}</span>`);
       const open = zoneOpen(r.id);
       rp.classList.toggle("rep-locked", !open);
-      rp.innerHTML = `<div class="sheet-bar"><b aria-hidden="true">${esc(shortName(r.n))}</b><button type="button" class="btn ghost sm" id="sheetClose" aria-label="구역 리포트 닫기">${ICON.close}닫기</button></div>\n    ${backTo ? `<button type="button" class="back" id="backList">← 목록으로</button>` : mapView === "gu" && mapGu && !MQ_SHEET.matches ? `<button type="button" class="back" id="backGu" data-gu="${esc(mapGu)}">← ${esc(mapGu)} 구역 목록</button>` : ""}\n    <div class="rep-head">\n      <div class="rep-t"><div><h2 id="repTitle" tabindex="-1">${esc(shortName(r.n))}</h2>${shortName(r.n) !== r.n ? `<div class="formal">${esc(r.n)}</div>` : ""}</div>${gradeBadge(r)}</div>\n      <div class="where" title="역까지 직선거리 기준 · 도보 분은 직선×1.3, 분당 67m 추정"><b>${esc(r.g)} ${esc(r.bj || r.j)}</b> · ${esc(r.k)}${r.st ? ` · ${esc(whereText(r))}` : ""}</div>\n      ${parent ? `<div class="where">소속 모아타운: <a href="#${parent.id}" data-go="${parent.id}">${esc(parent.n)}</a></div>` : ""}\n      <div class="kind">${main.join("")}${extra.length ? `<span class="kx" id="kindX" hidden>${extra.join("")}</span><button type="button" class="pill more-p" id="kindMore" aria-expanded="false" aria-controls="kindX" title="사업 방식 태그 더 보기">사업 방식 ${extra.length}개 더 보기</button>` : ""}</div>\n      ${cashStrip(r)}\n      ${open ? hjSummary(r) : ""}\n      <div class="rep-acts">${listBtn(r, "primary sm")}${favBtn(r, "sm")}<button type="button" class="btn secondary sm" id="zoneShare">공유</button><span class="share-fb" id="zoneShareFb" role="status"></span></div>\n    </div>\n    ${open ? `<div class="tabs" role="tablist" aria-label="구역 리포트">\n      ${TABS.map(([k, l]) => `<button type="button" role="tab" id="tab-${k}" data-tab="${k}" aria-selected="${curTab === k}" aria-controls="pane" tabindex="${curTab === k ? 0 : -1}">${l}</button>`).join("")}\n    </div>\n    <div class="tabpane" id="pane" role="tabpanel" aria-labelledby="tab-${curTab}" tabindex="0"></div>` : `<div class="rep-gate">${reportGate(r)}</div>`}\n    <div class="sheet-foot"><button type="button" class="btn secondary" id="sheetClose2">닫고 목록으로</button></div>`;
+      rp.innerHTML = `<div class="sheet-bar"><b aria-hidden="true">${esc(shortName(r.n))}</b><button type="button" class="btn ghost sm" id="sheetClose" aria-label="구역 리포트 닫기">${ICON.close}닫기</button></div>\n    ${backTo ? `<button type="button" class="back" id="backList">← 목록으로</button>` : mapView === "gu" && mapGu && !MQ_SHEET.matches ? `<button type="button" class="back" id="backGu" data-gu="${esc(mapGu)}">← ${esc(mapGu)} 구역 목록</button>` : ""}\n    <div class="rep-head">\n      <div class="rep-t"><div><h2 id="repTitle" tabindex="-1">${esc(shortName(r.n))}</h2>${shortName(r.n) !== r.n ? `<div class="formal">${esc(r.n)}</div>` : ""}</div>${gradeBadge(r)}</div>\n      <div class="where" title="역까지 직선거리 기준 · 도보 분은 직선×1.3, 분당 67m 추정"><b>${esc(r.g)} ${esc(r.bj || r.j)}</b> · ${esc(r.k)}${r.st ? ` · ${esc(whereText(r))}` : ""}</div>\n      ${parent ? `<div class="where">소속 모아타운: <a href="#${parent.id}" data-go="${parent.id}">${esc(parent.n)}</a></div>` : ""}\n      <div class="kind">${main.join("")}${extra.length ? `<span class="kx" id="kindX" hidden>${extra.join("")}</span><button type="button" class="pill more-p" id="kindMore" aria-expanded="false" aria-controls="kindX" title="사업 방식 태그 더 보기">사업 방식 ${extra.length}개 더 보기</button>` : ""}</div>\n      ${cashStrip(r)}\n      ${open ? hjSummary(r) : ""}\n      <div class="rep-acts">${listBtn(r, "primary sm")}${favBtn(r, "sm")}<button type="button" class="btn secondary sm" id="zoneShare">공유</button><span class="share-fb" id="zoneShareFb" role="status"></span></div>\n    </div>\n    ${open ? `<div class="tabs" role="tablist" aria-label="구역 리포트">\n      ${TABS.map(([k, l]) => `<button type="button" role="tab" id="tab-${k}" data-tab="${k}" aria-label="${TABF[k] || l}" aria-selected="${curTab === k}" aria-controls="pane" tabindex="${curTab === k ? 0 : -1}">${l}</button>`).join("")}\n    </div>\n    <div class="tabpane" id="pane" role="tabpanel" aria-labelledby="tab-${curTab}" tabindex="0"></div>` : `<div class="rep-gate">${reportGate(r)}</div>`}\n    <div class="sheet-foot"><button type="button" class="btn secondary" id="sheetClose2">닫고 목록으로</button></div>`;
       if ($("kindMore"))
         $("kindMore").onclick = () => {
           $("kindX").hidden = false;
@@ -4006,7 +4019,8 @@
         };
       $("sheetClose").onclick = closeSheet;
       $("sheetClose2").onclick = closeSheet;
-      $("zoneShare").onclick = () => shareLink(pageURL() + condQuery() + "#" + r.id, $("zoneShareFb"));
+      // 구역 페이지(/z/<id>)가 있는 곳은 그 주소로: 미리보기 카드·검색 노출이 구역마다 붙는다
+      $("zoneShare").onclick = () => shareLink(r.src !== "moa" && !(r.s >= 9 || (r.dn && r.s < 7)) && /^[\w-]+$/.test(r.id) ? `https://jaegaebal.alwaysquestions.kr/z/${r.id}` : pageURL() + condQuery() + "#" + r.id, $("zoneShareFb"), `${shortName(r.n)} · 집핀`);
       const tabs = [...rp.querySelectorAll("[role=tab]")];
       tabs.forEach((b, i) => {
         b.onclick = () => setTab(b.dataset.tab);
@@ -4250,7 +4264,7 @@
       : pr.moa
         ? ["사업구역별", kids.length ? "소속 조합 리포트에서 확인" : "등록된 개별 조합 없음"]
         : pr.pre
-          ? ["미정", "구역지정 후 산정"]
+          ? [etaShow(r), "구역지정 전 · 단계별 평균으로 어림"]
           : pr.stale
             ? ["진행 확인 필요", pr.why + " · 준공됐는지 멈췄는지 자료로 확인되지 않아 입주 시점과 확률을 보여 주지 않아요"]
             : pr.nodata
@@ -4528,7 +4542,24 @@
     const L = STN_ALL();
     return L.find((s) => s[0].replace(/역$/, "") === b) || (/역$/.test(q.trim()) ? L.find((s) => s[0].startsWith(b)) : null) || null;
   }
+  // 최근 검색어(빈 검색창에 칩으로 · 62_extra.js)
+  const saveQ = () => { try { const v = $("q").value.trim().slice(0, 30), k = "emr.recentQ"; if (!v) return; localStorage.setItem(k, JSON.stringify([v].concat(JSON.parse(localStorage.getItem(k) || "[]").filter((x) => x !== v)).slice(0, 5))); } catch (e) {} };
+  const GU_ALL = [...new Set(R.map((r) => r.g))];
+  const guHit = (qc) => (qc.length >= 2 ? GU_ALL.find((g) => g === qc || g === qc + "구") || null : null);
+  function goGu(g) {
+    saveQ();
+    $("sugg").hidden = true;
+    $("q").setAttribute("aria-expanded", "false");
+    $("q").value = "";
+    if ($("hdr").classList.contains("searching")) closeSearchNow({ keepHistory: true });
+    const mob = matchMedia("(max-width:980px)").matches,
+      nb = document.querySelector('#sNav [data-nav="map"]');
+    if (mob && nb) nb.click();
+    else ($("mapbox") || $("mapTop"))?.scrollIntoView({ block: "start", behavior: "smooth" });
+    setTimeout(() => { try { enterGu(g, { hist: true }); } catch (e) {} }, mob ? 450 : 50);
+  }
   function goStation(s) {
+    saveQ();
     $("sugg").hidden = true;
     $("q").setAttribute("aria-expanded", "false");
     $("q").value = "";
@@ -4540,17 +4571,22 @@
       setTimeout(() => { document.querySelectorAll("#sNav [data-nav]").forEach((x) => x.removeAttribute("aria-current")); nb.setAttribute("aria-current", "page"); }, 120);
     }
     else ($("mapbox") || $("mapTop"))?.scrollIntoView({ block: "center", behavior: "smooth" });
+    const L = window.ZP_lmx || window.__lmx;
     const fly = () => {
       try {
-        const m = window.__lmx && window.__lmx.map && window.__lmx.map();
-        if (m) m.flyTo({ center: [s[2], s[1]], zoom: 14, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700 });
+        // 지도 쪽 API: 지도가 아직 없거나 로딩 중이면 줄 세워 두었다가 준비되면 옮기고, 역 표시·도보 고리를 그린다
+        if (L && typeof L.flyToStation === "function") return L.flyToStation(s, 14.5);
+        const m = L && L.map && L.map();
+        if (m) m.flyTo({ center: [s[2], s[1]], zoom: 14.5, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700 });
         return !!m;
       } catch (e) {
         return false;
       }
     };
-    // 폰 전체 지도는 열릴 때 서울 전체로 맞추므로 그 뒤에 옮긴다
-    setTimeout(() => { if (!fly()) setTimeout(fly, 900); }, mob ? 900 : 350);
+    const off = () => { try { const m = L && L.map && L.map(); if (!m) return true; const c = m.getCenter(); return m.getZoom() < 13.5 || Math.hypot((c.lng - s[2]) * 88, (c.lat - s[1]) * 111) > 0.4; } catch (e) { return false; } };
+    fly();
+    // 폰 전체 지도는 열리며 서울 전체로 맞추므로, 그 뒤에도 역에서 벗어나 있으면 한 번 더
+    [mob ? 1000 : 450, 2200].forEach((t) => setTimeout(() => { if (off()) fly(); }, t));
   }
   const needS = (r) => {
     try {
@@ -4591,6 +4627,11 @@
     if (isCho || isRom) altKeys();
     const altHit = (x) => (isCho ? x.cho.includes(qc) : isRom ? x.rom.includes(qc) : false);
     const stn = stnHit(q);
+    const gu = guHit(qc);
+    // 지번(1-3)은 낱말째 맞는 곳 먼저: 중화동131-35처럼 숫자 가운데 걸린 곳은 뒤로
+    const jt = terms.find((t) => /^\d+(-\d+)?$/.test(t)),
+      jRe = jt ? new RegExp(`(^|[^0-9-])${jt}(?![0-9])`) : null,
+      jb = (r) => (jRe && !jRe.test(`${r.j || ""} ${r.bj || ""} ${r.n}`) ? 1 : 0);
     const done = (r) => (isDone(r) ? 1 : 0);   // 완료·해제 구역은 이름이 딱 맞아도 맨 아래
     const all = idx
       .filter(
@@ -4604,6 +4645,7 @@
       .sort(
         (a, b) =>
           done(a.r) - done(b.r) ||
+          jb(a.r) - jb(b.r) ||
           a.nh - b.nh ||
           (a.r.dn || 0) - (b.r.dn || 0) ||
           Number(restricted(a.r)) - Number(restricted(b.r)) ||
@@ -4621,6 +4663,10 @@
     const stnRow = stn
       ? `<button type="button" role="option" id="sgS" aria-selected="false" data-stn="${esc(stn[0])}" tabindex="-1" class="sg-stn"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="14" rx="3"/><path d="M6 10h12M8 21l2-4M16 21l-2-4"/></svg>${esc(stn[0])}<small>${esc((stn[3] || []).join(" · "))} · 지도를 역 주변으로 옮겨요</small></span><em>지도 →</em></button>`
       : "";
+    const guN = gu ? R.filter((r) => r.g === gu && !isDone(r) && r.src !== "moa").length : 0;
+    const guRow = gu
+      ? `<div class="sg-gu" role="presentation"><button type="button" role="option" id="sgG" aria-selected="false" data-gu="${esc(gu)}" tabindex="-1" class="sg-stn"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>${esc(gu)}<small>진행 중 구역 ${fmt(guN)}곳 · 지도에서 보기</small></span><em>지도 →</em></button><a class="sg-gup" role="option" id="sgGp" aria-selected="false" tabindex="-1" href="/gu/${encodeURIComponent(gu)}">구 페이지</a></div>`
+      : "";
     const noneHTML = () => {
       const near = qc.length >= 2 ? idx.filter((x) => !(x.r.s >= 9) && x.r.src !== "moa" && shortName(x.r.n).includes(qc.slice(0, 2))).slice(0, 4).map((x) => x.r) : [];
       const pop = R.filter((r) => r.tx && r.tx.n3 && !(r.s >= 9) && r.src !== "moa" && !near.includes(r)).sort((a, b) => b.tx.n3 - a.tx.n3).slice(0, 6);
@@ -4628,25 +4674,31 @@
       return `<div class="s-none" role="presentation"><b>'${esc(q)}'(으)로 찾은 구역이 없어요</b><br>동 이름(성수동), 지번(자양동 799), 역 이름(왕십리역), 초성(ㅎㄴ)으로도 찾을 수 있어요.</div>${near.length ? `<div class="x-h" role="presentation">비슷한 이름</div><div class="x-row">${near.map(chip).join("")}</div>` : ""}<div class="x-h" role="presentation">요즘 거래 많은 구역</div><div class="x-row">${pop.map(chip).join("")}</div>`;
     };
     $("sugg").innerHTML =
+      guRow +
       stnRow +
       (hits.length
         ? hits.map((h, i) => row(h.r, i)).join("") +
           (all.length > hits.length
             ? `<div class="more-hits" role="presentation">외 ${all.length - hits.length}곳 · 지번이나 구 이름을 더 넣어 좁혀 보세요</div>`
             : "")
-        : stn
+        : stn || gu
           ? ""
           : noneHTML());
     $("sugg").hidden = false;
     $("q").setAttribute("aria-expanded", "true");
-    $("suggLive").textContent = hits.length ? `${all.length}곳 찾음` : stn ? `${stn[0]} 찾음` : "일치하는 사업장 없음";
+    $("suggLive").textContent = hits.length ? `${all.length}곳 찾음` : stn ? `${stn[0]} 찾음` : gu ? `${gu} 찾음` : "일치하는 사업장 없음";
     $("sugg")
       .querySelectorAll("button[data-id]")
       .forEach((b) => ((b.onmousedown = (e) => e.preventDefault()), (b.onclick = () => pickSugg(b.dataset.id))));
     const sb = $("sugg").querySelector("[data-stn]");
     if (sb) (sb.onmousedown = (e) => e.preventDefault()), (sb.onclick = () => goStation(stn));
+    const gb = $("sugg").querySelector("[data-gu]");
+    if (gb) (gb.onmousedown = (e) => e.preventDefault()), (gb.onclick = () => goGu(gu));
+    const gp = $("sugg").querySelector(".sg-gup");
+    if (gp) gp.onclick = saveQ;
   }
   function pickSugg(id) {
+    saveQ();
     $("sugg").hidden = true;
     $("q").setAttribute("aria-expanded", "false");
     $("q").value = "";
@@ -4666,7 +4718,7 @@
       clearTimeout(sT);
       renderSugg();
     }
-    const bs = $("sugg").hidden ? [] : [...$("sugg").querySelectorAll("button[data-id],button[data-stn]")];
+    const bs = $("sugg").hidden ? [] : [...$("sugg").querySelectorAll("button[data-id],button[data-stn],button[data-gu],a.sg-gup")];
     if (e.key === "Escape") {
       if (!$("sugg").hidden) {
         $("sugg").hidden = true;
@@ -5891,8 +5943,27 @@
   }
   const NAME_TAIL =
     /\s*(주택)?(재정비촉진구역|정비구역)?\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?\s*(사업)?\s*(조합설립)?\s*(정비사업)?\s*(추진위원회|추진위|조합|준비위원회|주민협의체|주민대표회의|사업시행자|위원회)?\s*(재개발구역)?\s*$/;
+  let SN_DIS = null;   // 짧은 이름이 겹치는 구역 → 동 붙인 이름(한 번만 계산)
   function shortName(n) {
+    if (!SN_DIS) {
+      SN_DIS = new Map();
+      const g = new Map();
+      R.forEach((r) => { if (!r.n) return; const k = shortName0(r.n); if (!g.has(k)) g.set(k, new Map()); g.get(k).set(r.n, r); });
+      g.forEach((m, k) => {
+        if (m.size < 2) return;
+        const dn = (r) => (r.bj || r.j || "").split(" ")[0];
+        if (new Set([...m.values()].map(dn)).size < 2) return;   // 같은 동끼리면 동을 붙여도 구분이 안 됨
+        m.forEach((r, full) => {
+          const d = dn(r);
+          if (d && !k.includes(d)) SN_DIS.set(full, `${k}(${d})`);
+        });
+      });
+    }
+    return SN_DIS.get(n) || shortName0(n);
+  }
+  function shortName0(n) {
     let s = n
+      .replace(/^\s*\[[^\]]*\]\s*/, "")
       .replace(/\([^)]*\)/g, "")
       .replace(/^[^(]*\)\s*/, (m) => (/\(/.test(m) ? m : ""))
       .replace(/\s+/g, " ")
@@ -6319,7 +6390,7 @@
           ? `<li class="gt2"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null && g.tR <= 4 ? " 무렵" : ""}</span><b>+${e2(g.reloc)}억</b><small>전세금 ${e2(g.D)} 반환${g.M > 0.04 ? ` − 이주비 대출 ${e2(g.M)}(추정·입주 때 상환)` : g.Mcap === 0 ? " · 다주택은 이주비 대출 불가" : ""}</small></li>`
           : `<li class="gt2 na"><span class="gt-w">이주</span><b>+${e2(g.D)}억</b><small>전세금 반환 · 이주비 대출로 일부 충당 가능(조합·규제에 따라 다름)</small></li>`;
     const s3 = x.ok
-      ? `<li class="gt3"><span class="gt-w">입주 · ${yrTxt(g.tM)}${(() => { const pr = projection(g.r); return pr.stall || pr.nodata ? " (일정 산정 불가 · 계산용 가정)" : ""; })()}</span><b>총 ${f1(g.total)}억</b><small>${small ? "분담금·세금·이자 − 잔금대출" : `분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`
+      ? `<li class="gt3"><span class="gt-w">입주 · ${etaShow(g.r)}${(() => { const pr = projection(g.r); return pr.stall || pr.nodata ? " (계산용 가정)" : ""; })()}</span><b>총 ${f1(g.total)}억</b><small>${small ? "분담금·세금·이자 − 잔금대출" : `분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`
       : `<li class="gt3 na"><span class="gt-w">입주</span><b>계산 전</b><small>입주 시점·신축 시세 자료가 부족해요</small></li>`;
     return `<ol class="gtl${small ? " sm" : ""}">${s1}${s2}${s3}</ol>`;
   }
@@ -6564,6 +6635,18 @@
     const gn = p.querySelector(".bigrow .big.gain");
     if (gn)
       gn.outerHTML = `<div class="big gain ${g.gain >= 0.05 ? "up" : g.gain <= -0.05 ? "dn" : ""}"><span>입주 때 시세 차이 (전세 끼고 산 경우·추정)</span><b>${sg(g.gain)}억</b><small>${g.gain > -0.3 && g.gain < 0.3 ? "시세 그대로면 차익 거의 없음 · " : ""}${g.x.annual != null ? `연수익 ${pcIrr(g.x.annual)}(현금으로 샀을 때) · ` : ""}추정 · 시세 상승 0% 가정</small></div>`;
+    // 비례율 표도 위 큰 숫자와 같은 '전세 끼고' 기준(차이 = 매수대출 이자 대신 이주비 이자 · 비례율과 무관한 상수)
+    const sb = $("mSens");
+    if (sb && isFinite(g.x.gain)) {
+      const dg = g.gain - g.x.gain, cap = sb.closest(".sect") && sb.closest(".sect").querySelector("h3 small");
+      if (cap) cap.textContent = "전세 끼고 산 경우 · 나머지 조건 고정";
+      sb.querySelectorAll("tr").forEach((tr) => {
+        const v = parseFloat(tr.cells[0].textContent), save = AV.aRatio;
+        AV.aRatio = v; const y = invest(r); AV.aRatio = save;
+        const gg = y.gain + dg, sp = tr.cells[1].querySelector("span:last-child");
+        if (sp) { sp.textContent = `${sg(gg)}억`; sp.className = gg >= 0.05 ? "up" : gg <= -0.05 ? "dn" : ""; }
+      });
+    }
     const fl = p.querySelector("details.flow");
     if (fl)
       fl.innerHTML = `<summary><b>필요 돈 계산식 (갭)</b></summary><p>① 지금 = 매수가 ${e2(g.x.price)} + 취득세 ${taxT(g.x.tax)} − 전세 ${e2(g.D)} = ${f1(g.now)}억 · ② 이주 = 전세 ${e2(g.D)} − 이주비 대출 ${e2(g.M)} = ${f1(g.reloc)}억 · ③ 입주까지 총 = 매수가·취득세 + 분담금 ${e2(g.x.contrib)} + 원시취득세·중도금 이자·이주비 이자 ${e2(g.x.origTax + g.x.midInt + g.intM)} − 잔금대출 ${e2(g.x.loanEnd)} = ${f1(g.total)}억 (0.1억 단위 반올림)</p>`;
@@ -7203,8 +7286,7 @@
       });
     });
   }
-  async function shareLink(url, fb) {
-    const title = "집핀 · 서울 재개발 지도";
+  async function shareLink(url, fb, title = "집핀 · 서울 재개발 지도") {
     try {
       if (navigator.share && matchMedia("(pointer:coarse)").matches) {
         await navigator.share({ title, url });
@@ -7923,17 +8005,7 @@
     const q = new URLSearchParams(location.search),
       f = q.get("fav");
     if (f) {
-      const ids = f
-        .split(/[.,]/)
-        .filter((id) => byId[id])
-        .slice(0, 12);
-      if (ids.length) {
-        const add = ids.filter((id) => !isFav(id));
-        FAV = FAV.concat(add);
-        saveFav();
-        CMP = ids.slice(0, 3);
-        FAV_NOTE = `공유 링크로 받은 ${ids.length}곳에 핀을 꽂았어요${add.length < ids.length ? ` (${ids.length - add.length}곳은 이미 꽂혀 있어요)` : ""}.`;
-      }
+      // 받은 핀 링크는 바로 꽂지 않는다 → PINS(ext/70_pins.js)가 '가져올까요?' 시트로 묻고 합치기·바꾸기
       q.delete("fav");
       try {
         history.replaceState(history.state, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
@@ -8494,6 +8566,14 @@
   function renderSave() {
     const out = $("svOut");
     if (!out) return;
+    // '모으면 언제?' 화면이 안 보일 땐(첫 화면 등) 셈을 미뤘다가, 화면이 보이는 순간 한 번 그린다(시작 때 긴 작업 줄이기)
+    const svSec = $("saveTop");
+    if (svSec && !svSec.getClientRects().length) {
+      SV.dirty = true;
+      if (!SV.ro && window.ResizeObserver) (SV.ro = new ResizeObserver(() => { if (SV.dirty && svSec.getClientRects().length) renderSave(); })).observe(svSec);
+      if (window.ResizeObserver) return;
+    }
+    SV.dirty = false;
     const c0 = parseFloat($("svCash").value),
       mon = parseFloat(String($("svMon").value).replace(/,/g, ""));
     const cash0 = isFinite(c0) && c0 >= 0 ? c0 : CASH,
@@ -8677,10 +8757,12 @@
     }
   });
   function gapSavePlan(cash0, m, at) {
-    const gs = baseList()
+    const buy = baseList()
       .map(gapOf)
-      .filter((g) => !g.block && !g.na && g.x.ok && g.tR != null && g.now <= cash0 + 1e-9)
-      .sort((a, b) => a.total - b.total);
+      .filter((g) => !g.block && !g.na && g.now != null && g.now <= cash0 + 1e-9);
+    const gs = buy.filter((g) => g.x.ok && g.tR != null).sort((a, b) => a.total - b.total);
+    // 머리말: 지금 살 수 있는 곳 가운데 입주까지 돈·시점이 계산되는 곳만 셈(나머지는 신축 시세·단계 날짜가 없어 제외)
+    const sub = buy.length > gs.length ? `지금 전세 끼고 살 수 있는 ${fmt(buy.length)}곳 중 입주까지 돈·시점이 계산되는 ` : "";
     if (!gs.length) return `<p class="t-hint">지금 ${e2(cash0)}억으로 전세 끼고 살 수 있고 입주 시점까지 계산되는 곳이 없어요.</p>`;
     if (!isMember())
       return `<div class="gsv"><h3>전세 끼고 지금 ${e2(cash0)}억으로 사면, 매달 ${fmt(Math.round(m * 1e4))}만 원으로 제때 모을 수 있을까?</h3>${lockCard({ kind: "table", title: `구역별 표 · ${fmt(gs.length)}곳`, line: "구역마다 지금 ①·이주 ②·입주까지 총 ③과 매달 필요한 돈을 표로 보여 줘요.", ctx: "save" })}</div>`;
@@ -8699,10 +8781,10 @@
         mm = fmt(Math.round(m * 1e4));
       const k1 = nd[Math.min(nd.length - 1, Math.floor(nd.length / 2))],
         n1 = nd.filter((v) => v <= r10(k1)).length;
-      if (okN === gs.length) return `${fmt(gs.length)}곳 모두 월 ${mm}만 원이면 이주·입주 시점까지 모을 수 있어요`;
+      if (okN === gs.length) return `${sub}${fmt(gs.length)}곳 모두 월 ${mm}만 원이면 이주·입주 시점까지 모을 수 있어요`;
       if (!okN)
-        return `${fmt(gs.length)}곳 모두 월 ${mm}만 원으로는 이주·입주 시점까지 부족해요 · 월 <b>${fmt(r10(nd[0]))}만 원</b>이면 1곳${gs.length > 2 ? `, 월 <b>${fmt(r10(k1))}만 원</b>이면 ${fmt(n1)}곳` : ""}`;
-      return `월 ${mm}만 원이면 <b>${fmt(okN)}곳</b>은 이주·입주 시점까지 모을 수 있어요 · 나머지 ${fmt(gs.length - okN)}곳은 더 필요`;
+        return `${sub}${fmt(gs.length)}곳 모두 월 ${mm}만 원으로는 이주·입주 시점까지 부족해요 · 월 <b>${fmt(r10(nd[0]))}만 원</b>이면 1곳${gs.length > 2 ? `, 월 <b>${fmt(r10(k1))}만 원</b>이면 ${fmt(n1)}곳` : ""}`;
+      return `${sub ? sub + `${fmt(gs.length)}곳 가운데 ` : ""}월 ${mm}만 원이면 <b>${fmt(okN)}곳</b>은 이주·입주 시점까지 모을 수 있어요 · 나머지 ${fmt(gs.length - okN)}곳은 더 필요`;
     })()}</p>\n    <div class="fv-tw"><table class="sv-t gsv-t cardt"><caption class="sr-only">구역별 필요 금액과 시점</caption><thead><tr><th scope="col">구역</th><th scope="col">지금 ①</th><th scope="col">이주 ②</th><th scope="col">입주까지 총 ③</th><th scope="col">월 필요</th><th scope="col">매달 ${fmt(Math.round(m * 1e4))}만</th></tr></thead><tbody>${rows}</tbody></table></div>\n    <p class="t-note">월 필요 = 지금 현금으로 모자란 몫을 이주·입주 예상 시점까지 나눈 값(수익 0%) · 이주 = 예상 입주 − 착공→준공 가운데 값 ${CJ().toFixed(1)}년 · 시세·분담금이 지금 그대로라는 가정 · 투자 권유 아님</p></div>`;
   }
   function initSave() {

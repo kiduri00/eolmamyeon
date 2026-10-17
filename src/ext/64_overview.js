@@ -178,11 +178,10 @@ const OVX = (() => {
     const yoy = h.b === "v" && r.tx && r.tx.yoy != null ? `<em class="${r.tx.yoy >= 0 ? "up" : "dn"}">1년 ${r.tx.yoy >= 0 ? "▲" : "▼"} ${Math.abs(r.tx.yoy)}%</em>` : "";
     const per = `${BN} 3.3㎡당`;
     const win = h.w === 0 ? "최근 거래" : h.w === 24 ? "2년" : "1년";
-    // 계산기 매수가와 다른 표본이라 '○건 가운데'로 표본을 붙여 같은 값처럼 보이지 않게
-    const smp = `${win} ${h.n}건${h.n > 1 ? " 가운데" : ""}`;
-    const sz = h.p ? (h.b !== "v" && h.pa ? `${smp} 전용 ${Math.round(h.pa)}㎡ ${eok(h.p)}` : `${smp} ${eok(h.p)}`) : `${win} ${h.n}건`;
+    // 3.3㎡당 큰 숫자의 표본(대표 거래). 계산 매수가 표본과 다른 묶음이라 값(억)은 붙이지 않고 '대표 거래 ○건'으로만
+    const sz = `3.3㎡당은 ${win} 대표 거래 ${h.n}건${h.from && h.to && h.from !== h.to ? ` · ${ym(h.from)}–${ym(h.to)}` : ""}`;
     const thin = thinTag(h.n, h.to) || (h.st || h.w === 0 ? `오래된 거래${h.to ? ` · 최근 ${ym(h.to)}` : ""}` : "");
-    const chips = thin ? [sz] : [sz, h.to ? `최근 ${ym(h.to)}` : ""].filter(Boolean);
+    const chips = [sz];
     const TY = ["빌라", "단독", "아파트", "입주권"], S = (h.r || []).slice(0, matchMedia("(max-width:640px)").matches ? 2 : 3);
     return `<div class="ov-c ov-tx${thin ? " thin" : ""}"><h3>실거래 ${yoy}</h3>
       <div class="ov-big"><span>${per}<small>대표 거래 기준</small></span><b${thin ? ' title="표본이 적거나 오래돼 지금 시세와 다를 수 있어요"' : ""}>${eok(h.u)}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>
@@ -191,11 +190,46 @@ const OVX = (() => {
       ${S.length ? `<ul class="ov-l">${S.map((x) => `<li><span>${esc(ym(x[0]))}</span><span>${TY[x[1]] || ""}${x[6] ? ` ${+x[6] < 0 ? "지하" + -x[6] : esc(String(x[6]))}층` : ""}${x[3] ? ` · ${x[3]}㎡` : ""}</span><b>${eok(x[5])}</b></li>`).join("")}</ul>` : ""}
       <button type="button" class="ov-more" data-tab="tx">거래 전체 보기 →</button></div>`;
   }
-  // 입주 현금 계산에 실제로 쓴 매수가(/z/ 페이지와 같은 값)
+  // 입주 현금 계산에 실제로 쓴 매수가와 그 표본 — /z/ 페이지·API와 같은 한 문장(표본 기간은 tools/enrich.py entry.f·t)
+  const manT = (v) => { const m = Math.round(v * 1e4), a = Math.floor(m / 1e4), b = m % 1e4; return a ? `${a}억${b ? ` ${b.toLocaleString("ko-KR")}만` : ""}` : `${b.toLocaleString("ko-KR")}만`; };
+  function smpTxt(r, x) {
+    const en = r.mk && r.mk.entry;
+    if (x && x.priceSrc === "est") return "같은 구 빌라 시세로 추정";
+    if (!en || !en.n) return "";
+    const where = en.src === "complex" ? (en.fill === "zoneapt" ? "구역 안 아파트" : en.name ? en.name : "단지") : en.fill === "dong" ? "같은 동 빌라" : en.radius ? `주변 ${en.radius}m 빌라` : en.m === "jibun" ? "같은 본번 빌라" : "구역 안 빌라";
+    const span = en.f ? `(${en.f}${en.t && en.t !== en.f ? "–" + en.t : ""})` : en.last ? `(최근 ${en.last.slice(0, 5)})` : "";
+    return `${where} ${en.n}건 가운데 값${span}`;
+  }
   function calcRow(r) {
     let x = null; try { x = investC(r); } catch (e) {}
     if (!x || x.price == null || !isFinite(x.price)) return "";
-    return `<div class="ov-calc"><span>계산에 쓴 매수가</span><b>${e2(x.price)}억</b><small>${x.priceSrc === "user" ? "직접 입력" : "입주 현금 계산 기준"}</small></div>`;
+    const smp = x.priceSrc === "user" ? "직접 입력" : smpTxt(r, x);
+    return `<div class="ov-calc"><span>계산 매수가</span><b>${manT(x.price)}</b><small>${smp ? `= ${esc(smp)}` : "입주 현금 계산 기준"}</small></div>`;
+  }
+  // '이 숫자 믿어도 될까': 표본 수·마지막 거래·신뢰도(표본 수·최근성·참고값(lc)·주변 시세(nbp))
+  function trustHTML(r) {
+    let x = null; try { x = investC(r); } catch (e) {}
+    const en = (r.mk && r.mk.entry) || {}, t = r.tx || {};
+    const H = (lv, cls, rows, msg) => `<div class="ov-c ov-trust ${cls}"><div class="ov-trh"><h3>이 숫자 믿어도 될까</h3><b class="ov-lv">${lv}</b></div>${rows.length ? `<dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}<p>${msg}</p></div>`;
+    const n12 = t.n12 != null ? [["12개월 모든 거래", `${t.n12}건`]] : [];
+    if (!x || x.price == null || !isFinite(x.price)) return H("계산 안 함", "na", n12, "입주 현금을 자동으로 계산할 매수가 표본이 없어요. 아는 매물가를 입주 현금 탭에 넣어 보세요.");
+    if (x.priceSrc === "user") return H("직접 입력", "hi", [], "내가 넣은 매수가로 계산했어요.");
+    const n = en.n || 0, last = en.last || (en.t ? en.t : ""), lastY = last ? "20" + last.slice(0, 2) + (last.slice(3, 5) || "01") : "";
+    const ma = lastY ? (TODAY.getFullYear() - +lastY.slice(0, 4)) * 12 + (TODAY.getMonth() + 1 - +lastY.slice(4, 6)) : null;
+    const why = [];
+    if (x.priceSrc === "est") why.push("구역 안 거래가 없어 같은 구 시세로 추정");
+    if (n && n < 3) why.push(`표본 ${n}건뿐`);
+    if (ma != null && ma > 12) why.push("마지막 거래가 1년 넘음");
+    if (r.lc && !why.length) why.push(r.lcw === "thin" ? "구역 안 거래로 확인 안 됨" : "표본이 적거나 구역 거래와 구성이 달라 참고값");
+    const low = why.length > 0;
+    if (!low) {
+      if (r.nbp || en.radius || en.fill === "dong") why.push("구역 밖 주변 시세 기준");
+      if (n < 10) why.push(`표본 ${n}건(10건 미만)`);
+      if (ma != null && ma > 6) why.push("마지막 거래 6개월 넘음");
+    }
+    const [lv, cls] = low ? ["낮음", "lo"] : why.length ? ["보통", "md"] : ["높음", "hi"];
+    const rows = [["매수가 표본", n ? `${n}건` : "–"], ["마지막 거래", last ? esc(last) : "–"], ...(en.p25 && en.p75 && en.p75 > en.p25 ? [["가운데 50%", `${eok(en.p25)}~${eok(en.p75)}`]] : []), ...n12];
+    return H(lv, cls, rows, why.length ? why.join(" · ") + (low ? " · 계약 전 매물 시세로 꼭 확인" : "") : "구역 안 최근 거래가 충분해요");
   }
   function txHTML(t, r, d) {
     if (t.hd && t.hd.u) return hdHTML(t.hd, t, r);
@@ -210,7 +244,7 @@ const OVX = (() => {
     const big = IP ? ["입주권 · 1년", eok(t.im)] : A ? ["아파트 매매 · 1년", eok(t.am)] : t.pp ? ["대지 3.3㎡당 · 1년", eok(t.pp)] : t.med ? ["빌라 매매 · 1년", eok(t.med)] : t.am ? ["아파트 매매 · 1년", eok(t.am)] : null;
     const ser = IP ? [t.qi, "입주권"] : A || (!t.pp && t.am) ? [t.qa, "아파트 매매"] : t.pp ? [(t.q || []).filter((x) => x[2] >= 2), "대지 3.3㎡당"] : [null, ""];
     const nn = t.n12 || t.n, thin = big ? thinTag(nn == null ? null : nn, S[0] ? S[0][0] : null) : "";
-    const chips = [!IP && !A && t.med && big && !/빌라/.test(big[0]) ? `빌라 ${eok(t.med)}` : "", nn ? `거래 ${nn}건` : "", last && !thin ? `최근 ${last}` : ""].filter(Boolean);
+    const chips = [!IP && !A && t.med && big && !/빌라/.test(big[0]) ? `빌라 ${eok(t.med)}` : "", nn ? `${t.n12 ? "12개월 모든 거래" : "모든 거래"} ${nn}건` : "", last && !thin ? `최근 ${last}` : ""].filter(Boolean);
     return `<div class="ov-c ov-tx${thin ? " thin" : ""}"><h3>실거래 ${yoy}</h3>
       ${big ? `<div class="ov-big"><span>${big[0]}</span><b>${big[1]}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>` : ""}
       ${calcRow(r)}${chips.length ? `<div class="ov-chips">${chips.map((c) => `<span>${c}</span>`).join("")}</div>` : ""}
@@ -264,7 +298,7 @@ const OVX = (() => {
     w.className = "ov-top"; w.id = "ovTop";
     const t0 = r.tx || {};
     const V = verdicts(r);
-    w.innerHTML = `<div class="ov-vdw">${vdHTML(V)}</div><div class="ov-map" id="ovMap" role="img" aria-label="${esc(shortName(r.n))} 위치"></div><div class="ov-row"><div class="ov-oldw">${oldHTML(t0, r)}</div><div class="ov-txw">${txHTML(t0, r, null)}</div></div><div class="ov-tlw">${tlHTML(r)}</div><div class="ov-srcw">${srcHTML(r)}</div>`;
+    w.innerHTML = `<div class="ov-vdw">${vdHTML(V)}</div><div class="ov-map" id="ovMap" role="img" aria-label="${esc(shortName(r.n))} 위치"></div><div class="ov-row"><div class="ov-oldw">${oldHTML(t0, r)}</div><div class="ov-txw">${txHTML(t0, r, null)}</div></div><div class="ov-trw">${trustHTML(r)}</div><div class="ov-tlw">${tlHTML(r)}</div><div class="ov-srcw">${srcHTML(r)}</div>`;
     vdBind(w, V);
     locWhy(head, w, r);
     // 주소 줄: 구 동 · 단계 · 역 도보
@@ -272,7 +306,7 @@ const OVX = (() => {
     if (wh) { const dong = ((r.j || r.bj || "").match(/^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)/) || [, r.dg || ""])[1]; const wm = r.st && r.st.d ? Math.max(1, Math.round(r.st.d * 1.3 / 67)) : 0, st = wm ? (wm > 20 ? "역에서 멀어요" : `${r.st.n.replace(/역$/, "")}역 ${wm}분`) : ""; wh.classList.add("ov-w"); wh.removeAttribute("title"); wh.innerHTML = `<b>${esc(r.g)} ${esc(dong)}</b>${st ? `<span class="ov-chip g">${esc(st)}</span>` : ""}${r.lc ? `<span class="ov-chip w">거래 적어 추정</span>` : r.nbp ? `<span class="ov-chip g">주변 시세 기준</span>` : ""}${r.sl && r.sl.k ? `<span class="ov-chip g ov-sl"${r.sl.d != null && isFinite(r.sl.d) ? ` title="고저차 ${Math.round(+r.sl.d)}m"` : ""}>${esc(/경사/.test(r.sl.k) ? (r.sl.k === "경사" ? "경사 있음" : r.sl.k) : "경사 " + r.sl.k)}</span>` : ""}`; }
     const where = head.querySelector(".where");
     (where || head.firstElementChild).after(w);
-    w.addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; const tb = document.getElementById("tab-" + b.dataset.tab); if (tb) { tb.click(); tb.scrollIntoView({ block: "start", behavior: "smooth" }); } });
+    w.addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; const tb = document.getElementById("tab-" + b.dataset.tab); if (tb) tb.click(); });
     mini(r);
     late(r, w);
     if (!r._prem && FREE) premLoad(r).then(() => late(r, w)).catch(() => {});
@@ -307,19 +341,12 @@ const OVX = (() => {
     g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tog(); } });
     w.querySelectorAll(".ov-p").forEach((b) => b.addEventListener("click", () => g.setAttribute("aria-expanded", "false")));
   }
-  // 입주 현금 탭 시간표: 입주 시기가 추정돼 있으면 '시점 미정' 대신 그 값(진행이 멈춘 구역은 '진행 확인 필요')
-  function etaLabel(r) {
-    try {
-      const pr = projection(r);
-      if (r.stale || pr.stale || pr.stall || pr.past) return "진행 확인 필요";
-      if (hasEta(pr) || pr.pre) return etaSpan(r, pr);
-    } catch (e) {}
-    return "";
-  }
+  // 입주 현금 탭 시간표: 사업·일정 탭과 같은 한 값(etaShow · src/app.js)
   function fixGtl(p, r) {
     const gt = p.querySelector(".gtl"); if (!gt) return;
-    const e3 = gt.querySelector(".gt3 .gt-w"), e2w = gt.querySelector(".gt2 .gt-w"), lab = etaLabel(r);
-    if (e3 && lab && (r.stale || /시점 미정|일정 산정 불가/.test(e3.textContent)) && e3.textContent !== `입주 · ${lab}`) e3.textContent = `입주 · ${lab}`;
+    const e3 = gt.querySelector(".gt3 .gt-w"), e2w = gt.querySelector(".gt2 .gt-w");
+    let lab = ""; try { lab = etaShow(r); } catch (e) {}
+    if (e3 && lab && !e3.textContent.startsWith(`입주 · ${lab}`)) e3.textContent = `입주 · ${lab}`;
     if (e2w && /시점 미정/.test(e2w.textContent)) e2w.textContent = r.s >= 7 ? "이주 · 진행 중" : "이주 · 관리처분 뒤";
   }
   function tidyPane() {
@@ -357,6 +384,28 @@ const OVX = (() => {
     // 고른 탭이 가려져 있으면 보이게
     const sel = tb.querySelector('[aria-selected="true"]'); if (sel && sel.offsetLeft + sel.offsetWidth > tb.scrollLeft + tb.clientWidth - 28) tb.scrollLeft = sel.offsetLeft - 16;
   }
+  // 규제 탭 맨 위: 매물진단(66_tools.js)과 같은 판정 목록 · 출처 링크
+  function reqBox(r) {
+    const p = document.getElementById("pane"); if (!p || typeof TOOLS === "undefined" || !TOOLS.diagItems) return;
+    const draw = () => {
+      const pp = document.getElementById("pane"); if (!pp || cur !== r || curTab !== "req") return;
+      const h = `<div class="sect rq"><h3>사기 전 확인할 규제</h3><ul class="dg-l rq-l">${TOOLS.diagItems(r, draw).map(TOOLS.dgLi).join("")}</ul></div>`;
+      const old = pp.querySelector(".rq"); if (old) old.outerHTML = h; else pp.insertAdjacentHTML("afterbegin", h);
+    };
+    draw();
+  }
+  // 탭 막대를 시트(또는 화면) 맨 위로: 새 탭 내용의 시작이 막대 바로 아래에 오게
+  function tabTop() {
+    const tb = document.querySelector("#report .tabs"), pane = document.getElementById("pane"); if (!tb || !pane) return;
+    let sc = tb.parentElement;
+    while (sc && sc !== document.body) { const o = getComputedStyle(sc).overflowY; if ((o === "auto" || o === "scroll") && sc.scrollHeight > sc.clientHeight + 1) break; sc = sc.parentElement; }
+    const doc = !sc || sc === document.body, cs = getComputedStyle(tb);
+    const off = cs.position === "sticky" ? parseFloat(cs.top) || 0 : doc ? parseFloat(cs.scrollMarginTop) || 0 : 0;
+    const base = doc ? 0 : sc.getBoundingClientRect().top;
+    const d = pane.getBoundingClientRect().top - tb.offsetHeight - base - off;
+    if (Math.abs(d) < 2) return;
+    if (doc) window.scrollBy(0, d); else sc.scrollTop += d;
+  }
   // PC: 목록에서 구역을 열면 포커스를 상세 제목으로 · 상세를 닫으면(Esc·목록 버튼) 주소의 #구역id를 지워 새로고침해도 다시 열리지 않게
   function deskFocus() {
     const PC = () => matchMedia("(min-width:981px)").matches;
@@ -368,17 +417,19 @@ const OVX = (() => {
   }
   function init() {
     try { deskFocus(); } catch (e) {}
+    const _rq = paneReq; paneReq = function (r) { const x = _rq.apply(this, arguments); try { reqBox(r); } catch (e) { console.warn(e); } return x; };
     const _rp = renderPane; renderPane = function () { const x = _rp.apply(this, arguments); try { tidyPane(); } catch (e) {} return x; };
     // 입주 현금 시간표는 첫 렌더·자료 도착 때 다른 경로로도 다시 그려져, 바뀔 때마다 '시점 미정'을 고친다
     let gq = 0;
     try { new MutationObserver(() => { if (gq) return; gq = requestAnimationFrame(() => { gq = 0; const p = document.getElementById("pane"); if (p && cur) try { fixGtl(p, cur); } catch (e) {} }); }).observe(document.getElementById("report"), { childList: true, subtree: true }); } catch (e) {}
     // 탭을 누르면 탭 막대가 위로 오게
-    document.addEventListener("click", (e) => { const t = e.target.closest("#report [role=tab]"); if (!t) return; requestAnimationFrame(() => { const tb = document.querySelector("#report .tabs"); if (tb) tb.scrollIntoView({ block: "start", behavior: "smooth" }); }); });
+    // (부드러운 스크롤은 새 탭 내용 높이가 바뀌며 중간에 멈춰 이전 탭 자리(scrollTop 893 등)에 남았다 → 바로 맞춘다)
+    document.addEventListener("click", (e) => { const t = e.target.closest("#report [role=tab]"); if (!t) return; requestAnimationFrame(tabTop); });
     const _rr = renderReport;
     renderReport = function () { const x = _rr.apply(this, arguments); try { tabAff(); } catch (e) {} try { if (cur) { render(cur); if (matchMedia("(min-width:981px)").matches && document.documentElement.classList.contains("simple")) document.documentElement.classList.add("s-rep"); } } catch (e) { console.warn(e); } return x; };
     try { tabAff(); } catch (e) {}
     try { if (cur && document.querySelector("#report .rep-head")) { render(cur); if (matchMedia("(min-width:981px)").matches) document.documentElement.classList.add("s-rep"); } } catch (e) {}
   }
-  return { init, render, gauge };
+  return { init, render, gauge, smp: smpTxt, manT };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", OVX.init) : setTimeout(OVX.init, 0);

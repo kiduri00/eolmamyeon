@@ -19,6 +19,10 @@ if os.path.exists(TXF):
         TSF = os.path.join(R, 'public', 'data', 'txs.json')
         if not os.path.exists(TSF) or open(TSF, encoding='utf-8').read() != body: open(TSF, 'w', encoding='utf-8').write(body)
     except Exception as e: print('txs.json 건너뜀:', e)
+# 구역·구 경계 geo.json 가볍게(같은 구조, 점 줄이기) — 원본은 pipeline/geo.full.json
+try:
+    import sys; sys.path.insert(0, os.path.join(R, 'tools')); import geo_slim; geo_slim.main()
+except Exception as e: print('geo_slim 건너뜀:', e)
 # 지연 로딩 데이터 파일 버전(내용 해시) → 캐시 무효화
 dv = {}
 for f in sorted(os.listdir(os.path.join(R, 'public', 'data'))) if os.path.isdir(os.path.join(R, 'public', 'data')) else []:

@@ -189,3 +189,23 @@ svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 /* 다크: 흐린 실거래 막대도 카드 배경 대비 3:1 이상 */
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) svg.ov-bar rect{fill:color-mix(in srgb,var(--brand) 62%,var(--surface))}:root:not([data-theme="light"]) svg.ov-bar rect.lo{fill:color-mix(in srgb,var(--brand) 56%,var(--surface))}:root:not([data-theme="light"]) svg.ov-bar rect.on{fill:var(--brand)}:root:not([data-theme="light"]) svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 85%,var(--surface))}}
 :root[data-theme="dark"] svg.ov-bar rect{fill:color-mix(in srgb,var(--brand) 62%,var(--surface))}:root[data-theme="dark"] svg.ov-bar rect.lo{fill:color-mix(in srgb,var(--brand) 56%,var(--surface))}:root[data-theme="dark"] svg.ov-bar rect.on{fill:var(--brand)}:root[data-theme="dark"] svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 85%,var(--surface))}
+/* 이 숫자 믿어도 될까: 표본 수·마지막 거래·신뢰도 */
+.ov-trust{padding:12px 14px}
+.ov-trh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.ov-trust .ov-trh h3{margin:0;font-size:14px}
+.ov-lv{padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:800;background:var(--surface-2);color:var(--text-2)}
+.ov-trust.hi .ov-lv{background:var(--ok-soft);color:var(--ok-ink)}
+.ov-trust.md .ov-lv{background:var(--warn-soft);color:var(--warn-ink)}
+.ov-trust.lo .ov-lv{background:color-mix(in srgb,#dc2626 12%,transparent);color:#b91c1c}
+.ov-trust dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:6px 10px;margin:0}
+.ov-trust dl div{min-width:0}
+.ov-trust dt{font-size:11.5px;color:var(--text-3);font-weight:500}
+.ov-trust dd{margin:1px 0 0;font-size:14px;font-weight:700;color:var(--text-1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ov-trust p{margin:8px 0 0;font-size:12.5px;line-height:1.5;color:var(--text-2)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ov-trust.lo .ov-lv{color:#fca5a5}}
+:root[data-theme="dark"] .ov-trust.lo .ov-lv{color:#fca5a5}
+.ov-calc small{flex-basis:100%}
+/* 탭을 눌러 막대를 시트 맨 위로 올릴 때 내용이 짧아도 올라갈 수 있게 */
+@media (max-width:980px){#report.sheet #pane{min-height:calc(100dvh - 96px)}}
+.rq-l li small a{color:var(--brand);font-weight:600;white-space:nowrap}
+.rq h3{margin-bottom:10px}

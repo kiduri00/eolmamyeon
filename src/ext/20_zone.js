@@ -275,6 +275,9 @@
         const lc = en && en.lc && x.priceSrc !== "user" ? ` <em class="flag">참고값</em> ${LCW[en.lcw] || `구역 안 비교 거래가 적거나 구역 거래 구성(${h && h.b === "a" ? "아파트 위주" : "표본 적음"})과 달라`} '살 수 있는 곳' 순위에서는 빼요.` : "";
         const warn = x.priceSrc !== "user" && en?.fill !== "zone" && en?.fill !== "zoneapt" && t.no
           ? `<p class="note warnbox"><b>계산은 다른 값을 써요</b> ${r.src === "moa" ? "모아타운 관리지역은 블록별로 사업이 따로 진행돼, 관리지역 전체가 아니라 주변 빌라 시세로 계산했어요." : en?.src === "complex" ? "재건축 단지라 같은 단지 아파트 매매로 계산했어요." : `구역 안 구축 빌라 매매(최근 ${t.nwin || 18}개월 ${t.no}건)가 기준(5건)에 못 미쳐 주변 빌라 시세로 계산했어요.`} 실제 매물가는 '입주 현금' 탭에 넣어 다시 계산하세요.</p>` : "";
+        // 머리 카드·/z/ 페이지와 같은 한 문장(64_overview.js OVX.smp)
+        const one = typeof OVX !== "undefined" && OVX.smp && x.priceSrc !== "user" ? OVX.smp(r, x) : "";
+        if (one) return `${warn}<p class="note"><b>계산 매수가 ${OVX.manT(x.price)}</b> = ${esc(one)} · '입주 현금' 탭에서 바꿀 수 있어요${lc}</p>`;
         return `${warn}<p class="note"><b>계산에 쓴 매수가 ${e2(x.price)}억</b> ${x.priceSrc === "user" ? "직접 입력한 값" : en?.scope ? esc(en.scope) + ` 실거래 가운데 값${en.n ? ` (${fmt(en.n)}건${en.area_med ? ` · 전용 ${en.area_med}㎡` : ""})` : ""}` : x.priceSrc === "complex" ? "같은 단지 아파트 실거래" : "구역 주변 구축 빌라 실거래"} · '입주 현금' 탭에서 바꿀 수 있어요${lc}</p>`;
       })();
       p.innerHTML = `

@@ -22,10 +22,13 @@ const TOOLS = (() => {
     const L = R.filter(ok).map((r) => ({ r, g: gapOf(r) })).filter((x) => !x.g.block && !x.g.na && x.g.now != null && isFinite(x.g.now));
     const c = CASH;
     const F = gapF === "near" ? L.filter((x) => Math.abs(x.g.now - c) <= 1) : gapF === "redev" ? L.filter((x) => !/재건축/.test(x.r.k)) : L;
-    F.sort((a, b) => a.g.now - b.g.now);
+    // 입주까지 돈이 계산되는 곳을 위로, 신축 시세가 없어 계산 안 되는 곳은 맨 아래로
+    const calc = (x) => !!(x.g.x && x.g.x.ok && x.g.total != null);
+    F.sort((a, b) => calc(b) - calc(a) || a.g.now - b.g.now);
     { const seen = new Set(); for (let i = F.length - 1; i >= 0; i--) {} const U = []; F.forEach((x) => { const k = shortName(x.r.n) + x.r.g; if (!seen.has(k)) { seen.add(k); U.push(x); } }); F.length = 0; U.forEach((x) => F.push(x)); }
     const rate = (x) => { try { const p = investC(x.r).price; return p ? Math.round((x.g.D / p) * 100) : null; } catch (e) { return null; } };
     out.innerHTML = `<div class="fchips tl-f" role="group" aria-label="거르기">${[["all", "전체"], ["near", `내 현금 ${e1(c)} ±1억`], ["redev", "재개발만"]].map(([k, t]) => `<button type="button" class="ichip" data-gf="${k}" aria-pressed="${gapF === k}">${t}</button>`).join("")}</div>
+      ${(() => { const na = F.filter((x) => !calc(x)).length; return na ? `<p class="tl-lead">입주까지 돈이 계산 안 되는 ${na}곳(주변 신축 시세 없음)은 맨 아래에 있어요</p>` : ""; })()}
       <ol class="tl-l">${F.slice(0, gapN).map((x, i) => { const jr = rate(x); return `<li><a href="#${x.r.id}" data-id="${x.r.id}"><span class="tl-k">${i + 1}</span><span class="tl-n"><b>${esc(shortName(x.r.n))}</b><small>${esc(x.r.g)} · ${esc(stageName(x.r))}</small></span><span class="tl-v"><b>${e1(x.g.now)}</b><small>${x.g.x && x.g.x.ok && x.g.total != null ? `입주까지 ${e1(x.g.total)}` : '<span class="tl-na" title="주변 신축 시세 자료가 없어 입주 때 돈을 계산하지 못했어요">계산 불가 · 신축 시세 없음</span>'}</small></span></a></li>`; }).join("") || '<li class="tl-e">조건에 맞는 구역이 없어요</li>'}</ol>
       ${F.length > gapN ? `<button type="button" class="btn secondary s-more" id="gapMore">더 보기 (${F.length - gapN}곳)</button>` : ""}`;
     out.querySelectorAll("[data-gf]").forEach((b) => (b.onclick = () => { gapF = b.dataset.gf; gapN = 20; gapRender(); }));
@@ -53,23 +56,33 @@ const TOOLS = (() => {
     if (dSel) { q.value = shortName(dSel.n); diagShow(ex); }
     q.addEventListener("focus", () => { if (ex) { q.select(); } }, { once: true });
   }
-  function diagShow(ex) {
-    const r = dSel, box = document.getElementById("dgR"); if (!r || !box) return;
-    const items = [];
+  // 매물진단 판정 목록(구역 리포트 '규제' 탭도 이 함수를 그대로 쓴다): [cls, 항목, 설명, 출처 링크?]
+  function diagItems(r, redraw) {
+    const items = [], pol = (D && D.policy) || {}, LAW = "https://www.law.go.kr/법령/도시및주거환경정비법";
     const w = buyWindow(r);
-    items.push([w.cls === "ok" ? "ok" : w.cls === "no" ? "no" : "warn", "입주권", w.t + (w.due ? ` · ${w.due}` : "")]);
+    items.push([w.cls === "ok" ? "ok" : w.cls === "no" ? "no" : "warn", "입주권", w.t + (w.due ? ` · ${w.due}` : ""), [LAW + "/제39조", "도정법 제39조"]]);
     // 토허: 서울 전역(아파트)·신통·구역 안 허가 기록·구 단위 기록까지 본 뒤에만 말한다(56_toheo.js). 허가 자료가 오면 다시 그림
     let th = null;
     try { th = TOH.lookup(r); } catch (e) {}
-    if (th) items.push([th.cls, "토지거래허가", th.t]);
-    else { const lp = landPermit(r); items.push([lp ? "no" : "warn", "토지거래허가", lp ? lp.t : "허가 기록 불러오는 중 · 계약 전 구청 확인"]); }
-    try { if (!TOH.loaded()) TOH.load().then(() => { if (dSel === r) diagShow(ex); }); } catch (e) {}
-    try { const rt = ZX.rights(r); items.push([rt.k === "set" ? (rt.c === "low" ? "warn" : "ok") : "warn", "권리산정기준일", rt.k === "set" ? `${rt.d} 전 준공·등기 건물만 단독 입주권${rt.c === "low" ? " · 추정이라 확인 필요" : ""}` : rt.k === "chg" ? "확인 필요 · 등록된 구역지정일이 변경 지정일이라 추정하지 않아요" : "날짜 미확정 · 구청 확인"]); } catch (e) {}
-    items.push(["warn", "여러 채 보유", "한 구역에 여러 채면 입주권 1개만(다물권) · 세대원 합산"]);
-    items.push(["warn", "재당첨 제한", "투기과열지구 조합원 분양을 5년 안에 받았으면 제한"]);
-    if (/재건축/.test(r.k) && r.s >= 4) items.push(["warn", "조합원 지위양도", "조합설립인가 뒤 매수는 원칙적으로 조합원 지위 승계 불가(예외 매물만)"]);
+    const lpSrc = ["https://land.seoul.go.kr/", "서울부동산정보광장"];
+    if (th) items.push([th.cls, "토지거래허가", th.t, lpSrc]);
+    else { const lp = landPermit(r); items.push([lp ? "no" : "warn", "토지거래허가", lp ? lp.t : "허가 기록 불러오는 중 · 계약 전 구청 확인", lpSrc]); }
+    try { if (!TOH.loaded() && redraw) TOH.load().then(redraw); } catch (e) {}
+    const sp = pol.speculation || {};
+    items.push(["warn", "투기과열·조정대상지역", `서울 25개 구 전역 (${(sp.date || "2025-10-16").replaceAll("-", ".")}~)${/강남|서초|송파|용산/.test(r.g) ? ` · ${r.g}는 2017.8.3부터 연속` : ""} · 대출·세금·전매 규제 적용`, [sp.src || "https://www.korea.kr", "정책브리핑"]]);
+    try { const rt = ZX.rights(r); items.push([rt.k === "set" ? (rt.c === "low" ? "warn" : "ok") : "warn", "권리산정기준일", rt.k === "set" ? `${rt.d} 전 준공·등기 건물만 단독 입주권${rt.c === "low" ? " · 추정이라 확인 필요" : ""}` : rt.k === "chg" ? "확인 필요 · 등록된 구역지정일이 변경 지정일이라 추정하지 않아요" : "날짜 미확정 · 구청 확인", [LAW + "/제77조", "도정법 제77조"]]); } catch (e) {}
+    items.push(["warn", "여러 채 보유(다물권)", "한 구역에 여러 채면 원칙적으로 입주권 1개(세대원 합산) · 1+1 분양은 종전 가격·주거전용면적 범위 안에서만(추가 1채는 60㎡ 이하·3년 전매 제한) · 투기과열지구 재건축은 다주택 조합원도 1주택만", [LAW + "/제76조", "도정법 제76조"]]);
+    items.push(["warn", "재당첨 제한", "투기과열지구 정비사업에서 조합원 분양을 받은 세대는 5년 동안 다른 투기과열지구 정비사업 분양신청 불가(세대원 포함)", [LAW + "/제72조", "도정법 제72조"]]);
+    const rb = /재건축/.test(r.k), lock = rb ? r.s >= 4 : r.s >= 6;
+    items.push([lock ? "no" : "ok", "조합원 지위양도", `${rb ? "재건축은 조합설립인가" : "재개발은 관리처분인가"} 뒤 매수는 조합원 승계 불가(10년 보유·5년 거주 1주택 등 예외 매물만) · ${lock ? "지금 이 단계라 예외 매물만" : "지금은 아직 그 전"}`, [LAW + "/제39조", "도정법 제39조"]]);
+    return items;
+  }
+  const dgLi = ([c, k, v, src]) => `<li class="${c}"><i aria-hidden="true">${c === "ok" ? "✓" : c === "no" ? "✕" : c === "na" ? "?" : "!"}</i><span><b>${k}</b><small>${esc(v)}${src ? ` <a href="${esc(src[0])}" target="_blank" rel="noopener">${esc(src[1])} ↗</a>` : ""}</small></span></li>`;
+  function diagShow(ex) {
+    const r = dSel, box = document.getElementById("dgR"); if (!r || !box) return;
+    const items = diagItems(r, () => { if (dSel === r) diagShow(ex); });
     box.innerHTML = `${ex ? '<p class="dg-ex">예시로 한 곳을 보여 드려요 · 구역 이름으로 다른 곳을 찾아 보세요</p>' : ""}<div class="dg-h"><b>${esc(shortName(r.n))}</b><span>${esc(r.g)} · ${esc(stageName(r))}</span><button type="button" class="btn text sm" data-open="${r.id}">구역 보기 →</button></div>
-      <ul class="dg-l">${items.map(([c, k, v]) => `<li class="${c}"><i aria-hidden="true">${c === "ok" ? "✓" : c === "no" ? "✕" : c === "na" ? "?" : "!"}</i><span><b>${k}</b><small>${esc(v)}</small></span></li>`).join("")}</ul>`;
+      <ul class="dg-l">${items.map(dgLi).join("")}</ul>`;
     box.querySelector("[data-open]").onclick = () => { curTab = "money"; select(r.id, true, false, { scroll: true }); };
   }
   // ---------- 입주 물량: 연도별 예상 입주 세대(진행 단계가 늦은 곳만) ----------
@@ -128,7 +141,7 @@ const TOOLS = (() => {
     // 현금·방식이 바뀌면 열린 갭 순위도 다시
     const _p = plan; plan = function () { const x = _p.apply(this, arguments); try { const g = document.getElementById("gapTop"); if (g && g.classList.contains("s-on")) gapRender(); } catch (e) {} return x; };
   }
-  return { init };
+  return { init, diagItems, dgLi };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", TOOLS.init) : setTimeout(TOOLS.init, 0);
 /* ===================== 지도 겹쳐 보기: 오른쪽 위 세로 아이콘 레일(디자이너 안) =====================

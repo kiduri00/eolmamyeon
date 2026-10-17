@@ -253,5 +253,28 @@ html.s-full .pc-save,html.s-full .pc-act{display:none}
 }
 
 /* 데스크톱: 핀 꽂기 띠와 목록 제목 사이 숨 쉴 틈 */
-@media (min-width:981px){html.simple #pcSave{margin-bottom:16px}}
+/* 핀 꽂기: 자리 차지하는 점선 띠 대신 작은 알약 버튼. 폰은 게이지 아래 한 줄, PC는 게이지 카드 안 숫자 줄 오른쪽에 얹는다(띠 높이 0) */
+.pc-save{width:max-content;max-width:100%;min-height:0;border:0;background:none;overflow:visible;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.pc-save>button{min-height:36px;height:36px;border-radius:999px;border:1px solid color-mix(in srgb,var(--brand) 30%,transparent)!important;background:color-mix(in srgb,var(--brand) 6%,var(--surface));font-size:13.5px;padding:0 14px 0 11px}
+.pc-sv-m{flex:none;gap:6px}
+.pc-sv-m svg{width:16px;height:16px}
+.pc-sv-n{padding:0 12px!important;border-left:1px solid color-mix(in srgb,var(--brand) 30%,transparent)!important}
+.pc-save>button:focus-visible{outline-offset:2px}
+.pc-ph{height:36px}
+@media (min-width:981px){
+  html.simple .pc-save{height:0;margin:0 0 2px auto;width:100%;justify-content:flex-end;align-items:flex-end;flex-wrap:nowrap;padding-right:26px;box-sizing:border-box}
+  html.simple .pc-save>button{position:relative;top:-103px;height:40px;min-height:40px;box-shadow:0 1px 2px rgba(15,23,42,.06)}
+  html.simple .pc-ph{height:0}
+}
 .pc-dlg h3[tabindex="-1"]:focus{outline:none}
+/* 받은 핀 링크 미리보기(합치기·바꾸기) */
+.pi-nm{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;padding:0;list-style:none}
+.pi-nm li{display:inline-flex;align-items:center;gap:4px;min-height:30px;padding:3px 10px 3px 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:13.5px;font-weight:600;color:var(--text-1)}
+.pi-nm li small{margin-left:2px;font-size:11.5px;font-weight:500;color:var(--text-3)}
+.pi-nm li.pi-more{padding-left:10px;color:var(--text-3);font-weight:500}
+.pi-nm.pi-c li{padding-left:10px;border-style:dashed;border-color:color-mix(in srgb,var(--brand) 45%,transparent);color:var(--brand)}
+.pi-dlg .pi-how{font-size:13px;line-height:1.55}
+.pi-dlg .pi-how b{color:var(--text-1)}
+.pi-btns .btn{min-height:44px}
+/* 홈 '조건 핀' 새 구역 배지 */
+.pc-sv-n .pc-nb{display:inline-flex;align-items:center;margin-right:6px;padding:2px 8px;border-radius:999px;background:var(--brand);color:var(--surface);font-size:12.5px;font-weight:800;line-height:1.5}

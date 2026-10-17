@@ -372,7 +372,13 @@ button.s-amt:focus-visible{outline:2px solid var(--focus);outline-offset:-4px;bo
 .s-list li.s-nosp .s-sp{display:none}
 
 .s-why{position:fixed;z-index:60;width:min(300px,calc(100vw - 16px));padding:12px 14px 10px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text-1);box-shadow:0 10px 30px -8px rgba(15,23,42,.28);font-size:14px}
-.s-why[hidden]{display:none}
+.s-why[hidden],.s-why-scr[hidden]{display:none}
+.s-why-scr{position:fixed;inset:0;z-index:59;background:rgba(15,23,42,.38);animation:sWhyF .16s ease-out}
+@keyframes sWhyF{from{opacity:0}}
+.s-wgrab{width:100%;height:18px;margin:-10px 0 2px;cursor:grab;touch-action:none;position:relative}
+.s-wgrab::before{content:"";position:absolute;left:50%;top:6px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:var(--border-strong,#c9ced6)}
+.s-why.bs .s-wh{touch-action:none}
+.s-why.bs{padding-top:14px;transition:transform .12s ease-out}
 .s-why.bs{left:8px!important;right:8px;width:auto;top:auto!important;bottom:calc(72px + env(safe-area-inset-bottom,0px));border-radius:16px}
 html.sheet-open .s-why.bs,html.menu-open .s-why.bs{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
 .s-wh{display:flex;align-items:baseline;gap:8px;margin:0 0 6px}
@@ -458,6 +464,8 @@ html.simple main.wrap{min-height:calc(100vh - 40px)}
 #pcSave~.pc-ph,html.s-view .pc-ph,html.s-full .pc-ph{display:none}
 @media (min-width:981px){html.simple .pc-ph{margin-bottom:16px}}
 .s-list .s-sk{height:75px;position:relative}
+.s-list .s-skd{display:none}
+@media (min-width:981px){.s-list .s-skd{display:block}}
 .s-list .s-sk::before,.s-list .s-sk::after{content:"";position:absolute;left:16px;border-radius:6px;background:var(--surface-2)}
 .s-list .s-sk::before{top:18px;width:46%;height:16px}
 .s-list .s-sk::after{top:42px;width:30%;height:12px}
