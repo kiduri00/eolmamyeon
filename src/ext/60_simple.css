@@ -353,3 +353,5 @@ html.simple.s-full .lm-layers{top:124px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #sMiniR::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f8fff 0 var(--p),#3a4252 var(--p) 100%)}:root:not([data-theme="light"]) #sMiniR::-webkit-slider-thumb{border-color:#8fa8ff}:root:not([data-theme="light"]) .s-t i{background:color-mix(in srgb,var(--ic,#8fa8ff) 22%,#1b2029)}}
 :root[data-theme="dark"] #sMiniR::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f8fff 0 var(--p),#3a4252 var(--p) 100%)}
 :root[data-theme="dark"] .s-t i{background:color-mix(in srgb,var(--ic,#8fa8ff) 22%,#1b2029)}
+/* 겹쳐 보기 버튼: 작은 홈 지도에선 숨기고 전체 지도에서만 */
+html.simple:not(.s-full) #mapbox[data-view="seoul"] .lm-ctl{display:none}
