@@ -299,7 +299,7 @@
       for (const r of vis) {
         const st0 = colorBy === "cash" ? dotState(r) : "", c = colorOf(r, P), z = Z[r.id], o = BINS[colorBy] ? (metric(r) == null ? 0.4 : 1.25) : st0 === "x" ? 0.45 : st0 === "n" || st0 === "u" ? 0.75 : st0 === "y" ? 1.3 : 1;
         if (z) {
-          (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id, c, o, st: colorBy === "cash" ? st0 || "u" : "c" } });
+          (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id, c, o, st: colorBy === "cash" ? "y" : "c" } });
           lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), p: /\d/.test(labelOf(r)) ? labelOf(r).replace(/^지금\s*/, "") : "", y: st0 === "y" ? 1 : 0 } });
         }
         if (!z && st0 === "y") lab.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), p: /\d/.test(labelOf(r)) ? labelOf(r).replace(/^지금\s*/, "") : "", y: 1 } });
