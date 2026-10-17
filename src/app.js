@@ -6195,6 +6195,8 @@
     const s = r.st ? stnInfo(r) : null;
     return s ? s.d : 1e9;
   };
+  // 총액 순에서도 구역지정 전·준공 확률을 낼 수 없는 초기 구역은 뒤로(가장 불확실한 곳이 맨 위에 오지 않게)
+  const early = (r) => (r.s <= 1 || r.eta?.p10 == null ? 1 : 0);
   function sortZ(list, totOf, nowOf) {
     const k = P.sort,
       t = (z) => totOf(z) ?? 1e9;
@@ -6203,7 +6205,7 @@
         ? (a, b) => p10Of(b.r) - p10Of(a.r) || t(a) - t(b)
         : k === "stn"
           ? (a, b) => stnD(a.r) - stnD(b.r) || t(a) - t(b)
-          : (a, b) => t(a) - t(b) || (nowOf(a) ?? 1e9) - (nowOf(b) ?? 1e9);
+          : (a, b) => early(a.r) - early(b.r) || t(a) - t(b) || (nowOf(a) ?? 1e9) - (nowOf(b) ?? 1e9);
     return list.slice().sort(by);
   }
   const isEst = (r) => !!(OV[r.id] && OV[r.id].est);
@@ -7538,7 +7540,7 @@
     if (d7) d7.textContent = `1억보다 +${fmt(HOOK[2].size - HOOK[1].size)}곳`;
     const big = document.querySelector("#inStats .ist.big b");
     if (big) {
-      const n = +big.dataset.n || POP.length;
+      const n = POP.length;
       big.textContent = "0";
       setTimeout(() => countUp(big, n, 1400), 150);
     }
