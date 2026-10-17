@@ -35,7 +35,7 @@ const OVX = (() => {
         const w = buyWindow(r), rt = (() => { try { return ZX.rights(r); } catch (e) { return {}; } })();
         const [c, v] = w.cls === "ok" ? ["ok", "✓ 나와요"] : w.cls === "no" ? ["no", "✕ 안 나와요"] : ["warn", "! 확인 필요"];
         noIp = c === "no";
-        out.push({ k: "입주권", c, v, why: () => [w.due || w.t, rt.k === "set" ? `권리산정기준일 ${rt.d} 전 건물만` : ""].filter(Boolean).join(" · ") });
+        out.push({ k: "입주권", c, v, why: () => [w.due || w.t, rt.k === "set" ? (rt.old ? `권리산정기준일 ${rt.d}(추정 · 조례 부칙 확인 필요)` : `권리산정기준일 ${rt.d} 전 건물만`) : ""].filter(Boolean).join(" · ") });
       } catch (e) {}
       if (!noIp) try {
         const lp = landPermit(r);

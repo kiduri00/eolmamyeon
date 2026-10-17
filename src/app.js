@@ -6017,15 +6017,23 @@
       g.forEach((m, k) => {
         if (m.size < 2) return;
         const dn = (r) => (r.bj || r.j || "").split(" ")[0];
-        if (new Set([...m.values()].map(dn)).size < 2) return;   // 같은 동끼리면 동을 붙여도 구분이 안 됨
+        const jb = (r) => ((r.bj || r.j || "").split(" ")[1] || "").split("-")[0];
+        const kd = (r) => (/재건축/.test(r.n) ? "재건축" : /도시환경|도시정비형/.test(r.n) ? "도시정비형" : /가로/.test(r.n) ? "가로주택" : /재개발/.test(r.n) ? "재개발" : "");
+        const V = [...m.values()], diffD = new Set(V.map(dn)).size === V.length;
+        // 동이 다르면 동을, 같은 동끼리면 사업 유형을, 유형도 같으면 동+지번 본번을 붙인다(예: 홍제3구역(재건축) · 홍제3구역(도시정비형))
+        const diffK = !diffD && new Set(V.map(kd)).size === V.length && V.every(kd);
         m.forEach((r, full) => {
           const d = dn(r);
-          if (d && !k.includes(d)) SN_DIS.set(full, `${k}(${d})`);
+          const tag = diffD ? (d && !k.includes(d) ? d : "") : diffK ? kd(r) : d && jb(r) ? `${d} ${jb(r)}` : "";
+          if (tag) SN_DIS.set(full, `${k}(${tag})`);
         });
       });
     }
     return SN_DIS.get(n) || shortName0(n);
   }
+  // 이름이 '…제'로 끝나는 동(홍제·인제 등) — 지번 주소 첫 낱말에서
+  let JE0 = null;
+  const JE = () => JE0 || (JE0 = new Set(R.map((r) => ((r.bj || r.j || "").split(" ")[0] || "").replace(/\d*동$/, "")).filter((d) => /제$/.test(d)).flatMap((d) => [d, d.slice(-2), d.slice(-3)])));
   function shortName0(n) {
     let s = n
       .replace(/^\s*\[[^\]]*\]\s*/, "")
@@ -6033,7 +6041,8 @@
       .replace(/^[^(]*\)\s*/, (m) => (/\(/.test(m) ? m : ""))
       .replace(/\s+/g, " ")
       .trim()
-      .replace(/\s*제?\s*(\d+)\s*(재정비촉진구역|구역)/, "$1구역");
+      // '미아제4구역'·'노량진 제1구역' → '…4구역'·'…1구역'. 단, 동 이름이 '제'로 끝나면(홍제동 → '홍제3구역') 그 '제'는 남긴다
+      .replace(/([가-힣]*?)\s*(제?)\s*(\d+)\s*(재정비촉진구역|구역)/, (m, a, j, d) => (j && a && JE().has(a.slice(-3) + "제") ? `${a}제${d}구역` : `${a}${d}구역`));
     for (let i = 0; i < 3; i++)
       s = s
         .replace(NAME_TAIL, "")

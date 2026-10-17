@@ -11,7 +11,13 @@
     const bandOf = (r) => (r.s >= 9 || r.dn ? "done" : r.s <= 2 ? "early" : r.s <= 4 ? "mid" : "late");
 
     // ---------- 권리산정기준일 ----------
+    // 2010.7.16 전에 지정된 구역: 지정일을 법 원칙(제77조)으로 확신하지 않는다 — 옛 서울시 조례 부칙 기준일이 따로 적용될 수 있음
     function rights(r) {
+      const v = rights0(r);
+      if (v.k === "set" && v.c !== "high" && v.d && v.d < "2010.07.16") Object.assign(v, { c: "low", old: 1 });
+      return v;
+    }
+    function rights0(r) {
       const x = r.rdx;
       if (x && x.c === "chg") return { k: "chg", b: x.b, u: x.u };   // 구역지정일이 변경 지정일 → 날짜를 추정하지 않음(tools/enrich.py)
       if (x && x.d) return { d: x.d.replaceAll("-", "."), b: x.b, u: x.u, c: x.c, k: "set" };
@@ -29,8 +35,10 @@
     }
     function rightsHTML(r, compact) {
       const x = rights(r);
-      const conf = x.c === "high" ? "고시·보도자료 확인" : x.c === "mid" ? "법 원칙으로 추정" : x.c === "low" ? "추정 · 확인 필요" : "";
-      const old = x.k === "set" && x.c !== "high" && x.d < "2010.07.16" ? " 2010.7.15 이전에 기본계획이 세워진 구역은 옛 서울시 조례 부칙(2003.12.30 다세대 전환 기준·2008.7.30 지분 쪼개기 기준 등)이 따로 적용될 수 있어 날짜가 다를 수 있어요." : "";
+      const conf = x.old ? "추정 · 서울시 조례 부칙(2010.7.16 이전 지정) 확인 필요" : x.c === "high" ? "고시·보도자료 확인" : x.c === "mid" ? "법 원칙으로 추정" : x.c === "low" ? "추정 · 확인 필요" : "";
+      const old = x.old ? " 2010.7.16 전에 지정된 구역은 옛 서울시 조례 부칙(2003.12.30 다세대 전환 기준·2008.7.30 지분 쪼개기 기준 등)이 적용될 수 있어 이 날짜가 아닐 수 있어요. 구청에 확인하세요." : "";
+      if (x.k === "set" && x.old)
+        return `<div class="rdx"><div class="rdx-h"><span class="rdx-l">권리산정기준일</span><b class="mono">${esc(x.d)}?</b><span class="rdx-c low">${conf}</span></div>${compact ? "" : `<p>지정 고시일(${esc(x.d)})로 추정했어요.${old} <a href="${esc(x.u)}" target="_blank" rel="noopener">근거</a></p>`}</div>`;
       if (x.k === "set")
         return `<div class="rdx"><div class="rdx-h"><span class="rdx-l">권리산정기준일</span><b class="mono">${esc(x.d)}</b>${conf ? `<span class="rdx-c ${x.c}">${conf}</span>` : ""}</div>${compact ? "" : `<p>${esc(x.b)} · 이날 뒤에 새로 짓거나 쪼갠 지분(신축 빌라·지분 분할)은 입주권이 안 나오거나 여럿이 하나를 나눠 받을 수 있어요.${old} <a href="${esc(x.u)}" target="_blank" rel="noopener">근거</a></p>`}</div>`;
       return `<div class="rdx none"><div class="rdx-h"><span class="rdx-l">권리산정기준일</span><b>${x.k === "pre" ? "아직 없음" : x.k === "chg" ? "확인 필요" : "구청 확인 필요"}</b></div>${compact ? "" : `<p>${esc(x.b)} <a href="${esc(x.u)}" target="_blank" rel="noopener">근거</a></p>`}</div>`;

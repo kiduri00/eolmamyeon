@@ -221,10 +221,12 @@ const SIMPLE = (() => {
     nav.querySelector('[data-nav="home"]').setAttribute("aria-current", "page");
     nav.addEventListener("click", (e) => {
       const b = e.target.closest("[data-nav]"); if (!b) return;
-      const k = b.dataset.nav;
+      const k = b.dataset.nav, wasFull = document.documentElement.classList.contains("s-full");
       nav.querySelectorAll("button").forEach((x) => x.removeAttribute("aria-current"));
-      if (k !== "search" && k !== "more") b.setAttribute("aria-current", "page");
+      if (k !== "more") b.setAttribute("aria-current", "page");
       if (k !== "map") fullMap(false);
+      // 전체 지도에서 '검색': 지도를 닫는 뒤로 가기(popstate)가 끝난 뒤에 검색을 연다 — 먼저 열면 popstate가 검색을 다시 닫았다(두 번 눌러야 했음)
+      if (k === "search" && wasFull) { let done = false; const go = () => { if (done) return; done = true; removeEventListener("popstate", pop); search(); }; const pop = () => setTimeout(go, 30); addEventListener("popstate", pop); setTimeout(go, 450); return; }
       if (k === "home") { close(); if ($("report").classList.contains("sheet")) closeSheetNow(); window.scrollTo({ top: 0, behavior: "smooth" }); }
       else if (k === "map") { const v = history.state && history.state.sView; close(); if (v) setTimeout(() => fullMap(true), 120); else fullMap(true); }
       else if (k === "search") search();
@@ -232,6 +234,8 @@ const SIMPLE = (() => {
       else if (k === "more") setTimeout(() => $("menuBtn").click(), 0);
     });
     $("sSearch").onclick = search;
+    // 아래 탭 '검색': 검색이 열려 있는 동안만 켜 두고, 닫히면 보던 화면(전체 지도·홈) 탭으로
+    try { let was = false; new MutationObserver(() => { const on = $("hdr").classList.contains("searching"); if (on === was) return; was = on; if (on) navMark("search"); else if (nav.querySelector('[data-nav="search"][aria-current]')) navMark(document.documentElement.classList.contains("s-full") ? "map" : "home"); }).observe($("hdr"), { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
     // 각 기능 화면 위에 '지도로' 버튼
     IDS.forEach((id) => {
       const s = $(id); if (!s || s.querySelector(".s-back")) return;

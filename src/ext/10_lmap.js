@@ -672,12 +672,14 @@
       stnPend = false;
       try { map.resize(); } catch (e) {}
       map.stop();
-      // 걸어서 15분 고리가 화면(위 게이지·아래 버튼 자리 뺀) 안에 다 들어오는 줌까지만 당긴다(폰 390폭 ≈ 13.7)
+      // 걸어서 10분 고리가 화면(위 게이지·아래 버튼 자리 뺀) 안에 다 들어오는 줌, 그래도 14 이상(폰 390폭 ≈ 14.4 · 15분 고리는 가장자리 밖으로 나갈 수 있음)
       try {
         if (stnF.z0 == null) stnF.z0 = stnF.z;
         const cv = map.getCanvas(), r = Math.min(cv.clientWidth, cv.clientHeight - 150) / 2 - 14;
-        if (r > 80) stnF.z = Math.max(13.2, Math.min(stnF.z0, Math.log2((r * 78271.5 * Math.cos((stnF.ll[1] * Math.PI) / 180)) / W15)));
+        if (r > 80) stnF.z = Math.max(14, Math.min(stnF.z0, Math.log2((r * 78271.5 * Math.cos((stnF.ll[1] * Math.PI) / 180)) / W10)));
       } catch (e) {}
+      // 지도가 막 생기거나(첫 맞춤) 전체 지도로 커지는 동안 다른 맞춤이 끼어들어도 이 시간 안에는 역 자리로 되돌린다(아래 moveend 지킴이)
+      stnF.until = Date.now() + (reduceMotion() ? 2500 : 3500);
       map.flyTo({ center: stnF.ll, zoom: stnF.z, duration: reduceMotion() ? 0 : 900, essential: true });
       stnDraw();
       if (snEl) snEl.hidden = true;
@@ -687,7 +689,7 @@
       lng = +lng; lat = +lat;
       if (!isFinite(lng) || !isFinite(lat)) return false;
       if (lng < 90 && lat > 90) { const t = lng; lng = lat; lat = t; }   // [lat,lng]로 넘겨도 받아 준다
-      stnF = { ll: [lng, lat], z: isFinite(+zoom) && +zoom > 0 ? +zoom : 14.5, n: name || "" };
+      stnF = { ll: [lng, lat], z: isFinite(+zoom) && +zoom > 0 ? +zoom : 14.5, n: name || "", until: Date.now() + 8000 };
       stnPend = true;
       // 아직 지도가 없으면(간단 지도 → 실제 지도, 첫 로딩) 만들고, 준비되면 이어서 옮긴다
       if (!want || failed) return false;
@@ -724,7 +726,7 @@
       const bt = snEl.querySelector("button");
       bt.textContent = "보기";
       bt.onclick = () => {
-        snEl.hidden = true;
+        snEl.hidden = true; if (stnF) stnF.until = 0;
         const d = Math.max(W15 + 60, near[1] + 150), dy = d / 111000, dx = d / 88200;
         if (n10) map.fitBounds([[ll[0] - dx, ll[1] - dy], [ll[0] + dx, ll[1] + dy]], { padding: 20, duration: reduceMotion() ? 0 : 500 });
         else map.fitBounds([[Math.min(ll[0], llOf(near[0])[0]) - 0.004, Math.min(ll[1], llOf(near[0])[1]) - 0.004], [Math.max(ll[0], llOf(near[0])[0]) + 0.004, Math.max(ll[1], llOf(near[0])[1]) + 0.004]], { padding: 40, duration: reduceMotion() ? 0 : 500 });
@@ -907,6 +909,12 @@
       // 목록 '이 지도 범위만'(60_simple.js)이 지도를 옮길 때마다 따라오게: 보이는 범위·줌을 알린다
       map.on("moveend", () => { try { if (!ready || $("lmap").hidden) return; const b = map.getBounds(); dispatchEvent(new CustomEvent("zp:mapmove", { detail: { bb: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], z: map.getZoom() } })); } catch (e) {} });
       // 사용자가 역에서 2km 넘게 밀거나 크게 빼면 역 표시(어둡게 덮기·고리)를 푼다
+      // 역 지킴이: 역을 고른 직후(stnF.until 전) 사람이 옮긴 게 아닌 이동(첫 맞춤·크기 바뀜 뒤 맞춤)이 역에서 벗어나 끝나면 제자리로
+      map.on("moveend", (e) => {
+        if (!stnF || (e && e.originalEvent) || !stnF.until || Date.now() > stnF.until || map.isMoving()) return;
+        const c = map.getCenter();
+        if (Math.hypot((c.lng - stnF.ll[0]) * 88, (c.lat - stnF.ll[1]) * 111) > 0.12 || map.getZoom() < stnF.z - 0.3) map.jumpTo({ center: stnF.ll, zoom: stnF.z });
+      });
       map.on("moveend", (e) => { if (!stnF || !e || !e.originalEvent) return; const c = map.getCenter(); if (map.getZoom() < 12 || Math.hypot((c.lng - stnF.ll[0]) * 88, (c.lat - stnF.ll[1]) * 111) > 2) clearStation(); }); map.on("resize", () => { shortMark(); edgeSoon(); });
       let nRaf = 0;
       map.on("zoom", () => { if (!nRaf) nRaf = requestAnimationFrame(() => { nRaf = 0; notes(); }); });
