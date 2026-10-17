@@ -1,0 +1,63 @@
+// 얼마면 재개발 안드로이드 앱 (Trusted Web Activity)
+// 사이트(jaegaebal.alwaysquestions.kr)를 폰의 크롬으로 주소창 없이 띄운다.
+// 사이트를 고치면 앱도 바로 바뀌므로, 이 프로젝트는 아이콘·이름·주소를 바꿀 때만 다시 빌드한다.
+plugins { id 'com.android.application' }
+
+def host = 'jaegaebal.alwaysquestions.kr'
+def startUrl = "https://${host}/?utm_source=android_app"
+
+def ksProps = new Properties()
+def ksFile = rootProject.file('keystore.properties')
+if (ksFile.exists()) ksFile.withInputStream { ksProps.load(it) }
+
+android {
+    namespace 'kr.alwaysquestions.jaegaebal'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'kr.alwaysquestions.jaegaebal'
+        minSdk 23
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+
+        manifestPlaceholders = [
+            hostName       : host,
+            defaultUrl     : startUrl,
+            launcherName   : '얼마면 재개발',
+            themeColor     : '#1F3A87',
+            navColor       : '#FFFFFF',
+            splashBg       : '#FFFFFF',
+        ]
+        resValue 'string', 'appName', '얼마면 재개발'
+        resValue 'string', 'assetStatements',
+            "[{ \"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://${host}\"} }]"
+    }
+
+    signingConfigs {
+        release {
+            if (ksFile.exists()) {
+                storeFile rootProject.file(ksProps['storeFile'])
+                storePassword ksProps['storePassword']
+                keyAlias ksProps['keyAlias']
+                keyPassword ksProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (ksFile.exists()) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4'
+}

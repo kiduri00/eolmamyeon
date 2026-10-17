@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "kr.alwaysquestions.jaegaebal",
+      "sha256_cert_fingerprints": [
+        "DB:71:EC:FC:C5:CB:5A:9F:FB:21:AF:93:F6:FF:7C:A0:F1:D6:7A:62:5F:CB:CA:EE:B6:8C:F2:F0:DA:82:69:C9"
+      ]
+    }
+  }
+]

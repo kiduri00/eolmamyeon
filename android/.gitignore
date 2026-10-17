@@ -1,0 +1,8 @@
+# 서명 키와 비밀번호는 절대 저장소에 올리지 않는다
+*.jks
+*.keystore
+keystore.properties
+local.properties
+.gradle/
+build/
+app/build/
