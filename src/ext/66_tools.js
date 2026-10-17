@@ -101,19 +101,19 @@ document.readyState === "loading" ? document.addEventListener("DOMContentLoaded"
   function build() {
     const p = document.getElementById("lmLayers"), box = document.getElementById("mapbox");
     if (!p || !box) return false;
-    if (box.querySelector(".s-lyr")) return true;
+    if (document.querySelector(".s-lyr")) return true;
     const cs = [...p.querySelectorAll("input[type=checkbox]")];
     if (!cs.length) return false;
     const row = document.createElement("div");
     row.className = "s-lyr"; row.setAttribute("role", "group"); row.setAttribute("aria-label", "지도에 겹쳐 보기");
-    row.innerHTML = cs.map((c) => { const t = { hj: "호재", hi: "신고가", edu: "학교", acad: "학원가", biz: "상권", med: "병원", mart: "마트" }[c.value] || c.value; return `<button type="button" data-l="${c.value}" aria-pressed="${c.checked}"><span aria-hidden="true">${ICON[c.value] || "•"}</span>${t}</button>`; }).join("");
+    row.innerHTML = `<span class="s-lyr-h">겹쳐 보기</span>` + cs.map((c) => { const t = { hj: "호재", hi: "신고가", edu: "학교", acad: "학원가", biz: "상권", med: "병원", mart: "마트" }[c.value] || c.value; return `<button type="button" data-l="${c.value}" aria-pressed="${c.checked}">${t}</button>`; }).join("");
     row.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-l]"); if (!b) return;
       const c = p.querySelector(`input[value="${b.dataset.l}"]`); if (!c) return;
       c.checked = !c.checked; c.dispatchEvent(new Event("change", { bubbles: true }));
       b.setAttribute("aria-pressed", String(c.checked));
     });
-    box.appendChild(row);
+    (box.closest(".mapcard") || box).before(row);   // 지도 카드 바로 위 한 줄로(지도를 가리지 않게)
     return true;
   }
   const t = setInterval(() => { if (build()) clearInterval(t); }, 500);
