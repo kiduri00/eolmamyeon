@@ -55,7 +55,8 @@ for r in R:
     o = OVR.get(r['id'])
     if not o: continue
     for k, v in o.items():
-        if k != 'why': r[k] = v
+        if k == 'dt': PREM.setdefault(r['id'], {}).setdefault('dt', {}).update(v)  # 단계 날짜 보정(정보몽땅에 빠진 착공일 등)
+        elif k != 'why': r[k] = v
     r['ovr'] = 1; r.pop('sPend', None); r.pop('sUp', None); stat['override'] += 1
     if r.get('s', 0) >= 9: r['eta'] = {'na': '준공'}
 # 날짜 정리: 오늘 뒤 날짜(원자료 오기, 예: 2033년)는 버리고, 단계 순서가 거꾸로 된 날짜(준공이 착공보다 앞섬 등)는 뒤 단계 쪽을 버린다
