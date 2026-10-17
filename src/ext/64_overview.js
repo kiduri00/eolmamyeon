@@ -43,9 +43,26 @@ const OVX = (() => {
     }).join("");
     return `<div class="ov-ch"><div class="ov-cht">${unit} · 분기별</div><svg class="ov-bar" viewBox="0 0 ${W} ${H}" role="img" aria-label="${unit} 분기별 가운데 값">${bars}</svg></div>`;
   }
+  // 파이프라인이 만든 한 기준(hd)으로 큰 숫자·칩·그래프·최근 거래를 모두 맞춘다
+  function hdHTML(h, t, r) {
+    const BN = { i: "입주권", a: "아파트", v: "빌라·단독 대지" }[h.b];
+    const yoy = h.b === "v" && r.tx && r.tx.yoy != null ? `<em class="${r.tx.yoy >= 0 ? "up" : "dn"}">1년 ${r.tx.yoy >= 0 ? "▲" : "▼"} ${Math.abs(r.tx.yoy)}%</em>` : "";
+    const per = `${BN} 3.3㎡당`;
+    const win = h.w === 0 ? "최근 거래" : h.w === 24 ? "2년" : "1년";
+    const sz = h.b !== "v" && h.pa ? `전용 ${Math.round(h.pa)}㎡ 기준 ${eok(h.p)}` : h.p ? `가운데 거래가 ${eok(h.p)}` : "";
+    const chips = [sz, `${win} ${h.n}건`, h.to ? `최근 ${ym(h.to)}` : ""].filter(Boolean);
+    const TY = ["빌라", "단독", "아파트", "입주권"], S = (h.r || []).slice(0, 3);
+    return `<div class="ov-c ov-tx"><h3>실거래 ${yoy}</h3>
+      <div class="ov-big"><span>${per}</span><b>${eok(h.u)}</b></div>
+      <div class="ov-chips">${chips.map((c) => `<span>${c}</span>`).join("")}</div>
+      ${h.q && h.q.length > 2 ? chart(r, h.q, per) : ""}
+      ${S.length ? `<ul class="ov-l">${S.map((x) => `<li><span>${esc(ym(x[0]))}</span><span>${TY[x[1]] || ""}${x[6] ? ` ${+x[6] < 0 ? "지하" + -x[6] : esc(String(x[6]))}층` : ""}${x[3] ? ` · ${x[3]}㎡` : ""}</span><b>${eok(x[5])}</b></li>`).join("")}</ul>` : ""}
+      <button type="button" class="ov-more" data-tab="tx">거래 전체 보기 →</button></div>`;
+  }
   function txHTML(t, r, d) {
+    if (t.hd && t.hd.u) return hdHTML(t.hd, t, r);
     const S = (d && Array.isArray(d.s) ? d.s : []).slice(0, 3);
-    const has = t.n || t.jn;
+    const has = t.pp || t.med || t.am || t.im;
     if (!has) return `<div class="ov-c ov-tx"><h3>실거래</h3><p class="ov-none">최근 구역 안 거래 없음</p>${t.nb ? nearHTML(t.nb) : ""}</div>`;
     const yoy = r.tx && r.tx.yoy != null ? `<em class="${r.tx.yoy >= 0 ? "up" : "dn"}">1년 ${r.tx.yoy >= 0 ? "▲" : "▼"} ${Math.abs(r.tx.yoy)}%</em>` : "";
     const last = S[0] ? ym(S[0][0]) : "";
@@ -114,6 +131,8 @@ const OVX = (() => {
     (where || head.firstElementChild).after(w);
     w.addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; const tb = document.getElementById("tab-" + b.dataset.tab); if (tb) { tb.click(); tb.scrollIntoView({ block: "start", behavior: "smooth" }); } });
     mini(r);
+    // 착공 뒤: 입주권 거래는 있지만 투기과열지구라 예외 매물만 — 한 줄로
+    const rk = head.querySelector(".lb-risk"); if (rk && r.s >= 8) rk.textContent = "착공 구역 · 입주권은 예외 매물만 살 수 있어요";
     ZX.loadTx().then((d) => {
       if (cur !== r || !document.getElementById("ovTop")) return;
       const t = { ...(r.tx || {}), ...((d && d[r.id] && d[r.id].x) || {}) };

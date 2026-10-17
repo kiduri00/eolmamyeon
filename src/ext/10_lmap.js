@@ -111,7 +111,7 @@
       L({ id: "zest-line", type: "line", source: "zest", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 15, 1.8], "line-dasharray": [2, 1.6], "line-opacity": ["min", 1, ["*", ["get", "o"], 0.9]] } });
       L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ["get", "c"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, ["min", 0.75, ["*", ["get", "o"], 0.5]], 13, ["min", 0.75, ["*", ["get", "o"], 0.36]], 16, ["min", 0.75, ["*", ["get", "o"], 0.24]]] } });
       L({ id: "zone-line", type: "line", source: "zones", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 13, 1.7, 16, 2.6], "line-opacity": ["min", 1, ["get", "o"]] } });
-      L({ id: "pts", type: "circle", source: "pts", paint: { "circle-color": ["get", "c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 12.5, 5.5], "circle-stroke-color": halo, "circle-stroke-width": 1.2, "circle-opacity": ["min", 1, ["get", "o"]], "circle-stroke-opacity": ["min", 1, ["get", "o"]] } });
+      L({ id: "pts", type: "circle", source: "pts", minzoom: 10.8, paint: { "circle-color": ["get", "c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 12.5, 5.5], "circle-stroke-color": halo, "circle-stroke-width": 1.2, "circle-opacity": ["min", 1, ["get", "o"]], "circle-stroke-opacity": ["min", 1, ["get", "o"]] } });
       L({ id: "sel-line", type: "line", source: "sel", paint: { "line-color": P.sel, "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.6, 16, 4.5] } });
       L({ id: "stn", type: "circle", source: "stn", minzoom: 11.3, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 3] } });
       L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 12.8, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } });
@@ -134,7 +134,7 @@
       L({ id: "ly-hj-lab", type: "symbol", source: "hj", layout: { visibility: "none", "text-field": ["format", ["get", "n"], {}, "\n", {}, ["get", "s"], { "font-scale": 0.85 }], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-offset": [0, 1.2], "text-anchor": "top", "text-optional": true, "text-max-width": 10 }, paint: { "text-color": ["get", "c"], "text-halo-color": halo, "text-halo-width": 2 } });
       L({ id: "ly-hi", type: "symbol", source: "hi", layout: { visibility: "none", "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-offset": [0, -1.9], "text-allow-overlap": false, "text-optional": true }, paint: { "text-color": dk ? "#FF9C8A" : "#B42318", "text-halo-color": halo, "text-halo-width": 2.2 } });
       // 구 화면 줌(11.8 아래)에서도 내 돈으로 되는 구역은 값만 보이게
-      L({ id: "zone-lab-y", type: "symbol", source: "zlab", minzoom: 10.6, maxzoom: 11.8, filter: ["==", ["get", "y"], 1], layout: { "text-field": ["get", "s"], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-padding": 2 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "zone-lab-y", type: "symbol", source: "zlab", minzoom: 10.6, maxzoom: 11.8, filter: ["==", ["get", "y"], 1], layout: { "text-field": ["format", ["get", "n"], { "font-scale": 0.85 }, " ", {}, ["get", "p"], {}], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-padding": 2 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
       L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 11.8, layout: { "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
       const pill = (id, bg, bd) => { if (map.hasImage(id)) return; const c = document.createElement("canvas"), r = 2, w = 40 * r, h = 28 * r; c.width = w; c.height = h; const x = c.getContext("2d"); x.fillStyle = bg; x.strokeStyle = bd; x.lineWidth = 2 * r; const rr = 12 * r; x.beginPath(); x.moveTo(rr, r); x.arcTo(w - r, r, w - r, h - r, rr); x.arcTo(w - r, h - r, r, h - r, rr); x.arcTo(r, h - r, r, r, rr); x.arcTo(r, r, w - r, r, rr); x.closePath(); x.fill(); x.stroke(); map.addImage(id, { width: w, height: h, data: x.getImageData(0, 0, w, h).data }, { pixelRatio: r, stretchX: [[14 * r, 26 * r]], stretchY: [[12 * r, 16 * r]], content: [8 * r, 5 * r, 32 * r, 23 * r] }); };
       pill("pill-on", P.y, P.y); pill("pill-off", dk ? "#1b2230" : "#ffffff", dk ? "#3a4556" : "#c9d0da");
@@ -261,11 +261,11 @@
       const off = [], est = [], lab = [], pts = [];
       for (const r of vis) {
         const st0 = colorBy === "cash" ? dotState(r) : "", c = colorOf(r, P), z = Z[r.id], o = BINS[colorBy] ? (metric(r) == null ? 0.4 : 1.25) : st0 === "x" ? 0.45 : st0 === "n" || st0 === "u" ? 0.75 : st0 === "y" ? 1.3 : 1;
-        if (z) {
+        if (z && !z.e) {   // 추정 원(공식 경계 없음)은 큰 원 대신 점으로
           (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id, c, o } });
-          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), y: st0 === "y" ? 1 : 0 } });
+          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), p: labelOf(r).replace(/^지금\s*/, ""), y: st0 === "y" ? 1 : 0 } });
         }
-        if (!z) pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, c, o } });
+        if (!z || z.e) pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, c, o } });
       }
       map.getSource("zones").setData(FC(off));
       map.getSource("zest").setData(FC(est));

@@ -1,0 +1,9 @@
+{
+  // Cloudflare Workers 정적 자산 배포 설정: public/ 폴더를 그대로 올리고, 없는 주소는 public/404.html을 보여 준다
+  "name": "eolmamyeon",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page"
+  }
+}

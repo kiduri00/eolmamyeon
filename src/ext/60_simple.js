@@ -46,7 +46,8 @@ const SIMPLE = (() => {
     if (on && m) m.hidden = false;
     if (!on) { const nb = document.querySelector('#sNav [data-nav="home"]'); if (nb) { document.querySelectorAll("#sNav button").forEach((x) => x.removeAttribute("aria-current")); nb.setAttribute("aria-current", "page"); } }
     setTimeout(() => window.dispatchEvent(new Event("resize")), 30);
-    setTimeout(() => { try { if (mapView === "seoul") LMX.seoul(); } catch (e) {} }, 80);
+    [120, 400].forEach((t) => setTimeout(() => { try { if (mapView === "seoul") LMX.seoul(); } catch (e) {} }, t));
+    try { if (on && !(history.state && history.state.sFull)) history.pushState({ sFull: 1 }, "", location.href); else if (!on && history.state && history.state.sFull) history.back(); } catch (e) {}
   }
   // ---------- 화면 만들기 ----------
   function build() {
@@ -142,6 +143,17 @@ const SIMPLE = (() => {
     const sl = $("sCash");
     sl.addEventListener("input", () => { label(toCash(+sl.value)); live(toCash(+sl.value)); });
     sl.addEventListener("pointerdown", () => { dragging = true; });
+    // 키보드: 2억 아래는 0.1억, 5억 아래는 0.25억, 그 위는 0.5억씩
+    const key = (e) => {
+      const c = +$("pCash").value || 1, st = c < 2 ? 0.1 : c < 5 ? 0.25 : 0.5;
+      const nx = { ArrowRight: c + st, ArrowUp: c + st, ArrowLeft: c - st, ArrowDown: c - st, PageUp: c + 1, PageDown: c - 1, Home: 0.5, End: 15 }[e.key];
+      if (nx == null) return;
+      e.preventDefault();
+      const v = Math.min(15, Math.max(0.5, Math.round(nx * 100) / 100));
+      label(v); clearTimeout(idleT); setCash(v, true);
+    };
+    sl.addEventListener("keydown", key);
+    $("sMiniR") && $("sMiniR").addEventListener("keydown", key);
     const up = () => { if (!dragging) return; dragging = false; clearTimeout(idleT); idleT = setTimeout(() => setCash(toCash(+sl.value), true), 30); };
     window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
     sl.addEventListener("change", () => { clearTimeout(timer); clearTimeout(idleT); setCash(toCash(+sl.value), true); });
@@ -176,7 +188,8 @@ const SIMPLE = (() => {
   }
   function search() {
     const b = $("sOpen");
-    if (b && getComputedStyle(b).display !== "none") b.click();
+    const box = $("searchBox");
+    if (b && box && getComputedStyle(box).display === "none") b.click();   // 폰: 헤더 검색 아이콘을 숨겨도 같은 전체 화면 검색을 연다
     else { window.scrollTo({ top: 0, behavior: "smooth" }); $("q").focus(); }
   }
   function label(v, real) {
@@ -187,6 +200,8 @@ const SIMPLE = (() => {
     if ($("sMiniV")) { $("sMiniV").textContent = t; if (!dragging || document.activeElement !== $("sMiniR")) $("sMiniR").value = pct; $("sMiniR").style.setProperty("--p", pct + "%"); }
     if (!dragging || document.activeElement !== $("sCash")) { if (Math.abs(+$("sCash").value - pct) > 0.6) $("sCash").value = pct; }
     $("sCash").style.setProperty("--p", pct + "%");
+    $("sCash").setAttribute("aria-valuetext", t);
+    if ($("sMiniR")) $("sMiniR").setAttribute("aria-valuetext", t);
   }
   // 끄는 동안에도 지도·숫자가 따라오게(계산은 약 30ms라 프레임마다 한 번까지만)
   // 끄는 동안: 무거운 전체 계산 대신 '필요한 돈 ≤ 현금' 판정만 다시 해 숫자·목록·구별 말풍선을 매 프레임 갱신.
@@ -209,7 +224,7 @@ const SIMPLE = (() => {
     clearTimeout(idleT); if (!dragging) idleT = setTimeout(() => setCash(liveV, true), 220);
   }
   function setCash(v, force) {
-    v = Math.round(v * 10) / 10;
+    v = Math.round(v * 100) / 100;
     const el = $("pCash");
     if (+el.value === v && !force) return render();
     el.value = String(v);
@@ -252,7 +267,7 @@ const SIMPLE = (() => {
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
     if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
-      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "") : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
+      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "입주까지 –") : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
       : `<li class="s-empty">${gu ? `${esc(gu)}에는 이 금액으로 되는 곳이 없어요.` : "이 금액으로 되는 곳이 없어요."} 게이지를 올려 보세요.</li>`;
     const m = $("sMore");
     m.hidden = L.length <= shown;
@@ -281,6 +296,7 @@ const SIMPLE = (() => {
     if (scroll) requestAnimationFrame(() => { const t = $("sTiles"); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); });
   }
   function init() {
+    window.addEventListener("popstate", () => { if (document.documentElement.classList.contains("s-full") && !(history.state && history.state.sFull)) fullMap(false); });
     if (P.fund === "cash" && P.basis !== "now") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (e) {} }
     build();
     // 메뉴(⋯)에 타일에서 뺀 화면도 넣는다

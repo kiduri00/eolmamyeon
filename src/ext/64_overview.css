@@ -80,3 +80,18 @@ html.simple #pane .bigrow.b3,html.simple #pane .f label small,html.simple #pane 
 html.simple #pane .rvj p.note,html.simple .map-attr,html.simple #mapHint,html.simple .map-hint{display:none!important}
 html.simple #report .tabs{scroll-margin-top:calc(var(--hdr-h,56px) + 4px)}
 html.sheet-open #report .tabs{position:sticky;top:0;z-index:5;background:var(--surface)}
+html.simple #report .rep-acts{flex-wrap:wrap!important;row-gap:8px}
+html.simple #report .rep-acts .lb-risk{flex:1 1 100%;margin:0;order:-1}
+/* 노후도 카드 한 줄로 */
+.ov-old{padding:12px 16px}
+.ov-old .ov-gw{gap:14px}
+.ov-g{width:104px}
+.ov-g .tl,.ov-g .t2{display:none}
+.ov-gs h3{font-size:13px;color:var(--text-3);font-weight:600}
+.ov-gs b{font-size:18px}
+/* 탭 막대 오른쪽 흐림(더 있음) */
+html.simple #report .tabs{-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .maplibregl-ctrl-attrib-button{filter:invert(1) hue-rotate(180deg);opacity:.7}}
+:root[data-theme="dark"] .maplibregl-ctrl-attrib-button{filter:invert(1) hue-rotate(180deg);opacity:.7}
+html.simple #pane .gj-f label small{display:none}
+@media (max-width:640px){html.s-full #mapZoom,html.s-full .mapzoom{top:84px!important}}
