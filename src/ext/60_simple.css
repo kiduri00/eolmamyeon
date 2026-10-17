@@ -349,3 +349,7 @@ html.simple.s-full .lm-layers{top:124px}
 :root[data-theme="dark"] #sCash::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f8fff 0,#8fa8ff var(--p),#3a4252 var(--p) 100%)}
 :root[data-theme="dark"] #sCash::-webkit-slider-thumb{box-shadow:0 0 0 1px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.5),inset 0 0 0 7px #6f8fff}
 .logo{display:inline-flex;align-items:center;gap:8px}.logo-i{width:28px;height:28px;border-radius:7px;flex:none}@media (max-width:640px){.logo-i{width:26px;height:26px}}
+.s-t i{background:color-mix(in srgb,var(--ic,var(--brand)) 13%,var(--surface))}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #sMiniR::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f8fff 0 var(--p),#3a4252 var(--p) 100%)}:root:not([data-theme="light"]) #sMiniR::-webkit-slider-thumb{border-color:#8fa8ff}:root:not([data-theme="light"]) .s-t i{background:color-mix(in srgb,var(--ic,#8fa8ff) 22%,#1b2029)}}
+:root[data-theme="dark"] #sMiniR::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f8fff 0 var(--p),#3a4252 var(--p) 100%)}
+:root[data-theme="dark"] .s-t i{background:color-mix(in srgb,var(--ic,#8fa8ff) 22%,#1b2029)}
