@@ -328,3 +328,23 @@ html.simple #mapbox:has(.map-bar:not([hidden])) .lm-ctl{top:64px}
   html.simple.s-full #mapbox .lm-ctl{top:76px}
   html.simple.s-full #mapbox:has(.map-bar:not([hidden])) .lm-ctl{top:130px}
 }
+/* 지도 조작: 한 손가락 이동, 두 손가락 확대 — 지도 안에서는 페이지가 스크롤되지 않게 */
+html.simple #lmap,html.simple #lmap canvas{touch-action:none}
+/* 겹쳐 보기 버튼: 글자 대신 아이콘, 오른쪽 위 작은 원 */
+html.simple #mapbox .lm-ctl{left:auto!important;right:12px;top:12px;padding:0;border-radius:50%;width:40px;height:40px;justify-content:center}
+html.simple #mapbox .lm-ctl .lm-ly{width:40px;height:40px;min-height:0;padding:0;display:grid;place-items:center;position:relative;border-radius:50%;color:var(--text-1)}
+html.simple #mapbox .lm-ctl .lm-ly b{position:absolute;top:-2px;right:-2px;margin:0}
+html.simple #mapbox:has(.map-bar:not([hidden])) .lm-ctl{top:12px}
+html.simple .lm-layers{left:auto;right:12px;top:60px}
+/* 폰: 확대·축소 버튼은 두 손가락으로 대신 → 숨기고 '맞춤'만 겹쳐 보기 아래에 */
+@media (pointer:coarse){
+  html.simple #mzIn,html.simple #mzOut{display:none}
+  html.simple #mapZoom{top:60px!important;right:12px}
+}
+html.simple.s-full #mapbox .lm-ctl{top:76px}
+html.simple.s-full #mapZoom{top:124px!important}
+html.simple.s-full .lm-layers{top:124px}
+/* 다크모드 게이지 막대가 배경에 묻히지 않게 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #sCash::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f8fff 0,#8fa8ff var(--p),#3a4252 var(--p) 100%)}:root:not([data-theme="light"]) #sCash::-webkit-slider-thumb{box-shadow:0 0 0 1px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.5),inset 0 0 0 7px #6f8fff}}
+:root[data-theme="dark"] #sCash::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f8fff 0,#8fa8ff var(--p),#3a4252 var(--p) 100%)}
+:root[data-theme="dark"] #sCash::-webkit-slider-thumb{box-shadow:0 0 0 1px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.5),inset 0 0 0 7px #6f8fff}
