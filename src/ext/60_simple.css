@@ -227,7 +227,7 @@ html.simple #sTiles{padding-bottom:24px}
 @media (max-width:640px){html.simple #mapbox.lm-on{min-height:0;height:min(84vw,360px)}html.simple #mapbox[data-view="gu"].lm-on{height:min(110vw,460px)}}
 
 /* 군더더기 글 정리: 리포트·기능 화면의 보조 설명은 숨기고 숫자·결론만 */
-html.simple #report p.note:not(.warn):not(.risk),html.simple #report .note.src,html.simple #report h3 small,
+html.simple #report p.note:not(.warn):not(.risk):not(.riskbox):not(.warnbox),html.simple #report .note.src,html.simple #report h3 small,
 html.simple #report .t-note,html.simple #report .lbl2,html.simple #report .sc-why,html.simple #report .lb-key,
 html.simple #report dd small,html.simple #report .rdx p,html.simple #report .pace small,html.simple .pop-note,
 html.simple .s-on .ph p,html.simple .lm-legend,html.simple .mlg{display:none!important}

@@ -52,14 +52,16 @@ dongV = collections.defaultdict(list)      # (구코드+동코드) → 2010년 �
 apt = collections.defaultdict(list)        # 지번 PNU → 아파트 매매 [날짜, 전용, 가격, 건물명, 준공]
 bldS = collections.defaultdict(list); dongName = {}
 YR = {}   # PNU → 가장 최근 준공연도(매매·전월세 신고에서)
+ALLB = collections.defaultdict(list)       # PNU 본번(앞 15자리) → 매매 전체(빌라·단독·아파트·입주권) — 경계 없는 구역의 대표지번 매칭용
 last_sale = ''
 for fn in A.sale:
     rd, ix = opencsv(fn)
     for x in rd:
         try:
             if x[ix['취소일']].strip(): continue
-            if ix.get('권리구분') is not None and x[ix['권리구분']].strip(): continue
             use = x[ix['건물용도']]
+            rk = x[ix['권리구분']].strip() if ix.get('권리구분') is not None else ''
+            if rk and not (rk == '입주권' and use == '아파트'): continue   # 분양권은 제외, 입주권은 구역 목록에만(유형 3)
             price = int(float(x[ix['물건금액만원']] if '물건금액만원' in ix else x[ix['물건금액']]))
             area = float(x[ix['건물면적㎡']] if '건물면적㎡' in ix else x[ix['건물면적']] or 0)
             land = float((x[ix['토지면적㎡']] if '토지면적㎡' in ix else x[ix['토지면적']]) or 0)
@@ -70,12 +72,18 @@ for fn in A.sale:
         d = x[ix['계약일']]; last_sale = max(last_sale, d)
         dongName[g + dcode] = (x[ix['자치구명']], x[ix['법정동명']])
         if use == '아파트':
-            if p: apt[p].append([d, round(area, 1), price, x[ix['건물명']], yr])
+            # 구역 거래 목록 유형: 0 연립다세대 · 1 단독다가구 · 2 아파트 · 3 아파트 입주권 (아파트·입주권은 대지 0)
+            rec = [d, 3 if rk else 2, yr, round(area, 1), 0, price, x[ix['층']], p]
+            if p:
+                if not rk: apt[p].append([d, round(area, 1), price, x[ix['건물명']], yr])
+                ALLB[p[:15]].append(rec)
+            for rid in pnu2rec.get(p, ()): SALE[rid].append(rec)
             continue
         if use not in ('연립다세대', '단독다가구'): continue
         rec = [d, 0 if use == '연립다세대' else 1, yr, round(area, 1), round(land, 1), price, x[ix['층']], p]
         if p in pnu2rec and yr: YR[p] = max(YR.get(p, 0), yr)
         for rid in pnu2rec.get(p, ()): SALE[rid].append(rec)
+        if p: ALLB[p[:15]].append(rec)
         if use == '연립다세대' and area > 0 and yr:
             if yr <= 2010: dongV[g + dcode].append([price, area, land, d])
             if NOWY - yr >= 15: bldS[p].append(price/area)
@@ -113,10 +121,41 @@ bldRatio = {p: med(bldJ[p])/med(bldS[p]) for p in set(bldS) & set(bldJ)}
 allR = [v for v in bldRatio.values() if .15 < v < 1.1]
 
 def q_of(d): return f"{d[2:4]}Q{(int(d[4:6]) - 1)//3 + 1}"
+
+# ---- 대표지번 → 법정동 코드·PNU (enrich.py의 parse_j와 같은 규칙) ----
+DCODE = {}
+for k, (gu, dn) in dongName.items(): DCODE[(gu, dn)] = k
+DC = {f"{a}|{b}": c for (a, b), c in DCODE.items()}
+_D2C = collections.defaultdict(set)
+for (gu, dn), c in DCODE.items(): _D2C[dn].add(c)
+JRE = re.compile(r'([가-힣]+\d+가|[가-힣]+?\d*(?:동|로|가))\s*(산\s*)?(\d+)(?:-(\d+))?')   # '금호동2가 421-1'처럼 N가를 먼저
+def parse_j(r, dc=DC):
+    j = re.sub(r'^\s*(서울(특별)?시\s*)?([가-힣]+구\s+)?', '', (r.get('bj') or r.get('j') or ''))
+    m = JRE.match(j)
+    if not m: return None, None
+    dong = m.group(1)
+    code = dc.get(f"{r['g']}|{dong}") or dc.get(f"{r['g']}|{re.sub(r'\d+동$', '동', dong)}")   # '신당2동' 같은 행정동 표기
+    if not code:   # 자치구 오기: 그 법정동 이름이 서울에 하나뿐이면 그 코드
+        cs = _D2C.get(dong) or _D2C.get(re.sub(r'\d+동$', '동', dong)) or ()
+        code = next(iter(cs)) if len(cs) == 1 else None
+    if not code: return None, None
+    return code, f"{code}{'2' if m.group(2) else '1'}{int(m.group(3)):04d}{int(m.group(4) or 0):04d}"
+GEO = (json.load(open(os.path.join(ROOT, 'public/data/geo.json'))) if os.path.exists(os.path.join(ROOT, 'public/data/geo.json')) else {}).get('z', {})
+for k in list(ALLB): ALLB[k] = [list(t) for t in dict.fromkeys(tuple(x) for x in ALLB[k])]
+ZCODE = {}   # 구역 → 법정동 코드(동 단위 참고 시세용)
+
 OUT = {}; DET = {}
 for r in R:
     rid = r['id']; t = {}
     s = SALE.get(rid, []); j = JEON.get(rid, [])
+    code, jp = parse_j(r)
+    if not code and PAR.get(rid, {}).get('p'): code = collections.Counter(p[0][:10] for p in PAR[rid]['p']).most_common(1)[0][0]
+    ZCODE[rid] = code
+    nobnd = not PAR.get(rid, {}).get('p') or not GEO.get(rid) or GEO[rid].get('e')
+    if not s and nobnd and jp and ALLB.get(jp[:15]):   # 공식 경계·필지가 없으면 대표지번 본번으로
+        s = ALLB[jp[:15]]; t['m'] = 'jibun'
+    sv = [x for x in s if x[1] in (0, 1)]                 # 빌라·단독(예전 n 기준)
+    sa = [x for x in s if x[1] == 2]                      # 아파트 매매(입주권 제외)
     recent = sorted({x[0] for x in s}, reverse=True)
     cut = (datetime.date.today() - datetime.timedelta(days=550)).strftime('%Y%m%d')
     # 구축 빌라(연립·다세대, 전용 20~85㎡)만 — 단독 통매매 제외. 최근 12개월 5건 이상이면 12개월, 아니면 18개월
@@ -131,7 +170,18 @@ for r in R:
         old = [x for x in old if lo <= x[5]/x[3] <= hi]
     if s:
         pp = [x[5]/x[4]*3.3058 for x in s if x[4] > 0]
-        t['n'] = len(s)
+        t['n'] = len(s)            # 매매 전체(빌라·단독·아파트·입주권)
+        t['nv'] = len(sv)          # 빌라·단독만(예전 n)
+        if sv: t['lv'] = max(x[0] for x in sv)   # 빌라·단독 최근 계약일
+        if sa:   # 아파트 매매: 최근 12개월 가운데 값·건수, 가장 최근 거래가, 분기별 가운데 값
+            a12 = [x[5] for x in sa if x[0] >= cut12z]
+            t['an'] = len(a12)
+            if a12: t['am'] = round(med(a12))
+            t['al'] = max(sa, key=lambda x: x[0])[5]
+            qa = collections.defaultdict(list)
+            for x in sa: qa[q_of(x[0])].append(x[5])
+            t['qa'] = [[k, round(med(v)), len(v)] for k, v in sorted(qa.items())]
+        if any(x[1] == 3 for x in s): t['ni'] = sum(1 for x in s if x[1] == 3)   # 입주권 거래 수
         if old:
             t['no'] = len(old); t['med'] = med([x[5] for x in old]); t['nwin'] = nwin; t['ar'] = round(med([x[3] for x in old]), 1)
             t['ld'] = round(med([x[4] for x in old if x[4] > 0]) or 0, 1)
@@ -165,7 +215,14 @@ for r in R:
         # 신고가: 대지지분 15㎡ 이상 거래끼리, 2024년 이후 구역 최고가를 3% 넘게 웃돈 최근 3개월 거래(정수 반올림된 대지지분 잡음 방지)
         lq = sorted((d, v) for d, v, ld, _ in lp if ld >= 15)
         hi = [(d, v) for i, (d, v) in enumerate(lq) if d >= c3 and i >= 5 and v > max(w for _, w in lq[:i]) * 1.03]
-        if hi: t['hi'] = [len(hi), hi[-1][0], round(hi[-1][1])]
+        hv = [len(hi), hi[-1][0], round(hi[-1][1]), 'l'] if hi else None
+        # 아파트: 같은 기준으로 전용 3.3㎡당 가격(전용 20㎡ 이상 매매끼리)
+        la = sorted((x[0], x[5]/x[3]*3.3058) for x in sa if x[3] >= 20)
+        ha = [(d, v) for i, (d, v) in enumerate(la) if d >= c3 and i >= 5 and v > max(w for _, w in la[:i]) * 1.03]
+        hb = [len(ha), ha[-1][0], round(ha[-1][1]), 'a'] if ha else None
+        # hi = [건수, 날짜, 3.3㎡당 가격, 기준('l' 빌라 대지지분 · 'a' 아파트 전용)] — 둘 다 있으면 더 최근 것
+        h = max([v for v in (hv, hb) if v], key=lambda v: (v[1], v[3] == 'l'), default=None)
+        if h: t['hi'] = h
     if j:
         t['jn'] = len(j); t['jm'] = med([x[3] for x in j]); t['ja'] = round(med([x[2] for x in j]), 1)
     if rid in PAR:
@@ -176,7 +233,7 @@ for r in R:
         if .08 < v < 1.1: t['jr2'] = round(v, 3)
     if rid in parstat: t['pc'] = parstat[rid]
     if t: OUT[rid] = t
-    xt = {k: t[k] for k in ('q', 'age', 'agn', 'pc') if t.get(k)}
+    xt = {k: t[k] for k in ('q', 'qa', 'age', 'agn', 'pc') if t.get(k)}
     if s or j or xt:
         DET[rid] = {'s': [x[:7] for x in sorted(s, key=lambda x: x[0], reverse=True)[:40]], 'j': sorted(j, key=lambda x: x[0], reverse=True)[:20], 'x': xt}
 zr = [v.get('jr') or v.get('jr2') for v in OUT.values() if v.get('jr') or v.get('jr2')]
@@ -209,6 +266,16 @@ for k, v in dongV.items():
     if len(v) >= 8:
         ps = sorted(x[0] for x in v); q = st.quantiles(ps, n=4)
         DONG[k] = {'n': len(v), 'p25': round(q[0]), 'med': round(med(ps)), 'p75': round(q[2]), 'area_med': round(med([x[1] for x in v]), 1), 'last': max(x[3] for x in v), 'nm': dongName.get(k)}
+# 구역 안 매매가 하나도 없으면 같은 법정동 구축 빌라 시세를 참고로만 붙인다(n·n3·순위에는 넣지 않음)
+for r in R:
+    rid = r['id']; code = ZCODE.get(rid)
+    if not code or (OUT.get(rid) or {}).get('n'): continue
+    dg = DONG.get(code)
+    if dg: nb = {'n': dg['n'], 'med': dg['med']}
+    else:
+        v = [x[0] for x in dongV.get(code, ()) if x[3] >= cut12 and 30 <= x[1] <= 70]
+        nb = {'n': len(v), 'med': round(med(v))} if len(v) >= 3 else None
+    if nb: OUT.setdefault(rid, {})['nb'] = {'dong': (dongName.get(code) or ('', ''))[1], **nb}
 # 단지(지번) 아파트 시세: 최근 12개월
 APT = {}
 for p, v0 in apt.items():
@@ -221,8 +288,6 @@ for p, v0 in apt.items():
         APT[p] = {'n': len(v), 'med': round(med([x[2] for x in v])), 'p25': round(st.quantiles([x[2] for x in v], n=4)[0]), 'p75': round(st.quantiles([x[2] for x in v], n=4)[2]),
                   'area_med': round(med([x[1] for x in v]), 1), 'name': collections.Counter(x[3] for x in v).most_common(1)[0][0], 'yr': collections.Counter(x[4] for x in v).most_common(1)[0][0],
                   'last': max(x[0] for x in v), 'win': win, 'by_area': {str(a): [round(med(ps)), len(ps)] for a, ps in sorted(by.items()) if len(ps) >= 2}}
-DCODE = {}
-for k, (gu, dn) in dongName.items(): DCODE[(gu, dn)] = k
 asof = {'sale': last_sale, 'rent': last_rent}
 json.dump({'tx': OUT, 'rvj': RVJ, 'jrz': jrz, 'jr0': round(med(allR), 3) if allR else None, 'asOf': asof, 'dong': DONG, 'apt': APT,
            'dcode': {f"{a}|{b}": c for (a, b), c in DCODE.items()}},

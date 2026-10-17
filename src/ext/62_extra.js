@@ -36,7 +36,7 @@ const EXTRA = (() => {
     else if (x && x.needBuy != null) rowsC.push(["지금 살 때 필요한 돈", eokT(x.needBuy)]);
     if (gp && gp.total != null) rowsC.push(["입주까지 총", eokT(gp.total)]);
     else if (x && x.ok) rowsC.push(["입주까지 총", eokT(x.needTotal)]);
-    const em = r.eta && parseFloat(r.eta.eMid != null ? r.eta.eMid : r.eta.mid); if (isFinite(em) && em > 2000) rowsC.push(["예상 입주", `${Math.floor(em)}년 무렵`]);
+    try { const pr = projection(r); if (hasEta(pr) && !pr.past) rowsC.push(["예상 입주", etaSpan(r, pr)]); } catch (e) {}
     let y = 520;
     rowsC.forEach(([k, v]) => {
       g.fillStyle = "rgba(255,255,255,.1)"; rr(g, 72, y - 92, W - 144, 170, 32); g.fill();
@@ -74,7 +74,9 @@ const EXTRA = (() => {
       q.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== q && $("sugg").querySelector(".x-row")) { $("sugg").hidden = true; q.setAttribute("aria-expanded", "false"); } }, 150));
     }
     const _sel = select;
-    select = function (id) { const x = _sel.apply(this, arguments); try { if (byId[id]) pushR(id); addCardBtn(byId[id]); } catch (e) {} return x; };
+    select = function (id) { const x = _sel.apply(this, arguments); try { if (byId[id]) pushR(id); } catch (e) {} return x; };
+    const _rr = renderReport; renderReport = function () { const x = _rr.apply(this, arguments); try { addCardBtn(cur); } catch (e) {} return x; };
+    try { addCardBtn(cur); } catch (e) {}
     // 찜이 비었을 때: 한 줄 + 버튼
     const _rf = renderFav;
     renderFav = function () {
@@ -94,7 +96,7 @@ const EXTRA = (() => {
     const acts = document.querySelector("#report .rep-acts");
     if (!r || !acts || acts.querySelector(".x-card")) return;
     const b = document.createElement("button");
-    b.type = "button"; b.className = "btn secondary sm x-card"; b.textContent = "카드 이미지";
+    b.type = "button"; b.className = "btn secondary sm x-card"; b.textContent = "이미지";
     b.onclick = () => shareCard(r, $("zoneShareFb"));
     const sh = $("zoneShare"); sh ? sh.after(b) : acts.appendChild(b);
   }

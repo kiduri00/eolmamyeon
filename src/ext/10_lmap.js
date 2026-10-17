@@ -169,14 +169,40 @@
       return (SUBG = FC(F));
     }
     // 서울 전체 화면: 구 이름 + 가능 구역 수(확대하면 사라지고 구역 경계가 보인다)
+    // 구별 말풍선: 면적 중심에 두고, 화면에서 서로 겹치면 밀어내 겹침 없이 배치
+    let GUB = null;
+    function guCenters() {
+      if (GUB) return GUB;
+      GUB = geo.gu.map((g) => {
+        const rings = g.r.flat ? g.r : [g.r]; let A = 0, cx = 0, cy = 0;
+        rings.forEach((rg) => { for (let i = 0, n = rg.length; i < n; i++) { const [x1, y1] = rg[i], [x2, y2] = rg[(i + 1) % n], f = x1 * y2 - x2 * y1; A += f; cx += (x1 + x2) * f; cy += (y1 + y2) * f; } });
+        return { n: g.n, ll: A ? [cx / (3 * A), cy / (3 * A)] : rings[0][0] };
+      });
+      return GUB;
+    }
     function guBubbles() {
       if (!map || !ready || !geo || !map.getSource("gub")) return;
-      const F = geo.gu.map((g) => {
-        const rings = g.r.flat ? g.r : [g.r]; let a = 180, b = 90, c = -180, d = -90, sx = 0, sy = 0, n = 0;
-        rings.forEach((rg) => rg.forEach(([x, y]) => { sx += x; sy += y; n++; if (x < a) a = x; if (y < b) b = y; if (x > c) c = x; if (y > d) d = y; }));
-        const k = typeof guMetric === "function" ? guMetric(g.n) : 0;
-        return { type: "Feature", geometry: { type: "Point", coordinates: [sx / n, sy / n] }, properties: { n: g.n.length <= 2 ? g.n : g.n.replace(/구$/, ""), g: g.n, v: String(k), k } };
+      const C = guCenters(), z = map.getZoom();
+      const fs = Math.max(10, Math.min(12.5, 10 + (z - 9.5) * (2.5 / 1.1)));
+      const B = C.map((c) => {
+        const k = typeof guMetric === "function" ? guMetric(c.n) : 0;
+        const nm = c.n.length <= 2 ? c.n : c.n.replace(/구$/, ""), v = String(k);
+        const p = map.project(c.ll), w = (nm.length * 0.82 + v.length * 0.62 + 0.4) * fs + 16, h = fs * 1.25 + 10;
+        return { c, k, nm, v, x: p.x, y: p.y, x0: p.x, y0: p.y, w, h };
       });
+      for (let it = 0; it < 60; it++) {
+        let moved = false;
+        for (let a = 0; a < B.length; a++) for (let b = a + 1; b < B.length; b++) {
+          const P = B[a], Q = B[b], dx = Q.x - P.x, dy = Q.y - P.y;
+          const ox = (P.w + Q.w) / 2 + 2 - Math.abs(dx), oy = (P.h + Q.h) / 2 + 2 - Math.abs(dy);
+          if (ox <= 0 || oy <= 0) continue;
+          moved = true;
+          if (ox < oy * 1.6) { const m = ox / 2 * (dx < 0 ? -1 : 1); P.x -= m; Q.x += m; } else { const m = oy / 2 * (dy < 0 ? -1 : 1) || oy / 2; P.y -= m; Q.y += m; }
+        }
+        B.forEach((P) => { P.x += (P.x0 - P.x) * 0.02; P.y += (P.y0 - P.y) * 0.02; });
+        if (!moved) break;
+      }
+      const F = B.map((P) => ({ type: "Feature", geometry: { type: "Point", coordinates: map.unproject([P.x, P.y]).toArray() }, properties: { n: P.nm, g: P.c.n, v: P.v, k: P.k } }));
       map.getSource("gub").setData(FC(F));
     }
     function seoul() {
@@ -323,6 +349,7 @@
       map.touchZoomRotate.disableRotation();
       map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '정비구역 경계 <a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a>' }), "bottom-right");
       map.on("style.load", () => { ready = false; loadGeo().then(overlays); });
+      map.on("moveend", () => { if (ready && map.getZoom() < 12.3) guBubbles(); });
       map.once("load", () => { const a = $("lmap").querySelector(".maplibregl-ctrl-attrib"); if (a) a.classList.remove("maplibregl-compact-show"); });
       map.on("error", (e) => {
         const m = String((e && e.error && e.error.message) || "");
@@ -403,5 +430,6 @@
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
       zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else map.fitBounds(SEOUL_BB, { padding: 8, duration: reduceMotion() ? 0 : 400 }); },
       geo: () => loadGeo(),
+      lib: () => loadLib(), style: () => style(), subway: () => subwayGeo(),
     };
   })();

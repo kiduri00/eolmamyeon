@@ -3650,6 +3650,14 @@
     const t = TODAY.getFullYear() + TODAY.getMonth() / 12 - (y + ((m || 1) - 1) / 12);
     return t >= 8 ? Math.floor(t) : 0;
   }
+  // 입주 시기: 4년 안쪽이면 연도, 그보다 멀면 단계별 남은 기간(가짜 정밀 연도 대신)
+  function etaSpan(r, pr) {
+    pr = pr || projection(r);
+    const yrs = pr.eMid ? (pr.eMid - TODAY) / (365.25 * 864e5) : null;
+    if (yrs != null && yrs <= 4 && pr.eLo && pr.eHi) { const a = pr.eLo.getFullYear(), b = pr.eHi.getFullYear(); return a === b ? `${a}년` : `${a}~${String(b).slice(2)}년`; }
+    const s = r.s || 0;
+    return s >= 6 ? "4~6년 뒤" : s === 5 ? "7~10년 뒤" : s === 4 ? "10~15년 뒤" : "15년+ 뒤";
+  }
   function etaYearTxt(r) {
     const pr = projection(r);
     return pr.done
@@ -3662,7 +3670,7 @@
             ? "산정 불가"
             : pr.past
               ? "확인 필요"
-              : pr.eMid.getFullYear() + "년";
+              : etaSpan(r, pr);
   }
   function p10Txt(r) {
     const pr = projection(r);
@@ -3958,7 +3966,7 @@
       const extra = (r.pg || []).map((p) => `<span class="pill">${esc(p)}</span>`);
       const open = zoneOpen(r.id);
       rp.classList.toggle("rep-locked", !open);
-      rp.innerHTML = `<div class="sheet-bar"><b aria-hidden="true">${esc(shortName(r.n))}</b><button type="button" class="btn ghost sm" id="sheetClose" aria-label="구역 리포트 닫기">${ICON.close}닫기</button></div>\n    ${backTo ? `<button type="button" class="back" id="backList">← 목록으로</button>` : mapView === "gu" && mapGu && !MQ_SHEET.matches ? `<button type="button" class="back" id="backGu" data-gu="${esc(mapGu)}">← ${esc(mapGu)} 구역 목록</button>` : ""}\n    <div class="rep-head">\n      <div class="rep-t"><div><h2 id="repTitle" tabindex="-1">${esc(shortName(r.n))}</h2>${shortName(r.n) !== r.n ? `<div class="formal">${esc(r.n)}</div>` : ""}</div>${gradeBadge(r)}</div>\n      <div class="where" title="역까지 직선거리 기준 · 도보 분은 직선×1.3, 분당 67m 추정"><b>${esc(r.g)} ${esc(r.bj || r.j)}</b> · ${esc(r.k)}${r.st ? ` · ${esc(whereText(r))}` : ""}</div>\n      ${parent ? `<div class="where">소속 모아타운: <a href="#${parent.id}" data-go="${parent.id}">${esc(parent.n)}</a></div>` : ""}\n      <div class="kind">${main.join("")}${extra.length ? `<span class="kx" id="kindX" hidden>${extra.join("")}</span><button type="button" class="pill more-p" id="kindMore" aria-expanded="false" aria-controls="kindX" title="사업 방식 태그 더 보기">사업 방식 ${extra.length}개 더 보기</button>` : ""}</div>\n      ${cashStrip(r)}\n      ${open ? hjSummary(r) : ""}\n      <div class="rep-acts">${listBtn(r, "primary sm")}${favBtn(r, "sm")}<button type="button" class="btn secondary sm" id="zoneShare">이 구역 공유</button><span class="share-fb" id="zoneShareFb" role="status"></span></div>\n    </div>\n    ${open ? `<div class="tabs" role="tablist" aria-label="구역 리포트">\n      ${TABS.map(([k, l]) => `<button type="button" role="tab" id="tab-${k}" data-tab="${k}" aria-selected="${curTab === k}" aria-controls="pane" tabindex="${curTab === k ? 0 : -1}">${l}</button>`).join("")}\n    </div>\n    <div class="tabpane" id="pane" role="tabpanel" aria-labelledby="tab-${curTab}" tabindex="0"></div>` : `<div class="rep-gate">${reportGate(r)}</div>`}\n    <div class="sheet-foot"><button type="button" class="btn secondary" id="sheetClose2">닫고 목록으로</button></div>`;
+      rp.innerHTML = `<div class="sheet-bar"><b aria-hidden="true">${esc(shortName(r.n))}</b><button type="button" class="btn ghost sm" id="sheetClose" aria-label="구역 리포트 닫기">${ICON.close}닫기</button></div>\n    ${backTo ? `<button type="button" class="back" id="backList">← 목록으로</button>` : mapView === "gu" && mapGu && !MQ_SHEET.matches ? `<button type="button" class="back" id="backGu" data-gu="${esc(mapGu)}">← ${esc(mapGu)} 구역 목록</button>` : ""}\n    <div class="rep-head">\n      <div class="rep-t"><div><h2 id="repTitle" tabindex="-1">${esc(shortName(r.n))}</h2>${shortName(r.n) !== r.n ? `<div class="formal">${esc(r.n)}</div>` : ""}</div>${gradeBadge(r)}</div>\n      <div class="where" title="역까지 직선거리 기준 · 도보 분은 직선×1.3, 분당 67m 추정"><b>${esc(r.g)} ${esc(r.bj || r.j)}</b> · ${esc(r.k)}${r.st ? ` · ${esc(whereText(r))}` : ""}</div>\n      ${parent ? `<div class="where">소속 모아타운: <a href="#${parent.id}" data-go="${parent.id}">${esc(parent.n)}</a></div>` : ""}\n      <div class="kind">${main.join("")}${extra.length ? `<span class="kx" id="kindX" hidden>${extra.join("")}</span><button type="button" class="pill more-p" id="kindMore" aria-expanded="false" aria-controls="kindX" title="사업 방식 태그 더 보기">사업 방식 ${extra.length}개 더 보기</button>` : ""}</div>\n      ${cashStrip(r)}\n      ${open ? hjSummary(r) : ""}\n      <div class="rep-acts">${listBtn(r, "primary sm")}${favBtn(r, "sm")}<button type="button" class="btn secondary sm" id="zoneShare">공유</button><span class="share-fb" id="zoneShareFb" role="status"></span></div>\n    </div>\n    ${open ? `<div class="tabs" role="tablist" aria-label="구역 리포트">\n      ${TABS.map(([k, l]) => `<button type="button" role="tab" id="tab-${k}" data-tab="${k}" aria-selected="${curTab === k}" aria-controls="pane" tabindex="${curTab === k ? 0 : -1}">${l}</button>`).join("")}\n    </div>\n    <div class="tabpane" id="pane" role="tabpanel" aria-labelledby="tab-${curTab}" tabindex="0"></div>` : `<div class="rep-gate">${reportGate(r)}</div>`}\n    <div class="sheet-foot"><button type="button" class="btn secondary" id="sheetClose2">닫고 목록으로</button></div>`;
       if ($("kindMore"))
         $("kindMore").onclick = () => {
           $("kindX").hidden = false;
@@ -4198,7 +4206,7 @@
     const dates = L.map((_, i) => dOf(i));
     const etaRow =
       hasEta(pr) && !pr.past
-        ? `<li class="eta"><span class="d" aria-hidden="true">◷</span><div><b>예상 준공·입주</b><p>준공되는 경우의 가운데 값 · 빠르면 ${ym(pr.eLo)}, 늦으면 ${ym(pr.eHi)}</p></div><span class="t">${ym(pr.eMid)}</span></li>`
+        ? `<li class="eta"><span class="d" aria-hidden="true">◷</span><div><b>예상 준공·입주</b><p>준공되는 경우의 가운데 값 · 빠르면 ${ym(pr.eLo)}, 늦으면 ${ym(pr.eHi)}</p></div><span class="t">${etaSpan(r, pr)}</span></li>`
         : "";
     const kidDist = kids.length
       ? Object.entries(
@@ -4223,7 +4231,7 @@
               ? ["산정 불가", `${pr.stall}년째 같은 단계라 통계 표본이 거의 없어요`]
               : pr.past
                 ? ["준공 여부 확인 필요", `예상 시점(${ym(pr.eMid)})이 기준일보다 앞섬`]
-                : [ym(pr.eMid).replace("년 ", ".").replace("월", ""), `${ym(pr.eLo)} ~ ${ym(pr.eHi)}`];
+                : [etaSpan(r, pr), ""];
     const pShow = hasEta(pr);
     p.innerHTML = `\n    <div class="bigrow">\n      <div class="big"><span>예상 입주 <em class="lbl">준공되는 경우의 가운데 값</em></span><b${/\d/.test(big1[0]) ? "" : ' class="t"'}>${big1[0]}</b><small>${big1[1]}</small></div>\n      <div class="big"><span>10년 안 준공 가능성</span><b>${pShow ? prob(pr.p10) + "%" : pr.done ? "완료" : "–"}</b><small>${pShow ? (pr.noDate ? "현재 단계 날짜 없음 · 추정" : "서울 사업장 생존분석(KM·몬테카를로 4,000회)") : p10Why(r)}</small></div>\n      <div class="big"><span>현재 단계</span><b class="t">${esc(stageName(r))}</b><small>${curStageDate(r) ? esc(curStageDate(r)) + (r.chk ? " · 확인 필요(인가일이 아닐 수 있음)" : " · 공식 인가·고시일") : r.chk ? "단계 정보 확인 중" : ""}</small></div>\n    </div>\n    ${pr.adj ? `<p class="note"><b>가로·소규모 보정</b> 가로주택·소규모 표본이 적어 조합설립→사업시행 외 구간은 대규모 재개발·재건축 기간을 빌려 씁니다. 사업시행계획인가에 관리처분이 포함되므로 '사업시행→관리처분' 대기(${DUP.toFixed(1)}년)는 빼고 근사 보정했어요.</p>` : pr.grp === "small" && pShow ? `<p class="note"><b>가로·소규모</b> 표본이 적어 조합설립→사업시행 외 구간은 대규모 재개발·재건축 기간을 빌려 씁니다.</p>` : ""}\n    ${r.chk ? `<p class="note warnbox"><b>단계 정보 확인 중</b> ${esc(chkText(r))} 조합·구청 공고로 확인하세요.</p>` : ""}\n    ${r.cx ? `<p class="note riskbox"><b>대상지 취소</b> ${esc(r.cx)} 서울시가 모아타운 대상지에서 취소했습니다.</p>` : ""}\n    ${(r.news || []).length ? `<div class="sect"><h3>최근 확인된 소식 <small>공식 목록보다 최신</small></h3>${r.news.map((n) => `<p class="note">${n.d ? `<b>${esc(n.d.replaceAll("-", "."))}</b> ` : ""}${esc(n.t)} <a href="${esc(n.src)}" target="_blank" rel="noopener">출처</a></p>`).join("")}</div>` : ""}\n    ${r.sin ? `<p class="note"><b>신속통합기획 현황</b> ${esc(r.sin.stage && r.sin.stage !== "-" ? r.sin.stage : "진행 중")}${r.sin.designated && r.sin.designated !== "-" ? ` · 구역지정 ${esc(r.sin.designated)}` : ""}${r.sin.note && r.sin.note.trim() !== "-" ? ` · ${esc(r.sin.note)}` : ""} <span class="dim">(서울시 ${esc(r.sin.asOf)} 기준)</span></p>` : ""}\n    ${pr.moa ? `<p class="note"><b>일정</b> 모아타운 관리지역은 사업구역(블록)별로 따로 진행돼 관리지역 전체의 입주 시점은 계산하지 않아요.${kidDist ? ` 소속 조합 진행: ${kidDist}. 입주 시점은 아래 소속 조합 리포트에서 확인하세요.` : " 아직 정보몽땅에 등록된 개별 조합이 없어 입주 시점을 알 수 없어요."}</p>` : ""}\n    ${pr.pre ? `<p class="note"><b>일정</b> 구역지정 전이라 입주 시점과 준공 확률은 계산하지 않아요. 구역지정 시점은 서울시·구청 고시로 확인하세요.</p>` : ""}\n    ${pr.nodata ? `<p class="note"><b>일정 자료 부족</b> 현재 단계의 인가일 등 일정 자료가 모자라 준공 확률과 입주 시점을 산정하지 못했어요.</p>` : ""}\n    ${consentHtml}\n    <dl class="facts">\n      ${fact("구역 면적", sm.area ? (areaBad ? "확인 중" : fmt(sm.area) + "㎡") : null, sm.area ? (areaBad ? `원자료 ${fmt(sm.area)}㎡는 계획 세대수(${fmt(units)}세대)에 비해 너무 작아 필지 하나의 면적일 수 있어요` : `약 ${fmt(sm.area / 3.3058)}평`) : "", "자료 없음")}\n      ${fact("계획 세대수", units ? fmt(units) + "세대" : null, sm.rental ? `임대 ${fmt(sm.rental)} 포함` : "", naReason("units", r))}\n      ${fact(r.k === "재건축" || r.k === "소규모재건축" ? "조합원 수" : "토지등소유자", owners ? fmt(owners) + "명" : null, sm.members && sm.owners && sm.members !== sm.owners ? `조합원 ${fmt(sm.members)}명` : "", naReason("owners", r))}\n      ${fact("일반분양 비율(추정)", saleRatio != null ? (saleRatio * 100).toFixed(0) + "%" : null, saleRatio != null ? "(세대−소유자−임대)÷세대" : "", "계산 불가 (세대·소유자 자료 부족)")}\n      ${fact("계획 용적률", sm.far ? sm.far + "%" : null, sm.zoning || "", naReason("far", r))}\n      ${fact("시공자", r.b || null, r.b ? "정보몽땅 추진경과·기사 대조 · 늦게 반영될 수 있음" : "", naReason("builder", r))}\n    </dl>\n    ${kids.length ? `<div class="sect"><h3>관리지역 안 개별 조합 <small>${kids.length}곳 · 누르면 이동</small></h3><div class="children">${kids.map((k) => `<button type="button" class="child" data-go="${k.id}"><span>${esc(k.n)}<small>${esc(srLabel(k))}${k.cs && (k.cs["조합설립"] || k.cs["추진위"]) ? ` · 동의율 ${(k.cs["조합설립"] || k.cs["추진위"]).v.toFixed(1)}%` : ""}</small></span><span class="pill">${esc(k.k)}</span></button>`).join("")}</div></div>` : ""}\n    <div class="sect"><h3>추진 단계 <small>날짜는 공식 인가·고시일</small></h3>\n      <ol class="ladder">${L.map(
       (l, i) => {
@@ -6107,6 +6115,7 @@
   const gapCount = (cash) => baseList().filter((r) => gapOk(r, cash)).length;
   const yrTxt = (t) => {
     if (t == null) return "시점 미정";
+    if (t > 4) return t > 15 ? "15년+ 뒤" : t > 10 ? "10~15년 뒤" : t > 7 ? "7~10년 뒤" : "4~7년 뒤";
     const d = new Date(TODAY.getTime() + t * 365.25 * 864e5);
     return `${d.getFullYear()}년`;
   };
@@ -6156,9 +6165,9 @@
     const s1 = `<li class="gt1"><span class="gt-w">지금 · 매수</span><b>${f1(g.now)}억</b><small>매수가 ${e2(x.price)} − 전세 ${e2(g.D)} + 취득세 ${taxT(x.tax)}</small></li>`;
     const s2 =
       x.ok && g.reloc < 0.05
-        ? `<li class="gt2 z"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null ? " 무렵" : ""}</span><b class="z0">이주 때 추가 0원</b><small>이주비 대출 ${e2(g.M)}억으로 전세금 ${e2(g.D)}억 반환 · 추정 · 입주 때 상환</small></li>`
+        ? `<li class="gt2 z"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null && g.tR <= 4 ? " 무렵" : ""}</span><b class="z0">이주 때 추가 0원</b><small>이주비 대출 ${e2(g.M)}억으로 전세금 ${e2(g.D)}억 반환 · 추정 · 입주 때 상환</small></li>`
         : x.ok
-          ? `<li class="gt2"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null ? " 무렵" : ""}</span><b>+${e2(g.reloc)}억</b><small>전세금 ${e2(g.D)} 반환${g.M > 0.04 ? ` − 이주비 대출 ${e2(g.M)}(추정·입주 때 상환)` : g.Mcap === 0 ? " · 다주택은 이주비 대출 불가" : ""}</small></li>`
+          ? `<li class="gt2"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null && g.tR <= 4 ? " 무렵" : ""}</span><b>+${e2(g.reloc)}억</b><small>전세금 ${e2(g.D)} 반환${g.M > 0.04 ? ` − 이주비 대출 ${e2(g.M)}(추정·입주 때 상환)` : g.Mcap === 0 ? " · 다주택은 이주비 대출 불가" : ""}</small></li>`
           : `<li class="gt2 na"><span class="gt-w">이주</span><b>+${e2(g.D)}억</b><small>전세금 반환 · 이주비 대출로 일부 충당 가능(조합·규제에 따라 다름)</small></li>`;
     const s3 = x.ok
       ? `<li class="gt3"><span class="gt-w">입주 · ${yrTxt(g.tM)}${(() => { const pr = projection(g.r); return pr.stall || pr.nodata ? " (일정 산정 불가 · 계산용 가정)" : ""; })()}</span><b>총 ${f1(g.total)}억</b><small>${small ? "분담금·세금·이자 − 잔금대출" : `분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`

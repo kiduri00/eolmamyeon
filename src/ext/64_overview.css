@@ -1,0 +1,77 @@
+.ov-top{display:flex;flex-direction:column;gap:12px;margin:14px 0 6px}
+.ov-map{height:190px;border-radius:16px;overflow:hidden;background:var(--surface-2);border:1px solid var(--border);cursor:pointer}
+.ov-row{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:981px){.ov-row{grid-template-columns:1fr}}
+.ov-c{padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+.ov-c h3{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:15px;font-weight:700;letter-spacing:-.01em}
+.ov-c h3 em{font-style:normal;font-size:12.5px;font-weight:700;padding:2px 7px;border-radius:999px}
+.ov-c h3 em.up{color:#c2410c;background:color-mix(in srgb,#f97316 12%,transparent)}
+.ov-c h3 em.dn{color:#1d4ed8;background:color-mix(in srgb,#3b82f6 12%,transparent)}
+.ov-k{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ov-k div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ov-k span{font-size:12px;color:var(--text-3);font-weight:500}
+.ov-k b{font-size:20px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--text-1)}
+.ov-k div:first-child b{color:var(--brand)}
+.ov-ch{margin:12px -4px 0}
+.ov-ch svg.txc{min-width:0}
+.ov-l{list-style:none;margin:12px 0 0;padding:0;border-top:1px solid var(--divider)}
+.ov-l li{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--divider);font-size:14px}
+.ov-l li span:first-child{color:var(--text-3);font-variant-numeric:tabular-nums;font-size:13px}
+.ov-l li span:nth-child(2){color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov-l li b{font-variant-numeric:tabular-nums}
+.ov-more{margin-top:10px;padding:0;border:0;background:none;color:var(--brand);font:600 13.5px var(--font);cursor:pointer}
+.ov-none{margin:0;font-size:14px;color:var(--text-2)}
+.ov-near{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--text-2)}
+.ov-near b{font-size:17px;color:var(--text-1)}
+.ov-gw{display:flex;align-items:center;gap:16px}
+.ov-g{width:150px;flex:none}
+.ov-g .tr{fill:none;stroke:var(--surface-3);stroke-width:12;stroke-linecap:round}
+.ov-g .fg{fill:none;stroke-width:12;stroke-linecap:round;stroke:#94a3b8;transition:stroke-dasharray .5s}
+.ov-g.ok .fg{stroke:#16a34a}.ov-g.mid .fg{stroke:#f59e0b}
+.ov-g .tk{stroke:var(--text-1);stroke-width:2}
+.ov-g .tl{font:600 9px var(--font);fill:var(--text-3)}
+.ov-g .v{font:800 26px var(--font);fill:var(--text-1);text-anchor:middle;letter-spacing:-.04em}
+.ov-g .v tspan{font-size:14px;font-weight:700}
+.ov-gs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;min-width:0}
+.ov-gs li{display:flex;flex-direction:column}
+.ov-gs b{font-size:16px;font-weight:700;letter-spacing:-.02em}
+.ov-gs b.ok{color:#16a34a}
+.ov-gs span{font-size:12px;color:var(--text-3)}
+
+/* 회의 반영: 상세 화면 잔글씨 정리 */
+html.simple #report .gtl small,html.simple #report .bigrow .big>small,html.simple #report .lb-pos small,
+html.simple #report em.lbl,html.simple #report li.eta p,html.simple #report p.list-note,html.simple #report .hj-src,
+html.simple #report p.feedl,html.simple #report .hj-st,html.simple #report #sheetClose2,html.simple #report .sheet-foot,
+html.simple #report .rep-head .kind,html.simple #report .hjsum,html.simple #report .facts .na-row,
+html.simple #report .chk3 .note,html.simple #report .hj-warn{display:none!important}
+html.simple #report p.note.keep{display:block!important}
+#report .btn:focus:not(:focus-visible),#report button:focus:not(:focus-visible){outline:none;box-shadow:none}
+.rep-head .where.ov-w{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;color:var(--text-2)}
+.ov-chip{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:var(--brand-soft,#e8eefc);color:var(--brand);font-size:12.5px;font-weight:700}
+.ov-chip.g{background:var(--surface-2);color:var(--text-2);font-weight:600}
+html.simple #report .rep-acts{flex-wrap:nowrap}
+html.simple #report .rep-acts .btn{white-space:nowrap}
+.ov-big{display:flex;align-items:baseline;gap:8px}
+.ov-big span{font-size:13px;color:var(--text-3);font-weight:500}
+.ov-big b{font-size:28px;font-weight:800;letter-spacing:-.04em;color:var(--brand);font-variant-numeric:tabular-nums}
+.ov-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ov-chips span{padding:4px 9px;border-radius:999px;background:var(--surface-2);font-size:12.5px;font-weight:600;color:var(--text-2);font-variant-numeric:tabular-nums}
+.ov-g.hi .fg{stroke:var(--brand)}.ov-g.ok .fg{stroke:#f59e0b}.ov-g.lo .fg{stroke:#94a3b8}
+.ov-g .t2{stroke:var(--text-3);stroke-width:1.5}
+.ov-gs{display:flex;flex-direction:column;gap:2px}
+.ov-gs h3{margin:0 0 2px}
+.ov-gs b{font-size:20px;font-weight:800;letter-spacing:-.03em}
+.ov-gs b.ok{color:var(--brand)}.ov-gs b.no{color:var(--text-3)}
+.ov-gs span{font-size:13px;color:var(--text-2)}
+.ov-row>div:empty{display:none}
+html.simple #pane .sect:has(.oldbar){display:none}
+.ov-img{display:block;width:100%;height:100%;object-fit:cover}
+.ov-cht{font-size:12px;color:var(--text-3);font-weight:600;margin:0 0 4px 4px}
+svg.ov-bar{width:100%;height:auto;display:block}
+svg.ov-bar rect{fill:color-mix(in srgb,var(--brand) 22%,transparent)}
+svg.ov-bar rect.on{fill:var(--brand)}
+svg.ov-bar .yr{font:500 10px var(--font);fill:var(--text-3)}
+svg.ov-bar .bv{font:700 10.5px var(--font);fill:var(--text-2)}
+svg.ov-bar .bv.last{fill:var(--brand);font-size:11.5px}
+html.simple #pane .gpane:not(:has(h3)){display:none}
+html.simple .s-lsub,html.simple .s-hint{display:none!important}

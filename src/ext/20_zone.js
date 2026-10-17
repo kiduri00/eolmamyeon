@@ -206,7 +206,7 @@
       if (!TXD) { p.innerHTML = `<p class="note">구역 실거래를 불러오는 중…</p>`; loadTx().then(() => { if (cur === r && curTab === "tx" && $("pane")) paneTx(r); }); return; }
       const t = { ...(r.tx || {}), ...((TXD[r.id] && TXD[r.id].x) || {}) };
       if (!t.n && !t.jn && !t.pc) {
-        p.innerHTML = `<div class="sect"><p class="note">${z && !z.e ? "2024년 이후 이 구역 경계 안에서 신고된 빌라·단독 매매와 빌라 전세가 없어요." : "이 구역은 공식 경계가 없어(후보지·구역지정 전 등) 경계 안 거래만 따로 모을 수 없어요."} 주변 시세는 '호재·매물' 탭의 KB부동산에서 확인하세요.</p></div>${rightsHTML(r)}`;
+        p.innerHTML = `<div class="sect"><p class="note keep">${z && !z.e ? "최근 구역 안 거래가 없어요." : "이 구역은 공식 경계가 없어(후보지·구역지정 전 등) 경계 안 거래만 따로 모을 수 없어요."} 주변 시세는 '호재·매물' 탭의 KB부동산에서 확인하세요.</p></div>${rightsHTML(r)}`;
         return;
       }
       const pc = t.pc, age = t.age || {}, agn = t.agn || {};
@@ -214,7 +214,7 @@
       const x = (() => { try { return invest(r); } catch (e) { return {}; } })();
       p.innerHTML = `
         <div class="bigrow b3">
-          <div class="big hl"><span>땅 1평(3.3㎡)당 가운데 값</span><b>${t.pp ? eok(t.pp) : "–"}</b><small>${t.n ? `매매 ${fmt(t.n)}건 · 2024.1~${ymd2(t.last)}` : ""}</small></div>
+          <div class="big hl"><span>땅 1평(3.3㎡)당 가운데 값</span><b>${t.pp ? eok(t.pp) : "–"}</b><small>${t.nv || t.n ? `빌라·단독 ${fmt(t.nv || t.n)}건` : ""}</small></div>
           <div class="big"><span>빌라 매매 가운데 값</span><b>${t.med ? eok(t.med) : "–"}</b><small>${t.no ? `2015년 이전 준공 빌라 최근 ${t.nwin || 18}개월 ${fmt(t.no)}건 · 전용 ${t.ar}㎡ · 대지 ${t.ld}㎡` : "최근 18개월 구축 빌라 거래 없음"}</small></div>
           <div class="big"><span>빌라 전세 가운데 값</span><b>${t.jm ? eok(t.jm) : "–"}</b><small>${t.jn ? `전세 ${fmt(t.jn)}건 · 임대 ${t.ja}㎡${t.jr ? ` · 전세가율 ${Math.round(t.jr * 100)}%` : t.jr2 ? ` · 전세가율 약 ${Math.round(t.jr2 * 100)}%` : ""}` : "전세 거래 없음"}</small></div>
         </div>
@@ -236,13 +236,13 @@
       loadTx().then((d) => {
         if (cur !== r || !$("txList")) return;
         const z0 = d[r.id] || {}, S = Array.isArray(z0.s) ? z0.s : [], J = Array.isArray(z0.j) ? z0.j : [];
-        const TY = ["빌라", "단독"];
+        const TY = ["빌라", "단독", "아파트", "입주권"];
         const rdY = (() => { const x = rights(r); return x.k === "set" ? +x.d.slice(0, 4) : null; })();
         $("txList").innerHTML = S.length
           ? `<table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col">유형</th><th scope="col" class="n">준공</th><th scope="col" class="n">전용</th><th scope="col" class="n">대지</th><th scope="col" class="n">가격</th><th scope="col" class="n">대지 3.3㎡당</th></tr></thead><tbody>${S.slice(0, 40)
               .map((x) => `<tr><td>${ymd2(x[0])}</td><td>${TY[x[1]] || ""}${x[6] ? ` ${esc(String(x[6]))}층` : ""}${x[2] >= 2016 && x[4] > 0 && x[4] <= 15 ? ' <em class="flag" title="최근 준공·대지 15㎡ 이하: 지분 쪼개기 신축일 수 있어요">쪼개기 의심</em>' : rdY && x[2] > rdY ? ' <em class="flag" title="권리산정기준일 뒤 준공">기준일 뒤 준공</em>' : ""}</td><td class="n">${x[2] || "–"}</td><td class="n">${x[3]}㎡</td><td class="n">${x[4] || "–"}㎡</td><td class="n"><b>${eok(x[5])}</b></td><td class="n">${x[4] > 0 ? eok(Math.round((x[5] / x[4]) * 3.3058)) : "–"}</td></tr>`)
               .join("")}</tbody></table>`
-          : '<p class="note">2024년 이후 구역 안 매매 신고가 없어요.</p>';
+          : '<p class="note keep">최근 구역 안 매매가 없어요.</p>';
         $("jList").innerHTML = J.length
           ? `<table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col" class="n">준공</th><th scope="col" class="n">임대 면적</th><th scope="col" class="n">보증금</th></tr></thead><tbody>${J.slice(0, 20).map((x) => `<tr><td>${ymd2(x[0])}</td><td class="n">${x[1] || "–"}</td><td class="n">${x[2]}㎡</td><td class="n"><b>${eok(x[3])}</b></td></tr>`).join("")}</tbody></table>`
           : '<p class="note">2025년 이후 구역 안 빌라 전세 신고가 없어요.</p>';
@@ -310,7 +310,7 @@
       const hj = p.querySelector(".hjl"); if (hj) moreRows(hj.parentElement, 3);
       p.querySelectorAll(".nc-go").forEach((b) => (b.onclick = () => { curTab = "money"; select(b.dataset.go, false, false, { scroll: !MQ_SHEET.matches }); }));
     };
-    return { paneTx, rights, rightsHTML, pace, geoReady, loadTx, moreRows, geoZ: () => GEO_Z };
+    return { chartSVG, paneTx, rights, rightsHTML, pace, geoReady, loadTx, moreRows, geoZ: () => GEO_Z };
   })();
   function paneTx(r) { ZX.geoReady(); ZX.paneTx(r); }
   // 매수가가 없을 때 이유를 구역 성격에 맞게

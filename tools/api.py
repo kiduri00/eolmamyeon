@@ -71,7 +71,7 @@ for r, z in zip(R, Z):
     det.update({
         'history': [{'stage': lab, 'date': dt[k]} for k, lab in KEYS if dt.get(k)],
         'events': [{'date': d, 'section': sec, 'text': t} for d, sec, t in (pm.get('ev') or []) if d <= today][:10],
-        'sales': [{'date': x[0], 'type': '연립다세대' if x[1] == 0 else '단독', 'built': x[2] or None, 'area': x[3], 'land': x[4], 'price': x[5], 'floor': x[6]} for x in (tx.get('s') or [])[:20]],
+        'sales': [{'date': x[0], 'type': ['연립다세대', '단독', '아파트', '입주권'][x[1]] if x[1] in (0, 1, 2, 3) else None, 'built': x[2] or None, 'area': x[3], 'land': x[4], 'price': x[5], 'floor': x[6]} for x in (tx.get('s') or [])[:20]],
         'rents': [{'date': x[0], 'built': x[1] or None, 'area': x[2], 'deposit': x[3]} for x in (tx.get('j') or [])[:10]],
         'landPermits': [{'date': d, 'jibun': jb, 'jimok': jm, 'use': u, 'result': res} for d, jb, jm, u, res in (((TH.get('z') or {}).get(r['id']) or {}).get('r') or [])],
         'nearbyCommerce': near,

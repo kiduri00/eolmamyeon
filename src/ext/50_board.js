@@ -12,7 +12,7 @@ const BD = (() => {
     let L = [], head = "", row;
     if (K === "n3") {
       L = live().filter((r) => r.tx.n3 > 0).sort((a, b) => b.tx.n3 - a.tx.n3 || (b.tx.n12 || 0) - (a.tx.n12 || 0));
-      note.textContent = "계약일 기준 최근 3개월 구역 안 연립·다세대 매매 건수 · 거래가 몰리면 손바뀜이 활발하다는 뜻이에요.";
+      note.textContent = "계약일 기준 최근 3개월 구역 안 매매 건수(빌라·단독·아파트) · 거래가 몰리면 손바뀜이 활발하다는 뜻이에요.";
       head = "<th class=n>3개월</th><th class=n>12개월</th><th class=n>빌라 가운데 값</th>";
       row = (r) => `<td class=n><b>${r.tx.n3}건</b></td><td class=n>${r.tx.n12 || 0}건</td><td class=n>${r.tx.med ? eok(r.tx.med) : "–"}</td>`;
     } else if (K === "yoy") {
@@ -22,9 +22,9 @@ const BD = (() => {
       row = (r) => `<td class="n ${r.tx.yoy >= 0 ? "up" : "dn"}"><b>${r.tx.yoy > 0 ? "+" : ""}${r.tx.yoy}%</b></td><td class=n>${r.tx.yon[0]} / ${r.tx.yon[1]}건</td>`;
     } else {
       L = live().filter((r) => r.tx.hi).sort((a, b) => b.tx.hi[1].localeCompare(a.tx.hi[1]) || b.tx.hi[0] - a.tx.hi[0]);
-      note.textContent = "최근 3개월 안에 그 구역 대지지분 3.3㎡당 가격이 2024년 이후 최고를 넘은 거래 · 앞선 거래가 5건 이상인 구역만.";
+      note.textContent = "최근 3개월 안에 그 구역 3.3㎡당 가격(빌라는 대지, 아파트는 전용 기준)이 2024년 이후 최고를 넘은 거래 · 앞선 거래가 5건 이상인 구역만.";
       head = "<th class=n>신고가 날짜</th><th class=n>3.3㎡당</th><th class=n>건수</th>";
-      row = (r) => `<td class=n><b>${ymd(r.tx.hi[1])}</b></td><td class=n>${eok(r.tx.hi[2])}</td><td class=n>${r.tx.hi[0]}건</td>`;
+      row = (r) => `<td class=n><b>${ymd(r.tx.hi[1])}</b></td><td class=n>${eok(r.tx.hi[2])}${r.tx.hi[3] === "a" ? " <small>아파트</small>" : ""}</td><td class=n>${r.tx.hi[0]}건</td>`;
     }
     L = L.slice(0, 30);
     out.innerHTML = L.length

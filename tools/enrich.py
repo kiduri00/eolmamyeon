@@ -130,21 +130,27 @@ for r in R:
 T = TX['tx']; DONG = TX['dong']; APT = TX['apt']; DC = TX['dcode']
 GU5 = {}
 for k, c in DC.items(): GU5[k.split('|')[0]] = c[:5]
+JRE = re.compile(r'([가-힣]+\d+가|[가-힣]+?\d*(?:동|로|가))\s*(산\s*)?(\d+)(?:-(\d+))?')   # '금호동2가 421-1'처럼 N가를 먼저(tools/tx.py와 같은 규칙)
+_D2C = collections.defaultdict(set)
+for k, c in DC.items(): _D2C[k.split('|')[1]].add(c)
 def parse_j(r):
-    j = (r.get('bj') or r.get('j') or '').strip()
-    m = re.match(r'([가-힣0-9]+?(?:동|가|로))\s*(산\s*)?(\d+)(?:-(\d+))?', j)
+    j = re.sub(r'^\s*(서울(특별)?시\s*)?([가-힣]+구\s+)?', '', (r.get('bj') or r.get('j') or ''))
+    m = JRE.match(j)
     if not m: return None, None
-    dong = re.sub(r'(\d+)가$', r'\1가', m.group(1))
+    dong = m.group(1)
     code = DC.get(f"{r['g']}|{dong}")
     if not code:   # '신당동' 대신 '신당2동' 같은 행정동 표기
         code = DC.get(f"{r['g']}|{re.sub(r'\d+동$', '동', dong)}")
+    if not code:   # 자치구 오기: 그 법정동 이름이 서울에 하나뿐이면 그 코드
+        cs = _D2C.get(dong) or _D2C.get(re.sub(r'\d+동$', '동', dong)) or ()
+        code = next(iter(cs)) if len(cs) == 1 else None
     if not code: return None, None
     pnu = f"{code}{'2' if m.group(2) else '1'}{int(m.group(3)):04d}{int(m.group(4) or 0):04d}"
     return code, pnu
 for r in R:
     t = T.get(r['id'])
     if t:
-        r['tx'] = {k: v for k, v in t.items() if v not in (None, [], {}) and k not in ('q', 'age', 'agn', 'pc')}   # 상세는 data/tx.json에서 지연 로딩
+        r['tx'] = {k: v for k, v in t.items() if v not in (None, [], {}) and k not in ('q', 'qa', 'age', 'agn', 'pc')}   # 상세는 data/tx.json에서 지연 로딩
     if not act(r) or r.get('src') == 'moa': continue
     mk = r.setdefault('mk', {}); en = mk.get('entry')
     villa_kind = r['k'] not in ('재건축', '소규모재건축')
@@ -154,8 +160,9 @@ for r in R:
         mk.pop('entry', None); en = None; stat['entry_drop_bad'] += 1
     # (a) 구역 안 실거래가 충분하면 반경 추정보다 우선. 3~4건이라도 반경 추정과 25% 넘게 다르면 구역 안 값을 쓴다
     if t and villa_kind and (t.get('no', 0) >= 5 or (t.get('no', 0) >= 3 and en and en.get('med') and t.get('med') and abs(en['med'] / t['med'] - 1) > 0.25)):
-        mk['entry'] = {'src': 'villa', 'scope': '구역 경계 안 2015년 이전 준공 빌라', 'n': t['no'], 'med': t['med'], 'p25': t.get('p25') or t['med'], 'p75': t.get('p75') or t['med'],
-                       'radius': 0, 'area_med': t['ar'], 'last': t['last'][2:4] + '.' + t['last'][4:6] + '.' + t['last'][6:8], 'fill': 'zone',
+        lv = t.get('lv') or t['last']   # 빌라·단독 최근 거래일(아파트 거래가 섞인 last 대신)
+        mk['entry'] = {'src': 'villa', 'scope': '대표지번과 같은 본번 2015년 이전 준공 빌라' if t.get('m') == 'jibun' else '구역 경계 안 2015년 이전 준공 빌라', 'n': t['no'], 'med': t['med'], 'p25': t.get('p25') or t['med'], 'p75': t.get('p75') or t['med'],
+                       'radius': 0, 'area_med': t['ar'], 'last': lv[2:4] + '.' + lv[4:6] + '.' + lv[6:8], 'fill': 'zone', **({'m': 'jibun'} if t.get('m') == 'jibun' else {}),
                        **({'prev': {k: en[k] for k in ('n', 'med', 'radius') if k in en}} if en else {})}
         stat['entry_zone' if en else 'entry_zone_new'] += 1
         continue
@@ -178,8 +185,8 @@ for r in R:
             nm = lambda v: re.sub(r'(아파트|\s|\(.*?\))', '', v['name'])
             c = [v for k, v in APT.items() if k[:10] == code and core and (v.get('yr') or 0) < 2005 and (core in nm(v) or (len(nm(v)) >= 3 and nm(v) in core))]
             a = max(c, key=lambda v: v['n']) if c else None
-        if not a and t and t.get('n', 0) >= 3 and SALES_OK:   # 연립 재건축: 구역 안 매매
-            a = {'n': t['n'], 'p25': t.get('p25') or t.get('med'), 'med': t.get('med'), 'p75': t.get('p75') or t.get('med'), 'area_med': t.get('ar'), 'name': '구역 안 연립·다세대', 'yr': None, 'last': t['last'], 'by_area': {}} if t.get('med') else None
+        if not a and t and t.get('nv', 0) >= 3 and SALES_OK:   # 연립 재건축: 구역 안 빌라·단독 매매(nv)
+            a = {'n': t['nv'], 'p25': t.get('p25') or t.get('med'), 'med': t.get('med'), 'p75': t.get('p75') or t.get('med'), 'area_med': t.get('ar'), 'name': '구역 안 연립·다세대', 'yr': None, 'last': t.get('lv') or t['last'], 'by_area': {}} if t.get('med') else None
         if a:
             mk['entry'] = {'src': 'complex', 'n': a['n'], 'p25': a['p25'], 'med': a['med'], 'p75': a['p75'], 'radius': 0, 'area_med': a['area_med'], 'name': a['name'], 'yr': a['yr'],
                            'last': a['last'][2:4] + '.' + a['last'][4:6] + '.' + a['last'][6:8], 'match': 'jibun', 'by_area': a['by_area'], 'fill': 'apt'}

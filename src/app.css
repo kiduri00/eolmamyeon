@@ -4246,7 +4246,7 @@ details.press[open] summary::after {
   white-space: nowrap;
   border: 0;
 }
-.skip {
+a.skip {
   position: absolute;
   left: 12px;
   top: -60px;
@@ -4258,7 +4258,7 @@ details.press[open] summary::after {
   font-weight: 700;
   text-decoration: none !important;
 }
-.skip:focus {
+a.skip:focus {
   top: 8px;
 }
 .opt {

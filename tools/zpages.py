@@ -102,10 +102,10 @@ def page(r):
     # 실거래
     if t.get('n') or t.get('jn'):
         rows = []
-        if t.get('pp'): rows.append(('대지 3.3㎡당', man(t['pp']), f"구역 안 매매 {t.get('n', 0)}건 · 2024년~"))
+        if t.get('pp'): rows.append(('대지 3.3㎡당', man(t['pp']), f"빌라·단독 매매 {t.get('nv', t.get('n', 0))}건 · 2024년~"))
         if t.get('med'): rows.append(('빌라 매매', man(t['med']), f"2015년 이전 준공 · 최근 {t.get('nwin', 18)}개월 {t.get('no', 0)}건 · 전용 {t.get('ar', '–')}㎡"))
         if t.get('jm'): rows.append(('빌라 전세', man(t['jm']), f"전세 {t.get('jn', 0)}건 · 임대 {t.get('ja', '–')}㎡"))
-        if t.get('n12') is not None: rows.append(('12개월 거래', f"{t['n12']}건", '연립·다세대 · 계약일 기준'))
+        if t.get('n12') is not None: rows.append(('12개월 거래', f"{t['n12']}건", '빌라·단독·아파트 · 계약일 기준'))
         if t.get('yoy') is not None: rows.append(('1년 변화', f"{'+' if t['yoy'] > 0 else ''}{t['yoy']}%", f"표본 {t['yon'][0]}/{t['yon'][1]}건 · 한 건물 쏠림 제외"))
         if rows:
             o.append(f'<h2>구역 안 실거래 <small class="meta">국토교통부·서울시 실거래 · {TXD[:4]}.{TXD[4:6]}.{TXD[6:]}까지</small></h2><table class="ov"><tbody>' + ''.join(f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">가운데 값 · {s}</small></td></tr>' if a in ('대지 3.3㎡당', '빌라 매매', '빌라 전세') else f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">{s}</small></td></tr>' for a, b, s in rows) + '</tbody></table>')
