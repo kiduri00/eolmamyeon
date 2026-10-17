@@ -132,10 +132,14 @@
 .pn-hm-x{flex:none;width:44px;border:0;background:none;color:var(--text-3);cursor:pointer;border-radius:0 14px 14px 0}
 
 /* ===================== 조건 핀 ===================== */
-.pc-save{display:flex;align-items:center;gap:8px;width:100%;min-height:48px;padding:0 14px;border:1px dashed color-mix(in srgb,var(--brand) 45%,transparent);border-radius:14px;background:color-mix(in srgb,var(--brand) 5%,var(--surface));color:var(--brand);font:700 14.5px var(--font);cursor:pointer;text-align:left}
-.pc-save span{flex:1;min-width:0}
-.pc-save small{flex:none;font-size:12px;font-weight:500;color:var(--text-3)}
-.pc-save:hover{background:var(--brand-soft)}
+.pc-save{display:flex;align-items:stretch;width:100%;min-height:48px;border:1px dashed color-mix(in srgb,var(--brand) 45%,transparent);border-radius:14px;background:color-mix(in srgb,var(--brand) 5%,var(--surface));overflow:hidden}
+.pc-save>button{border:0;background:none;font:700 14.5px var(--font);cursor:pointer;text-align:left;min-height:48px}
+.pc-sv-m{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:0 14px;color:var(--brand)}
+.pc-sv-m span{flex:1;min-width:0}
+.pc-sv-n{flex:none;padding:0 14px;border-left:1px dashed color-mix(in srgb,var(--brand) 35%,transparent)!important;font-size:13px!important;font-weight:600!important;color:var(--text-2);white-space:nowrap}
+.pc-sv-n b{color:var(--brand)}
+.pc-save>button:hover{background:var(--brand-soft)}
+.pc-save>button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 html.s-view .pc-save{display:none}
 .pc-wrap{margin:0 0 18px}
 .pc-hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0 0 8px}
@@ -250,3 +254,4 @@ html.s-full .pc-save,html.s-full .pc-act{display:none}
 
 /* 데스크톱: 핀 꽂기 띠와 목록 제목 사이 숨 쉴 틈 */
 @media (min-width:981px){html.simple #pcSave{margin-bottom:16px}}
+.pc-dlg h3[tabindex="-1"]:focus{outline:none}

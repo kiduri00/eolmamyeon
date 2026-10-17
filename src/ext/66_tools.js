@@ -26,7 +26,7 @@ const TOOLS = (() => {
     { const seen = new Set(); for (let i = F.length - 1; i >= 0; i--) {} const U = []; F.forEach((x) => { const k = shortName(x.r.n) + x.r.g; if (!seen.has(k)) { seen.add(k); U.push(x); } }); F.length = 0; U.forEach((x) => F.push(x)); }
     const rate = (x) => { try { const p = investC(x.r).price; return p ? Math.round((x.g.D / p) * 100) : null; } catch (e) { return null; } };
     out.innerHTML = `<div class="fchips tl-f" role="group" aria-label="거르기">${[["all", "전체"], ["near", `내 현금 ${e1(c)} ±1억`], ["redev", "재개발만"]].map(([k, t]) => `<button type="button" class="ichip" data-gf="${k}" aria-pressed="${gapF === k}">${t}</button>`).join("")}</div>
-      <ol class="tl-l">${F.slice(0, gapN).map((x, i) => { const jr = rate(x); return `<li><a href="#${x.r.id}" data-id="${x.r.id}"><span class="tl-k">${i + 1}</span><span class="tl-n"><b>${esc(shortName(x.r.n))}</b><small>${esc(x.r.g)} · ${esc(stageName(x.r))}</small></span><span class="tl-v"><b>${e1(x.g.now)}</b><small>${x.g.x && x.g.x.ok ? `입주까지 ${e1(x.g.total)}` : ""}</small></span></a></li>`; }).join("") || '<li class="tl-e">조건에 맞는 구역이 없어요</li>'}</ol>
+      <ol class="tl-l">${F.slice(0, gapN).map((x, i) => { const jr = rate(x); return `<li><a href="#${x.r.id}" data-id="${x.r.id}"><span class="tl-k">${i + 1}</span><span class="tl-n"><b>${esc(shortName(x.r.n))}</b><small>${esc(x.r.g)} · ${esc(stageName(x.r))}</small></span><span class="tl-v"><b>${e1(x.g.now)}</b><small>${x.g.x && x.g.x.ok && x.g.total != null ? `입주까지 ${e1(x.g.total)}` : '<span class="tl-na" title="주변 신축 시세 자료가 없어 입주 때 돈을 계산하지 못했어요">계산 불가 · 신축 시세 없음</span>'}</small></span></a></li>`; }).join("") || '<li class="tl-e">조건에 맞는 구역이 없어요</li>'}</ol>
       ${F.length > gapN ? `<button type="button" class="btn secondary s-more" id="gapMore">더 보기 (${F.length - gapN}곳)</button>` : ""}`;
     out.querySelectorAll("[data-gf]").forEach((b) => (b.onclick = () => { gapF = b.dataset.gf; gapN = 20; gapRender(); }));
     const m = document.getElementById("gapMore"); if (m) m.onclick = () => { gapN += 20; gapRender(); };
@@ -58,13 +58,17 @@ const TOOLS = (() => {
     const items = [];
     const w = buyWindow(r);
     items.push([w.cls === "ok" ? "ok" : w.cls === "no" ? "no" : "warn", "입주권", w.t + (w.due ? ` · ${w.due}` : "")]);
-    const lp = landPermit(r), th = (window.__toheo && window.__toheo[r.id]) || null;
-    items.push([lp ? "no" : "na", "토지거래허가", lp ? lp.t : "확인된 지정 없음 · 계약 전 구청 확인"]);
-    try { const rt = ZX.rights(r); items.push([rt.k === "set" ? "ok" : "warn", "권리산정기준일", rt.k === "set" ? `${rt.d} 전 준공·등기 건물만 단독 입주권` : "날짜 미확정 · 구청 확인"]); } catch (e) {}
+    // 토허: 서울 전역(아파트)·신통·구역 안 허가 기록·구 단위 기록까지 본 뒤에만 말한다(56_toheo.js). 허가 자료가 오면 다시 그림
+    let th = null;
+    try { th = TOH.lookup(r); } catch (e) {}
+    if (th) items.push([th.cls, "토지거래허가", th.t]);
+    else { const lp = landPermit(r); items.push([lp ? "no" : "warn", "토지거래허가", lp ? lp.t : "허가 기록 불러오는 중 · 계약 전 구청 확인"]); }
+    try { if (!TOH.loaded()) TOH.load().then(() => { if (dSel === r) diagShow(ex); }); } catch (e) {}
+    try { const rt = ZX.rights(r); items.push([rt.k === "set" ? (rt.c === "low" ? "warn" : "ok") : "warn", "권리산정기준일", rt.k === "set" ? `${rt.d} 전 준공·등기 건물만 단독 입주권${rt.c === "low" ? " · 추정이라 확인 필요" : ""}` : rt.k === "chg" ? "확인 필요 · 등록된 구역지정일이 변경 지정일이라 추정하지 않아요" : "날짜 미확정 · 구청 확인"]); } catch (e) {}
     items.push(["warn", "여러 채 보유", "한 구역에 여러 채면 입주권 1개만(다물권) · 세대원 합산"]);
     items.push(["warn", "재당첨 제한", "투기과열지구 조합원 분양을 5년 안에 받았으면 제한"]);
     if (/재건축/.test(r.k) && r.s >= 4) items.push(["warn", "조합원 지위양도", "조합설립인가 뒤 매수는 원칙적으로 조합원 지위 승계 불가(예외 매물만)"]);
-    box.innerHTML = `${ex ? '<p class="dg-ex">예시로 한 곳을 보여 드려요 · 위에서 다른 구역을 찾아 보세요</p>' : ""}<div class="dg-h"><b>${esc(shortName(r.n))}</b><span>${esc(r.g)} · ${esc(stageName(r))}</span><button type="button" class="btn text sm" data-open="${r.id}">구역 보기 →</button></div>
+    box.innerHTML = `${ex ? '<p class="dg-ex">예시로 한 곳을 보여 드려요 · 구역 이름으로 다른 곳을 찾아 보세요</p>' : ""}<div class="dg-h"><b>${esc(shortName(r.n))}</b><span>${esc(r.g)} · ${esc(stageName(r))}</span><button type="button" class="btn text sm" data-open="${r.id}">구역 보기 →</button></div>
       <ul class="dg-l">${items.map(([c, k, v]) => `<li class="${c}"><i aria-hidden="true">${c === "ok" ? "✓" : c === "no" ? "✕" : c === "na" ? "?" : "!"}</i><span><b>${k}</b><small>${esc(v)}</small></span></li>`).join("")}</ul>`;
     box.querySelector("[data-open]").onclick = () => { curTab = "money"; select(r.id, true, false, { scroll: true }); };
   }
@@ -110,6 +114,8 @@ const TOOLS = (() => {
       out.querySelectorAll("[data-y]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       document.getElementById("supZ").innerHTML = `<h3>${y}년 입주 가능성이 있는 곳 · ${z.length}곳</h3><p class="tl-lead">그해 준공될 확률 10% 이상만 · 확률이 높은 세대 순</p><ul class="tl-l">${z.map(({ r, p, u }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="tl-n"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} · ${esc(stageName(r))}</small></span><span class="tl-v"><b>${fmt(u)}세대</b><small>그해 확률 ${Math.round(p * 100)}%</small></span></a></li>`).join("") || '<li class="tl-e">확률 10% 넘는 곳이 없어요</li>'}</ul>`;
     }));
+    // 넓은 화면은 오른쪽 칸이 비지 않게 가장 많은 해를 먼저 펼친다
+    if (matchMedia("(min-width:1200px)").matches) { const top = ys.filter((y) => Y[y].n).sort((a, b) => Y[b].n - Y[a].n)[0]; const tb = top != null && out.querySelector(`[data-y="${top}"]`); if (tb) tb.click(); }
   }
   const RENDER = { gapTop: gapRender, diagTop: diagRender, supplyTop: supRender };
   function init() {
@@ -152,7 +158,9 @@ document.readyState === "loading" ? document.addEventListener("DOMContentLoaded"
     const w = document.createElement("div");
     w.className = "s-rail-w";
     w.innerHTML = `<div class="s-rail" role="group" aria-label="지도에 겹쳐 보기">${MAIN.map(btn).join("")}</div><div class="s-fly" role="group" aria-label="겹쳐 보기 더보기" hidden>${EXTRA.map(btn).join("")}</div><span class="s-tip" aria-live="polite"></span>`;
-    box.appendChild(w);
+    // 탭 순서: 겹쳐 보기 레일 → 확대·축소 → 지도(레일을 지도 앞에 둔다. 겹침 순서는 z-index로)
+    const lm = box.querySelector("#lmap");
+    lm ? box.insertBefore(w, lm) : box.appendChild(w);
     const fly = w.querySelector(".s-fly"), more = null, tip = w.querySelector(".s-tip");
     const dot = () => {};
     let tt = 0;
@@ -170,6 +178,6 @@ document.readyState === "loading" ? document.addEventListener("DOMContentLoaded"
     dot();
     return true;
   }
-  const t = setInterval(() => { if (build()) clearInterval(t); }, 500);
+  const t = setInterval(() => { if (build()) clearInterval(t); }, 150);
   setTimeout(() => clearInterval(t), 30000);
 })();

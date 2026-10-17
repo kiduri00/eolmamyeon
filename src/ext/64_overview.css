@@ -91,7 +91,11 @@ html.simple #report .rep-acts .lb-risk{flex:1 1 100%;margin:0;order:-1}
 .ov-gs h3{font-size:13px;color:var(--text-3);font-weight:600}
 .ov-gs b{font-size:18px}
 /* 탭 막대 오른쪽 흐림(더 있음) */
-html.simple #report .tabs{-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+/* 탭 막대: 넘길 게 있으면 그쪽만 흐림 + 오른쪽 '›' */
+#report .tabs{position:relative}
+#report .tabs.more-l{-webkit-mask-image:linear-gradient(90deg,transparent,#000 28px);mask-image:linear-gradient(90deg,transparent,#000 28px)}
+#report .tabs .tab-nx{position:sticky;right:0;flex:none;display:none;align-items:center;justify-content:flex-end;width:56px;min-height:44px;margin-left:-24px;padding-right:6px;box-sizing:border-box;font-size:22px;font-weight:700;color:var(--text-2);cursor:pointer;z-index:1;background:linear-gradient(90deg,transparent,var(--surface) 55%)}
+#report .tabs.more-r .tab-nx{display:inline-flex}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .maplibregl-ctrl-attrib-button{filter:invert(1) hue-rotate(180deg);opacity:.7}}
 :root[data-theme="dark"] .maplibregl-ctrl-attrib-button{filter:invert(1) hue-rotate(180deg);opacity:.7}
 html.simple #pane .gj-f label small{display:none}
@@ -171,3 +175,17 @@ svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 .ov-calc{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;margin-top:8px;padding:8px 12px;border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--text-2)}
 .ov-calc b{font-size:17px;font-weight:800;color:var(--text-1);font-variant-numeric:tabular-nums}
 .ov-calc small{font-size:12px;color:var(--text-3)}
+.ov-tl li small .ov-chg{font-style:normal;font-size:10px;color:var(--warn,#b45309);font-weight:600}
+/* 입주 현금 탭: 입주까지 계산이 안 될 때 이유 한 장 */
+.big.nocalc{display:flex;flex-direction:column;gap:6px;margin:0 0 12px;padding:16px;border-radius:16px;background:color-mix(in srgb,var(--brand) 6%,var(--surface-2))}
+.big.nocalc b.t{font-size:20px;line-height:28px;font-weight:800;color:var(--text-1)}
+.big.nocalc small{display:block!important;font-size:14px;line-height:21px;color:var(--text-2)}
+.big.nocalc small b{font-size:inherit;color:var(--brand)}
+.big.nocalc .nc-a{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.big.nocalc .nc-a .btn{min-height:44px}
+.ov-big span small{display:block;font-size:11.5px;color:var(--text-3);font-weight:500}
+.ov-map{position:relative}
+.ov-mtag{position:absolute;left:10px;bottom:10px;padding:3px 8px;border-radius:999px;background:color-mix(in srgb,var(--surface) 88%,transparent);color:var(--text-2);font-size:11.5px;font-weight:600;pointer-events:none}
+/* 다크: 흐린 실거래 막대도 카드 배경 대비 3:1 이상 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) svg.ov-bar rect{fill:color-mix(in srgb,var(--brand) 62%,var(--surface))}:root:not([data-theme="light"]) svg.ov-bar rect.lo{fill:color-mix(in srgb,var(--brand) 50%,var(--surface))}:root:not([data-theme="light"]) svg.ov-bar rect.on{fill:var(--brand)}:root:not([data-theme="light"]) svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 85%,var(--surface))}}
+:root[data-theme="dark"] svg.ov-bar rect{fill:color-mix(in srgb,var(--brand) 62%,var(--surface))}:root[data-theme="dark"] svg.ov-bar rect.lo{fill:color-mix(in srgb,var(--brand) 50%,var(--surface))}:root[data-theme="dark"] svg.ov-bar rect.on{fill:var(--brand)}:root[data-theme="dark"] svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 85%,var(--surface))}

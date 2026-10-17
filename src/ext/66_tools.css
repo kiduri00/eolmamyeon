@@ -107,3 +107,14 @@ td.txr-m small{font-size:11px}
 .sugg .s-none b{color:var(--text-1)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sg-ok{color:#4ade80}}
 :root[data-theme="dark"] .sg-ok{color:#4ade80}
+/* 넓은 화면(≥1200): 도구 화면을 좁은 한 줄 대신 2단으로 */
+@media (min-width:1200px){
+  #txrTop .tpanel,#txrTop .txr-seg,#supplyTop .tpanel,#saveTop .tpanel,#gapTop .tpanel,#diagTop .tpanel,#ntcTop .tpanel{max-width:none}
+  #gapTop .tl-l,#ntcTop ul.ntl{columns:2;column-gap:48px}
+  #gapTop .tl-l>li,#ntcTop ul.ntl>li{break-inside:avoid}
+  #supplyTopOut,#diagTopOut{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);column-gap:48px;align-items:start}
+  #supplyTopOut>*,#diagTopOut>*{grid-column:1}
+  #supZ,#dgR{grid-column:2!important;grid-row:1/span 8;min-width:0}
+  #supZ:empty::before{content:"연도를 누르면 그해 입주할 만한 구역이 여기에 나와요";display:block;padding:24px;border-radius:14px;background:var(--surface-2);color:var(--text-2);font-size:14px}
+  #txrTop table.txr td,#txrTop table.txr th{padding-left:14px;padding-right:14px}
+}

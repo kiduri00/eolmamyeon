@@ -25,6 +25,8 @@
     { "src": "/screenshot-wide.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide", "label": "데스크톱에서 지도와 목록 함께 보기" }
   ],
   "shortcuts": [
+    { "name": "지도로 보기", "short_name": "지도", "url": "/?src=app#map", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "내 핀", "short_name": "내 핀", "url": "/?src=app#favTop", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
     { "name": "월간 리포트", "short_name": "리포트", "url": "/report/?src=app", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
     { "name": "구역별 페이지", "short_name": "구역", "url": "/z/?src=app", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
   ]

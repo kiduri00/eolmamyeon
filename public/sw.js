@@ -1,7 +1,7 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "90d4dad3"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "c09959fa"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
@@ -90,6 +90,26 @@ const page = async (e) => {
   }
 };
 
+// 페이지가 "이 주소들을 오프라인용으로 저장해 줘"라고 알려 온다: 처음 연 구역·구 페이지(서비스 워커가 아직 안 붙었던 첫 방문), 핀 꽂은 구역의 /z 페이지
+const keep = async (urls, force) => {
+  const pc = await caches.open(PAGES);
+  for (const raw of (urls || []).slice(0, 40)) {
+    try {
+      const u = new URL(raw, self.location.origin);
+      if (u.origin !== self.location.origin || !isDoc(u.pathname)) continue;
+      const k = keyOf(u.href);
+      if (!force && (await pc.match(k))) continue;
+      const r = await fetch(u.href, { credentials: "same-origin" });
+      if (okToCache(r) && /text\/html/.test(r.headers.get("content-type") || "")) await pc.put(k, r);
+    } catch (_) {}
+  }
+  await trim(PAGES);
+};
+self.addEventListener("message", (e) => {
+  const d = e.data || {};
+  if (d.t === "keep" && Array.isArray(d.u)) e.waitUntil(keep(d.u, !!d.force));
+});
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
@@ -99,6 +119,7 @@ self.addEventListener("fetch", (e) => {
     if (req.mode === "navigate") return e.respondWith(page(e));
     if (u.pathname.startsWith("/b/")) return e.respondWith(cacheFirst(e, BUND)); // 해시가 박힌 앱 코드·데이터
     if (u.pathname.startsWith("/data/") || u.pathname.startsWith("/api/") || /^\/(premium\.json|manifest\.webmanifest|icon[^/]*\.(png|svg)|og\.png)$/.test(u.pathname)) return e.respondWith(swr(e, u.pathname.startsWith("/icon") || u.pathname.startsWith("/manifest") ? SHELL : DATA));
+    if (u.pathname === "/pages.css") return e.respondWith(swr(e, SHELL, { ignoreSearch: true })); // 정적 페이지 모양(오프라인에서도)
     return; // 그 밖의 같은 출처 파일은 브라우저 기본 동작
   }
   // 타일 목록(TileJSON)은 판이 바뀌므로 그대로 두고, 판 번호가 박힌 타일·글꼴만 작게 저장

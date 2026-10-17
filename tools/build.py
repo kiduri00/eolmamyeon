@@ -6,6 +6,19 @@ S = lambda p: open(os.path.join(R, 'src', p), encoding='utf-8').read()
 shell = S('shell.html')
 EN = os.path.join(R, 'pipeline', 'data.enriched.json')
 D = json.load(open(EN, encoding='utf-8')) if os.path.exists(EN) else json.loads(S('data.json'))
+# 목록 줄의 작은 실거래 흐름선용 경량 파일(tx.json 1.8MB 대신 구역별 최근 8분기 값만) → 첫 화면에서 tx.json을 안 받는다
+TXF = os.path.join(R, 'public', 'data', 'tx.json')
+if os.path.exists(TXF):
+    try:
+        T = json.load(open(TXF, encoding='utf-8'))
+        TS = {}
+        for i, v in T.items():
+            q = (((v or {}).get('x') or {}).get('hd') or {}).get('q') if isinstance(v, dict) else None
+            if q: TS[i] = [[e[0], e[1]] for e in q[-8:] if isinstance(e, list) and len(e) >= 2]
+        body = json.dumps(TS, ensure_ascii=False, separators=(',', ':'))
+        TSF = os.path.join(R, 'public', 'data', 'txs.json')
+        if not os.path.exists(TSF) or open(TSF, encoding='utf-8').read() != body: open(TSF, 'w', encoding='utf-8').write(body)
+    except Exception as e: print('txs.json 건너뜀:', e)
 # 지연 로딩 데이터 파일 버전(내용 해시) → 캐시 무효화
 dv = {}
 for f in sorted(os.listdir(os.path.join(R, 'public', 'data'))) if os.path.isdir(os.path.join(R, 'public', 'data')) else []:
@@ -26,6 +39,13 @@ PJ = os.path.join(R, 'public', 'premium.json')
 if os.path.exists(PJ):
     pv = hashlib.md5(open(PJ, 'rb').read()).hexdigest()[:8]
     shell = re.sub(r'("prem":\s*")premium\.json[^"]*(")', lambda m: m.group(1) + 'premium.json?v=' + pv + m.group(2), shell)
+# 머리·푸터의 데이터 기준 한 줄(앱 JS의 ZP_fresh와 같은 글) — 첫 화면부터 채워 두면 JS가 채울 때 줄이 밀리지 않는다
+def _md(x):
+    m = re.search(r'(\d{4})-?(\d\d)-?(\d\d)', x or '')
+    return f'{int(m.group(2))}.{m.group(3)}' if m else ''
+_t, _u = _md((D.get('txAsOf') or {}).get('sale')), _md(D.get('upd') or D.get('asOf'))
+FRESH = (f'실거래 {_t} 신고분까지' + (f' · {_u} 갱신' if _u else '')) if _t else f'{_u} 갱신'
+shell = shell.replace('<span class="asof" id="asof"></span>', f'<span class="asof" id="asof">{FRESH}</span>', 1).replace('<span id="footAsof"></span>', f'<span id="footAsof">{FRESH}</span>', 1)
 data = json.dumps(D, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
 EXT = os.path.join(R, 'src', 'ext')
 ext_js = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))
@@ -51,16 +71,17 @@ def emit(prefix, body):
     return '/b/' + fn
 d_url = emit('d', "window.__ZPD=JSON.parse('" + data.replace('\\', '\\\\').replace("'", "\\'") + "');")
 a_url = emit('a', js)
-# 지난 빌드 파일은 최근 6개만 남김(오래된 화면이 잠깐 참조할 수 있게)
+# 지난 빌드 파일은 이번 것 + 바로 전 것만 남김(배포 직후 옛 화면이 잠깐 참조할 수 있게)
+KEEP = 2
 for pre in ('d', 'a'):
     fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.js')], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
-    for f in fs[6:]: os.remove(os.path.join(B, f))
+    for f in fs[KEEP:]: os.remove(os.path.join(B, f))
 shell = shell.replace('<script type="application/json" id="data">/*DATA*/</script>', f'<script src="{d_url}"></script>', 1)
 shell = shell.replace('<script>/*APPJS*/</script>', f'<script src="{a_url}"></script>', 1)
 shell = shell.replace('</head>', f'<link rel="preload" href="{d_url}" as="script"><link rel="preload" href="{a_url}" as="script">\n</head>', 1)
 c_h = hashlib.md5(css.encode()).hexdigest()[:10]
 open(os.path.join(B, f'c.{c_h}.css'), 'w', encoding='utf-8').write(css)
-for f in sorted([f for f in os.listdir(B) if f.startswith('c.') and f.endswith('.css')], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)[6:]: os.remove(os.path.join(B, f))
+for f in sorted([f for f in os.listdir(B) if f.startswith('c.') and f.endswith('.css')], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)[KEEP:]: os.remove(os.path.join(B, f))
 out = shell.replace('<style>/*APPCSS*/</style>', f'<link rel="stylesheet" href="/b/c.{c_h}.css">', 1)
 for k in ('/*APPCSS*/', '/*APPJS*/', '/*DATA*/'): assert k not in out
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)

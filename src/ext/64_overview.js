@@ -40,7 +40,8 @@ const OVX = (() => {
       if (!noIp) try {
         const lp = landPermit(r);
         let blk = null; try { blk = gapOf(r).block; } catch (e) { blk = typeof gapBlock === "function" ? gapBlock(r) : null; }
-        if (lp) out.push({ k: "전세 끼고", c: "no", v: /가능성/.test(lp.t) ? "! 토지거래허가 가능성" : "✕ 토지거래허가·실거주 2년", why: () => (/가능성/.test(lp.t) ? "신속통합기획 구역은 토지거래허가로 묶이는 경우가 많아요 · 구청 확인" : "토지거래허가구역 · 2년 실거주라 전세 낀 매수 불가") });
+        // 아래 '전세 끼고 사기 불가' 카드·계산과 같은 판정(가능성 구역도 계산에서 빼므로 '불가')
+        if (lp) out.push({ k: "전세 끼고", c: "no", v: "✕ 불가 · 토허 실거주 2년", why: () => (/가능성/.test(lp.t) ? `${/공공재개발/.test(lp.t) ? "공공재개발" : "신속통합기획"} 구역은 토지거래허가(2년 실거주)로 묶이는 경우가 많아 전세 낀 매수에서 빼요 · 지정 여부는 구청 확인` : "토지거래허가구역 · 2년 실거주라 전세 낀 매수 불가") });
         else if (blk && !/대상 아님/.test(blk)) out.push({ k: "전세 끼고", c: /보류/.test(blk) ? "warn" : "no", v: /세입자/.test(blk) ? "✕ 세입자 없음" : /입주권 없음/.test(blk) ? "✕ 입주권 없음" : "! 확인 필요", why: () => blk });
         else if (!blk) out.push({ k: "전세 끼고", c: "ok", v: "✓ 가능", why: () => "토지거래허가 대상 아님 · 전세금만큼 덜 내고 살 수 있어요" });
       } catch (e) {}
@@ -113,13 +114,15 @@ const OVX = (() => {
     // 단계 이름이 칸 이름과 다르면(정비계획 수립·이주·철거 등) 머리에 '지금 ○○'
     const sn = stageName(r), nz = (x) => String(x).replace(/인가|\s|·/g, "");
     const pre = !done && (i < 0 || !nz(sn).startsWith(nz(T[i][0]))) ? `<span class="ov-tl-now">지금 ${esc(sn)}</span>` : "";
-    const li = T.map(([k], n) => { const d = stepDate(r, k), st = n < i || (n === i && done) ? "dn" : n === i ? "on" : ""; return `<li class="${st}"${n === i && !done ? ' aria-current="step"' : ""}><i></i><b>${k === "시행자지정" ? "시행자" : k}</b><small>${d ? esc(d.slice(2, 7).replace("-", ".")) : n === i && !done ? "지금" : n < i ? "–" : ""}</small></li>`; }).join("");
+    // 앞 칸 날짜가 뒤 칸보다 늦으면 변경 지정·고시일로 본다(최초 날짜는 더 이름) → '(변경)' 표시
+    const ds = T.map(([k]) => stepDate(r, k));
+    const li = T.map(([k], n) => { const d = ds[n], chg = d && ds.slice(n + 1).some((x) => x && x < d), st = n < i || (n === i && done) ? "dn" : n === i ? "on" : ""; return `<li class="${st}"${n === i && !done ? ' aria-current="step"' : ""}${chg ? ' title="변경 지정·고시일로 보여요(최초 날짜는 더 이름)"' : ""}><i></i><b>${k === "시행자지정" ? "시행자" : k}</b><small>${d ? esc(d.slice(2, 7).replace("-", ".")) + (chg ? '<br><em class="ov-chg">(변경)</em>' : "") : n === i && !done ? "지금" : n < i ? "–" : ""}</small></li>`; }).join("");
     const stl = r.stale && !done ? `<span class="ov-tl-now ov-stl" title="오랫동안 새 인가·공고 기록이 없어요">진행 확인 필요</span>` : "";
     return `<div class="ov-c ov-tl"><h3>진행 단계 ${pre}${stl}<em class="ov-pv" hidden></em></h3><div class="ov-tl-sc" tabindex="0" role="group" aria-label="진행 단계 ${T.length}칸${i >= 0 ? ` · 지금 ${esc(sn)}` : ""}"><ol style="--n:${T.length}">${li}</ol></div></div>`;
   }
   function srcHTML(r) {
     const s = D.txAsOf && D.txAsOf.sale, d = s && s.length >= 8 ? `${s.slice(0, 4)}.${s.slice(4, 6)}.${s.slice(6, 8)}` : "";
-    const cafe = r.cafe ? `<a href="https://cleanup.seoul.go.kr/cafe/mainIndx.do?cafeUrl=${encodeURIComponent(r.cafe)}" target="_blank" rel="noopener">정비몽땅 ↗</a>` : "정비몽땅";
+    const cafe = r.cafe ? `<a href="https://cleanup.seoul.go.kr/cafe/mainIndx.do?cafeUrl=${encodeURIComponent(r.cafe)}" target="_blank" rel="noopener">정비사업 정보몽땅 ↗</a>` : "정비사업 정보몽땅";
     return `<p class="ov-src"><span>자료 기준${d ? ` 실거래 ${d}` : ""}</span>${cafe.startsWith("<a") ? cafe : `<span>${cafe}</span>`}<a href="https://www.eum.go.kr/" target="_blank" rel="noopener">토지이음 ↗</a></p>`;
   }
   // 단계 날짜·사업장 주소는 따로 불러오는 자료라, 오면 타임라인·출처 줄을 다시 그린다
@@ -160,7 +163,7 @@ const OVX = (() => {
       return `<rect x="${X(i).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, base - y).toFixed(1)}" rx="3"${cls ? ` class="${cls}"` : ""}><title>${x[0]} · ${eok(x[1])} · ${x[2]}건</title></rect>${v}<text x="${cx.toFixed(1)}" y="${base + 12}" class="bn">${x[2]}</text>${lab}`;
     }).join("");
     const anyLo = qq.some((x) => x[2] < 3);
-    return `<div class="ov-ch"><div class="ov-cht">${unit} 가운데 값 · 분기별 <b>최근 ${eok(qq[n - 1][1])}</b></div><svg class="ov-bar" viewBox="0 0 ${W} ${H}" role="img" aria-label="${unit} 분기별 가운데 값, 최근 ${eok(qq[n - 1][1])}, 최고 ${eok(mx)}">${grid}${bars}</svg><p class="ov-chn">막대 아래 숫자는 분기 거래 수${anyLo ? " · 흐린 막대는 3건 미만" : ""}</p></div>`;
+    return `<div class="ov-ch"><div class="ov-cht">${unit} · 분기별 가운데 값 <b>최근 분기 ${eok(qq[n - 1][1])}</b></div><svg class="ov-bar" viewBox="0 0 ${W} ${H}" role="img" aria-label="${unit} 분기별 가운데 값, 최근 ${eok(qq[n - 1][1])}, 최고 ${eok(mx)}">${grid}${bars}</svg><p class="ov-chn">막대 아래 숫자는 분기 거래 수${anyLo ? " · 흐린 막대는 3건 미만" : ""}</p></div>`;
   }
   // 표본이 얇은 값(3건 미만이거나 마지막 거래가 1년 넘음)은 큰 숫자를 회색으로 + '거래 적음' 표시
   const monthsAgo = (d) => { if (!d || String(d).length < 6) return null; d = String(d); const nd = new Date(); return (nd.getFullYear() - +d.slice(0, 4)) * 12 + (nd.getMonth() + 1 - +d.slice(4, 6)); };
@@ -182,7 +185,7 @@ const OVX = (() => {
     const chips = thin ? [sz] : [sz, h.to ? `최근 ${ym(h.to)}` : ""].filter(Boolean);
     const TY = ["빌라", "단독", "아파트", "입주권"], S = (h.r || []).slice(0, matchMedia("(max-width:640px)").matches ? 2 : 3);
     return `<div class="ov-c ov-tx${thin ? " thin" : ""}"><h3>실거래 ${yoy}</h3>
-      <div class="ov-big"><span>${per}</span><b${thin ? ' title="표본이 적거나 오래돼 지금 시세와 다를 수 있어요"' : ""}>${eok(h.u)}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>
+      <div class="ov-big"><span>${per}<small>대표 거래 기준</small></span><b${thin ? ' title="표본이 적거나 오래돼 지금 시세와 다를 수 있어요"' : ""}>${eok(h.u)}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>
       ${calcRow(r)}<div class="ov-chips">${chips.filter(Boolean).map((c) => `<span>${c}</span>`).join("")}</div>
       ${h.q && h.q.length > 2 ? chart(r, h.q, per) : ""}
       ${S.length ? `<ul class="ov-l">${S.map((x) => `<li><span>${esc(ym(x[0]))}</span><span>${TY[x[1]] || ""}${x[6] ? ` ${+x[6] < 0 ? "지하" + -x[6] : esc(String(x[6]))}층` : ""}${x[3] ? ` · ${x[3]}㎡` : ""}</span><b>${eok(x[5])}</b></li>`).join("")}</ul>` : ""}
@@ -227,24 +230,25 @@ const OVX = (() => {
     if (!window.matchMedia("(max-width:980px)").matches) { box.remove(); return; }
     Promise.all([LMX.lib(), LMX.geo()]).then(([, g]) => {
       if (!document.getElementById("ovMap") || cur !== r || !window.maplibregl) return;
-      const z0 = g && g.z && g.z[r.id], z = z0 && !z0.e ? z0 : null;   // 추정 원은 경계처럼 그리지 않는다
+      const z = g && g.z && g.z[r.id] && g.z[r.id].g ? g.z[r.id] : null, est = !!(z && z.e);   // 추정 범위는 점선으로(경계처럼 보이지 않게)
       if (!z && !r.ll) { box.remove(); return; }
       let bb;
       if (z) { let a = 180, b = 90, c = -180, d = -90; z.g.forEach((rg) => rg.forEach(([x, y]) => { if (x < a) a = x; if (y < b) b = y; if (x > c) c = x; if (y > d) d = y; })); bb = [[a, b], [c, d]]; }
       try { if (mm) mm.remove(); } catch (e) {}
-      mm = new maplibregl.Map({ container: "ovMap", style: LMX.style(), interactive: false, attributionControl: false, preserveDrawingBuffer: true, fadeDuration: 0, ...(bb ? { bounds: bb, fitBoundsOptions: { padding: 28, maxZoom: 16.2 } } : { center: [r.ll[1], r.ll[0]], zoom: 15 }) });
+      mm = new maplibregl.Map({ container: "ovMap", style: LMX.style(), interactive: false, attributionControl: false, preserveDrawingBuffer: true, fadeDuration: 0, ...(bb ? { bounds: bb, fitBoundsOptions: { padding: est ? 56 : 28, maxZoom: est ? 15.6 : 16.2 } } : { center: [r.ll[1], r.ll[0]], zoom: 15 }) });
       mmId = r.id;
-      const fit = () => { try { mm.resize(); if (bb) mm.fitBounds(bb, { padding: 28, maxZoom: 16.2, duration: 0 }); } catch (e) {} };
+      const fit = () => { try { mm.resize(); if (bb) mm.fitBounds(bb, { padding: est ? 56 : 28, maxZoom: est ? 15.6 : 16.2, duration: 0 }); } catch (e) {} };
       try { new ResizeObserver(fit).observe(box); } catch (e) {}
       setTimeout(fit, 350); setTimeout(fit, 900);
       // 다 그려지면 그림으로 바꿔 WebGL을 놓아 준다(시트 스크롤·메모리)
-      mm.once("idle", () => setTimeout(() => { try { if (!mm || mmId !== r.id) return; const url = mm.getCanvas().toDataURL("image/png"); const im = new Image(); im.alt = ""; im.src = url; im.className = "ov-img"; const m = mm; mm = null; m.remove(); box.innerHTML = ""; box.appendChild(im); } catch (e) {} }, 120));
+      mm.once("idle", () => setTimeout(() => { try { if (!mm || mmId !== r.id) return; const url = mm.getCanvas().toDataURL("image/png"); const im = new Image(); im.alt = ""; im.src = url; im.className = "ov-img"; const m = mm; mm = null; m.remove(); const tg = box.querySelector(".ov-mtag"); box.innerHTML = ""; box.appendChild(im); if (tg) box.appendChild(tg); } catch (e) {} }, 120));
       mm.on("load", () => {
         try { mm.addSource("sub", { type: "geojson", data: LMX.subway() }); mm.addLayer({ id: "sub", type: "line", source: "sub", paint: { "line-color": ["get", "c"], "line-width": 3, "line-opacity": 0.85 } }); } catch (e) {}
         if (z) {
           mm.addSource("z", { type: "geojson", data: { type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: {} } });
-          mm.addLayer({ id: "zf", type: "fill", source: "z", paint: { "fill-color": "#2f6feb", "fill-opacity": 0.16 } });
-          mm.addLayer({ id: "zl", type: "line", source: "z", paint: { "line-color": matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark" ? "#8fb0ff" : "#1f3a87", "line-width": 2.5 } });
+          mm.addLayer({ id: "zf", type: "fill", source: "z", paint: { "fill-color": "#2f6feb", "fill-opacity": est ? 0.08 : 0.16 } });
+          mm.addLayer({ id: "zl", type: "line", source: "z", paint: { "line-color": matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark" ? "#8fb0ff" : "#1f3a87", "line-width": est ? 2 : 2.5, ...(est ? { "line-dasharray": [2, 1.5] } : {}) } });
+          if (est) box.insertAdjacentHTML("beforeend", '<span class="ov-mtag">대략 범위 · 경계 미공개</span>');
         } else {
           mm.addSource("p", { type: "geojson", data: { type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: {} } });
           mm.addLayer({ id: "p", type: "circle", source: "p", paint: { "circle-radius": 8, "circle-color": "#1f3a87", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
@@ -338,7 +342,32 @@ const OVX = (() => {
     }
     p.querySelectorAll("dl.facts > div").forEach((d) => { const t = d.textContent; if (/자료 없음|미공개|계산 불가|일반분양 비율/.test(t)) d.hidden = true; });
   }
+  // 탭 막대: 오른쪽에 더 있으면 흐림 + '›'(누르면 넘김), 끝까지 가면 사라짐 · 왼쪽으로 넘긴 뒤엔 왼쪽 흐림
+  function tabAff() {
+    const tb = document.querySelector("#report .tabs"); if (!tb || tb.dataset.aff) return;
+    tb.dataset.aff = "1";
+    const nx = document.createElement("span");
+    nx.className = "tab-nx"; nx.setAttribute("aria-hidden", "true"); nx.textContent = "›";
+    tb.appendChild(nx);
+    const upd = () => { nx.style.right = -(parseFloat(getComputedStyle(tb).paddingRight) || 0) + "px"; const m = tb.scrollWidth - tb.clientWidth; tb.classList.toggle("more-r", tb.scrollLeft < m - 4); tb.classList.toggle("more-l", tb.scrollLeft > 4); };
+    nx.addEventListener("click", (e) => { e.stopPropagation(); tb.scrollBy({ left: tb.clientWidth * 0.6, behavior: "smooth" }); });
+    tb.addEventListener("scroll", upd, { passive: true });
+    try { new ResizeObserver(upd).observe(tb); } catch (e) {}
+    upd();
+    // 고른 탭이 가려져 있으면 보이게
+    const sel = tb.querySelector('[aria-selected="true"]'); if (sel && sel.offsetLeft + sel.offsetWidth > tb.scrollLeft + tb.clientWidth - 28) tb.scrollLeft = sel.offsetLeft - 16;
+  }
+  // PC: 목록에서 구역을 열면 포커스를 상세 제목으로 · 상세를 닫으면(Esc·목록 버튼) 주소의 #구역id를 지워 새로고침해도 다시 열리지 않게
+  function deskFocus() {
+    const PC = () => matchMedia("(min-width:981px)").matches;
+    const toH = () => requestAnimationFrame(() => requestAnimationFrame(() => { const h = document.getElementById("repTitle"); if (h && h.offsetParent) h.focus({ preventScroll: true }); }));
+    document.addEventListener("click", (e) => { if (PC() && e.target.closest && e.target.closest("#sList [data-id]") && !e.target.closest("[data-why]")) toH(); });
+    const H = document.documentElement; let was = H.classList.contains("s-rep");
+    const clr = () => { try { const id = location.hash.slice(1); if (id && byId[id]) history.replaceState(history.state, "", location.pathname + location.search); } catch (e) {} };
+    try { new MutationObserver(() => { const on = H.classList.contains("s-rep"); if (was && !on && PC()) clr(); was = on; }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
+  }
   function init() {
+    try { deskFocus(); } catch (e) {}
     const _rp = renderPane; renderPane = function () { const x = _rp.apply(this, arguments); try { tidyPane(); } catch (e) {} return x; };
     // 입주 현금 시간표는 첫 렌더·자료 도착 때 다른 경로로도 다시 그려져, 바뀔 때마다 '시점 미정'을 고친다
     let gq = 0;
@@ -346,7 +375,8 @@ const OVX = (() => {
     // 탭을 누르면 탭 막대가 위로 오게
     document.addEventListener("click", (e) => { const t = e.target.closest("#report [role=tab]"); if (!t) return; requestAnimationFrame(() => { const tb = document.querySelector("#report .tabs"); if (tb) tb.scrollIntoView({ block: "start", behavior: "smooth" }); }); });
     const _rr = renderReport;
-    renderReport = function () { const x = _rr.apply(this, arguments); try { if (cur) { render(cur); if (matchMedia("(min-width:981px)").matches && document.documentElement.classList.contains("simple")) document.documentElement.classList.add("s-rep"); } } catch (e) { console.warn(e); } return x; };
+    renderReport = function () { const x = _rr.apply(this, arguments); try { tabAff(); } catch (e) {} try { if (cur) { render(cur); if (matchMedia("(min-width:981px)").matches && document.documentElement.classList.contains("simple")) document.documentElement.classList.add("s-rep"); } } catch (e) { console.warn(e); } return x; };
+    try { tabAff(); } catch (e) {}
     try { if (cur && document.querySelector("#report .rep-head")) { render(cur); if (matchMedia("(min-width:981px)").matches) document.documentElement.classList.add("s-rep"); } } catch (e) {}
   }
   return { init, render, gauge };

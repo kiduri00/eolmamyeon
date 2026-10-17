@@ -15,35 +15,12 @@ TXD = (D.get('txAsOf') or {}).get('sale', '')
 TXX = J('public/data/tx.json', {}) or {}   # 구역별 실거래 상세: x.hd = 화면 머리글과 같은 기준(tools/tx.py)
 GEO = J('public/data/geo.json', {}) or {}   # 앱 지도와 같은 정비구역·구 경계(작은 지도 그림용)
 GUG = {x['n']: x['r'] for x in (GEO.get('gu') or [])}
+import sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import zmap   # 구역 위치 지도(SVG)·공유 카드(OG PNG) — tools/zmap.py
+OG_OK = zmap.og_ok()
 def minimap(r):
-    """구역 경계를 작은 정적 SVG로(주변 1.2km 안팎 · 구 경계 · 가까운 역). 경계가 없으면 빈 문자열."""
-    z = (GEO.get('z') or {}).get(r['id'])
-    if not z or not z.get('g'): return ''
-    rings = z['g'] if isinstance(z['g'][0][0][0], (int, float)) else [rg for poly in z['g'] for rg in poly]
-    xs = [p[0] for rg in rings for p in rg]; ys = [p[1] for rg in rings for p in rg]
-    cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
-    kx = math.cos(math.radians(cy)) * 111320; ky = 110540   # 도 → m
-    span = max(1200, (max(xs) - min(xs)) * kx * 1.8, (max(ys) - min(ys)) * ky * 1.8)
-    W, H = 640, 360; sc = min(W, H) / span
-    P = lambda lng, lat: ((lng - cx) * kx * sc + W / 2, H / 2 - (lat - cy) * ky * sc)
-    path = lambda rgs: ''.join('M' + 'L'.join(f'{x:.1f},{y:.1f}' for x, y in (P(*q) for q in rg)) + 'Z' for rg in rgs)
-    gu = GUG.get(r['g']); gp = ''
-    if gu:
-        grs = gu if isinstance(gu[0][0][0], (int, float)) else [rg for poly in gu for rg in poly]
-        gp = f'<path d="{path(grs)}" class="mm-gu"/>'
-    st = []
-    for s_ in (D.get('stations') or []):
-        x, y = P(s_[2], s_[1])
-        if 14 <= x <= W - 14 and 14 <= y <= H - 14: st.append((x, y, s_[0]))
-    sts = ''.join(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5" class="mm-st"/><text x="{x:.1f}" y="{y - 10:.1f}" class="mm-tx" text-anchor="middle">{esc(n)}</text>' for x, y, n in st[:4])
-    bar = 500 * sc
-    return (f'<div class="mm" style="margin:16px 0 8px"><svg viewBox="0 0 {W} {H}" width="100%" role="img" aria-label="{esc(short(r["n"]))} 정비구역 경계 지도" style="display:block;width:100%;height:auto;max-width:640px;border-radius:14px;border:1px solid rgba(127,127,127,.25)">'
-            '<style>.mm-bg{fill:#f3f5f9}.mm-gu{fill:none;stroke:#8b95a1;stroke-width:1.5;stroke-dasharray:6 4}.mm-z{fill:rgba(31,58,135,.22);stroke:#1f3a87;stroke-width:2.5;stroke-linejoin:round}'
-            '.mm-st{fill:#fff;stroke:#00a84d;stroke-width:2.5}.mm-tx{font:600 13px Pretendard,system-ui,sans-serif;fill:#4e5968;paint-order:stroke;stroke:#f3f5f9;stroke-width:3}.mm-sb{stroke:#4e5968;stroke-width:2}'
-            '@media (prefers-color-scheme:dark){.mm-bg{fill:#1b2130}.mm-z{fill:rgba(91,140,255,.25);stroke:#7da2ff}.mm-tx{fill:#c3cad9;stroke:#1b2130}.mm-st{fill:#1b2130}.mm-sb{stroke:#c3cad9}}</style>'
-            f'<rect width="{W}" height="{H}" class="mm-bg"/>{gp}<path d="{path(rings)}" class="mm-z" fill-rule="evenodd"/>{sts}'
-            f'<line x1="16" y1="{H - 16}" x2="{16 + bar:.1f}" y2="{H - 16}" class="mm-sb"/><text x="16" y="{H - 22}" class="mm-tx">500m</text></svg>'
-            f'<p class="meta" style="margin-top:6px">정비구역 경계(서울도시공간포털·정비사업 현황) · 점선은 {esc(r["g"])} 경계 · <a href="../#{r["id"]}">앱 지도에서 크게 보기</a></p></div>')
+    """구역 경계 + 주변 정비구역 + 구 경계 + 지하철 노선·역(tools/zmap.py). 경계가 없으면 빈 문자열."""
+    return zmap.minimap(r, GEO, D, short)
 HDB = {'i': ('입주권 전용 3.3㎡당', '아파트 입주권'), 'a': ('아파트 전용 3.3㎡당', '아파트 매매'), 'v': ('대지 3.3㎡당', '빌라·단독 매매')}
 def short(n):
     n = re.sub(r'^\s*(\(가칭\)|\[임시\]|\(임시\))\s*', '', n)
@@ -103,6 +80,7 @@ HEAD = '''<!doctype html>
 '''
 FOOT = '''</main>
 <footer class="f"><p><a href="../report/">월간 리포트</a> · <a href="../z/">구역별 페이지</a> · <a href="../guide/">가이드·분석</a> · <a href="../years">몇 년 걸리나</a> · <a href="../about">소개</a> · <a href="../contact">문의하기</a> · <a href="../method">출처·계산 방법</a> · <a href="../terms">이용약관</a> · <a href="../privacy"><b>개인정보처리방침</b></a> · <a href="https://blog.naver.com/always_questions" rel="noopener">블로그</a></p><p class="f-c">© 2026 집핀 · 데이터 기준 {upd}</p></footer>
+<script>/* 오프라인에서도 다시 열 수 있게: 서비스 워커를 붙이고 이 페이지를 저장해 달라고 알린다 */if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname==="localhost"))addEventListener("load",function(){{navigator.serviceWorker.register("/sw.js",{{scope:"/"}}).then(function(){{return navigator.serviceWorker.ready}}).then(function(r){{r.active&&r.active.postMessage({{t:"keep",u:[location.pathname]}})}}).catch(function(){{}})}});</script>
 </body>
 </html>
 '''
@@ -116,9 +94,9 @@ def page(r):
     title = f"{nm} {kind} 진행 단계·실거래·입주까지 필요한 현금 | 집핀 - 서울 재개발 지도"
     desc = f"{r['g']} {nm} {kind}: 지금 {stage} 단계. 구역 안 실거래, 노후도, 권리산정기준일, 정보몽땅 추진경과, 기본 가정의 입주까지 필요한 현금 추정. 데이터 기준 {UPD}."
     url = f"{SITE}/z/{rid}"
-    ld = json.dumps({"@context": "https://schema.org", "@type": "Article", "headline": f"{nm} {kind} 진행 단계와 입주까지 필요한 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
-                     "mainEntityOfPage": url, "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "집핀", "url": SITE}}, ensure_ascii=False)
-    o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld)]
+    ld0 = {"@type": "Article", "headline": f"{nm} {kind} 진행 단계와 입주까지 필요한 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
+           "mainEntityOfPage": url, "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "집핀", "url": SITE}}
+    o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld='@@LD@@')]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or r.get("dg") or "")} · {esc(kind)} · 데이터 기준 {UPD}</p>')
     o.append(f'<h1>{esc(nm)} {esc(kind)} 진행 단계와 입주까지 필요한 현금</h1>')
     # 현재 단계의 인가·고시일만 쓴다(예전엔 기록 중 가장 늦은 날짜를 써서 '착공' 구역에 관리처분일이 붙었다 · o747)
@@ -143,7 +121,7 @@ def page(r):
     # 인가 이력
     hist = [(lab, dt[key]) for key, lab in DTK if dt.get(key)]
     if hist:
-        o.append('<h2>인가 이력</h2><ul class="steps">' + ''.join(f'<li class="{"cur" if i == len(hist) - 1 else ""}"><b>{esc(l)}</b><span>{esc(d[:10].replace("-", "."))}</span></li>' for i, (l, d) in enumerate(hist)) + '</ul>')
+        o.append('<h2>인가 이력</h2><ul class="steps">' + ''.join(f'<li class="{"cur" if i == len(hist) - 1 else ""}"><b>{esc(l)}</b><span>{esc(d[:10].replace("-", "."))}{" (변경)" if any(d2 < d for _, d2 in hist[i + 1:]) else ""}</span></li>' for i, (l, d) in enumerate(hist)) + '</ul>')
     ev = [e for e in (pm.get('ev') or []) if e and e[0] <= datetime.date.today().isoformat()][:6]
     if ev:
         o.append('<h3>정보몽땅 최근 기록</h3><ul class="steps tl">' + ''.join(f'<li><b>{esc(d.replace("-", "."))}</b><span>{esc(sec)} · {esc(re.sub(r"^\[([^]]*)\]\s*(.*)$", lambda m: m.group(1) + (" · " + m.group(2) if m.group(2) else ""), tx))}</span></li>' for d, sec, tx in ev) + '</ul>')
@@ -169,7 +147,10 @@ def page(r):
     if t.get('old') and r.get('s', 0) < 7:
         x = t['old']
         o.append(f'<h2>노후도 <small class="meta">경계 안 건축물 {x["n"]:,}동 · 사용승인연도 확인 {x["k"]:,}동 · 서울도시공간포털 건물 레이어</small></h2><p>노후·불량 건축물 비율 <b>{x["pol"]}%</b>(철근콘크리트 30년·그 밖 20년 기준), 30년 넘은 건물 {x["p30"]}%, 평균 {x["avg"]}년이에요. 서울 재개발 구역지정 요건(노후도 60% 이상)과 비교해 보세요.</p>')
-    if r.get('rdx'):
+    if r.get('rdx') and not r['rdx'].get('d'):   # 구역지정일이 변경 지정일이라 날짜를 추정하지 않은 곳(tools/enrich.py)
+        x = r['rdx']
+        o.append(f'<h2>권리산정기준일</h2><p><b>확인 필요</b> · {esc(x.get("b"))} <a href="{esc(x.get("u"))}" target="_blank" rel="noopener nofollow">근거</a></p>')
+    elif r.get('rdx'):
         x = r['rdx']
         o.append(f'<h2>권리산정기준일</h2><p><b>{esc(x.get("d"))}</b> · {esc(x.get("b"))}. 이날 뒤에 새로 짓거나 쪼갠 지분은 입주권이 안 나오거나 나눠 받을 수 있어요. <a href="{esc(x.get("u"))}" target="_blank" rel="noopener nofollow">근거</a></p>')
     th = (TH.get('z') or {}).get(rid)
@@ -193,8 +174,27 @@ def page(r):
     o.append(f'<details class="srcs"><summary>자료 출처</summary><ul>{"".join(src)}</ul></details>')
     o.append(f'<p class="note">이 페이지는 공개 자료로 매일 자동 갱신돼요. 계산은 시세 상승 0%·기본 비례율 같은 가정이 들어간 추정이고 투자 권유가 아니에요. 입주권 자격과 토지거래허가는 계약 전에 조합·구청에서 확인하세요. <a href="../method">계산 방법</a></p>')
     o.append(FOOT.format(upd=UPD))
-    return ''.join(o)
+    # 구조화 데이터: 글(Article) + 이동 경로(BreadcrumbList) + 장소(Place · 위경도·주소) · 공유 카드는 구역마다
+    zg = (GEO.get('z') or {}).get(rid) or {}
+    og = None
+    if OG_OK:
+        mk = next(((a, b) for a, b, _ in k if a not in ('현재 단계', '가까운 역', '토지등소유자')), None)
+        og = zmap.og_card(rid, nm, f"{r['g']} {r.get('j') or ''} · {kind}".strip(), stage or '단계 확인 중', mk[0] if mk else '', re.sub(r'<[^>]+>', '', mk[1]) if mk else '', (r['ll'][1], r['ll'][0]) if r.get('ll') else (tuple(zg['l']) if zg.get('l') else None), r['g'], UPD)
+    elif os.path.exists(os.path.join(ROOT, 'public/og/z', rid + '.png')): og = f'/og/z/{rid}.png'   # 글꼴·PIL이 없는 곳에서 돌 때는 있던 카드를 그대로
+    if og: ld0["image"] = SITE + og
+    graph = [ld0, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "집핀", "item": SITE + "/"}, {"@type": "ListItem", "position": 2, "name": "구역별 페이지", "item": f"{SITE}/z/"},
+                                                                {"@type": "ListItem", "position": 3, "name": r['g'], "item": f"{SITE}/gu/{r['g']}"}, {"@type": "ListItem", "position": 4, "name": nm, "item": url}]}]
+    ll = r.get('ll') or ((zg.get('l') or [None, None])[::-1] if zg.get('l') else None)
+    if ll and ll[0] is not None:
+        graph.append({"@type": "Place", "name": f"{nm} {kind} 정비구역", "url": url, "geo": {"@type": "GeoCoordinates", "latitude": round(ll[0], 5), "longitude": round(ll[1], 5)},
+                      "address": {"@type": "PostalAddress", "addressCountry": "KR", "addressRegion": "서울특별시", "addressLocality": r['g'], **({"streetAddress": r['j']} if r.get('j') else {})}, "containedInPlace": {"@type": "AdministrativeArea", "name": f"서울특별시 {r['g']}"}})
+    h = ''.join(o).replace('@@LD@@', json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False).replace('</', '<\\/'), 1)
+    if og: h = h.replace(f'<meta property="og:image" content="{SITE}/og.png">', f'<meta property="og:image" content="{SITE}{og}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:image" content="{SITE}{og}">', 1)
+    return h
 R = [r for r in D['recs'] if not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n')]   # 화면의 '진행 중'과 같은 기준
+_isdone = lambda r: bool(r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7))
+N_DONE = sum(1 for r in D['recs'] if _isdone(r) and r.get('src') != 'moa'); N_MOA = sum(1 for r in D['recs'] if not r.get('dn') and r.get('src') == 'moa')
+CNT_NOTE = f'<p class="meta">진행 중 {len(R):,}곳은 준공·해산된 {N_DONE:,}곳과 모아타운 관리지역 {N_MOA:,}곳을 뺀 숫자예요. 첫 화면·메뉴의 숫자와 같은 기준이에요.</p>'
 _ALL = {r['id'] for r in D['recs']}
 for f in os.listdir(ZD):   # 자료에서 빠진 구역(시험 등록 등)의 자동 페이지는 지운다(손으로 쓴 페이지는 둔다)
     if f.endswith('.html') and f != 'index.html' and f[:-5] not in _ALL and not is_hand(f[:-5]): os.remove(os.path.join(ZD, f)); print('  removed stale page', f)
@@ -211,10 +211,12 @@ li = lambda x: f'<a class="zl" href="{x["id"]}">{esc(short(x["n"]))}<small>{esc(
 idx = [HEAD.format(title='서울 정비사업 구역별 페이지 | 집핀 - 서울 재개발 지도', desc=f'서울 진행 중 정비사업 {len(R)}곳의 구역별 진행 단계·실거래·노후도·입주까지 필요한 현금. 데이터 기준 {UPD}.', url=f'{SITE}/z/', site=SITE,
                   ld=json.dumps({"@context": "https://schema.org", "@type": "CollectionPage", "name": "서울 정비사업 구역별 페이지", "url": f"{SITE}/z/"}, ensure_ascii=False)).replace('<meta name="emr-auto" content="1">\n', '')]
 idx.append(f'<p class="eyebrow">구역별 페이지 · 데이터 기준 {UPD}</p><h1>서울 정비사업 구역별 페이지</h1><p class="lede">서울에서 진행 중인 재개발·재건축·가로주택 {len(R)}곳을 구역마다 한 페이지로 정리했어요. 진행 단계와 인가 이력, 구역 안 실거래, 노후도, 권리산정기준일, 기본 가정의 입주까지 필요한 현금이 있어요. 매일 자동 갱신돼요.</p>')
+idx.append(CNT_NOTE)
 if hand: idx.append('<h2>기사·고시로 대조해 정리한 구역</h2><p>규모가 커서 확인할 거리가 많은 구역은 기사·고시와 정보몽땅 등록값을 대조한 이야기를 붙였어요.</p><div class="grid2">' + ''.join(li(x) for x in hand if x['id'] in {y['id'] for y in R}) + '</div>')
 for g in sorted(byg): idx.append(f'<h2><a href="../gu/{esc(g)}">{esc(g)}</a> <small class="meta">{len(byg[g])}곳</small></h2><div class="grid2">' + ''.join(li(x) for x in sorted(byg[g], key=lambda x: -x.get('s', 0))) + '</div>')
 idx.append(FOOT.format(upd=UPD))
 open(os.path.join(ZD, 'index.html'), 'w', encoding='utf-8').write(''.join(idx))
+zmap.og_save()
 print('zpages made', made, 'hand kept', kept, 'index', len(R))
 # 구별 페이지: public/gu/<구>.html (검색 노출용 · 그 구의 진행 중 구역을 필요한 돈과 함께)
 GD = os.path.join(ROOT, 'public/gu'); os.makedirs(GD, exist_ok=True)
@@ -231,7 +233,8 @@ def guPage(g, L):
     ld = json.dumps({"@context": "https://schema.org", "@type": "CollectionPage", "name": f"{g} 정비사업", "url": url}, ensure_ascii=False)
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace(' aria-current="page"', '')]
     o.append(f'<p class="eyebrow"><a href="./">구역별 페이지</a> · <a href="../gu/">자치구별</a> · 데이터 기준 {UPD}</p><h1>{esc(g)} 재개발·재건축 {len(L)}곳</h1>')
-    o.append('<p class="lede">' + ' · '.join(f'{esc(k)} {v}곳' for k, v in st.most_common(6) if k) + '</p>')
+    top = [(k, v) for k, v in st.most_common() if k][:5]; rest = len(L) - sum(v for _, v in top)   # 단계 합이 머리글 곳 수와 꼭 맞게: 나머지는 '기타'
+    o.append('<p class="lede">' + ' · '.join([f'{esc(k)} {v}곳' for k, v in top] + ([f'기타 {rest}곳'] if rest else [])) + '</p>')
     if cheap: o.append('<p>전세 끼고 적은 돈으로 시작할 수 있는 곳: ' + ', '.join(f'<a href="{x["id"]}">{esc(short(x["n"]))}</a> {eok(c(x)["gapNow"])}' for x in cheap) + f'. <a href="../#map-{esc(g)}">지도에서 내 돈으로 보기 →</a></p>')
     def rowkey(x):   # 숫자가 있는 줄 먼저(전세 끼고 지금 적은 순 → 현금만 있는 줄), 숫자 없는 줄은 뒤에 단계순
         v = c(x)
@@ -259,6 +262,7 @@ def guIndex():
     desc = f'서울 {len(byg)}개 자치구의 진행 중 정비사업 {len(R)}곳을 구별로 모았어요. 구를 누르면 구역마다 진행 단계와 필요한 돈을 볼 수 있어요. 데이터 기준 {UPD}.'
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace('<meta name="emr-auto" content="1">\n', '').replace(' aria-current="page"', '').replace('<base href="/z/">', '<base href="/gu/">')]
     o.append(f'<p class="eyebrow">자치구별 페이지 · 데이터 기준 {UPD}</p><h1>서울 자치구별 재개발·재건축</h1><p class="lede">서울에서 진행 중인 정비사업 {len(R)}곳을 {len(byg)}개 구로 나눴어요. 구를 고르면 그 구의 구역을 전세 끼고 지금 필요한 돈 순으로 볼 수 있어요.</p>')
+    o.append(CNT_NOTE)
     def card(g):
         L = byg[g]; ok = [C.get(x['id'], {}).get('gapNow') for x in L if (C.get(x['id']) or {}).get('gapOk') and (C.get(x['id']) or {}).get('gapNow') is not None and not x.get('lc') and x.get('tag') != 'mk']
         sub = f"{len(L)}곳" + (f" · 전세 끼고 최소 {eok(min(ok))}" if ok else '')

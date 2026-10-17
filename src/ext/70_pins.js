@@ -182,9 +182,10 @@ const PINS = (() => {
     ov.className = "pn-ov"; ov.id = "pnFull";
     ov.innerHTML = `<div class="pn-dlg" role="dialog" aria-modal="true" aria-labelledby="pnFullT"><h3 id="pnFullT">핀은 ${MAX}개까지예요. 하나 빼고 꽂을까요?</h3><p>오래 전에 꽂은 핀부터 보여 드려요.</p><div class="pn-old">${old.map((x) => `<button type="button" data-pswap="${x}">${pinY(18)}<span><b>${esc(shortName(byId[x].n))}</b><small>${esc(byId[x].g)} · ${SNAP[x] ? dot(SNAP[x].t) + "에 꽂음" : ""}</small></span><em>빼고 꽂기</em></button>`).join("")}</div><button type="button" class="btn secondary sm" id="pnFullX">그만두기</button></div>`;
     document.body.appendChild(ov);
-    const close = () => { ov.remove(); document.removeEventListener("keydown", esc_); try { back && back.focus(); } catch (e) {} };
+    const close = (nav) => { ov.remove(); document.removeEventListener("keydown", esc_); removeEventListener("hashchange", onNav); removeEventListener("popstate", onNav); if (nav !== true) try { back && back.focus(); } catch (e) {} };
+    const onNav = () => close(true);
     const esc_ = (e) => { if (e.key === "Escape") close(); };
-    document.addEventListener("keydown", esc_);
+    document.addEventListener("keydown", esc_); addEventListener("hashchange", onNav); addEventListener("popstate", onNav);
     ov.addEventListener("click", (e) => {
       if (e.target === ov || e.target.closest("#pnFullX")) return close();
       const s = e.target.closest("[data-pswap]"); if (!s) return;
@@ -448,9 +449,11 @@ const PINS = (() => {
     const dlg = ov.firstElementChild;
     let named = !!(edit && edit.name && edit.name !== autoName(edit));
     const refresh = () => { const nm = dlg.querySelector("[data-cn]"); if (nm && !named) nm.value = autoName(c); dlg.querySelector("[data-cchips]").innerHTML = chips(); dlg.querySelector("[data-ccnt]").innerHTML = cnt(); };
-    const close = () => { ov.remove(); document.removeEventListener("keydown", kd); try { back && back.focus(); } catch (e) {} };
+    // 주소가 바뀌면(뒤로 가기·#구역 이동) 시트를 닫는다 — 열린 채 남아 다른 화면을 가리지 않게
+    const close = (nav) => { ov.remove(); document.removeEventListener("keydown", kd); removeEventListener("hashchange", onNav); removeEventListener("popstate", onNav); if (nav !== true) try { back && back.focus(); } catch (e) {} };
+    const onNav = () => close(true);
     const kd = (e) => { if (e.key === "Escape") close(); };
-    document.addEventListener("keydown", kd);
+    document.addEventListener("keydown", kd); addEventListener("hashchange", onNav); addEventListener("popstate", onNav);
     const lite = () => { const nm = dlg.querySelector("[data-cn]"); if (nm && !named) nm.value = autoName(c); dlg.querySelector("[data-ccnt]").innerHTML = cnt(); };
     let cT = 0;
     dlg.addEventListener("input", (e) => {
@@ -486,7 +489,8 @@ const PINS = (() => {
         toast(edit ? "조건 핀 수정함" : "조건 핀 꽂음", edit ? "" : "내 핀에서 보기", edit ? null : openView, `${nm} · ${fmt(ids.length)}곳`);
       }
     });
-    const f = dlg.querySelector("[data-cn]") || dlg.querySelector("button"); f && f.focus();
+    // 이름 칸에 바로 포커스를 주면 폰 키보드가 칩·저장 버튼을 가려서, 제목에 둔다
+    const h = dlg.querySelector("#pcST"); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } else { const f = dlg.querySelector("button"); f && f.focus(); }
   }
   // 홈에 적용: 금액·방식·입주권뿐 아니라 구·유형·단계·출퇴근·토허·확실성까지 그대로 → 홈 숫자 = 카드 숫자
   function applyCond(c) {
@@ -557,16 +561,21 @@ const PINS = (() => {
     if (t && !t.querySelector(".pn-hpin")) { const gb = t.lastElementChild && t.lastElementChild !== t.firstElementChild ? t.lastElementChild : null; gb ? t.insertBefore(mk(), gb) : t.appendChild(mk()); }
   }
 
+  // 홈 게이지 아래 띠: 왼쪽 '이 조건으로 핀 꽂기'(저장 시트) · 오른쪽은 조건 핀이 있을 때만 '새로 들어온 곳 N곳'(내 핀의 조건 핀 목록으로)
   function condBtn() {
     const hero = $("sHero"); if (!hero) return;
-    const ex = $("pcSave"), g0 = document.querySelector(".s-gauge");
-    if (ex) { if (g0 && ex.previousElementSibling !== g0) g0.after(ex); return; }
-    const b = document.createElement("button");
-    b.type = "button"; b.id = "pcSave"; b.className = "pc-save";
-    b.innerHTML = `${pinY(18)}<span>이 조건으로 핀 꽂기</span><small>새로 되는 곳 모아 보기</small>`;
-    b.onclick = () => { if (!isMember()) { try { mbOpen("fav"); } catch (e) {} return; } condSheet(); };
-    const g = document.querySelector(".s-gauge");
-    g ? g.after(b) : hero.appendChild(b);
+    let w = $("pcSave"); const g0 = document.querySelector(".s-gauge");
+    if (!w) {
+      w = document.createElement("div"); w.id = "pcSave"; w.className = "pc-save";
+      w.innerHTML = `<button type="button" class="pc-sv-m">${pinY(18)}<span>이 조건으로 핀 꽂기</span></button><button type="button" class="pc-sv-n" hidden></button>`;
+      w.querySelector(".pc-sv-m").onclick = () => { if (!isMember()) { try { mbOpen("fav"); } catch (e) {} return; } condSheet(); };
+      w.querySelector(".pc-sv-n").onclick = () => { openView(); setTimeout(() => { const h = $("pcT"); if (h) { h.scrollIntoView({ block: "start", behavior: "auto" }); h.tabIndex = -1; h.focus({ preventScroll: true }); } }, 120); };
+      g0 ? g0.after(w) : hero.appendChild(w);
+    } else if (g0 && w.previousElementSibling !== g0 && !(w.previousElementSibling && w.previousElementSibling.id === "pcAct")) g0.after(w);
+    const n = CONDS.length ? newIds().length : 0, nb = w.querySelector(".pc-sv-n");
+    if (!CONDS.length) { nb.hidden = true; return; }
+    nb.hidden = false;
+    nb.innerHTML = n ? `새로 들어온 곳 <b>${n}곳</b> →` : `조건 핀 ${CONDS.length}개 보기 →`;
   }
   const newIds = () => [...new Set(condsAll().flatMap((n) => n.add))];
 

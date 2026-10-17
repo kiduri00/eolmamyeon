@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="google-site-verification" content="aB_gUjKgCx3ilb92Gz82USEueqkBMNwla-66uEb6SWA">
 <meta name="naver-site-verification" content="90edd8ce02045c025c853512086783e64f39a06e">
-<title>집핀 | 내 돈으로 살 수 있는 서울 재개발 지도 (얼마면 재개발)</title>
+<title>집핀 | 내 돈으로 살 수 있는 서울 재개발 지도</title>
 <meta name="description" content="가용 현금을 넣으면 서울 재개발·재건축·가로주택 구역 가운데 지위양도 제한 전 단계 구역과, 입주까지 필요한 현금·준공 확률·입지 점수를 계산합니다. 투자 권유가 아닌 공개 자료 기반 추정입니다.">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#15181D" media="(prefers-color-scheme: dark)">
@@ -38,10 +38,11 @@
 <meta property="og:locale" content="ko_KR">
 
 <link rel="icon" href="/icon-small.svg" type="image/svg+xml"><link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png"><link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>
+<meta name="google-adsense-account" content="ca-pub-9772652926977648">
+<script>/* 광고 스크립트는 페이지가 다 뜨고 사용자가 처음 손댄 뒤, 한가할 때 불러온다 */(function(){var L=0,T=0,D=0,ev=["pointerdown","keydown","scroll","touchstart"];function go(){if(D||!L||!T)return;D=1;var f=function(){var s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";s.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648";document.head.appendChild(s)};window.requestIdleCallback?requestIdleCallback(f,{timeout:4000}):setTimeout(f,1500)}function on(){T=1;ev.forEach(function(e){removeEventListener(e,on,true)});go()}ev.forEach(function(e){addEventListener(e,on,{capture:true,passive:true})});addEventListener("load",function(){L=1;go()})})();</script>
 </head>
 <body>
-<a class="skip" href="#planner">본문 바로가기</a>
+<a class="skip" href="#mapTop">본문 바로가기</a>
 <header class="hdr" id="hdr">
   <div class="hdr-top"><div class="wrap">
     <a class="logo" href="./" aria-label="집핀 처음으로"><img class="logo-i" src="icon-small.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><small class="logo-s">서울 재개발 지도</small></a>
@@ -72,23 +73,34 @@
   </div></nav>
 </header>
 <div class="menu-bd" id="menuBd" hidden></div>
-<div class="menu-pop" id="menuPop" hidden>
+<div class="menu-pop mp-v2" id="menuPop" hidden>
         <p class="mp-h" aria-hidden="true">더 보기</p>
-        <a href="#rulesTop" data-menu="rulesTop"><b>매수 전 규정</b><small>지위양도·토지거래허가·재당첨 등 현행 기준</small></a>
-        <a href="#statsTop" data-menu="statsTop"><b>통계</b><small>자치구별 사업장 · 단계별 실제 소요 기간</small></a>
-        <a href="#favTop" data-menu="favTop" class="mp-fav"><b>내 핀</b><small>핀 꽂은 구역 소식 · 2~3곳 나란히</small></a>
-        <a href="#txrTop" data-menu="txrTop"><b>구역 실거래 순위</b><small>거래 많은 곳 · 1년 상승률 · 신고가</small></a>
-        <a href="#ntcTop" data-menu="ntcTop"><b>고시·공고 소식</b><small>최근 90일 인가·시공자 선정·신청</small></a>
-        <a href="guide/rebuild-30y"><b>재건축 연한 30년 단지</b><small>준공 30년 넘은 서울 아파트 실거래</small></a>
-        <a href="z/"><b>구역별 페이지</b><small>진행 중 961곳 한 장씩</small></a>
-        <a href="report/" class="mp-lead"><b>월간 단계 변경 리포트</b><small>최근 인가 난 구역 · 원문 링크</small></a>
-        <a href="years"><b>몇 년 걸리나</b><small>지금 단계에서 다음 단계까지 실제 기간</small></a>
-        <a href="z/"><b>구역별 페이지</b><small>큰 구역 40곳 요약</small></a>
-        <a href="guide/"><b>가이드·데이터 분석</b><small>분담금·입주권·자치구별 현금 등 데이터로 답해요</small></a>
-        <a href="about"><b>소개</b><small>이 사이트를 만든 이유와 데이터</small></a>
-        <a href="method"><b>출처·계산 방법</b><small>자료 출처와 계산 가정</small></a>
-        <a href="contact"><b>문의하기</b><small>데이터 오류 제보·문의</small></a>
-        <a href="https://blog.naver.com/always_questions" target="_blank" rel="noopener" data-nw="1"><b>블로그 ↗</b><small>구역별 분석 글<span class="sr-only"> (새 창)</span></small></a>
+        <p class="mp-g" id="mpG1">도구</p>
+        <div class="mp-grid" role="group" aria-labelledby="mpG1">
+          <a href="#gapTop" data-menu="gapTop"><b>갭 순위</b></a>
+          <a href="#diagTop" data-menu="diagTop"><b>매물진단</b></a>
+          <a href="#planner" data-menu="planner"><b>입주 계산</b></a>
+          <a href="#txrTop" data-menu="txrTop"><b>실거래 순위</b></a>
+          <a href="#commuteTop" data-menu="commuteTop"><b>출퇴근으로 찾기</b></a>
+          <a href="#supplyTop" data-menu="supplyTop"><b>입주 물량</b></a>
+          <a href="#favTop" data-menu="favTop"><b>내 핀·구역 비교</b></a>
+          <a href="#rankTop" data-menu="rankTop"><b>입지 순위</b></a>
+        </div>
+        <p class="mp-g" id="mpG2">자료</p>
+        <div class="mp-grid" role="group" aria-labelledby="mpG2">
+          <a href="#newTop" data-menu="newTop"><b>이번 달 단계 변경</b></a>
+          <a href="#ntcTop" data-menu="ntcTop"><b>고시·공고 소식</b></a>
+          <a href="report/"><b>월간 리포트</b></a>
+          <a href="years"><b>몇 년 걸리나</b></a>
+          <a href="#rulesTop" data-menu="rulesTop"><b>매수 전 규정</b></a>
+          <a href="#statsTop" data-menu="statsTop"><b>통계</b></a>
+          <a href="z/"><b>구역별 페이지</b></a>
+          <a href="guide/"><b>가이드·분석</b></a>
+        </div>
+        <p class="mp-g" id="mpG3">사이트</p>
+        <div class="mp-row" role="group" aria-labelledby="mpG3">
+          <a href="about">소개</a><a href="method">출처·계산 방법</a><a href="contact">문의하기</a><a href="https://blog.naver.com/always_questions" target="_blank" rel="noopener" data-nw="1">블로그 ↗<span class="sr-only"> (새 창)</span></a>
+        </div>
         <button type="button" class="mp-x" id="menuClose">닫기</button>
       </div>
 
@@ -97,7 +109,7 @@
   <section class="intro" id="intro" aria-labelledby="introT">
     <div class="in-grid" aria-hidden="true"></div>
     <div class="in-l">
-      <p class="eyebrow" id="eyebrow"><span class="live" aria-hidden="true"></span><span class="eb-l">서울 진행 중 정비사업 953곳 · 모아타운 관리지역 131곳 별도 · 데이터 갱신 2026.09.26</span><span class="eb-s">서울 정비사업 953곳 · 9.26 갱신</span></p>
+      <p class="eyebrow" id="eyebrow"><span class="live" aria-hidden="true"></span><span class="eb-l">서울 진행 중 정비사업 955곳 · 모아타운 관리지역 131곳 별도 · 데이터 갱신 2026.10.18</span><span class="eb-s">서울 정비사업 955곳 · 10.18 갱신</span></p>
       <h1 id="introT">현금 몇 억이면<br><span class="h-grad">서울 재개발</span> 어디까지 될까?</h1>
       <p class="in-sub"><span class="sub-l">서울에서 진행 중인 정비사업을 내 현금 하나로 걸러 봐요. 입주까지 드는 현금, 가까운 역과 주변 호재까지 한 번에 보고, 시세는 외부 부동산 사이트(KB부동산)로 이어서 확인해요.</span><span class="sub-s">내 현금으로 입주까지 되는 구역과 주변 호재를 한 번에.</span></p>
       <div class="in-stats" id="inStats">
@@ -214,7 +226,22 @@
   </section>
   <aside class="ad-slot" data-slot="mid" aria-label="광고" hidden></aside>
 
-  <section class="sec" id="mapTop">
+  <section class="sec" id="mapTop" tabindex="-1">
+    <!-- 첫 화면 게이지·목록 뼈대: 60_simple.js가 이 요소를 그대로 이어 쓴다(첫 페인트부터 최종 높이 → 레이아웃 밀림 없음) -->
+    <div class="s-hero" id="sHero"><button type="button" class="s-search" id="sSearch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>구역 이름, 주소, 역으로 검색</button></div>
+    <i class="s-sen"></i>
+    <div class="s-gauge">
+      <div class="s-ghead"><h1 class="s-h1">내 돈으로 살 수 있는 <em>서울 재개발</em></h1>
+        <div class="s-mode" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">대출 끼고</button></div><button type="button" class="s-asm" id="sAsm" hidden aria-haspopup="dialog"></button></div>
+      <div class="s-gmain">
+        <label for="sCash" class="s-cash"><small>내 현금</small><b id="sCashV">1<small>억</small></b></label>
+        <span class="s-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <p class="s-count" id="sCount" aria-live="polite"><small id="sNL">살 수 있는 곳</small><b><span id="sN">–</span><i>곳</i></b></p>
+      </div>
+      <input type="range" id="sCash" style="--p:8.33%" min="0" max="100" step="0.1" value="8.33" aria-describedby="sCount" aria-label="가진 현금(억)">
+      <div class="s-ticks" aria-hidden="true"><span>0.5억</span><span>2</span><span>5</span><span>10</span><span>15</span></div>
+    </div>
+    <div class="pc-save pc-ph" aria-hidden="true"></div>
     <div class="sec-h"><div><h2>지도</h2><p id="mapSub">색이 <span class="w-l">진할수록</span><span class="w-d">밝을수록</span> 내 현금으로 되는 구역이 많은 구예요. 구를 누르면 확대되고, 확대한 지도에서 구역을 누르면 리포트가 열립니다</p></div></div>
     <div class="main">
       <div class="panel mapcard">
@@ -227,8 +254,13 @@
         </div>
         <div class="gu-list-box" id="guListBox"><h3 class="gl-h">구별 요약</h3><div class="gl-cap" id="guListCap"></div><ol class="gu-list" id="guList"></ol></div>
       </div>
+      <div class="s-right" id="sRight"><button type="button" class="s-tolist" id="sToList">← 살 수 있는 곳 목록</button>
       <section class="panel report" id="report" aria-label="구역 리포트"><div class="rep-empty"><h3 class="gl-h">구별 요약</h3><div class="gl-cap" id="guListCapD"></div><ol class="gu-list" id="guListD"></ol><p class="gl-foot">목록 카드나 확대한 지도의 구역을 누르면 여기에 구역 분석이 열립니다.</p></div></section>
+      </div>
     </div>
+    <div class="s-list-w" id="sListW"><div class="s-lh"><div><h2 id="sLT">살 수 있는 곳</h2><p class="s-lsub"><span id="sLS">지금 필요한 돈 · 추정</span><label class="s-sort"><span class="sr-only">정렬</span><select id="sSort"><option value="fit">맞춤순</option><option value="low">적은 돈순</option><option value="eta">입주 빠른순</option></select></label></p></div><div class="s-flt" role="group" aria-label="유형"><button type="button" data-k="" aria-pressed="true">전체</button><button type="button" data-k="redev" aria-pressed="false">재개발</button><button type="button" data-k="rebuild" aria-pressed="false">재건축</button><button type="button" data-k="small" aria-pressed="false">가로·소규모</button></div></div>
+      <p class="s-gu" id="sGu" hidden></p><ol class="s-list" id="sList"><li class="s-sk"></li><li class="s-sk"></li><li class="s-sk"></li><li class="s-sk"></li><li class="s-sk"></li><li class="s-sk"></li></ol><button type="button" class="btn secondary s-more" id="sMore" hidden></button></div>
+    <script>/* 넓은 화면: 목록을 지도 오른쪽 칸으로(첫 페인트 전에) */try{if(matchMedia("(min-width:981px)").matches){var _r=document.getElementById("sRight");_r.insertBefore(document.getElementById("sListW"),document.getElementById("report"))}}catch(e){}</script>
   </section>
 
   <section class="sec reads" id="readsTop" aria-labelledby="rdT">

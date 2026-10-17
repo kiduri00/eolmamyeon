@@ -229,6 +229,17 @@ for r in R:
     pub = re.search(r'공공재개발|\s공공$|공공\s*재개발|공공\)', r['n']) and not re.search(r'공공임대|장기전세', r['n'])
     if pub and r['k'] in ('재개발', '도시정비형 재개발') and (not x or x.get('c') != 'high'):
         r['rdx'] = {'d': '2020-09-21', 'b': '공공재개발 1차 후보지 공모 공고일(2차 후보지라면 2021.12.30)', 'u': 'https://www.newsis.com/view/NISX20210329_0001387661', 'c': 'mid'}; stat['rights_pub'] += 1
+    # 구역지정일이 변경 지정일이면(조합설립 등 뒤 단계 날짜가 더 이름) 그 날짜로 기준일을 추정하지 않는다 → '확인 필요'
+    #  추진위만 더 이르면(2009년 전엔 구역지정 전 추진위 승인이 가능했다) 날짜는 두되 '추정 · 확인 필요'로 낮춘다
+    rx = r.get('rdx'); dt = (PREM.get(r['id']) or {}).get('dt') or {}; dz = dt.get('구역지정')
+    if dz and (not rx or (rx.get('c') != 'high' and str(rx.get('b', '')).startswith('정비구역 지정 고시일'))):
+        ear = [(k, dt[k]) for k in ('조합설립', '시행자지정', '사업시행', '관리처분', '착공') if dt.get(k) and dt[k] < dz]
+        if ear:
+            k0, d0 = min(ear, key=lambda t: t[1])
+            r['rdx'] = {'b': f'등록된 구역지정일({dz.replace("-", ".")})이 {k0}({d0[:7].replace("-", ".")})보다 늦어 변경 지정일로 보여요. 최초 지정 고시일이나 따로 고시된 기준일을 구청에 확인하세요.',
+                        'u': 'https://www.law.go.kr/법령/도시및주거환경정비법/제77조', 'c': 'chg', 'zchg': dz}; stat['rights_chg'] += 1
+        elif rx and rx.get('d') == dz and dt.get('추진위') and dt['추진위'] < dz and rx.get('c') == 'mid':
+            rx['c'] = 'low'; rx['b'] = str(rx.get('b', '')) + f' · 추진위({dt["추진위"][:7].replace("-", ".")})가 더 일러 최초 지정일이 다를 수 있어요'; stat['rights_low'] += 1
 
 # ---------- 3. 구역 실거래 요약 병합 + 매수가 ----------
 T = TX['tx']; DONG = TX['dong']; APT = TX['apt']; DC = TX['dcode']

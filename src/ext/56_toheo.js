@@ -23,5 +23,17 @@ const TOH = (() => {
       load().then((T) => { if (T && slot.isConnected) { slot.innerHTML = html(r, T); const l = slot.querySelector(".toh-l"); if (l) ZX.moreRows(l.parentElement, 5); } });
     };
   }
-  return { load };
+  // 한 구역의 토지거래허가 판정(진단·요약용): 서울 전역 아파트 규칙 → 신통·모아 지정 → 구역 안 실제 허가 기록 → 구 단위 기록 순으로 본다.
+  // '지정 없음'이라고 단정하지 않는다(빌라·단독만 서울 전역 규칙에서 빠질 뿐, 개별 지정은 구청 확인).
+  function lookup(r, T0) {
+    const T1 = T0 || T, lp = landPermit(r);
+    if (lp) return { cls: "no", t: lp.t };
+    const z = T1 && T1.z && T1.z[r.id], gu = T1 && T1.gu && T1.gu[r.g];
+    if (z && z.res) return { cls: "no", t: `구역 안 주거용 필지 허가 ${fmt(z.res)}건(${ymd(T1.since).slice(2)}~) · 허가구역 필지가 있어요 · 사면 2년 실거주` };
+    if (z && z.n) return { cls: "warn", t: `구역 안 필지 허가 ${fmt(z.n)}건(${ymd(T1.since).slice(2)}~, 주거용 아님) · 매물 필지 지정 여부 구청 확인` };
+    if (r.src === "moa" || /가로|모아/.test(r.k || "")) return { cls: "warn", t: "모아타운은 도로 지목만 지정되는 경우가 많아요 · 빌라·단독은 서울 전역 지정(아파트만)에서 빠져요 · 구청 확인" };
+    return { cls: "warn", t: `빌라·단독은 서울 전역 지정(아파트만)에서 빠져요${gu ? ` · ${r.g} 최근 허가 ${fmt(gu[0])}건` : ""} · 개별 지정은 구청 확인` };
+  }
+  window.ZP_toheo = (r) => lookup(r);
+  return { load, lookup, loaded: () => !!T };
 })();

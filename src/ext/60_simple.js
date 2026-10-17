@@ -60,25 +60,36 @@ const SIMPLE = (() => {
     document.querySelectorAll("#sNav button").forEach((x) => { if (x.dataset.nav === k) x.setAttribute("aria-current", "page"); else x.removeAttribute("aria-current"); });
   }
   // 폰: 하단 '지도'를 누르면 지도를 화면 가득(호갱노노처럼). 게이지는 위 작은 막대로.
+  // 주소 #map = 전체 지도(뒤로가기로 닫힘, /#map 링크로 바로 열림). 지도 탭에 불이 들어온다
   function fullMap(on) {
     const h = document.documentElement;
-    if (on === h.classList.contains("s-full")) return;
+    if (on == null) on = !h.classList.contains("s-full");
+    if (on === h.classList.contains("s-full")) { if (on) navMark("map"); return; }
     h.classList.toggle("s-full", on);
     const m = $("sMini"); if (m) m.hidden = !on && m.hidden;
     if (on && m) m.hidden = false;
-    if (!on) { const nb = document.querySelector('#sNav [data-nav="home"]'); if (nb) { document.querySelectorAll("#sNav button").forEach((x) => x.removeAttribute("aria-current")); nb.setAttribute("aria-current", "page"); } }
+    navMark(on ? "map" : "home");
     setTimeout(() => window.dispatchEvent(new Event("resize")), 30);
     [60, 300, 800].forEach((t) => setTimeout(() => { try { LMX.fit(); } catch (e) {} }, t));
-    try { if (on && !(history.state && history.state.sFull)) history.pushState({ sFull: 1 }, "", location.href); else if (!on && history.state && history.state.sFull) history.back(); } catch (e) {}
+    try {
+      const base = location.pathname + location.search;
+      if (on && !(history.state && history.state.sFull)) { if (location.hash === "#map") history.replaceState({ sFull: 1 }, "", base + "#map"); else history.pushState({ sFull: 1 }, "", base + "#map"); }
+      else if (!on && history.state && history.state.sFull) history.back();
+      else if (!on && location.hash === "#map") history.replaceState(null, "", base);
+    } catch (e) {}
   }
   // ---------- 화면 만들기 ----------
   function build() {
     document.documentElement.classList.add("simple", "s-built");
     try { hdrH = 0; } catch (e) {}   // 탭바를 숨겼으니 머리 높이를 다시 잰다
     const map = $("mapTop");
-    const hero = document.createElement("div");
-    hero.className = "s-hero"; hero.id = "sHero";
-    hero.innerHTML = `
+    // shell.html에 뼈대(게이지·목록·오른쪽 칸)가 이미 있으면 그대로 이어 쓴다 — 첫 페인트와 같은 높이라 화면이 밀리지 않는다
+    let hero = $("sHero"), list = $("sListW"), right = $("sRight");
+    const main = map.querySelector(".main");
+    if (!hero) {
+      hero = document.createElement("div");
+      hero.className = "s-hero"; hero.id = "sHero";
+      hero.innerHTML = `
       <button type="button" class="s-search" id="sSearch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>구역 이름, 주소, 역으로 검색</button>
       <div class="s-gauge">
         <div class="s-ghead"><h1 class="s-h1">내 돈으로 살 수 있는 <em>서울 재개발</em></h1>
@@ -91,22 +102,30 @@ const SIMPLE = (() => {
         <input type="range" id="sCash" min="0" max="100" step="0.1" value="8.33" aria-describedby="sCount" aria-label="가진 현금(억)">
         <div class="s-ticks" aria-hidden="true"><span>0.5억</span><span>2</span><span>5</span><span>10</span><span>15</span></div>
       </div>`;
-    map.insertBefore(hero, map.firstChild);
-    const list = document.createElement("div");
-    list.className = "s-list-w"; list.id = "sListW";
-    list.innerHTML = `<div class="s-lh"><div><h2 id="sLT">살 수 있는 곳</h2><p class="s-lsub"><span id="sLS"></span><label class="s-sort"><span class="sr-only">정렬</span><select id="sSort">${SORTS.map(([k, t]) => `<option value="${k}"${k === sortK ? " selected" : ""}>${t}</option>`).join("")}</select></label></p></div><div class="s-flt" role="group" aria-label="유형"><button type="button" data-k="" aria-pressed="true">전체</button><button type="button" data-k="redev" aria-pressed="false">재개발</button><button type="button" data-k="rebuild" aria-pressed="false">재건축</button><button type="button" data-k="small" aria-pressed="false">가로·소규모</button></div></div>
+      map.insertBefore(hero, map.firstChild);
+    }
+    if (!list) {
+      list = document.createElement("div");
+      list.className = "s-list-w"; list.id = "sListW";
+      list.innerHTML = `<div class="s-lh"><div><h2 id="sLT">살 수 있는 곳</h2><p class="s-lsub"><span id="sLS"></span><label class="s-sort"><span class="sr-only">정렬</span><select id="sSort">${SORTS.map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select></label></p></div><div class="s-flt" role="group" aria-label="유형"><button type="button" data-k="" aria-pressed="true">전체</button><button type="button" data-k="redev" aria-pressed="false">재개발</button><button type="button" data-k="rebuild" aria-pressed="false">재건축</button><button type="button" data-k="small" aria-pressed="false">가로·소규모</button></div></div>
       <p class="s-gu" id="sGu" hidden></p><ol class="s-list" id="sList"></ol><button type="button" class="btn secondary s-more" id="sMore" hidden></button>`;
-    const main = map.querySelector(".main"), right = document.createElement("div");
-    right.className = "s-right"; right.id = "sRight";
-    right.innerHTML = `<button type="button" class="s-tolist" id="sToList">← 살 수 있는 곳 목록</button>`;
-    main.appendChild(right); right.appendChild($("report"));
-    const place = () => { if (matchMedia("(min-width:981px)").matches) right.insertBefore(list, $("report")); else main.after(list); };
+    }
+    try { $("sSort").value = sortK; } catch (e) {}
+    if (!right) {
+      right = document.createElement("div");
+      right.className = "s-right"; right.id = "sRight";
+      right.innerHTML = `<button type="button" class="s-tolist" id="sToList">← 살 수 있는 곳 목록</button>`;
+      main.appendChild(right); right.appendChild($("report"));
+    }
+    const place = () => { if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); } else if (main.nextElementSibling !== list) main.after(list); };
     place(); matchMedia("(min-width:981px)").addEventListener("change", place);
     $("sToList").onclick = () => document.documentElement.classList.remove("s-rep");
     // 스크롤해 지도를 볼 때 게이지가 머리 아래에 작게 붙어 있도록(움직이면 지도가 바로 바뀌는 걸 보며 조절)
-    const g = hero.querySelector(".s-gauge"), sen = document.createElement("i");
-    hero.after(g); sen.className = "s-sen"; g.before(sen);
+    const g = map.querySelector(".s-gauge");
+    if (g.parentNode === hero) { const sen = document.createElement("i"); hero.after(g); sen.className = "s-sen"; g.before(sen); }
     document.documentElement.style.setProperty("--hdr-h", (HDR() || 60) + "px");
+    // 머리 높이가 바뀌면(화면 회전·검색 열기) 붙는 막대 위치도 같이
+    try { new ResizeObserver(() => { const h = $("hdr").offsetHeight; if (h) { try { hdrH = h; } catch (e) {} document.documentElement.style.setProperty("--hdr-h", h + "px"); } }).observe($("hdr")); } catch (e) {}
     // 큰 게이지가 화면 위로 지나가면, 지도·목록을 보는 동안만 머리 아래에 한 줄짜리 게이지를 띄운다(흐름 높이는 그대로)
     const mini = document.createElement("div");
     mini.className = "s-mini"; mini.id = "sMini"; mini.hidden = true;
@@ -149,7 +168,7 @@ const SIMPLE = (() => {
       if (k !== "search" && k !== "more") b.setAttribute("aria-current", "page");
       if (k !== "map") fullMap(false);
       if (k === "home") { close(); if ($("report").classList.contains("sheet")) closeSheetNow(); window.scrollTo({ top: 0, behavior: "smooth" }); }
-      else if (k === "map") { close(); fullMap(true); }
+      else if (k === "map") { const v = history.state && history.state.sView; close(); if (v) setTimeout(() => fullMap(true), 120); else fullMap(true); }
       else if (k === "search") search();
       else if (k === "fav") open("favTop");
       else if (k === "more") setTimeout(() => $("menuBtn").click(), 0);
@@ -187,6 +206,7 @@ const SIMPLE = (() => {
       kind = b.dataset.k; shown = 6;
       $$(".s-flt button", list).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       render();
+      try { window.dispatchEvent(new CustomEvent("zp:filter", { detail: { kind } })); } catch (er) {}   // 지도(10_lmap.js)도 같은 유형만
     });
     $("sMore").onclick = () => { shown += 10; render(); };
     $("sSort").addEventListener("change", (e) => { sortK = e.target.value; shown = 6; try { localStorage.setItem("emr.sort", sortK); } catch (er) {} render(); });
@@ -262,7 +282,8 @@ const SIMPLE = (() => {
     try { LMX.fitAff(true); } catch (e) {}
   }
   // ---------- 목록 줄 보조: 최근 2년 실거래 흐름(작은 선) ----------
-  // tx.json[id].x.hd.q = [["26Q2", 값, 건수], …] — 처음 그린 뒤 한 번만 늦게 불러와 다시 그린다. 없으면 아무것도 안 그린다.
+  // txs.json[id] = [["26Q2", 값], …] 최근 8분기(build.py가 tx.json에서 뽑은 경량본, ~100KB) — 처음 그린 뒤 한 번만 늦게 불러와 다시 그린다.
+  // 큰 tx.json(1.8MB)은 구역 리포트·신고가 층을 열 때만 ZX.loadTx로 받는다.
   let TX = null, txAsk = false;
   const SP = new Map();
   const qIdx = (q) => { const m = /^(\d\d)Q([1-4])$/.exec(q || ""); return m ? +m[1] * 4 + +m[2] - 1 : null; };
@@ -273,7 +294,7 @@ const SIMPLE = (() => {
     if (SP.has(id)) return SP.get(id);
     let out = "";
     try {
-      const q = (((TX[id] || {}).x || {}).hd || {}).q || [];
+      const q = TX[id] || [];
       const pts = q.map((e) => [qIdx(e[0]), +e[1]]).filter((p) => p[0] != null && isFinite(p[1]) && p[1] > 0).sort((a, b) => a[0] - b[0]);
       const last = pts.length ? pts[pts.length - 1][0] : null;
       const P8 = last != null && last >= Q_NOW - 4 ? pts.filter((p) => p[0] > last - 8) : [];
@@ -292,9 +313,10 @@ const SIMPLE = (() => {
     return out;
   }
   function askTx() {
-    if (txAsk || typeof ZX === "undefined" || !ZX.loadTx) return;
+    if (txAsk) return;
     txAsk = true;
-    const go = () => { try { ZX.loadTx().then((d) => { if (d && typeof d === "object" && Object.keys(d).length) { TX = d; SP.clear(); render(); } }).catch(() => {}); } catch (e) {} };
+    const v = (D.dv && (D.dv.txs || D.dv.tx)) || D.asOf;
+    const go = () => { try { fetch(`data/txs.json?v=${v}`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && typeof d === "object" && Object.keys(d).length) { TX = d; SP.clear(); render(); } }).catch(() => {}); } catch (e) {} };
     (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 2500 }) : (f) => setTimeout(f, 900))(go);
   }
   // ---------- '왜 이 금액?' 작은 설명(새 화면 없이) ----------
@@ -390,8 +412,10 @@ const SIMPLE = (() => {
     $("sN").textContent = fmt(all);   // 굴러가는 숫자 대신 바로(목록 곳 수와 어긋나 보이지 않게)
     const ab = $("sAsm"); if (ab) { ab.hidden = gap; if (!gap) { const t = asmText(); ab.innerHTML = `${t}<i aria-hidden="true">?</i>`; ab.setAttribute("aria-label", `대출 가정: ${t} · 설명 보기`); } }
     try { if (!dragging) { const o = {}; R.forEach((r) => { if (okR(r)) o[r.g] = (o[r.g] || 0) + 1; }); LMX.counts(o); } } catch (e) {}
-    if ($("sMiniN")) { $("sMiniN").textContent = fmt(all); $("sMiniM").textContent = gap ? "전세 끼고" : "대출 끼고"; }
-    $("sNL").textContent = gap ? "전세 끼고 살 수 있는 곳" : effBasis() === "total" ? "입주까지 되는 곳" : "대출 끼고 살 수 있는 곳";
+    if ($("sMiniN")) { $("sMiniN").textContent = fmt(kind ? R.filter((r) => okR(r) && KIND(r) === kind).length : all); $("sMiniM").textContent = kind ? ({ redev: "재개발", rebuild: "재건축", small: "가로·소규모" })[kind] : gap ? "전세 끼고" : "대출 끼고"; }
+    // 전세 끼고는 전세 시세가 있는 구역만 셀 수 있어 금액을 올려도 상한이 있다 → 그 상한을 같이 보여 준다
+    const cap = gap ? countAt(999) : 0;
+    $("sNL").textContent = gap ? (cap ? `전세 시세 있는 ${fmt(cap)}곳 중` : "전세 끼고 살 수 있는 곳") : effBasis() === "total" ? "입주까지 되는 곳" : "대출 끼고 살 수 있는 곳";
     $("sLT").textContent = gu ? `${gu} · ${fmt(L.length)}곳` : `살 수 있는 곳 · ${fmt(L.length)}곳`;
     $("sLS").textContent = gap || effBasis() !== "total" ? "지금 필요한 돈 · 추정" : "입주까지 필요한 돈 · 추정";
     const sg = $("sGu");
@@ -446,20 +470,19 @@ const SIMPLE = (() => {
   function init() {
     // 같은 페이지에서 주소의 #도구 이름만 바뀌어도(링크·뒤로가기) 그 도구를 연다
     window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (IDS.includes(h) && cur !== h) { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (e) {} open(h); } });
-    window.addEventListener("popstate", () => { if (document.documentElement.classList.contains("s-full") && !(history.state && history.state.sFull)) fullMap(false); });
+    window.addEventListener("popstate", () => { const on = document.documentElement.classList.contains("s-full"), want = !!(history.state && history.state.sFull) || location.hash === "#map"; if (on && !want) fullMap(false); else if (!on && want && history.state && history.state.sFull) fullMap(true); });
+    if (location.hash === "#map") setTimeout(() => fullMap(true), 0);
     if (P.fund === "cash" && P.basis !== "now") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (e) {} }
     build();
-    // 메뉴(⋯)에 타일에서 뺀 화면도 넣는다
-    try {
-      const mp = $("menuPop"), anchor = mp && mp.querySelector('[data-menu="ntcTop"]');
-      if (anchor) anchor.insertAdjacentHTML("afterend", [["newTop", "이번 달 단계 변경", "인가·승인 받은 구역"], ["readsTop", "읽을거리", "월간 리포트·가이드"], ["results", "구역 카드로 자세히", "계산 카드 전체"]].map(([id, t, sm]) => `<a href="#${id}" data-menu="${id}"><b>${t}</b><small>${sm}</small></a>`).join(""));
-    } catch (e) {}
+    // 메뉴(⋯)는 shell.html에 도구·자료·사이트로 묶어 둔다
     try { SECT.mapTop(); } catch (e) {}
     try { LMX.seoul(); } catch (e) {}   // 첫 지도도 실제 지도(구역 경계·지하철)로
     // 기존 '바로가기'(메뉴·다음 단계·히어로 링크)는 해당 기능 화면을 연다
     document.addEventListener("click", (e) => {
       const a = e.target.closest && e.target.closest("[data-menu],[data-jump2],[data-sec],a[href^='#']");
       if (!a || a.closest("#sTiles") || a.closest("#sList")) return;
+      // 본문 바로가기: 열린 기능 화면을 닫고 첫 화면 본문(제목)으로 초점
+      if (a.classList.contains("skip")) { e.preventDefault(); e.stopImmediatePropagation(); close(); const t = document.querySelector(".s-h1") || $("mapTop"); if (t) { if (!t.hasAttribute("tabindex")) t.setAttribute("tabindex", "-1"); t.focus(); } return; }
       const id = a.dataset.menu || a.dataset.jump2 || a.dataset.sec || (a.getAttribute("href") || "").slice(1);
       if (IDS.includes(id)) { e.preventDefault(); e.stopImmediatePropagation(); if (a.closest("#menuPop")) $("menuBtn").click(); open(id); }
       else if (id === "mapTop" || id === "planner0") { e.preventDefault(); close(); }
@@ -511,6 +534,6 @@ const SIMPLE = (() => {
       else if (cur) close(true);
     });
   }
-  return { init, open, close, render };
+  return { init, open, close, render, fullMap: (on) => fullMap(on) };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", SIMPLE.init) : setTimeout(SIMPLE.init, 0);

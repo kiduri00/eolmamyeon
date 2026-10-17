@@ -34,7 +34,9 @@
   // 서비스 워커: 안전한 출처에서만, 첫 화면을 다 그린 뒤에
   const okHost = location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
   if ("serviceWorker" in navigator && okHost) {
-    const reg = () => navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+    // 핀 꽂은 구역의 /z 페이지는 미리 받아 둔다(오프라인에서 핀 → 구역 페이지)
+    const keepPins = () => navigator.serviceWorker.ready.then((r) => { try { const ids = (window.PINS && PINS.list()) || []; if (r.active && ids.length) r.active.postMessage({ t: "keep", u: ids.slice(0, 40).map((id) => "/z/" + encodeURIComponent(id)) }); } catch (_) {} }).catch(() => {});
+    const reg = () => navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(() => { keepPins(); try { window.PINS && PINS.on(keepPins); } catch (_) {} }).catch(() => {});
     if (document.readyState === "complete") setTimeout(reg, 1500); else addEventListener("load", () => setTimeout(reg, 1500), { once: true });
   }
 })();

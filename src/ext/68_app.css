@@ -37,3 +37,18 @@ html.is-app .s-nav{-webkit-user-select:none;user-select:none;-webkit-touch-callo
   .maplibregl-ctrl-attrib-button{position:relative}
   .maplibregl-ctrl-attrib-button::after{content:"";position:absolute;inset:-10px}
 }
+
+/* ⋯ 메뉴 v2: 도구 · 자료 · 사이트 세 묶음, 한 줄 44px */
+.menu-pop.mp-v2{width:340px}
+.mp-v2 .mp-g{margin:10px 10px 4px;font-size:12px;font-weight:700;color:var(--text-3);letter-spacing:.02em}
+.mp-v2 #mpG1{margin-top:2px}
+.mp-v2 .mp-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px}
+.mp-v2 .mp-grid a{flex-direction:row;align-items:center;min-height:44px;padding:0 12px}
+.mp-v2 .mp-grid a b{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mp-v2 .mp-row{display:flex;flex-wrap:wrap;gap:2px;padding-bottom:2px}
+.mp-v2 .mp-row a{flex-direction:row;align-items:center;min-height:44px;padding:0 12px;font-size:13.5px;color:var(--text-2)}
+.mp-v2 .mp-g:not(#mpG1){padding-top:8px;border-top:1px solid var(--divider)}
+@media (max-width:640px){
+  .menu-pop.mp-v2{width:auto}
+  .mp-v2 .mp-grid a,.mp-v2 .mp-row a{padding:0 12px;min-height:44px}
+}

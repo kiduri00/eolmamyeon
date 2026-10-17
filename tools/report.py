@@ -45,6 +45,8 @@ ev = [(r, k, DT[r['id']][k]) for r in R for k, _ in EV5 if (DT[r['id']].get(k) o
 evx = [(r, k, DT[r['id']][k]) for r in R for k, _ in EVX if (DT[r['id']].get(k) or '').startswith(YM)]
 ev.sort(key=lambda x: (x[2], [k for k, _ in EV5].index(x[1])))
 if not ev: raise SystemExit(f'{YM}: 인가 이벤트 없음')
+# 같은 구역·같은 날 사업시행·관리처분(소규모 정비는 함께 인가) → 관리처분 쪽에 표시하고 원문을 같이 쓴다(원문 미확인이 한쪽에만 뜨지 않게)
+SAME = {(r['id'], d) for r, k, d in ev if k == '관리처분' and DT[r['id']].get('사업시행') == d}
 # ---- 통계 ----
 allm = collections.Counter(DT[r['id']][k][:7] for r in R for k, _ in EV5 if DT[r['id']].get(k))
 base = [allm.get(f'{y}-{m:02d}', 0) for y in range(2016, 2025) for m in range(1, 13)]
@@ -82,6 +84,9 @@ no = _I.get(YM) or (max([v for k, v in _I.items() if k < YM] or [0]) + 1)
 def e2(v): return '–' if v is None else f"{v:.1f}"
 def card(r, k, d):
     c = calc[r['id']]; ck = CHK.get((r['id'], k)) or {}
+    if (r['id'], d) in SAME:
+        if not ck.get('url'): ck = dict(CHK.get((r['id'], '사업시행')) or {})
+        ck = {**ck, 'note': ' · '.join(x for x in [ck.get('note'), '사업시행인가와 같은 날 인가(소규모 정비는 함께 인가되는 경우가 많아요)'] if x)}
     src = f'<a href="{esc(ck["url"])}" rel="noopener">원문 기사·고시</a>' if ck.get('url') else '<span class="pill p-mute">원문 미확인</span>'
     stn = c.get('st'); ow = c.get('owners')
     meta2 = ' · '.join(x for x in [f"토지등소유자 {ow:,.0f}명" if ow else '', f"{stn['n']} 도보 {max(1, round(stn['d'] * 1.3 / 67))}분" if stn else ''] if x)
