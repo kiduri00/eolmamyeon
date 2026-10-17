@@ -94,7 +94,8 @@
       if (!map || !geo) return;
       const dk = dark(), P = palette(), halo = dk ? "#11161D" : "#ffffff";
       const add = (id) => { if (!map.getSource(id)) map.addSource(id, { type: "geojson", data: FC([]) }); };
-      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang"].forEach(add);
+      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gub"].forEach(add);
+      map.getSource("subway").setData(subwayGeo());
       const outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
       map.getSource("mask").setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [outer, ...geo.seoul] }, properties: {} });
       map.getSource("seoul").setData({ type: "Feature", geometry: { type: "MultiLineString", coordinates: geo.seoul }, properties: {} });
@@ -104,13 +105,15 @@
       L({ id: "mask", type: "fill", source: "mask", paint: { "fill-color": dk ? "#0B0F14" : "#ffffff", "fill-opacity": dk ? 0.7 : 0.75 } });
       L({ id: "gu-line", type: "line", source: "gul", paint: { "line-color": dk ? "#3B4656" : "#AEB7C4", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 1.3], "line-dasharray": [2, 2] } });
       L({ id: "seoul-line", type: "line", source: "seoul", paint: { "line-color": P.sub, "line-width": 1.6, "line-opacity": 0.7 } });
+      L({ id: "subway-case", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": halo, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 3, 14, 7], "line-opacity": 0.9 } });
+      L({ id: "subway", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.6, 14, 4], "line-opacity": dk ? 0.85 : 0.9 } });
       L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ["get", "c"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, ["min", 0.4, ["*", ["get", "o"], 0.22]], 15, ["min", 0.4, ["*", ["get", "o"], 0.1]]] } });
       L({ id: "zest-line", type: "line", source: "zest", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 15, 1.8], "line-dasharray": [2, 1.6], "line-opacity": ["min", 1, ["*", ["get", "o"], 0.9]] } });
       L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ["get", "c"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, ["min", 0.75, ["*", ["get", "o"], 0.5]], 13, ["min", 0.75, ["*", ["get", "o"], 0.36]], 16, ["min", 0.75, ["*", ["get", "o"], 0.24]]] } });
       L({ id: "zone-line", type: "line", source: "zones", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 13, 1.7, 16, 2.6], "line-opacity": ["min", 1, ["get", "o"]] } });
       L({ id: "pts", type: "circle", source: "pts", paint: { "circle-color": ["get", "c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 12.5, 5.5], "circle-stroke-color": halo, "circle-stroke-width": 1.2, "circle-opacity": ["min", 1, ["get", "o"]], "circle-stroke-opacity": ["min", 1, ["get", "o"]] } });
       L({ id: "sel-line", type: "line", source: "sel", paint: { "line-color": P.sel, "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.6, 16, 4.5] } });
-      L({ id: "stn", type: "circle", source: "stn", minzoom: 12, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 3] } });
+      L({ id: "stn", type: "circle", source: "stn", minzoom: 11.3, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 3] } });
       L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 12.8, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } });
       // ---- 겹쳐 보기 레이어 ----
       const nm = ["coalesce", ["get", "name:ko"], ["get", "name"], ""];
@@ -131,11 +134,65 @@
       L({ id: "ly-hj-lab", type: "symbol", source: "hj", layout: { visibility: "none", "text-field": ["format", ["get", "n"], {}, "\n", {}, ["get", "s"], { "font-scale": 0.85 }], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-offset": [0, 1.2], "text-anchor": "top", "text-optional": true, "text-max-width": 10 }, paint: { "text-color": ["get", "c"], "text-halo-color": halo, "text-halo-width": 2 } });
       L({ id: "ly-hi", type: "symbol", source: "hi", layout: { visibility: "none", "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-offset": [0, -1.9], "text-allow-overlap": false, "text-optional": true }, paint: { "text-color": dk ? "#FF9C8A" : "#B42318", "text-halo-color": halo, "text-halo-width": 2.2 } });
       L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 11.8, layout: { "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
+      const pill = (id, bg, bd) => { if (map.hasImage(id)) return; const c = document.createElement("canvas"), r = 2, w = 40 * r, h = 28 * r; c.width = w; c.height = h; const x = c.getContext("2d"); x.fillStyle = bg; x.strokeStyle = bd; x.lineWidth = 2 * r; const rr = 12 * r; x.beginPath(); x.moveTo(rr, r); x.arcTo(w - r, r, w - r, h - r, rr); x.arcTo(w - r, h - r, r, h - r, rr); x.arcTo(r, h - r, r, r, rr); x.arcTo(r, r, w - r, r, rr); x.closePath(); x.fill(); x.stroke(); map.addImage(id, { width: w, height: h, data: x.getImageData(0, 0, w, h).data }, { pixelRatio: r, stretchX: [[14 * r, 26 * r]], stretchY: [[12 * r, 16 * r]], content: [8 * r, 5 * r, 32 * r, 23 * r] }); };
+      pill("pill-on", P.y, P.y); pill("pill-off", dk ? "#1b2230" : "#ffffff", dk ? "#3a4556" : "#c9d0da");
+      L({ id: "gub", type: "symbol", source: "gub", maxzoom: 12.2, layout: { "icon-image": ["case", [">", ["get", "k"], 0], "pill-on", "pill-off"], "icon-text-fit": "both", "icon-allow-overlap": true, "text-field": ["format", ["get", "n"], { "font-scale": 0.82 }, " ", {}, ["get", "v"], { "font-scale": 1.12 }], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 9.5, 10, 10.6, 12.5], "symbol-sort-key": ["-", 0, ["get", "k"]], "text-allow-overlap": true, "text-padding": 0 }, paint: { "text-color": ["case", [">", ["get", "k"], 0], "#ffffff", dk ? "#aab4c3" : "#5c6573"] } });
       ready = true;
       layerData();
       layers();
       paint();
       focus(pendFocus); pendFocus = false;
+    }
+    // 노선: 사이트 SVG 지도 좌표(xy)를 역 좌표로 맞춘 1차 변환의 역변환으로 위경도로 바꿔 그린다
+    let SUBG = null;
+    function subwayGeo() {
+      if (SUBG) return SUBG;
+      const S = (D.stations || []).filter((s) => s[4] != null && s[5] != null);
+      const fit = (ix) => {   // v = a*lng + b*lat + c (최소제곱)
+        let m = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], v = [0, 0, 0];
+        S.forEach((s) => { const x = [s[2], s[1], 1]; for (let i = 0; i < 3; i++) { v[i] += x[i] * s[ix]; for (let j = 0; j < 3; j++) m[i][j] += x[i] * x[j]; } });
+        const det = (a) => a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
+        const d0 = det(m);
+        return [0, 1, 2].map((k) => det(m.map((row, i) => row.map((c, j) => (j === k ? v[i] : c)))) / d0);
+      };
+      const X = fit(4), Y = fit(5);
+      const dd = X[0] * Y[1] - X[1] * Y[0];
+      const toLL = (x, y) => { const px = x - X[2], py = y - Y[2]; return [(px * Y[1] - py * X[1]) / dd, (X[0] * py - Y[0] * px) / dd]; };
+      const F = [];
+      Object.entries(TRD.paths || {}).forEach(([li, arr]) => {
+        const c = (TRD.col || [])[+li] || "#888";
+        (Array.isArray(arr) ? arr : [arr]).forEach((str) => {
+          const pts = String(str).trim().split(/\s+/).map((q) => q.split(",").map(Number)).filter((q) => q.length === 2 && isFinite(q[0]));
+          if (pts.length > 1) F.push({ type: "Feature", geometry: { type: "LineString", coordinates: pts.map(([x, y]) => toLL(x, y)) }, properties: { c, n: (TRD.lines || [])[+li] || "" } });
+        });
+      });
+      return (SUBG = FC(F));
+    }
+    // 서울 전체 화면: 구 이름 + 가능 구역 수(확대하면 사라지고 구역 경계가 보인다)
+    function guBubbles() {
+      if (!map || !ready || !geo || !map.getSource("gub")) return;
+      const F = geo.gu.map((g) => {
+        const rings = g.r.flat ? g.r : [g.r]; let a = 180, b = 90, c = -180, d = -90, sx = 0, sy = 0, n = 0;
+        rings.forEach((rg) => rg.forEach(([x, y]) => { sx += x; sy += y; n++; if (x < a) a = x; if (y < b) b = y; if (x > c) c = x; if (y > d) d = y; }));
+        const k = typeof guMetric === "function" ? guMetric(g.n) : 0;
+        return { type: "Feature", geometry: { type: "Point", coordinates: [sx / n, sy / n] }, properties: { n: g.n.length <= 2 ? g.n : g.n.replace(/구$/, ""), g: g.n, v: String(k), k } };
+      });
+      map.getSource("gub").setData(FC(F));
+    }
+    function seoul() {
+      gu = null;
+      ui();
+      if (!want || failed) return show(false);
+      show(true);
+      Promise.all([loadLib(), loadGeo()])
+        .then(() => {
+          if (mapView !== "seoul") return;
+          if (!init()) { show(false); return; }
+          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); map.fitBounds(SEOUL_BB, { padding: 8, duration: 0 }); } };
+          fitS(); requestAnimationFrame(fitS); map.once("idle", fitS);
+          if (ready) paint();
+        })
+        .catch(() => { failed = true; show(false); });
     }
     function layerData() {
       const F = [];
@@ -185,6 +242,7 @@
       map.getSource("zest").setData(FC(est));
       map.getSource("zlab").setData(FC(lab));
       map.getSource("pts").setData(FC(pts));
+      requestAnimationFrame(guBubbles);
       legend();
     }
     function bboxOf(rings) { let a = 180, b = 90, c = -180, d = -90; rings.forEach((rg) => rg.forEach(([x, y]) => { if (x < a) a = x; if (y < b) b = y; if (x > c) c = x; if (y > d) d = y; })); return [[a, b], [c, d]]; }
@@ -256,7 +314,7 @@
       try {
         map = new maplibregl.Map({
           container: "lmap", style: style(), bounds: SEOUL_BB, fitBoundsOptions: { padding: 12 },
-          minZoom: 9.6, maxZoom: 17.6, maxBounds: [[126.55, 37.3], [127.42, 37.82]], attributionControl: false,
+          minZoom: 8.8, maxZoom: 17.6, maxBounds: [[126.55, 37.3], [127.42, 37.82]], attributionControl: false,
           localIdeographFontFamily: "'Pretendard Variable','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif",
           cooperativeGestures: matchMedia("(pointer: coarse)").matches, dragRotate: false, pitchWithRotate: false, touchPitch: false,
           locale: { "CooperativeGesturesHandler.WindowsHelpText": "Ctrl 키를 누른 채 스크롤하면 확대·축소돼요", "CooperativeGesturesHandler.MacHelpText": "⌘ 키를 누른 채 스크롤하면 확대·축소돼요", "CooperativeGesturesHandler.MobileHelpText": "두 손가락으로 지도를 움직여 보세요" },
@@ -265,6 +323,7 @@
       map.touchZoomRotate.disableRotation();
       map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '정비구역 경계 <a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a>' }), "bottom-right");
       map.on("style.load", () => { ready = false; loadGeo().then(overlays); });
+      map.once("load", () => { const a = $("lmap").querySelector(".maplibregl-ctrl-attrib"); if (a) a.classList.remove("maplibregl-compact-show"); });
       map.on("error", (e) => {
         const m = String((e && e.error && e.error.message) || "");
         if (/openfreemap|Failed to fetch|NetworkError/.test(m) && !$("lmap").querySelector(".lm-err")) {
@@ -283,6 +342,8 @@
         map.on("mouseleave", l, () => { map.getCanvas().style.cursor = ""; pop.remove(); });
       });
       map.on("click", (e) => {
+        const gb = map.getLayer("gub") ? map.queryRenderedFeatures(e.point, { layers: ["gub"] }) : [];
+        if (gb.length && mapView === "seoul") { enterGu(gb[0].properties.g, {}); return; }
         const ls = hit.filter((l) => map.getLayer(l));
         const fs = map.queryRenderedFeatures(e.point, { layers: ls });
         if (!fs.length) return;
@@ -328,7 +389,7 @@
         })
         .catch(() => { failed = true; show(false); });
     }
-    function exit() { gu = null; show(false); }
+    function exit() { gu = null; if (document.documentElement.classList.contains("simple")) seoul(); else show(false); }
     function use(on, user) {
       want = on;
       if (user) store.set("emr.map", on ? "real" : "svg");
@@ -336,11 +397,11 @@
       if (mapView === "gu" && mapGu) { if (on) enter(mapGu); else show(false); }
     }
     return {
-      enter, exit, use,
+      enter, exit, use, seoul,
       on: () => !!(map && $("lmap") && !$("lmap").hidden),
       paint: () => { if (map && ready) paint(); },
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
-      zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); },
+      zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else map.fitBounds(SEOUL_BB, { padding: 8, duration: reduceMotion() ? 0 : 400 }); },
       geo: () => loadGeo(),
     };
   })();

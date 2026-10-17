@@ -132,6 +132,7 @@ def page(r):
     src = ['<li>서울시 정비사업 정보몽땅 사업장 정보·추진경과</li>']
     if pm.get('cafe'): src = [f'<li>서울시 정비사업 정보몽땅 <a href="https://cleanup.seoul.go.kr/cafe/mainIndx.do?cafeUrl={esc(pm["cafe"])}" target="_blank" rel="noopener nofollow">사업장 원문</a></li>']
     src += ['<li>국토교통부·서울시 부동산 실거래가(연립·다세대 매매, 전월세)</li>', '<li>서울도시공간포털 정비구역 경계·건물 정보</li>', '<li>서울시 상권분석서비스</li>']
+    o.append(f'<p class="meta">이 구역 인가·고시 소식 받아 보기: <a href="../feed/z/{rid}.xml">RSS</a> · <a href="../gu/{esc(r["g"])}">{esc(r["g"])} 전체 구역</a></p>')
     o.append(f'<details class="srcs"><summary>자료 출처</summary><ul>{"".join(src)}</ul></details>')
     o.append(f'<p class="note">이 페이지는 공개 자료로 매일 자동 갱신돼요. 계산은 시세 상승 0%·기본 비례율 같은 가정이 들어간 추정이고 투자 권유가 아니에요. 입주권 자격과 토지거래허가는 계약 전에 조합·구청에서 확인하세요. <a href="../method">계산 방법</a></p>')
     o.append(FOOT.format(upd=UPD))
@@ -151,7 +152,32 @@ idx = [HEAD.format(title='서울 정비사업 구역별 페이지 | 얼마면 �
                   ld=json.dumps({"@context": "https://schema.org", "@type": "CollectionPage", "name": "서울 정비사업 구역별 페이지", "url": f"{SITE}/z/"}, ensure_ascii=False)).replace('<meta name="emr-auto" content="1">\n', '')]
 idx.append(f'<p class="eyebrow">구역별 페이지 · 데이터 기준 {UPD}</p><h1>서울 정비사업 구역별 페이지</h1><p class="lede">서울에서 진행 중인 재개발·재건축·가로주택 {len(R)}곳을 구역마다 한 페이지로 정리했어요. 진행 단계와 인가 이력, 구역 안 실거래, 노후도, 권리산정기준일, 기본 가정의 입주까지 필요한 현금이 있어요. 매일 자동 갱신돼요.</p>')
 if hand: idx.append('<h2>기사·고시로 대조해 정리한 구역</h2><p>규모가 커서 확인할 거리가 많은 구역은 기사·고시와 정보몽땅 등록값을 대조한 이야기를 붙였어요.</p><div class="grid2">' + ''.join(li(x) for x in hand if x['id'] in {y['id'] for y in R}) + '</div>')
-for g in sorted(byg): idx.append(f'<h2>{esc(g)} <small class="meta">{len(byg[g])}곳</small></h2><div class="grid2">' + ''.join(li(x) for x in sorted(byg[g], key=lambda x: -x.get('s', 0))) + '</div>')
+for g in sorted(byg): idx.append(f'<h2><a href="../gu/{esc(g)}">{esc(g)}</a> <small class="meta">{len(byg[g])}곳</small></h2><div class="grid2">' + ''.join(li(x) for x in sorted(byg[g], key=lambda x: -x.get('s', 0))) + '</div>')
 idx.append(FOOT.format(upd=UPD))
 open(os.path.join(ZD, 'index.html'), 'w', encoding='utf-8').write(''.join(idx))
 print('zpages made', made, 'hand kept', kept, 'index', len(R))
+# 구별 페이지: public/gu/<구>.html (검색 노출용 · 그 구의 진행 중 구역을 필요한 돈과 함께)
+GD = os.path.join(ROOT, 'public/gu'); os.makedirs(GD, exist_ok=True)
+for f in os.listdir(GD):
+    if f.endswith('.html'): os.remove(os.path.join(GD, f))
+def guPage(g, L):
+    url = f'{SITE}/gu/{g}'
+    c = lambda x: C.get(x['id']) or {}
+    ok = [x for x in L if c(x).get('gapOk') and c(x).get('gapNow') is not None]
+    cheap = sorted(ok, key=lambda x: c(x)['gapNow'])[:3]
+    st = collections.Counter(c(x).get('stage') or x.get('sr') or '' for x in L)
+    title = f'{g} 재개발·재건축 {len(L)}곳 · 진행 단계와 필요한 돈 | 얼마면 재개발'
+    desc = f'{g}에서 진행 중인 정비사업 {len(L)}곳. ' + (f'전세 끼고 가장 적은 돈으로 살 수 있는 곳은 {short(cheap[0]["n"])}(지금 {eok(c(cheap[0])["gapNow"])}). ' if cheap else '') + f'데이터 기준 {UPD}.'
+    ld = json.dumps({"@context": "https://schema.org", "@type": "CollectionPage", "name": f"{g} 정비사업", "url": url}, ensure_ascii=False)
+    o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace(' aria-current="page"', '')]
+    o.append(f'<p class="eyebrow"><a href="./">구역별 페이지</a> · 데이터 기준 {UPD}</p><h1>{esc(g)} 재개발·재건축 {len(L)}곳</h1>')
+    o.append('<p class="lede">' + ' · '.join(f'{esc(k)} {v}곳' for k, v in st.most_common(6) if k) + '</p>')
+    if cheap: o.append('<p>전세 끼고 적은 돈으로 시작할 수 있는 곳: ' + ', '.join(f'<a href="{x["id"]}">{esc(short(x["n"]))}</a> {eok(c(x)["gapNow"])}' for x in cheap) + f'. <a href="../#map-{esc(g)}">지도에서 내 돈으로 보기 →</a></p>')
+    rows = ''.join(f'<tr><td><a href="{x["id"]}">{esc(short(x["n"]))}</a><br><small>{esc(KIND.get(x["k"], x["k"]))} · {esc(c(x).get("stage") or x.get("sr") or "")}</small></td><td class="n">{eok(c(x).get("gapNow")) if c(x).get("gapOk") else "–"}</td><td class="n">{eok(c(x).get("need")) if c(x).get("cashOk") else "–"}</td></tr>' for x in sorted(L, key=lambda x: (-x.get('s', 0), short(x['n']))))
+    o.append(f'<div class="tw"><table class="t" style="min-width:0;width:100%"><thead><tr><th>구역</th><th class="n">전세 끼고 지금</th><th class="n">입주까지 현금</th></tr></thead><tbody>{rows}</tbody></table></div>')
+    o.append(f'<p class="meta">새 소식 받기: <a href="../feed/gu/{esc(g)}.xml">{esc(g)} RSS</a></p>')
+    o.append('<p class="note">무주택·84㎡·시세 상승 0% 같은 기본 가정으로 계산한 추정이에요. 내 조건은 <a href="../">계산기</a>에서 바꿔 볼 수 있어요. 투자 권유가 아니에요.</p>')
+    o.append(FOOT.format(upd=UPD))
+    return ''.join(o)
+for g in sorted(byg): open(os.path.join(GD, g + '.html'), 'w', encoding='utf-8').write(guPage(g, byg[g]))
+print('gu pages', len(byg))

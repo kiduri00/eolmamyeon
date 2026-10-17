@@ -47,8 +47,8 @@ const SIMPLE = (() => {
       <div class="s-gauge">
         <div class="s-gtop"><label for="sCash" class="s-cash"><b id="sCashV">1억</b><span>있으면</span></label>
           <div class="s-mode" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">현금만</button></div></div>
-        <input type="range" id="sCash" min="0.5" max="15" step="0.5" value="1" aria-describedby="sCount" aria-label="가진 현금(억)">
-        <div class="s-ticks" aria-hidden="true"><span>0.5억</span><span>5억</span><span>10억</span><span>15억</span></div>
+        <input type="range" id="sCash" min="0.5" max="15" step="0.1" value="1" aria-describedby="sCount" aria-label="가진 현금(억)">
+        <div class="s-ticks" aria-hidden="true"><span>0.5</span><span>5</span><span>10</span><span>15억</span></div>
         <p class="s-count" id="sCount" aria-live="polite"><b id="sN">0</b><span id="sNL">곳 가능</span><span class="s-hint">아래 지도에 바로 표시돼요</span></p>
       </div>`;
     map.insertBefore(hero, map.firstChild);
@@ -56,7 +56,13 @@ const SIMPLE = (() => {
     list.className = "s-list-w"; list.id = "sListW";
     list.innerHTML = `<div class="s-lh"><div><h2 id="sLT">살 수 있는 곳</h2><p class="s-lsub" id="sLS"></p></div><div class="s-flt" role="group" aria-label="유형"><button type="button" data-k="" aria-pressed="true">전체</button><button type="button" data-k="redev" aria-pressed="false">재개발</button><button type="button" data-k="rebuild" aria-pressed="false">재건축</button><button type="button" data-k="small" aria-pressed="false">가로·소규모</button></div></div>
       <p class="s-gu" id="sGu" hidden></p><ol class="s-list" id="sList"></ol><button type="button" class="btn secondary s-more" id="sMore" hidden></button>`;
-    map.querySelector(".main").after(list);
+    const main = map.querySelector(".main"), right = document.createElement("div");
+    right.className = "s-right"; right.id = "sRight";
+    right.innerHTML = `<button type="button" class="s-tolist" id="sToList">← 살 수 있는 곳 목록</button>`;
+    main.appendChild(right); right.appendChild($("report"));
+    const place = () => { if (matchMedia("(min-width:981px)").matches) right.insertBefore(list, $("report")); else main.after(list); };
+    place(); matchMedia("(min-width:981px)").addEventListener("change", place);
+    $("sToList").onclick = () => document.documentElement.classList.remove("s-rep");
     // 스크롤해 지도를 볼 때 게이지가 머리 아래에 작게 붙어 있도록(움직이면 지도가 바로 바뀌는 걸 보며 조절)
     const g = hero.querySelector(".s-gauge"), sen = document.createElement("i");
     hero.after(g); sen.className = "s-sen"; g.before(sen);
@@ -64,10 +70,10 @@ const SIMPLE = (() => {
     // 큰 게이지가 화면 위로 지나가면, 지도·목록을 보는 동안만 머리 아래에 한 줄짜리 게이지를 띄운다(흐름 높이는 그대로)
     const mini = document.createElement("div");
     mini.className = "s-mini"; mini.id = "sMini"; mini.hidden = true;
-    mini.innerHTML = `<b id="sMiniV">1억</b><input type="range" id="sMiniR" min="0.5" max="15" step="0.5" value="1" aria-label="가진 현금(억)"><span><b id="sMiniN">0</b>곳</span>`;
+    mini.innerHTML = `<b id="sMiniV">1억</b><input type="range" id="sMiniR" min="0.5" max="15" step="0.1" value="1" aria-label="가진 현금(억)"><span><b id="sMiniN">0</b>곳</span>`;
     document.body.appendChild(mini);
     const mr = mini.querySelector("#sMiniR");
-    mr.addEventListener("input", () => { $("sCash").value = mr.value; label(+mr.value); clearTimeout(timer); timer = setTimeout(() => setCash(+mr.value), 90); });
+    mr.addEventListener("input", () => { $("sCash").value = mr.value; label(+mr.value); live(+mr.value); });
     mr.addEventListener("change", () => { clearTimeout(timer); setCash(+mr.value); });
     let gaugeOut = false, areaIn = true;
     const sync = () => { mini.hidden = !(gaugeOut && areaIn && !document.documentElement.classList.contains("s-view")) || !matchMedia("(max-width:980px)").matches; };
@@ -79,7 +85,8 @@ const SIMPLE = (() => {
     const tiles = document.createElement("section");
     tiles.className = "sec s-tiles"; tiles.id = "sTiles"; tiles.setAttribute("aria-labelledby", "sTT");
     const ic = (d, c) => `<i aria-hidden="true" style="--ic:${c}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg></i>`;
-    tiles.innerHTML = `<h2 id="sTT">더 알아보기</h2><div class="s-tg">${VIEWS.map(([id, t, d, c]) => `<a href="#${id}" class="s-t" data-view="${id}">${ic(d, c)}<b>${t}</b></a>`).join("")}${LINKS.map(([u, t, d, c]) => `<a href="${u}" class="s-t">${ic(d, c)}<b>${t}</b></a>`).join("")}</div>`;
+    const SUB = {"planner": "집 수·대출까지 넣고 계산", "commuteTop": "회사까지 몇 분 안", "rankTop": "교통·생활 점수 순", "txrTop": "거래 많은 곳·신고가", "ntcTop": "최근 인가·시공자 선정", "saveTop": "매달 모으면 언제 되나"}, LSUB = { "guide/rebuild-30y": "30년 넘은 아파트 1,077단지", "report/": "매달 단계 변경 정리" };
+    tiles.innerHTML = `<h2 id="sTT">더 알아보기</h2><div class="s-tg">${VIEWS.map(([id, t, d, c]) => `<a href="#${id}" class="s-t" data-view="${id}">${ic(d, c)}<span class="s-tx"><b>${t}</b><small>${SUB[id] || ""}</small></span></a>`).join("")}${LINKS.map(([u, t, d, c]) => `<a href="${u}" class="s-t">${ic(d, c)}<span class="s-tx"><b>${t}</b><small>${LSUB[u] || ""}</small></span></a>`).join("")}</div>`;
     map.after(tiles);
     hero.insertBefore(hero.querySelector('#sSearch'), hero.firstChild);
     // 모바일 아래 탭바(앱처럼)
@@ -111,7 +118,7 @@ const SIMPLE = (() => {
     });
     // 이벤트
     const sl = $("sCash");
-    sl.addEventListener("input", () => { label(+sl.value); clearTimeout(timer); timer = setTimeout(() => setCash(+sl.value), 90); });
+    sl.addEventListener("input", () => { label(+sl.value); live(+sl.value); });
     sl.addEventListener("change", () => { clearTimeout(timer); setCash(+sl.value); });
     map.querySelector(".s-mode").addEventListener("click", (e) => { const b = e.target.closest("button[data-f]"); if (!b) return; if (b.dataset.f === "cash") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (er) {} } setFund(b.dataset.f); });
     list.querySelector(".s-flt").addEventListener("click", (e) => {
@@ -127,6 +134,21 @@ const SIMPLE = (() => {
     });
     tiles.addEventListener("click", (e) => { const a = e.target.closest("[data-view]"); if (!a) return; e.preventDefault(); open(a.dataset.view); });
   }
+  // 상세 '입주 현금' 탭: 맨 위엔 지금·이주·입주 숫자만, 나머지(가정·근거·숫자 바꿔 보기)는 접어 둔다
+  function foldMoney(r) {
+    const p = $("pane"); if (!p || p.querySelector(".s-fold")) return;
+    const g = p.querySelector(".gpane");
+    const keep = g || p.querySelector(".bigrow") || p.firstElementChild;
+    if (!keep) return;
+    const d = document.createElement("details"); d.className = "s-fold";
+    d.innerHTML = `<summary>계산 근거 · 숫자 바꿔 보기</summary>`;
+    if (g) g.querySelectorAll(":scope > .t-note, :scope > .gap-honest, :scope > .gj-f").forEach((el) => d.appendChild(el));
+    [...p.children].filter((el) => el !== keep && el !== d).forEach((el) => d.appendChild(el));
+    keep.after(d);
+    const x = investC(r);
+    const tot = d.querySelector(".bigrow .big:first-child small");
+    if (tot && x && x.loanEnd > 0.05) tot.insertAdjacentHTML("beforeend", ` · 분담금은 입주 때 잔금대출 ${eokS(x.loanEnd)}을 받는다고 보고 뺀 금액`);
+  }
   function search() {
     const b = $("sOpen");
     if (b && getComputedStyle(b).display !== "none") b.click();
@@ -134,18 +156,35 @@ const SIMPLE = (() => {
   }
   function label(v, real) {
     const t = real != null && real > 15 ? "15억+" : `${String(real != null ? Math.round(real * 100) / 100 : v).replace(/\.0$/, "")}억`;
-    $("sCashV").textContent = t;
+    const m = t.match(/^([\d.]+)(억\+?)$/) || [, t, ""];
+    $("sCashV").innerHTML = `${m[1]}<small>${m[2].replace("+", "")}${/\+/.test(t) ? "+" : ""}</small>`;
     if ($("sMiniV")) { $("sMiniV").textContent = t; $("sMiniR").value = v; }
     const pct = ((v - 0.5) / 14.5) * 100;
     $("sCash").style.setProperty("--p", pct + "%");
   }
+  // 끄는 동안에도 지도·숫자가 따라오게(계산은 약 30ms라 프레임마다 한 번까지만)
+  let liveT = 0, liveV = null;
+  function live(v) {
+    liveV = v;
+    if (liveT) return;
+    liveT = setTimeout(() => requestAnimationFrame(() => { liveT = 0; setCash(liveV); }), 90);
+  }
   function setCash(v) {
+    v = Math.round(v * 10) / 10;
     const el = $("pCash");
     if (+el.value === v) return render();
     el.value = String(v);
     try { PREV_CASH = null; } catch (e) {}
     planN = PLAN0();
     plan();
+  }
+  // 곳 수가 바뀔 때 숫자가 툭 바뀌지 않고 굴러가게
+  function tween(el, to) {
+    const from = +(el.dataset.v || 0); el.dataset.v = to;
+    if (from === to || matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = fmt(to); return; }
+    cancelAnimationFrame(el._tw); const t0 = performance.now(), D = 260;
+    const step = (t) => { const k = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(Math.round(from + (to - from) * e)); if (k < 1) el._tw = requestAnimationFrame(step); };
+    el._tw = requestAnimationFrame(step);
   }
   // ---------- 목록 ----------
   function render() {
@@ -158,7 +197,7 @@ const SIMPLE = (() => {
     gu = mapView === "gu" && mapGu ? mapGu : "";
     const L = rows();
     const all = R.filter(okR).length;
-    $("sN").textContent = fmt(all);
+    tween($("sN"), all);
     if ($("sMiniN")) $("sMiniN").textContent = fmt(all);
     $("sNL").textContent = gap ? "곳 전세 끼고 살 수 있어요" : effBasis() === "total" ? "곳 입주까지 내 돈으로 돼요" : "곳 대출 끼고 살 수 있어요";
     $("sLT").textContent = gu ? `${gu} · ${fmt(L.length)}곳` : `살 수 있는 곳 · ${fmt(L.length)}곳`;
@@ -205,6 +244,7 @@ const SIMPLE = (() => {
       if (anchor) anchor.insertAdjacentHTML("afterend", [["newTop", "이번 달 단계 변경", "인가·승인 받은 구역"], ["readsTop", "읽을거리", "월간 리포트·가이드"], ["results", "구역 카드로 자세히", "계산 카드 전체"]].map(([id, t, sm]) => `<a href="#${id}" data-menu="${id}"><b>${t}</b><small>${sm}</small></a>`).join(""));
     } catch (e) {}
     try { SECT.mapTop(); } catch (e) {}
+    try { LMX.seoul(); } catch (e) {}   // 첫 지도도 실제 지도(구역 경계·지하철)로
     // 기존 '바로가기'(메뉴·다음 단계·히어로 링크)는 해당 기능 화면을 연다
     document.addEventListener("click", (e) => {
       const a = e.target.closest && e.target.closest("[data-menu],[data-jump2],[data-sec],a[href^='#']");
@@ -224,6 +264,18 @@ const SIMPLE = (() => {
     const _eg = enterGu, _xg = exitGu;
     enterGu = function () { const x = _eg.apply(this, arguments); shown = 6; render(); return x; };
     exitGu = function () { const x = _xg.apply(this, arguments); shown = 6; render(); return x; };
+    // 상세 '입주 현금' 탭: 맨 위엔 지금·이주·입주 숫자만, 나머지(가정·근거·숫자 바꿔 보기)는 접어 둔다
+    const _rp = renderPane;
+    renderPane = function () {
+      const x0 = _rp.apply(this, arguments);
+      try { if (curTab === "money") foldMoney(cur); } catch (e) {}
+      return x0;
+    };
+    // PC: 구역을 열면 오른쪽이 상세로, '목록' 버튼으로 다시 목록
+    const _sel = select;
+    select = function () { const x = _sel.apply(this, arguments); if (matchMedia("(min-width:981px)").matches) document.documentElement.classList.add("s-rep"); return x; };
+    // 서울 전체 화면에서도 실제 지도를 다시 칠한다(구 숫자·구역 색)
+    const _rm2 = refreshMap; refreshMap = function () { const x = _rm2.apply(this, arguments); try { if (mapView === "seoul") LMX.paint(); } catch (e) {} return x; };
     // 상세(시트)를 닫으면 보던 자리로
     const _cs = closeSheetNow;
     closeSheetNow = function () { const x = _cs.apply(this, arguments); if (keepY != null) { const y = keepY; keepY = null; requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "auto" })); } return x; };

@@ -1,0 +1,103 @@
+/* ===================== 검색 최근·인기 · 찜 빈 화면 · 공유 카드 ===================== */
+const EXTRA = (() => {
+  const RK = "emr.recent";
+  const getR = () => { try { return JSON.parse(localStorage.getItem(RK) || "[]").filter((id) => byId[id]); } catch (e) { return []; } };
+  const pushR = (id) => { try { const a = [id].concat(getR().filter((x) => x !== id)).slice(0, 6); localStorage.setItem(RK, JSON.stringify(a)); } catch (e) {} };
+  let HOT = null;
+  // 인기 = 최근 3개월 구역 안 거래가 많은 곳(진행 중만)
+  const hot = () => HOT || (HOT = R.filter((r) => r.tx && r.tx.n3 && !(r.s >= 9) && r.src !== "moa").sort((a, b) => b.tx.n3 - a.tx.n3).slice(0, 8).map((r) => r.id));
+  const chip = (id) => `<button type="button" class="x-chip" role="option" data-id="${id}">${esc(shortName(byId[id].n))}<small>${esc(byId[id].g.replace(/구$/, ""))}</small></button>`;
+  function empty() {
+    const q = $("q");
+    if (!q || q.value.trim() || document.activeElement !== q) return false;
+    const rc = getR(), ht = hot().filter((id) => !rc.includes(id)).slice(0, 6);
+    if (!rc.length && !ht.length) return false;
+    const s = $("sugg");
+    s.innerHTML = (rc.length ? `<div class="x-h" role="presentation">최근 본 구역<button type="button" class="x-clr" id="xClr">지우기</button></div><div class="x-row">${rc.map(chip).join("")}</div>` : "") +
+      (ht.length ? `<div class="x-h" role="presentation">요즘 거래 많은 구역</div><div class="x-row">${ht.map(chip).join("")}</div>` : "");
+    s.hidden = false; q.setAttribute("aria-expanded", "true");
+    s.querySelectorAll(".x-chip").forEach((b) => (b.onmousedown = (e) => e.preventDefault(), b.onclick = () => pickSugg(b.dataset.id)));
+    const c = $("xClr"); if (c) { c.onmousedown = (e) => e.preventDefault(); c.onclick = () => { try { localStorage.removeItem(RK); } catch (e) {} empty(); }; }
+    return true;
+  }
+  // ---------- 공유 카드(이미지) ----------
+  function card(r) {
+    const W = 1080, H = 1350, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const g = cv.getContext("2d"), F = (w, s) => `${w} ${s}px "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+    const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#1f3a87"); gr.addColorStop(1, "#142659");
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = "rgba(255,255,255,.6)"; g.font = F(600, 38); g.fillText("얼마면 재개발", 88, 130);
+    g.fillStyle = "#fff"; g.font = F(800, shortName(r.n).length > 10 ? 76 : 96);
+    g.fillText(shortName(r.n), 88, 300, W - 176);
+    g.fillStyle = "rgba(255,255,255,.75)"; g.font = F(500, 40); g.fillText(`${r.g} ${dongOfR(r)} · ${String(srLabel(r)).replace(/(회|합)(승인|인가)/, "$1 $2")}`, 88, 375, W - 176);
+    const gp = gapMode() ? gapOf(r) : null, x = investC(r);
+    const rowsC = [];
+    if (gp && gp.now != null) rowsC.push(["전세 끼고 지금", eokT(gp.now)]);
+    else if (x && x.needBuy != null) rowsC.push(["지금 살 때 필요한 돈", eokT(x.needBuy)]);
+    if (gp && gp.total != null) rowsC.push(["입주까지 총", eokT(gp.total)]);
+    else if (x && x.ok) rowsC.push(["입주까지 총", eokT(x.needTotal)]);
+    const em = r.eta && parseFloat(r.eta.eMid != null ? r.eta.eMid : r.eta.mid); if (isFinite(em) && em > 2000) rowsC.push(["예상 입주", `${Math.floor(em)}년 무렵`]);
+    let y = 520;
+    rowsC.forEach(([k, v]) => {
+      g.fillStyle = "rgba(255,255,255,.1)"; rr(g, 72, y - 92, W - 144, 170, 32); g.fill();
+      g.textBaseline = "middle"; g.fillStyle = "rgba(255,255,255,.75)"; g.font = F(600, 38); g.fillText(k, 112, y - 7);
+      g.fillStyle = "#fff"; g.font = F(800, 72); g.textAlign = "right"; g.fillText(v, W - 112, y - 7); g.textAlign = "left"; g.textBaseline = "alphabetic";
+      y += 200;
+    });
+    g.fillStyle = "rgba(255,255,255,.55)"; g.font = F(500, 30);
+    g.fillText("무주택·84㎡·기본 가정 추정 · 투자 권유 아님", 88, H - 150);
+    g.fillStyle = "#fff"; g.font = F(700, 40); g.fillText("jaegaebal.alwaysquestions.kr", 88, H - 90);
+    return cv;
+  }
+  function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  const eokT = (v) => (v == null ? "–" : v < 0.05 ? "0원" : `${(Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, "")}억`);
+  const dongOfR = (r) => { const m = /^([가-힣0-9]+?(?:동\d*가|동|가))\s/.exec((r.j || "") + " "); return m ? m[1] : ""; };
+  async function shareCard(r, fb) {
+    try { await (document.fonts && document.fonts.ready); } catch (e) {}
+    const cv = card(r);
+    const blob = await new Promise((ok) => cv.toBlob(ok, "image/png"));
+    const name = `jaegaebal_${r.id}.png`;
+    const file = blob && typeof File === "function" ? new File([blob], name, { type: "image/png" }) : null;
+    const url = `https://jaegaebal.alwaysquestions.kr/z/${r.id}`;
+    try {
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: shortName(r.n), text: `${shortName(r.n)} · 얼마면 재개발 ${url}` }); return; }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    if (fb) fb.textContent = "카드 이미지를 저장했어요";
+  }
+  function init() {
+    const q = $("q");
+    if (q) {
+      q.addEventListener("focus", () => setTimeout(empty, 0));
+      q.addEventListener("input", () => { if (!q.value.trim()) setTimeout(empty, 90); });
+      q.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== q && $("sugg").querySelector(".x-row")) { $("sugg").hidden = true; q.setAttribute("aria-expanded", "false"); } }, 150));
+    }
+    const _sel = select;
+    select = function (id) { const x = _sel.apply(this, arguments); try { if (byId[id]) pushR(id); addCardBtn(byId[id]); } catch (e) {} return x; };
+    // 찜이 비었을 때: 한 줄 + 버튼
+    const _rf = renderFav;
+    renderFav = function () {
+      const x = _rf.apply(this, arguments);
+      try {
+        const out = $("fvOut");
+        if (out && !FAV.length && out.querySelector(".t-empty")) {
+          out.innerHTML = `<div class="x-empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20.3s-7.6-4.6-7.6-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.6 2.5c0 5.6-7.6 10.2-7.6 10.2z"/></svg><p>아직 찜한 구역이 없어요.<br>구역을 열고 <b>☆ 찜</b>을 누르면 여기서 나란히 비교해요.</p><button type="button" class="btn primary sm" id="xFavGo">지도에서 고르기</button></div>`;
+          $("xFavGo").onclick = () => { try { SIMPLE.close(true); } catch (e) {} };
+        }
+      } catch (e) {}
+      return x;
+    };
+    try { renderFav(); } catch (e) {}
+  }
+  function addCardBtn(r) {
+    const acts = document.querySelector("#report .rep-acts");
+    if (!r || !acts || acts.querySelector(".x-card")) return;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn secondary sm x-card"; b.textContent = "카드 이미지";
+    b.onclick = () => shareCard(r, $("zoneShareFb"));
+    const sh = $("zoneShare"); sh ? sh.after(b) : acts.appendChild(b);
+  }
+  return { init, card };
+})();
+document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", EXTRA.init) : setTimeout(EXTRA.init, 0);

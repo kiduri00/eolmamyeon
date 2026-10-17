@@ -128,3 +128,110 @@ html.simple .s-on{scroll-margin-top:calc(var(--hdr-h,56px) + 8px)}
 /* 다크 모드 아이콘 대비 */
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-t i{color:color-mix(in srgb,var(--ic) 45%,#fff)}}
 :root[data-theme="dark"] .s-t i{color:color-mix(in srgb,var(--ic) 45%,#fff)}
+
+/* 상세: 접힌 계산 근거 */
+.s-fold{margin:14px 0 0;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+.s-fold>summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:700;font-size:15px;color:var(--text-1);display:flex;justify-content:space-between;align-items:center}
+.s-fold>summary::-webkit-details-marker{display:none}
+.s-fold>summary::after{content:"펼치기 ▾";font-size:13px;font-weight:600;color:var(--brand)}
+.s-fold[open]>summary::after{content:"접기 ▴"}
+.s-fold>:not(summary){margin-left:14px;margin-right:14px}
+.s-fold[open]{padding-bottom:12px}
+html.simple #report .rep-head .kind{display:none}
+
+/* 더 알아보기: PC는 카드 4열(두 줄 꽉 차게), 폰은 아이콘 4열 */
+.s-tx{display:flex;flex-direction:column;gap:3px;min-width:0}
+.s-tx small{font-size:12.5px;color:var(--text-3);font-weight:500}
+@media (min-width:641px){
+  .s-tiles h2{margin-bottom:14px}
+  .s-tg{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .s-t{flex-direction:row;align-items:center;gap:14px;padding:16px 18px;border:1px solid var(--border);border-radius:18px;background:var(--surface);text-align:left;transition:border-color .15s,box-shadow .15s}
+  .s-t:hover{border-color:color-mix(in srgb,var(--brand) 40%,var(--border));box-shadow:0 6px 18px rgba(15,23,42,.06)}
+  .s-t i{width:48px;height:48px;border-radius:14px;flex:none;background:color-mix(in srgb,var(--ic) 9%,var(--surface-2))}
+  .s-t b{font-size:15px}
+}
+@media (max-width:640px){.s-tx{align-items:center}.s-tx small{display:none}}
+/* ===== 읽기 쉽게: 설명 잔글씨 정리(경고 상자는 남김) ===== */
+html.simple #report p.note:not(.warnbox):not(.riskbox),html.simple #report .note.src,html.simple #report h3 small,html.simple #report .t-note,
+html.simple #report .lbl2,html.simple #report .sc-why,html.simple #report .lb-key,html.simple #report dd small,html.simple #report .rdx p,
+html.simple #report .pace small,html.simple #report .rvj p.note,html.simple #report .feedl span{display:none!important}
+html.simple .s-on p.note:not(.warnbox):not(.riskbox),html.simple .s-on .note.src,html.simple .s-on h3 small,html.simple .s-on .ph p,html.simple .s-on .pop-note{display:none!important}
+html.simple #report .s-fold p.note:not(.warnbox):not(.riskbox),html.simple #report .s-fold .t-note,html.simple #report .s-fold dd small{display:block!important}
+/* 지도 위 색 범례 막대는 빼고 구 숫자만 */
+html.simple #mapTop .mlg{display:none!important}
+/* PC: 오른쪽 구별 요약을 위에 붙이고, 푸터 위 빈 공간 줄이기 */
+@media (min-width:981px){html.simple #mapTop .main{align-items:start}}
+html.simple .site-foot{margin-top:24px;padding-top:24px}
+html.simple #sTiles{padding-bottom:24px}
+
+/* PC: 왼쪽 지도, 오른쪽 목록(구역을 열면 상세) */
+.s-right{min-width:0;display:flex;flex-direction:column;gap:10px}
+.s-tolist{display:none;align-self:flex-start;padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text-1);font:600 13.5px var(--font);cursor:pointer}
+@media (min-width:981px){
+  html.simple #mapTop .main{align-items:stretch}
+  html.simple:not(.s-rep) .s-right #report{display:none}
+  html.simple.s-rep .s-right #sListW{display:none}
+  html.simple.s-rep .s-tolist{display:inline-flex}
+  .s-right .s-list-w{margin:0;display:flex;flex-direction:column;min-height:0;max-height:calc(100vh - var(--hdr-h,60px) - 40px);position:sticky;top:calc(var(--hdr-h,60px) + 16px)}
+  .s-right .s-list{overflow:auto;min-height:0}
+  .s-right .s-lh{flex-wrap:wrap}
+}
+
+/* 폰 첫 화면: 게이지를 낮게, 지도 아래 목록이 살짝 보이게 */
+@media (max-width:640px){
+  html.simple .s-search{min-height:46px;margin:0 0 10px}
+  .s-h1{font-size:21px}
+  .s-gauge{padding:12px 14px 10px}
+  .s-cash b{font-size:36px}
+  .s-ticks{display:none}
+  .s-count{margin-top:6px;padding-top:6px}
+  .s-count b{font-size:22px}
+  .s-hint{display:none!important}
+  html.simple #mapbox{max-height:58vh}
+}
+
+/* 게이지 v2: 얇은 트랙·가벼운 손잡이·숫자와 단위 분리 */
+.s-gauge{padding:20px 22px 14px;border:1px solid var(--border);border-radius:22px;background:var(--surface);box-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px -12px rgba(31,58,135,.18)}
+.s-cash{gap:10px;align-items:baseline}
+.s-cash b{font-weight:700;letter-spacing:-.045em;font-feature-settings:"tnum" 1,"ss06" 1;color:var(--text-1);font-size:clamp(42px,7vw,58px)}
+.s-cash b small{margin-left:2px;font-size:.5em;font-weight:600;letter-spacing:-.02em;color:var(--brand)}
+.s-cash span{font-size:15px;font-weight:500;color:var(--text-3)}
+.s-mode{padding:4px;background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--border)}
+.s-mode button{min-height:32px;padding:0 13px;font-weight:600;font-size:13px;transition:background .18s,color .18s}
+.s-mode button[aria-pressed="true"]{background:var(--surface);color:var(--text-1);box-shadow:0 1px 3px rgba(15,23,42,.15)}
+#sCash{height:32px;margin-top:4px;touch-action:pan-y}
+#sCash::-webkit-slider-runnable-track{height:6px;background:linear-gradient(90deg,color-mix(in srgb,var(--brand) 55%,#6aa0ff) 0,var(--brand) var(--p),var(--surface-3) var(--p) 100%)}
+#sCash::-moz-range-track{height:6px}
+#sCash::-moz-range-progress{height:6px}
+#sCash::-webkit-slider-thumb{width:24px;height:24px;margin-top:-9px;border:0;background:#fff;box-shadow:0 0 0 1px rgba(15,23,42,.08),0 2px 8px rgba(15,23,42,.22),inset 0 0 0 7px var(--brand);transition:transform .15s,box-shadow .15s}
+#sCash:active::-webkit-slider-thumb{transform:scale(1.15);box-shadow:0 0 0 6px color-mix(in srgb,var(--brand) 16%,transparent),0 2px 8px rgba(15,23,42,.22),inset 0 0 0 7px var(--brand)}
+#sCash::-moz-range-thumb{width:22px;height:22px;border:0;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.22),inset 0 0 0 7px var(--brand)}
+.s-ticks{display:flex;margin-top:0;padding:0 2px;font-size:11.5px;font-weight:500;letter-spacing:.01em;color:var(--text-3)}
+.s-count{align-items:center;margin-top:12px;padding-top:12px}
+.s-count b{font-size:24px;font-weight:700;letter-spacing:-.03em;color:var(--brand)}
+.s-count span{font-size:15px;font-weight:500}
+@media (max-width:640px){
+  .s-gauge{padding:14px 16px 10px}
+  .s-cash b{font-size:40px}
+  .s-ticks{display:flex!important}
+  .s-count{margin-top:8px;padding-top:8px}
+  .s-count b{font-size:21px}
+}
+.s-ticks{position:relative;display:block!important;height:16px;margin:-4px 11px 0}
+.s-ticks span{position:absolute;top:0;transform:translateX(-50%)}
+.s-ticks span:nth-child(1){left:0;transform:none}
+.s-ticks span:nth-child(2){left:31.03%}
+.s-ticks span:nth-child(3){left:65.52%}
+.s-ticks span:nth-child(4){right:0;left:auto;transform:none}
+.s-count{gap:4px}
+@media (max-width:640px){html.simple #mapbox.lm-on{min-height:0;height:min(84vw,360px)}html.simple #mapbox[data-view="gu"].lm-on{height:min(110vw,460px)}}
+
+/* 군더더기 글 정리: 리포트·기능 화면의 보조 설명은 숨기고 숫자·결론만 */
+html.simple #report p.note:not(.warn):not(.risk),html.simple #report .note.src,html.simple #report h3 small,
+html.simple #report .t-note,html.simple #report .lbl2,html.simple #report .sc-why,html.simple #report .lb-key,
+html.simple #report dd small,html.simple #report .rdx p,html.simple #report .pace small,html.simple .pop-note,
+html.simple .s-on .ph p,html.simple .lm-legend,html.simple .mlg{display:none!important}
+html.simple #report .s-fold p.note,html.simple #report .s-fold .t-note{display:block!important}
+html.simple footer{margin-top:24px}
+html.simple #report .rep-head .formal,html.simple #report .gtl li:not(.gt1) small,html.simple #pane table td small,html.simple #pane .lb-pos+*{display:none!important}
+html.simple #pane table small{display:none!important}
