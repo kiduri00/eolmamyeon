@@ -347,7 +347,8 @@ async function countsLane(browser, api, errs, shared) {
     await loadHome(page);
     // 라벨: 계산기(입주 계산) 방식 이름 == 첫 화면 방식 이름
     {
-      const L = await page.evaluate(() => ({ hero: [...document.querySelectorAll(".s-mode button")].map((b) => b.textContent.trim()), pl: [...document.querySelectorAll("#pFund button")].map((b) => b.textContent.trim()) }));
+      // .s-mode는 첫 화면 본 버튼 + 지도 위 작은 막대(.s-mm, 같은 버튼을 대신 누르는 사본) 두 벌 → 이름 목록은 겹친 것을 한 번만
+      const L = await page.evaluate(() => ({ hero: [...new Set([...document.querySelectorAll(".s-mode button")].map((b) => b.textContent.trim()))], pl: [...document.querySelectorAll("#pFund button")].map((b) => b.textContent.trim()) }));
       expect(JSON.stringify(L.hero) === JSON.stringify(L.pl), "term.mode", "사는 방식 이름이 첫 화면·입주 계산에서 같음", `hero [${L.hero.join(", ")}] vs planner [${L.pl.join(", ")}]`);
     }
     const stepOf = (c) => (api.cash.steps || []).find((s) => Math.abs(s.cash - c) < 1e-6);
@@ -642,12 +643,14 @@ async function mapLane(browser, api, errs, shortSrc) {
       await page.evaluate(() => document.getElementById("sSearch").click()); await page.waitForTimeout(300);
       await page.fill("#q", stn); await page.waitForTimeout(700);
       const clicked = await page.evaluate((stn) => { const b = [...document.querySelectorAll("#sugg [data-stn]")].find((x) => x.dataset.stn === stn) || document.querySelector("#sugg [data-stn]"); if (!b) return false; b.click(); return true; }, stn);
-      if (!clicked) { bad("map.station", "역 고르면 지도가 z≥14로 역 300m 안에", `${stn}: no station row in search`); continue; }
+      if (!clicked) { bad("map.station", "역 고르면 지도가 z≥13.5(15분 원 전체)로 역 300m 안에", `${stn}: no station row in search`); continue; }
       await page.waitForTimeout(2600);
       const r = await page.evaluate((stn) => { const L = window.ZP_lmx, m = L && L.map && L.map(); const st = (window.__ZPD.stations || []).find((s) => s[0] === stn); if (!m) return { nomap: 1 }; const c = m.getCenter(); return { z: m.getZoom(), lat: c.lat, lng: c.lng, st }; }, stn);
-      if (r.nomap || !r.st) { bad("map.station", "역 고르면 지도가 z≥14로 역 300m 안에", `${stn}: map ${r.nomap ? "missing" : "ok"} station ${r.st ? "ok" : "missing"}`); continue; }
+      if (r.nomap || !r.st) { bad("map.station", "역 고르면 지도가 z≥13.5(15분 원 전체)로 역 300m 안에", `${stn}: map ${r.nomap ? "missing" : "ok"} station ${r.st ? "ok" : "missing"}`); continue; }
       const d = hav(r.lat, r.lng, r.st[1], r.st[2]);
-      expect(r.z >= 14 && d <= 300, "map.station", "역 고르면 지도가 z≥14로 역 300m 안에", `${stn}: zoom ${r.z.toFixed(2)} · center ${Math.round(d)}m from station`);
+      // 줌 하한 13.5: 지도는 역을 고르면 '역에서 15분' 걸어서 닿는 원 전체가 보이게 맞춘다(10_lmap.js) → 390px 폰에서 약 13.7~13.8.
+      // 원을 자르는 z14 강제보다 원 전체가 보이는 쪽이 맞아 하한을 낮추고, 역 300m 안 가운데 검사는 그대로 둔다.
+      expect(r.z >= 13.5 && d <= 300, "map.station", "역 고르면 지도가 z≥13.5(15분 원 전체)로 역 300m 안에", `${stn}: zoom ${r.z.toFixed(2)} · center ${Math.round(d)}m from station`);
     }
   } catch (e) { bad("runtime", "검사 실행", "mapLane crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await ctx.close().catch(() => {}); }

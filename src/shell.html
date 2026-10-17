@@ -138,7 +138,7 @@
       </div>
       <div class="pl-f">
         <span class="pl-l" id="lFund"><span class="pl-n" aria-hidden="true">2</span>사는 방식</span>
-        <div class="seg pl-seg" id="pFund" role="group" aria-labelledby="lFund"><button type="button" data-v="gap" aria-pressed="true">전세 끼고(갭)</button><button type="button" data-v="cash" aria-pressed="false">현금만</button></div>
+        <div class="seg pl-seg" id="pFund" role="group" aria-labelledby="lFund"><button type="button" data-v="gap" aria-pressed="true" data-lbl="gap">전세 끼고</button><button type="button" data-v="cash" aria-pressed="false" data-lbl="loan">대출 끼고</button></div>
         <p class="pl-h" id="fundH"></p>
       </div>
       <div class="pl-f">
@@ -221,7 +221,7 @@
     <i class="s-sen"></i>
     <div class="s-gauge">
       <div class="s-ghead"><h1 class="s-h1">내 돈으로 살 수 있는 <em>서울 재개발</em></h1>
-        <div class="s-mode" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">대출 끼고</button></div><button type="button" class="s-asm" id="sAsm" hidden aria-haspopup="dialog"></button></div>
+        <div class="s-mode" role="group" aria-label="사는 방식"><button type="button" data-f="gap" data-lbl="gap">전세 끼고</button><button type="button" data-f="cash" data-lbl="loan">대출 끼고</button></div><button type="button" class="s-asm" id="sAsm" hidden aria-haspopup="dialog"></button></div>
       <div class="s-gmain">
         <label for="sCash" class="s-cash"><small>내 현금</small><b id="sCashV">1<small>억</small></b></label>
         <span class="s-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
@@ -362,7 +362,7 @@
       <section class="disc about-calc">
         <h3>이 계산기는 무엇을 하나요</h3>
         <p>집핀은 서울에서 진행 중인 재개발·재건축·모아주택 구역마다 '입주까지 내 돈이 얼마나 드는지'를 같은 기준으로 계산해요. 가진 현금, 사는 방식(전세 끼고 또는 현금), 지금 가진 집 수를 넣으면 지금 계약할 수 있는 구역과 세 가지 숫자를 보여 줘요.</p>
-        <p>첫째는 계약할 때 드는 돈(매수가 − 전세금 + 취득세), 둘째는 이주 때 세입자에게 돌려줄 돈, 셋째는 분담금·세금·이자를 더하고 입주 잔금대출을 뺀 입주까지 총액이에요. 연소득을 넣으면 DSR 한도까지 반영해요.</p>
+        <p>첫째는 계약할 때 드는 돈(매수가 − 전세금 + 취득세), 둘째는 이주 때 세입자에게 돌려줄 돈, 셋째는 분담금·세금·이자를 더하고 입주 잔금대출을 뺀 입주까지 현금이에요. 연소득을 넣으면 DSR 한도까지 반영해요.</p>
         <p>숫자는 서울시 정비사업 정보몽땅, 국토교통부 실거래가, 개별공시지가 같은 공개 자료와 몇 가지 가정으로 낸 추정치예요. 자료와 가정은 <a href="method">출처·계산 방법</a>에, 자주 묻는 질문은 <a href="guide/">데이터로 답한 페이지</a>에 정리했어요.</p>
       </section>
       <section class="disc">

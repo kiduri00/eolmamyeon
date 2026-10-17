@@ -3,7 +3,7 @@
 const OVX = (() => {
   let mm = null, mmId = null;
   const ym = (d) => (d && d.length >= 6 ? `${d.slice(2, 4)}.${d.slice(4, 6)}` : "");
-  const eok = (m) => (m == null || !isFinite(m) ? "–" : m >= 10000 ? (Math.round(m / 1000) / 10).toLocaleString("ko-KR") + "억" : Math.round(m).toLocaleString("ko-KR") + "만");
+  const eok = ZF.eok;   // 숫자 꼴은 ZF 하나(05_facts.js)
   const e1 = (v) => (v == null || !isFinite(v) ? "–" : v >= 1e4 ? `${(v / 1e4).toFixed(1).replace(/\.0$/, "")}억` : `${Math.round(v).toLocaleString()}만`);
   // 노후도 게이지(반원): 기준선 60%
   function gauge(pct) {
@@ -172,25 +172,6 @@ const OVX = (() => {
     if (!few && !old) return "";
     return `${few ? "거래 적음" : "오래된 거래"}${to ? ` · 최근 ${ym(to)}` : ""}`;
   }
-  // 매수가 표본(tools/enrich.py _entry_span과 같은 규칙)을 tx.json 거래 목록에서 다시 찾아 그 표본의 대지 3.3㎡당 가운데 값
-  // → 큰 숫자 · 계산 매수가 · '이 숫자 믿어도 될까'가 같은 표본 n건을 말한다. 못 찾으면 null(대표 거래 값으로)
-  const medA = (a) => { a = [...a].sort((x, y) => x - y); const n = a.length; return n ? (n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2) : null; };
-  const qEx = (a) => { const n = a.length, m = n + 1; return [1, 2, 3].map((i) => { let j = Math.floor((i * m) / 4); const dl = i * m - j * 4; j = Math.max(1, Math.min(j, n - 1)); return (a[j - 1] * (4 - dl) + a[j] * dl) / 4; }); };
-  function smpU(r, dd) {
-    const en = r.mk && r.mk.entry;
-    if (!en || en.src !== "villa" || en.fill !== "zone" || !en.f || !en.n || !dd || !Array.isArray(dd.s)) return null;
-    const base = dd.s.filter((x) => x[1] === 0 && x[2] && x[2] <= 2015 && x[3] >= 20 && x[3] <= 85).sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0));
-    for (let k = en.n; k <= base.length; k++) {
-      let old = base.slice(0, k);
-      if (old.length >= 6) { const q = qEx(old.map((x) => x[5] / x[3]).sort((a, b) => a - b)), lo = q[0] - 1.5 * (q[2] - q[0]), hi = q[2] + 1.5 * (q[2] - q[0]); old = old.filter((x) => x[5] / x[3] >= lo && x[5] / x[3] <= hi); }
-      if (old.length === en.n && Math.abs(medA(old.map((x) => x[5])) - en.med) < 1) {
-        const L = old.filter((x) => x[4] > 0);
-        if (L.length < Math.max(1, Math.ceil(old.length / 2))) return null;
-        return { u: Math.round(medA(L.map((x) => (x[5] / x[4]) * 3.3058))), n: old.length, nl: L.length, to: old[0][0] };
-      }
-    }
-    return null;
-  }
   // 다른 기준(대표 거래·최근 분기·연식별)은 큰 숫자 밑에 접어 둔다
   function altHTML(items, ch) {
     const L = items.filter(Boolean);
@@ -198,53 +179,39 @@ const OVX = (() => {
     return `<details class="ov-alt"><summary>다른 기준 보기</summary>${L.length ? `<dl class="ov-altl">${L.map(([k, v, s]) => `<div><dt>${k}${s ? `<small>${s}</small>` : ""}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}${ch || ""}</details>`;
   }
   function lastQ(q) { const nd = new Date(), cq = `${String(nd.getFullYear()).slice(2)}Q${Math.floor(nd.getMonth() / 3) + 1}`; const L = (q || []).filter((x) => x[0] !== cq); return L.length ? L[L.length - 1] : null; }
-  // 파이프라인이 만든 한 기준(hd) · 매수가 표본을 찾으면 그 표본의 3.3㎡당을 큰 숫자로
+  // 머리 큰 숫자 = ZF.headline 하나(/z/ 페이지와 같은 규칙): 매수가 표본의 3.3㎡당('u') · 매수가 자체('p') · 대표 거래 기준('hd')
   function hdHTML(h, t, r, dd) {
     const BN = { i: "입주권", a: "아파트", v: "빌라·단독 대지" }[h.b];
     const yoy = h.b === "v" && r.tx && r.tx.yoy != null ? `<em class="${r.tx.yoy >= 0 ? "up" : "dn"}">1년 ${r.tx.yoy >= 0 ? "▲" : "▼"} ${Math.abs(r.tx.yoy)}%</em>` : "";
     const per = `${BN} 3.3㎡당`;
     const win = h.w === 0 ? "최근 거래" : h.w === 24 ? "2년" : "1년";
-    const en = (r.mk && r.mk.entry) || {};
-    let est = false; try { est = isEst(r); } catch (e) {}
-    let usr = false; try { const x = investC(r); usr = x && x.priceSrc === "user"; } catch (e) {}
-    const sm = h.b === "v" && !est ? smpU(r, dd) : null;
-    const wait = !sm && !dd && h.b === "v" && en.src === "villa" && en.fill === "zone" && en.f;   // 거래 목록 오는 중: 숫자가 바뀌지 않게 잠깐 비워 둔다
+    const H = ZF.headline(r, h) || { kind: "hd", v: h.u, n: h.n, to: h.to };
     // 1건이면 '가운데 값'이라 하지 않는다
     const hdBasis = h.n === 1 ? `${win} 구역 안 거래 1건${h.to ? ` · ${ym(h.to)}` : ""}` : `${win} 대표 거래 ${h.n}건 가운데 값${h.from && h.to && h.from !== h.to ? ` · ${ym(h.from)}–${ym(h.to)}` : ""}`;
-    // 매수가를 구역 밖 주변 빌라로 정한 곳: 큰 숫자도 그 표본(같은 n건)의 매매가 가운데 값 · 구역 안 몇 건은 '다른 기준'으로
-    const near = !sm && !wait && !usr && h.b === "v" && !est && en.src === "villa" && (en.radius || en.fill === "dong") && en.n > (h.n || 0) && en.med > 0;
-    const nTo = en.last ? "20" + en.last.slice(0, 2) + en.last.slice(3, 5) : "";
-    const u = sm ? sm.u : h.u;
-    const basis = near ? `${smpTxt(r)}${en.area_med ? ` · 전용 ${en.area_med}㎡ 안팎` : ""}` : sm ? `${smpTxt(r) || `${sm.n}건 가운데 값`}${sm.nl < sm.n ? ` · 대지 면적 있는 ${sm.nl}건` : ""} · 매수가와 같은 표본` : hdBasis;
-    const thin = near ? thinTag(en.n, nTo) : sm ? thinTag(sm.n, sm.to) : thinTag(h.n, h.to) || (h.st || h.w === 0 ? `오래된 거래${h.to ? ` · 최근 ${ym(h.to)}` : ""}` : "");
+    const P = H.kind === "p", U = H.kind === "u";
+    const basis = U || P ? H.basis : hdBasis;
+    const thin = U || P ? thinTag(H.n, H.to) : thinTag(h.n, h.to) || (h.st || h.w === 0 ? `오래된 거래${h.to ? ` · 최근 ${ym(h.to)}` : ""}` : "");
     const S = txRows(dd, h.r);
     const lq = lastQ(h.q), ag = dd && dd.x && dd.x.age, agn = (dd && dd.x && dd.x.agn) || {};
     const alts = [
-      near ? [`구역 안 ${per}`, eok(h.u), hdBasis] : null,
-      sm && h.u && Math.abs(h.u - sm.u) >= 1 ? ["대표 거래", eok(h.u), hdBasis] : null,
-      lq && !(h.q && h.q.length > 2) && !(near && lq[2] >= h.n) ? ["최근 분기", eok(lq[1]), `${lq[0].replace(/^(\d\d)Q/, "'$1년 ")}분기 · ${lq[2]}건`] : null,
+      P ? [h.b === "v" ? `구역 안 대표 거래 · 대지 3.3㎡` : `구역 안 ${per}`, eok(h.u), hdBasis] : null,
+      U && h.u && Math.abs(h.u - H.v) >= 1 ? ["대표 거래 · 대지 3.3㎡", eok(h.u), hdBasis] : null,
+      lq && !(h.q && h.q.length > 2) && !(P && lq[2] >= h.n) ? ["최근 분기", eok(lq[1]), `${lq[0].replace(/^(\d\d)Q/, "'$1년 ")}분기 · ${lq[2]}건`] : null,
       h.b === "v" && ag && ag.c != null ? ["31년 이상 건물", eok(ag.c), `구역 안 전체 기간 · ${agn.c || 0}건`] : null,
     ];
     const ch = h.q && h.q.length > 2 ? chart(r, h.q, per) : "";
+    // 'p'(매수가가 큰 숫자)일 때 아래 몇 건은 구역 안 거래라 표본과 다를 수 있다 → 이름을 붙여 둔다
+    const li = liHTML(S);
     return `<div class="ov-c ov-tx${thin ? " thin" : ""}"><h3>실거래 ${yoy}</h3>
-      <div class="ov-big"><span>${near ? "주변 빌라 매매가 · 계산 매수가" : per}</span><b${thin ? ' title="표본이 적거나 오래돼 지금 시세와 다를 수 있어요"' : ""}${wait ? ' aria-busy="true"' : ""}>${wait ? "…" : near ? manT(en.med / 1e4) : eok(u)}</b>${thin && !wait ? `<em class="ov-thin">${thin}</em>` : ""}</div>
-      <p class="ov-basis">${wait ? "매수가 표본 기준 불러오는 중" : `기준 · ${esc(basis)}`}</p>
-      ${near ? calcRow(r, false, en.med) : calcRow(r, sm && !usr)}
+      <div class="ov-big"><span>${P ? H.label : per}</span><b${thin ? ' title="표본이 적거나 오래돼 지금 시세와 다를 수 있어요"' : ""}>${P ? ZF.manT(H.v / 1e4) : eok(H.v)}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>
+      <p class="ov-basis">기준 · ${esc(basis)}</p>
+      ${P ? calcRow(r, false, H.v) : calcRow(r, U)}
       ${altHTML(alts, ch)}
-      ${liHTML(S)}
+      ${P && li ? `<p class="ov-lh">구역 안 최근 거래</p>` : ""}${li}
       <button type="button" class="ov-more" data-tab="tx">거래 전체 보기 →</button></div>`;
   }
-  // 입주 현금 계산에 실제로 쓴 매수가와 그 표본 — /z/ 페이지·API와 같은 한 문장(표본 기간은 tools/enrich.py entry.f·t)
-  const manT = (v) => { const m = Math.round(v * 1e4), a = Math.floor(m / 1e4), b = m % 1e4; return a ? `${a}억${b ? ` ${b.toLocaleString("ko-KR")}만` : ""}` : `${b.toLocaleString("ko-KR")}만`; };
-  function smpTxt(r, x) {
-    const en = r.mk && r.mk.entry;
-    const est = (() => { try { return isEst(r); } catch (e) { return false; } })();
-    if (est || (x && x.priceSrc === "est")) return `같은 구(${r.g}) 빌라 시세 가운데 값으로 추정`;
-    if (!en || !en.n) return "";
-    const where = en.src === "complex" ? (en.fill === "zoneapt" ? "구역 안 아파트" : en.name ? en.name : "단지") : en.fill === "dong" ? "같은 동 빌라" : en.radius ? `주변 ${en.radius}m 빌라` : en.m === "jibun" ? "같은 본번 빌라" : "구역 안 빌라";
-    const span = en.f ? `(${en.f}${en.t && en.t !== en.f ? "–" + en.t : ""})` : en.last ? `(최근 ${en.last.slice(0, 5)})` : "";
-    return `${where} ${en.n}건 가운데 값${span}`;
-  }
+  // 입주 현금 계산에 실제로 쓴 매수가와 그 표본 — /z/ 페이지·API와 같은 한 문장(ZF.smpTxt)
+  const manT = ZF.manT, smpTxt = ZF.smpTxt;
   // 최근 거래 몇 건: 거래 탭과 같은 목록(최신 먼저) · 빌라·단독은 대지, 아파트·입주권은 전용
   const TY = ["빌라", "단독", "아파트", "입주권"];
   function txRows(dd, fb) {
@@ -260,7 +227,7 @@ const OVX = (() => {
     if (dup && x.priceSrc !== "user" && Math.abs(x.price * 1e4 - dup) < 1) return "";   // 위 큰 숫자가 곧 계산 매수가(기준 줄에 '계산 매수가와 같은 표본')
     let est = false; try { est = isEst(r); } catch (e) {}
     const en = (r.mk && r.mk.entry) || {};
-    const smp = x.priceSrc === "user" && !est ? "직접 입력" : same ? `위와 같은 ${en.n}건의 매매가 가운데 값` : smpTxt(r, x);
+    const smp = x.priceSrc === "user" && !est ? "직접 입력" : same ? (en.n === 1 ? "위와 같은 거래 1건의 매매가" : `위와 같은 ${en.n}건의 매매가 가운데 값`) : smpTxt(r, x);
     return `<div class="ov-calc"><span>계산 매수가</span><b>${manT(x.price)}</b><small>${smp ? `= ${esc(smp)}` : "입주 현금 계산 기준"}</small></div>`;
   }
   // '이 숫자 믿어도 될까': 표본 수·마지막 거래·신뢰도(표본 수·최근성·참고값(lc)·주변 시세(nbp))
@@ -298,15 +265,17 @@ const OVX = (() => {
     const last = S[0] ? ym(S[0][0]) : "";
     const A = !!t.am && (/재건축/.test(r.k) || (!t.pp && !t.med));   // 재건축은 아파트 값이 기준
     const IP = r.s >= 8 && t.im;                                        // 착공 뒤엔 입주권 거래가 기준
-    const big = IP ? ["입주권 · 1년", eok(t.im)] : A ? ["아파트 매매 · 1년", eok(t.am)] : t.pp ? ["대지 3.3㎡당 · 1년", eok(t.pp)] : t.med ? ["빌라 매매 · 1년", eok(t.med)] : t.am ? ["아파트 매매 · 1년", eok(t.am)] : null;
+    // 대표 거래 기준(hd)이 없는 빌라 구역도 계산 매수가가 있으면 그 표본이 큰 숫자(ZF.headline 'p' · /z/와 같은 규칙)
+    const H = !IP && !A ? ZF.headline(r, null) : null, P = H && H.kind === "p";
+    const big = P ? [H.label, ZF.manT(H.v / 1e4)] : IP ? ["입주권 · 1년", eok(t.im)] : A ? ["아파트 매매 · 1년", eok(t.am)] : t.pp ? ["대지 3.3㎡당 · 1년", eok(t.pp)] : t.med ? ["빌라 매매 · 1년", eok(t.med)] : t.am ? ["아파트 매매 · 1년", eok(t.am)] : null;
     const ser = IP ? [t.qi, "입주권"] : A || (!t.pp && t.am) ? [t.qa, "아파트 매매"] : t.pp ? [(t.q || []).filter((x) => x[2] >= 2), "대지 3.3㎡당"] : [null, ""];
-    const nn = t.n12 || t.n, thin = big ? thinTag(nn == null ? null : nn, S[0] ? S[0][0] : null) : "";
-    const chips = [!IP && !A && t.med && big && !/빌라/.test(big[0]) ? `빌라 ${eok(t.med)}` : "", nn ? `구역 안 ${t.n12 ? "12개월 " : ""}거래 ${nn}건` : "", last && !thin ? `최근 ${last}` : ""].filter(Boolean);
+    const nn = t.n12 || t.n, thin = P ? thinTag(H.n, H.to) : big ? thinTag(nn == null ? null : nn, S[0] ? S[0][0] : null) : "";
+    const chips = [P && t.pp ? `구역 안 대지 3.3㎡ ${eok(t.pp)}` : "", !P && !IP && !A && t.med && big && !/빌라/.test(big[0]) ? `빌라 ${eok(t.med)}` : "", nn ? `구역 안 ${t.n12 ? "12개월 " : ""}거래 ${nn}건` : "", last && !thin ? `최근 ${last}` : ""].filter(Boolean);
     return `<div class="ov-c ov-tx${thin ? " thin" : ""}"><h3>실거래 ${yoy}</h3>
-      ${big ? `<div class="ov-big"><span>${big[0]}</span><b>${big[1]}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>` : ""}
-      ${calcRow(r)}${chips.length ? `<div class="ov-chips">${chips.map((c) => `<span>${c}</span>`).join("")}</div>` : ""}
+      ${big ? `<div class="ov-big"><span>${big[0]}</span><b>${big[1]}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>` : ""}${P ? `<p class="ov-basis">기준 · ${esc(H.basis)}</p>` : ""}
+      ${P ? calcRow(r, false, H.v) : calcRow(r)}${chips.length ? `<div class="ov-chips">${chips.map((c) => `<span>${c}</span>`).join("")}</div>` : ""}
       ${ser[0] && ser[0].length > 2 ? altHTML([], chart(r, ser[0], ser[1])) : ""}
-      ${liHTML(S)}
+      ${P && S.length ? `<p class="ov-lh">구역 안 최근 거래</p>` : ""}${liHTML(S)}
       <button type="button" class="ov-more" data-tab="tx">거래 전체 보기 →</button></div>`;
   }
   function nearHTML(nr) {

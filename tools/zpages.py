@@ -22,7 +22,9 @@ def minimap(r):
     """구역 경계 + 주변 정비구역 + 구 경계 + 지하철 노선·역(tools/zmap.py). 경계가 없으면 빈 문자열."""
     return zmap.minimap(r, GEO, D, short)
 HDB = {'i': ('입주권 전용 3.3㎡당', '아파트 입주권'), 'a': ('아파트 전용 3.3㎡당', '아파트 매매'), 'v': ('대지 3.3㎡당', '빌라·단독 매매')}
-def nk(nm, kind):   # 이름에 이미 있는 사업 종류 말은 빼고 붙인다
+def nk(nm, kind):   # 이름에 이미 있는 사업 종류 말은 빼고 붙인다('○○ 소규모' + '소규모재건축' → '○○ 소규모재건축')
+    ws = nm.split()
+    if len(ws) > 1 and kind.replace(' ', '').startswith(ws[-1]): nm = ' '.join(ws[:-1])
     w = set(re.split(r'\s+', nm)); k = ' '.join(x for x in kind.split() if x not in w)
     return f"{nm} {k}".strip()
 EVK = {'조합설립인가': '조합설립', '사업시행인가': '사업시행', '관리처분인가': '관리처분', '정비구역지정': '구역지정', '조합설립추진위원회승인': '추진위', '사업시행자지정': '시행자지정', '준공인가': '준공'}
@@ -55,7 +57,7 @@ KIND = {'재개발': '재개발', '재건축': '재건축', '도시정비형 재
 DTK = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 승인'), ('조합설립', '조합설립인가'), ('시행자지정', '사업시행자 지정'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가'), ('착공', '착공'), ('준공', '준공')]
 SKEY = {2: ('구역지정',), 3: ('추진위',), 4: ('조합설립', '시행자지정'), 5: ('사업시행',), 6: ('관리처분',), 7: ('관리처분',), 8: ('착공',)}
 PSRC = {'villa': '빌라 실거래 가운데 값', 'complex': '단지 실거래 가운데 값', 'apt': '단지 실거래 가운데 값', 'est': '구 평균 시세로 추정'}
-from zsample import manT, smpTxt, trust, short   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
+from zsample import manT, smpTxt, trust, short, headline, LBL   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
 def gapWhy(c):   # 전세 끼고 계산이 안 되는 이유(화면 gapBlock과 같은 문구에서) → (표 칸 짧은 말, 설명)
     b = str(c.get('gapBlock') or '')
     if b.startswith('전세 낀 매수 불가'): return ('토허제', '토지거래허가구역이라 불가(2년 실거주)')
@@ -130,8 +132,8 @@ def page(r):
     k = []
     k.append(('현재 단계', esc(stage), f'{sd} 인가·고시' if sd else ('진행 확인 필요' if stl else '아직 구역지정 전이라 인가일이 없어요' if r.get('s', 0) <= 1 else f'이 단계 인가일 기록 없음 · 직전 {prevd[0]} {prevd[1][:7].replace("-", ".")}' if prevd else '이 단계 인가일 기록 없음')))
     if c.get('gapOk') and c.get('gapTotal') is not None:   # 첫 화면 기본 모드(전세 끼고)와 같은 숫자
-        k.append(('전세 끼고 입주까지 현금', eok(c['gapTotal']), f'지금 {eok(c.get("gapNow"))} · 매수가 {manT(c["price"]) if c.get("price") is not None else "–"} = {esc(smpTxt(r, c))}' + (f' · 현금으로 사면 {eok(c["need"])}' if c.get('cashOk') and c.get('need') is not None else '')))
-    elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk': k.append(('현금 매수 · 입주까지 현금', eok(c['need']), f'기본 가정 · 매수가 {eok(c.get("price"))} 기준' + (f' · 전세 끼고는 {esc(gapWhy(c)[1])}' if gapWhy(c) else '')))
+        k.append((f"{LBL['gap']} {LBL['cashToMoveIn']}", eok(c['gapTotal']), f'지금 {eok(c.get("gapNow"))} · 매수가 {manT(c["price"]) if c.get("price") is not None else "–"} = {esc(smpTxt(r, c))}' + (f' · 현금으로 사면 {eok(c["need"])}' if c.get('cashOk') and c.get('need') is not None else '')))
+    elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk': k.append((f"현금 매수 · {LBL['cashToMoveIn']}", eok(c['need']), f'기본 가정 · 매수가 {eok(c.get("price"))} 기준' + (f' · 전세 끼고는 {esc(gapWhy(c)[1])}' if gapWhy(c) else '')))
     elif c.get('winT'): k.append(('입주권', esc(c['winT']), '기본 가정 판정'))
     if c.get('st'): k.append(('가까운 역', f"{esc(c['st']['n'])} 도보 {max(1, round(c['st']['d'] * 1.3 / 67))}분", ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])))
     if c.get('owners'): k.append(('토지등소유자', f"{int(c['owners']):,}명", f"구역 면적 {int((r.get('sm') or {}).get('area') or 0):,}㎡" if (r.get('sm') or {}).get('area') else ''))
@@ -148,20 +150,37 @@ def page(r):
     if t.get('n') or t.get('jn'):
         rows = []
         hd = ((TXX.get(rid) or {}).get('x') or {}).get('hd')
-        if hd:   # 화면 머리글과 같은 기준·기간·건수
-            lab, what = HDB[hd['b']]; f, to = hd['from'], hd['to']
-            one = hd['w'] == 0 or hd['n'] == 1   # 1건이면 '가운데 값'이라 하지 않는다
-            per = f"거래 1건({to[2:4]}.{to[4:6]})" if one else f"최근 {hd['w']}개월 대표 거래 {hd['n']}건({f[2:4]}.{f[4:6]}–{to[2:4]}.{to[4:6]})"
-            en0 = (r.get('mk') or {}).get('entry') or {}
-            out = en0.get('src') == 'villa' and (en0.get('radius') or en0.get('fill') == 'dong') and (en0.get('n') or 0) > hd['n'] and c.get('priceSrc') in PSRC
-            rows.append((('구역 안 ' if out else '') + lab, man(hd['u']), ('' if one else '가운데 값 · ') + f"{what} · {per}" + (f" · 시세와 크게 다른 {hd['xo']}건 제외" if hd['xo'] else '') + (' · 계산 매수가는 아래 주변 표본' if out else '')))
-        elif t.get('pp'): rows.append(('대지 3.3㎡당', man(t['pp']), f"가운데 값 · 빌라·단독 매매 {t.get('nv', t.get('n', 0))}건 · 2024년~"))
-        if c.get('price') is not None and c.get('priceSrc') in PSRC:   # 화면 계산기 '매수가'와 같은 값(calc.json) — 한 구역에 '가운데 값'은 이것 하나만
-            en = (r.get('mk') or {}).get('entry') or {}
+        H = headline(r, c, hd)   # 머리 큰 숫자 하나 — 화면 ZF.headline과 같은 규칙(tools/zsample.py)
+        en = (r.get('mk') or {}).get('entry') or {}
+        def zone_row(lab, pre=''):   # 구역 대표 거래 기준(tx.json x.hd) 한 줄 — 머리 숫자가 아닐 때는 짧은 참고 줄 이름 + 설명 앞에 '대지 3.3㎡당'
+            if hd:
+                f, to = hd['from'], hd['to']; what = HDB[hd['b']][1]
+                one = hd['w'] == 0 or hd['n'] == 1   # 1건이면 '가운데 값'이라 하지 않는다
+                per = f"거래 1건({to[2:4]}.{to[4:6]})" if one else f"최근 {hd['w']}개월 대표 거래 {hd['n']}건({f[2:4]}.{f[4:6]}–{to[2:4]}.{to[4:6]})"
+                return (lab, man(hd['u']), pre + ('' if one else '가운데 값 · ') + f"{what} · {per}" + (f" · 시세와 크게 다른 {hd['xo']}건 제외" if hd.get('xo') else ''))
+            if t.get('pp'):
+                nv = t.get('nv', t.get('n', 0))
+                return (lab, man(t['pp']), pre + ('' if nv == 1 else '가운데 값 · ') + f"빌라·단독 매매 {nv}건 · 2024년~")
+            return None
+        trow = None
+        if c.get('price') is not None and c.get('priceSrc') in PSRC:   # '이 숫자 믿어도 될까' — 매수가와 같은 표본 n건
             lv, why = trust(r, c)
-            rows.append(('계산 매수가', manT(c['price']), f"= {esc(smpTxt(r, c))}" + (f" · 전용 {en['area_med']:g}㎡ 안팎" if en.get('area_med') else '') + (f" · {esc(en['scope'])}" if en.get('scope') else '')))
-            rows.append(('이 숫자 믿어도 될까', lv, ' · '.join([x for x in (f"매수가 표본 {en['n']}건" if en.get('n') else '', f"마지막 거래 {en['last']}" if en.get('last') else '') if x] + why)))
-        elif t.get('med'): rows.append(('빌라 매매', man(t['med']), f"가운데 값 · 2015년 이전 준공 · 최근 {t.get('nwin', 18)}개월 {t.get('no', 0)}건 · 전용 {t.get('ar', '–')}㎡"))
+            trow = ('이 숫자 믿어도 될까', lv, ' · '.join([x for x in (f"매수가 표본 {en['n']}건" if en.get('n') else '', f"마지막 거래 {en['last']}" if en.get('last') else '') if x] + why))
+        buy = ('계산 매수가', manT(c['price']), f"= {esc(smpTxt(r, c))}" + (f" · 전용 {en['area_med']:g}㎡ 안팎" if en.get('area_med') else '') + (f" · {esc(en['scope'])}" if en.get('scope') else '')) if trow else None
+        if H and H['kind'] == 'u':   # 대지 3.3㎡당 = 매수가 표본 그대로
+            rows.append(('대지 3.3㎡당', man(H['v']), esc(H['basis'])))
+            if hd and abs(hd['u'] - H['v']) >= 1: rows.append(zone_row('대표 거래', '대지 3.3㎡당 · '))
+            rows += [buy, trow]
+        elif H and H['kind'] == 'p':   # 매수가가 곧 큰 숫자 · 구역 안 3.3㎡당은 참고 줄
+            rows += [buy, trow]   # 표 머리칸이 좁아 이름은 '계산 매수가' 그대로(설명 줄이 '주변 300m 빌라 n건' 등 표본을 말함)
+            z = zone_row('구역 안 거래', '대지 3.3㎡당 · ')
+            if z: rows.append(z)
+        else:
+            if hd: rows.append(zone_row(HDB[hd['b']][0]))
+            elif t.get('pp'): rows.append(zone_row('대지 3.3㎡당'))
+            if buy: rows += [buy, trow]
+        rows = [x for x in rows if x]
+        if not buy and t.get('med'): rows.append(('빌라 매매', man(t['med']), f"가운데 값 · 2015년 이전 준공 · 최근 {t.get('nwin', 18)}개월 {t.get('no', 0)}건 · 전용 {t.get('ar', '–')}㎡"))
         if t.get('im'): rows.append(('입주권 매매', man(t['im']), f"가운데 값 · 아파트 입주권 · 최근 {t.get('iw', 12)}개월 {t.get('in', 0)}건"))
         if t.get('jm'):
             en1 = (r.get('mk') or {}).get('entry') or {}; am = en1.get('area_med'); ja = t.get('ja')
@@ -226,8 +245,25 @@ _isdone = lambda r: bool(r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 
 N_DONE = sum(1 for r in D['recs'] if _isdone(r) and r.get('src') != 'moa'); N_MOA = sum(1 for r in D['recs'] if not r.get('dn') and r.get('src') == 'moa')
 CNT_NOTE = f'<p class="meta">진행 중 {len(R):,}곳은 준공·해산된 {N_DONE:,}곳과 모아타운 관리지역 {N_MOA:,}곳을 뺀 숫자예요. 첫 화면·메뉴의 숫자와 같은 기준이에요.</p>'
 _ALL = {r['id'] for r in D['recs']}
-for f in os.listdir(ZD):   # 자료에서 빠진 구역(시험 등록 등)의 자동 페이지는 지운다(손으로 쓴 페이지는 둔다)
-    if f.endswith('.html') and f != 'index.html' and f[:-5] not in _ALL and not is_hand(f[:-5]): os.remove(os.path.join(ZD, f)); print('  removed stale page', f)
+_LIVE = {r['id'] for r in R}
+for f in os.listdir(ZD):   # 진행 중이 아닌 구역(준공·해산·자료에서 빠진 곳)의 자동 페이지는 지운다 — 매일 다시 안 만들어져 날짜·숫자가 멈춰 있던 것(손으로 쓴 페이지는 둔다)
+    if f.endswith('.html') and f != 'index.html' and f[:-5] not in _LIVE and not is_hand(f[:-5]): os.remove(os.path.join(ZD, f)); print('  removed stale page', f)
+# 손으로 쓴 글(구역 정리 페이지·가이드·리포트·소개): 본문은 두고 용어만 정식 말로 · 푸터 '데이터 기준'은 오늘 자료 날짜로(매 실행, 같은 결과면 그대로)
+TERM_FIX = [(re.compile(r'입주까지 총액|입주까지 총(?=[\s ③<])'), LBL['cashToMoveIn']), (re.compile(r'(?<!정보)(?<!사업 )정비몽땅'), '정비사업 정보몽땅')]
+def term_fix(h):
+    for a, b in TERM_FIX: h = a.sub(b, h)
+    return re.sub(r'(<p class="f-c">© \d{4} 집핀 · 데이터 기준 )[\d.]+', lambda m: m.group(1) + UPD, h)
+def hand_live(r, h):
+    """손으로 쓴 구역 페이지: 글 속 숫자는 쓴 날 기준이라 머리 날짜를 '글 기준'으로 밝히고, 바로 밑에 오늘 숫자 상자(자동 페이지와 같은 값)를 끼운다."""
+    rid = r['id']; c = C.get(rid) or {}
+    h = re.sub(r'(<p class="eyebrow">[^<]*?)데이터 기준 ([\d.]+)', r'\1글 기준 \2', h, count=1)
+    parts = [f"지금 <strong>{esc(c.get('stage') or r.get('sr') or '')}</strong> 단계"]
+    if c.get('gapOk') and c.get('gapTotal') is not None: parts.append(f"{LBL['gap']} {LBL['cashToMoveIn']} <strong>{eok(c['gapTotal'])}</strong> (지금 {eok(c.get('gapNow'))})")
+    elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk': parts.append(f"현금 매수 · {LBL['cashToMoveIn']} <strong>{eok(c['need'])}</strong>")
+    box = f'<div class="hbox" id="zp-live"><b>최신 숫자 · 데이터 기준 {UPD}</b>{" · ".join(parts)} · 기본 가정 · <a href="../#{rid}">계산기에서 내 조건으로</a></div>'
+    if 'id="zp-live"' in h: return re.sub(r'<div class="hbox" id="zp-live">.*?</div>', lambda m: box, h, count=1, flags=re.S)
+    m = re.search(r'<p class="byline">.*?</p>', h, re.S) or re.search(r'</h1>', h)
+    return h[:m.end()] + box + h[m.end():] if m else h
 PAGES = {r['id'] for r in R} | {f[:-5] for f in os.listdir(ZD) if f.endswith('.html') and f != 'index.html'}
 def hand_og(r):
     """손으로 쓴 페이지는 본문을 두고, 공유 카드(글자만)와 og:image 메타만 붙인다."""
@@ -236,20 +272,24 @@ def hand_og(r):
     if 'og:image' not in h: h = h.replace('</head>', base + '\n</head>', 1)
     if base not in h and f'/og/z/{rid}.png' not in h: return   # 손으로 다른 카드를 단 페이지는 그대로
     c = C.get(rid) or {}; kind = KIND.get(r['k'], r['k'])
-    if c.get('gapOk') and c.get('gapTotal') is not None: ml, mv = '전세 끼고 입주까지 현금 · 기본 가정', eok(c['gapTotal'])
-    elif c.get('need') is not None and r.get('tag') != 'mk': ml, mv = '현금 매수 · 입주까지 현금 · 기본 가정', eok(c['need'])
+    if c.get('gapOk') and c.get('gapTotal') is not None: ml, mv = f"{LBL['gap']} {LBL['cashToMoveIn']} · 기본 가정", eok(c['gapTotal'])
+    elif c.get('need') is not None and r.get('tag') != 'mk': ml, mv = f"현금 매수 · {LBL['cashToMoveIn']} · 기본 가정", eok(c['need'])
     else: ml, mv = '', ''
     og = zmap.og_card(rid, short(r['n']), f"{r['g']} {r.get('j') or ''} · {kind}".strip(), c.get('stage') or r.get('sr') or '단계 확인 중', ml, mv, None, r['g'], UPD, text_only=True) if OG_OK else (f'/og/z/{rid}.png' if os.path.exists(os.path.join(ROOT, 'public/og/z', rid + '.png')) else None)
     if not og or base not in h: return
     h = h.replace(base, f'<meta property="og:image" content="{SITE}{og}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:image" content="{SITE}{og}">', 1)
     open(f, 'w', encoding='utf-8').write(h)
+def hand_fix(r):
+    f = os.path.join(ZD, r['id'] + '.html'); h0 = open(f, encoding='utf-8').read()
+    h1 = term_fix(hand_live(r, h0) if r['id'] in _LIVE else h0)
+    if h1 != h0: open(f, 'w', encoding='utf-8').write(h1)
 made = kept = 0
 for r in R:
-    if is_hand(r['id']): kept += 1; hand_og(r); continue
+    if is_hand(r['id']): kept += 1; hand_og(r); hand_fix(r); continue
     open(os.path.join(ZD, r['id'] + '.html'), 'w', encoding='utf-8').write(page(r)); made += 1
 _RID = {r['id'] for r in R}
 for r in D['recs']:   # 준공·해산 등으로 목록에서 빠졌지만 손으로 쓴 페이지가 남은 구역도 공유 카드는 붙인다
-    if r['id'] not in _RID and r.get('n') and os.path.exists(os.path.join(ZD, r['id'] + '.html')) and os.path.getsize(os.path.join(ZD, r['id'] + '.html')): hand_og(r)
+    if r['id'] not in _RID and r.get('n') and os.path.exists(os.path.join(ZD, r['id'] + '.html')) and os.path.getsize(os.path.join(ZD, r['id'] + '.html')): hand_og(r); hand_fix(r)
 # 목록 페이지: 손으로 쓴 정리 페이지를 위에, 나머지는 구별로
 hand = [r for r in D['recs'] if is_hand(r['id'])]
 byg = collections.defaultdict(list)
@@ -288,7 +328,7 @@ def guPage(g, L):
         if v.get('gapOk') and v.get('gapNow') is not None: return (0, v['gapNow'], short(x['n']))
         if v.get('cashOk') and v.get('need') is not None: return (1, v['need'], short(x['n']))
         return (2, -x.get('s', 0), short(x['n']))
-    def tot(x):   # '전세 끼고 지금' 칸과 같은 방식의 입주까지 총액(앱 5.8억 = 갭 총액) · 전세 못 끼면 현금 매수 총액임을 표시
+    def tot(x):   # '전세 끼고 지금' 칸과 같은 방식의 입주까지 현금(앱 5.8억 = 갭 총액) · 전세 못 끼면 현금 매수 총액임을 표시
         v = c(x)
         if v.get('gapOk') and v.get('gapTotal') is not None: return eok(v['gapTotal'])
         if v.get('cashOk') and v.get('need') is not None: return f'{eok(v["need"])}<br><small>현금 매수 시</small>'
@@ -334,6 +374,13 @@ for fn, pats in (('years.html', [(r'(<p class="eyebrow">데이터 기준 )[\d.]+
     h0 = open(fp, encoding='utf-8').read(); h1 = h0
     for a, b in pats: h1 = re.sub(a, b, h1)
     if h1 != h0: open(fp, 'w', encoding='utf-8').write(h1); print('date synced', fn, UPD)
+
+# 손으로 쓴 정적 글(소개·방법·가이드·리포트·피드 목록): 용어 정식화 + 푸터 데이터 기준 날짜(term_fix) — 글 본문 숫자는 그대로
+import glob
+for fp in sorted(set(glob.glob(os.path.join(ROOT, 'public', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'guide', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'report', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'feed', '*.html')))):
+    if os.path.basename(fp) == 'index.html' and os.path.dirname(fp) == os.path.join(ROOT, 'public'): continue   # 앱 첫 화면은 build.py
+    h0 = open(fp, encoding='utf-8').read(); h1 = term_fix(h0)
+    if h1 != h0: open(fp, 'w', encoding='utf-8').write(h1); print('terms/date synced', os.path.relpath(fp, ROOT))
 
 # /report·/years 구조화 데이터(JSON-LD): 다른 도구(report.py·feeds.py)가 이 페이지의 <head>를 틀로 베끼므로 <main> 바로 안에 한 덩이만 넣고 매번 바꿔 끼운다
 def _ld_put(fp, obj):

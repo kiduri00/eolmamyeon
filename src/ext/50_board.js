@@ -33,7 +33,7 @@ const BD = (() => {
       ? `<div class="txl"><table class="tx txr"><thead><tr><th>#</th><th>구역</th>${head}</tr></thead><tbody>${L.map((r, i) => `<tr><td class=txr-n>${i + 1}</td><td>${go(r.id)}<small>${esc(r.g)} · ${esc(stageName(r))}</small>${okC(r)}</td>${row(r)}</tr>`).join("")}</tbody></table></div>`
       : `<p class="mut">조건에 맞는 구역이 없어요.</p>`;
   }
-  const evT = (t) => t.replace(/^\[([^\]]*)\]\s*(.*)$/, (m, a, b) => (b ? `${a} · ${b}` : a));
+  const evT = (id, d, sec, t) => ZF.evText(byId[id], d, sec, t).txt;   // 구역 리포트 '정보몽땅 최근 기록'과 같은 글(동의율 89.85% 등)
   let NT = null, C = "";
   const CL = { ok: "인가·고시", chg: "변경 인가", con: "시공자", req: "신청·공람", etc: "기타" };
   function notice() {
@@ -41,7 +41,7 @@ const BD = (() => {
     if (!out || !NT) return;
     const L = NT.items.filter((x) => byId[x[1]] && (C === "fav" ? isFav(x[1]) : C ? x[4] === C : x[4] !== "etc"));
     out.innerHTML = L.length
-      ? `<ul class="ntl">${L.slice(0, 60).map(([d, id, sec, t, c]) => `<li class="c-${c}"><span class="nt-d mono">${d.replaceAll("-", ".")}</span><span class="nt-b">${go(id)}<small>${esc(byId[id].g)}</small><span class="nt-t"><em class="nt-c">${CL[c]}</em><b>${esc(sec)}</b> ${esc(evT(t))}</span></span></li>`).join("")}</ul><p class="t-note">출처: 서울시 정비사업 정보몽땅 사업장별 추진경과 · ${esc(NT.asOf.replaceAll("-", "."))} 기준 · '전체'는 법인등기·용역 계약 변경 같은 기타 기록을 빼고 보여 줘요. '변경 인가'는 이미 받은 인가의 내용을 바꾼 것이라 단계가 올라간 게 아니에요.</p>`
+      ? `<ul class="ntl">${L.slice(0, 60).map(([d, id, sec, t, c]) => `<li class="c-${c}"><span class="nt-d mono">${d.replaceAll("-", ".")}</span><span class="nt-b">${go(id)}<small>${esc(byId[id].g)}</small><span class="nt-t"><em class="nt-c">${CL[c]}</em><b>${esc(sec)}</b> ${esc(evT(id, d, sec, t))}</span></span></li>`).join("")}</ul><p class="t-note">출처: 서울시 정비사업 정보몽땅 사업장별 추진경과 · ${esc(NT.asOf.replaceAll("-", "."))} 기준 · '전체'는 법인등기·용역 계약 변경 같은 기타 기록을 빼고 보여 줘요. '변경 인가'는 이미 받은 인가의 내용을 바꾼 것이라 단계가 올라간 게 아니에요.</p>`
       : `<p class="mut">${C === "fav" ? "핀 꽂은 구역의 최근 90일 기록이 없어요. 구역을 열고 핀을 꽂아 보세요." : "최근 90일 기록이 없어요."}</p>`;
   }
   function init() {

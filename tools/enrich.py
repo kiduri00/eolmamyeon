@@ -264,7 +264,7 @@ for r in R:
 # 시장·상가 정비(tag 'mk')는 빌라 시세가 상가 지분 값을 대신하지 못해 매수가를 내지 않는다(계산 전).
 _TXD = json.load(open(os.path.join(ROOT, 'public/data/tx.json'), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, 'public/data/tx.json')) else {}
 def _entry_span(rid, t):
-    """tx.py 매수가 표본(t.no건 · 가운데 값 t.med)을 public/data/tx.json 거래 목록에서 다시 찾아 (첫 계약일, 끝 계약일) 'YY.MM' 을 돌려준다.
+    """tx.py 매수가 표본(t.no건 · 가운데 값 t.med)을 public/data/tx.json 거래 목록에서 다시 찾아 (첫 계약일, 끝 계약일 'YY.MM', 대지 3.3㎡당 가운데 값(만원)|None, 대지 면적 있는 건수)를 돌려준다.
     tx.py와 같은 기준(빌라·2015년 이전 준공·전용 20~85㎡, 6건 이상이면 ㎡당 가격 사분위 1.5배 밖 제외) · 건수와 가운데 값이 모두 맞을 때만."""
     import statistics as st
     rows = (_TXD.get(rid) or {}).get('s') or []
@@ -276,7 +276,10 @@ def _entry_span(rid, t):
             old = [x for x in old if lo <= x[5] / x[3] <= hi]
         if old and len(old) == t.get('no') and abs(st.median([x[5] for x in old]) - t['med']) < 1:
             f = lambda d: d[2:4] + '.' + d[4:6]
-            return f(min(x[0] for x in old)), f(max(x[0] for x in old))
+            # 같은 표본의 대지 3.3㎡당 가운데 값(대지 면적 있는 거래만, 절반 이상일 때) — 화면 큰 숫자·/z/ 큰 숫자가 이 값 하나를 쓴다(ZF.headline · zsample.headline)
+            L = [x for x in old if x[4] and x[4] > 0]
+            u = int(st.median([x[5] / x[4] * 3.3058 for x in L]) + 0.5) if len(L) >= max(1, -(-len(old) // 2)) else None
+            return f(min(x[0] for x in old)), f(max(x[0] for x in old)), u, len(L)
     return None
 def apt_dom(t):
     return bool(t) and ((t.get('hd') or {}).get('b') == 'a' or (t.get('na', 0) >= 3 and t.get('na', 0) >= 3 * t.get('nv', 0)))
@@ -312,7 +315,9 @@ for r in R:
                        **({'prev': {k: en[k] for k in ('n', 'med', 'radius') if k in en}} if en else {})}
         stat['entry_zone' if en else 'entry_zone_new'] += 1
         fr = _entry_span(r['id'], t)   # 매수가 표본 기간(첫·끝 계약일) — 화면·/z/·API가 같은 표본을 '○건 가운데 값(기간)'으로 말한다
-        if fr: mk['entry']['f'], mk['entry']['t'] = fr
+        if fr:
+            mk['entry']['f'], mk['entry']['t'] = fr[0], fr[1]
+            if fr[2]: mk['entry']['u'], mk['entry']['nl'] = fr[2], fr[3]
         if t['no'] < 5 or apt_dom(t): mk['entry']['lc'] = 1; r['lc'] = 1; stat['entry_lc'] += 1
         continue
     if en and en.get('src') == 'villa' and t and villa_kind and apt_dom(t):   # 아파트 위주 구역인데 주변 빌라 값으로 계산

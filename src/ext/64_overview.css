@@ -14,6 +14,8 @@
 .ov-k div:first-child b{color:var(--brand)}
 .ov-ch{margin:12px -4px 0}
 .ov-ch svg.txc{min-width:0}
+.ov-lh{margin:12px 0 0;font-size:12px;font-weight:600;color:var(--text-3)}
+.ov-lh+.ov-l{margin-top:4px}
 .ov-l{list-style:none;margin:12px 0 0;padding:0;border-top:1px solid var(--divider)}
 .ov-l li{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--divider);font-size:14px}
 .ov-l li span:first-child{color:var(--text-3);font-variant-numeric:tabular-nums;font-size:13px}

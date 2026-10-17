@@ -2,7 +2,7 @@
   const ZX = (() => {
     const ymd = (d) => (d && d.length >= 8 ? `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6, 8)}` : "");
     const ymd2 = (d) => (d && d.length >= 8 ? `${d.slice(2, 4)}.${d.slice(4, 6)}.${d.slice(6, 8)}` : "");
-    const eok = (m) => (m == null || !isFinite(m) ? "–" : m >= 10000 ? (Math.round(m / 1000) / 10).toLocaleString("ko-KR") + "억" : Math.round(m).toLocaleString("ko-KR") + "만");
+    const eok = ZF.eok;   // 숫자 꼴은 ZF 하나(05_facts.js)
     const dv = (k) => (D.dv && D.dv[k]) || D.asOf;
     let TXD = null, TXP = null;
     const loadTx = () => TXP || (TXP = fetch(`data/tx.json?v=${dv("tx")}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((d) => (TXD = d && typeof d === "object" ? d : {})));
@@ -100,7 +100,8 @@
         ["사업", (q) => esc(SHAPE[shapeOf(q)])],
         ["단계", (q) => esc(stageName(q))],
         ["계획 세대", (q) => (q.sm?.units ? fmt(q.sm.units) : "–")],
-        ["3.3㎡당 실거래(기준)", (q) => { const h = q.tx?.hd; return h && h.u ? `${eok(h.u)}<span class="dim" style="display:block;font-size:11px;font-weight:400;color:var(--text-3)">${HDB[h.b] || ""}${h.st ? " · 오래된 거래" : ""}</span>` : "–"; }],
+        // 이 구역 리포트 머리 큰 숫자와 같은 값(ZF.u33: 매수가 표본의 3.3㎡당 · 머리가 매수가인 곳은 구역 안 대표 거래 값)
+        ["3.3㎡당 실거래(기준)", (q) => { const h = ZF.u33(q); return h ? `${eok(h.v)}<span class="dim" style="display:block;font-size:11px;font-weight:400;color:var(--text-3)">${h.zone ? "구역 안 " : ""}${HDB[h.b] || ""}${h.st ? " · 오래된 거래" : ""}</span>` : "–"; }],
         [lab, (q) => { const n = needOf(q); return n == null ? "–" : `${e2(n)}억`; }, (q) => needOf(q)],
         ["10년 안 준공", (q) => (q.eta?.p10 != null ? prob(q.eta.p10) + "%" : "–"), (q) => (q.eta?.p10 != null ? -q.eta.p10 : null)],
       ];
@@ -312,19 +313,7 @@
 
     // ---------- 정보몽땅 최근 기록(다음 인가 선행 신호) ----------
     const SIG = [[/분양신청/, "관리처분인가가 가까워졌다는 신호(조합원 분양신청)"], [/총회개최/, "총회 개최"], [/인가신청|승인신청/, "다음 인가를 신청함"], [/업체선정/, "업체 선정"], [/공람|설명회/, "주민 공람·설명회"]];
-    // 정보몽땅 원문 '[(변경)인가신청]', '동의율 : 89.85' → '변경인가 신청', '동의율 89.85%'
-    // '(변경)'은 양식 이름이라, 그 단계 날짜가 이 기록보다 앞서 있을 때만 '변경'으로 읽는다
-    const EVK = { 조합설립인가: "조합설립", 사업시행인가: "사업시행", 관리처분인가: "관리처분", 정비구역지정: "구역지정", 조합설립추진위원회승인: "추진위", 사업시행자지정: "시행자지정", 준공인가: "준공" };
-    function evText(r, d, sec, t) {
-      const m = String(t || "").match(/^\[([^\]]*)\]\s*(.*)$/), k = EVK[sec], sd = k && r.dt && r.dt[k];
-      let a = m ? m[1] : "", b = m ? m[2] : String(t || "");
-      const chg = /\(변경\)/.test(a) && !!sd && sd < d;
-      a = a.replace(/\(변경\)\s*/, chg ? "변경" : "").replace(/(인가|승인)(신청|고시)/, "$1 $2").replace(/계약\(변경\)/, "계약 변경").replace(/\s*:\s*/, " ");
-      b = b.replace(/동의율\s*:\s*(\d+(?:\.\d+)?)\s*%?/, "동의율 $1%").replace(/동의율\s*:\s*(해당없음|[.\-]?)\s*$/, "").replace(/\(최초인가시\)/, " (최초 인가 때)")
-        .replace(/(\S*?)일자\s*:\s*/, (x, p) => (p.endsWith("일") ? p : p + "일") + " ").replace(/선정업체명\s*:\s*/, "").replace(/(\d{4})-(\d{2})-(\d{2})/g, "$1.$2.$3").replace(/\b(20\d\d)(\d\d)(\d\d)\b/g, "$1.$2.$3").replace(/\s*:\s*/g, " ").trim();
-      if (b && a && b.replace(/\s/g, "") === a.replace(/\s/g, "")) b = "";
-      return { txt: b ? (a ? `${a} · ${b}` : b) : a, chg };
-    }
+    const evText = ZF.evText;   // 정보몽땅 원문 정리는 ZF 하나(단계 소식 화면과 같은 글)
     function evHTML(r) {
       const ev = r.ev;
       if (!Array.isArray(ev) || !ev.length) return "";

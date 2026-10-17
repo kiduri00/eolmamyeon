@@ -139,7 +139,7 @@ const SIMPLE = (() => {
       <button type="button" class="s-search" id="sSearch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>구역·동·지번·역 검색</button>
       <div class="s-gauge">
         <div class="s-ghead"><h1 class="s-h1">내 돈으로 살 수 있는 <em>서울 재개발</em></h1>
-          <div class="s-mode" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">대출 끼고</button></div><button type="button" class="s-asm" id="sAsm" hidden aria-haspopup="dialog"></button></div>
+          <div class="s-mode" role="group" aria-label="사는 방식"><button type="button" data-f="gap">${LBL.gap}</button><button type="button" data-f="cash">${LBL.loan}</button></div><button type="button" class="s-asm" id="sAsm" hidden aria-haspopup="dialog"></button></div>
         <div class="s-gmain">
           <label for="sCash" class="s-cash"><small>내 현금</small><b id="sCashV">1억</b></label>
           <span class="s-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
@@ -445,21 +445,21 @@ const SIMPLE = (() => {
     let rowsH = "", tail = "";
     // 매수가 바로 밑에 표본 한 줄(어떤 거래 몇 건의 가운데 값인지)
     const en = (r.mk || {}).entry || {}, ps = x.priceSrc;
-    const src = est ? `같은 구 빌라 시세로 추정` : ps === "user" ? "직접 넣은 값" : ps === "complex" && en.n ? `${esc(en.name || "이 단지")} ${fmt(en.n)}건 가운데 값` : ps === "villa" && en.n ? `${en.scope ? esc(en.scope) : `주변 ${fmt(en.radius)}m 빌라`} ${fmt(en.n)}건 가운데 값` : "";
+    const src = ps === "user" && !est ? "직접 넣은 값" : esc(ZF.smpTxt(r, x));   // 리포트·/z/와 같은 표본 한 문장
     const srcL = src ? `<li class="s-wbase">${src}</li>` : "";
     if (gap) {
       const g = gapOf(r);
       if (g.na) rowsH = `<li class="s-wna">매수가 자료가 아직 없어요</li>`;
       else {
         rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + srcL + ln("−", `전세${g.userJ ? "" : ` <small>(${Math.round(g.jr)}%)</small>`}`, M(g.D)) + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, g.D, x.tax), "s-wsum");
-        if (g.total != null) tail = `입주까지 현금 ${eokS(g.total)} · 이주비·분담금 포함, 잔금대출 제외`;
-        else tail = "입주까지 현금은 계산 못 함: 입주 시점·신축 시세 자료 부족";
+        if (g.total != null) tail = `${LBL.cashToMoveIn} ${eokS(g.total)} · 이주비·분담금 포함, 잔금대출 제외`;
+        else tail = `${LBL.cashToMoveIn}은 계산 못 함: 입주 시점·신축 시세 자료 부족`;
       }
     } else if (x.price == null) rowsH = `<li class="s-wna">매수가 자료가 아직 없어요</li>`;
     else {
       rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + srcL + ln("−", "대출", M(x.loanCap)) + `<li class="s-wbase">${loanBasis(r, x, wS, M)}</li>` + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, x.loanCap, x.tax), "s-wsum");
-      if (x.ok && x.needTotal != null) tail = `입주까지 현금 ${eokS(x.needTotal)} · 분담금·이자 포함, 잔금대출 제외`;
-      else tail = "입주까지 현금은 계산 못 함: 입주 시점·신축 시세 자료 부족";
+      if (x.ok && x.needTotal != null) tail = `${LBL.cashToMoveIn} ${eokS(x.needTotal)} · 분담금·이자 포함, 잔금대출 제외`;
+      else tail = `${LBL.cashToMoveIn}은 계산 못 함: 입주 시점·신축 시세 자료 부족`;
     }
     whyShow(btn, `<div class="s-wh"><b id="sWhyT">왜 이 금액?</b><span>${esc(shortName(r.n))}</span><button type="button" data-x aria-label="닫기">×</button></div><ul>${rowsH}</ul><p>${tail ? `${tail} · ` : ""}공개 자료로 낸 추정치예요</p><button type="button" class="s-wgo" data-go="${r.id}">계산 근거 자세히 →</button>`);
   }
@@ -523,7 +523,7 @@ const SIMPLE = (() => {
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
     if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
-      ? L.slice(0, shown).map(({ r, n, early }) => `<li${TX && NOSP.get(r.id) ? ' class="s-nosp"' : ""}><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.nbp ? ' · <em class="s-tag nb">주변 시세 기준</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span>${spark(r.id)}</a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(shortName(r.n))} 필요한 돈 추정 ${eokS(gap || effBasis() !== "total" ? n.now : n.total)}${n.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · 입주까지 내 현금 ${eokS(n.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog" title="${n.total == null ? `${NA_L} · ${NA_WHY}` : "입주까지 현금: 분담금·이자 포함, 입주 잔금대출은 뺀 금액"}"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small${n.total == null ? ' class="s-na"' : ""}>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 현금 ${eokS(n.total)}` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(n.now)}`}</small></button></li>`).join("")
+      ? L.slice(0, shown).map(({ r, n, early }) => `<li${TX && NOSP.get(r.id) ? ' class="s-nosp"' : ""}><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.nbp ? ' · <em class="s-tag nb">주변 시세 기준</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span>${spark(r.id)}</a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(shortName(r.n))} 필요한 돈 추정 ${eokS(gap || effBasis() !== "total" ? n.now : n.total)}${n.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · 입주까지 내 현금 ${eokS(n.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog" title="${n.total == null ? `${NA_L} · ${NA_WHY}` : `${LBL.cashToMoveIn}: 분담금·이자 포함, 입주 잔금대출은 뺀 금액`}"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small${n.total == null ? ' class="s-na"' : ""}>${gap || effBasis() !== "total" ? (n.total != null ? `${LBL.cashToMoveIn} ${eokS(n.total)}` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(n.now)}`}</small></button></li>`).join("")
       : `<li class="s-empty">${kindEmpty()}</li>`;
     { const kx = $("sKindAll"); if (kx) kx.onclick = () => { const b = $$(".s-flt button", $("sListW")).find((x) => x.dataset.k === ""); if (b) b.click(); }; }
     { const gx = $("sGuAll"); if (gx) gx.onclick = () => { const x = $("sGuX"); if (x) x.click(); }; }

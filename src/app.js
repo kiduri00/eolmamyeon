@@ -6432,7 +6432,7 @@
   };
   const leadAt = () => (matchMedia("(max-width:640px)").matches ? -1 : 2);
   const modeSw = () =>
-    `<div class="ans-mode" role="group" aria-label="사는 방법"><button type="button" data-fundset="gap" aria-pressed="${P.fund === "gap"}">전세 끼고(갭)</button><button type="button" data-fundset="cash" aria-pressed="${P.fund === "cash"}">현금만</button></div>`;
+    `<div class="ans-mode" role="group" aria-label="사는 방법"><button type="button" data-fundset="gap" aria-pressed="${P.fund === "gap"}">${LBL.gap}</button><button type="button" data-fundset="cash" aria-pressed="${P.fund === "cash"}">${LBL.loan}</button></div>`;
   const gapLine = "전세를 끼면 지금 들어가는 돈은 줄지만, 이주 때 전세금을 돌려줘야 해서 입주까지 필요한 총액은 거의 같아요.";
   function gapTL(g, small) {
     const x = g.x;
@@ -6520,12 +6520,12 @@
     ].join(" · ");
     const tot = o.tot != null ? `<b class="zc-big">${f1(o.tot)}<i>억</i></b>` : `<b class="zc-big na">계산 전</b>`;
     const over = o.tot != null && o.tot > CASH + 1e-9 ? `<span class="zc-more">입주까지 내 현금보다 ${f1(o.tot - CASH)}억 더</span>` : "";
-    return `<article class="zc" data-card="${r.id}">\n    <div class="zc-1"><h3 title="${esc(r.n)}">${esc(shortName(r.n))}</h3><span class="zc-loc">${loc}</span>${stagePill(r)}</div>\n    <div class="zc-2"><span class="zc-k">③ 입주까지 총</span>${tot}<span class="zc-now">① 지금 <b>${o.now != null ? f1(o.now) + "억" : "–"}</b></span>${over}</div>\n    <div class="zc-3">${pub}${loss}${rent}${early ? early + " " : ""}${meta}</div>\n    <div class="zc-act">${favBtn(r, "sm ic")}${o.badge || ""}<button type="button" class="go" data-open="${r.id}">리포트<span class="sr-only">: ${esc(shortName(r.n))}</span> <span aria-hidden="true">→</span></button></div>\n  </article>`;
+    return `<article class="zc" data-card="${r.id}">\n    <div class="zc-1"><h3 title="${esc(r.n)}">${esc(shortName(r.n))}</h3><span class="zc-loc">${loc}</span>${stagePill(r)}</div>\n    <div class="zc-2"><span class="zc-k">③ ${LBL.cashToMoveIn}</span>${tot}<span class="zc-now">① 지금 <b>${o.now != null ? f1(o.now) + "억" : "–"}</b></span>${over}</div>\n    <div class="zc-3">${pub}${loss}${rent}${early ? early + " " : ""}${meta}</div>\n    <div class="zc-act">${favBtn(r, "sm ic")}${o.badge || ""}<button type="button" class="go" data-open="${r.id}">리포트<span class="sr-only">: ${esc(shortName(r.n))}</span> <span aria-hidden="true">→</span></button></div>\n  </article>`;
   }
   function ansHTML(o) {
     const tile = (n, k, v, sub, cls) =>
       `<li class="pt ${cls || ""}"><span class="pt-k"><i>${n}</i>${k}</span><b class="pt-v">${v || "–"}</b><small>${sub}</small></li>`;
-    return `<div class="ans pa${o.n ? "" : " zero"}">\n    <p class="pa-l">${o.stale ? '<span class="lowp">금액을 확인해 주세요 · 마지막 유효값 기준</span> ' : ""}${o.lab}</p>\n    <p class="pa-n"><b>${fmt(o.n)}</b><span>곳</span>${o.side ? `<span class="pa-side">${o.side}</span>` : ""}</p>\n    ${o.n ? `<ol class="ptl" aria-label="언제 얼마가 필요한지">${tile("1", "지금", o.t1, o.s1)}${tile("2", "이주 때", o.t2, o.s2, o.t2z ? "z" : "")}${tile("3", "입주까지 총액", o.t3, o.s3, "hi")}</ol>` : o.empty || ""}\n    <p class="pa-honest">${o.honest}</p>\n    <div class="pa-act">${o.n ? `<a class="btn primary pa-go" href="#results" data-jump="results">${fmt(o.n)}곳 보기<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>` : ""}${o.alt || ""}</div>\n  </div>`;
+    return `<div class="ans pa${o.n ? "" : " zero"}">\n    <p class="pa-l">${o.stale ? '<span class="lowp">금액을 확인해 주세요 · 마지막 유효값 기준</span> ' : ""}${o.lab}</p>\n    <p class="pa-n"><b>${fmt(o.n)}</b><span>곳</span>${o.side ? `<span class="pa-side">${o.side}</span>` : ""}</p>\n    ${o.n ? `<ol class="ptl" aria-label="언제 얼마가 필요한지">${tile("1", "지금", o.t1, o.s1)}${tile("2", "이주 때", o.t2, o.s2, o.t2z ? "z" : "")}${tile("3", LBL.cashToMoveIn, o.t3, o.s3, "hi")}</ol>` : o.empty || ""}\n    <p class="pa-honest">${o.honest}</p>\n    <div class="pa-act">${o.n ? `<a class="btn primary pa-go" href="#results" data-jump="results">${fmt(o.n)}곳 보기<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>` : ""}${o.alt || ""}</div>\n  </div>`;
   }
   function setMore(html, sub) {
     const b = $("plMoreBody");
@@ -6570,7 +6570,7 @@
           })(),
           t3: rng(withTot.map((g) => g.total)),
           s3: cheap ? `가장 적은 곳 ${esc(shortName(cheap.r.n))} ${f1(cheap.total)}억` : "입주까지 계산된 곳 없음",
-          honest: `전세를 끼면 지금 드는 돈은 줄지만, 이주 때 전세금을 돌려줘야 해서 입주까지 총액은 현금으로 살 때와 비슷해요.${withTot.length < ok.length ? ` ${fmt(ok.length - withTot.length)}곳은 입주 시점·신축 시세 자료가 부족해 ③을 계산하지 않았어요.` : ""}`,
+          honest: `전세를 끼면 지금 드는 돈은 줄지만, 이주 때 전세금을 돌려줘야 해서 ${LBL.cashToMoveIn}은 현금으로 살 때와 비슷해요.${withTot.length < ok.length ? ` ${fmt(ok.length - withTot.length)}곳은 입주 시점·신축 시세 자료가 부족해 ③을 계산하지 않았어요.` : ""}`,
           empty: `<div class="pa-empty"><p>전세 끼고 ${e2(CASH)}억으로 지금 살 수 있는 곳이 아직 없어요.${nextLv ? ` ${nextLv[0]}억이면 ${fmt(nextLv[1])}곳이에요.` : ""}</p></div>`,
           alt:
             !ok.length && nextLv
@@ -6709,7 +6709,7 @@
     if (fti) fti.innerHTML = `${e2(g.x.origTax + g.x.midInt + g.intM)}억<small>원시취득세 ${won(g.x.origTax)} · 중도금 이자 ${won(g.x.midInt)} · 이주비 대출 이자 ${won(g.intM)} (전세 끼고 산 경우)</small>`;
     const fl = p.querySelector("details.flow");
     if (fl)
-      fl.innerHTML = `<summary><b>필요 돈 계산식 (갭)</b></summary><p>① 지금 = 매수가 ${e2(g.x.price)} + 취득세 ${taxT(g.x.tax)} − 전세 ${e2(g.D)} = ${f1(g.now)}억 · ② 이주 = 전세 ${e2(g.D)} − 이주비 대출 ${e2(g.M)} = ${f1(g.reloc)}억 · ③ 입주까지 총 = 매수가·취득세 + 분담금 ${e2(g.x.contrib)} + 원시취득세·중도금 이자·이주비 이자 ${e2(g.x.origTax + g.x.midInt + g.intM)} − 잔금대출 ${e2(g.x.loanEnd)} = ${f1(g.total)}억 (0.1억 단위 반올림)</p>`;
+      fl.innerHTML = `<summary><b>필요 돈 계산식 (갭)</b></summary><p>① 지금 = 매수가 ${e2(g.x.price)} + 취득세 ${taxT(g.x.tax)} − 전세 ${e2(g.D)} = ${f1(g.now)}억 · ② 이주 = 전세 ${e2(g.D)} − 이주비 대출 ${e2(g.M)} = ${f1(g.reloc)}억 · ③ ${LBL.cashToMoveIn} = 매수가·취득세 + 분담금 ${e2(g.x.contrib)} + 원시취득세·중도금 이자·이주비 이자 ${e2(g.x.origTax + g.x.midInt + g.intM)} − 잔금대출 ${e2(g.x.loanEnd)} = ${f1(g.total)}억 (0.1억 단위 반올림)</p>`;
   }
   function gapPaneBind(r) {
     const i = $("gJ");
@@ -7157,7 +7157,7 @@
         ? `<table class="sm-t"><caption class="sr-only">${cap}</caption><thead><tr><th scope="col">구역</th><th scope="col">단계</th><th scope="col" class="n">① 지금</th><th scope="col" class="n">③ 입주까지</th><th scope="col" class="n">10년 준공</th><th scope="col">입주(추정)</th><th scope="col">가까운 역</th></tr></thead><tbody>${rows.map((x) => `<tr><th scope="row">${esc(shortName(x.r.n))}<small>${esc(x.r.g)}</small></th><td>${esc(x.stg)}</td><td class="n">${eok(x.now)}</td><td class="n"><b>${eok(x.tot)}</b></td><td class="n">${pc(x.p10)}</td><td>${yr(x.eta)}</td><td>${esc(x.stn)}</td></tr>`).join("")}</tbody></table>`
         : "";
     const nowLab = gap ? "전세 끼고 지금 드는 돈(매수가 − 전세금 + 취득세)" : "지금 드는 돈(매수가 + 취득세 − 매수 대출)";
-    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${e2(CASH)}억으로 ${gap ? "전세 끼고 지금 살 수 있는" : P.basis === "now" ? "지금 살 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>입주까지 총액이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>내 핀 ${fav.length}곳</h3>${tbl(fav, "내 핀")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 필요한 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
+    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${e2(CASH)}억으로 ${gap ? "전세 끼고 지금 살 수 있는" : P.basis === "now" ? "지금 살 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>${LBL.cashToMoveIn}이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>내 핀 ${fav.length}곳</h3>${tbl(fav, "내 핀")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 필요한 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
   }
   function sumOpen() {
     if (!isMember()) {
@@ -8120,7 +8120,7 @@
                 ? `<span class="mut">${esc(g.block)}</span>`
                 : g.na
                   ? '<span class="mut">계산 불가</span>'
-                  : `<b>${e2(g.now)}억</b><small>${g.x.ok ? `이주 때 +${e2(g.reloc)} · 입주까지 총 ${e2(g.total)}억` : "입주까지 계산 전"}</small>`;
+                  : `<b>${e2(g.now)}억</b><small>${g.x.ok ? `이주 때 +${e2(g.reloc)} · ${LBL.cashToMoveIn} ${e2(g.total)}억` : "입주까지 계산 전"}</small>`;
             })
           : ""
       }\n      ${row("매수가 기준", (o) => (o.x && o.x.price != null ? `${e2(o.x.price)}억<small>${isEst(o.r || o.x.r) ? "구 평균 시세로 추정" : o.x.priceSrc === "user" ? "직접 입력" : o.x.priceSrc === "complex" ? "단지 실거래 가운데 값" : "주변 빌라 실거래 가운데 값"}</small>` : `<span class="mut">${noPriceTxt(o.r)}</span>`))}\n      ${row("단계", (o) => esc(stageName(o.r)))}\n      ${row("10년 안 준공 가능성", (o) => (o.r.eta?.p10 != null ? `${prob(o.r.eta.p10)}%<small>추정</small>` : '<span class="mut">–</span>'), bp)}\n      ${row("가까운 역·도보", (o) => (o.s ? `${esc(o.s.n)}역 ${fmt(o.s.d)}m<small>도보 약 ${o.s.min}분 · 직선거리 기준</small>` : "–"), bw)}\n      ${row(
@@ -8840,21 +8840,21 @@
       .filter((g) => !g.r.lc && !g.block && !g.na && g.now != null && g.now <= cash0 + 1e-9);
     const tot = buy.filter((g) => g.x.ok);
     const gs = tot.filter((g) => g.tR != null).sort((a, b) => a.total - b.total);
-    // 머리말: 살 수 있는 곳 → ③(입주까지 총액) 계산되는 곳 → 이주 시점까지 나온 곳, 빠지는 단계를 숫자로 밝힘
+    // 머리말: 살 수 있는 곳 → ③(입주까지 현금) 계산되는 곳 → 이주 시점까지 나온 곳, 빠지는 단계를 숫자로 밝힘
     const sub =
       buy.length > gs.length
         ? `지금 전세 끼고 살 수 있는 ${fmt(buy.length)}곳 중 ③이 계산되는 ${tot.length > gs.length ? `${fmt(tot.length)}곳, 그중 이주 시점까지 나온 ` : ""}`
         : "";
     if (!gs.length) return `<p class="t-hint">지금 ${e2(cash0)}억으로 전세 끼고 살 수 있고 입주 시점까지 계산되는 곳이 없어요.</p>`;
     if (!isMember())
-      return `<div class="gsv"><h3>전세 끼고 지금 ${e2(cash0)}억으로 사면, 매달 ${fmt(Math.round(m * 1e4))}만 원으로 제때 모을 수 있을까?</h3>${lockCard({ kind: "table", title: `구역별 표 · ${fmt(gs.length)}곳`, line: "구역마다 지금 ①·이주 ②·입주까지 총 ③과 매달 필요한 돈을 표로 보여 줘요.", ctx: "save" })}</div>`;
+      return `<div class="gsv"><h3>전세 끼고 지금 ${e2(cash0)}억으로 사면, 매달 ${fmt(Math.round(m * 1e4))}만 원으로 제때 모을 수 있을까?</h3>${lockCard({ kind: "table", title: `구역별 표 · ${fmt(gs.length)}곳`, line: `구역마다 지금 ①·이주 ②·${LBL.cashToMoveIn} ③과 매달 필요한 돈을 표로 보여 줘요.`, ctx: "save" })}</div>`;
     const need = (g) => Math.max((g.now + g.reloc - cash0) / (12 * g.tR), (g.total - cash0) / (12 * g.tM), 0) * 1e4;
     const okN = gs.filter((g) => at(Math.round(12 * g.tR)) >= g.now + g.reloc - 1e-9 && at(Math.round(12 * g.tM)) >= g.total - 1e-9).length;
     const rows = gs
       .slice(0, 12)
       .map((g) => {
         const ok = at(Math.round(12 * g.tR)) >= g.now + g.reloc - 1e-9 && at(Math.round(12 * g.tM)) >= g.total - 1e-9;
-        return `<tr><td data-l="구역"><button type="button" class="linklike" data-open="${g.r.id}">${esc(shortName(g.r.n))}</button><small>${esc(g.r.g)}</small></td><td data-l="지금 ①">${f1(g.now)}억</td><td data-l="이주 ②">${g.reloc < 0.05 ? "추가 현금 없음" : `+${f1(g.reloc)}억`}<small>${yrTxt(g.tR)}</small></td><td data-l="입주까지 총 ③">${f1(g.total)}억<small>${yrTxt(g.tM)}</small></td><td data-l="월 필요">${fmt(Math.ceil(need(g) / 10) * 10)}만원</td><td data-l="매달 ${fmt(Math.round(m * 1e4))}만" class="${ok ? "ok" : "no"}">${ok ? "제때 가능" : "부족"}</td></tr>`;
+        return `<tr><td data-l="구역"><button type="button" class="linklike" data-open="${g.r.id}">${esc(shortName(g.r.n))}</button><small>${esc(g.r.g)}</small></td><td data-l="지금 ①">${f1(g.now)}억</td><td data-l="이주 ②">${g.reloc < 0.05 ? "추가 현금 없음" : `+${f1(g.reloc)}억`}<small>${yrTxt(g.tR)}</small></td><td data-l="${LBL.cashToMoveIn} ③">${f1(g.total)}억<small>${yrTxt(g.tM)}</small></td><td data-l="월 필요">${fmt(Math.ceil(need(g) / 10) * 10)}만원</td><td data-l="매달 ${fmt(Math.round(m * 1e4))}만" class="${ok ? "ok" : "no"}">${ok ? "제때 가능" : "부족"}</td></tr>`;
       })
       .join("");
     return `<div class="gsv"><h3>전세 끼고 지금 ${e2(cash0)}억으로 사면, 매달 ${fmt(Math.round(m * 1e4))}만 원으로 제때 모을 수 있을까?</h3>\n    <p class="sv-hook sm">${(() => {
@@ -8867,7 +8867,7 @@
       if (!okN)
         return `${sub}${fmt(gs.length)}곳 모두 월 ${mm}만 원으로는 이주·입주 시점까지 부족해요 · 월 <b>${fmt(r10(nd[0]))}만 원</b>이면 1곳${gs.length > 2 ? `, 월 <b>${fmt(r10(k1))}만 원</b>이면 ${fmt(n1)}곳` : ""}`;
       return `${sub ? sub + `${fmt(gs.length)}곳 가운데 ` : ""}월 ${mm}만 원이면 <b>${fmt(okN)}곳</b>은 이주·입주 시점까지 모을 수 있어요 · 나머지 ${fmt(gs.length - okN)}곳은 더 필요`;
-    })()}</p>\n    <div class="fv-tw"><table class="sv-t gsv-t cardt"><caption class="sr-only">구역별 필요 금액과 시점</caption><thead><tr><th scope="col">구역</th><th scope="col">지금 ①</th><th scope="col">이주 ②</th><th scope="col">입주까지 총 ③</th><th scope="col">월 필요</th><th scope="col">매달 ${fmt(Math.round(m * 1e4))}만</th></tr></thead><tbody>${rows}</tbody></table></div>\n    <p class="t-note">월 필요 = 지금 현금으로 모자란 몫을 이주·입주 예상 시점까지 나눈 값(수익 0%) · 이주 = 예상 입주 − 착공→준공 가운데 값 ${CJ().toFixed(1)}년 · 시세·분담금이 지금 그대로라는 가정 · 투자 권유 아님</p></div>`;
+    })()}</p>\n    <div class="fv-tw"><table class="sv-t gsv-t cardt"><caption class="sr-only">구역별 필요 금액과 시점</caption><thead><tr><th scope="col">구역</th><th scope="col">지금 ①</th><th scope="col">이주 ②</th><th scope="col">${LBL.cashToMoveIn} ③</th><th scope="col">월 필요</th><th scope="col">매달 ${fmt(Math.round(m * 1e4))}만</th></tr></thead><tbody>${rows}</tbody></table></div>\n    <p class="t-note">월 필요 = 지금 현금으로 모자란 몫을 이주·입주 예상 시점까지 나눈 값(수익 0%) · 이주 = 예상 입주 − 착공→준공 가운데 값 ${CJ().toFixed(1)}년 · 시세·분담금이 지금 그대로라는 가정 · 투자 권유 아님</p></div>`;
   }
   function initSave() {
     if (!$("svOut")) return;
