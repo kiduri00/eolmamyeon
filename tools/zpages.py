@@ -12,6 +12,8 @@ ZD = os.path.join(ROOT, 'public/z'); SITE = 'https://jaegaebal.alwaysquestions.k
 esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 UPD = (D.get('upd') or datetime.date.today().isoformat()).replace('-', '.')
 TXD = (D.get('txAsOf') or {}).get('sale', '')
+TXX = J('public/data/tx.json', {}) or {}   # 구역별 실거래 상세: x.hd = 화면 머리글과 같은 기준(tools/tx.py)
+HDB = {'i': ('입주권 전용 3.3㎡당', '아파트 입주권'), 'a': ('아파트 전용 3.3㎡당', '아파트 매매'), 'v': ('대지 3.3㎡당', '빌라·단독 매매')}
 def short(n):
     n = re.sub(r'^\s*(\(가칭\)|\[임시\]|\(임시\))\s*', '', n)
     n = re.sub(r'\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?(사업)?\s*(조합|추진위원회|조합설립추진위원회|주민대표회의)?\s*$', '', n).strip()
@@ -76,7 +78,7 @@ def page(r):
     ld = json.dumps({"@context": "https://schema.org", "@type": "Article", "headline": f"{nm} {kind} 진행 단계와 입주까지 필요한 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
                      "mainEntityOfPage": url, "author": {"@type": "Person", "name": "얼마면 재개발 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "얼마면 재개발", "url": SITE}}, ensure_ascii=False)
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld)]
-    o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or "")} · {esc(kind)} · 데이터 기준 {UPD}</p>')
+    o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or r.get("dg") or "")} · {esc(kind)} · 데이터 기준 {UPD}</p>')
     o.append(f'<h1>{esc(nm)} {esc(kind)} 진행 단계와 입주까지 필요한 현금</h1>')
     cur = None
     for k, lab in reversed(DTK):
@@ -104,14 +106,19 @@ def page(r):
     # 실거래
     if t.get('n') or t.get('jn'):
         rows = []
-        if t.get('pp'): rows.append(('대지 3.3㎡당', man(t['pp']), f"빌라·단독 매매 {t.get('nv', t.get('n', 0))}건 · 2024년~"))
+        hd = ((TXX.get(rid) or {}).get('x') or {}).get('hd')
+        if hd:   # 화면 머리글과 같은 기준·기간·건수
+            lab, what = HDB[hd['b']]; f, to = hd['from'], hd['to']
+            per = f"가장 최근 1건({to[:4]}.{to[4:6]})" if hd['w'] == 0 else f"최근 {hd['w']}개월 {hd['n']}건({f[2:4]}.{f[4:6]}~{to[2:4]}.{to[4:6]})"
+            rows.append((lab, man(hd['u']), f"{what} · {per} · 전용 {hd['pa']:g}㎡ 기준 {man(hd['p'])}" + (f" · 시세와 크게 다른 {hd['xo']}건 제외" if hd['xo'] else '')))
+        elif t.get('pp'): rows.append(('대지 3.3㎡당', man(t['pp']), f"빌라·단독 매매 {t.get('nv', t.get('n', 0))}건 · 2024년~"))
         if t.get('med'): rows.append(('빌라 매매', man(t['med']), f"2015년 이전 준공 · 최근 {t.get('nwin', 18)}개월 {t.get('no', 0)}건 · 전용 {t.get('ar', '–')}㎡"))
         if t.get('im'): rows.append(('입주권 매매', man(t['im']), f"아파트 입주권 · 최근 {t.get('iw', 12)}개월 {t.get('in', 0)}건"))
         if t.get('jm'): rows.append(('빌라 전세', man(t['jm']), f"전세 {t.get('jn', 0)}건 · 임대 {t.get('ja', '–')}㎡"))
         if t.get('n12') is not None: rows.append(('12개월 거래', f"{t['n12']}건", '빌라·단독·아파트 · 계약일 기준'))
         if t.get('yoy') is not None: rows.append(('1년 변화', f"{'+' if t['yoy'] > 0 else ''}{t['yoy']}%", f"표본 {t['yon'][0]}/{t['yon'][1]}건 · 한 건물 쏠림 제외"))
         if rows:
-            o.append(f'<h2>구역 안 실거래 <small class="meta">국토교통부·서울시 실거래 · {TXD[:4]}.{TXD[4:6]}.{TXD[6:]}까지</small></h2><table class="ov"><tbody>' + ''.join(f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">가운데 값 · {s}</small></td></tr>' if a in ('대지 3.3㎡당', '빌라 매매', '입주권 매매', '빌라 전세') else f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">{s}</small></td></tr>' for a, b, s in rows) + '</tbody></table>')
+            o.append(f'<h2>구역 안 실거래 <small class="meta">국토교통부·서울시 실거래 · {TXD[:4]}.{TXD[4:6]}.{TXD[6:]}까지</small></h2><table class="ov"><tbody>' + ''.join(f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">가운데 값 · {s}</small></td></tr>' if a in ('대지 3.3㎡당', '입주권 전용 3.3㎡당', '아파트 전용 3.3㎡당', '빌라 매매', '입주권 매매', '빌라 전세') else f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">{s}</small></td></tr>' for a, b, s in rows) + '</tbody></table>')
     if t.get('old') and r.get('s', 0) < 7:
         x = t['old']
         o.append(f'<h2>노후도 <small class="meta">경계 안 건축물 {x["n"]:,}동 · 사용승인연도 확인 {x["k"]:,}동 · 서울도시공간포털 건물 레이어</small></h2><p>노후·불량 건축물 비율 <b>{x["pol"]}%</b>(철근콘크리트 30년·그 밖 20년 기준), 30년 넘은 건물 {x["p30"]}%, 평균 {x["avg"]}년이에요. 서울 재개발 구역지정 요건(노후도 60% 이상)과 비교해 보세요.</p>')

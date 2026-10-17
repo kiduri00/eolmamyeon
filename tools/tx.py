@@ -101,6 +101,7 @@ for fn in A.rent:
     kse = '지번구분코드' if '지번구분코드' in ix else '지번구분'
     for x in rd:
         try:
+            if x[ix['법정동명']]: dongName.setdefault(x[ix['자치구코드']] + x[ix['법정동코드']], (x[ix['자치구명']], x[ix['법정동명']]))   # 매매가 없는 법정동 이름도(코드→이름)
             if x[ix['전월세구분']] != '전세' or x[ix['건물용도']] != '연립다세대': continue
             dep = int(float(x[ix['보증금만원']] if '보증금만원' in ix else x[ix['보증금']]))
             area = float((x[ix['임대면적㎡']] if '임대면적㎡' in ix else x[ix['임대면적']]) or 0)
@@ -145,6 +146,47 @@ def parse_j(r, dc=DC):
 GEO = (json.load(open(os.path.join(ROOT, 'public/data/geo.json'))) if os.path.exists(os.path.join(ROOT, 'public/data/geo.json')) else {}).get('z', {})
 for k in list(ALLB): ALLB[k] = [list(t) for t in dict.fromkeys(tuple(x) for x in ALLB[k])]
 ZCODE = {}   # 구역 → 법정동 코드(동 단위 참고 시세용)
+
+# ---- 화면 실거래 머리글 하나의 기준(hd): 헤드라인·칩·차트·최근 목록이 모두 이 값만 쓴다 ----
+# 기간은 오늘이 아니라 원자료의 가장 최근 계약일(last_sale)에서 거꾸로 센다
+def _back(d, months):
+    y, m = int(d[:4]), int(d[4:6]) - months
+    while m <= 0: y -= 1; m += 12
+    return f"{y:04d}{m:02d}{d[6:8]}"
+HD12, HD24 = _back(last_sale, 12), _back(last_sale, 24)
+def _q_idx(d): return int(d[:4]) * 4 + (int(d[4:6]) - 1) // 3
+HDQ0 = _q_idx(last_sale) - 11   # 최근 12개 분기
+def _unit(x, b): return x[5] / x[4] * 3.3058 if b == 'v' else x[5] / x[3] * 3.3058
+def _okrow(x, b): return (x[1] in (0, 1) and x[4] > 0) if b == 'v' else (x[1] == (3 if b == 'i' else 2) and x[3] > 0)
+def _filt(rows, b):   # 같은 기준 가운데 값의 0.6~1.8배 밖(직거래·특수관계 의심) 제외 — 3건 이상일 때만
+    if len(rows) < 3: return rows, 0
+    m = med([_unit(x, b) for x in rows]); k = [x for x in rows if .6 * m <= _unit(x, b) <= 1.8 * m]
+    return k, len(rows) - len(k)
+def headline(s, r):
+    in24 = [x for x in s if x[0] >= HD24]
+    n_i = sum(1 for x in in24 if x[1] == 3); n_a = sum(1 for x in in24 if x[1] == 2 and x[3] > 0); n_v = sum(1 for x in in24 if x[1] in (0, 1))
+    if r.get('s', 0) >= 8 and n_i: b = 'i'
+    elif n_a and ('재건축' in (r.get('k') or '') or not n_v): b = 'a'
+    else: b = 'v'
+    rows = [x for x in s if _okrow(x, b)]
+    if not rows:   # 빌라·단독 대지면적이 없는 경우 등: 있는 쪽으로
+        for b in ('a', 'i'):
+            rows = [x for x in s if _okrow(x, b)]
+            if rows: break
+    if not rows: return None
+    used, xo, w = _filt([x for x in rows if x[0] >= HD12], b) + (12,)
+    if len(used) < 3: used, xo, w = _filt([x for x in rows if x[0] >= HD24], b) + (24,)
+    if not used: used, xo, w = [max(rows, key=lambda x: x[0])], 0, 0
+    used = sorted(used, key=lambda x: x[0], reverse=True)
+    qq = collections.defaultdict(list)
+    for x in rows:
+        if _q_idx(x[0]) >= HDQ0: qq[q_of(x[0])].append(x)
+    q = []
+    for k in sorted(qq):
+        v, _ = _filt(qq[k], b)
+        if v: q.append([k, round(med([_unit(x, b) for x in v])), len(v)])
+    return {'b': b, 'u': round(med([_unit(x, b) for x in used])), 'w': w, 'n': len(used), 'xo': xo, 'from': used[-1][0], 'to': used[0][0],
+            'p': round(med([x[5] for x in used])), 'pa': round(med([x[3] for x in used]), 1), 'q': q, 'r': [x[:7] for x in used[:5]]}
 
 OUT = {}; DET = {}
 for r in R:
@@ -245,6 +287,8 @@ for r in R:
     if rid in parstat: t['pc'] = parstat[rid]
     if t: OUT[rid] = t
     xt = {k: t[k] for k in ('q', 'qa', 'qi', 'age', 'agn', 'pc') if t.get(k)}
+    hd = headline(s, r) if s else None
+    if hd: xt['hd'] = hd
     if s or j or xt:
         DET[rid] = {'s': [x[:7] for x in sorted(s, key=lambda x: x[0], reverse=True)[:40]], 'j': sorted(j, key=lambda x: x[0], reverse=True)[:20], 'x': xt}
 zr = [v.get('jr') or v.get('jr2') for v in OUT.values() if v.get('jr') or v.get('jr2')]
@@ -313,4 +357,6 @@ for rid, v in PAR.items():
     if not v['p']: continue
     rows = sorted([[p[0][5:10], jb(p[0]), round(p[1]), p[3], YR.get(p[0], 0)] for p in v['p']], key=lambda x: (x[0], x[1]))
     json.dump({'d': {c: (dongName.get(v['p'][0][0][:5] + c) or ('', ''))[1] for c in {x[0] for x in rows}}, 'p': rows}, open(os.path.join(PD, rid + '.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+_H = [v['x']['hd'] for v in DET.values() if v['x'].get('hd')]
+print('hd', len(_H), 'basis', dict(collections.Counter(h['b'] for h in _H)), 'w', dict(collections.Counter(h['w'] for h in _H)), 'xo rows', sum(h['xo'] for h in _H))
 print('tx recs', len(OUT), 'entry-able', sum(1 for v in OUT.values() if v.get('no', 0) >= 5), 'det', len(DET), 'dong', len(DONG), 'apt', len(APT), 'jrz', jrz)

@@ -207,6 +207,37 @@ for r in R:
                        'area_med': dg['area_med'], 'last': dg['last'][2:4] + '.' + dg['last'][4:6] + '.' + dg['last'][6:8], 'yr_cap': 2010, 'fill': 'dong'}
         stat['entry_dong'] += 1
     else: stat['entry_miss'] += 1
+# ---------- 4. 특수 사업 표시: 역세권 장기전세주택(lt) · 시장·상가 정비(mk) ----------
+for r in R:
+    r.pop('tag', None)
+    if '장기전세' in r['n']: r['tag'] = 'lt'; stat['tag_lt'] += 1
+    elif re.search(r'시장|상가', r['n']): r['tag'] = 'mk'; stat['tag_mk'] += 1
+# ---------- 5. 법정동이 비어 있는 구역(주소 없음·이름에 동 없음): 경계 안 필지 PNU 앞 10자리 → 법정동 이름(dg) ----------
+# api.py dong()과 같은 규칙으로 비어 있는지 본다
+DONG_RE = re.compile(r'^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)')
+def _dong(r):
+    for s in (r.get('j'), r.get('n')):
+        m = DONG_RE.match((s or '').strip())
+        if m and (s == r.get('j') or not m.group(1).endswith('로')): return m.group(1)
+    return ''
+C2D = {c: k.split('|')[1] for k, c in DC.items()}
+_withD = [(q['ll'], q['g'], _dong(q)) for q in R if q.get('ll') and _dong(q)]
+for r in R:
+    r.pop('dg', None)
+    if _dong(r): continue
+    # 이름 앞 2~3글자(+ '동')가 그 구의 법정동과 정확히 같으면(예: '상계주공3' → 상계동)
+    nm = next((d for k in (3, 2) for d in (r['n'][:k] + '동', r['n'][:k]) if d.endswith('동') and f"{r['g']}|{d}" in DC), None)
+    if nm and '재건축' in r['k']: r['dg'] = nm; stat['dong_fix_name'] += 1; continue   # 단지 이름이 동 이름: 필지 매칭(경계 오매칭 가능)보다 우선
+    code = None
+    if PARC.get(r['id'], {}).get('p'): code = collections.Counter(p[0][:10] for p in PARC[r['id']]['p']).most_common(1)[0][0]
+    if not code or code not in C2D: code = parse_j(r)[0]
+    if code and code in C2D: r['dg'] = C2D[code]; stat['dong_fix_pnu'] += 1; continue
+    if r.get('ll'):   # 필지가 없으면 같은 구 가장 가까운(300m 안) 구역의 법정동
+        c = [(hav(r['ll'], ll), d) for ll, g, d in _withD if g == r['g']]
+        c = min(c, default=None)
+        if c and c[0] <= 300: r['dg'] = c[1]; stat['dong_fix_near'] += 1; continue
+    if nm: r['dg'] = nm; stat['dong_fix_name'] += 1; continue   # 필지·좌표로 못 찾으면 이름으로
+    stat['dong_missing'] += 1
 D['jrz'] = TX.get('jrz'); D['txAsOf'] = TX.get('asOf')
 D['rvj'] = TX.get('rvj')
 import datetime as _dt

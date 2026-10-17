@@ -30,7 +30,7 @@ def dong(r):
     for s in (r.get('j'), r.get('n')):
         m = DONG_RE.match((s or '').strip())
         if m and (s == r.get('j') or not m.group(1).endswith('로')): return m.group(1)
-    return ''
+    return r.get('dg') or ''   # 주소·이름에 동이 없으면 경계 안 필지 PNU로 찾은 법정동(enrich.py)
 def active(r): return not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n')
 R = [r for r in D['recs'] if active(r)]
 def summary(r):
@@ -39,7 +39,7 @@ def summary(r):
     th = (TH.get('z') or {}).get(r['id'])
     return {
         'id': r['id'], 'name': short(r['n']), 'fullName': r['n'], 'gu': r['g'], 'dong': dong(r), 'jibun': r.get('j') or None,
-        'kind': r.get('k'), 'stage': {'level': r.get('s'), 'label': c.get('stage') or r.get('sr'), 'raw': r.get('sr'), 'since': r.get('sd')},
+        'kind': r.get('k'), 'tag': {'lt': '역세권 장기전세주택', 'mk': '시장·상가 정비'}.get(r.get('tag')), 'stage': {'level': r.get('s'), 'label': c.get('stage') or r.get('sr'), 'raw': r.get('sr'), 'since': r.get('sd')},
         'lat': r['ll'][0] if r.get('ll') else None, 'lng': r['ll'][1] if r.get('ll') else None,
         'station': {'name': st.get('n'), 'walkMin': max(1, round(st['d'] * 1.3 / 67)) if st.get('d') else None, 'lines': r.get('ln') or []} if st else None,
         'need': {  # 단위: 억원 · 무주택·84㎡·기본 가정(사이트 계산기와 같은 엔진)
@@ -76,6 +76,9 @@ for r, z in zip(R, Z):
     det.update({
         'history': [{'stage': lab, 'date': dt[k]} for k, lab in KEYS if dt.get(k)],
         'events': [{'date': d, 'section': sec, 'text': t} for d, sec, t in (pm.get('ev') or []) if d <= today][:10],
+        # 실거래 머리글 기준(화면과 같음): basis i 입주권·a 아파트(전용 3.3㎡당)·v 빌라·단독(대지 3.3㎡당), unit 만원/3.3㎡, window 개월(0=가장 최근 1건)
+        'tradeHeadline': ({'basis': h['b'], 'unit': h['u'], 'window': h['w'], 'n': h['n'], 'outliers': h['xo'], 'from': h['from'], 'to': h['to'], 'price': h['p'], 'area': h['pa'], 'quarters': h['q']}
+                          if (h := (tx.get('x') or {}).get('hd')) else None),
         'sales': [{'date': x[0], 'type': ['연립다세대', '단독', '아파트', '입주권'][x[1]] if x[1] in (0, 1, 2, 3) else None, 'built': x[2] or None, 'area': x[3], 'land': x[4], 'price': x[5], 'floor': x[6]} for x in (tx.get('s') or [])[:20]],
         'rents': [{'date': x[0], 'built': x[1] or None, 'area': x[2], 'deposit': x[3]} for x in (tx.get('j') or [])[:10]],
         'landPermits': [{'date': d, 'jibun': jb, 'jimok': jm, 'use': u, 'result': res} for d, jb, jm, u, res in (((TH.get('z') or {}).get(r['id']) or {}).get('r') or [])],

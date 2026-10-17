@@ -309,3 +309,4 @@ html.simple #mapbox:has(.map-bar:not([hidden])) .lm-ctl{top:64px}
   html.simple #mapTop .main{align-items:start}
   html.simple #mapTop .main>.mapcard{position:sticky;top:calc(var(--hdr-h,60px) + 16px)}
 }
+.s-nm small em.s-tag{font-style:normal;color:var(--text-2);font-weight:600}
