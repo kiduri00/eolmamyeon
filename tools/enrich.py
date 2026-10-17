@@ -7,6 +7,11 @@ import json, os, re, math, collections
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p: json.load(open(os.path.join(ROOT, p), encoding='utf-8'))
 D = J('pipeline/data.base.json') if os.path.exists(os.path.join(ROOT, 'pipeline/data.base.json')) else J('src/data.json')
+# 원자료 오타 바로잡기(역 이름 등) — 모든 문자열에 적용
+FIX = {'답심리': '답십리'}
+_s = json.dumps(D, ensure_ascii=False)
+for a, b in FIX.items(): _s = _s.replace(a, b)
+D = json.loads(_s)
 from junk import is_junk   # 시험 등록(이름이 'test'·'테스트'·'임시'뿐) 제외 — 화면·정적 페이지·API 모두 이 파일을 쓴다
 _JUNK = {r['id'] for r in D['recs'] if is_junk(r)}
 D['recs'] = [r for r in D['recs'] if r['id'] not in _JUNK]; R = D['recs']
@@ -34,7 +39,7 @@ for r in R:
         for k, v in c['dt'].items():
             if k == '해산': continue
             if k not in dt: dt[k] = v; stat['dt_add'] += 1   # 기존 날짜(리포트 대조로 검증된 값)는 바꾸지 않고 빈 단계만 채운다
-    if c.get('ev'): pm['ev'] = c['ev'][:6]
+    if c.get('ev'): pm['ev'] = [[e[0], e[1], re.sub(r'(\d),(\d{1,2})\s*%', r'\1.\2%', e[2])] if len(e) >= 3 and isinstance(e[2], str) else e for e in c['ev'][:6]]   # '동의율 86,36%' 쉼표 소수점
     row = c.get('row') or {}
     ns = SR2S.get(row.get('sr'))
     KEYS = {2: '구역지정', 3: '추진위', 4: '조합설립', 5: '사업시행', 6: '관리처분', 8: '착공', 9: '준공'}
@@ -245,6 +250,30 @@ for r in R:
         stat['entry_dong'] += 1
         if apt_dom(t): mk['entry']['lc'] = 1; r['lc'] = 1; stat['entry_lc'] += 1
     else: stat['entry_miss'] += 1
+# ---------- 4. 매수가 신뢰도(lc) 보강: 표본 3건 미만 · 쓴 거래가 원자료 최근 계약일 기준 12개월보다 오래됨 ·
+#   구역 밖 시세로 정했는데 구역 안 거래는 1~2건이고 12개월보다 오래됨(구역 시세를 확인할 수 없음) ----------
+_as = (TX.get('asOf') or {}).get('sale') or _d0.date.today().strftime('%Y%m%d')
+_c12 = f"{int(_as[:4]) - 1:04d}{_as[4:]}"
+def _d8(v): return ('20' + v.replace('.', '')) if v and len(v) == 8 and v[2] == '.' else (v or '')
+for r in R:
+    en = (r.get('mk') or {}).get('entry')
+    if not en or not act(r) or r.get('src') == 'moa': continue
+    t = r.get('tx') or {}; hd = t.get('hd') or {}
+    inz = en.get('fill') in ('zone', 'zoneapt')
+    last = t.get('ol') if en.get('fill') == 'zone' and t.get('ol') else _d8(en.get('last'))
+    why = ('n' if (en.get('n') or 0) < 3 else 'old' if last and last < _c12 else
+           'thin' if not inz and hd and hd.get('n', 9) < 3 and (hd.get('to') or '') < _c12 else None)
+    if why: en['lc'] = 1; en['lcw'] = why; r['lc'] = 1; stat['entry_lc_' + why] += 1
+# ---------- 4b. 같은 이름의 끝난 옛 사업장(예: 노량진제1구역 이전고시 · 노량진1재정비촉진구역 진행 중): 이름은 그대로 두고 표시만 ----------
+#   화면 검색(src/app.js)이 s>=9 구역 이름 뒤에 '(완료)'를 붙이므로 데이터 이름은 바꾸지 않는다(바꾸면 '완료 (완료)'로 겹침). 서로 다른 사업이라 지우지 않는다.
+def _nk(n):
+    n = re.sub(r'\([^)]*\)', '', n); n = re.sub(r'제\s*(\d)', r'\1', n)
+    return re.sub(r'재정비촉진구역|재정비촉진지구|재정비촉진|정비구역|주택재개발|주택재건축|재개발|재건축|정비사업|사업|구역|조합|추진위원회|\s', '', n)
+_live = collections.defaultdict(list)
+for r in R:
+    if act(r): _live[(r['g'], _nk(r['n']))].append(r['id'])
+for r in R:
+    if r.get('s', 0) >= 9 and _live.get((r['g'], _nk(r['n']))): r['doneTwin'] = _live[(r['g'], _nk(r['n']))]; stat['done_twin'] += 1
 # ---------- 5. 법정동이 비어 있는 구역(주소 없음·이름에 동 없음): 경계 안 필지 PNU 앞 10자리 → 법정동 이름(dg) ----------
 # api.py dong()과 같은 규칙으로 비어 있는지 본다
 DONG_RE = re.compile(r'^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)')

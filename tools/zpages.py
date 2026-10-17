@@ -91,7 +91,7 @@ def page(r):
     k.append(('현재 단계', esc(stage), f'{sd} 인가·고시' if sd else '날짜 확인 중'))
     if c.get('gapOk') and c.get('gapTotal') is not None:   # 첫 화면 기본 모드(전세 끼고)와 같은 숫자
         k.append(('전세 끼고 입주까지', eok(c['gapTotal']), f'지금 {eok(c.get("gapNow"))} · 매수가 {eok(c.get("price"))}' + (f' · 현금으로 사면 {eok(c["need"])}' if c.get('cashOk') and c.get('need') is not None else '')))
-    elif c.get('need') is not None: k.append(('현금으로 사면 입주까지', eok(c['need']), f'기본 가정 · 매수가 {eok(c.get("price"))} 기준'))
+    elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk': k.append(('현금으로 사면 입주까지', eok(c['need']), f'기본 가정 · 매수가 {eok(c.get("price"))} 기준'))
     elif c.get('winT'): k.append(('입주권', esc(c['winT']), '기본 가정 판정'))
     if c.get('st'): k.append(('가까운 역', f"{esc(c['st']['n'])} 도보 {max(1, round(c['st']['d'] * 1.3 / 67))}분", ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])))
     if c.get('owners'): k.append(('토지등소유자', f"{int(c['owners']):,}명", f"구역 면적 {int((r.get('sm') or {}).get('area') or 0):,}㎡" if (r.get('sm') or {}).get('area') else ''))
@@ -176,7 +176,7 @@ for f in os.listdir(GD):
 def guPage(g, L):
     url = f'{SITE}/gu/{g}'
     c = lambda x: C.get(x['id']) or {}
-    ok = [x for x in L if c(x).get('gapOk') and c(x).get('gapNow') is not None]
+    ok = [x for x in L if c(x).get('gapOk') and c(x).get('gapNow') is not None and not x.get('lc') and x.get('tag') != 'mk']   # 참고값(lc)·시장 정비는 '가장 적은 돈' 예시에서 뺀다(사이트 목록과 같음)
     cheap = sorted(ok, key=lambda x: c(x)['gapNow'])[:3]
     st = collections.Counter(c(x).get('stage') or x.get('sr') or '' for x in L)
     title = f'{g} 재개발·재건축 {len(L)}곳 · 진행 단계와 필요한 돈 | 얼마면 재개발'

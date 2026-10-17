@@ -37,16 +37,20 @@ def summary(r):
     c = C.get(r['id']) or {}; t = r.get('tx') or {}; e = r.get('eta') or {}; st = r.get('st') or {}
     old = t.get('old') if r.get('s', 0) < 7 else None
     th = (TH.get('z') or {}).get(r['id'])
+    mkz = r.get('tag') == 'mk' or r.get('nx') == 'mk'
     return {
         'id': r['id'], 'name': short(r['n']), 'fullName': r['n'], 'gu': r['g'], 'dong': dong(r), 'jibun': r.get('j') or None,
         'kind': r.get('k'), 'tag': {'lt': '역세권 장기전세주택', 'mk': '시장·상가 정비'}.get(r.get('tag')), 'stage': {'level': r.get('s'), 'label': c.get('stage') or r.get('sr'), 'raw': r.get('sr'), 'since': r.get('sd')},
         'lat': r['ll'][0] if r.get('ll') else None, 'lng': r['ll'][1] if r.get('ll') else None,
         'station': {'name': st.get('n'), 'walkMin': max(1, round(st['d'] * 1.3 / 67)) if st.get('d') else None, 'lines': r.get('ln') or []} if st else None,
-        'need': {  # 단위: 억원 · 무주택·84㎡·기본 가정(사이트 계산기와 같은 엔진)
+        # 시장·상가 정비(tag mk)는 빌라 시세가 상가 지분 값을 대신하지 못해 사이트처럼 값을 내지 않는다(null)
+        'need': ({'gap': {'now': None, 'total': None, 'eligible': False, 'blocked': '시장·상가 정비사업이라 계산 전'}, 'cash': {'now': None, 'total': None, 'eligible': False}} if mkz else {  # 단위: 억원 · 무주택·84㎡·기본 가정(사이트 계산기와 같은 엔진)
             'gap': {'now': r2(c.get('gapNow')), 'total': r2(c.get('gapTotal')), 'eligible': bool(c.get('gapOk')), 'blocked': c.get('gapBlock')},
             'cash': {'now': r2(c.get('now')), 'total': r2(c.get('need')), 'eligible': bool(c.get('cashOk'))},
-        },
-        'price': r2(c.get('price')), 'jeonse': r2(c.get('jeonse')),
+        }),
+        'price': None if mkz else r2(c.get('price')), 'jeonse': None if mkz else r2(c.get('jeonse')),
+        # 매수가 표본이 3건 미만·12개월보다 오래됨·구역 안 거래가 1~2건뿐이라 참고값(사이트 '살 수 있는 곳' 목록에서 뺌)
+        'lowConfidence': bool(r.get('lc')),
         'membership': {'status': c.get('win'), 'label': c.get('winT')},   # 입주권: ok 가능 / warn 확인 필요 / chk 판단 보류 / no 없음
         'completion': {'p10': e.get('p10'), 'mid': e.get('eMid'), 'lo': e.get('eLo'), 'hi': e.get('eHi')} if e.get('p10') is not None else None,
         'rightsDate': (r.get('rdx') or {}).get('d'),

@@ -95,6 +95,7 @@ if len(SALE) < 100 or not last_sale: raise SystemExit('매매 자료가 비정�
 
 # ---- 전세 ----
 JEON = collections.defaultdict(list); bldJ = collections.defaultdict(list); last_rent = ''
+ALLJ = collections.defaultdict(list)   # PNU 본번 → 연립다세대 전세(경계 없는 구역의 대표지번 매칭용, 매매 ALLB와 같은 규칙)
 RV = collections.defaultdict(list)   # 구 → [(계약일, 보증금, 종전 보증금)] 갱신계약
 for fn in A.rent:
     rd, ix = opencsv(fn)
@@ -110,6 +111,7 @@ for fn in A.rent:
         p = pnu(x[ix['자치구코드']], x[ix['법정동코드']], x[ix[kse]], x[ix['본번']], x[ix['부번']])
         d = x[ix['계약일']]; last_rent = max(last_rent, d)
         for rid in pnu2rec.get(p, ()): JEON[rid].append([d, yr, round(area, 1), dep])
+        if p: ALLJ[p[:15]].append([d, yr, round(area, 1), dep])
         try:
             if '갱신' in x[ix.get('신규갱신여부', -1)] and x[ix['종전보증금']].strip():
                 RV[x[ix['자치구명']]].append((d, dep, int(float(x[ix['종전보증금']]))))
@@ -188,6 +190,23 @@ def headline(s, r):
             rows = [x for x in s if _okrow(x, b)]
             if rows: break
     if not rows: return None
+    xn = 0
+    if b == 'v':
+        # 빌라·단독 대지 3.3㎡당: 대지 10㎡ 미만(지분 잡음)·2016년 이후 신축(쪼개기·신축 프리미엄)은 구축 대지 시세가 아니라 뺀다(남는 거래가 3건 이상일 때)
+        rv = [x for x in rows if x[4] >= 10 and not (x[2] and x[2] >= 2016)]
+        if len(rv) >= 3: xn = sum(1 for x in rows if x[0] >= HD24) - sum(1 for x in rv if x[0] >= HD24); rows = rv
+        # 분기마다 가운데 값(3건 미만 분기는 최근 12개 분기 전체 가운데 값)의 0.6~1.8배 밖 제외 — 차트와 큰 숫자가 같은 행을 쓴다
+        win = [x for x in rows if _q_idx(x[0]) >= HDQ0]
+        if len(win) >= 3:
+            mall = med([_unit(x, b) for x in win]); byq = collections.defaultdict(list)
+            for x in win: byq[_q_idx(x[0])].append(x)
+            keep = set()
+            for L in byq.values():
+                m = med([_unit(x, b) for x in L]) if len(L) >= 3 else mall
+                keep |= {tuple(x) for x in L if .6 * m <= _unit(x, b) <= 1.8 * m}
+            dq = [x for x in win if tuple(x) not in keep]
+            rows = [x for x in rows if _q_idx(x[0]) < HDQ0 or tuple(x) in keep]
+        else: dq = []
     ref = [x for x in rows if x[0] >= HD24]   # 면적대 비교 기준(아파트·입주권)
     used, xo, w = _filt([x for x in rows if x[0] >= HD12], b, ref) + (12,)
     if len(used) < 3: used, xo, w = _filt([x for x in rows if x[0] >= HD24], b, ref) + (24,)
@@ -197,6 +216,7 @@ def headline(s, r):
             ok, _ = _filt(rows, b, rows)
             if ok: used = [max(ok, key=lambda x: x[0])]
     used = sorted(used, key=lambda x: x[0], reverse=True)
+    if b == 'v' and w: xo += sum(1 for x in dq if x[0] >= (HD12 if w == 12 else HD24))   # 분기 기준으로 뺀 거래도 '시세와 크게 다른' 건수에
     qq = collections.defaultdict(list)
     for x in rows:
         if _q_idx(x[0]) >= HDQ0: qq[q_of(x[0])].append(x)
@@ -209,6 +229,7 @@ def headline(s, r):
         if v: q.append([k, round(med([_unit(x, b) for x in v])), len(v)])
     h = {'b': b, 'u': round(med([_unit(x, b) for x in used])), 'w': w, 'n': len(used), 'xo': xo, 'from': used[-1][0], 'to': used[0][0],
          'p': round(med([x[5] for x in used])), 'pa': round(med([x[3] for x in used]), 1), 'q': q, 'r': [x[:7] for x in used[:5]]}
+    if xn: h['xn'] = xn   # 2016년 이후 신축·대지 10㎡ 미만이라 뺀 거래(최근 24개월)
     if w == 0 and used[0][0] < HD12: h['st'] = 1   # 오래된 거래 1건뿐(원자료 최근 계약일 기준 12개월보다 전)
     return h
 
@@ -222,6 +243,7 @@ for r in R:
     nobnd = not PAR.get(rid, {}).get('p') or not GEO.get(rid) or GEO[rid].get('e')
     if not s and nobnd and jp and ALLB.get(jp[:15]):   # 공식 경계·필지가 없으면 대표지번 본번으로
         s = ALLB[jp[:15]]; t['m'] = 'jibun'
+        if not j and ALLJ.get(jp[:15]): j = ALLJ[jp[:15]]   # 전세도 같은 본번(매매와 같은 범위)
     sv = [x for x in s if x[1] in (0, 1)]                 # 빌라·단독(예전 n 기준)
     sa = [x for x in s if x[1] == 2]                      # 아파트 매매(입주권 제외)
     recent = sorted({x[0] for x in s}, reverse=True)
@@ -311,8 +333,16 @@ for r in R:
         # hi = [건수, 날짜, 3.3㎡당 가격, 기준('l' 빌라 대지지분 · 'a' 아파트 전용)] — 둘 다 있으면 더 최근 것
         h = max([v for v in (hv, hb) if v], key=lambda v: (v[1], v[3] == 'l'), default=None)
         if h: t['hi'] = h
+    if old: t['ol'] = max(x[0] for x in old)   # 매수가 표본의 가장 최근 계약일(enrich.py 신뢰도 판정)
     if j:
-        t['jn'] = len(j); t['jm'] = med([x[3] for x in j]); t['ja'] = round(med([x[2] for x in j]), 1)
+        # 전세가율·전세 가운데 값은 매매 표본(2015년 이전 준공 구축 빌라)과 같은 연식대 전세만: 신축 전세가 섞이면 갭이 작게 보인다
+        jo = [x for x in j if x[1] and x[1] <= 2015]
+        if old and jo:
+            ym = med([x[2] for x in old]); jb = [x for x in jo if abs(x[1] - ym) <= 10]   # 매매 표본 가운데 준공연도 ±10년
+            if len(jb) >= 5: jo = jb
+        t['jt'] = len(j)   # 연식 상관없이 전체 전세 수
+        if jo:
+            t['jn'] = len(jo); t['jm'] = med([x[3] for x in jo]); t['ja'] = round(med([x[2] for x in jo]), 1); t['jy'] = [min(x[1] for x in jo), max(x[1] for x in jo)]
     if rid in PAR:
         rs = [bldRatio[p[0]] for p in PAR[rid]['p'] if p[0] in bldRatio and .15 < bldRatio[p[0]] < 1.1]
         if len(rs) >= 3: t['jr'] = round(med(rs), 3); t['jrn'] = len(rs)
