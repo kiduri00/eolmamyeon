@@ -279,3 +279,4 @@ html.simple .s-hero{gap:10px}
   .s-ghead{flex-wrap:wrap;gap:10px}
   .s-gauge .s-h1{white-space:normal;font-size:22px}
 }
+html.simple:not(.s-built) #report{visibility:hidden}

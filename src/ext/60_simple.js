@@ -36,7 +36,7 @@ const SIMPLE = (() => {
   }
   // ---------- 화면 만들기 ----------
   function build() {
-    document.documentElement.classList.add("simple");
+    document.documentElement.classList.add("simple", "s-built");
     try { hdrH = 0; } catch (e) {}   // 탭바를 숨겼으니 머리 높이를 다시 잰다
     const map = $("mapTop");
     const hero = document.createElement("div");
