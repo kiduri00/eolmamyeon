@@ -11,7 +11,7 @@
 """
 import json, os, re, math, datetime, collections, shutil
 import sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from zsample import smpTxt, trust   # /z/ 페이지와 같은 표본 문장·신뢰도
+from zsample import smpTxt, trust, isEst   # /z/ 페이지와 같은 표본 문장·신뢰도
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p, d=None: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else d
 D = J('pipeline/data.enriched.json') or J('src/data.json'); P = J('public/premium.json', {}); C = J('pipeline/calc.json', {})
@@ -55,7 +55,7 @@ def summary(r):
         'lowConfidence': bool(r.get('lc')),
         # price를 정한 표본(사이트 '계산 매수가 = 구역 안 빌라 N건 가운데 값(기간)'과 같은 묶음) · trades.n12(12개월 모든 거래)와 다른 묶음
         'priceSample': None if mkz or c.get('price') is None else {'n': ((r.get('mk') or {}).get('entry') or {}).get('n'), 'from': ((r.get('mk') or {}).get('entry') or {}).get('f'),
-                        'to': ((r.get('mk') or {}).get('entry') or {}).get('t'), 'lastTrade': ((r.get('mk') or {}).get('entry') or {}).get('last'), 'source': c.get('priceSrc'),
+                        'to': ((r.get('mk') or {}).get('entry') or {}).get('t'), 'lastTrade': ((r.get('mk') or {}).get('entry') or {}).get('last'), 'source': 'est' if isEst(r, c) else c.get('priceSrc'),
                         'text': smpTxt(r, c), 'confidence': trust(r, c)[0]},
         'membership': {'status': c.get('win'), 'label': c.get('winT')},   # 입주권: ok 가능 / warn 확인 필요 / chk 판단 보류 / no 없음
         'completion': {'p10': e.get('p10'), 'mid': e.get('eMid'), 'lo': e.get('eLo'), 'hi': e.get('eHi')} if e.get('p10') is not None else None,

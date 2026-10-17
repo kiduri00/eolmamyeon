@@ -194,7 +194,8 @@ const OVX = (() => {
   const manT = (v) => { const m = Math.round(v * 1e4), a = Math.floor(m / 1e4), b = m % 1e4; return a ? `${a}억${b ? ` ${b.toLocaleString("ko-KR")}만` : ""}` : `${b.toLocaleString("ko-KR")}만`; };
   function smpTxt(r, x) {
     const en = r.mk && r.mk.entry;
-    if (x && x.priceSrc === "est") return "같은 구 빌라 시세로 추정";
+    const est = (() => { try { return isEst(r); } catch (e) { return false; } })();
+    if (est || (x && x.priceSrc === "est")) return `같은 구(${r.g}) 빌라 시세 가운데 값으로 추정`;
     if (!en || !en.n) return "";
     const where = en.src === "complex" ? (en.fill === "zoneapt" ? "구역 안 아파트" : en.name ? en.name : "단지") : en.fill === "dong" ? "같은 동 빌라" : en.radius ? `주변 ${en.radius}m 빌라` : en.m === "jibun" ? "같은 본번 빌라" : "구역 안 빌라";
     const span = en.f ? `(${en.f}${en.t && en.t !== en.f ? "–" + en.t : ""})` : en.last ? `(최근 ${en.last.slice(0, 5)})` : "";
@@ -203,7 +204,8 @@ const OVX = (() => {
   function calcRow(r) {
     let x = null; try { x = investC(r); } catch (e) {}
     if (!x || x.price == null || !isFinite(x.price)) return "";
-    const smp = x.priceSrc === "user" ? "직접 입력" : smpTxt(r, x);
+    let est = false; try { est = isEst(r); } catch (e) {}
+    const smp = x.priceSrc === "user" && !est ? "직접 입력" : smpTxt(r, x);
     return `<div class="ov-calc"><span>계산 매수가</span><b>${manT(x.price)}</b><small>${smp ? `= ${esc(smp)}` : "입주 현금 계산 기준"}</small></div>`;
   }
   // '이 숫자 믿어도 될까': 표본 수·마지막 거래·신뢰도(표본 수·최근성·참고값(lc)·주변 시세(nbp))
@@ -213,18 +215,19 @@ const OVX = (() => {
     const H = (lv, cls, rows, msg) => `<div class="ov-c ov-trust ${cls}"><div class="ov-trh"><h3>이 숫자 믿어도 될까</h3><b class="ov-lv">${lv}</b></div>${rows.length ? `<dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}<p>${msg}</p></div>`;
     const n12 = t.n12 != null ? [["12개월 모든 거래", `${t.n12}건`]] : [];
     if (!x || x.price == null || !isFinite(x.price)) return H("계산 안 함", "na", n12, "입주 현금을 자동으로 계산할 매수가 표본이 없어요. 아는 매물가를 입주 현금 탭에 넣어 보세요.");
+    let est = false; try { est = isEst(r); } catch (e) {}
+    if (est) return H("낮음", "lo", n12, `구역 안 거래가 적어 같은 구(${esc(r.g)}) 빌라 시세로 추정한 값이에요 · 계약 전 매물 시세로 꼭 확인`);
     if (x.priceSrc === "user") return H("직접 입력", "hi", [], "내가 넣은 매수가로 계산했어요.");
     const n = en.n || 0, last = en.last || (en.t ? en.t : ""), lastY = last ? "20" + last.slice(0, 2) + (last.slice(3, 5) || "01") : "";
     const ma = lastY ? (TODAY.getFullYear() - +lastY.slice(0, 4)) * 12 + (TODAY.getMonth() + 1 - +lastY.slice(4, 6)) : null;
     const why = [];
-    if (x.priceSrc === "est") why.push("구역 안 거래가 없어 같은 구 시세로 추정");
     if (n && n < 3) why.push(`표본 ${n}건뿐`);
     if (ma != null && ma > 12) why.push("마지막 거래가 1년 넘음");
     if (r.lc && !why.length) why.push(r.lcw === "thin" ? "구역 안 거래로 확인 안 됨" : "표본이 적거나 구역 거래와 구성이 달라 참고값");
     const low = why.length > 0;
     if (!low) {
       if (r.nbp || en.radius || en.fill === "dong") why.push("구역 밖 주변 시세 기준");
-      if (n < 10) why.push(`표본 ${n}건(10건 미만)`);
+      if (n < 10) why.push(`표본 ${n}건이라 몇 건에 값이 흔들릴 수 있어요`);
       if (ma != null && ma > 6) why.push("마지막 거래 6개월 넘음");
     }
     const [lv, cls] = low ? ["낮음", "lo"] : why.length ? ["보통", "md"] : ["높음", "hi"];
