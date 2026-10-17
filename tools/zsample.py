@@ -48,7 +48,30 @@ def trust(r, c):   # '이 숫자 믿어도 될까' — 화면 64_overview.js tru
     if n < 10: why.append(f'표본 {n}건이라 몇 건에 값이 흔들릴 수 있어요')
     if ma is not None and ma > 6: why.append('마지막 거래 6개월 넘음')
     return ('보통' if why else '높음'), why or ['구역 안 최근 거래가 충분해요']
-def short(n):   # 구역 짧은 이름(/z/ 제목·API name) — 사업 종류 꼬리를 뗀다
+import json, os, subprocess
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_APPN = None
+def _app_names():
+    """화면 src/app.js의 shortName()(겹치는 이름 동 붙이기 포함)을 그대로 node로 돌려 {정식 이름: 짧은 이름}을 만든다.
+    app.js 규칙이 바뀌어도 정적 페이지·API 이름이 화면과 같게(손으로 옮긴 규칙이 어긋나던 것: 청량리제6구역 vs 청량리6구역)."""
+    global _APPN
+    if _APPN is not None: return _APPN
+    _APPN = {}
+    try:
+        s = open(os.path.join(_ROOT, 'src/app.js'), encoding='utf-8').read()
+        a = s.index('const NAME_TAIL'); b = s.index('function shortName0(', a); e = s.index('\n  }\n', b)
+        fn = s[a:e + 4]
+        dp = next(p for p in (os.path.join(_ROOT, 'pipeline/data.enriched.json'), os.path.join(_ROOT, 'src/data.json')) if os.path.exists(p))
+        js = ('const fs=require("fs");const D=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const R=D.recs;\n' + fn +
+              '\nconst o={};for(const r of R){if(r.n)o[r.n]=shortName(r.n);}process.stdout.write(JSON.stringify(o));')
+        r = subprocess.run(['node', '-e', js, dp], capture_output=True, text=True, timeout=60)
+        if r.returncode == 0: _APPN = json.loads(r.stdout)
+    except Exception: pass
+    return _APPN
+def short(n):   # 구역 짧은 이름(/z/ 제목·API name) — 화면 shortName()과 같은 값(node로 app.js 규칙 그대로) · node가 없으면 아래 옛 규칙
+    m = _app_names().get(n)
+    return m if m else short0(n)
+def short0(n):   # 사업 종류 꼬리를 뗀다(옛 규칙 · 대체용)
     n0 = n
     n = re.sub(r'^\s*(\(가칭\)|\[임시\]|\(임시\))\s*', '', n)
     n = re.sub(r'\s*(\(가칭\)|\[임시\]|\(임시\))\s*$', '', n)

@@ -146,12 +146,14 @@ const PINS = (() => {
   // 핀: [id, 꽂은 날(일-19000), 단계, 필요한 돈, 전세끼고1, 그때 현금, 신고가일-20000000, 메모, 목표1, 찜이전1, 그때 단계 이름(바뀐 경우만)]
   // 조건: [이름(자동이면 ""), 현금, 전세끼고1, 구, 유형, 최소 단계, 출퇴근 역, 분, 입주권1|토허2|확실성4]
   const r2 = (v) => (v == null || !isFinite(v) ? null : Math.round(v * 100) / 100);
+  // 필요한 돈은 만원 단위(소수 넷째 자리)로 옮긴다 — 1.246을 1.25로 올려 보내면 받은 기기에서 '꽂을 때 1.3억'처럼 달라짐
+  const r4 = (v) => (v == null || !isFinite(v) ? null : Math.round(v * 1e4) / 1e4);
   const trimA = (a) => { while (a.length > 1 && (a[a.length - 1] == null || a[a.length - 1] === "" || a[a.length - 1] === 0)) a.pop(); return a; };
   function packJSON() {
     ensure();
     const P = FAV.filter((id) => byId[id]).map((id) => {
       const sp = SNAP[id] || {}, r = byId[id], hi = sp.hi && /^\d{8}$/.test(String(sp.hi)) ? +sp.hi - 2e7 : sp.hi || 0;
-      return trimA([id, sp.t ? Math.round(sp.t / 864e5) - 19000 : 0, sp.s || 0, r2(sp.now), sp.m === "gap" ? 1 : 0, r2(sp.c), hi, sp.memo || "", sp.goal ? 1 : 0, sp.mig ? 1 : 0, sp.sn && r.s !== sp.s ? sp.sn : ""]);
+      return trimA([id, sp.t ? Math.round(sp.t / 864e5) - 19000 : 0, sp.s || 0, r4(sp.now), sp.m === "gap" ? 1 : 0, r4(sp.c), hi, sp.memo || "", sp.goal ? 1 : 0, sp.mig ? 1 : 0, sp.sn && r.s !== sp.s ? sp.sn : ""]);
     });
     const C = CONDS.map((c) => trimA([c.name && c.name !== autoName(c) ? c.name : "", r2(c.cash), c.mode === "gap" ? 1 : 0, c.gu || "", c.kind || "", c.minS || 0, c.cm ? c.cm.dest : "", c.cm ? c.cm.max : 0, (c.sure ? 1 : 0) | (c.strict ? 2 : 0) | (c.firm ? 4 : 0)]));
     return JSON.stringify(C.length ? [1, P, C] : [1, P]);
@@ -485,7 +487,7 @@ const PINS = (() => {
   // 저장할 때 '아직 안 되는' 후보 구역의 값을 적어 둔다 → 새로 들어오면 왜 들어왔는지(돈 ▼·단계·실거래) 보여 줌
   function snapVals(c, base) {
     const B = new Set(base), sv = {};
-    R.forEach((r) => { try { if (B.has(r.id) || !condPre(c, r)) return; const n = needC(c, r); sv[r.id] = [n == null ? null : Math.round(n * 100) / 100, r.s || 0, (r.tx && r.tx.hi && r.tx.hi[1]) || 0, r.tx && r.tx.n3 != null ? r.tx.n3 : null]; } catch (e) {} });
+    R.forEach((r) => { try { if (B.has(r.id) || !condPre(c, r)) return; const n = needC(c, r); sv[r.id] = [n == null ? null : Math.round(n * 1e4) / 1e4, r.s || 0, (r.tx && r.tx.hi && r.tx.hi[1]) || 0, r.tx && r.tx.n3 != null ? r.tx.n3 : null]; } catch (e) {} });
     return sv;
   }
   function whyNew(c, id) {
@@ -517,7 +519,7 @@ const PINS = (() => {
   }
   const condUnread = (n) => !!n.sig && n.c.seen !== n.sig;
   const condsAll = () => CONDS.map(condNews);
-  const cashT = (v) => `${Math.round(v * 10) / 10}억`;
+  const cashT = ZF.cash;
   const stShort = (m) => (STAGES.find((x) => x[0] === m) || [0, ""])[1];
   const autoName = (c) => [`${cashT(c.cash)} ${c.mode === "gap" ? "전세" : "대출"}`, c.gu ? c.gu.replace(/구$/, "") : "", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.minS ? stShort(c.minS) : "", c.firm ? "확실성 높음" : "", c.cm ? `출퇴근 ${c.cm.max}분` : ""].filter(Boolean).reduce((a, x) => (a && (a + " · " + x).length > 30 ? a : a ? a + " · " + x : x), "");
   const condSum = (c) => [`현금 ${cashT(c.cash)} · ${c.mode === "gap" ? "전세 끼고" : "대출 끼고"}`, c.gu || "서울 전체", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.minS ? stShort(c.minS) : "", c.cm ? `${c.cm.dest}역 ${c.cm.max}분 안` : "", c.sure ? "입주권 확실만" : "", c.strict ? "토지거래허가·추정치 빼기" : "", c.firm ? "사업 확실성 높은 곳만" : ""].filter(Boolean).join(" · ");
@@ -555,7 +557,7 @@ const PINS = (() => {
     const cnt = () => `조건에 맞는 곳 <b>${fmt(evalCond(c).length)}곳</b>`;
     const body = () => full
       ? `<h3 id="pcST">조건 핀은 ${CMAX}개까지예요</h3><p>하나를 지우고 다시 저장해 주세요.</p><div class="pn-old">${CONDS.map((x) => `<button type="button" data-cdel2="${x.id}">${pinY(18)}<span><b>${esc(x.name)}</b><small>${esc(condSum(x))}</small></span><em>지우기</em></button>`).join("")}</div><div class="pc-btns"><button type="button" class="btn secondary sm" data-cx>닫기</button></div>`
-      : `<h3 id="pcST">${edit ? "조건 핀 수정" : "이 조건으로 핀 꽂기"}</h3><div class="pc-cashf"><div class="pc-cin"><label for="pcCash">내 현금</label><span class="pc-cbox"><button type="button" data-cstep="-0.5" aria-label="0.5억 줄이기">−</button><input id="pcCash" data-ccash inputmode="decimal" autocomplete="off" value="${Math.round(c.cash * 100) / 100}"><i aria-hidden="true">억</i><button type="button" data-cstep="0.5" aria-label="0.5억 늘리기">+</button></span></div><div class="pc-mode" role="group" aria-label="사는 방법"><button type="button" data-cmode="gap" aria-pressed="${c.mode === "gap"}">전세 끼고</button><button type="button" data-cmode="cash" aria-pressed="${c.mode !== "gap"}">대출 끼고</button></div></div>
+      : `<h3 id="pcST">${edit ? "조건 핀 수정" : "이 조건으로 핀 꽂기"}</h3><div class="pc-cashf"><div class="pc-cin"><label for="pcCash">내 현금</label><span class="pc-cbox"><button type="button" data-cstep="-0.5" aria-label="0.5억 줄이기">−</button><input id="pcCash" data-ccash inputmode="decimal" autocomplete="off" aria-describedby="pcCErr" value="${Math.round(c.cash * 100) / 100}"><i aria-hidden="true">억</i><button type="button" data-cstep="0.5" aria-label="0.5억 늘리기">+</button></span><small class="pc-cerr" id="pcCErr" data-cerr role="alert" hidden></small></div><div class="pc-mode" role="group" aria-label="사는 방법"><button type="button" data-cmode="gap" aria-pressed="${c.mode === "gap"}">전세 끼고</button><button type="button" data-cmode="cash" aria-pressed="${c.mode !== "gap"}">대출 끼고</button></div></div>
         <label class="pc-nm"><span>이름</span><input data-cn maxlength="30" value="${esc(c.name || autoName(c))}" placeholder="${esc(autoName(c))}"></label>
         <div data-cchips>${chips()}</div>
         <p class="pc-cnt" data-ccnt aria-live="polite">${cnt()}</p>
@@ -572,10 +574,17 @@ const PINS = (() => {
     const kd = (e) => { if (e.key === "Escape") close(); };
     document.addEventListener("keydown", kd); addEventListener("hashchange", onNav); addEventListener("popstate", onNav);
     const lite = () => { const nm = dlg.querySelector("[data-cn]"); if (nm && !named) nm.value = autoName(c); dlg.querySelector("[data-ccnt]").innerHTML = cnt(); };
-    let cT = 0;
+    let cT = 0, cashBad = false;
     dlg.addEventListener("input", (e) => {
       if (e.target.matches("[data-cn]")) named = true;
-      if (e.target.matches("[data-ccash]")) { const v = parseFloat(String(e.target.value).replace(/[^\d.]/g, "")); if (isFinite(v) && v > 0 && v <= 100) { c.cash = Math.round(v * 100) / 100; clearTimeout(cT); cT = setTimeout(lite, 160); } }
+      if (e.target.matches("[data-ccash]")) {
+        // 숫자(소수점)와 끝의 '억'만 받는다 — 글자를 지워 숫자만 남기면 '2억 성북'이 22억이 됐다
+        const raw = String(e.target.value).replace(/,/g, "").trim(), m = /^(\d+(?:\.\d+)?|\.\d+)\s*(억)?$/.exec(raw), v = m ? +m[1] : NaN, okv = isFinite(v) && v > 0 && v <= 100;
+        cashBad = raw === "" || !okv; e.target.setAttribute("aria-invalid", String(cashBad));
+        const er = dlg.querySelector("[data-cerr]"); if (er) { er.hidden = !cashBad; er.textContent = raw && m && !okv ? "0.1~100억 사이로 넣어 주세요" : "숫자만 넣어 주세요(예: 2.5)"; }
+        const sv = dlg.querySelector("[data-csave]"); if (sv) sv.disabled = cashBad;
+        if (okv) { c.cash = Math.round(v * 100) / 100; clearTimeout(cT); cT = setTimeout(lite, 160); }
+      }
     });
     dlg.addEventListener("change", (e) => {
       const t = e.target;
@@ -591,7 +600,7 @@ const PINS = (() => {
       const d2 = e.target.closest("[data-cdel2]");
       if (d2) { CONDS = CONDS.filter((x) => x.id !== d2.dataset.cdel2); saveC(); close(); renderFav(); badges(); condSheet(); return; }
       const cs = e.target.closest("[data-cstep]");
-      if (cs) { c.cash = Math.min(100, Math.max(0.1, Math.round((c.cash + +cs.dataset.cstep) * 10) / 10)); const i = dlg.querySelector("[data-ccash]"); if (i) i.value = String(c.cash); lite(); return; }
+      if (cs) { c.cash = Math.min(100, Math.max(0.1, Math.round((c.cash + +cs.dataset.cstep) * 10) / 10)); const i = dlg.querySelector("[data-ccash]"); if (i) { i.value = String(c.cash); i.dispatchEvent(new Event("input", { bubbles: true })); } lite(); return; }
       const cmd = e.target.closest("[data-cmode]");
       if (cmd) { c.mode = cmd.dataset.cmode; dlg.querySelectorAll("[data-cmode]").forEach((b) => b.setAttribute("aria-pressed", String(b === cmd))); lite(); return; }
       const ch = e.target.closest("[data-cc]");
@@ -604,6 +613,7 @@ const PINS = (() => {
         refresh(); const f = dlg.querySelector(`[data-cc="${k}"]`); f && f.focus(); return;
       }
       if (e.target.closest("[data-csave]")) {
+        if (cashBad) { const i = dlg.querySelector("[data-ccash]"); if (i) i.focus(); return; }
         const nm = (dlg.querySelector("[data-cn]").value || "").trim().slice(0, 30) || autoName(c);
         const ids = evalCond(c);
         const sv = snapVals(c, ids);
@@ -721,6 +731,8 @@ const PINS = (() => {
     if (t.dataset.pedit) { EDIT = EDIT === t.dataset.pedit ? "" : t.dataset.pedit; renderFav(); const i = EDIT && $("fvOut").querySelector(`[data-pmemo="${EDIT}"]`); if (i) i.focus(); else { const b = $("fvOut").querySelector(`[data-pedit="${t.dataset.pedit}"]`); b && b.focus(); } return; }
     if (t.dataset.pgoal) { const sp = SNAP[t.dataset.pgoal], r = byId[t.dataset.pgoal]; if (sp && r) { if (!sp.goal) { const nw = needNow(r, modeFor(r)); if (nw != null && nw <= CASH + 1e-9) { renderFav(); return; } } sp.goal = !sp.goal; PEND = 0; saveS(); renderFav(); const b = $("fvOut").querySelector(`[data-pgoal="${t.dataset.pgoal}"]`); b && b.focus(); } return; }
     if (t.dataset.punpin) { PEND = 0; const id = t.dataset.punpin; if (isFav(id)) toggleFav(id); return; }
+    // 핀이 딱 2곳이면 고를 것 없이 바로 나란히 보기
+    if (t.id === "pnCmp" && FAV.filter((id) => byId[id]).length === 2) { SEL = false; CMPON = true; CMP = FAV.filter((id) => byId[id]); renderFav(); requestAnimationFrame(() => { const h = $("pnCmpT"); if (h) { h.scrollIntoView({ block: "start", behavior: smooth() }); h.focus({ preventScroll: true }); } }); return; }
     if (t.id === "pnCmp") { SEL = true; CMPON = false; CMP = []; renderFav(); const s = $("pnSelX"); s && s.focus(); return; }
     if (t.id === "pnSelX") { SEL = false; renderFav(); const b = $("pnCmp"); b && b.focus(); return; }
     if (t.id === "pnGo") { if (CMP.length < 2) return; SEL = false; CMPON = true; renderFav(); requestAnimationFrame(() => { const h = $("pnCmpT"); if (h) { h.scrollIntoView({ block: "start", behavior: smooth() }); h.focus({ preventScroll: true }); } }); return; }

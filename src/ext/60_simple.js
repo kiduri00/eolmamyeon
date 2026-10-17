@@ -63,7 +63,7 @@ const SIMPLE = (() => {
   let listGu = "", gu = "", kind = "", shown = SHOW0(), timer = 0, keepY = null;
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   // 1억 아래는 소수 둘째 자리까지(9,515만 → 0.95억, '1억'으로 올려 보이지 않게)
-  const eokS = (v) => (v == null || !isFinite(v) ? "–" : v < 0.005 ? "0원" : v < 0.995 ? `${(Math.round(v * 100) / 100).toFixed(2).replace(/0$/, "")}억` : `${(Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, "")}억`);
+  const eokS = ZF.cash;   // 1억 아래는 소수 둘째 자리까지(0.95억) — 지도·핀·리포트와 같은 ZF 꼴
   const dongOf = (r) => { const m = /^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)/.exec(r.j || r.bj || ""); return m ? m[1] : r.dg || ""; };
   const KIND = (r) => (/재건축/.test(r.k) ? "rebuild" : /가로|소규모/.test(r.k) ? "small" : "redev");
   function needOf(r) {
@@ -71,6 +71,8 @@ const SIMPLE = (() => {
     const x = investC(r);
     return { now: x.needBuy, total: x.ok ? x.needTotal : null };
   }
+  // '입주 빠른순'일 때 줄마다 예상 입주(계산용 추정) — 정렬 기준이 눈에 보이게
+  const etaTag = (r) => { try { const t = etaShow(r); return /\d/.test(t) ? ` · <em class="s-tag eta">입주 ${esc(t)}</em>` : ` · <em>입주 ${esc(t)}</em>`; } catch (e) { return ""; } };
   const NA_WHY = "입주 시점·신축 시세 자료가 부족해요";
   const NA_L = "입주 비용 자료 부족";
   function rows() {
@@ -80,7 +82,7 @@ const SIMPLE = (() => {
       .map((r) => { const n = needOf(r), m = (nowK ? n.now : n.total) ?? 99; return { r, n, m, early: r.s <= 1 || r.eta?.p10 == null, eta: sortK === "eta" ? etaT(r) : 0 }; });
     // '입주 계산 불가'(입주까지 금액 없음)는 어떤 정렬·유형 칩이든 맨 아래로
     return L.sort((a, b) => (a.n.total == null) - (b.n.total == null)
-      || (sortK === "fit" ? Math.round(b.m * 10) - Math.round(a.m * 10) : sortK === "eta" ? (a.eta === b.eta ? 0 : a.eta < b.eta ? -1 : 1) : Math.round(a.m * 10) - Math.round(b.m * 10))
+      || (sortK === "fit" ? Math.abs(CASH - a.m) - Math.abs(CASH - b.m) : sortK === "eta" ? (a.eta === b.eta ? 0 : a.eta < b.eta ? -1 : 1) : Math.round(a.m * 10) - Math.round(b.m * 10))
       || a.m - b.m);
   }
   // 유형 칩으로 0곳일 때: 그 유형은 지금 방식으로 최소 얼마부터 되는지(목록과 같은 판정·금액)
@@ -523,7 +525,7 @@ const SIMPLE = (() => {
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
     if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
-      ? L.slice(0, shown).map(({ r, n, early }) => `<li${TX && NOSP.get(r.id) ? ' class="s-nosp"' : ""}><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.nbp ? ' · <em class="s-tag nb">주변 시세 기준</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span>${spark(r.id)}</a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(shortName(r.n))} 필요한 돈 추정 ${eokS(gap || effBasis() !== "total" ? n.now : n.total)}${n.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · 입주까지 내 현금 ${eokS(n.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog" title="${n.total == null ? `${NA_L} · ${NA_WHY}` : `${LBL.cashToMoveIn}: 분담금·이자 포함, 입주 잔금대출은 뺀 금액`}"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small${n.total == null ? ' class="s-na"' : ""}>${gap || effBasis() !== "total" ? (n.total != null ? `${LBL.cashToMoveIn} ${eokS(n.total)}` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(n.now)}`}</small></button></li>`).join("")
+      ? L.slice(0, shown).map(({ r, n, early }) => `<li${TX && NOSP.get(r.id) ? ' class="s-nosp"' : ""}><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${sortK === "eta" ? etaTag(r) : early ? ' · <em>초기 단계</em>' : ""}${r.nbp ? ' · <em class="s-tag nb">주변 시세 기준</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span>${spark(r.id)}</a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(shortName(r.n))} 필요한 돈 추정 ${eokS(gap || effBasis() !== "total" ? n.now : n.total)}${n.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · 입주까지 내 현금 ${eokS(n.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog" title="${n.total == null ? `${NA_L} · ${NA_WHY}` : `${LBL.cashToMoveIn}: 분담금·이자 포함, 입주 잔금대출은 뺀 금액`}"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small${n.total == null ? ' class="s-na"' : ""}>${gap || effBasis() !== "total" ? (n.total != null ? `${LBL.cashToMoveIn} ${eokS(n.total)}` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(n.now)}`}</small></button></li>`).join("")
       : `<li class="s-empty">${kindEmpty()}</li>`;
     { const kx = $("sKindAll"); if (kx) kx.onclick = () => { const b = $$(".s-flt button", $("sListW")).find((x) => x.dataset.k === ""); if (b) b.click(); }; }
     { const gx = $("sGuAll"); if (gx) gx.onclick = () => { const x = $("sGuX"); if (x) x.click(); }; }
@@ -549,7 +551,7 @@ const SIMPLE = (() => {
     const lo = tt.length ? Math.min(...tt) : null, hi = tt.length ? Math.max(...tt) : null;
     el.innerHTML = top.length
       ? `<p class="s-sum-h"><b>이 돈이면</b><span>${skip ? "입주 계산되는 곳 중 " : "가장 싼 "}${top.length}곳</span></p><ol>${top.map(({ r, m, n }) => `<li><button type="button" data-id="${r.id}" aria-label="${esc(shortName(r.n))} ${esc(r.g)} · 지금 ${eokS(m)}${n.total != null ? ` · 입주까지 현금 ${eokS(n.total)}` : ""} · 리포트 열기"><span>${esc(shortName(r.n))}<small>${esc(r.g)}</small></span><b>${eokS(m)}</b></button></li>`).join("")}</ol>${lo != null ? `<p class="s-sum-f"><span>입주까지 현금 <b>${lo === hi ? eokS(lo) : `${eokS(lo)}~${eokS(hi)}`}</b><small> · 잔금대출 제외</small></span></p>` : ""}`
-      : `<p class="s-sum-h"><b>이 돈이면</b></p><p class="s-sum-e">아직 되는 곳이 없어요.<br>게이지를 올려 보세요.</p>`;
+      : `<p class="s-sum-h"><b>이 돈이면</b></p><p class="s-sum-e">아직 되는 곳이 없어요. <br>게이지를 올려 보세요.</p>`;
   }
   MQ_SUM.addEventListener("change", () => { try { render(); } catch (e) {} });
   // 좁은 화면: 흐름선 때문에 이름·동네가 잘리거나 줄이 바뀌면 그 줄만 흐름선을 뺀다
@@ -658,7 +660,28 @@ const SIMPLE = (() => {
     };
     // PC: 구역을 열면 오른쪽이 상세로, '목록' 버튼으로 다시 목록
     const _sel = select;
-    select = function () { const x = _sel.apply(this, arguments); if (matchMedia("(min-width:981px)").matches) document.documentElement.classList.add("s-rep"); return x; };
+    // PC 상세는 칸 안에서 따로 스크롤하지 않고 페이지와 함께 흐른다(지도는 옆에 붙어 따라옴) → 열 때 상세 머리가 머리 밑에 오게,
+    // 닫을 때(Esc·목록 버튼) 열기 전 보던 자리로. 딥링크로 처음 열릴 때도 같은 규칙(아래 관찰자)
+    const PCQ = () => matchMedia("(min-width:981px)").matches;
+    let repY = null, selBusy = false;
+    const repTop = () => { const H = document.documentElement; if (!PCQ() || H.classList.contains("s-full")) return; const w = document.querySelector("#mapTop .main") || $("report"); if (!w) return; const t = Math.max(0, Math.round(w.getBoundingClientRect().top + scrollY - HDR() - 8)); if (Math.abs(scrollY - t) > 2) window.scrollTo({ top: t, behavior: "auto" }); };
+    select = function () {
+      const H = document.documentElement, pc = PCQ(), was = H.classList.contains("s-rep"), y0 = keepY != null ? keepY : scrollY;
+      selBusy = true;
+      let x; try { x = _sel.apply(this, arguments); } finally { selBusy = false; }
+      if (pc) { if (!was) repY = y0; keepY = null; H.classList.add("s-rep"); repTop(); }
+      return x;
+    };
+    {
+      const H = document.documentElement; let on = H.classList.contains("s-rep");
+      if (on && PCQ()) { repY = 0; requestAnimationFrame(repTop); }
+      try { new MutationObserver(() => {
+        const v = H.classList.contains("s-rep"); if (v === on) return; on = v;
+        if (!PCQ() || selBusy) return;
+        if (v) { if (repY == null) repY = scrollY; requestAnimationFrame(repTop); }
+        else if (repY != null) { const y = repY; repY = null; requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "auto" })); }
+      }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
+    }
     // 서울 전체 화면에서도 실제 지도를 다시 칠한다(구 숫자·구역 색)
     const _rm2 = refreshMap; refreshMap = function () { const x = _rm2.apply(this, arguments); try { if (mapView === "seoul") LMX.paint(); } catch (e) {} return x; };
     // 상세(시트)를 닫으면 보던 자리로

@@ -51,7 +51,7 @@ const HM = (() => {
       };
     }
     b.hidden = false;
-    b.textContent = open ? "접기" : `더보기 (${rows.length - N}건)`;
+    b.textContent = open ? "접기" : `더 보기 (${rows.length - N}${box.matches("#cmOut,#rank,#svOut,#fvOut,#guList,#cmOut *") ? "곳" : "건"})`;
     b.setAttribute("aria-expanded", String(open));
     const host = /^(TABLE|UL|OL)$/.test(box.tagName) ? box.parentElement : box;
     if (b.parentElement !== host || b.nextSibling) host.appendChild(b);

@@ -87,7 +87,7 @@ HEAD = '''<!doctype html>
 <meta property="og:type" content="article">
 <meta property="og:image" content="{site}/og.png">
 <meta property="og:locale" content="ko_KR">
-<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#14171C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#15181D" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/icon-small.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
@@ -107,19 +107,30 @@ FOOT = '''</main>
 def is_hand(rid):
     f = os.path.join(ZD, rid + '.html')
     return os.path.exists(f) and os.path.getsize(f) > 0 and 'name="emr-auto"' not in open(f, encoding='utf-8').read(3000)   # 빈 파일은 자동 페이지로 다시 만든다
+def place_ld(r, url):   # 구역 장소(Place): 위경도는 구역 대표점 → 경계 자료 대표점 순 · 둘 다 없으면 주소만
+    zg = (GEO.get('z') or {}).get(r['id']) or {}; nm = short(r['n']); kind = KIND.get(r['k'], r['k'])
+    ll = r.get('ll') or ((zg.get('l') or [None, None])[::-1] if zg.get('l') else None)
+    o = {"@type": "Place", "name": nk(nm, kind) + " 정비구역", "url": url}
+    if ll and ll[0] is not None: o["geo"] = {"@type": "GeoCoordinates", "latitude": round(ll[0], 5), "longitude": round(ll[1], 5)}
+    o["address"] = {"@type": "PostalAddress", "addressCountry": "KR", "addressRegion": "서울특별시", "addressLocality": r['g'], **({"streetAddress": r['j']} if r.get('j') else {})}
+    o["containedInPlace"] = {"@type": "AdministrativeArea", "name": f"서울특별시 {r['g']}"}
+    return o
+def crumbs(*xs):   # BreadcrumbList: (이름, 주소) 차례로
+    return {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": u} for i, (n, u) in enumerate(xs)]}
 def page(r):
     rid = r['id']; pm = P.get(rid) or {}; c = C.get(rid) or {}; t = r.get('tx') or {}
     nm = short(r['n']); kind = KIND.get(r['k'], r['k']); stage = c.get('stage') or r.get('sr') or ''
     dt = pm.get('dt') or {}
     nmk = nk(nm, kind)
     title = f"{nmk} | 단계·실거래·입주 현금 | 집핀"
-    desc = f"{r['g']} {nmk}: 지금 {stage} 단계. 구역 안 실거래, 노후도, 권리산정기준일, 정보몽땅 추진경과, 기본 가정의 입주까지 필요한 현금 추정. 데이터 기준 {UPD}."
+    desc = f"{r['g']} {nmk}: 지금 {stage} 단계. 구역 안 실거래, 노후도, 권리산정기준일, 정비사업 정보몽땅 추진경과, 기본 가정의 입주까지 필요한 현금 추정. 데이터 기준 {UPD}."
     url = f"{SITE}/z/{rid}"
     ld0 = {"@type": "Article", "headline": f"{nmk} 진행 단계와 입주까지 필요한 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
            "mainEntityOfPage": url, "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "집핀", "url": SITE}}
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld='@@LD@@')]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or r.get("dg") or "")} · {esc(kind)} · 데이터 기준 {UPD}</p>')
     o.append(f'<h1>{esc(nmk)} 진행 단계와 입주까지 필요한 현금</h1>')
+    if r['n'].strip() != nm: o.append(f'<p class="formal">정식 이름 {esc(r["n"].strip())}</p>')   # 제목은 앱과 같은 짧은 이름, 정식 이름은 한 줄 아래
     # 현재 단계의 인가·고시일만 쓴다(예전엔 기록 중 가장 늦은 날짜를 써서 '착공' 구역에 관리처분일이 붙었다 · o747)
     sk = SKEY.get(r.get('s', 0)) or ()
     sd = next((dt[k] for k in sk if dt.get(k)), '')[:7].replace('-', '.')
@@ -145,7 +156,7 @@ def page(r):
         o.append('<h2>인가 이력</h2><ul class="steps">' + ''.join(f'<li class="{"cur" if i == len(hist) - 1 else ""}"><b>{esc(l)}</b><span>{esc(d[:10].replace("-", "."))}{" (변경)" if any(d2 < d and not (l == "정비구역 지정" and l2 == "추진위원회 승인") for l2, d2 in hist[i + 1:]) else ""}</span></li>' for i, (l, d) in enumerate(hist)) + '</ul>')
     ev = [e for e in (pm.get('ev') or []) if e and e[0] <= datetime.date.today().isoformat()][:6]
     if ev:
-        o.append('<h3>정보몽땅 최근 기록</h3><ul class="steps tl">' + ''.join(f'<li><b>{esc(d.replace("-", "."))}</b><span>{esc(sec)} · {esc(evtext(dt, d, sec, tx))}</span></li>' for d, sec, tx in ev) + '</ul>')
+        o.append('<h3>정비사업 정보몽땅 최근 기록</h3><ul class="steps tl">' + ''.join(f'<li><b>{esc(d.replace("-", "."))}</b><span>{esc(sec)} · {esc(evtext(dt, d, sec, tx))}</span></li>' for d, sec, tx in ev) + '</ul>')
     # 실거래
     if t.get('n') or t.get('jn'):
         rows = []
@@ -231,12 +242,8 @@ def page(r):
         og = zmap.og_card(rid, nm, f"{r['g']} {r.get('j') or ''} · {kind}".strip(), stage or '단계 확인 중', mk[0] if mk else '', re.sub(r'<[^>]+>', '', mk[1]) if mk else '', (r['ll'][1], r['ll'][0]) if r.get('ll') else (tuple(zg['l']) if zg.get('l') else None), r['g'], UPD)
     elif os.path.exists(os.path.join(ROOT, 'public/og/z', rid + '.png')): og = f'/og/z/{rid}.png'   # 글꼴·PIL이 없는 곳에서 돌 때는 있던 카드를 그대로
     if og: ld0["image"] = SITE + og
-    graph = [ld0, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "집핀", "item": SITE + "/"}, {"@type": "ListItem", "position": 2, "name": "구역별 페이지", "item": f"{SITE}/z/"},
-                                                                {"@type": "ListItem", "position": 3, "name": r['g'], "item": f"{SITE}/gu/{r['g']}"}, {"@type": "ListItem", "position": 4, "name": nm, "item": url}]}]
-    ll = r.get('ll') or ((zg.get('l') or [None, None])[::-1] if zg.get('l') else None)
-    if ll and ll[0] is not None:
-        graph.append({"@type": "Place", "name": f"{nm} {kind} 정비구역", "url": url, "geo": {"@type": "GeoCoordinates", "latitude": round(ll[0], 5), "longitude": round(ll[1], 5)},
-                      "address": {"@type": "PostalAddress", "addressCountry": "KR", "addressRegion": "서울특별시", "addressLocality": r['g'], **({"streetAddress": r['j']} if r.get('j') else {})}, "containedInPlace": {"@type": "AdministrativeArea", "name": f"서울특별시 {r['g']}"}})
+    graph = [ld0, crumbs(("집핀", SITE + "/"), ("구역별 페이지", f"{SITE}/z/"), (r['g'], f"{SITE}/gu/{r['g']}"), (nm, url))]
+    graph.append(place_ld(r, url))
     h = ''.join(o).replace('@@LD@@', json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False).replace('</', '<\\/'), 1)
     if og: h = h.replace(f'<meta property="og:image" content="{SITE}/og.png">', f'<meta property="og:image" content="{SITE}{og}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:image" content="{SITE}{og}">', 1)
     return h
@@ -279,9 +286,37 @@ def hand_og(r):
     if not og or base not in h: return
     h = h.replace(base, f'<meta property="og:image" content="{SITE}{og}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:image" content="{SITE}{og}">', 1)
     open(f, 'w', encoding='utf-8').write(h)
+def hand_seo(r, h):
+    """손으로 쓴 구역 글: 본문은 두고 머리만 자동 페이지와 같게 — 제목 '<짧은 이름> 재개발 | 단계·실거래·입주 현금 | 집핀', 구조화 데이터(글 + 이동 경로 + 장소)."""
+    rid = r['id']; nm = short(r['n']); kind = KIND.get(r['k'], r['k']); url = f"{SITE}/z/{rid}"
+    t = f"{nk(nm, kind)} | 단계·실거래·입주 현금 | 집핀"
+    h = re.sub(r'<title>.*?</title>', lambda m: f'<title>{esc(t)}</title>', h, count=1, flags=re.S)
+    h = re.sub(r'<meta property="og:title" content="[^"]*">', lambda m: f'<meta property="og:title" content="{esc(t)}">', h, count=1)
+    m = re.search(r'<script type="application/ld\+json">(.*?)</script>', h, re.S)
+    try: obj = json.loads(m.group(1)) if m else {}
+    except ValueError: obj = {}
+    art = next((x for x in obj.get('@graph', []) if x.get('@type') == 'Article'), None) if '@graph' in obj else ({k: v for k, v in obj.items() if k != '@context'} if obj.get('@type') else None)
+    graph = ([art] if art else []) + [crumbs(("집핀", SITE + "/"), ("구역별 페이지", f"{SITE}/z/"), (r['g'], f"{SITE}/gu/{r['g']}"), (nm, url)), place_ld(r, url)]
+    tag = '<script type="application/ld+json">' + json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False).replace('</', '<\\/') + '</script>'
+    return h[:m.start()] + tag + h[m.end():] if m else h.replace('</head>', tag + '\n</head>', 1)
+# 모든 정적 페이지 공통: 머리 검색(좁은 화면 포함) · 다크 theme-color를 앱과 같게(#15181D) · '정보몽땅' 첫 언급은 '정비사업 정보몽땅'
+TSR = '<form class="tsr" action="/" method="get" role="search"><label class="sr-only" for="tq">구역 검색</label><input id="tq" name="q" type="search" placeholder="구역·동·역 검색" autocomplete="off" enterkeyhint="search" maxlength="40"></form>'
+def static_norm(h):
+    h = h.replace('content="#14171C" media="(prefers-color-scheme: dark)"', 'content="#15181D" media="(prefers-color-scheme: dark)"')
+    if '<header class="top"><a ' in h: h = h.replace('<header class="top"><a ', '<header class="top"><div class="in"><a ', 1).replace('</nav></header>', '</nav></div></header>', 1)
+    if 'class="tsr"' not in h: h = re.sub(r'</nav>(</div></header>)', lambda m: '</nav>' + TSR + m.group(1), h, count=1)
+    def first(seg):
+        i = seg.find('정보몽땅')
+        return seg if i < 0 or seg[max(0, i - 5):i] == '정비사업 ' else seg[:i] + '정비사업 ' + seg[i:]
+    b = h.find('<body')
+    if b > 0:
+        hd = h[:b]; m = re.search(r'<meta name="description" content="[^"]*">', hd)
+        if m: hd = hd[:m.start()] + first(m.group(0)) + hd[m.end():]
+        h = hd + first(h[b:])
+    return h
 def hand_fix(r):
     f = os.path.join(ZD, r['id'] + '.html'); h0 = open(f, encoding='utf-8').read()
-    h1 = term_fix(hand_live(r, h0) if r['id'] in _LIVE else h0)
+    h1 = static_norm(hand_seo(r, term_fix(hand_live(r, h0) if r['id'] in _LIVE else h0)))
     if h1 != h0: open(f, 'w', encoding='utf-8').write(h1)
 made = kept = 0
 for r in R:
@@ -296,10 +331,10 @@ byg = collections.defaultdict(list)
 for r in R: byg[r['g']].append(r)
 li = lambda x: f'<a class="zl" href="{x["id"]}">{esc(short(x["n"]))}<small>{esc(KIND.get(x["k"], x["k"]))} · {esc((C.get(x["id"]) or {}).get("stage") or x.get("sr") or "")}</small></a>'
 idx = [HEAD.format(title='서울 정비사업 구역별 페이지 | 집핀 - 서울 재개발 지도', desc=f'서울 진행 중 정비사업 {len(R)}곳의 구역별 진행 단계·실거래·노후도·입주까지 필요한 현금. 데이터 기준 {UPD}.', url=f'{SITE}/z/', site=SITE,
-                  ld=json.dumps({"@context": "https://schema.org", "@type": "CollectionPage", "name": "서울 정비사업 구역별 페이지", "url": f"{SITE}/z/"}, ensure_ascii=False)).replace('<meta name="emr-auto" content="1">\n', '')]
+                  ld=json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": "서울 정비사업 구역별 페이지", "url": f"{SITE}/z/", "inLanguage": "ko"}, crumbs(("집핀", SITE + "/"), ("구역별 페이지", f"{SITE}/z/"))]}, ensure_ascii=False)).replace('<meta name="emr-auto" content="1">\n', '')]
 idx.append(f'<p class="eyebrow">구역별 페이지 · 데이터 기준 {UPD}</p><h1>서울 정비사업 구역별 페이지</h1><p class="lede">서울에서 진행 중인 재개발·재건축·가로주택 {len(R)}곳을 구역마다 한 페이지로 정리했어요. 진행 단계와 인가 이력, 구역 안 실거래, 노후도, 권리산정기준일, 기본 가정의 입주까지 필요한 현금이 있어요. 매일 자동 갱신돼요.</p>')
 idx.append(CNT_NOTE)
-if hand: idx.append('<h2>기사·고시로 대조해 정리한 구역</h2><p>규모가 커서 확인할 거리가 많은 구역은 기사·고시와 정보몽땅 등록값을 대조한 이야기를 붙였어요.</p><div class="grid2">' + ''.join(li(x) for x in hand if x['id'] in {y['id'] for y in R}) + '</div>')
+if hand: idx.append('<h2>기사·고시로 대조해 정리한 구역</h2><p>규모가 커서 확인할 거리가 많은 구역은 기사·고시와 정비사업 정보몽땅 등록값을 대조한 이야기를 붙였어요.</p><div class="grid2">' + ''.join(li(x) for x in hand if x['id'] in {y['id'] for y in R}) + '</div>')
 for g in sorted(byg): idx.append(f'<h2><a href="../gu/{esc(g)}">{esc(g)}</a> <small class="meta">{len(byg[g])}곳</small></h2><div class="grid2">' + ''.join(li(x) for x in sorted(byg[g], key=lambda x: -x.get('s', 0))) + '</div>')
 idx.append(FOOT.format(upd=UPD))
 open(os.path.join(ZD, 'index.html'), 'w', encoding='utf-8').write(''.join(idx))
@@ -317,7 +352,11 @@ def guPage(g, L):
     st = collections.Counter(c(x).get('stage') or x.get('sr') or '' for x in L)
     title = f'{g} 재개발·재건축 {len(L)}곳 · 진행 단계와 필요한 돈 | 집핀 - 서울 재개발 지도'
     desc = f'{g}에서 진행 중인 정비사업 {len(L)}곳. ' + (f'전세 끼고 가장 적은 돈으로 살 수 있는 곳은 {short(cheap[0]["n"])}(지금 {eok(c(cheap[0])["gapNow"])}). ' if cheap else '') + f'데이터 기준 {UPD}.'
-    ld = json.dumps({"@context": "https://schema.org", "@type": "CollectionPage", "name": f"{g} 정비사업", "url": url}, ensure_ascii=False)
+    gc = next((x.get('c') for x in (GEO.get('gu') or []) if x['n'] == g), None)
+    area = {"@type": "AdministrativeArea", "name": f"서울특별시 {g}", "url": url, "address": {"@type": "PostalAddress", "addressCountry": "KR", "addressRegion": "서울특별시", "addressLocality": g}}
+    if gc: area["geo"] = {"@type": "GeoCoordinates", "latitude": round(gc[1], 5), "longitude": round(gc[0], 5)}
+    ld = json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": f"{g} 정비사업", "url": url, "inLanguage": "ko", "about": {"@id": url + "#gu"}},
+                     crumbs(("집핀", SITE + "/"), ("자치구별", f"{SITE}/gu/"), (g, url)), {**area, "@id": url + "#gu"}]}, ensure_ascii=False)
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace(' aria-current="page"', '')]
     o.append(f'<p class="eyebrow"><a href="./">구역별 페이지</a> · <a href="../gu/">자치구별</a> · 데이터 기준 {UPD}</p><h1>{esc(g)} 재개발·재건축 {len(L)}곳</h1>')
     top = [(k, v) for k, v in st.most_common() if k][:5]; rest = len(L) - sum(v for _, v in top)   # 단계 합이 머리글 곳 수와 꼭 맞게: 나머지는 '기타'
@@ -333,7 +372,7 @@ def guPage(g, L):
         if v.get('gapOk') and v.get('gapTotal') is not None: return eok(v['gapTotal'])
         if v.get('cashOk') and v.get('need') is not None: return f'{eok(v["need"])}<br><small>현금 매수 시</small>'
         return '–'
-    rows = ''.join(f'<tr><td><a href="{x["id"]}">{esc(short(x["n"]))}</a><br><small>{esc(KIND.get(x["k"], x["k"]))} · {esc(c(x).get("stage") or x.get("sr") or "")}</small></td><td class="n">{eok(c(x).get("gapNow")) if c(x).get("gapOk") else ('<small>' + gapWhy(c(x))[0] + ('<sup>*</sup>' if gapWhy(c(x))[0] == '토허제' else '') + '</small>' if gapWhy(c(x)) else "–")}</td><td class="n">{tot(x)}</td></tr>' for x in sorted(L, key=rowkey))
+    rows = ''.join(f'<tr><td><a href="{x["id"]}"{(' title="' + esc(x["n"].strip()) + '"') if short(x["n"]) != x["n"].strip() else ''}>{esc(short(x["n"]))}</a><br><small>{esc(KIND.get(x["k"], x["k"]))} · {esc(c(x).get("stage") or x.get("sr") or "")}</small></td><td class="n">{eok(c(x).get("gapNow")) if c(x).get("gapOk") else ('<small>' + gapWhy(c(x))[0] + ('<sup>*</sup>' if gapWhy(c(x))[0] == '토허제' else '') + '</small>' if gapWhy(c(x)) else "–")}</td><td class="n">{tot(x)}</td></tr>' for x in sorted(L, key=rowkey))
     o.append(f'<div class="tw"><table class="t" style="min-width:0;width:100%"><thead><tr><th>구역</th><th class="n">전세 끼고 지금</th><th class="n">입주까지 현금</th></tr></thead><tbody>{rows}</tbody></table></div>')
     o.append('<p class="meta">입주까지 현금(입주 잔금대출 제외): 전세 끼고 살 수 있는 곳은 <b>전세 끼고 산 경우</b>(앱 첫 화면과 같은 값), 전세를 낄 수 없는 곳은 <b>현금 매수 시</b> 금액이에요.' + (' <sup>*</sup><b>토허제</b> = 토지거래허가구역. 사면 2년 동안 직접 살아야 해서 전세를 끼고 살 수 없어요.' if any((gapWhy(c(x)) or ('',))[0] == '토허제' for x in L) else '') + '</p>')
     why = collections.Counter(gapWhy(c(x))[0] for x in L if not c(x).get('gapOk') and gapWhy(c(x)))
@@ -349,8 +388,9 @@ print('gu pages', len(byg))
 # 구 목록 페이지: public/gu/index.html (/gu/ 가 404가 나지 않게)
 def guIndex():
     url = f'{SITE}/gu/'
-    ld = json.dumps({"@context": "https://schema.org", "@type": "CollectionPage", "name": "서울 자치구별 정비사업", "url": url, "inLanguage": "ko",
-                     "mainEntity": {"@type": "ItemList", "numberOfItems": len(byg), "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": g, "url": f"{SITE}/gu/{g}"} for i, g in enumerate(sorted(byg))]}}, ensure_ascii=False)
+    ld = json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": "서울 자치구별 정비사업", "url": url, "inLanguage": "ko",
+                     "mainEntity": {"@type": "ItemList", "numberOfItems": len(byg), "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": g, "url": f"{SITE}/gu/{g}"} for i, g in enumerate(sorted(byg))]}},
+                     crumbs(("집핀", SITE + "/"), ("자치구별", url))]}, ensure_ascii=False)
     title = f'서울 자치구별 재개발·재건축 {len(byg)}개 구 | 집핀 - 서울 재개발 지도'
     desc = f'서울 {len(byg)}개 자치구의 진행 중 정비사업 {len(R)}곳을 구별로 모았어요. 구를 누르면 구역마다 진행 단계와 필요한 돈을 볼 수 있어요. 데이터 기준 {UPD}.'
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace('<meta name="emr-auto" content="1">\n', '').replace(' aria-current="page"', '').replace('<base href="/z/">', '<base href="/gu/">')]
@@ -380,6 +420,7 @@ import glob
 for fp in sorted(set(glob.glob(os.path.join(ROOT, 'public', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'guide', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'report', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'feed', '*.html')))):
     if os.path.basename(fp) == 'index.html' and os.path.dirname(fp) == os.path.join(ROOT, 'public'): continue   # 앱 첫 화면은 build.py
     h0 = open(fp, encoding='utf-8').read(); h1 = term_fix(h0)
+    if '/feed/' not in fp: h1 = static_norm(h1)   # 머리 검색·theme-color·정보몽땅 첫 언급(피드 목록은 feeds.py 몫)
     if h1 != h0: open(fp, 'w', encoding='utf-8').write(h1); print('terms/date synced', os.path.relpath(fp, ROOT))
 
 # /report·/years 구조화 데이터(JSON-LD): 다른 도구(report.py·feeds.py)가 이 페이지의 <head>를 틀로 베끼므로 <main> 바로 안에 한 덩이만 넣고 매번 바꿔 끼운다

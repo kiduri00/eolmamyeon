@@ -108,9 +108,35 @@ def minimap(r, GEO, D, short):
     for s_ in (D.get('stations') or []):
         x, y = P(s_[2], s_[1])
         if 10 <= x <= W - 10 and 18 <= y <= H - 10: st.append(((x - W / 2) ** 2 + (y - H / 2) ** 2, x, y, s_[0]))
-    st.sort()
-    for _, x, y, n in st[:6]:
-        o.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.5" class="mm-st"/><text x="{x:.1f}" y="{y - 10:.1f}" class="mm-tx" text-anchor="middle">{esc(n)}</text>')
+    st.sort(); st = st[:6]
+    # 구역 이름표 자리: 기본은 경계 위 · 역 점·이름을 덮으면 아래/옆으로(o1059 '미아역'을 이름표가 가리던 것)
+    ry = [P(*q)[1] for rg in rings for q in rg]; rx = [P(*q)[0] for rg in rings for q in rg]
+    top, bot = min(ry), max(ry)
+    nm = short(r['n']); tw = min(300, 16 + 13.5 * len(nm))
+    hit = lambda a, b: a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+    lw = lambda n: 7.2 * len(n) * 1.25 + 4   # 12.5px 굵은 한글 폭 어림
+    def lab_box(x, y, n, k):   # k: 0 위 · 1 아래 · 2 오른쪽 · 3 왼쪽 → (상자, text x, y, anchor)
+        w = lw(n)
+        if k == 0: return (x - w / 2, y - 24, x + w / 2, y - 8), x, y - 10, 'middle'
+        if k == 1: return (x - w / 2, y + 9, x + w / 2, y + 25), x, y + 22, 'middle'
+        if k == 2: return (x + 9, y - 9, x + 9 + w, y + 7), x + 10, y + 4.5, 'start'
+        return (x - 9 - w, y - 9, x - 9, y + 7), x - 10, y + 4.5, 'end'
+    cands = []
+    for i, (px, ly) in enumerate([(W / 2, max(30, top - 12)), (W / 2, min(H - 44, bot + 34)), (W / 2 - tw / 2 - 30, max(30, top - 12)), (W / 2 + tw / 2 + 30, max(30, top - 12)), (W / 2, max(30, top - 40))]):
+        px = min(max(px, tw / 2 + 8), W - tw / 2 - 8)
+        box = (px - tw / 2, ly - 21, px + tw / 2, ly + 5)
+        sc_ = sum(3 for _, x, y, n in st if hit(box, (x - 8, y - 8, x + 8, y + 8))) + sum(1 for _, x, y, n in st if hit(box, lab_box(x, y, n, 0)[0]))
+        cands.append((sc_, i, px, ly, box))
+    _, _, px, ly, pill = min(cands)
+    used = [pill] + [(x - 7, y - 7, x + 7, y + 7) for _, x, y, n in st]
+    for _, x, y, n in st:
+        own = (x - 7, y - 7, x + 7, y + 7)
+        for k in (0, 1, 2, 3):
+            b, tx, ty, an = lab_box(x, y, n, k)
+            if b[0] >= 2 and b[2] <= W - 2 and b[1] >= 2 and b[3] <= H - 2 and not any(hit(b, u) for u in used if u != own): break
+        else: b, tx, ty, an = lab_box(x, y, n, 0)
+        used.append(b)
+        o.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.5" class="mm-st"/><text x="{tx:.1f}" y="{ty:.1f}" class="mm-tx" text-anchor="{an}">{esc(n)}</text>')
     if not st:   # 보이는 역이 없으면 가장 가까운 역 쪽 가장자리에 방향 표시
         best = min(((((s_[2] - cx) * kx) ** 2 + ((s_[1] - cy) * ky) ** 2) ** .5, s_) for s_ in (D.get('stations') or [])) if D.get('stations') else None
         if best:
@@ -119,10 +145,7 @@ def minimap(r, GEO, D, short):
             lab = f'{s_[0]} {round(dm / 50) * 50:,}m'
             o.append(f'<g class="mm-off"><path d="M0,-7L12,0L0,7z" transform="translate({ex:.1f},{ey:.1f}) rotate({ang:.0f})"/><text x="{ex - (dx > 0) * 10 + (dx <= 0) * 10:.1f}" y="{ey + (18 if dy < 0 else -12):.1f}" text-anchor="{"end" if dx > 0 else "start"}" class="mm-tx">{esc(lab)}</text></g>')
     # 구역 이름표
-    top = min(P(*q)[1] for rg in rings for q in rg)
-    nm = short(r['n']); tw = min(300, 16 + 13.5 * len(nm))
-    ly = max(30, top - 12)
-    o.append(f'<g class="mm-lab"><rect x="{W / 2 - tw / 2:.1f}" y="{ly - 21:.1f}" width="{tw:.1f}" height="26" rx="13"/><text x="{W / 2:.1f}" y="{ly - 3.5:.1f}" text-anchor="middle">{esc(nm)}</text></g>')
+    o.append(f'<g class="mm-lab"><rect x="{px - tw / 2:.1f}" y="{ly - 21:.1f}" width="{tw:.1f}" height="26" rx="13"/><text x="{px:.1f}" y="{ly - 3.5:.1f}" text-anchor="middle">{esc(nm)}</text></g>')
     # 축척·방위·구 이름
     m = next((v for v in (50, 100, 200, 250, 500, 1000) if v * sc >= 70), 1000); bar = m * sc
     o.append(f'<g class="mm-sb"><rect x="10" y="{H - 34}" width="{bar + 24:.1f}" height="26" rx="6"/><path d="M22,{H - 14}h{bar:.1f}M22,{H - 18}v8M{22 + bar:.1f},{H - 18}v8"/><text x="22" y="{H - 20}">{m if m < 1000 else 1}{"m" if m < 1000 else "km"}</text></g>')

@@ -538,3 +538,8 @@ html.simple #mapbox:not(.lm-on){min-height:560px}
 html.simple #sTT{margin-bottom:16px}
 /* 목록 '입주 비용 자료 부족 ⓘ' — 눌러 왜 이 금액?(이유 한 줄)을 연다 */
 .s-amt .s-nai{display:inline-grid;place-items:center;width:13px;height:13px;margin-left:3px;border:1px solid currentColor;border-radius:50%;font:700 9px/1 var(--font);font-style:normal;vertical-align:1px;opacity:.8}
+/* PC 상세: 칸 안 스크롤 없이 페이지와 함께 흐름(휠이 자연스럽게) · 탭 막대는 머리 밑에 붙음 · 지도는 옆에 sticky */
+@media (min-width:981px){
+  html.simple #report{position:static;max-height:none;overflow:visible;overscroll-behavior:auto}
+  html.simple #report .tabs{position:sticky;top:var(--hdr-h,60px);z-index:3;background:var(--surface)}
+}

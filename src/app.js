@@ -523,16 +523,32 @@
     사업시행: "사업시행인가",
     관리처분: "관리처분인가",
   };
+  // 정비사업 정보몽땅 추진경과(data/notice.json) — '최근 단계 변경'과 '정비사업 소식'(50_board)이 같은 파일 하나를 쓴다
+  let NTD = null, NTP = null;
+  function ntLoad() { return NTD ? Promise.resolve(NTD) : NTP || (NTP = fetch(`data/notice.json?v=${(D.dv && D.dv.notice) || D.upd || ""}`).then((r) => (r.ok ? r.json() : null)).then((j) => (NTD = j)).catch(() => ((NTP = null), null))); }
+  const NW_DAYS = 45;
+  const NT_STEP = { 조합설립인가: "조합설립", 사업시행인가: "사업시행", 관리처분인가: "관리처분", 정비구역지정: "구역지정", 조합설립추진위원회승인: "추진위" };
+  // 최근 45일 단계 변경: 월간 리포트 항목 + 정보몽땅의 새 인가·고시(같은 단계를 다시 고친 '변경 인가'는 뺌), 구역·단계가 같으면 하나만
+  function newItems() {
+    const end = NTD && NTD.asOf ? new Date(String(NTD.asOf).slice(0, 10) + "T00:00:00") : new Date(), lim = new Date(end - NW_DAYS * 864e5).toISOString().slice(0, 10);
+    const out = [], seen = new Set();
+    const add = (it) => { const k = it.id + "|" + it.step; if (seen.has(k) || !byId[it.id] || it.date < lim) return; seen.add(k); out.push(it); };
+    if (NTD && NTD.items) NTD.items.forEach(([d, id, sec, t, c]) => { const st = NT_STEP[sec]; if (c !== "ok" || !st || !byId[id] || /신청|공람/.test(t)) return; try { if (ZF.evText(byId[id], d, sec, t).chg) return; } catch (e) {} add({ id, step: st, date: d, src: "", nt: 1 }); });
+    if (MO && MO.items) MO.items.forEach((it) => add(it));
+    return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  }
   function renderNew() {
     const out = $("nwOut");
     if (!out) return;
+    if (!NTD) ntLoad().then((j) => { if (j) renderNew(); });
+    const NI = newItems(), nwL = `최근 ${NW_DAYS}일`;
     let html;
-    if (!MO || !MO.items.length)
+    if (!NI.length)
       html = `<div class="t-empty"><b>이번 달 리포트를 준비하고 있어요</b><p>매달 데이터 갱신 뒤 단계가 바뀐 구역을 정리해 올려요.</p></div>`;
     else if (!isMember())
       html = lockCard({
         kind: "note",
-        title: `${moLabel()} 단계 변경 ${new Set(MO.items.map((i) => i.id)).size}곳 · 내 핀과 내 현금으로 보기`,
+        title: `${nwL} 단계 변경 ${new Set(NI.map((i) => i.id)).size}곳 · 내 핀과 내 현금으로 보기`,
         line: `목록 자체는 <a href="${MO.url}">공개 리포트</a>에서 무료로 볼 수 있어요. 멤버십은 여기서 핀 꽂은 구역 표시와 '내 현금으로 되나'까지 한 번에 보여 줘요.`,
         ctx: "new",
       });
@@ -540,7 +556,7 @@
       try {
         // 같은 구역·같은 날짜에 단계가 둘이면(소규모 정비는 사업시행·관리처분을 함께 인가) 한 줄로 합치고 원문도 공유
         const moItems = [];
-        MO.items.forEach((it) => {
+        NI.forEach((it) => {
           const p = moItems.find((x) => x.id === it.id && x.date === it.date);
           if (!p) return moItems.push({ ...it, steps: [it.step] });
           p.steps.push(it.step);
@@ -561,7 +577,7 @@
                 ? `<span class="okc">입주까지 현금 ${e2(x.needTotal)}억 · 됨</span>${asm}`
                 : `<span class="mut">입주까지 현금 ${e2(x.needTotal)}억</span>${asm}`
               : `<span class="mut">${x.needBuy != null ? `지금 매수 ${e2(x.needBuy)}억 · ` : ""}입주까지 계산 불가</span><small class="mut asm">${x.nvThin ? "주변 신축 시세 표본 부족" : "입주 시점·신축 시세 자료 부족"}</small>`;
-            return `<tr${fav ? ' class="cur"' : ""}><td>${fav ? SVG_PIN(true) + " " : ""}<a href="#${esc(it.id)}">${esc(shortName(r.n))}</a><small class="mut"> ${esc(r.g)}</small></td><td data-l="단계">${it.steps.length > 1 ? `${it.steps.map((k) => esc(k)).join("·")}인가 <small class="mut">같은 날</small>` : STEP_K[it.step] || esc(it.step)}</td><td class="n" data-l="인가일">${it.date.slice(5).replace("-", ".")}</td><td data-l="고시 원문">${it.src ? `<a href="${esc(it.src)}" target="_blank" rel="noopener" data-nw="1">보기 ↗<span class="sr-only"> (새 창)</span></a>` : '<span class="mut">원문 미확인</span>'}</td><td data-l="내 현금으로" class="nw-can">${can}</td></tr>`;
+            return `<tr${fav ? ' class="cur"' : ""}><td>${fav ? SVG_PIN(true) + " " : ""}<a href="#${esc(it.id)}">${esc(shortName(r.n))}</a><small class="mut"> ${esc(r.g)}</small></td><td data-l="단계">${it.steps.length > 1 ? `${it.steps.map((k) => esc(k)).join("·")}인가 <small class="mut">같은 날</small>` : STEP_K[it.step] || esc(it.step)}</td><td class="n" data-l="인가일">${it.date.slice(5).replace("-", ".")}</td><td data-l="고시 원문">${it.src ? `<a href="${esc(it.src)}" target="_blank" rel="noopener" data-nw="1">보기 ↗<span class="sr-only"> (새 창)</span></a>` : it.nt ? '<span class="mut">정비사업 정보몽땅 기록</span>' : '<span class="mut">원문 미확인</span>'}</td><td data-l="내 현금으로" class="nw-can">${can}</td></tr>`;
           })
           .join("");
         const NX = {
@@ -602,17 +618,17 @@
         const favT = FAV.length
           ? `<p style="margin-top:14px"><b>내 핀 구역은 지금</b> · 같은 단계 서울 사업장의 가운데 값(아직 못 간 구역 포함)과 비교</p><div class="tbl-wrap"><table class="nw-t cardt"><thead><tr><th>구역</th><th>단계</th><th class="n">지금 단계</th><th>같은 단계와 비교</th></tr></thead><tbody>${favRows}</tbody></table></div>`
           : `<p class="mut" style="margin-top:12px">구역 카드나 리포트에서 핀을 꽂으면 여기서 그 구역이 같은 단계 가운데 값보다 빠른지 늦은지 매달 보여 줘요.</p>`;
-        const chg = MO.items.filter((it) => FAV.includes(it.id)).length;
+        const chg = new Set(NI.filter((it) => FAV.includes(it.id)).map((it) => it.id)).size;
         {
           const hf = $("huFav");
           if (hf) {
             hf.classList.toggle("chg", chg > 0);
-            if (chg) hf.setAttribute("title", `핀 꽂은 구역 ${chg}곳이 ${moLabel()}에 단계가 바뀌었어요`);
+            if (chg) hf.setAttribute("title", `핀 꽂은 구역 ${chg}곳이 ${nwL} 사이 단계가 바뀌었어요`);
           }
         }
-        html = `${chg ? `<p class="nw-chg"><b>핀 꽂은 구역 ${chg}곳이 ${moLabel()}에 다음 단계로 넘어갔어요.</b> 아래 표에 핀 아이콘으로 표시돼요.</p>` : ""}<div class="nw-note"><p><b>${moLabel()}에 인가 ${MO.items.length}건(구역 ${new Set(MO.items.map((x) => x.id)).size}곳)</b> · 계산기 현금 ${e2(CASH)}억 기준 · 핀 아이콘은 내가 핀 꽂은 구역</p><div class="tbl-wrap"><table class="nw-t cardt"><thead><tr><th>구역</th><th>단계</th><th class="n">인가일</th><th>원문</th><th>내 현금으로</th></tr></thead><tbody>${rows}</tbody></table></div><p class="mut">전체 리포트(자치구 집계·10년 흐름): <a href="${MO.url}">${moLabel()} 리포트</a></p>${favT}</div>`;
+        html = `${chg ? `<p class="nw-chg"><b>핀 꽂은 구역 ${chg}곳이 ${nwL} 사이 다음 단계로 넘어갔어요.</b> 아래 표에 핀 아이콘으로 표시돼요.</p>` : ""}<div class="nw-note"><p><b>${nwL} 인가 ${NI.length}건(구역 ${new Set(NI.map((x) => x.id)).size}곳)</b> · 계산기 현금 ${e2(CASH)}억 기준 · 핀 아이콘은 내가 핀 꽂은 구역</p><div class="tbl-wrap"><table class="nw-t cardt"><thead><tr><th>구역</th><th>단계</th><th class="n">인가일</th><th>원문</th><th>내 현금으로</th></tr></thead><tbody>${rows}</tbody></table></div>${MO ? `<p class="mut">월간 리포트(자치구 집계·10년 흐름): <a href="${MO.url}">${moLabel()} 리포트</a></p>` : ""}${favT}</div>`;
       } catch (e) {
-        html = `<div class="t-empty"><b>${moLabel()} 단계 변경 ${new Set(MO.items.map((i) => i.id)).size}곳</b><p><a href="${MO.url}">리포트에서 보기</a></p></div>`;
+        html = `<div class="t-empty"><b>${nwL} 단계 변경 ${new Set(NI.map((i) => i.id)).size}곳</b><p><a href="${MO && MO.url}">리포트에서 보기</a></p></div>`;
       }
     }
     if (out._h !== html) {
@@ -4253,7 +4269,7 @@
     if (c) {
       const isUnion = !!cs["조합설립"];
       const th = isUnion ? (r.k === "재건축" ? 70 : /가로|소규모재개발/.test(r.k) ? 75 : r.k === "소규모재건축" ? 70 : 75) : 50;
-      consentHtml = `<div class="sect"><h3>${isUnion ? "조합설립 동의율" : "추진위원회 동의율"} <small>정보몽땅 추진경과 · ${esc(c.d)}</small></h3>\n      <div class="meter"><i style="width:${Math.min(100, c.v)}%"></i><div class="th" style="left:${th}%"><span>법정 기준 ${th}%</span></div></div>\n      <div class="meter-v"><b>${c.v.toFixed(2)}%</b><span>${c.first != null && c.first !== c.v ? `최초 인가 때 ${c.first}%` : ""}</span></div></div>`;
+      consentHtml = `<div class="sect"><h3>${isUnion ? "조합설립 동의율" : "추진위원회 동의율"} <small>정비사업 정보몽땅 추진경과 · ${esc(c.d)}</small></h3>\n      <div class="meter"><i style="width:${Math.min(100, c.v)}%"></i><div class="th" style="left:${th}%"><span>법정 기준 ${th}%</span></div></div>\n      <div class="meter-v"><b>${c.v.toFixed(2)}%</b><span>${c.first != null && c.first !== c.v ? `최초 인가 때 ${c.first}%` : ""}</span></div></div>`;
     } else if (r.uc) {
       consentHtml = `<div class="sect"><h3>조합설립 동의율 <small>출처: ${esc(r.uc.src)}</small></h3><div class="meter"><i style="width:76%"></i><div class="th" style="left:75%"><span>법정 기준 75%</span></div></div><div class="meter-v"><b>75% 초과</b><span class="pill">조합 발표</span></div><p class="note" style="margin-top:12px">${esc(r.uc.t)}. ${esc(r.uc.note)}</p></div>`;
     } else {
@@ -4795,6 +4811,8 @@
       b.click();
     }
   });
+  // 결과 목록이 어디서 닫히든(Esc·바깥 누름·검색 닫기) aria-expanded·activedescendant를 목록 상태와 맞춘다
+  try { new MutationObserver(() => { const h = $("sugg").hidden; $("q").setAttribute("aria-expanded", String(!h)); if (h) { $("q").removeAttribute("aria-activedescendant"); sIdx = -1; } }).observe($("sugg"), { attributes: true, attributeFilter: ["hidden"] }); } catch (e) {}
   // /?q=검색어 (404 페이지 검색창 등): 검색창을 열고 결과를 바로 보여 준다
   try {
     const q0 = new URLSearchParams(location.search).get("q");
@@ -4889,11 +4907,14 @@
       });
       const total = list.length;
       list = list.slice(0, 60);
+      // 대부분 '–'인 열(동의율·계획 세대)은 숨긴다 — 보이는 줄의 40% 이상에 값이 있을 때만 보여 줌
+      const has = (f) => list.length && list.filter(f).length >= list.length * 0.4;
+      const showCs = has((r) => r.cs?.["조합설립"] || r.cs?.["추진위"]), showUn = has((r) => r.sm?.units);
       const th = (k, l, n) =>
         `<th${n ? ' class="r"' : ""} scope="col"${sortKey === k ? ` aria-sort="${sortDir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-k="${k}"${sortKey === k ? ` data-dir="${sortDir > 0 ? "▲" : "▼"}"` : ""}>${l}</button></th>`;
       const cols =
-        '<colgroup><col style="width:52px"><col><col style="width:128px"><col style="width:150px"><col style="width:104px"><col style="width:136px"><col style="width:132px"><col style="width:84px"><col style="width:96px"></colgroup>';
-      const head = `<caption class="sr-only">입지 순위 (열 머리를 눌러 정렬, 행을 누르면 구역 리포트)</caption><thead><tr><th scope="col">#</th>${th("name", "사업장")}${th("stage", "단계")}${th("score", "입지 점수")}${th("comp", "입지·진척 점수", 1)}${th("stn", "가장 가까운 역", 1)}${th("el", "초등학교·마트", 1)}${th("consent", "동의율", 1)}${th("units", "계획 세대", 1)}</tr></thead>`;
+        '<colgroup><col style="width:52px"><col><col style="width:128px"><col style="width:150px"><col style="width:104px"><col style="width:136px"><col style="width:132px">' + (showCs ? '<col style="width:84px">' : "") + (showUn ? '<col style="width:96px">' : "") + "</colgroup>";
+      const head = `<caption class="sr-only">입지 순위 (열 머리를 눌러 정렬, 행을 누르면 구역 리포트)</caption><thead><tr><th scope="col">#</th>${th("name", "사업장")}${th("stage", "단계")}${th("score", "입지 점수")}${th("comp", "입지·진척 점수", 1)}${th("stn", "가장 가까운 역", 1)}${th("el", "초등학교·마트", 1)}${showCs ? th("consent", "동의율", 1) : ""}${showUn ? th("units", "계획 세대", 1) : ""}</tr></thead>`;
       let body;
       if (total) {
         body = list
@@ -4904,10 +4925,10 @@
               return i
                 ? `<span${i.e.d <= 300 ? ' class="ok"' : ""}>초 ${kmTxt(i.e.d)}</span><span${i.mt.d <= 1e3 ? ' class="ok"' : ""}>마트 ${kmTxt(i.mt.d)}</span>`
                 : "–";
-            })()}</td><td class="n xo">${c ? c.v.toFixed(1) + "%" : dash(naReason("consent", r))}</td><td class="n xo">${r.sm?.units ? fmt(r.sm.units) : dash(naReason("units", r))}</td></tr>`;
+            })()}</td>${showCs ? `<td class="n xo">${c ? c.v.toFixed(1) + "%" : dash(naReason("consent", r))}</td>` : ""}${showUn ? `<td class="n xo">${r.sm?.units ? fmt(r.sm.units) : dash(naReason("units", r))}</td>` : ""}</tr>`;
           })
           .join("");
-      } else body = `<tr class="es-row"><td class="es-cell" colspan="9">${rankEmpty(f)}</td></tr>`;
+      } else body = `<tr class="es-row"><td class="es-cell" colspan="${7 + showCs + showUn}">${rankEmpty(f)}</td></tr>`;
       setHTML($("rank"), cols + head + `<tbody>${body}</tbody>`);
       const nf = [f.g, f.k, f.s, f.af].filter(Boolean).length + RF.size;
       const moaK = f.k === "모아타운";
@@ -5421,7 +5442,7 @@
     });
   }
   const num = (id) => AV[id] ?? null;
-  const e2 = (x) => (x == null || !isFinite(x) ? "–" : Math.abs(x) < 0.05 ? "0" : NF1.format(Math.round(x * 10) / 10));
+  const e2 = ZF.num;   // 억 금액 숫자 꼴은 ZF.num 하나(05_facts.js · 1억 아래 소수 둘째 자리)
   const sg = (x) => (Math.abs(x) < 0.05 ? "0" : (x >= 0 ? "+" : "−") + e2(Math.abs(x)));
   const pc = (x) => (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1) + "%";
   const DEP = 0.03;
@@ -6383,7 +6404,7 @@
     const d = new Date(TODAY.getTime() + t * 365.25 * 864e5);
     return `${d.getFullYear()}년`;
   };
-  const f1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
+  const f1 = ZF.num;
   // '입주까지 현금' 다리 줄: 들어가는 돈 − 입주 잔금대출 = 입주까지 현금(표시값끼리 맞게 0.1억 단위)
   // 전세 끼고 사서 '지금 + 이주' 쪽이 더 크면(잔금대출이 분담금보다 큼) 그 합으로 설명
   function cashBr(T, L, g) {
@@ -6444,7 +6465,7 @@
           ? `<li class="gt2"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null && g.tR <= 4 ? " 무렵" : ""}</span><b>+${e2(g.reloc)}억</b><small>전세금 ${e2(g.D)} 반환${g.M > 0.04 ? ` − 이주비 대출 ${e2(g.M)}(추정·입주 때 상환)` : g.Mcap === 0 ? " · 다주택은 이주비 대출 불가" : ""}</small></li>`
           : `<li class="gt2 na"><span class="gt-w">이주</span><b>+${e2(g.D)}억</b><small>전세금 반환 · 이주비 대출로 일부 충당 가능(조합·규제에 따라 다름)</small></li>`;
     const s3 = x.ok
-      ? `<li class="gt3"><span class="gt-w">입주 · ${etaShow(g.r)}${(() => { const pr = projection(g.r); return pr.stall || pr.nodata ? " (계산용 가정)" : ""; })()}</span><b>총 ${f1(g.total)}억</b><small>${small ? "분담금·세금·이자 − 잔금대출" : `분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`
+      ? `<li class="gt3"><span class="gt-w">입주 · ${etaShow(g.r)}${(() => { const pr = projection(g.r); return pr.stall || pr.nodata ? " (계산용 가정)" : ""; })()}</span><b>${LBL.cashToMoveIn} ${f1(g.total)}억</b><small>${small ? "분담금·세금·이자 − 잔금대출" : `분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`
       : `<li class="gt3 na"><span class="gt-w">입주</span><b>계산 전</b><small>입주 시점·신축 시세 자료가 부족해요</small></li>`;
     return `<ol class="gtl${small ? " sm" : ""}">${s1}${s2}${s3}</ol>`;
   }
@@ -8120,10 +8141,10 @@
                 ? `<span class="mut">${esc(g.block)}</span>`
                 : g.na
                   ? '<span class="mut">계산 불가</span>'
-                  : `<b>${e2(g.now)}억</b><small>${g.x.ok ? `이주 때 +${e2(g.reloc)} · ${LBL.cashToMoveIn} ${e2(g.total)}억` : "입주까지 계산 전"}</small>`;
+                  : `<b>${e2(g.now)}억</b><small>${g.x.ok ? `이주 때 ${g.reloc < 0.05 ? "추가 없음(이주비 대출로 반환)" : `+${e2(g.reloc)}억`} · ${LBL.cashToMoveIn} ${e2(g.total)}억` : "입주까지 계산 전"}</small>`;
             })
           : ""
-      }\n      ${row("매수가 기준", (o) => (o.x && o.x.price != null ? `${e2(o.x.price)}억<small>${isEst(o.r || o.x.r) ? "구 평균 시세로 추정" : o.x.priceSrc === "user" ? "직접 입력" : o.x.priceSrc === "complex" ? "단지 실거래 가운데 값" : "주변 빌라 실거래 가운데 값"}</small>` : `<span class="mut">${noPriceTxt(o.r)}</span>`))}\n      ${row("단계", (o) => esc(stageName(o.r)))}\n      ${row("10년 안 준공 가능성", (o) => (o.r.eta?.p10 != null ? `${prob(o.r.eta.p10)}%<small>추정</small>` : '<span class="mut">–</span>'), bp)}\n      ${row("가까운 역·도보", (o) => (o.s ? `${esc(o.s.n)}역 ${fmt(o.s.d)}m<small>도보 약 ${o.s.min}분 · 직선거리 기준</small>` : "–"), bw)}\n      ${row(
+      }\n      ${row("매수가 기준", (o) => (o.x && o.x.price != null ? `${e2(o.x.price)}억<small>${isEst(o.r || o.x.r) ? "구 평균 시세로 추정" : o.x.priceSrc === "user" ? "직접 입력" : o.x.priceSrc === "complex" ? "단지 실거래 가운데 값" : "주변 빌라 실거래 가운데 값"}</small>` : `<span class="mut">${noPriceTxt(o.r)}</span>`))}\n      ${row("단계", (o) => esc(stageName(o.r)))}\n      ${row("예상 입주", (o) => { const t = etaShow(o.r); return /^\d|20\d\d|년/.test(t) ? `${esc(t)}<small>계산용 추정</small>` : `<span class="mut">${esc(t)}</span>`; })}\n      ${row("토지거래허가", (o) => { try { const k = TOH.lookup(o.r), z = /주거용 필지 허가 ([\d,]+)건/.exec(k.t); return k.cls === "no" ? `<span class="io no">${z ? `허가 ${z[1]}건 · 실거주 2년` : "허가구역 · 실거주 2년"}</span>` : `<span class="io warn">구청 확인</span><small>${esc(k.t.split(" · ")[0])}</small>`; } catch (e) { return "–"; } })}\n      ${row("10년 안 준공 가능성", (o) => (o.r.eta?.p10 != null ? `${prob(o.r.eta.p10)}%<small>추정</small>` : '<span class="mut">–</span>'), bp)}\n      ${row("가까운 역·도보", (o) => (o.s ? `${esc(o.s.n)}역 ${fmt(o.s.d)}m<small>도보 약 ${o.s.min}분 · 직선거리 기준</small>` : "–"), bw)}\n      ${row(
         "GTX·주변 호재",
         (o) =>
           o.hj.length
@@ -8167,6 +8188,7 @@
       `${note}${PINS.listHTML()}
     <div class="t-acts pn-acts"><button type="button" class="btn text sm" id="fvClear">핀 모두 빼기</button></div>`,
     );
+    if (co && PINS.cmpShown() && CMP.length >= 2 && typeof TOH !== "undefined" && !TOH.loaded()) TOH.load().then((T) => { if (T && PINS.cmpShown()) renderFav(); });
     if (co) setHTML(co, PINS.cmpShown() && CMP.length >= 2 ? `<div class="pn-cmp"><div class="pn-cmp-h"><h3 id="pnCmpT" tabindex="-1">나란히 보기</h3><button type="button" class="btn text sm" id="pnCmpX">닫기</button></div>${favCmpTable(CMP.map((id) => byId[id]))}</div>` : "");
     PINS.after();
   }
@@ -8519,7 +8541,8 @@
     });
     const ord = { y: 0, n: 1, u: 2 };
     const totOf = (o) => (o.g ? (o.g.x.ok && !o.g.block && !o.g.na ? o.g.total : 999) : o.x.ok ? o.x.needTotal : 999);
-    res.sort((a, b) => ord[a.st] - ord[b.st] || totOf(a) - totOf(b) || a.tot - b.tot);
+    // 출퇴근 도구라 같은 판정(가능·부족·계산 전) 안에서는 가까운(분) 순 → 같은 분이면 적은 돈 순
+    res.sort((a, b) => ord[a.st] - ord[b.st] || a.tot - b.tot || totOf(a) - totOf(b));
     CM_RES = res;
     CM_SET = new Set(res.filter((o) => !($("cmOnly") ? $("cmOnly").checked : true) || o.st === "y").map((o) => o.r.id));
     const ny = res.filter((o) => o.st === "y").length;

@@ -138,3 +138,6 @@ small.asm{display:block;font-size:11px;line-height:1.3;margin-top:1px}
 }
 /* #results 유형 칩 줄(가장자리까지 미는 스크롤)이 360폭에서 1px 넘쳐 화면이 옆으로 밀리던 것 */
 @media (max-width:640px){#results{overflow-x:clip}}
+/* 계산기 칸 보조 글자: 흐리게(opacity) 대신 보조 글자 색 토큰 — 회색 바탕 위 4.6:1 이상 */
+.pl-seg button small{opacity:1;color:var(--text-3)}
+.pl-seg button[aria-pressed="true"] small{color:var(--text-2)}

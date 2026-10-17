@@ -13,7 +13,7 @@ const TOOLS = (() => {
   mk("gapTop", "갭 순위");
   mk("diagTop", "매물진단");
   mk("supplyTop", "입주 물량");
-  const e1 = (v) => (v == null || !isFinite(v) ? "–" : v < 0.05 ? "0원" : `${(Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, "")}억`);
+  const e1 = ZF.cash;
   const ok = (r) => !(r.s >= 9) && !r.dn && !r.cx && r.src !== "moa" && !r.lc && r.tag !== "mk";
   // ---------- 갭 순위: 전세 끼고 지금 필요한 돈이 적은 순 ----------
   let gapF = "all", gapN = 20;
