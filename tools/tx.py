@@ -55,6 +55,8 @@ apt = collections.defaultdict(list)        # 지번 PNU → 아파트 매매 [�
 bldS = collections.defaultdict(list); dongName = {}
 YR = {}   # PNU → 가장 최근 준공연도(매매·전월세 신고에서)
 ALLB = collections.defaultdict(list)       # PNU 본번(앞 15자리) → 매매 전체(빌라·단독·아파트·입주권) — 경계 없는 구역의 대표지번 매칭용
+APTR = collections.defaultdict(list)       # 지번 PNU → 아파트·입주권 매매 행(구역 거래 행 모양) — 경계·지번 없는 재건축 후보지의 단지 이름 매칭용
+APTN = collections.defaultdict(collections.Counter)   # 지번 PNU → 아파트 건물명 빈도
 last_sale = ''
 for fn in A.sale:
     rd, ix = opencsv(fn)
@@ -78,7 +80,8 @@ for fn in A.sale:
             rec = [d, 3 if rk else 2, yr, round(area, 1), 0, price, x[ix['층']], p]
             if p:
                 if not rk: apt[p].append([d, round(area, 1), price, x[ix['건물명']], yr])
-                ALLB[p[:15]].append(rec)
+                ALLB[p[:15]].append(rec); APTR[p].append(rec)
+                if x[ix['건물명']]: APTN[p][x[ix['건물명']]] += 1
             for rid in pnu2rec.get(p, ()): SALE[rid].append(rec)
             continue
         if use not in ('연립다세대', '단독다가구'): continue
@@ -145,6 +148,43 @@ def parse_j(r, dc=DC):
         code = next(iter(cs)) if len(cs) == 1 else None
     if not code: return None, None
     return code, f"{code}{'2' if m.group(2) else '1'}{int(m.group(3)):04d}{int(m.group(4) or 0):04d}"
+# ---- 경계·대표지번이 없는 재건축 후보지(신통기획 자문 등): 이름의 단지명을 같은 구(동 이름이 앞에 붙으면 그 동) 아파트 건물명과 맞춘다 ----
+#   '중계주공8' → 중계동 '주공8' · '성수동아' → 성수동1·2가 '동아' · '상계주공3' → '상계주공3(고층)'. 2005년 이후 준공 신축 단지는 제외
+def _nn(s): return re.sub(r'(\d)차$', r'\1', re.sub(r'아파트|단지|\(.*?\)|\s|-', '', s or '').upper())
+def name_match(r):
+    g5 = next((c[:5] for (gu, _), c in DCODE.items() if gu == r['g']), None)
+    if not g5: return None
+    core = _nn(re.sub(r'재건축|소규모|정비|사업|조합|추진위원회', '', r['n']))
+    if len(core) < 2: return None
+    keys = {(core, None)}
+    gs = r['g'][:-1]   # '용산반도' → 용산구 '반도'(동 이름이 안 맞을 때만, 아래)
+    rest = {core[len(gs):]} if len(gs) >= 2 and core.startswith(gs) and len(core) - len(gs) >= 2 else set()
+    for (gu, dn), c in DCODE.items():
+        if gu != r['g']: continue
+        for pre in {dn, re.sub(r'\d+가$', '', dn), re.sub(r'동?(\d+가)?$', '', dn)}:
+            if pre and core.startswith(pre) and len(core) - len(pre) >= 2: keys.add((core[len(pre):], c)); rest.add(core[len(pre):])
+    def scan(keys):
+        hit = []
+        for p, cn in APTN.items():
+            if p[:5] != g5: continue
+            nms = {_nn(k) for k in cn}
+            if not any(k in nms and (c is None or p[:10] == c) for k, c in keys): continue
+            yrs = collections.Counter(x[2] for x in APTR[p] if x[2])
+            if yrs and yrs.most_common(1)[0][0] >= 2005: continue
+            hit.append(p)
+        return hit
+    hit = scan(keys)
+    if not hit and rest:   # 동 이름이 생활권 이름일 때(예: 청량리 신현대 → 회기동): 구 전체에서 한 단지(같은 본번)만 맞으면
+        h2 = scan({(k, None) for k in rest})
+        if len({p[:15] for p in h2}) == 1: hit = h2
+    if not hit: return None
+    def _yr(p):
+        c = collections.Counter(x[2] for x in APTR[p] if x[2]); return c.most_common(1)[0][0] if c else 0
+    old = [p for p in hit if 0 < _yr(p) <= NOWY - 30]   # 이름이 겹치면 재건축 연한(30년)을 채운 단지
+    if old and len({p[:15] for p in hit}) > 1: hit = old
+    nm = collections.Counter()
+    for p in hit: nm.update(APTN[p])
+    return {'p': sorted(hit), 'nm': nm.most_common(1)[0][0]}
 GEO = (json.load(open(os.path.join(ROOT, 'public/data/geo.json'))) if os.path.exists(os.path.join(ROOT, 'public/data/geo.json')) else {}).get('z', {})
 for k in list(ALLB): ALLB[k] = [list(t) for t in dict.fromkeys(tuple(x) for x in ALLB[k])]
 ZCODE = {}   # 구역 → 법정동 코드(동 단위 참고 시세용)
@@ -244,6 +284,11 @@ for r in R:
     if not s and nobnd and jp and ALLB.get(jp[:15]):   # 공식 경계·필지가 없으면 대표지번 본번으로
         s = ALLB[jp[:15]]; t['m'] = 'jibun'
         if not j and ALLJ.get(jp[:15]): j = ALLJ[jp[:15]]   # 전세도 같은 본번(매매와 같은 범위)
+    if not s and nobnd and not jp and '재건축' in (r.get('k') or ''):   # 주소도 경계도 없는 재건축 후보지: 단지 이름으로
+        cx = name_match(r)
+        if cx:
+            s = [list(v) for v in dict.fromkeys(tuple(x) for p in cx['p'] for x in APTR[p])]; t['m'] = 'name'; t['cx'] = cx
+            if not code: code = cx['p'][0][:10]; ZCODE[rid] = code
     sv = [x for x in s if x[1] in (0, 1)]                 # 빌라·단독(예전 n 기준)
     sa = [x for x in s if x[1] == 2]                      # 아파트 매매(입주권 제외)
     recent = sorted({x[0] for x in s}, reverse=True)
@@ -392,6 +437,7 @@ for k, v in dongV.items():
 for r in R:
     rid = r['id']; code = ZCODE.get(rid)
     if not code or (OUT.get(rid) or {}).get('n'): continue
+    if re.search(r'시장|상가', r['n']): continue   # 시장·상가 정비(enrich.py tag 'mk')는 빌라 시세를 쓰지 않아 참고값도 붙이지 않는다
     dg = DONG.get(code)
     if dg: nb = {'n': dg['n'], 'med': dg['med']}
     else:

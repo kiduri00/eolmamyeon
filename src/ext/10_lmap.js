@@ -193,6 +193,15 @@
         const p = map.project(c.ll), w = k > 0 ? (nm.length * 0.82 + v.length * 0.62 + 0.4) * fs + 16 : nm.length * 0.8 * fs + 4, h = k > 0 ? fs * 1.25 + 10 : fs + 4;
         return { c, k, nm, v, x: p.x, y: p.y, x0: p.x, y0: p.y, w, h };
       });
+      const cv = map.getCanvas(), VW = cv.clientWidth, VH = cv.clientHeight, TOP = 52, M = 8;
+      const AR = (dx, dy) => (Math.abs(dx) > Math.abs(dy) * 1.6 ? (dx < 0 ? "←" : "→") : Math.abs(dy) > Math.abs(dx) * 1.6 ? (dy < 0 ? "↑" : "↓") : (dy < 0 ? (dx < 0 ? "↖" : "↗") : (dx < 0 ? "↙" : "↘")));
+      for (let i = B.length - 1; i >= 0; i--) {
+        const P = B[i], out = P.x < 0 || P.x > VW || P.y < TOP - 10 || P.y > VH;
+        if (!out) continue;
+        if (!P.k) { B.splice(i, 1); continue; }
+        const cx = Math.min(VW - M - P.w / 2, Math.max(M + P.w / 2, P.x)), cy = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y));
+        P.edge = AR(P.x - VW / 2, P.y - VH / 2); P.x = P.x0 = cx; P.y = P.y0 = cy; P.w += 14;
+      }
       for (let it = 0; it < 200; it++) {
         let moved = false;
         for (let a = 0; a < B.length; a++) for (let b = a + 1; b < B.length; b++) {
@@ -205,17 +214,29 @@
         B.forEach((P) => { P.x += (P.x0 - P.x) * 0.02; P.y += (P.y0 - P.y) * 0.02; });
         if (!moved) break;
       }
-      const F = B.map((P) => ({ type: "Feature", geometry: { type: "Point", coordinates: map.unproject([P.x, P.y]).toArray() }, properties: { n: P.nm, g: P.c.n, v: P.v, k: P.k } }));
+      B.forEach((P) => { P.x = Math.min(VW - M - P.w / 2, Math.max(M + P.w / 2, P.x)); P.y = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y)); });   // 밀려도 화면 안
+      const F = B.map((P) => ({ type: "Feature", geometry: { type: "Point", coordinates: map.unproject([P.x, P.y]).toArray() }, properties: { n: P.edge ? P.edge + " " + P.nm : P.nm, g: P.c.n, v: P.v, k: P.k } }));
       map.getSource("gub").setData(FC(F));
     }
+    // 기본은 압구정을 가운데 둔 한강 W자 구간. 내 돈으로 되는 구역이 그 밖에 있으면 거기까지 넓힌다.
+    const CORE = [[126.895, 37.497], [127.115, 37.566]];
     function affBB() {
+      let [[a, b], [c, d]] = CORE;
       try {
         const P = R.filter((r) => r.ll && visible(r) && dotState(r) === "y").map((r) => r.ll);
-        if (P.length < 3) return SEOUL_BB;
-        const la = P.map((x) => x[0]).sort((a, b) => a - b), lo = P.map((x) => x[1]).sort((a, b) => a - b);
-        const q = (A, f) => A[Math.max(0, Math.min(A.length - 1, Math.round((A.length - 1) * f)))];   // 양끝 5%는 빼고
-        return [[q(lo, 0.05), q(la, 0.05)], [q(lo, 0.95), q(la, 0.95)]];
-      } catch (e) { return SEOUL_BB; }
+        if (P.length) {
+          const la = P.map((x) => x[0]).sort((x, y) => x - y), lo = P.map((x) => x[1]).sort((x, y) => x - y);
+          const q = (A, f) => A[Math.max(0, Math.min(A.length - 1, Math.round((A.length - 1) * f)))];
+          const t = P.length >= 8 ? 0.04 : 0;   // 동떨어진 한두 곳 때문에 너무 멀어지지 않게
+          a = Math.min(a, q(lo, t)); c = Math.max(c, q(lo, 1 - t)); b = Math.min(b, q(la, t)); d = Math.max(d, q(la, 1 - t));
+        }
+      } catch (e) {}
+      return [[a, b], [c, d]];
+    }
+    function fitAff(anim) {
+      if (!map || !ready || mapView !== "seoul" || gu) return;
+      map.resize();
+      map.fitBounds(affBB(), { padding: { top: 52, bottom: 24, left: 20, right: 20 }, maxZoom: 12, duration: anim && !reduceMotion() ? 700 : 0 });
     }
     function seoul() {
       gu = null;
@@ -227,7 +248,7 @@
           if (mapView !== "seoul") return;
           if (!init()) { show(false); return; }
           // 처음엔 서울 전체가 아니라 '내 돈으로 되는 구역'이 모인 곳에 맞춘다(폰 지도는 작아서 전체는 답답함)
-          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); map.fitBounds(affBB(), { padding: { top: 44, bottom: 28, left: 28, right: 28 }, maxZoom: 11.4, duration: 0 }); } };
+          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); map.fitBounds(CORE, { padding: { top: 52, bottom: 16, left: 12, right: 12 }, duration: 0 }); } };
           fitS(); requestAnimationFrame(fitS); map.once("idle", fitS);
           if (ready) paint();
         })
@@ -443,9 +464,10 @@
       paint: () => { OVR = null; if (map && ready) paint(); },
       counts: (o) => { OVR = o; if (map && ready) guBubbles(); },
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
-      zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else map.fitBounds(SEOUL_BB, { padding: 8, duration: reduceMotion() ? 0 : 400 }); },
+      zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else fitAff(true); },
       geo: () => loadGeo(),
-      fit: () => { if (!map) return; map.resize(); if (mapView === "seoul" && !gu) map.fitBounds(SEOUL_BB, { padding: 14, duration: 0 }); },
+      fitAff: (anim) => fitAff(anim),
+      fit: () => { if (!map) return; map.resize(); fitAff(false); },
       lib: () => loadLib(), style: () => style(), subway: () => subwayGeo(),
     };
   })();

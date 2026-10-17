@@ -79,6 +79,56 @@ for _k in _JUNK: PREM.pop(_k, None)   # 뺀 시험 레코드
 json.dump(PREM, open(os.path.join(ROOT, 'public/premium.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 if stage_changes: print('단계 변경', stage_changes[:20])
 
+T = TX['tx']; DONG = TX['dong']; APT = TX['apt']; DC = TX['dcode']
+GU5 = {}
+for k, c in DC.items(): GU5[k.split('|')[0]] = c[:5]
+JRE = re.compile(r'([가-힣]+\d+가|[가-힣]+?\d*(?:동|로|가))\s*(산\s*)?(\d+)(?:-(\d+))?')   # '금호동2가 421-1'처럼 N가를 먼저(tools/tx.py와 같은 규칙)
+_D2C = collections.defaultdict(set)
+for k, c in DC.items(): _D2C[k.split('|')[1]].add(c)
+def parse_j(r):
+    j = re.sub(r'^\s*(서울(특별)?시\s*)?([가-힣]+구\s+)?', '', (r.get('bj') or r.get('j') or ''))
+    m = JRE.match(j)
+    if not m: return None, None
+    dong = m.group(1)
+    code = DC.get(f"{r['g']}|{dong}")
+    if not code:   # '신당동' 대신 '신당2동' 같은 행정동 표기
+        code = DC.get(f"{r['g']}|{re.sub(r'\d+동$', '동', dong)}")
+    if not code:   # 자치구 오기: 그 법정동 이름이 서울에 하나뿐이면 그 코드
+        cs = _D2C.get(dong) or _D2C.get(re.sub(r'\d+동$', '동', dong)) or ()
+        code = next(iter(cs)) if len(cs) == 1 else None
+    if not code: return None, None
+    pnu = f"{code}{'2' if m.group(2) else '1'}{int(m.group(3)):04d}{int(m.group(4) or 0):04d}"
+    return code, pnu
+# ---------- 1a. 좌표가 없는 구역: 대표지번(또는 단지 이름으로 찾은 단지 지번, tools/tx.py cx) 필지의 중심 ----------
+#   서울도시공간포털 연속지적(layer 1)을 PNU로 조회. 캐시 pipeline/cache/pnu_ll.json {PNU: [lat, lng] | null}
+import subprocess, urllib.parse
+_PLP = os.path.join(ROOT, 'pipeline/cache/pnu_ll.json')
+PLL = json.load(open(_PLP)) if os.path.exists(_PLP) else {}
+_UPIS = "https://urban.seoul.go.kr/proxy/proxy.jsp?http://98.33.2.225:6080/arcgis/rest/services/UPIS/20200526_WFS/MapServer/1/query?"
+def pnu_ll(p):
+    if p in PLL: return PLL[p]
+    if os.environ.get('NO_NET'): return None
+    q = urllib.parse.urlencode({'f': 'json', 'where': f"PNU='{p}'", 'outFields': 'PNU', 'returnGeometry': 'true', 'outSR': '4326', 'maxAllowableOffset': '0.0001'})
+    try:
+        o = subprocess.run(['curl', '-sS', '--max-time', '40', _UPIS + q], capture_output=True, text=True, timeout=50).stdout
+        fs = json.loads(o).get('features') or []
+    except Exception: return None   # 네트워크 실패는 캐시하지 않는다(다음 실행 때 다시)
+    v = None
+    if fs:
+        from shapely.geometry import Polygon
+        g = Polygon(fs[0]['geometry']['rings'][0]).buffer(0); c = g.centroid if g.contains(g.centroid) else g.representative_point()
+        v = [round(c.y, 6), round(c.x, 6)]
+    PLL[p] = v; return v
+for r in R:
+    if r.get('ll'): continue
+    z = GEO.get(r['id'])
+    if z and not z.get('e'): continue   # 경계가 있으면 아래 1에서 경계 중심으로
+    t = T.get(r['id']) or {}
+    ps = (t.get('cx') or {}).get('p') or [x for x in [parse_j(r)[1]] if x]
+    for p in ps:
+        v = pnu_ll(p)
+        if v: r['ll'] = v; r['llFix'] = 'name' if t.get('cx') else 'jibun'; stat['ll_from_pnu'] += 1; break
+json.dump(PLL, open(_PLP, 'w'), separators=(',', ':'))
 # ---------- 1. 좌표: ll → 지도 SVG xy 변환식 (기존 레코드로 최소제곱) ----------
 pairs = [(r['ll'], r['xy']) for r in R if r.get('ll') and r.get('xy')]
 def fit(ix):
@@ -95,24 +145,58 @@ def hav(a, b):
     la1, lo1, la2, lo2 = map(math.radians, (a[0], a[1], b[0], b[1]))
     h = math.sin((la2 - la1)/2)**2 + math.cos(la1)*math.cos(la2)*math.sin((lo2 - lo1)/2)**2
     return 2*6371000*math.asin(math.sqrt(h))
-ST = D['stations']   # [이름, lat, lng, [노선], x, y]
+# 역 목록 정리(src/app.js ST_FIX·LN_FIX·NEW_ST와 같은 규칙을 데이터에도): 이름·노선 표기 통일, 같은 역 중복은 노선을 합쳐 하나로,
+#   빠진 역(신림선 보라매공원·보라매병원 등) 추가, 틀린 좌표·노선 바로잡기
+ST_FIX = {'당고개역': '불암산역', '구회의사당역': '국회의사당역', '영등포 구청역': '영등포구청역', '잠실시내역': '잠실새내역', '시가정역': '사가정역'}
+LN_FIX = {'경의중앙': '경의중앙선', '김포 골드라인': '김포골드라인', '신림역': '신림선'}
+NEW_ST = [['천왕역', 37.486637, 126.838713, ['7호선']], ['온수역', 37.492258, 126.823388, ['1호선', '7호선']], ['오류동역', 37.494526, 126.845365, ['1호선']],
+          ['개봉역', 37.494594, 126.85868, ['1호선']], ['사당역', 37.47653, 126.981685, ['2호선', '4호선']], ['영등포역', 37.515504, 126.907628, ['1호선']],
+          ['여의나루역', 37.527098, 126.932901, ['5호선']], ['마포역', 37.539574, 126.945932, ['5호선']], ['가좌역', 37.568491, 126.915487, ['경의중앙선']],
+          ['서강대역', 37.551881, 126.935711, ['경의중앙선']], ['압구정로데오역', 37.527381, 127.040534, ['수인분당선']], ['남태령역', 37.463873, 126.989134, ['4호선']],
+          ['중앙보훈병원역', 37.528807, 127.148488, ['9호선']], ['보라매공원역', 37.4954, 126.9182, ['신림선']], ['보라매병원역', 37.4935, 126.9237, ['신림선']]]
+ST_POS = {'당곡역': (37.4906, 126.9271)}          # 원자료가 신림역 좌표를 그대로 써 둔 역
+ST_LN = {'대방역': ['1호선', '신림선'], '장한평역': ['5호선']}   # 빠진 노선 · 잘못 붙은 노선(장한평 7호선)
+_st = {}
+for s0 in D['stations']:
+    n = ST_FIX.get(s0[0]) or re.sub(r'(\S) (구청역|시청역)$', r'\1\2', s0[0])
+    ls = [LN_FIX.get(l, l) for l in s0[3]]
+    if n in _st: _st[n][3] = list(dict.fromkeys(_st[n][3] + ls)); stat['station_dup_merged'] += 1
+    else: _st[n] = [n, s0[1], s0[2], list(dict.fromkeys(ls)), s0[4], s0[5]]
+for n, la, lo, ls in NEW_ST:
+    if n not in _st: _st[n] = [n, la, lo, ls, *toXY(la, lo)]; stat['station_add'] += 1
+for n, (la, lo) in ST_POS.items():
+    if n in _st: _st[n][1:3] = [la, lo]; _st[n][4:6] = toXY(la, lo)
+for n, ls in ST_LN.items():
+    if n in _st: _st[n][3] = ls
+D['stations'] = ST = list(_st.values())   # [이름, lat, lng, [노선], x, y]
 HB = {'광화문·시청(CBD)': (37.5714, 126.9768), '강남역(GBD)': (37.4979, 127.0276), '여의도(YBD)': (37.5216, 126.9243)}
 withH = [r for r in R if r.get('ll') and r.get('h') is not None]
+from shapely.geometry import Polygon as _Poly
+def _bnd_pt(z):   # 공식 경계의 중심(경계 밖으로 나가면 경계 안 대표점) — 대표지번 좌표는 구역 한쪽 끝일 수 있다
+    try:
+        g = _Poly(z['g'][0], z['g'][1:]).buffer(0); c = g.centroid
+        if not g.contains(c): c = g.representative_point()
+        return c.y, c.x
+    except Exception: return None
 for r in R:
     z = GEO.get(r['id'])
-    if r.get('ll') and r.get('xy'): continue
-    if r.get('ll'): lat, lng = r['ll']
-    elif z and not z.get('e'): lng, lat = z['l']; r['ll'] = [lat, lng]; r['llFix'] = 'bnd'
-    else: continue
-    r['xy'] = toXY(lat, lng)
+    bp = _bnd_pt(z) if z and not z.get('e') and z.get('g') else None
+    if not r.get('ll'):
+        if bp: lng0, lat0 = z['l']; r['ll'] = [lat0, lng0]; r['llFix'] = 'bnd'; stat['ll_from_boundary'] += 1   # 지도 표시점은 경계 레이어의 라벨 위치
+        else: continue
+    if not r.get('xy'):
+        r['xy'] = toXY(*r['ll'])
+        r['hb'] = {k: round(hav(r['ll'], v)) for k, v in HB.items()}
+        r['h'] = min(withH, key=lambda q: hav(r['ll'], q['ll']))['h']
+    # 가까운 역: 공식 경계가 있으면 경계 중심에서, 없으면 대표 좌표에서(모든 구역 같은 규칙)
+    lat, lng = bp or r['ll']
     ds = sorted(((hav((lat, lng), (s[1], s[2])), s) for s in ST), key=lambda t: t[0])
+    before = (r.get('st') or {}).get('n')
     r['st'] = {'n': ds[0][1][0], 'd': round(ds[0][0])}
     r['s3'] = [[s[0], round(d), s[3]] for d, s in ds[:3]]
     r['ln'] = sorted({l for d, s in ds if d <= 1000 for l in s[3]})
-    r['hb'] = {k: round(hav((lat, lng), v)) for k, v in HB.items()}
-    nb = min(withH, key=lambda q: hav((lat, lng), q['ll']))
-    r['h'] = nb['h']
-    stat['ll_from_boundary'] += 1
+    if before and ST_FIX.get(before, before) != r['st']['n']: stat['station_changed'] += 1
+    elif not before: stat['station_new'] += 1
 
 # ---------- 1b. 자치구 오기 바로잡기: 이름·주소의 법정동이 다른 구에만 있으면 그 구로 ----------
 _DC0 = J('pipeline/txsum.json')['dcode']
@@ -147,25 +231,6 @@ for r in R:
 
 # ---------- 3. 구역 실거래 요약 병합 + 매수가 ----------
 T = TX['tx']; DONG = TX['dong']; APT = TX['apt']; DC = TX['dcode']
-GU5 = {}
-for k, c in DC.items(): GU5[k.split('|')[0]] = c[:5]
-JRE = re.compile(r'([가-힣]+\d+가|[가-힣]+?\d*(?:동|로|가))\s*(산\s*)?(\d+)(?:-(\d+))?')   # '금호동2가 421-1'처럼 N가를 먼저(tools/tx.py와 같은 규칙)
-_D2C = collections.defaultdict(set)
-for k, c in DC.items(): _D2C[k.split('|')[1]].add(c)
-def parse_j(r):
-    j = re.sub(r'^\s*(서울(특별)?시\s*)?([가-힣]+구\s+)?', '', (r.get('bj') or r.get('j') or ''))
-    m = JRE.match(j)
-    if not m: return None, None
-    dong = m.group(1)
-    code = DC.get(f"{r['g']}|{dong}")
-    if not code:   # '신당동' 대신 '신당2동' 같은 행정동 표기
-        code = DC.get(f"{r['g']}|{re.sub(r'\d+동$', '동', dong)}")
-    if not code:   # 자치구 오기: 그 법정동 이름이 서울에 하나뿐이면 그 코드
-        cs = _D2C.get(dong) or _D2C.get(re.sub(r'\d+동$', '동', dong)) or ()
-        code = next(iter(cs)) if len(cs) == 1 else None
-    if not code: return None, None
-    pnu = f"{code}{'2' if m.group(2) else '1'}{int(m.group(3)):04d}{int(m.group(4) or 0):04d}"
-    return code, pnu
 # ---------- 특수 사업 표시: 역세권 장기전세주택(lt) · 시장·상가 정비(mk) — 매수가 계산 전에 정한다 ----------
 for r in R:
     r.pop('tag', None)
@@ -218,6 +283,9 @@ for r in R:
         code = collections.Counter(p[0][:10] for p in PARC[r['id']]['p']).most_common(1)[0][0]
     if r['k'] in ('재건축', '소규모재건축'):
         a = APT.get(pnu) if pnu else None
+        if not a and (t or {}).get('cx'):   # 주소·경계 없는 후보지: tools/tx.py가 단지 이름으로 찾은 지번
+            c = [APT[p] for p in t['cx']['p'] if p in APT]
+            a = max(c, key=lambda v: v['n']) if c else None
         if not a and pnu:   # 같은 본번의 다른 부번(단지 대표 지번이 다를 때)
             c = [v for k, v in APT.items() if k[:15] == pnu[:15]]
             a = max(c, key=lambda v: v['n']) if c else None
@@ -293,6 +361,7 @@ for r in R:
     code = None
     if PARC.get(r['id'], {}).get('p'): code = collections.Counter(p[0][:10] for p in PARC[r['id']]['p']).most_common(1)[0][0]
     if not code or code not in C2D: code = parse_j(r)[0]
+    if (not code or code not in C2D) and ((T.get(r['id']) or {}).get('cx')): code = T[r['id']]['cx']['p'][0][:10]
     if code and code in C2D: r['dg'] = C2D[code]; stat['dong_fix_pnu'] += 1; continue
     if r.get('ll'):   # 필지가 없으면 같은 구 가장 가까운(300m 안) 구역의 법정동
         c = [(hav(r['ll'], ll), d) for ll, g, d in _withD if g == r['g']]

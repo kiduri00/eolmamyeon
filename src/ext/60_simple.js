@@ -159,7 +159,7 @@ const SIMPLE = (() => {
     const up = () => { if (!dragging) return; dragging = false; clearTimeout(idleT); idleT = setTimeout(() => setCash(toCash(+sl.value), true), 30); };
     window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
     sl.addEventListener("change", () => { clearTimeout(timer); clearTimeout(idleT); setCash(toCash(+sl.value), true); });
-    map.querySelector(".s-mode").addEventListener("click", (e) => { const b = e.target.closest("button[data-f]"); if (!b) return; if (b.dataset.f === "cash") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (er) {} } setFund(b.dataset.f); });
+    map.querySelector(".s-mode").addEventListener("click", (e) => { const b = e.target.closest("button[data-f]"); if (!b) return; if (b.dataset.f === "cash") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (er) {} } setFund(b.dataset.f); setTimeout(() => { try { LMX.fitAff(true); } catch (er) {} }, 60); });
     list.querySelector(".s-flt").addEventListener("click", (e) => {
       const b = e.target.closest("button[data-k]"); if (!b) return;
       kind = b.dataset.k; shown = 6;
@@ -233,6 +233,8 @@ const SIMPLE = (() => {
     try { PREV_CASH = null; } catch (e) {}
     planN = PLAN0();
     plan();
+    // 금액을 정하면 그 돈으로 되는 구역까지 지도가 따라 넓어진다
+    try { LMX.fitAff(true); } catch (e) {}
   }
   // 곳 수가 바뀔 때 숫자가 툭 바뀌지 않고 굴러가게
   function tween(el, to) {
