@@ -58,6 +58,7 @@ html:not(.simple) .s-back{display:none}
 .s-amt b{font-size:20px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .s-amt small{font-size:12px;color:var(--text-3)}
 .s-empty{padding:22px 16px;text-align:center;color:var(--text-2);font-size:15px}
+.s-eact{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:12px}.s-eact .btn{min-height:44px;font-size:14.5px}
 .s-more{display:block;margin:10px auto 0;min-width:160px}
 
 /* 검색 바 */
@@ -395,6 +396,8 @@ html.sheet-open .s-why.bs,html.menu-open .s-why.bs{bottom:calc(12px + env(safe-a
 .s-why li.s-wsum span{color:var(--text-1);font-weight:700}
 .s-why li.s-wsum b{color:var(--brand);font-weight:800;font-size:16px}
 .s-why li.s-wna{color:var(--text-2)}
+.s-why li.s-wbase{display:block;margin:-2px 0 2px 16px;padding:0;color:var(--text-2);font-size:12.5px;line-height:1.45}
+.s-why li.s-wbase small{display:block;font-size:12px}
 .s-why p{margin:6px 0 0;font-size:12.5px;color:var(--text-3)}
 .s-wgo{display:block;margin:8px 0 0 auto;padding:6px 0;border:0;background:none;color:var(--brand);font:600 13px var(--font);cursor:pointer}
 
@@ -480,3 +483,28 @@ html.simple #mapbox:not(.lm-on){min-height:560px}
 }
 /* 푸터: 데이터 기준 줄과 첫 링크 사이 12px, 링크 줄은 44px */
 @media (max-width:980px){html.simple .site-foot #footAsof{margin-bottom:12px}html.simple .site-foot .f-bot a{display:flex;align-items:center;min-height:44px;padding:0}}
+/* 넓은 PC: 게이지를 두 칸으로 — 왼쪽 숫자·막대(최대 640px), 오른쪽 '이 돈이면' 요약. 핀 꽂기 알약은 요약 칸 아래에 얹는다 */
+.s-sum{display:none}
+@media (min-width:1180px){
+  html.simple .s-gauge{display:grid;grid-template-columns:minmax(0,640px) minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto auto;column-gap:44px;align-items:start}
+  html.simple .s-gauge>.s-ghead{grid-column:1/-1;grid-row:1}
+  html.simple .s-gauge>.s-gmain{grid-column:1;grid-row:2;margin-top:20px}
+  html.simple .s-gauge>#sCash{grid-column:1;grid-row:4}
+  html.simple .s-gauge>.s-ticks{grid-column:1;grid-row:5}
+  .s-sum{display:flex;flex-direction:column;grid-column:2;grid-row:2/6;align-self:stretch;min-height:206px;margin:12px 0 0;padding:12px 14px;border-radius:16px;background:var(--surface-2);border:1px solid var(--divider);box-sizing:border-box}
+  .s-sum-h{display:flex;align-items:baseline;gap:8px;margin:0 0 4px;font-size:13px;color:var(--text-3)}
+  .s-sum-h b{font-size:14px;font-weight:800;color:var(--text-1)}
+  .s-sum ol{list-style:none;margin:0;padding:0}
+  .s-sum button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:40px;padding:0 8px;margin:0 -8px;width:calc(100% + 16px);border:0;border-radius:10px;background:none;color:var(--text-1);font:600 14.5px var(--font);text-align:left;cursor:pointer}
+  .s-sum button span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .s-sum button small{margin-left:6px;font-size:12.5px;font-weight:500;color:var(--text-3)}
+  .s-sum button b{flex:none;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}
+  .s-sum button:hover{background:var(--surface-3)}
+  .s-sum button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+  .s-sum-f{display:flex;align-items:center;min-height:40px;margin:auto 0 0;padding-right:166px;font-size:13px;line-height:1.35;color:var(--text-2)}
+  .s-sum-f b{color:var(--text-1);font-weight:700}
+  .s-sum-f small{font-size:12px;color:var(--text-3)}
+  .s-sum-e{margin:8px 0 0;font-size:14px;line-height:1.5;color:var(--text-2)}
+  html.simple #mapTop .pc-save{padding-right:40px}
+  html.simple #mapTop .pc-save>button{top:-42px}
+}

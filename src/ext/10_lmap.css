@@ -149,3 +149,16 @@ html.s-full .s-mini{row-gap:6px;padding-top:7px;padding-bottom:7px}
 :root[data-theme="dark"] .lmap .maplibregl-ctrl-attrib a{color:#AAB3C0}
 :root[data-theme="dark"] #sList li.lm-hov{background:color-mix(in srgb,#F5C33B 12%,transparent);box-shadow:inset 3px 0 0 #F5C33B}
 @media (max-width:980px){html.simple.s-full body #mapbox .s-rail-w{top:92px}}
+/* 목록 '지도 범위만 · N곳 ✕' 칩(전체 지도를 확대한 채 목록 보기) */
+.s-gu .s-bbx{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 8px 0 14px;border:1px solid color-mix(in srgb,var(--brand) 35%,transparent);border-radius:999px;background:var(--brand-soft);color:var(--brand);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
+.s-gu .s-bbx i{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:color-mix(in srgb,var(--brand) 14%,transparent);font-style:normal;font-size:12px}
+.s-gu .s-bbx:hover i{background:color-mix(in srgb,var(--brand) 24%,transparent)}
+/* 겹쳐 보기 범례: 켠 레이어마다 지도와 같은 아이콘·색 */
+.lm-notes .lm-n-ic{flex:none;width:14px;height:14px;display:block}
+.lm-notes .lm-n-acad{width:11px;height:11px;background:rgba(122,63,184,.2);box-shadow:inset 0 0 0 1.5px #7A3FB8}
+.lm-notes .lm-n-biz{width:11px;height:11px;background:rgba(232,140,40,.14);box-shadow:inset 0 0 0 1.5px rgba(200,110,20,.75)}
+/* 역 주변 구역 0곳 안내(역으로 찾기) */
+.lm-snote{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:6px;max-width:calc(100% - 24px);padding:4px 4px 4px 14px;border-radius:999px;background:var(--text-1,#191f28);color:var(--surface,#fff);font:600 13px/1.35 var(--font,system-ui);box-shadow:0 6px 18px rgba(15,23,42,.24)}
+.lm-snote[hidden]{display:none}
+.lm-snote span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lm-snote button{flex:none;min-height:40px;padding:0 14px;border:0;border-radius:999px;background:var(--surface,#fff);color:var(--text-1,#191f28);font:inherit;font-weight:700;cursor:pointer}

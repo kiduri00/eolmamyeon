@@ -252,7 +252,7 @@
       // 좁은 화면(360px)에서도 가로로 잘리지 않게 3칸: [계약일 · 유형 층 / 준공 · 전용 · 대지] [가격] [3.3㎡당]
       const SV = S.filter((v) => v[1] <= 1), SA = S.filter((v) => v[1] >= 2);
       const TS = ' style="min-width:0;table-layout:auto"', C1 = ' style="white-space:normal"', SM = ' style="display:block;font-size:11.5px;color:var(--text-3);margin-top:2px"';
-      const row = (v, land) => `<tr><td${C1}>${ymd2(v[0])} · ${TY[v[1]]}${flr(v)} · ${land ? (v[4] ? `대지 ${v[4]}㎡` : `전용 ${v[3]}㎡`) : `${v[3]}㎡`}${flag(v)}<small${SM}>${v[2] ? v[2] + "년 준공" : "준공 미상"}${land && v[4] ? ` · 전용 ${v[3]}㎡` : ""}</small></td><td class="n"><b>${eok(v[5])}</b></td><td class="n">${land ? (v[4] > 0 ? eok(Math.round((v[5] / v[4]) * 3.3058)) : "–") : v[3] > 0 ? eok(Math.round((v[5] / v[3]) * 3.3058)) : "–"}</td></tr>`;
+      const row = (v, land) => `<tr><td${C1}>${ymd2(v[0])} · ${TY[v[1]]}${flr(v)} · <span style="white-space:nowrap">${land ? (v[4] ? `대지 ${v[4]}㎡` : `전용 ${v[3]}㎡`) : `${v[3]}㎡`}</span>${flag(v)}<small${SM}>${v[2] ? v[2] + "년 준공" : "준공 미상"}${land && v[4] ? ` · 전용 ${v[3]}㎡` : ""}</small></td><td class="n"><b>${eok(v[5])}</b></td><td class="n">${land ? (v[4] > 0 ? eok(Math.round((v[5] / v[4]) * 3.3058)) : "–") : v[3] > 0 ? eok(Math.round((v[5] / v[3]) * 3.3058)) : "–"}</td></tr>`;
       const head = (land) => `<thead><tr><th scope="col">계약일 · 유형</th><th scope="col" class="n">가격</th><th scope="col" class="n">${land ? "대지" : "전용"} 3.3㎡당</th></tr></thead>`;
       // 같은 면적대 시세와 크게 다른 거래(머리글·추이 계산에서 뺀 것)는 맨 위에 올리지 않고 접어 둔다
       const split = (L) => { const a = [], o = []; L.slice(0, 40).forEach((v) => (odd(v) ? o : a).push(v)); return [a, o]; };
@@ -286,9 +286,9 @@
         ${h && h.st ? `<p class="note warnbox"><b>오래된 거래</b> 위 값은 ${esc(ymd(h.to))} 거래 1건이에요. 1년 넘게 같은 기준 거래가 없어 지금 시세와 다를 수 있어요.</p>` : ""}
         ${doneI ? `<p class="note"><b>준공한 단지예요</b> 입주는 끝났지만 이전고시·소유권 보존등기 전이라 실거래 신고상 '입주권'으로 올라와요.</p>` : ""}
         ${calcNote}
-        ${ageOk ? `<div class="sect"><h3>연식별 대지 3.3㎡당 <small>구역 안 빌라·단독 전체 기간 · 새 건물일수록 비싸지만 권리산정기준일 뒤 신축이면 입주권이 문제될 수 있어요</small></h3><dl class="facts">
+        ${ageOk ? `<details class="sect ov-alt"><summary><h3>다른 기준 보기 · 연식별 대지 3.3㎡당 <small>구역 안 빌라·단독 전체 기간이라 위 큰 숫자와 기준이 달라요 · 권리산정기준일 뒤 신축이면 입주권이 문제될 수 있어요</small></h3></summary><dl class="facts">
           ${[["a", "10년 이하"], ["b", "11~30년"], ["c", "31년 이상"]].filter(([k]) => age[k] != null).map(([k, l]) => `<div><dt>${l}</dt><dd>${eok(age[k])}<small>${agn[k] || 0}건</small></dd></div>`).join("")}
-          <div><dt>쪼개기 의심 거래</dt><dd>${t.split ? t.split + "건" : "없음"}<small>2016년 이후 준공 · 대지 15㎡ 이하</small></dd></div></dl></div>` : ""}
+          <div><dt>쪼개기 의심 거래</dt><dd>${t.split ? t.split + "건" : "없음"}<small>2016년 이후 준공 · 대지 15㎡ 이하</small></dd></div></dl></details>` : ""}
         ${t.old && t.old.k && r.s < 7 ? `<div class="sect"><h3>노후도 <small>구역 경계 안 건축물 ${fmt(t.old.n)}동 전수 · 사용승인연도 확인 ${fmt(t.old.k)}동 · 서울도시공간포털 건물 정보(사용승인 2022년까지 반영)</small></h3><div class="oldbar" role="img" aria-label="노후·불량 건축물 ${t.old.pol}%, 기준선 60%"><i style="width:${t.old.pol}%"></i><s style="left:60%"></s></div><dl class="facts"><div><dt>노후·불량 건축물</dt><dd>${t.old.pol}%<small>철근콘크리트·철골조 30년, 그 밖의 구조 20년 이상(서울 조례 기준 단순화) · 구역지정 요건 60% 이상</small></dd></div><div><dt>30년 이상 건물</dt><dd>${t.old.p30}%<small>평균 ${t.old.avg}년 된 건물</small></dd></div><div><dt>10년 이하 신축</dt><dd>${fmt(t.old.new10)}동<small>권리산정기준일 뒤 신축이면 입주권 문제 확인</small></dd></div></dl></div>` : ""}
         ${pc ? `<div class="sect"><h3>구역 필지 현황 <small>서울도시공간포털 연속지적 ${fmt(pc.n)}필지 · 합계 ${fmt(pc.ar)}㎡</small></h3><dl class="facts">
           <div><dt>과소필지 (90㎡ 미만)</dt><dd>${pc.sm}%<small>도로·하천 제외 · 재개발 지정 요건 40% 이상</small></dd></div>
@@ -309,10 +309,23 @@
 
     // ---------- 정보몽땅 최근 기록(다음 인가 선행 신호) ----------
     const SIG = [[/분양신청/, "관리처분인가가 가까워졌다는 신호(조합원 분양신청)"], [/총회개최/, "총회 개최"], [/인가신청|승인신청/, "다음 인가를 신청함"], [/업체선정/, "업체 선정"], [/공람|설명회/, "주민 공람·설명회"]];
+    // 정보몽땅 원문 '[(변경)인가신청]', '동의율 : 89.85' → '변경인가 신청', '동의율 89.85%'
+    // '(변경)'은 양식 이름이라, 그 단계 날짜가 이 기록보다 앞서 있을 때만 '변경'으로 읽는다
+    const EVK = { 조합설립인가: "조합설립", 사업시행인가: "사업시행", 관리처분인가: "관리처분", 정비구역지정: "구역지정", 조합설립추진위원회승인: "추진위", 사업시행자지정: "시행자지정", 준공인가: "준공" };
+    function evText(r, d, sec, t) {
+      const m = String(t || "").match(/^\[([^\]]*)\]\s*(.*)$/), k = EVK[sec], sd = k && r.dt && r.dt[k];
+      let a = m ? m[1] : "", b = m ? m[2] : String(t || "");
+      const chg = /\(변경\)/.test(a) && !!sd && sd < d;
+      a = a.replace(/\(변경\)\s*/, chg ? "변경" : "").replace(/(인가|승인)(신청|고시)/, "$1 $2").replace(/계약\(변경\)/, "계약 변경").replace(/\s*:\s*/, " ");
+      b = b.replace(/동의율\s*:\s*(\d+(?:\.\d+)?)\s*%?/, "동의율 $1%").replace(/동의율\s*:\s*(해당없음|[.\-]?)\s*$/, "").replace(/\(최초인가시\)/, " (최초 인가 때)")
+        .replace(/(\S*?)일자\s*:\s*/, (x, p) => (p.endsWith("일") ? p : p + "일") + " ").replace(/선정업체명\s*:\s*/, "").replace(/(\d{4})-(\d{2})-(\d{2})/g, "$1.$2.$3").replace(/\b(20\d\d)(\d\d)(\d\d)\b/g, "$1.$2.$3").replace(/\s*:\s*/g, " ").trim();
+      if (b && a && b.replace(/\s/g, "") === a.replace(/\s/g, "")) b = "";
+      return { txt: b ? (a ? `${a} · ${b}` : b) : a, chg };
+    }
     function evHTML(r) {
       const ev = r.ev;
       if (!Array.isArray(ev) || !ev.length) return "";
-      const rows = ev.slice(0, 6).map(([d, sec, t]) => { const s = SIG.find(([re]) => re.test(t)); return `<li><span class="ev-d mono">${esc(d.replaceAll("-", "."))}</span><span class="ev-t"><b>${esc(sec)}</b> ${esc(t.replace(/^\[([^\]]*)\]\s*(.*)$/, (m, a, b) => (b ? `${a} · ${b}` : a)))}${s ? ` <em class="ev-s">${esc(s[1])}</em>` : ""}</span></li>`; }).join("");
+      const rows = ev.slice(0, 6).map(([d, sec, t]) => { const e = evText(r, d, sec, t), s = e.chg ? null : SIG.find(([re]) => re.test(String(t).replace(/\s/g, ""))); return `<li><span class="ev-d mono">${esc(d.replaceAll("-", "."))}</span><span class="ev-t"><b>${esc(sec)}</b> ${esc(e.txt)}${s ? ` <em class="ev-s">${esc(s[1])}</em>` : ""}</span></li>`; }).join("");
       return `<div class="sect evl"><h3>정보몽땅 최근 기록 <small>추진경과 · 매일 갱신 · 인가 전 신청·총회가 먼저 올라와요</small></h3><ul>${rows}</ul>${r.cafe ? `<p class="note"><a href="https://cleanup.seoul.go.kr/cafe/mainIndx.do?cafeUrl=${encodeURIComponent(r.cafe)}" target="_blank" rel="noopener">정보몽땅 사업장 원문 보기</a></p>` : ""}</div>`;
     }
     // ---------- 역전세 위험(전세 끼고 사기) ----------

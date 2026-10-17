@@ -210,3 +210,35 @@ svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 .rq-l li small a{color:var(--brand);font-weight:600;white-space:nowrap}
 .rq h3{margin-bottom:10px}
 @media (min-width:981px){html.simple #report #pane{min-height:calc(100vh - 200px)}}
+/* r11: 3.3㎡당 큰 숫자 하나 + 기준 한 줄 · 다른 기준은 접기 */
+.ov-basis{margin:2px 0 0;font-size:12.5px;line-height:1.5;color:var(--text-2)}
+.ov-alt{margin-top:10px;border-top:1px solid var(--divider,var(--border))}
+.ov-alt>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-size:13.5px;font-weight:700;color:var(--brand);list-style:none}
+.ov-alt>summary::-webkit-details-marker{display:none}
+.ov-alt>summary::after{content:"▾";margin-left:6px;font-size:12px;transition:transform .15s}
+.ov-alt[open]>summary::after{transform:rotate(180deg)}
+.ov-altl{display:flex;flex-direction:column;gap:6px;margin:0 0 6px}
+.ov-altl div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 12px;border-radius:12px;background:var(--surface-2)}
+.ov-altl dt{font-size:13px;font-weight:600;color:var(--text-2);min-width:0}
+.ov-altl dt small{display:block;font-size:11.5px;font-weight:500;color:var(--text-3)}
+.ov-altl dd{margin:0;font-size:15px;font-weight:800;color:var(--text-1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ov-alt .ov-ch{margin-top:4px}
+svg.ov-bar .bq{font:500 9.5px var(--font);fill:var(--text-3);text-anchor:middle}
+svg.ov-bar .bn{fill:var(--text-1);font-weight:700}
+svg.ov-bar .bn.on{fill:#fff}
+.ov-tl li small .ov-chg{color:var(--warn-ink,#b45309);font-size:10.5px}
+/* 거래 탭: 연식별은 다른 기준이라 접기 */
+#pane details.ov-alt.sect{border-top:0;margin-top:0}
+#pane details.ov-alt.sect>summary{display:block;min-height:44px;padding:4px 0}
+#pane details.ov-alt.sect>summary h3{display:inline;margin:0;font-size:15px;color:var(--brand)}
+#pane details.ov-alt.sect>summary h3 small{display:block;margin-top:2px;font-weight:500;color:var(--text-3)}
+#pane details.ov-alt.sect>summary::after{display:none}
+/* 입주까지 현금 다리 줄: 들어가는 돈 − 입주 잔금대출 = 입주까지 현금 */
+.cash-br{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:10px 0 12px;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-size:13px;line-height:1.5;color:var(--text-2)}
+.cash-br span{white-space:nowrap}
+.cash-br b{color:var(--text-1);font-variant-numeric:tabular-nums}
+.cash-br span:last-child b{color:var(--brand)}
+.cash-brw .cash-br{margin-top:0}
+.ov-formal{margin:2px 0 0;font-size:12.5px;line-height:1.4;color:var(--text-3);overflow-wrap:anywhere}
+#pane details.ov-alt.sect>summary h3::after{content:" ▾";font-size:12px}
+#pane details.ov-alt.sect[open]>summary h3::after{content:" ▴"}

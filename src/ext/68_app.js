@@ -31,6 +31,22 @@
   const boot = () => { if (navigator.onLine === false) { H.classList.add("is-offline"); toast("오프라인이에요 · 저장된 자료로 보여요", 4200); } };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true }); else boot();
 
+  // 화면 읽기: 결과 목록 전체(#maxBox·#cmOut)를 다시 읽지 않고 곳 수 한 줄만 알린다(바뀐 뒤 잠깐 쉬었을 때 한 번)
+  const liveSum = (srcId, outId, pick) => {
+    const src = document.getElementById(srcId), out = document.getElementById(outId); if (!src || !out) return;
+    let t = 0, last = "";
+    new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => {
+      if (!src.offsetParent) return;
+      const s = (pick() || "").replace(/\s+/g, " ").trim();
+      if (s && s !== last) { last = s; out.textContent = s; }
+    }, 700); }).observe(src, { childList: true, subtree: true });
+  };
+  const liveBoot = () => {
+    liveSum("maxBox", "maxLive", () => { const q = document.getElementById("qAns"); return q && q.firstElementChild ? q.firstElementChild.textContent : ""; });
+    liveSum("cmOut", "cmLive", () => { const p = document.querySelector("#cmOut .cm-sum p"); return p ? p.textContent : ""; });
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", liveBoot, { once: true }); else liveBoot();
+
   // 서비스 워커: 안전한 출처에서만, 첫 화면을 다 그린 뒤에
   const okHost = location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
   if ("serviceWorker" in navigator && okHost) {

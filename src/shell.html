@@ -19,7 +19,6 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" media="print" onload="this.media='all'" crossorigin>
-<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"></noscript>
 <style>/*APPCSS*/</style>
 
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"집핀","alternateName":["ZIPPIN","얼마면 재개발"],"url":"https://jaegaebal.alwaysquestions.kr/","inLanguage":"ko"},{"@type":"Organization","name":"집핀","url":"https://jaegaebal.alwaysquestions.kr/","sameAs":["https://blog.naver.com/always_questions","https://www.instagram.com/jaegaebal.ok/"]}]}</script>
@@ -48,7 +47,7 @@
     <a class="logo" href="./" aria-label="집핀 처음으로"><img class="logo-i" src="icon-small.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><small class="logo-s">서울 재개발 지도</small></a>
     <div class="search" id="searchBox" role="search">
       <svg class="s-ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="구역명·지번·역 검색 (예: 자양동 799, 신정1-3)" autocomplete="off" aria-label="사업장 검색" role="combobox" aria-expanded="false" aria-controls="sugg" aria-autocomplete="list" enterkeyhint="search">
+      <input id="q" type="search" placeholder="구역·동·지번·역 검색" autocomplete="off" aria-label="사업장 검색" role="combobox" aria-expanded="false" aria-controls="sugg" aria-autocomplete="list" enterkeyhint="search">
       <button type="button" class="s-cancel" id="sCancel">취소</button>
       <div class="sugg" id="sugg" role="listbox" aria-label="검색 결과" hidden></div>
       <span class="sr-only" id="suggLive" aria-live="polite"></span>
@@ -76,20 +75,10 @@
 <div class="menu-pop mp-v2" id="menuPop" hidden>
         <p class="mp-h" aria-hidden="true">더 보기</p>
         <p class="mp-g" id="mpG1">도구</p>
-        <div class="mp-grid" role="group" aria-labelledby="mpG1">
-          <a href="#gapTop" data-menu="gapTop"><b>갭 순위</b></a>
-          <a href="#diagTop" data-menu="diagTop"><b>매물진단</b></a>
-          <a href="#saveTop" data-menu="saveTop"><b>모으면 언제?</b></a>
-          <a href="#txrTop" data-menu="txrTop"><b>실거래 순위</b></a>
-          <a href="#commuteTop" data-menu="commuteTop"><b>출퇴근으로 찾기</b></a>
-          <a href="#supplyTop" data-menu="supplyTop"><b>입주 물량</b></a>
-          <a href="#favTop" data-menu="favTop"><b>내 핀·구역 비교</b></a>
-          <a href="#rankTop" data-menu="rankTop"><b>입지 순위</b></a>
-        </div>
+        <div class="mp-grid" id="mpTools" role="group" aria-labelledby="mpG1"><!-- 도구 목록은 60_simple.js ZP_TOOLS 한 곳에서 채운다 --></div>
         <p class="mp-g" id="mpG2">자료</p>
         <div class="mp-grid" role="group" aria-labelledby="mpG2">
           <a href="#newTop" data-menu="newTop"><b>이번 달 단계 변경</b></a>
-          <a href="#ntcTop" data-menu="ntcTop"><b>고시·공고 소식</b></a>
           <a href="report/"><b>월간 리포트</b></a>
           <a href="years"><b>몇 년 걸리나</b></a>
           <a href="#rulesTop" data-menu="rulesTop"><b>매수 전 규정</b></a>
@@ -196,7 +185,7 @@
     </div>
     <div class="h-right">
       <p class="stale-note" id="staleNote" role="status" hidden></p>
-      <div class="answer" id="maxBox" aria-live="polite"></div>
+      <div class="answer" id="maxBox"></div><p class="sr-only" id="maxLive" role="status"></p>
       <details class="pl-more" id="plMore"><summary>자세히 <small id="plMoreS">대출·기준·다음 금액</small></summary>
         <div id="plMoreBody"></div>
         <figure class="cashfig" id="cashfig">
@@ -228,7 +217,7 @@
 
   <section class="sec" id="mapTop" tabindex="-1">
     <!-- 첫 화면 게이지·목록 뼈대: 60_simple.js가 이 요소를 그대로 이어 쓴다(첫 페인트부터 최종 높이 → 레이아웃 밀림 없음) -->
-    <div class="s-hero" id="sHero"><button type="button" class="s-search" id="sSearch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>구역 이름, 주소, 역으로 검색</button></div>
+    <div class="s-hero" id="sHero"><button type="button" class="s-search" id="sSearch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>구역·동·지번·역 검색</button></div>
     <i class="s-sen"></i>
     <div class="s-gauge">
       <div class="s-ghead"><h1 class="s-h1">내 돈으로 살 수 있는 <em>서울 재개발</em></h1>
@@ -240,6 +229,7 @@
       </div>
       <input type="range" id="sCash" style="--p:8.33%" min="0" max="100" step="0.1" value="8.33" aria-describedby="sCount" aria-label="가진 현금(억)">
       <div class="s-ticks" aria-hidden="true"><span>0.5억</span><span>2</span><span>5</span><span>10</span><span>15</span></div>
+      <div class="s-sum" id="sSum"></div>
     </div>
     <div class="pc-save pc-ph" aria-hidden="true"></div>
     <div class="sec-h"><div><h2>지도</h2><p id="mapSub">색이 <span class="w-l">진할수록</span><span class="w-d">밝을수록</span> 내 현금으로 되는 구역이 많은 구예요. 구를 누르면 확대되고, 확대한 지도에서 구역을 누르면 리포트가 열립니다</p></div></div>
@@ -284,7 +274,7 @@
         <div class="t-field t-sm"><span class="t-l">보기</span><label class="t-chk"><input type="checkbox" id="cmOnly" checked> <span id="cmOnlyL">내 조건에 맞는 곳만</span></label></div>
       </div>
       <p class="t-note">지하철 노선 기준 추정 · 배차·도보 경로에 따라 달라요. 역 사이 2.2분(1.4km 넘는 구간은 km당 1.6분, GTX는 km당 0.75분) · 환승 5분(걷기·대기 포함) · 구역에서 가장 가까운 역까지 도보(직선거리×1.3, 분당 67m) · 첫 승차 대기 제외</p>
-      <div id="cmOut" aria-live="polite"></div>
+      <div id="cmOut"></div><p class="sr-only" id="cmLive" role="status"></p>
     </div>
   </section>
 

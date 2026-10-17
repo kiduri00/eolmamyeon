@@ -53,6 +53,20 @@
       const v = (n, d) => probe(`var(${n}, ${d})`);
       return { y: v("--brand", "#2B59F0"), n: v("--text-3", "#5c6573"), u: v("--text-4", "#8B95A1"), e: v("--acc2", "#8B6FE8"), x: v("--text-4", "#8B95A1"), ink: v("--text-1", "#191F28"), sub: v("--text-3", "#5F6B7A"), surf: v("--surface", "#fff"), line: v("--border", "#E5E8EB"), sel: v("--focus", "#2B59F0") };
     }
+    // 겹쳐 보기 아이콘 색: [동그라미, 글자]. 남색(구역)·파랑과 겹치지 않는 청록·빨강·자홍
+    const POIC = (dk) => (dk ? { edu: ["#2BA894", "#6FD8C6"], med: ["#E0484E", "#F59A9A"], mart: ["#C2479A", "#F09ACD"] } : { edu: ["#0B8070", "#0A6F61"], med: ["#D0343A", "#B4232A"], mart: ["#B0327F", "#9A2470"] });
+    function poiIcon(k, dk, px) {
+      const S = 20, c = document.createElement("canvas"); c.width = c.height = S * px;
+      const x = c.getContext("2d"); x.scale(px, px);
+      x.beginPath(); x.arc(10, 10, 8.6, 0, Math.PI * 2); x.fillStyle = POIC(dk)[k][0]; x.fill(); x.lineWidth = 1.6; x.strokeStyle = dk ? "#11161D" : "#FFFFFF"; x.stroke();
+      x.fillStyle = "#FFFFFF"; x.strokeStyle = "#FFFFFF"; x.lineJoin = "round"; x.lineCap = "round";
+      if (k === "edu") { x.beginPath(); x.moveTo(5, 9.2); x.lineTo(10, 5.4); x.lineTo(15, 9.2); x.closePath(); x.fill(); x.fillRect(6.4, 9.2, 7.2, 5.4); x.fillStyle = POIC(dk)[k][0]; x.fillRect(9, 11.4, 2, 3.2); }
+      else if (k === "med") { x.fillRect(8.6, 5.2, 2.8, 9.6); x.fillRect(5.2, 8.6, 9.6, 2.8); }
+      else { x.lineWidth = 1.5; x.beginPath(); x.moveTo(5, 6.2); x.lineTo(6.6, 6.2); x.lineTo(8, 12.4); x.lineTo(14, 12.4); x.lineTo(15, 8.2); x.lineTo(7.1, 8.2); x.stroke(); x.beginPath(); x.arc(8.6, 14.4, 1.1, 0, 7); x.arc(13.2, 14.4, 1.1, 0, 7); x.fill(); }
+      return c;
+    }
+    const POIURL = {};
+    const poiUrl = (k) => { const key = k + (dark() ? "d" : ""); if (!POIURL[key]) { try { POIURL[key] = poiIcon(k, dark(), 3).toDataURL(); } catch (e) { POIURL[key] = ""; } } return POIURL[key]; };
     function style() {
       const dk = dark();
       const C = dk
@@ -92,7 +106,7 @@
       if (!map || !geo) return;
       const dk = dark(), P = palette(), halo = dk ? "#11161D" : "#ffffff";
       const add = (id) => { if (!map.getSource(id)) map.addSource(id, Object.assign({ type: "geojson", data: FC([]) }, /^(zones|zest|zlab|pts)$/.test(id) ? { promoteId: "id" } : {})); };
-      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gun", "dong", "sdim", "sring", "spt", "hov", "sellab"].forEach(add);
+      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gun", "dong", "sdim", "sring", "spt", "hov", "sellab", "gudim", "gusel"].forEach(add);
       map.getSource("gun").setData(guLabels());
       map.getSource("dong").setData(dongLabels());
       if (!map.getSource("zpa")) map.addSource("zpa", { type: "geojson", data: FC([]), cluster: true, clusterRadius: 8, clusterMaxZoom: 15 });
@@ -126,13 +140,17 @@
       L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ZC, "fill-opacity": zop, "fill-antialias": true } });
       L({ id: "zone-line", type: "line", source: "zones", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-opacity": zlo } });
       L({ id: "pts", type: "circle", source: "pts", minzoom: 13, paint: { "circle-color": ZC, "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 4, 16, 6], "circle-stroke-color": halo, "circle-stroke-width": 1.5, "circle-opacity": ["case", A, 0.85, 0.3] } });
+      // 구를 고르면(검색·구 누르기): 다른 구는 옅게 덮고 그 구 경계를 굵게
+      L({ id: "gu-dim", type: "fill", source: "gudim", paint: { "fill-color": dk ? "#0B0F14" : "#F3F4F6", "fill-opacity": dk ? 0.5 : 0.55 } });
+      L({ id: "gu-sel-case", type: "line", source: "gusel", layout: { "line-join": "round" }, paint: { "line-color": halo, "line-width": 5, "line-opacity": 0.85 } });
+      L({ id: "gu-sel", type: "line", source: "gusel", layout: { "line-join": "round" }, paint: { "line-color": dk ? "#9DBBFF" : "#1F3A87", "line-width": 2.4 } });
       // 역으로 찾기: 걸어서 1km 밖은 옅게 덮고, 500m·1km 고리를 흐리게
       L({ id: "stn-dim", type: "fill", source: "sdim", paint: { "fill-color": dk ? "#0B0F14" : "#F3F4F6", "fill-opacity": dk ? 0.55 : 0.6 } });
       L({ id: "stn-ring", type: "line", source: "sring", filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": dk ? "#9DBBFF" : "#1F3A87", "line-width": 1.4, "line-opacity": ["case", ["==", ["get", "m"], 500], 0.55, 0.35], "line-dasharray": [3, 2] } });
       // 목록에 마우스를 올린 구역(데스크톱)
       L({ id: "hov-fill", type: "fill", source: "hov", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": dk ? "#F5C33B" : "#E8A400", "fill-opacity": 0.22 } });
       L({ id: "hov-line", type: "line", source: "hov", filter: ["==", ["geometry-type"], "Polygon"], layout: { "line-join": "round" }, paint: { "line-color": dk ? "#F5C33B" : "#C98A00", "line-width": 3 } });
-      L({ id: "hov-pt", type: "circle", source: "hov", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 9, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": dk ? "#F5C33B" : "#C98A00", "circle-stroke-width": 3 } });
+      L({ id: "hov-pt", type: "circle", source: "hov", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 13, 14, 10], "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": dk ? "#F5C33B" : "#C98A00", "circle-stroke-width": 3 } });
       // 고른 구역: 면은 조금 진하게 + 굵은 테두리(바깥 흰 테 + 안쪽 남색)
       L({ id: "sel-fill", type: "fill", source: "sel", paint: { "fill-color": ZC, "fill-opacity": dk ? 0.32 : 0.26 } });
       L({ id: "sel-case", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": halo, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 5, 16, 8], "line-opacity": 0.9 } });
@@ -144,9 +162,11 @@
       L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 14, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": 11, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.sub, "text-halo-color": halo, "text-halo-width": 1.6 } });
       // ---- 겹쳐 보기 레이어 ----
       const nm = ["coalesce", ["get", "name:ko"], ["get", "name"], ""];
+      // 학교·병원·마트: 구역(남색)과 헷갈리지 않게 레이어마다 다른 색 + 그림 아이콘(동그라미 안 흰 그림)
+      ["edu", "med", "mart"].forEach((k) => { const c = poiIcon(k, dk, 2); if (map.hasImage("poi-" + k)) map.removeImage("poi-" + k); map.addImage("poi-" + k, c.getContext("2d").getImageData(0, 0, c.width, c.height), { pixelRatio: 2 }); });
       const poiTxt = (id, filter, color, minz) => [
-        { id: id, type: "circle", source: "omt", "source-layer": "poi", minzoom: minz, filter, layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": color, "circle-stroke-color": halo, "circle-stroke-width": 1.4 } },
-        { id: id + "-lab", type: "symbol", source: "omt", "source-layer": "poi", minzoom: Math.max(minz, 14), filter, layout: { visibility: "none", "text-field": nm, "text-font": ["Noto Sans Regular"], "text-size": 10, "text-offset": [0, 0.9], "text-anchor": "top", "text-optional": true, "text-max-width": 8 }, paint: { "text-color": color, "text-halo-color": halo, "text-halo-width": 1.6 } },
+        { id: id, type: "symbol", source: "omt", "source-layer": "poi", minzoom: minz, filter, layout: { visibility: "none", "icon-image": "poi-" + id.slice(3), "icon-size": ["interpolate", ["linear"], ["zoom"], 14, 0.85, 16, 1.1], "icon-allow-overlap": true, "icon-ignore-placement": true }, paint: {} },
+        { id: id + "-lab", type: "symbol", source: "omt", "source-layer": "poi", minzoom: Math.max(minz, 14), filter, layout: { visibility: "none", "text-field": nm, "text-font": ["Noto Sans Regular"], "text-size": 10, "text-offset": [0, 1.15], "text-anchor": "top", "text-optional": true, "text-max-width": 8 }, paint: { "text-color": color, "text-halo-color": halo, "text-halo-width": 1.6 } },
       ];
       const SHOPC = ["shop", "grocery", "restaurant", "cafe", "fast_food", "bar", "beer", "bakery", "clothing_store", "ice_cream", "alcohol_shop", "convenience", "hairdresser", "laundry", "shoe_shop", "jewelry", "optician", "furniture", "mobile_phone", "cosmetics", "florist", "butcher", "deli", "pharmacy"];
       const sz = (f, k) => ["interpolate", ["exponential", 1.6], ["zoom"], 10, ["*", ["sqrt", ["get", f]], k * 0.35], 13, ["*", ["sqrt", ["get", f]], k], 16, ["*", ["sqrt", ["get", f]], k * 3.2]];
@@ -154,9 +174,9 @@
       L({ id: "ly-biz-lab", type: "symbol", source: "sang", minzoom: 13, filter: [">=", ["get", "st"], 80], layout: { visibility: "none", "text-field": ["format", ["get", "n"], {}, "\n", {}, ["concat", "점포 ", ["to-string", ["get", "st"]], ["case", [">", ["get", "sa"], 0], ["concat", " · 분기 매출 ", ["to-string", ["get", "sa"]], "억"], ""]], { "font-scale": 0.85 }], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-optional": true, "text-max-width": 9 }, paint: { "text-color": dk ? "#F2B37A" : "#9A4E0C", "text-halo-color": halo, "text-halo-width": 1.8 } });
       L({ id: "ly-acad", type: "circle", source: "sang", filter: [">=", ["get", "ac"], 15], layout: { visibility: "none" }, paint: { "circle-radius": sz("ac", 1.9), "circle-color": dk ? "rgba(190,150,240,.3)" : "rgba(122,63,184,.2)", "circle-stroke-color": dk ? "#C9A0F0" : "#7A3FB8", "circle-stroke-width": 1.2 } });
       L({ id: "ly-acad-lab", type: "symbol", source: "sang", minzoom: 11.5, filter: [">=", ["get", "ac"], 40], layout: { visibility: "none", "text-field": ["concat", ["get", "n"], "\n학원 ", ["to-string", ["get", "ac"]]], "text-font": ["Noto Sans Regular"], "text-size": 10, "text-optional": true, "text-max-width": 8 }, paint: { "text-color": dk ? "#D8B8F6" : "#5E2A96", "text-halo-color": halo, "text-halo-width": 2 } });
-      poiTxt("ly-edu", ["all", ["in", ["get", "class"], ["literal", ["school"]]], ["any", ["in", "초등학교", nm], ["in", "중학교", nm], ["in", "고등학교", nm]]], dk ? "#7FB2E8" : "#1D5FA8", POIZ).forEach(L);
-      poiTxt("ly-med", ["all", ["==", ["get", "class"], "hospital"], ["any", ["in", "병원", nm], ["in", "의료원", nm], ["in", "의료센터", nm]]], dk ? "#F08A8A" : "#C2272D", POIZ).forEach(L);
-      poiTxt("ly-mart", ["all", ["in", ["get", "subclass"], ["literal", ["supermarket", "department_store", "mall", "wholesale"]]], ["any", ["in", "이마트", nm], ["in", "홈플러스", nm], ["in", "롯데마트", nm], ["in", "코스트코", nm], ["in", "트레이더스", nm], ["in", "백화점", nm], ["in", "하나로", nm]]], dk ? "#6FCF9A" : "#13744A", POIZ).forEach(L);
+      poiTxt("ly-edu", ["all", ["in", ["get", "class"], ["literal", ["school"]]], ["any", ["in", "초등학교", nm], ["in", "중학교", nm], ["in", "고등학교", nm]]], POIC(dk).edu[1], POIZ).forEach(L);
+      poiTxt("ly-med", ["all", ["==", ["get", "class"], "hospital"], ["any", ["in", "병원", nm], ["in", "의료원", nm], ["in", "의료센터", nm]]], POIC(dk).med[1], POIZ).forEach(L);
+      poiTxt("ly-mart", ["all", ["in", ["get", "subclass"], ["literal", ["supermarket", "department_store", "mall", "wholesale"]]], ["any", ["in", "이마트", nm], ["in", "홈플러스", nm], ["in", "롯데마트", nm], ["in", "코스트코", nm], ["in", "트레이더스", nm], ["in", "백화점", nm], ["in", "하나로", nm]]], POIC(dk).mart[1], POIZ).forEach(L);
       L({ id: "ly-hj", type: "circle", source: "hj", layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4, 15, 8], "circle-color": halo, "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 15, 4] } });
       L({ id: "ly-hj-lab", type: "symbol", source: "hj", minzoom: 13.5, layout: { visibility: "none", "text-field": ["get", "sn"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14, 10, 16, 11], "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true, "text-max-width": 8, "symbol-sort-key": 10 }, paint: { "text-color": dk ? "#AAB3C0" : "#5B6472", "text-halo-color": halo, "text-halo-width": 1 } });
       // 신고가: 줌 13 아래는 구역 가운데 작은 빨간 점, 13부터는 구역 카드 아래 칸에 '▲신고가' 배지(카드 데이터 h)
@@ -201,7 +221,9 @@
       // 역 표시: 흰 점 + 남색 테두리 + '○○역'
       L({ id: "spt-c", type: "circle", source: "spt", filter: ["==", ["get", "k"], "s"], paint: { "circle-radius": 7, "circle-color": dk ? "#151B23" : "#FFFFFF", "circle-stroke-color": dk ? "#9DBBFF" : "#1F3A87", "circle-stroke-width": 3 } });
       L({ id: "spt-lab", type: "symbol", source: "spt", layout: { "text-field": ["get", "n"], "text-font": ["case", ["==", ["get", "k"], "s"], ["literal", ["Noto Sans Bold"]], ["literal", ["Noto Sans Regular"]]], "text-size": ["case", ["==", ["get", "k"], "s"], 13, 10.5], "text-anchor": ["case", ["==", ["get", "k"], "s"], "top", "bottom"], "text-offset": ["case", ["==", ["get", "k"], "s"], ["literal", [0, 0.8]], ["literal", [0, -0.2]]], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": dk ? "#C7D6FF" : "#1F3A87", "text-halo-color": halo, "text-halo-width": 2 } });
-      stnDraw(); hovDraw();
+      // 목록 줄에 마우스: 그 구역 이름표를 맨 위에(줌과 상관없이, 다른 카드에 안 가림)
+      L({ id: "hov-lab", type: "symbol", source: "hov", filter: ["==", ["geometry-type"], "Point"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-anchor": "bottom", "text-offset": [0, -1.35], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": dk ? "#F5C33B" : "#7A5200", "text-halo-color": halo, "text-halo-width": 2.4 } });
+      stnDraw(); hovDraw(); guDraw();
       PIN.clear(); pinAnim.clear(); pinK = null;
       ready = true;
       layerData();
@@ -281,9 +303,12 @@
     }
     // 지도 위에 떠 있는 것(위 게이지·아래 '목록 보기')을 피한 여백
     function fitPad() {
-      const P = { top: 14, bottom: 14, left: 10, right: 10 };
+      const P = { top: 14, bottom: 14, left: 20, right: 20 };   // 양끝 핀·구 이름이 가장자리에 붙지 않게
       try {
         const cv = map.getCanvas().getBoundingClientRect();
+        // 데스크톱 끼워 둔 지도: 오른쪽 위 레일·가장자리 카드 자리를 비워 양끝 구역(강서·양천 등)이 잘리지 않게
+        // 처음 화면에서 지도 아래쪽이 창 밖이면 보이는 부분 안에 맞춘다
+        if (!MQ_SHEET.matches) { P.left = 40; P.right = Math.max(40, railPad()); P.top = 30; P.bottom = 40 + Math.round(Math.min(cv.height * 0.4, Math.max(0, cv.bottom - innerHeight))); }
         const ov = (sel) => { const e = document.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; const b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
         const m = ov(".s-mini"); if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
         const x = ov(".s-fullx"); if (x) P.bottom = Math.round(cv.bottom - x.top + 6);
@@ -299,7 +324,7 @@
         const cv = map.getCanvas(), H = cv.clientHeight - pad.top - pad.bottom, W = cv.clientWidth;
         const y0 = maplibregl.MercatorCoordinate.fromLngLat([bb[0][0], bb[1][1]]).y, y1 = maplibregl.MercatorCoordinate.fromLngLat([bb[0][0], bb[0][1]]).y;
         const h = (y1 - y0) * 512 * Math.pow(2, z);
-        if (H > W * 1.15 && h > 0 && H / h > 1.3) z += Math.min(0.45, Math.log2(H / h) * 0.5);
+        if (MQ_SHEET.matches && H > W * 1.15 && h > 0 && H / h > 1.3) z +=Math.min(0.45, Math.log2(H / h) * 0.5);
       } catch (e) {}
       map.easeTo({ center: cam.center, zoom: Math.min(z, maxZ + 0.75), duration: anim && !reduceMotion() ? 700 : 0 });
     }
@@ -310,7 +335,7 @@
       fitTo(affBB(), anim, 12);
     }
     function seoul() {
-      gu = null;
+      gu = null; guDraw();
       ui();
       if (!want || failed) return show(false);
       show(true);
@@ -627,6 +652,8 @@
       map.stop();
       map.flyTo({ center: stnF.ll, zoom: stnF.z, duration: reduceMotion() ? 0 : 900, essential: true });
       stnDraw();
+      if (snEl) snEl.hidden = true;
+      clearTimeout(snGo); snGo = setTimeout(stnNote, reduceMotion() ? 60 : 1000);
     }
     function flyTo(lng, lat, zoom, name) {
       lng = +lng; lat = +lat;
@@ -649,18 +676,49 @@
       const L = (D.stations || []).filter((s) => isFinite(s[1]) && isFinite(s[2]));
       return L.find((s) => s[0].replace(/역$/, "") === b) || L.find((s) => s[0].replace(/역$/, "").startsWith(b)) || null;
     }
+    // 역 주변에 구역이 없으면 말없이 빈 지도만 보이지 않게: '500m 안 0곳 · 1km 안 3곳 [보기]'
+    let snEl = null, snTm = 0, snGo = 0;
+    const mDist = (a, b) => Math.hypot((a[0] - b[0]) * 88200, (a[1] - b[1]) * 111000);
+    function stnNote() {
+      if (snEl) { snEl.hidden = true; clearTimeout(snTm); }
+      if (!stnF || !map || !geo) return;
+      const ll = stnF.ll, D2 = R.filter((r) => r.ll && visible(r) && kindOk(r)).map((r) => { const z = geo.z[r.id]; let d = mDist(llOf(r), ll); if (z) z.g.forEach((rg) => rg.forEach((q) => { const e = mDist(q, ll); if (e < d) d = e; })); return [r, d]; }).sort((a, b) => a[1] - b[1]);
+      const n5 = D2.filter((x) => x[1] <= 500).length, n10 = D2.filter((x) => x[1] <= 1000).length;
+      if (n5 || !D2.length) return;
+      const near = D2[0];
+      const msg = n10 ? `500m 안 구역 없음 · 1km 안 ${n10}곳` : `1km 안 구역 없음 · 가장 가까운 곳 ${(near[1] / 1000).toFixed(1)}km`;
+      if (!snEl) {
+        snEl = document.createElement("div"); snEl.className = "lm-snote"; snEl.setAttribute("role", "status");
+        snEl.innerHTML = `<span></span><button type="button"></button>`;
+        $("lmap").appendChild(snEl);
+      }
+      snEl.querySelector("span").textContent = msg;
+      const bt = snEl.querySelector("button");
+      bt.textContent = "보기";
+      bt.onclick = () => {
+        snEl.hidden = true;
+        const d = Math.max(1000, near[1] + 150) * (n10 ? 1 : 1), dy = d / 111000, dx = d / 88200;
+        if (n10) map.fitBounds([[ll[0] - dx, ll[1] - dy], [ll[0] + dx, ll[1] + dy]], { padding: 20, duration: reduceMotion() ? 0 : 500 });
+        else map.fitBounds([[Math.min(ll[0], llOf(near[0])[0]) - 0.004, Math.min(ll[1], llOf(near[0])[1]) - 0.004], [Math.max(ll[0], llOf(near[0])[0]) + 0.004, Math.max(ll[1], llOf(near[0])[1]) + 0.004]], { padding: 40, duration: reduceMotion() ? 0 : 500 });
+      };
+      // '목록 보기'·확대 버튼 위, 가운데
+      try { const cv = map.getCanvas().getBoundingClientRect(), fx = document.querySelector(".s-fullx"), fb = fx && fx.offsetWidth ? fx.getBoundingClientRect() : null; let bo = fb && fb.top < cv.bottom && fb.bottom > cv.top ? Math.round(cv.bottom - fb.top + 10) : 16; const zm = $("lmap").querySelector(".lm-zoom"); if (zm && zm.offsetWidth && cv.width < 560) { const zb = zm.getBoundingClientRect(); bo = Math.max(bo, Math.round(cv.bottom - zb.top + 10)); } snEl.style.bottom = bo + "px"; } catch (e) {}
+      snEl.hidden = false;
+      snTm = setTimeout(() => { if (snEl) snEl.hidden = true; }, 7000);
+    }
     function flyToStation(q, zoom) {
       const s = stnFind(q);
       if (!s) return false;
       return flyTo(s[2], s[1], zoom, s[0]);
     }
-    function clearStation() { if (!stnF) return; stnF = null; stnPend = false; stnDraw(); }
+    function clearStation() { if (snEl) snEl.hidden = true; if (!stnF) return; stnF = null; stnPend = false; stnDraw(); }
     // ===================== 목록 ↔ 지도 마우스 연결(데스크톱) =====================
     let hovId = null;
     function hovDraw() {
       if (!map || !ready || !map.getSource("hov")) return;
       const r = hovId && byId[hovId], z = r && geo && geo.z[r.id];
-      map.getSource("hov").setData(!r ? FC([]) : z ? { type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: {} } : r.ll ? { type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: {} } : FC([]));
+      const c = r && llOf(r);
+      map.getSource("hov").setData(!r || !c ? FC([]) : FC([].concat(z ? [{ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: {} }] : [], [{ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: { n: fullName(r) } }])));
     }
     function hover(id) { id = id || null; if (id === hovId) return; hovId = id; hovDraw(); }
     // 지도 위 구역에 마우스 → 목록 줄에 .lm-hov
@@ -672,10 +730,21 @@
       rowHov = li || null;
       if (rowHov) rowHov.classList.add("lm-hov");
     }
+    function guDraw() {
+      if (!map || !ready || !map.getSource("gusel")) return;
+      const g = gu && geo && geo.gu.find((x) => x.n === gu);
+      const outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
+      map.getSource("gusel").setData(g ? { type: "Feature", geometry: { type: "MultiLineString", coordinates: g.r }, properties: {} } : FC([]));
+      map.getSource("gudim").setData(g ? { type: "Feature", geometry: { type: "Polygon", coordinates: [outer, ...g.r] }, properties: {} } : FC([]));
+    }
     function fitGu(n) {
       if (!map || !geo) return;
       const g = geo.gu.find((x) => x.n === n);
-      if (g) map.fitBounds(bboxOf(g.r.flat ? g.r : [g.r]), { padding: { top: 18, bottom: 18, left: 14, right: railPad() }, duration: reduceMotion() ? 0 : 500 });
+      guDraw();
+      if (!g) return;
+      // 폰: 레일은 오른쪽 위 한 모서리뿐 → 오른쪽 전체를 비우지 않는다(구가 작게 보이던 문제). 위 게이지·아래 '목록 보기'만 피한다
+      const P = fitPad(), mob = MQ_SHEET.matches;
+      map.fitBounds(bboxOf(g.r), { padding: { top: P.top + (mob ? 6 : 18), bottom: P.bottom + (mob ? 6 : 18), left: mob ? 16 : 30, right: mob ? 16 : Math.max(30, railPad()) }, maxZoom: 14.5, duration: reduceMotion() ? 0 : 500 });
     }
     function legend() {
       const el = $("lmLegend");
@@ -707,6 +776,9 @@
         H.push(`<p class="lm-n-hint"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 10.5 14 14M7 5v4M5 7h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>${far.join("·")}${(last.charCodeAt(last.length - 1) - 0xac00) % 28 ? "은" : "는"} ${NUMK[n] ? NUMK[n] + " 더 " : "더 "}확대하면 보여요</p>`);
       });
       if (lyr.has("hj")) H.push(`<p><i class="lm-n-hj"></i>새 역·개발 예정지<small>테두리 색 = 노선</small></p>`);
+      [["edu", "학교", "초·중·고"], ["med", "병원", "종합·대형"], ["mart", "대형마트", ""]].forEach(([k, t, sub]) => { if (lyr.has(k)) H.push(`<p><img class="lm-n-ic" src="${poiUrl(k)}" alt="" width="14" height="14">${t}${sub ? `<small>${sub}</small>` : ""}</p>`); });
+      if (lyr.has("acad")) H.push(`<p><i class="lm-n-acad"></i>학원가<small>원 크기 = 학원 수</small></p>`);
+      if (lyr.has("biz")) H.push(`<p><i class="lm-n-biz"></i>상권<small>원 크기 = 점포 수</small></p>`);
       if (lyr.has("hi")) H.push(`<p><i class="lm-n-hi"></i>신고가<small>최근 3개월</small></p>`);
       const html = H.join("");
       if (el._h !== html) { el._h = html; el.innerHTML = html; edgeSoon(); }
@@ -741,6 +813,8 @@
         const poly = { type: "Polygon", coordinates: rings };
         map.setFilter("zone-lab", ["all", ["==", ["get", "p"], 0], ["within", poly]]);
         map.setFilter("zone-lab-p", ["all", ["==", ["get", "p"], 1], ["within", poly]]);
+        // 구 이름도 가장자리에서 반쯤 잘려 보이지 않게(예: 왼쪽 끝 '강서구'), 레일·확대 버튼 밑에서는 빼기
+        if (map.getLayer("gu-lab")) map.setFilter("gu-lab", ["within", poly]);
       } catch (e) {}
     }
     const edgeSoon = () => { clearTimeout(edgeT); edgeT = setTimeout(edgeFilter, 60); };
@@ -902,7 +976,7 @@
         })
         .catch(() => { failed = true; show(false); });
     }
-    function exit() { gu = null; if (document.documentElement.classList.contains("simple")) seoul(); else show(false); }
+    function exit() { gu = null; guDraw(); if (document.documentElement.classList.contains("simple")) seoul(); else show(false); }
     function use(on, user) {
       want = on;
       if (user) store.set("emr.map", on ? "real" : "svg");

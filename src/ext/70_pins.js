@@ -6,6 +6,8 @@
 const PINS = (() => {
   const SK = "zp-pin-snap", SEENK = "zp-pin-seen", SORTK = "zp-pin-sort", HOMEK = "zp-pin-home";
   const MAX = 20;
+  // 받침 따라 조사(을/를·이/가·은/는): 마지막 글자가 한글이면 받침, 숫자면 읽는 소리(영·일·삼·육·칠·팔)
+  const josa = window.ZP_josa = (w, a, b) => { const s = String(w == null ? "" : w).replace(/[\s)\]]+$/, ""), ch = s.slice(-1), c = ch.charCodeAt(0); const bat = c >= 0xac00 && c <= 0xd7a3 ? (c - 0xac00) % 28 !== 0 : /\d/.test(ch) ? "013678".includes(ch) : false; return w + (bat ? a : b); };
   const lsR = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v == null ? d : v; } catch (e) { return d; } };
   const lsW = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
   let SNAP = lsR(SK, {}); if (!SNAP || typeof SNAP !== "object" || Array.isArray(SNAP)) SNAP = {};
@@ -136,7 +138,7 @@ const PINS = (() => {
     return `${condHTML()}${top}<p class="pn-base">오른쪽은 ${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 살 때 필요한 돈 · 내 현금 ${e2(CASH)}억 기준 · 꽂은 날과 비교</p><div class="pn-list" role="list" aria-label="내 핀 목록">${L.map(rowHTML).join("")}</div><span class="share-fb" id="pnShareFb" role="status"></span>${SEL ? "" : moveHTML(L.length)}`;
   }
   // 다른 기기로 옮기기: 핀·메모·목표·꽂을 때 값·조건 핀을 압축해 주소(#pins=)에 담아 복사(로그인 불필요)
-  const moveHTML = (n) => { const m = FAV.filter((id) => SNAP[id] && SNAP[id].memo).length; return `<div class="pn-move"><div><b>다른 기기로 옮기기</b><small>다른 폰·PC에서 열면 핀 ${n}곳${CONDS.length ? ` · 조건 ${CONDS.length}개` : ""}${m ? ` · 메모` : ""}를 그대로 가져와요</small></div><button type="button" class="btn secondary sm" id="pnMove">링크 복사</button><span class="share-fb" id="pnMoveFb" role="status"></span></div>`; };
+  const moveHTML = (n) => { const m = FAV.filter((id) => SNAP[id] && SNAP[id].memo).length; return `<div class="pn-move"><div><b>다른 기기로 옮기기</b><small>다른 폰·PC에서 열면 ${josa(`핀 ${n}곳${CONDS.length ? ` · 조건 ${CONDS.length}개` : ""}${m ? ` · 메모` : ""}`, "을", "를")} 그대로 가져와요</small></div><button type="button" class="btn secondary sm" id="pnMove">링크 복사</button><span class="share-fb" id="pnMoveFb" role="status"></span></div>`; };
   // ----- 옮기기 링크 인코딩: [1, 핀[], 조건[]] JSON → deflate-raw(되면) → base64url. 키 없이 배열·뒤쪽 빈 값 생략
   // 핀: [id, 꽂은 날(일-19000), 단계, 필요한 돈, 전세끼고1, 그때 현금, 신고가일-20000000, 메모, 목표1, 찜이전1, 그때 단계 이름(바뀐 경우만)]
   // 조건: [이름(자동이면 ""), 현금, 전세끼고1, 구, 유형, 최소 단계, 출퇴근 역, 분, 입주권1|토허2|확실성4]
@@ -512,7 +514,7 @@ const PINS = (() => {
   const cashT = (v) => `${Math.round(v * 10) / 10}억`;
   const stShort = (m) => (STAGES.find((x) => x[0] === m) || [0, ""])[1];
   const autoName = (c) => [`${cashT(c.cash)} ${c.mode === "gap" ? "전세" : "대출"}`, c.gu ? c.gu.replace(/구$/, "") : "", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.minS ? stShort(c.minS) : "", c.firm ? "확실성 높음" : "", c.cm ? `출퇴근 ${c.cm.max}분` : ""].filter(Boolean).reduce((a, x) => (a && (a + " · " + x).length > 30 ? a : a ? a + " · " + x : x), "");
-  const condSum = (c) => [`현금 ${cashT(c.cash)} · ${c.mode === "gap" ? "전세 끼고" : "대출 끼고"}`, c.gu || "서울 전체", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.minS ? stShort(c.minS) : "", c.cm ? `${c.cm.dest}역 ${c.cm.max}분 안` : "", c.sure ? "입주권 확실만" : "", c.strict ? "토허·추정 제외" : "", c.firm ? "사업 확실성 높은 곳만" : ""].filter(Boolean).join(" · ");
+  const condSum = (c) => [`현금 ${cashT(c.cash)} · ${c.mode === "gap" ? "전세 끼고" : "대출 끼고"}`, c.gu || "서울 전체", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.minS ? stShort(c.minS) : "", c.cm ? `${c.cm.dest}역 ${c.cm.max}분 안` : "", c.sure ? "입주권 확실만" : "", c.strict ? "토지거래허가·추정치 빼기" : "", c.firm ? "사업 확실성 높은 곳만" : ""].filter(Boolean).join(" · ");
   function curCond() {
     const kb = document.querySelector('.s-flt button[aria-pressed="true"]');
     const cmOn = typeof CM_SHOW !== "undefined" && CM_SHOW && CM_SET.size;
@@ -542,7 +544,7 @@ const PINS = (() => {
       <button type="button" class="pc-chip" data-cc="minS" aria-pressed="${!!c.minS}">${STAGES.find((x) => x[0] === (c.minS || 0))[1]}</button>
       ${cmAvail ? `<button type="button" class="pc-chip" data-cc="cm" aria-pressed="${!!c.cm}">출퇴근 ${esc(cm0.dest)} ${cm0.max}분</button>` : ""}
       <button type="button" class="pc-chip" data-cc="sure" aria-pressed="${!!c.sure}">입주권 확실만</button>
-      <button type="button" class="pc-chip" data-cc="strict" aria-pressed="${!!c.strict}" title="토지거래허가 구역·구 평균 시세로 추정한 구역 제외">토허·추정 제외</button>
+      <button type="button" class="pc-chip" data-cc="strict" aria-pressed="${!!c.strict}" title="토지거래허가 구역·구 평균 시세로 추정한 구역 빼기">토지거래허가·추정치 빼기</button>
       <button type="button" class="pc-chip" data-cc="firm" aria-pressed="${!!c.firm}" title="10년 안 준공 가능성 40% 이상(추정이 없으면 조합설립 이상)">사업 확실성 높은 곳만</button></div>`;
     const cnt = () => `조건에 맞는 곳 <b>${fmt(evalCond(c).length)}곳</b>`;
     const body = () => full
@@ -717,7 +719,6 @@ const PINS = (() => {
     const out = $("fvOut"); if (!out) return;
     const go = $("pnGo"); if (go) { go.disabled = CMP.length < 2; go.textContent = `비교하기 (${CMP.length})`; }
     if ($("pnMove")) moveURL().catch(() => {});   // 미리 만들어 둠 → 누르는 순간 바로 복사(사파리 사용자 동작 제한)
-    const fs = $("fvShare"); if (fs && $("pnMove")) { fs.hidden = true; const fb = $("fvShareFb"); if (fb) fb.hidden = true; }
   }
   function init() {
     try { const _tf = toggleFav; toggleFav = function (id) { const was = isFav(id), x = _tf.apply(this, arguments); try { if (!QUIET && isFav(id) !== was) notify(id, !was); } catch (e) {} return x; }; } catch (e) {}

@@ -26,6 +26,22 @@ def short(n):
     n = re.sub(r'^\s*(\(가칭\)|\[임시\]|\(임시\))\s*', '', n)
     n = re.sub(r'\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?(사업)?\s*(조합|추진위원회|조합설립추진위원회|주민대표회의)?\s*$', '', n).strip()
     return n or n
+EVK = {'조합설립인가': '조합설립', '사업시행인가': '사업시행', '관리처분인가': '관리처분', '정비구역지정': '구역지정', '조합설립추진위원회승인': '추진위', '사업시행자지정': '시행자지정', '준공인가': '준공'}
+def evtext(dt, d, sec, t):
+    """정보몽땅 원문 '[(변경)인가] 동의율 : 89.85' → '변경인가 · 동의율 89.85%' (src/ext/20_zone.js evText와 같은 규칙)"""
+    m = re.match(r'^\[([^\]]*)\]\s*(.*)$', str(t or ''))
+    a, b = (m.group(1), m.group(2)) if m else ('', str(t or ''))
+    sd = (dt or {}).get(EVK.get(sec, ''), '')
+    chg = '(변경)' in a and bool(sd) and sd < d
+    a = re.sub(r'\(변경\)\s*', '변경' if chg else '', a, count=1)
+    a = re.sub(r'(인가|승인)(신청|고시)', r'\1 \2', a, count=1); a = re.sub(r'\s*:\s*', ' ', a, count=1)
+    b = re.sub(r'동의율\s*:\s*(\d+(?:\.\d+)?)\s*%?', r'동의율 \1%', b, count=1)
+    b = re.sub(r'동의율\s*:\s*(해당없음|[.\-]?)\s*$', '', b); b = b.replace('(최초인가시)', ' (최초 인가 때)')
+    b = re.sub(r'(\S*?)일자\s*:\s*', lambda x: (x.group(1) if x.group(1).endswith('일') else x.group(1) + '일') + ' ', b, count=1)
+    b = re.sub(r'선정업체명\s*:\s*', '', b); b = re.sub(r'(\d{4})-(\d{2})-(\d{2})', r'\1.\2.\3', b); b = re.sub(r'\b(20\d\d)(\d\d)(\d\d)\b', r'\1.\2.\3', b)
+    b = re.sub(r'\s*:\s*', ' ', b).strip()
+    if b and a and b.replace(' ', '') == a.replace(' ', ''): b = ''
+    return f'{a} · {b}' if a and b else (a or b)
 def josa(w):
     c = w[-1] if w else ''
     if '가' <= c <= '힣': return '은' if (ord(c) - 0xAC00) % 28 else '는'
@@ -70,14 +86,15 @@ HEAD = '''<!doctype html>
 <meta property="og:type" content="article">
 <meta property="og:image" content="{site}/og.png">
 <meta property="og:locale" content="ko_KR">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#14171C" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/icon-small.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
 <link rel="stylesheet" href="../pages.css">
 <script type="application/ld+json">{ld}</script>
 </head>
 <body>
-<header class="top"><div class="in"><a class="logo" href="../" aria-label="집핀 처음으로"><img class="logo-i" src="/icon.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/" aria-current="page">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav></div></header>
+<header class="top"><div class="in"><a class="logo" href="../" aria-label="집핀 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/" aria-current="page">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav></div></header>
 <main>
 '''
 FOOT = '''</main>
@@ -126,7 +143,7 @@ def page(r):
         o.append('<h2>인가 이력</h2><ul class="steps">' + ''.join(f'<li class="{"cur" if i == len(hist) - 1 else ""}"><b>{esc(l)}</b><span>{esc(d[:10].replace("-", "."))}{" (변경)" if any(d2 < d and not (l == "정비구역 지정" and l2 == "추진위원회 승인") for l2, d2 in hist[i + 1:]) else ""}</span></li>' for i, (l, d) in enumerate(hist)) + '</ul>')
     ev = [e for e in (pm.get('ev') or []) if e and e[0] <= datetime.date.today().isoformat()][:6]
     if ev:
-        o.append('<h3>정보몽땅 최근 기록</h3><ul class="steps tl">' + ''.join(f'<li><b>{esc(d.replace("-", "."))}</b><span>{esc(sec)} · {esc(re.sub(r"^\[([^]]*)\]\s*(.*)$", lambda m: m.group(1) + (" · " + m.group(2) if m.group(2) else ""), tx))}</span></li>' for d, sec, tx in ev) + '</ul>')
+        o.append('<h3>정보몽땅 최근 기록</h3><ul class="steps tl">' + ''.join(f'<li><b>{esc(d.replace("-", "."))}</b><span>{esc(sec)} · {esc(evtext(dt, d, sec, tx))}</span></li>' for d, sec, tx in ev) + '</ul>')
     # 실거래
     if t.get('n') or t.get('jn'):
         rows = []
