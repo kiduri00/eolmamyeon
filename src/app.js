@@ -7830,7 +7830,12 @@
         bh = best(hn, 1);
       const cell = (i, b, html) =>
         `<td${i === b ? ' class="bst"' : ""}>${html}${i === b ? '<i class="bdot" aria-label="이 줄에서 가장 유리한 값"></i>' : ""}</td>`;
-      const row = (lab, f, b = -1) => `<tr><th scope="row">${lab}</th>${xs.map((o, i) => cell(i, b, f(o, i))).join("")}</tr>`;
+      // 비교하는 구역 모두 '계산 불가'·'–'인 줄은 숨긴다(빈 줄만 길어지지 않게)
+      const blank = (h) => /^\s*(?:<span class="mut">\s*(?:계산 불가[^<]*|–|-)\s*<\/span>|–|-)\s*$/.test(String(h));
+      const row = (lab, f, b = -1) => {
+        const hs = xs.map((o, i) => f(o, i));
+        return hs.every(blank) ? "" : `<tr><th scope="row">${lab}</th>${hs.map((h, i) => cell(i, b, h)).join("")}</tr>`;
+      };
       table = `<p class="fv-base">비교 기준: ${gapMode() ? "전세 끼고 " : "현금 "}${e2(CASH)}억${num("pIncome") != null ? ` · 연소득 ${fmt(num("pIncome"))}만원` : " · 연소득 미입력"} (계산기에 넣은 조건)</p>${84 + xs.length * 120 > 340 ? '<p class="fv-hint" aria-hidden="true">옆으로 밀어서 더 보기 →</p>' : ""}<div class="fv-tw"><table class="fv-t" style="min-width:${84 + xs.length * 120}px"><caption class="sr-only">핀 꽂은 구역 나란히 보기</caption><thead><tr><th scope="col"><span class="sr-only">항목</span></th>${xs.map((o) => `<th scope="col"><button type="button" class="fv-open" data-open="${o.r.id}">${esc(shortName(o.r.n))}</button><small>${esc(o.r.g)} ${esc((o.r.bj || o.r.j || "").split(" ")[0])}</small></th>`).join("")}</tr></thead><tbody>\n      ${row("입주까지 현금", (o, i) => (cash[i] != null ? `<b>${e2(cash[i])}억</b><small>${cash[i] <= CASH ? `내 현금 ${e2(CASH)}억으로 가능` : `${e2(cash[i] - CASH)}억 부족`}</small>` : '<span class="mut">계산 불가</span>'), bc)}\n      ${
         gapMode()
           ? row("전세 끼고 지금 ①", (o) => {

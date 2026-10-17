@@ -152,9 +152,9 @@
       card("zone-lab-p", ["==", ["get", "p"], 1], 16);   // 핀 있는 곳은 16부터 핀 라벨('이름 · X억')로
       // ---- 핀: 핀 끝 = 구역 중심. 순서 선택 > 내 핀 > 살 수 있는 핀(위 레이어가 먼저 자리 잡음) ----
       pinImgs(dk);
-      const pinL = (id, src, minz, extra) => L(Object.assign({ id, type: "symbol", source: src, minzoom: minz || 0, layout: { "icon-image": ["step", ["zoom"], ["concat", "zdot-", ["get", "t"]], 12, ["concat", "zpin-", ["get", "t"], ["get", "x"]]], "icon-anchor": "bottom", "icon-size": ["get", "s"], "icon-offset": ["get", "off"], "icon-allow-overlap": false, "icon-ignore-placement": src === "zpa", "icon-padding": 0, "symbol-sort-key": ["get", "k"], "text-field": ["step", ["zoom"], "", 16, ["get", "lb"]], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-anchor": "left", "text-offset": [0.9, -1.25], "text-max-width": 16, "text-optional": true }, paint: { "icon-opacity": ["get", "o"], "text-opacity": ["get", "o"], "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } }, extra || {}));
+      const pinL = (id, src, minz, extra) => L(Object.assign({ id, type: "symbol", source: src, minzoom: minz || 0, layout: { "icon-image": ["concat", "zpin-", ["get", "t"], ["get", "x"]], "icon-anchor": "bottom", "icon-size": ["get", "s"], "icon-offset": ["get", "off"], "icon-allow-overlap": false, "icon-ignore-placement": src === "zpa", "icon-padding": 0, "symbol-sort-key": ["get", "k"], "text-field": ["step", ["zoom"], "", 16, ["get", "lb"]], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-anchor": "left", "text-offset": [0.9, -1.25], "text-max-width": 16, "text-optional": true }, paint: { "icon-opacity": ["get", "o"], "text-opacity": ["get", "o"], "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } }, extra || {}));
       L({ id: "pin-sh", type: "circle", source: "zpsh", minzoom: 12, paint: { "circle-radius": ["get", "r"], "circle-opacity": ["get", "o"], "circle-color": dk ? "#000000" : "#1F3A87", "circle-blur": 0.5, "circle-pitch-alignment": "map" } });
-      L({ id: "pin-clu", type: "symbol", source: "zpa", filter: ["has", "point_count"], layout: { "icon-image": ["step", ["zoom"], "zdot-a", 12, "zclu"], "icon-size": ["step", ["zoom"], 1.3, 12, 1], "icon-allow-overlap": false, "icon-ignore-placement": true, "text-field": ["step", ["zoom"], "", 12, ["get", "point_count_abbreviated"]], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#FFFFFF" } });
+      L({ id: "pin-clu", type: "symbol", source: "zpa", filter: ["has", "point_count"], layout: { "icon-image": ["step", ["zoom"], "zpin-a", 12, "zclu"], "icon-size": ["step", ["zoom"], 0.55, 12, 1], "icon-anchor": ["step", ["zoom"], "bottom", 12, "center"], "icon-allow-overlap": false, "icon-ignore-placement": true, "text-field": ["step", ["zoom"], "", 12, ["get", "point_count_abbreviated"]], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#FFFFFF" } });
       pinL("pin-a", "zpa", 0, { filter: ["!", ["has", "point_count"]] });
       pinL("pin-m", "zpm", 10);
       pinL("pin-s", "zps", 0);
@@ -289,7 +289,7 @@
       pins(true);
     }
     // ===================== 핀: 핀이 꽂힌 구역 = 내 돈으로 살 수 있는 곳 =====================
-    // 크기: 줌 12 아래 6px 점, 12~13 16px, 14~15 22px, 16 이상 28px(+'이름 · X억'). 핀 끝이 구역 중심.
+    // 크기: 줌 12 아래 15px(머리 10.5px), 12~13 16px, 14~15 22px, 16 이상 28px(+'이름 · X억'). 핀 끝이 구역 중심.
     // 살 수 있는 핀 = 남색 머리 + 흰 ₩, 내 핀 = 노란 머리 + 남색 ₩(줌 10부터 늘 보임), 선택 = 1.25배 + 후광.
     // 게이지를 움직이면 새로 되는 곳은 24px 위에서 떨어져 꽂히고(320ms, 살짝 튕김 + 그림자 펄스), 안 되는 곳은 줄며 사라진다.
     const PIN = new Map();      // id → { ll, r } 지금 꽂혀 있어야 하는 '살 수 있는' 핀
@@ -326,8 +326,8 @@
       const v = `${shortName(r.n)} · ${m ? m[1] : cardVal(r) || ""}`.replace(/ · $/, "");
       LB.set(r.id, v); return v;
     }
-    // 줌 구간별 핀 배율(이미지 높이 28px 기준): 12 아래는 6px 점 이미지라 1
-    const pinBand = () => { const z = map.getZoom(); return z < 12 ? 1 : z < 14 ? 16 / 28 : z < 16 ? 22 / 28 : 1; };
+    // 줌 구간별 핀 배율(이미지 높이 28px 기준)
+    const pinBand = () => { const z = map.getZoom(); return z < 12 ? 0.55 : z < 14 ? 16 / 28 : z < 16 ? 22 / 28 : 1; };   // 서울 전체(12 아래)도 머리 약 10.5px 핀
     let pinB = 0;
     function pinDraw(now) {
       if (!map || !ready || !map.getSource("zpa")) return;
@@ -377,11 +377,12 @@
       const now = performance.now();
       if (!force && now - pinT < 120) { clearTimeout(pinTm); pinTm = setTimeout(() => pins(false), 124 - (now - pinT)); return; }
       clearTimeout(pinTm); pinT = now;
-      const next = new Map();
+      const next = new Map(), okF = pinOkF();
       for (const r of R) {
-        if (!r.ll || !visible(r)) continue;
-        let y = false; try { y = dotState(r) === "y"; } catch (e) {}
-        if (y) next.set(r.id, { ll: llOf(r), r });
+        let y = false; try { y = okF(r); } catch (e) {}
+        if (!y) continue;
+        const ll = llOf(r);
+        if (ll) next.set(r.id, { ll, r });
       }
       const key = [...next.keys()].join(",");
       if (key === pinK) { if (force) { LB.clear(); pinDraw(); } return; }
@@ -405,6 +406,9 @@
       else pinDraw(now);
     }
     // 게이지를 놓으면: 진동 한 번 + '핀 4개 새로 꽂혔어요 · 2개 빠졌어요'(바뀐 게 있을 때만, 2초)
+    // 핀 = 홈 '살 수 있는 곳' 숫자와 같은 판정(70_pins.js window.ZP_ok). 없으면 예전 점 상태
+    const pinOkF = () => (typeof window.ZP_ok === "function" ? window.ZP_ok : (r) => r.ll && visible(r) && dotState(r) === "y");
+    const okIds = () => { const f = pinOkF(), S = new Set(); R.forEach((r) => { try { if (f(r)) S.add(r.id); } catch (e) {} }); return S; };
     function pinToast(msg) {
       if (!toastEl) { toastEl = document.createElement("div"); toastEl.className = "app-toast lm-toast"; toastEl.setAttribute("role", "status"); toastEl.setAttribute("aria-live", "polite"); document.body.appendChild(toastEl); }
       toastEl.textContent = msg; toastEl.classList.add("on");
@@ -414,7 +418,7 @@
       if (pinHooked) return; pinHooked = true;
       map.on("zoom", () => { const b = pinBand(); if (b !== pinB) { pinB = b; if (!pinRaf) pinDraw(); } });
       const isG = (t) => t && (t.id === "sCash" || t.id === "sMiniR");
-      document.addEventListener("pointerdown", (e) => { if (isG(e.target)) pinSnap = new Set(PIN.keys()); }, true);
+      document.addEventListener("pointerdown", (e) => { if (isG(e.target)) pinSnap = okIds(); }, true);
       document.addEventListener("change", (e) => {
         if (!isG(e.target) || !pinSnap) return;
         const snap = pinSnap; pinSnap = null;
@@ -422,7 +426,8 @@
         setTimeout(() => {
           if (!map || !$("lmap") || $("lmap").hidden) return;
           pins(true);
-          let a = 0, b = 0; PIN.forEach((p, id) => { if (!snap.has(id)) a++; }); snap.forEach((id) => { if (!PIN.has(id)) b++; });
+          // 토스트 숫자 = 홈 숫자 변화(좌표 없는 구역도 셈)
+          const nowS = okIds(); let a = 0, b = 0; nowS.forEach((id) => { if (!snap.has(id)) a++; }); snap.forEach((id) => { if (!nowS.has(id)) b++; });
           if (a || b) pinToast([a ? `핀 ${a}개 새로 꽂혔어요` : "", b ? `${a ? "" : "핀 "}${b}개 빠졌어요` : ""].filter(Boolean).join(" · "));
         }, 380);
       }, true);

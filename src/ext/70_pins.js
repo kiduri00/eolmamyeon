@@ -11,7 +11,7 @@ const PINS = (() => {
   let SNAP = lsR(SK, {}); if (!SNAP || typeof SNAP !== "object" || Array.isArray(SNAP)) SNAP = {};
   let SEEN = lsR(SEENK, { at: 0, sig: {} }); if (!SEEN || typeof SEEN.sig !== "object") SEEN = { at: 0, sig: {} };
   let SORT = lsR(SORTK, "news"); if (!["news", "need", "recent"].includes(SORT)) SORT = "news";
-  let SEL = false, CMPON = false, EDIT = "", LAST = null, toastT = 0;
+  let SEL = false, CMPON = false, EDIT = "", LAST = null, toastT = 0, PEND = 0, ACT = null, TRADE0 = null;
   const cbs = [];
   const saveS = () => lsW(SK, SNAP);
 
@@ -49,19 +49,28 @@ const PINS = (() => {
     if (ch) saveS();
   }
 
+  // 사업 확실성: 10년 안 준공 확률(app projection) · 단계
+  const p10Of = (r) => { try { const pr = projection(r); return hasEta(pr) && pr.p10 != null ? prob(pr.p10) : null; } catch (e) { return null; } };
+  const riskT = (r) => { const p = p10Of(r); return p == null ? "" : `10년 안 준공 ${p}%`; };
+  const riskH = (r, cls = "pn-risk") => { const p = p10Of(r); return p == null ? "" : `<span class="${cls}${p < 30 ? " lo" : p >= 60 ? " hi" : ""}">10년 안 준공 ${p}%</span>`; };
+  const firmOk = (r) => { const p = p10Of(r); return p != null ? p >= 40 : r.s >= 4 && !(r.s >= 9); };
+  const MODE_T = { gap: "전세 끼고", cash: "대출 끼고" };
+
   // ---------- 꽂은 뒤 바뀐 것 ----------
+  // 비교는 늘 꽂을 때와 같은 방식(sp.m)으로: 지금 방식이 달라도 꽂을 때 방식으로 다시 계산해 견준다
   function news(id) {
     const r = byId[id], sp = SNAP[id];
     if (!r || !sp) return { r, sp, b: [], now: null, d: null, sig: "" };
     const m = modeFor(r), now = needNow(r, m), b = [];
+    const sm = sp.m || m, cmp = sm === m ? now : needNow(r, sm);
     if (r.s > sp.s) b.push({ k: "st", t: `${sp.sn} → ${stageName(r)}`, c: "up", h: "단계 올라감", v: r.s });
     const hi = r.tx && r.tx.hi;
     if (hi && hi[1] && (sp.hi ? hi[1] > sp.hi : hi[1] > ymdOf(sp.t))) b.push({ k: "hi", t: hi[2] ? `신고가 평당 ${hiAmt(hi[2])}` : "신고가", c: "hi", h: "신고가", v: hi[1] });
-    const ok = now == null ? null : now <= CASH + 1e-9;
-    if (ok === true && sp.ok === false) b.push({ k: "ok", t: "이제 살 수 있어요", c: "good", h: "이제 살 수 있어요", v: "" });
-    if (ok === false && sp.ok === true) b.push({ k: "short", t: `${amt(now - CASH)} 모자라요`, c: "bad", h: "돈이 모자라요", v: "" });
-    const d = now != null && sp.now != null && sp.m === m && Math.abs(now - sp.now) >= 0.05 ? now - sp.now : null;
-    return { r, sp, b, now, d, ok, alt: m !== mode(), sig: b.map((x) => x.k + x.v).join("|") };
+    const ok = cmp == null ? null : cmp <= CASH + 1e-9;
+    if (ok === true && sp.ok === false) b.push({ k: "ok", t: sm === m ? "이제 살 수 있어요" : `${MODE_T[sm]} 이제 살 수 있어요`, c: "good", h: "이제 살 수 있어요", v: "" });
+    if (ok === false && sp.ok === true) b.push({ k: "short", t: `${sm === m ? "" : MODE_T[sm] + " "}${amt(cmp - CASH)} 모자라요`, c: "bad", h: "돈이 모자라요", v: "" });
+    const d = cmp != null && sp.now != null && Math.abs(cmp - sp.now) >= 0.05 ? cmp - sp.now : null;
+    return { r, sp, b, now, cmp, sm, d, ok, alt: m !== mode(), salt: sm !== m, sig: b.map((x) => x.k + x.v).join("|") };
   }
   const unread = (n) => !!n.sig && SEEN.sig[n.r.id] !== n.sig;
   const all = () => (ensure(), FAV.filter((id) => byId[id]).map(news));
@@ -78,9 +87,9 @@ const PINS = (() => {
 
   // ---------- 목록 ----------
   function rowHTML(n, i) {
-    const { r, sp, b, now, d, alt } = n;
+    const { r, sp, b, now, d, alt, salt, sm } = n;
     const nw = unread(n);
-    const chip = d == null ? "" : `<span class="pn-chip ${d > 0 ? "up" : "dn"}" title="꽂은 날보다 필요한 돈이 ${amt(d)} ${d > 0 ? "늘었어요" : "줄었어요"}"><span aria-hidden="true">${d > 0 ? "▲" : "▼"}</span>${amt(d)}<span class="sr-only"> ${d > 0 ? "늘었어요" : "줄었어요"}</span></span>`;
+    const chip = d == null ? "" : `<span class="pn-chip ${d > 0 ? "up" : "dn"}" title="꽂은 날보다 ${salt ? MODE_T[sm] + " 기준 " : ""}필요한 돈이 ${amt(d)} ${d > 0 ? "늘었어요" : "줄었어요"}"><span aria-hidden="true">${d > 0 ? "▲" : "▼"}</span>${amt(d)}<span class="sr-only"> ${d > 0 ? "늘었어요" : "줄었어요"}</span></span>`;
     const bd = b.length ? `<div class="pn-bd">${b.slice(0, 2).map((x) => `<span class="pn-b ${x.c}">${esc(x.t)}</span>`).join("")}${b.length > 2 ? `<span class="pn-b more" title="${esc(b.slice(2).map((x) => x.t).join(" · "))}">+${b.length - 2}</span>` : ""}</div>` : "";
     let goal = "";
     if (sp.goal && now != null) {
@@ -88,14 +97,17 @@ const PINS = (() => {
       goal = now <= CASH + 1e-9 ? `<p class="pn-goal done">${pinY(14)}목표 달성! 이제 살 수 있어요</p>` : `<p class="pn-goal"><span class="pn-gbar" aria-hidden="true"><i style="width:${Math.round(p * 100)}%"></i></span>여기까지 <b>${amt(now - CASH)}</b> 더</p>`;
     }
     const sub = `${esc(r.g)} · ${esc(stageName(r))}`;
+    // 꽂을 때와 지금 방식이 다르면 '꽂을 때'는 그 방식 값끼리 비교(라벨에 방식 표시)
+    // 방식이 다르면: '전세 3.2→2.4억'(꽂을 때 방식 값끼리)
+    const then = salt ? `<span class="pn-alt">${sm === "gap" ? "전세" : "대출"}</span>${sp.now != null ? e2(sp.now) : "–"}→<b class="pn-cmpv${d == null ? "" : d > 0 ? " up" : " dn"}">${n.cmp != null ? `${e2(n.cmp)}억` : "–"}</b>` : `꽂을 때 ${sp.now != null ? `${e2(sp.now)}억` : "–"}`;
     const main = `<span class="pn-pin">${pinY(26)}${nw ? '<i class="pn-new" aria-hidden="true"></i>' : ""}</span>
-      <span class="pn-nm"><b>${esc(shortName(r.n))}</b><small>${sub}${nw ? '<span class="sr-only"> · 새 소식</span>' : ""}</small>${sp.memo ? `<small class="pn-memo">${esc(sp.memo)}</small>` : ""}</span>
-      <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><b>${alt ? '<small class="pn-alt" title="전세 끼고는 살 수 없는 구역이라 대출 끼고 금액">대출</small>' : ""}${now != null ? `${e2(now)}억` : "–"}</b>${chip}</span><small>꽂을 때 ${sp.now != null ? `${e2(sp.now)}억` : "–"}</small></span>`;
+      <span class="pn-nm"><b>${esc(shortName(r.n))}</b><small>${sub}${nw ? '<span class="sr-only"> · 새 소식</span>' : ""}</small>${riskH(r) ? `<small class="pn-rk">${riskH(r)}</small>` : ""}${sp.memo ? `<small class="pn-memo">${esc(sp.memo)}</small>` : ""}</span>
+      <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><b>${alt ? '<small class="pn-alt" title="전세 끼고는 살 수 없는 구역이라 대출 끼고 금액">대출</small>' : ""}${now != null ? `${e2(now)}억` : "–"}</b>${salt ? "" : chip}</span><small title="${salt ? `꽂을 때와 같은 ${MODE_T[sm]} 기준 비교` : ""}">${then}</small></span>`;
     const head = SEL
       ? `<button type="button" class="pn-main sel" data-cmp="${r.id}" aria-pressed="${CMP.includes(r.id)}"><span class="pn-ck" aria-hidden="true"></span>${main}</button>`
       : `<button type="button" class="pn-main" data-open="${r.id}" aria-label="${esc(shortName(r.n))} 리포트 열기">${main}</button><button type="button" class="pn-more" data-pedit="${r.id}" aria-expanded="${EDIT === r.id}" aria-controls="pnEd${i}" title="메모·목표"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg><span class="sr-only">${esc(shortName(r.n))} 메모·목표</span></button>`;
     const ed = !SEL && EDIT === r.id
-      ? `<div class="pn-ed" id="pnEd${i}"><label class="sr-only" for="pnMemo${i}">메모</label><input id="pnMemo${i}" class="pn-memo-in" data-pmemo="${r.id}" maxlength="20" placeholder="메모 (예: 부모님 근처)" value="${esc(sp.memo || "")}" enterkeyhint="done"><button type="button" class="btn secondary sm" data-pgoal="${r.id}" aria-pressed="${!!sp.goal}">${sp.goal ? "목표 지우기" : "목표 세우기"}</button><button type="button" class="btn text sm" data-punpin="${r.id}">핀 빼기</button><small class="pn-since">${dot(sp.t)}에 꽂음${sp.mig ? " · 찜에서 옮겨 옴" : ""}</small></div>`
+      ? `<div class="pn-ed" id="pnEd${i}"><label class="sr-only" for="pnMemo${i}">메모</label><input id="pnMemo${i}" class="pn-memo-in" data-pmemo="${r.id}" maxlength="20" placeholder="메모 (예: 부모님 근처)" value="${esc(sp.memo || "")}" enterkeyhint="done">${!sp.goal && now != null && now <= CASH + 1e-9 ? `<span class="pn-gok">${pinY(14)}이미 살 수 있어요</span>` : `<button type="button" class="btn secondary sm" data-pgoal="${r.id}" aria-pressed="${!!sp.goal}">${sp.goal ? "목표 지우기" : "목표 세우기"}</button>`}<button type="button" class="btn text sm" data-punpin="${r.id}">핀 빼기</button><small class="pn-since">${dot(sp.t)}에 꽂음${sp.mig ? " · 찜에서 옮겨 옴" : ""}</small></div>`
       : "";
     return `<div class="pn-row${nw ? " new" : ""}${SEL && CMP.includes(r.id) ? " on" : ""}" role="listitem"><div class="pn-top">${head}</div>${bd}${goal}${ed}</div>`;
   }
@@ -117,7 +129,7 @@ const PINS = (() => {
       <div class="pn-tools"><div class="pn-sort" role="group" aria-label="정렬">${srt}</div><label class="pn-money"><input type="checkbox" id="pnMoney"${MONEY ? " checked" : ""}>공유 이미지에 금액 넣기</label></div>`;
     return `${condHTML()}${top}<p class="pn-base">오른쪽은 ${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 살 때 필요한 돈 · 내 현금 ${e2(CASH)}억 기준 · 꽂은 날과 비교</p><div class="pn-list" role="list" aria-label="내 핀 목록">${L.map(rowHTML).join("")}</div><span class="share-fb" id="pnShareFb" role="status"></span>`;
   }
-  const emptyHTML = () => `${condHTML()}<div class="x-empty pn-empty">${pinY(36)}<p><b>아직 꽂은 핀이 없어요</b><br>구역을 눌러 핀을 꽂으면 소식을 모아드려요</p><button type="button" class="btn primary sm" id="pnEmptyGo">지도 보기</button></div>`;
+  const emptyHTML = () => `${condHTML()}<div class="x-empty pn-empty">${pinY(36)}<p><b>아직 꽂은 핀이 없어요</b><br>구역을 눌러 핀을 꽂으면 다시 열 때 바뀐 소식을 모아 보여 드려요</p><button type="button" class="btn primary sm" id="pnEmptyGo">지도 보기</button></div>`;
   let MONEY = false;
 
   // ---------- 꽂기·빼기 ----------
@@ -146,6 +158,15 @@ const PINS = (() => {
     const bt = t.querySelector("button"); if (bt) bt.onclick = () => { clearTimeout(toastT); t.classList.remove("on"); fn && fn(); };
     t.classList.add("on");
     toastT = setTimeout(() => t.classList.remove("on"), 4000);
+  }
+  // 화면이 바뀌면(내 핀·기능 화면 열기/닫기, 전체 지도, 하단 탭) 토스트를 바로 걷는다
+  function hideToast() { clearTimeout(toastT); const t = $("pnToast"); if (t) t.classList.remove("on"); }
+  function toastWatch() {
+    let prev = document.documentElement.className;
+    const key = (c) => ["s-view", "s-full"].map((k) => (` ${c} `).includes(` ${k} `)).join();
+    if ("MutationObserver" in window) new MutationObserver(() => { const c = document.documentElement.className; if (key(c) !== key(prev)) hideToast(); prev = c; }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("#sNav button,#sTiles a,[data-menu]")) hideToast(); }, true);
+    addEventListener("hashchange", hideToast);
   }
   // 21번째 핀: 오래된 핀 하나를 빼고 꽂기
   function full(id) {
@@ -191,6 +212,7 @@ const PINS = (() => {
       nb.setAttribute("aria-label", `내 핀${n ? `, 새 소식 ${n}곳` : ""}`);
     }
     condBtn();
+    try { if (isApp() && navigator.setAppBadge) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
     home(U, CN);
   }
   const weekKey = () => Math.floor((Date.now() + 9 * 36e5) / 864e5 + 3) / 7 | 0;
@@ -297,7 +319,7 @@ const PINS = (() => {
 
 
   // ===================== 조건 핀: 저장형 스마트 필터 =====================
-  // {id, name, cash, mode, gu, kind, minS, cm:{dest,max}|null, sure, strict, base:[ids], at, seen}
+  // {id, name, cash, mode, gu, kind, minS, cm:{dest,max}|null, sure, strict, firm, base:[ids], sv:{id:[필요한 돈, 단계, 신고가일]}, at, seen}
   const CK = "zp-cond", CMAX = 3;
   let CONDS = lsR(CK, []); if (!Array.isArray(CONDS)) CONDS = [];
   const saveC = () => lsW(CK, CONDS);
@@ -305,26 +327,57 @@ const PINS = (() => {
   const STAGES = [[0, "단계 상관없음"], [4, "조합설립 이상"], [5, "사업시행 이상"], [6, "관리처분 이상"]];
   const kindOf = (r) => (/재건축/.test(r.k) ? "rebuild" : /가로|소규모/.test(r.k) ? "small" : "redev");
   let POPSET = null;
+  const inPop = (r) => (POPSET || (POPSET = new Set(POP.map((x) => x.id)))).has(r.id);
   const CMC = new Map();
   const cmRoute = (dest) => CMC.get(dest) || (CMC.set(dest, commuteFrom(dest)), CMC.get(dest));
-  // 앱 엔진 그대로(지도·목록의 okR과 같은 기준): 전세 끼고 = gapOf, 대출 끼고 = investC 지금 매수
-  function condOk(c, r) {
-    if (!(POPSET || (POPSET = new Set(POP.map((x) => x.id)))).has(r.id) || r.lc || estHide(r)) return false;
+  // 돈 말고 나머지 조건(구·유형·단계·출퇴근·입주권·토허·사업 확실성). 홈에 적용할 때도 이 함수 하나로 거른다
+  function condExtra(c, r) {
     if (c.gu && r.g !== c.gu) return false;
     if (c.kind && kindOf(r) !== c.kind) return false;
     if (c.minS && !(r.s >= c.minS)) return false;
     if (c.strict && (isEst(r) || landPermit(r))) return false;
     if (c.sure && restricted(r)) return false;
-    if (c.mode === "gap") { const g = gapOf(r); if (g.block || g.na || !(g.now <= c.cash + 1e-9)) return false; }
-    else {
-      if (r.dn || r.s >= 9 || r.cx || r.src === "moa" || rewinBlocked(r)) return false;
-      const x = investC(r); if (!(x.needBuy != null && x.needBuy <= c.cash + 1e-9)) return false;
-    }
+    if (c.firm && !firmOk(r)) return false;
     if (c.cm) { if (!r.ll) return false; const z = zoneStn(r), rt = z && cmRoute(c.cm.dest).route(z.n); if (!rt || Math.round(z.walk + rt.min) > c.cm.max) return false; }
     return true;
   }
+  // 이 조건 방식으로 지금 필요한 돈(계산 안 되면 null)
+  function needC(c, r) {
+    try {
+      if (c.mode === "gap") { const g = gapOf(r); return g.block || g.na || g.now == null || !isFinite(g.now) ? null : g.now; }
+      if (r.dn || r.s >= 9 || r.cx || r.src === "moa" || rewinBlocked(r)) return null;
+      const x = investC(r); return x.needBuy != null && isFinite(x.needBuy) ? x.needBuy : null;
+    } catch (e) { return null; }
+  }
+  const condPre = (c, r) => inPop(r) && !r.lc && !estHide(r) && condExtra(c, r);
+  // 앱 엔진 그대로(홈 숫자 okR과 같은 기준): 전세 끼고 = gapOf, 대출 끼고 = investC 지금 매수
+  function condOk(c, r) {
+    if (!condPre(c, r)) return false;
+    const n = needC(c, r);
+    return n != null && n <= c.cash + 1e-9;
+  }
+  // 홈 숫자·핀과 같은 기준(60_simple okR과 같은 식): 지도 핀·게이지 토스트가 이걸 함께 쓴다
+  const zpOk = (r) => { try { return inPop(r) && (effBasis() === "now" ? affOk(r, "now") : affOk(r)); } catch (e) { return false; } };
+  // 저장할 때 '아직 안 되는' 후보 구역의 값을 적어 둔다 → 새로 들어오면 왜 들어왔는지(돈 ▼·단계·실거래) 보여 줌
+  function snapVals(c, base) {
+    const B = new Set(base), sv = {};
+    R.forEach((r) => { try { if (B.has(r.id) || !condPre(c, r)) return; const n = needC(c, r); sv[r.id] = [n == null ? null : Math.round(n * 100) / 100, r.s || 0, (r.tx && r.tx.hi && r.tx.hi[1]) || 0, r.tx && r.tx.n3 != null ? r.tx.n3 : null]; } catch (e) {} });
+    return sv;
+  }
+  function whyNew(c, id) {
+    const r = byId[id]; if (!r || !c.sv) return "";
+    const v = c.sv[id], w = [];
+    if (!v) return c.minS && r.s >= c.minS ? "단계 올라감" : c.firm ? "사업 확실성 올라감" : "새로 잡힌 구역";
+    const [n0, s0, h0, t0] = v, n = needC(c, r);
+    if (r.s > s0) w.push("단계 올라감");
+    if (n != null && n0 != null && n0 - n >= 0.005) w.push(`필요한 돈 ▼${amt(n0 - n)}`);
+    else if (n != null && n0 == null) w.push("시세 새로 잡힘");
+    const hi = r.tx && r.tx.hi && r.tx.hi[1];
+    if ((hi && hi > (h0 || 0)) || (t0 != null && r.tx && r.tx.n3 != null && r.tx.n3 !== t0)) w.push("새 실거래");
+    return w.slice(0, 2).join(" · ") || "계산 기준 바뀜";
+  }
   const EC = new Map();
-  const ckey = (c) => [c.cash, c.mode, c.gu, c.kind, c.minS, c.cm ? c.cm.dest + c.cm.max : "", c.sure, c.strict, condKey(), P.jr].join("|");
+  const ckey = (c) => [c.cash, c.mode, c.gu, c.kind, c.minS, c.cm ? c.cm.dest + c.cm.max : "", c.sure, c.strict, c.firm, condKey(), P.jr].join("|");
   function evalCond(c) {
     const k = ckey(c), h = EC.get(k);
     if (h && Date.now() - h.at < 15e3) return h.ids;
@@ -341,19 +394,20 @@ const PINS = (() => {
   const condUnread = (n) => !!n.sig && n.c.seen !== n.sig;
   const condsAll = () => CONDS.map(condNews);
   const cashT = (v) => `${Math.round(v * 10) / 10}억`;
-  const autoName = (c) => [cashT(c.cash), c.mode === "gap" ? "전세" : "대출", c.gu ? c.gu.replace(/구$/, "") : "", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.cm ? `출퇴근 ${c.cm.max}분` : ""].filter(Boolean).join(" ").slice(0, 20);
-  const condSum = (c) => [`현금 ${cashT(c.cash)} · ${c.mode === "gap" ? "전세 끼고" : "대출 끼고"}`, c.gu || "서울 전체", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.minS ? STAGES.find((x) => x[0] === c.minS)[1] : "", c.cm ? `${c.cm.dest}역 ${c.cm.max}분 안` : "", c.sure ? "입주권 확실만" : "", c.strict ? "토허·추정 제외" : ""].filter(Boolean).join(" · ");
+  const stShort = (m) => (STAGES.find((x) => x[0] === m) || [0, ""])[1];
+  const autoName = (c) => [`${cashT(c.cash)} ${c.mode === "gap" ? "전세" : "대출"}`, c.gu ? c.gu.replace(/구$/, "") : "", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.minS ? stShort(c.minS) : "", c.firm ? "확실성 높음" : "", c.cm ? `출퇴근 ${c.cm.max}분` : ""].filter(Boolean).reduce((a, x) => (a && (a + " · " + x).length > 30 ? a : a ? a + " · " + x : x), "");
+  const condSum = (c) => [`현금 ${cashT(c.cash)} · ${c.mode === "gap" ? "전세 끼고" : "대출 끼고"}`, c.gu || "서울 전체", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.minS ? stShort(c.minS) : "", c.cm ? `${c.cm.dest}역 ${c.cm.max}분 안` : "", c.sure ? "입주권 확실만" : "", c.strict ? "토허·추정 제외" : "", c.firm ? "사업 확실성 높은 곳만" : ""].filter(Boolean).join(" · ");
   function curCond() {
     const kb = document.querySelector('.s-flt button[aria-pressed="true"]');
     const cmOn = typeof CM_SHOW !== "undefined" && CM_SHOW && CM_SET.size;
-    return { cash: Math.round(CASH * 100) / 100, mode: gapMode() ? "gap" : "cash", gu: "", kind: (kb && kb.dataset.k) || "", minS: 0, cm: cmOn ? { dest: CM.dest, max: CM.max } : null, sure: !!($("pTrade") && $("pTrade").checked), strict: false };
+    return { cash: Math.round(CASH * 100) / 100, mode: gapMode() ? "gap" : "cash", gu: "", kind: (kb && kb.dataset.k) || "", minS: 0, cm: cmOn ? { dest: CM.dest, max: CM.max } : null, sure: false, strict: false, firm: false };
   }
   function condHTML() {
     if (!CONDS.length) return "";
     const L = condsAll();
-    return `<section class="pc-wrap" aria-labelledby="pcT"><div class="pc-hd"><h3 id="pcT">조건 핀</h3><small>내 돈으로 새로 되는 곳이 생기면 알려드려요</small></div><div class="pc-cards">${L.map((n) => {
+    return `<section class="pc-wrap" aria-labelledby="pcT"><div class="pc-hd"><h3 id="pcT">조건 핀</h3><small>다시 열면 새로 들어온 곳을 보여 드려요</small></div>${pwaHint()}<div class="pc-cards">${L.map((n) => {
       const c = n.c, nw = condUnread(n);
-      const z = n.add.length ? `<div class="pc-z" aria-label="새로 들어온 곳">${n.add.slice(0, 4).map((id) => `<button type="button" class="pc-zn" data-open="${id}"><i>새로</i>${esc(shortName(byId[id].n))}</button>`).join("")}${n.add.length > 4 ? `<span class="pc-zm">외 ${n.add.length - 4}곳</span>` : ""}</div>` : "";
+      const z = n.add.length ? `<ul class="pc-z" aria-label="새로 들어온 곳">${n.add.slice(0, 4).map((id) => { const r = byId[id], wy = whyNew(c, id); return `<li><button type="button" class="pc-zl" data-open="${id}"><i>새로</i><span><b>${esc(shortName(r.n))}</b><small>${esc(stageName(r))}${riskT(r) ? ` · ${riskH(r, "pc-rk")}` : ""}</small></span>${wy ? `<em class="pc-why2">${esc(wy)}</em>` : ""}</button></li>`; }).join("")}${n.add.length > 4 ? `<li class="pc-zm">외 ${n.add.length - 4}곳</li>` : ""}</ul>` : "";
       return `<div class="pc-card${nw ? " new" : ""}"><button type="button" class="pc-main" data-capply="${c.id}" aria-label="${esc(c.name)} 조건을 홈에 적용"><span class="pc-t"><b>${esc(c.name)}</b>${n.add.length ? `<em class="pc-new">새로 들어온 곳 ${n.add.length}</em>` : ""}${n.out.length ? `<em class="pc-out">빠진 곳 ${n.out.length}</em>` : ""}</span><small>${esc(condSum(c))}</small><span class="pc-n">조건에 맞는 곳 <b>${fmt(n.ids.length)}곳</b><span class="pc-go">홈에 적용 →</span></span></button>${z}<div class="pc-a"><button type="button" class="btn text sm" data-cedit="${c.id}">수정</button>${n.sig ? `<button type="button" class="btn text sm" data-crebase="${c.id}">지금 목록을 새 기준으로</button>` : ""}<button type="button" class="btn text sm" data-cdel="${c.id}">삭제</button></div></div>`;
     }).join("")}</div></section>`;
   }
@@ -372,15 +426,16 @@ const PINS = (() => {
       <button type="button" class="pc-chip" data-cc="minS" aria-pressed="${!!c.minS}">${STAGES.find((x) => x[0] === (c.minS || 0))[1]}</button>
       ${cmAvail ? `<button type="button" class="pc-chip" data-cc="cm" aria-pressed="${!!c.cm}">출퇴근 ${esc(cm0.dest)} ${cm0.max}분</button>` : ""}
       <button type="button" class="pc-chip" data-cc="sure" aria-pressed="${!!c.sure}">입주권 확실만</button>
-      <button type="button" class="pc-chip" data-cc="strict" aria-pressed="${!!c.strict}" title="토지거래허가 구역·구 평균 시세로 추정한 구역 제외">토허·추정 제외</button></div>`;
+      <button type="button" class="pc-chip" data-cc="strict" aria-pressed="${!!c.strict}" title="토지거래허가 구역·구 평균 시세로 추정한 구역 제외">토허·추정 제외</button>
+      <button type="button" class="pc-chip" data-cc="firm" aria-pressed="${!!c.firm}" title="10년 안 준공 가능성 40% 이상(추정이 없으면 조합설립 이상)">사업 확실성 높은 곳만</button></div>`;
     const cnt = () => `조건에 맞는 곳 <b>${fmt(evalCond(c).length)}곳</b>`;
     const body = () => full
       ? `<h3 id="pcST">조건 핀은 ${CMAX}개까지예요</h3><p>하나를 지우고 다시 저장해 주세요.</p><div class="pn-old">${CONDS.map((x) => `<button type="button" data-cdel2="${x.id}">${pinY(18)}<span><b>${esc(x.name)}</b><small>${esc(condSum(x))}</small></span><em>지우기</em></button>`).join("")}</div><div class="pc-btns"><button type="button" class="btn secondary sm" data-cx>닫기</button></div>`
       : `<h3 id="pcST">${edit ? "조건 핀 수정" : "이 조건으로 핀 꽂기"}</h3><p class="pc-cash">현금 <b>${cashT(c.cash)}</b> · ${c.mode === "gap" ? "전세 끼고" : "대출 끼고"}${edit ? "" : " <small>(금액·방식은 홈 게이지에서)</small>"}</p>
-        <label class="pc-nm"><span>이름</span><input data-cn maxlength="20" value="${esc(c.name || autoName(c))}" placeholder="${esc(autoName(c))}"></label>
+        <label class="pc-nm"><span>이름</span><input data-cn maxlength="30" value="${esc(c.name || autoName(c))}" placeholder="${esc(autoName(c))}"></label>
         <div data-cchips>${chips()}</div>
         <p class="pc-cnt" data-ccnt aria-live="polite">${cnt()}</p>
-        <p class="pc-why">내 돈으로 새로 되는 곳이 생기면 알려드려요</p>
+        <p class="pc-why">다시 열면 새로 들어온 곳을 보여 드려요</p>
         <div class="pc-btns"><button type="button" class="btn secondary sm" data-cx>그만두기</button><button type="button" class="btn primary sm" data-csave>이 조건 저장</button></div>`;
     ov.innerHTML = `<div class="pn-dlg pc-dlg" role="dialog" aria-modal="true" aria-labelledby="pcST">${body()}</div>`;
     document.body.appendChild(ov);
@@ -406,10 +461,11 @@ const PINS = (() => {
         refresh(); const f = dlg.querySelector(`[data-cc="${k}"]`); f && f.focus(); return;
       }
       if (e.target.closest("[data-csave]")) {
-        const nm = (dlg.querySelector("[data-cn]").value || "").trim().slice(0, 20) || autoName(c);
+        const nm = (dlg.querySelector("[data-cn]").value || "").trim().slice(0, 30) || autoName(c);
         const ids = evalCond(c);
-        if (edit) { const i = CONDS.findIndex((x) => x.id === edit.id); if (i >= 0) CONDS[i] = Object.assign({}, c, { name: nm, base: ids, at: Date.now(), seen: "" }); }
-        else CONDS.push(Object.assign({}, c, { id: "c" + Date.now().toString(36), name: nm, base: ids, at: Date.now(), seen: "", asOf: D.upd || D.asOf }));
+        const sv = snapVals(c, ids);
+        if (edit) { const i = CONDS.findIndex((x) => x.id === edit.id); if (i >= 0) CONDS[i] = Object.assign({}, c, { name: nm, base: ids, sv, at: Date.now(), seen: "" }); }
+        else CONDS.push(Object.assign({}, c, { id: "c" + Date.now().toString(36), name: nm, base: ids, sv, at: Date.now(), seen: "", asOf: D.upd || D.asOf }));
         saveC(); close(); renderFav(); badges(); emit();
         try { navigator.vibrate && navigator.vibrate(10); } catch (er) {}
         toast(edit ? "조건 핀 수정함" : "조건 핀 꽂음", edit ? "" : "내 핀에서 보기", edit ? null : openView, `${nm} · ${fmt(ids.length)}곳`);
@@ -417,25 +473,82 @@ const PINS = (() => {
     });
     const f = dlg.querySelector("[data-cn]") || dlg.querySelector("button"); f && f.focus();
   }
+  // 홈에 적용: 금액·방식·입주권뿐 아니라 구·유형·단계·출퇴근·토허·확실성까지 그대로 → 홈 숫자 = 카드 숫자
   function applyCond(c) {
+    if (!ACT) { try { TRADE0 = $("pTrade") ? $("pTrade").checked : null; } catch (e) {} }
+    ACT = JSON.parse(JSON.stringify(c));
     try { if (P.fund !== c.mode) { const b = document.querySelector(`.s-mode button[data-f="${c.mode}"]`); if (b) b.click(); else setFund(c.mode); } } catch (e) {}
     try { if ($("pTrade") && $("pTrade").checked !== !!c.sure) { $("pTrade").checked = !!c.sure; $("pTrade").dispatchEvent(new Event("change", { bubbles: true })); } } catch (e) {}
+    if (c.cm) { CM.dest = c.cm.dest; CM.max = c.cm.max; }
     try { $("pCash").value = String(c.cash); PREV_CASH = null; planN = PLAN0(); plan(); } catch (e) {}
     try { const kb = document.querySelector(`.s-flt button[data-k="${c.kind || ""}"]`); if (kb && kb.getAttribute("aria-pressed") !== "true") kb.click(); } catch (e) {}
-    if (c.cm) { CM.dest = c.cm.dest; CM.max = c.cm.max; }
     try { SIMPLE.close(); } catch (e) {}
     try { if (c.gu) enterGu(c.gu); else if (mapView === "gu") exitGu(); } catch (e) {}
+    actRefresh();
     try { LMX.fitAff(true); } catch (e) {}
+    // 하단 탭 표시를 '홈'으로
+    try { document.querySelectorAll("#sNav button").forEach((x) => x.removeAttribute("aria-current")); const hb = document.querySelector('#sNav [data-nav="home"]'); hb && hb.setAttribute("aria-current", "page"); } catch (e) {}
     requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
-    toast("조건 적용함", "", null, c.name);
+    setTimeout(() => toast("조건 적용함", "", null, `${c.name} · ${fmt(R.filter(zpOk).length)}곳`), 60);
   }
+  function actClear() {
+    ACT = null;
+    // 적용하며 바꾼 '입주권이 나오는 구역만'을 원래대로
+    try { if (TRADE0 != null && $("pTrade") && $("pTrade").checked !== TRADE0) { $("pTrade").checked = TRADE0; $("pTrade").dispatchEvent(new Event("change", { bubbles: true })); } } catch (e) {}
+    TRADE0 = null; actRefresh(); try { if (mapView === "gu") exitGu(); } catch (e) {} try { LMX.fitAff(true); } catch (e) {} }
+  function actRefresh() {
+    try { planN = PLAN0(); plan(); } catch (e) {}
+    try { refreshMap(); } catch (e) {}
+    try { SIMPLE.render(); } catch (e) {}
+    try { LMX.paint(); } catch (e) {}
+    actBar();
+  }
+  // 적용 중인 조건 띠(게이지 아래): 무엇이 걸려 있는지 + 해제
+  function actBar() {
+    let el = $("pcAct");
+    const extra = ACT && condSum(Object.assign({}, ACT, { cash: 0 })).split(" · ").slice(2).filter((x) => x !== "서울 전체");
+    if (!ACT || !extra || !extra.length) { if (el) el.hidden = true; return; }
+    const g0 = document.querySelector(".s-gauge"); if (!g0) return;
+    if (!el) {
+      el = document.createElement("div"); el.id = "pcAct"; el.className = "pc-act"; el.setAttribute("role", "status");
+      el.addEventListener("click", (e) => { if (e.target.closest("[data-actx]")) actClear(); });
+    }
+    const an = $("pcSave") || g0; if (el.previousElementSibling !== an) an.after(el);
+    el.innerHTML = `${pinY(16)}<span><b>조건 핀 적용 중</b> · ${esc(extra.join(" · "))}</span><button type="button" class="btn text sm" data-actx>해제</button>`;
+    el.hidden = false;
+  }
+  // 소식 배지: 홈 화면 앱(standalone)에서만 아이콘 배지를 띄울 수 있어 그때 한 번 안내
+  const isApp = () => { try { return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; } catch (e) { return false; } };
+  function pwaHint() {
+    if (!isApp() || lsR("zp-pwa-hint", 0)) return "";
+    setTimeout(() => lsW("zp-pwa-hint", 1), 3000);
+    return `<p class="pc-pwa">${pinY(14)}홈 화면 앱에서 열면 소식 배지가 떠요</p>`;
+  }
+  // 구역 시트 머리(제목 줄)에 '핀 꽂기' — 스크롤 없이 보이게. 아래 원래 버튼도 그대로 둔다(둘 다 data-fav라 함께 바뀜)
+  function headPin() {
+    const rep = $("report"); if (!rep) return;
+    const fb = rep.querySelector(".rep-acts [data-fav]"); if (!fb) return;
+    const id = fb.dataset.fav, on = isFav(id), r = byId[id];
+    const mk = () => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "btn secondary sm favb pn-hpin"; b.dataset.fav = id;
+      b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-label", `${r ? shortName(r.n) : ""} ${on ? "핀 빼기" : "핀 꽂기"}`);
+      b.innerHTML = fb.innerHTML; return b;
+    };
+    // 폰 시트: 위에 붙는 닫기 줄(스크롤해도 늘 보임). PC: 제목 줄
+    const bar = rep.querySelector(".sheet-bar"), x = $("sheetClose");
+    if (bar && x && !bar.querySelector(".pn-hpin")) bar.insertBefore(mk(), x);
+    const t = rep.querySelector(".rep-t");
+    if (t && !t.querySelector(".pn-hpin")) { const gb = t.lastElementChild && t.lastElementChild !== t.firstElementChild ? t.lastElementChild : null; gb ? t.insertBefore(mk(), gb) : t.appendChild(mk()); }
+  }
+
   function condBtn() {
     const hero = $("sHero"); if (!hero) return;
     const ex = $("pcSave"), g0 = document.querySelector(".s-gauge");
     if (ex) { if (g0 && ex.previousElementSibling !== g0) g0.after(ex); return; }
     const b = document.createElement("button");
     b.type = "button"; b.id = "pcSave"; b.className = "pc-save";
-    b.innerHTML = `${pinY(18)}<span>이 조건으로 핀 꽂기</span><small>새로 되는 곳 알림</small>`;
+    b.innerHTML = `${pinY(18)}<span>이 조건으로 핀 꽂기</span><small>새로 되는 곳 모아 보기</small>`;
     b.onclick = () => { if (!isMember()) { try { mbOpen("fav"); } catch (e) {} return; } condSheet(); };
     const g = document.querySelector(".s-gauge");
     g ? g.after(b) : hero.appendChild(b);
@@ -450,11 +563,11 @@ const PINS = (() => {
     if (t.dataset.capply) { const c = cf(t.dataset.capply); if (c) applyCond(c); return; }
     if (t.dataset.cedit) { const c = cf(t.dataset.cedit); if (c) condSheet(c); return; }
     if (t.dataset.cdel) { const c = cf(t.dataset.cdel); CONDS = CONDS.filter((x) => x.id !== t.dataset.cdel); saveC(); renderFav(); badges(); emit(); if (c) toast("조건 핀 지웠어요", "되돌리기", () => { if (CONDS.length < CMAX) { CONDS.push(c); saveC(); renderFav(); badges(); emit(); } }, c.name); return; }
-    if (t.dataset.crebase) { const c = cf(t.dataset.crebase); if (c) { c.base = evalCond(c); c.seen = ""; c.at = Date.now(); saveC(); renderFav(); badges(); emit(); } return; }
+    if (t.dataset.crebase) { const c = cf(t.dataset.crebase); if (c) { c.base = evalCond(c); c.sv = snapVals(c, c.base); c.seen = ""; c.at = Date.now(); saveC(); renderFav(); badges(); emit(); } return; }
     if (t.dataset.psort) { SORT = t.dataset.psort; lsW(SORTK, SORT); renderFav(); return; }
     if (t.dataset.pedit) { EDIT = EDIT === t.dataset.pedit ? "" : t.dataset.pedit; renderFav(); const i = EDIT && $("fvOut").querySelector(`[data-pmemo="${EDIT}"]`); if (i) i.focus(); else { const b = $("fvOut").querySelector(`[data-pedit="${t.dataset.pedit}"]`); b && b.focus(); } return; }
-    if (t.dataset.pgoal) { const sp = SNAP[t.dataset.pgoal]; if (sp) { sp.goal = !sp.goal; saveS(); renderFav(); const b = $("fvOut").querySelector(`[data-pgoal="${t.dataset.pgoal}"]`); b && b.focus(); } return; }
-    if (t.dataset.punpin) { const id = t.dataset.punpin; if (isFav(id)) { toggleFav(id); toast("핀 뺐어요", "되돌리기", () => { if (!isFav(id) && room(id)) toggleFav(id); }, byId[id] ? shortName(byId[id].n) : ""); } return; }
+    if (t.dataset.pgoal) { const sp = SNAP[t.dataset.pgoal], r = byId[t.dataset.pgoal]; if (sp && r) { if (!sp.goal) { const nw = needNow(r, modeFor(r)); if (nw != null && nw <= CASH + 1e-9) { renderFav(); return; } } sp.goal = !sp.goal; PEND = 0; saveS(); renderFav(); const b = $("fvOut").querySelector(`[data-pgoal="${t.dataset.pgoal}"]`); b && b.focus(); } return; }
+    if (t.dataset.punpin) { PEND = 0; const id = t.dataset.punpin; if (isFav(id)) { toggleFav(id); toast("핀 뺐어요", "되돌리기", () => { if (!isFav(id) && room(id)) toggleFav(id); }, byId[id] ? shortName(byId[id].n) : ""); } return; }
     if (t.id === "pnCmp") { SEL = true; CMPON = false; CMP = []; renderFav(); const s = $("pnSelX"); s && s.focus(); return; }
     if (t.id === "pnSelX") { SEL = false; renderFav(); const b = $("pnCmp"); b && b.focus(); return; }
     if (t.id === "pnGo") { if (CMP.length < 2) return; SEL = false; CMPON = true; renderFav(); requestAnimationFrame(() => { const h = $("pnCmpT"); if (h) { h.scrollIntoView({ block: "start", behavior: smooth() }); h.focus({ preventScroll: true }); } }); return; }
@@ -473,7 +586,12 @@ const PINS = (() => {
       $("pnCmpOut") && $("pnCmpOut").addEventListener("click", onClick);
       out.addEventListener("input", (e) => { const i = e.target.closest && e.target.closest("[data-pmemo]"); if (!i) return; const sp = SNAP[i.dataset.pmemo]; if (sp) { sp.memo = i.value.slice(0, 20).trim(); saveS(); } });
       out.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches && e.target.matches("[data-pmemo]")) e.target.blur(); });
+      // 메모 입력 중에 '목표 세우기'·'핀 빼기'를 누르면: 포커스가 빠지며(change) 목록을 다시 그려 버튼이 사라지던 문제.
+      // 편집 줄 버튼을 누르는 순간(pointerdown)을 기억해 그때는 다시 그리지 않고, 포커스 이동 자체도 막는다.
+      out.addEventListener("pointerdown", (e) => { if (e.target.closest && e.target.closest(".pn-ed button")) PEND = Date.now(); }, true);
+      out.addEventListener("mousedown", (e) => { if (e.target.closest && e.target.closest(".pn-ed button") && document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-pmemo]")) e.preventDefault(); }, true);
       out.addEventListener("change", (e) => {
+        if (e.target.matches && e.target.matches("[data-pmemo]") && Date.now() - PEND < 1500) return;
         if (e.target.matches && e.target.matches("[data-pmemo]")) { const id = e.target.dataset.pmemo; EDIT = ""; renderFav(); const b = out.querySelector(`[data-pedit="${id}"]`); b && b.focus(); }
         if (e.target.id === "pnMoney") MONEY = e.target.checked;
       });
@@ -481,6 +599,20 @@ const PINS = (() => {
       let tm = 0;
       if ("IntersectionObserver" in window) new IntersectionObserver((es) => { es.forEach((x) => { clearTimeout(tm); if (x.isIntersecting && (FAV.length || CONDS.length)) tm = setTimeout(markSeen, 1200); }); }, { threshold: 0.15 }).observe(out);
     }
+    // 조건 핀 '홈에 적용': 홈 숫자(okR)·지도·핀이 모두 affOk를 거치므로 여기에 나머지 조건을 덧붙인다
+    try {
+      const _aff = affOk;
+      affOk = function (r) { const ok = _aff.apply(this, arguments); if (!ok || !ACT) return ok; try { return condExtra(ACT, r); } catch (e) { return ok; } };
+    } catch (e) {}
+    // 적용 뒤 사용자가 유형·구를 직접 바꾸면 그 조건은 풀어 준다(목록 표시와 숫자가 어긋나지 않게)
+    document.addEventListener("click", (e) => {
+      const b = ACT && e.target.closest && e.target.closest(".s-flt button[data-k]");
+      if (b) { ACT.kind = b.dataset.k || ""; actBar(); }
+    }, true);
+    try { const _xg = exitGu; exitGu = function () { if (ACT && ACT.gu) { ACT.gu = ""; setTimeout(actBar, 0); } return _xg.apply(this, arguments); }; } catch (e) {}
+    try { const _rr = renderReport; renderReport = function () { const x = _rr.apply(this, arguments); try { headPin(); } catch (e) {} return x; }; } catch (e) {}
+    try { headPin(); } catch (e) {}
+    toastWatch();
     let k = 0; const tick = () => { if (!relabel() && k++ < 40) setTimeout(tick, 250); else badges(); }; tick();
     window.addEventListener("pageshow", () => badges());
   }
@@ -495,7 +627,8 @@ const PINS = (() => {
     try { LMX.pins(); } catch (e) {}
   }
   const cmpShown = () => CMPON;
-  return { init, list, has, on, emit, newIds, conds: () => CONDS.slice(), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX };
+  return { init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX };
 })();
 window.PINS = { list: PINS.list, has: PINS.has, on: PINS.on, newIds: PINS.newIds };
+window.ZP_ok = PINS.zpOk;   // 홈 '살 수 있는 곳' 숫자와 같은 판정(지도 핀·게이지 토스트용)
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", PINS.init) : setTimeout(PINS.init, 0);
