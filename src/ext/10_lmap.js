@@ -219,7 +219,7 @@
       map.getSource("gub").setData(FC(F));
     }
     // 기본은 압구정을 가운데 둔 한강 W자 구간. 내 돈으로 되는 구역이 그 밖에 있으면 거기까지 넓힌다.
-    const CORE = [[126.895, 37.497], [127.115, 37.566]];
+    const CORE = [[126.882, 37.494], [127.118, 37.562]];   // 망원~잠실, 가운데가 반포·압구정 사이(한강 W자가 좌우 대칭으로 들어오게)
     function affBB() {
       let [[a, b], [c, d]] = CORE;
       try {
@@ -248,7 +248,7 @@
           if (mapView !== "seoul") return;
           if (!init()) { show(false); return; }
           // 처음엔 서울 전체가 아니라 '내 돈으로 되는 구역'이 모인 곳에 맞춘다(폰 지도는 작아서 전체는 답답함)
-          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); map.fitBounds(CORE, { padding: { top: 52, bottom: 16, left: 12, right: 12 }, duration: 0 }); } };
+          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); map.fitBounds(CORE, { padding: { top: 46, bottom: 46, left: 6, right: 6 }, duration: 0 }); } };
           fitS(); requestAnimationFrame(fitS); map.once("idle", fitS);
           if (ready) paint();
         })
