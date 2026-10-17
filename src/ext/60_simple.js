@@ -69,7 +69,7 @@ const SIMPLE = (() => {
           <p class="s-count" id="sCount" aria-live="polite"><small id="sNL">살 수 있는 곳</small><b><span id="sN">0</span><i>곳</i></b></p>
         </div>
         <input type="range" id="sCash" min="0" max="100" step="0.1" value="8.33" aria-describedby="sCount" aria-label="가진 현금(억)">
-        <div class="s-ticks" aria-hidden="true"><span>0.5</span><span>2</span><span>5</span><span>10</span><span>15억</span></div>
+        <div class="s-ticks" aria-hidden="true"><span>0.5</span><span>2</span><span>5</span><span>10억</span><span></span></div>
       </div>`;
     map.insertBefore(hero, map.firstChild);
     const list = document.createElement("div");

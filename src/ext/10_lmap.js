@@ -208,6 +208,15 @@
       const F = B.map((P) => ({ type: "Feature", geometry: { type: "Point", coordinates: map.unproject([P.x, P.y]).toArray() }, properties: { n: P.nm, g: P.c.n, v: P.v, k: P.k } }));
       map.getSource("gub").setData(FC(F));
     }
+    function affBB() {
+      try {
+        const P = R.filter((r) => r.ll && visible(r) && dotState(r) === "y").map((r) => r.ll);
+        if (P.length < 3) return SEOUL_BB;
+        const la = P.map((x) => x[0]).sort((a, b) => a - b), lo = P.map((x) => x[1]).sort((a, b) => a - b);
+        const q = (A, f) => A[Math.max(0, Math.min(A.length - 1, Math.round((A.length - 1) * f)))];   // 양끝 5%는 빼고
+        return [[q(lo, 0.05), q(la, 0.05)], [q(lo, 0.95), q(la, 0.95)]];
+      } catch (e) { return SEOUL_BB; }
+    }
     function seoul() {
       gu = null;
       ui();
@@ -217,7 +226,8 @@
         .then(() => {
           if (mapView !== "seoul") return;
           if (!init()) { show(false); return; }
-          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); map.fitBounds(SEOUL_BB, { padding: 8, duration: 0 }); } };
+          // 처음엔 서울 전체가 아니라 '내 돈으로 되는 구역'이 모인 곳에 맞춘다(폰 지도는 작아서 전체는 답답함)
+          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); map.fitBounds(affBB(), { padding: { top: 44, bottom: 28, left: 28, right: 28 }, maxZoom: 11.4, duration: 0 }); } };
           fitS(); requestAnimationFrame(fitS); map.once("idle", fitS);
           if (ready) paint();
         })
