@@ -2,7 +2,7 @@
 const BD = (() => {
   const ymd = (d) => `${d.slice(2, 4)}.${d.slice(4, 6)}.${d.slice(6, 8)}`;
   const eok = (man) => (man >= 10000 ? `${(man / 10000).toFixed(man >= 100000 ? 0 : 1)}억` : `${fmt(man)}만`);
-  const go = (id) => `<button type="button" class="txr-go" data-txgo="${esc(id)}">${esc(byId[id].n)}</button>`;
+  const go = (id) => `<button type="button" class="txr-go" data-txgo="${esc(id)}">${esc(shortName(byId[id].n))}</button>`;
   const okC = (r) => { try { return dotState(r) === "y" ? `<em class="txr-ok">${gapMode() ? "전세 끼고 내 현금 가능" : "내 현금 가능"}</em>` : ""; } catch (e) { return ""; } };
   const live = () => R.filter((r) => !r.dn && r.s < 9 && r.tx);
   let K = "n3";

@@ -28,7 +28,8 @@ const OVX = (() => {
   // 분기별 가운데 값 막대(최근 3년): 마지막 분기 값과 최고 값만 숫자로
   function chart(r, q, unit) {
     const cut = String(new Date().getFullYear() - 3).slice(-2);
-    const qq = q.filter((x) => x[0].slice(0, 2) >= cut).slice(-12);
+    const nd = new Date(), curQ = `${String(nd.getFullYear()).slice(2)}Q${Math.floor(nd.getMonth() / 3) + 1}`;
+    const qq = q.filter((x) => x[0].slice(0, 2) >= cut && x[0] !== curQ).slice(-12);
     if (qq.length < 3) return "";
     const W = 320, H = 132, pb = 20, pt = 18, n = qq.length, gap = 4, bw = Math.min(26, (W - gap * (n - 1)) / n);
     const mx = Math.max(...qq.map((x) => x[1])), mn = Math.min(...qq.map((x) => x[1])) * 0.7;
@@ -38,10 +39,10 @@ const OVX = (() => {
     const bars = qq.map((x, i) => {
       const y = Y(x[1]), yr = "20" + x[0].slice(0, 2), lab = yr !== lastYr ? ((lastYr = yr), `<text x="${(X(i)).toFixed(1)}" y="${H - 4}" class="yr">${yr}</text>`) : "";
       const cx = X(i) + bw / 2, anc = i === n - 1 && cx > W - 90 ? "end" : cx > W - 24 ? "end" : cx < 24 ? "start" : "middle", tx = anc === "end" ? X(i) + bw : anc === "start" ? X(i) : cx;
-      const v = i === n - 1 || (i === imx && imx < n - 2) ? `<text x="${tx.toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="${anc}" class="bv${i === n - 1 ? " last" : ""}">${i === n - 1 ? "최근 분기 " : ""}${eok(x[1])}</text>` : "";
+      const v = i === n - 1 || (i === imx && imx < n - 2) ? `<text x="${tx.toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="${anc}" class="bv${i === n - 1 ? " last" : ""}">${eok(x[1])}</text>` : "";
       return `<rect x="${X(i).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pb - y).toFixed(1)}" rx="4" class="${i === n - 1 ? "on" : ""}"><title>${x[0]} · ${eok(x[1])} · ${x[2]}건</title></rect>${v}${lab}`;
     }).join("");
-    return `<div class="ov-ch"><div class="ov-cht">${unit} · 분기별</div><svg class="ov-bar" viewBox="0 0 ${W} ${H}" role="img" aria-label="${unit} 분기별 가운데 값">${bars}</svg></div>`;
+    return `<div class="ov-ch"><div class="ov-cht">${unit} · 분기별 <b>최근 ${eok(qq[n - 1][1])}</b></div><svg class="ov-bar" viewBox="0 0 ${W} ${H}" role="img" aria-label="${unit} 분기별 가운데 값">${bars}</svg></div>`;
   }
   // 파이프라인이 만든 한 기준(hd)으로 큰 숫자·칩·그래프·최근 거래를 모두 맞춘다
   function hdHTML(h, t, r) {

@@ -105,3 +105,4 @@ html.simple #pane .gj-f label small{display:none}
 /* 주황은 경고에만: '초기 단계'는 회색 */
 html.simple .s-nm small em:not(.s-tag){font-style:normal;color:var(--text-3)}
 #pane .txl{overflow-x:auto;max-width:100%}
+.ov-cht b{margin-left:6px;color:var(--brand)}

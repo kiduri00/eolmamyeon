@@ -55,3 +55,6 @@ html.simple #mapbox .lm-ctl,html.simple #mapbox .lm-layers,.s-lyr{display:none!i
 html.simple #mapZoom{top:auto!important;bottom:44px;right:8px}
 html.simple.s-full .s-rail-w{top:76px}
 html.simple .s-lyr+.mapcard{margin-top:0}
+.tl-lead{margin:0 0 12px;font-size:14px;color:var(--text-2)}
+.fchips.tl-f .ichip::before{display:none!important}
+.sp-b b{font-size:10px}

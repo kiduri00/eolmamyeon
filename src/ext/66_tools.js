@@ -23,9 +23,10 @@ const TOOLS = (() => {
     const c = CASH;
     const F = gapF === "near" ? L.filter((x) => Math.abs(x.g.now - c) <= 1) : gapF === "redev" ? L.filter((x) => !/재건축/.test(x.r.k)) : L;
     F.sort((a, b) => a.g.now - b.g.now);
+    { const seen = new Set(); for (let i = F.length - 1; i >= 0; i--) {} const U = []; F.forEach((x) => { const k = shortName(x.r.n) + x.r.g; if (!seen.has(k)) { seen.add(k); U.push(x); } }); F.length = 0; U.forEach((x) => F.push(x)); }
     const rate = (x) => { try { const p = investC(x.r).price; return p ? Math.round((x.g.D / p) * 100) : null; } catch (e) { return null; } };
     out.innerHTML = `<div class="fchips tl-f" role="group" aria-label="거르기">${[["all", "전체"], ["near", `내 현금 ${e1(c)} ±1억`], ["redev", "재개발만"]].map(([k, t]) => `<button type="button" class="ichip" data-gf="${k}" aria-pressed="${gapF === k}">${t}</button>`).join("")}</div>
-      <ol class="tl-l">${F.slice(0, gapN).map((x, i) => { const jr = rate(x); return `<li><a href="#${x.r.id}" data-id="${x.r.id}"><span class="tl-k">${i + 1}</span><span class="tl-n"><b>${esc(shortName(x.r.n))}</b><small>${esc(x.r.g)} · ${esc(stageName(x.r))}${jr ? ` · 전세가율 ${jr}%` : ""}</small></span><span class="tl-v"><b>${e1(x.g.now)}</b><small>${x.g.x && x.g.x.ok ? `입주까지 ${e1(x.g.total)}` : ""}</small></span></a></li>`; }).join("") || '<li class="tl-e">조건에 맞는 구역이 없어요</li>'}</ol>
+      <ol class="tl-l">${F.slice(0, gapN).map((x, i) => { const jr = rate(x); return `<li><a href="#${x.r.id}" data-id="${x.r.id}"><span class="tl-k">${i + 1}</span><span class="tl-n"><b>${esc(shortName(x.r.n))}</b><small>${esc(x.r.g)} · ${esc(stageName(x.r))}</small></span><span class="tl-v"><b>${e1(x.g.now)}</b><small>${x.g.x && x.g.x.ok ? `입주까지 ${e1(x.g.total)}` : ""}</small></span></a></li>`; }).join("") || '<li class="tl-e">조건에 맞는 구역이 없어요</li>'}</ol>
       ${F.length > gapN ? `<button type="button" class="btn secondary s-more" id="gapMore">더 보기 (${F.length - gapN}곳)</button>` : ""}`;
     out.querySelectorAll("[data-gf]").forEach((b) => (b.onclick = () => { gapF = b.dataset.gf; gapN = 20; gapRender(); }));
     const m = document.getElementById("gapMore"); if (m) m.onclick = () => { gapN += 20; gapRender(); };
@@ -34,7 +35,7 @@ const TOOLS = (() => {
   let dSel = null;
   function diagRender() {
     const out = document.getElementById("diagTopOut"); if (!out) return;
-    out.innerHTML = `<label class="tl-q"><span>구역 이름</span><input id="dgQ" type="search" placeholder="예: 미아11, 봉천14" autocomplete="off"></label><ul class="tl-s" id="dgS"></ul><div id="dgR"></div>`;
+    out.innerHTML = `<p class="tl-lead">구역을 고르면 지금 사도 입주권이 나오는지, 막히는 규정이 있는지 한 번에 봐요.</p><label class="tl-q"><span>구역 이름</span><input id="dgQ" type="search" placeholder="예: 미아11, 봉천14" autocomplete="off"></label><ul class="tl-s" id="dgS"></ul><div id="dgR"></div>`;
     const q = document.getElementById("dgQ"), sl = document.getElementById("dgS");
     q.oninput = () => {
       const v = q.value.replace(/\s/g, ""); if (!v) { sl.innerHTML = ""; return; }
@@ -74,7 +75,7 @@ const TOOLS = (() => {
     const ys = Object.keys(Y).map(Number), mx = Math.max(1, ...ys.map((y) => Y[y].n));
     const gus = [...new Set(R.map((r) => r.g))].sort();
     out.innerHTML = `<label class="tl-q"><span>구</span><select id="supG"><option value="">서울 전체</option>${gus.map((g) => `<option${g === supGu ? " selected" : ""}>${esc(g)}</option>`).join("")}</select></label>
-      <div class="sp-ch">${ys.map((y) => `<button type="button" class="sp-b" data-y="${y}" style="--h:${Math.round((Y[y].n / mx) * 100)}%"><i></i><b>${Y[y].n ? (Y[y].n >= 1000 ? (Y[y].n / 1000).toFixed(1) + "천" : Y[y].n) : ""}</b><span>${String(y).slice(2)}</span></button>`).join("")}</div>
+      <p class="tl-lead">사업시행인가 이후 정비구역의 예상 입주 세대(년) · 일반 분양 아파트는 빠져요</p><div class="sp-ch">${ys.map((y) => `<button type="button" class="sp-b" data-y="${y}" style="--h:${Math.round((Y[y].n / mx) * 100)}%"><i></i><b>${Y[y].n ? (Y[y].n >= 1000 ? (Y[y].n / 1000).toFixed(1) + "천세대" : Y[y].n + "세대") : ""}</b><span>${String(y).slice(2)}년</span></button>`).join("")}</div>
       <div id="supZ"></div>`;
     document.getElementById("supG").onchange = (e) => { supGu = e.target.value; supRender(); };
     out.querySelectorAll("[data-y]").forEach((b) => (b.onclick = () => {
@@ -87,6 +88,7 @@ const TOOLS = (() => {
     Object.keys(RENDER).forEach((id) => {
       const s = document.getElementById(id); if (!s) return;
       new MutationObserver(() => { if (s.classList.contains("s-on")) RENDER[id](); }).observe(s, { attributes: true, attributeFilter: ["class"] });
+      if (s.classList.contains("s-on") || location.hash === "#" + id) setTimeout(() => RENDER[id](), 50);
       s.addEventListener("click", (e) => { const a = e.target.closest("a[data-id]"); if (!a) return; e.preventDefault(); curTab = "money"; select(a.dataset.id, true, false, { scroll: !MQ_SHEET.matches }); });
     });
     // 현금·방식이 바뀌면 열린 갭 순위도 다시

@@ -61,7 +61,7 @@
       const dk = dark();
       const C = dk
         ? { bg: "#11161D", park: "#152019", water: "#15283A", wline: "#1E3D55", res: "#141B23", bld: "#1A222C", bldl: "#232D39", mw: "#4A3E22", mwc: "#2E2716", pr: "#2A3441", prc: "#1D242E", mn: "#202833", rail: "#3A4553", txt: "#C3CCD8", txt2: "#8A95A5", halo: "#11161D", wtxt: "#6E9EBF" }
-        : { bg: "#F3F4F6", park: "#E1EEDC", water: "#BFD9EC", wline: "#A3C6E0", res: "#EDEFF2", bld: "#E2E5EA", bldl: "#D3D8DF", mw: "#FBE3A6", mwc: "#E0BE6A", pr: "#FFFFFF", prc: "#D3D8E0", mn: "#FFFFFF", rail: "#A6AFBB", txt: "#2F3846", txt2: "#6A7482", halo: "#FFFFFF", wtxt: "#3F7DA6" };
+        : { bg: "#F3F4F6", park: "#E1EEDC", water: "#BFD9EC", wline: "#A3C6E0", res: "#EDEFF2", bld: "#ECEEF1", bldl: "#E2E5EA", mw: "#FBE3A6", mwc: "#E0BE6A", pr: "#FFFFFF", prc: "#D3D8E0", mn: "#FFFFFF", rail: "#A6AFBB", txt: "#2F3846", txt2: "#6A7482", halo: "#FFFFFF", wtxt: "#3F7DA6" };
       const name = ["coalesce", ["get", "name:ko"], ["get", "name"]];
       const road = (id, cls, color, w, minz) => ({ id, type: "line", source: "omt", "source-layer": "transportation", minzoom: minz || 0, filter: ["in", ["get", "class"], ["literal", cls]], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": color, "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 10, w[0], 14, w[1], 17, w[2]] } });
       return {
@@ -105,12 +105,15 @@
       L({ id: "mask", type: "fill", source: "mask", paint: { "fill-color": dk ? "#0B0F14" : "#ffffff", "fill-opacity": dk ? 0.7 : 0.75 } });
       L({ id: "gu-line", type: "line", source: "gul", paint: { "line-color": dk ? "#3B4656" : "#AEB7C4", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 1.3], "line-dasharray": [2, 2] } });
       L({ id: "seoul-line", type: "line", source: "seoul", paint: { "line-color": P.sub, "line-width": 1.6, "line-opacity": 0.7 } });
-      L({ id: "subway-case", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": halo, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 3, 14, 7], "line-opacity": 0.9 } });
-      L({ id: "subway", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.6, 14, 4], "line-opacity": dk ? 0.85 : 0.9 } });
-      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ["get", "c"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, ["min", 0.4, ["*", ["get", "o"], 0.22]], 15, ["min", 0.4, ["*", ["get", "o"], 0.1]]] } });
-      L({ id: "zest-line", type: "line", source: "zest", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 15, 1.8], "line-dasharray": [2, 1.6], "line-opacity": ["min", 1, ["*", ["get", "o"], 0.9]] } });
-      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ["get", "c"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, ["min", 0.75, ["*", ["get", "o"], 0.5]], 13, ["min", 0.75, ["*", ["get", "o"], 0.36]], 16, ["min", 0.75, ["*", ["get", "o"], 0.24]]] } });
-      L({ id: "zone-line", type: "line", source: "zones", paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 13, 1.7, 16, 2.6], "line-opacity": ["min", 1, ["get", "o"]] } });
+      L({ id: "subway-case", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": halo, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.8, 14, 4], "line-opacity": 0.5 } });
+      L({ id: "subway", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 12, 1.2, 14, 2, 16, 2.6], "line-opacity": 0.5 } });
+      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ["match", ["get", "st"], "y", dk ? "#5B8CFF" : "#1F3A87", "n", dk ? "#FF8A5C" : "#D9653B", "c", ["get", "c"], dk ? "#8C7BD6" : "#7B6FC4"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 10, ["match", ["get", "st"], "y", .5, "n", .35, .12], 14, ["match", ["get", "st"], "y", .32, "n", .22, .08]] } });
+      L({ id: "zest-line", type: "line", source: "zest", paint: { "line-color": ["match", ["get", "st"], "y", dk ? "#5B8CFF" : "#1F3A87", "n", dk ? "#FF8A5C" : "#D9653B", "c", ["get", "c"], dk ? "#6B7686" : "#8A94A3"], "line-width": ["match", ["get", "st"], "y", 1.4, "n", 1.2, 0], "line-dasharray": [2, 1.5], "line-opacity": 0.85 } });
+      // 구역이 지도의 주인공: 내 돈으로 되는 곳(y) 남색, 가격은 있지만 모자란 곳(n) 주황, 나머지는 점선 테두리만
+      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ["match", ["get", "st"], "y", dk ? "#5B8CFF" : "#1F3A87", "n", dk ? "#FF8A5C" : "#D9653B", "c", ["get", "c"], dk ? "#6B7686" : "#8A94A3"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 10, ["match", ["get", "st"], "y", .62, "n", .45, "c", .5, .2], 12, ["match", ["get", "st"], "y", .55, "n", .4, "c", .45, .18], 14, ["match", ["get", "st"], "y", .42, "n", .3, "c", .35, .14], 16, ["match", ["get", "st"], "y", .3, "n", .22, "c", .25, .1]], "fill-antialias": true } });
+      L({ id: "zone-case", type: "line", source: "zones", layout: { "line-join": "round" }, paint: { "line-color": dk ? "#11161D" : "#FFFFFF", "line-width": ["interpolate", ["linear"], ["zoom"], 10, ["match", ["get", "st"], "y", 3.5, "n", 3, "c", 3.2, 2.8], 12, ["match", ["get", "st"], "y", 4, "n", 3.2, "c", 3.5, 3], 14, ["match", ["get", "st"], "y", 4.5, "n", 3.5, "c", 4, 3.2], 16, ["match", ["get", "st"], "y", 5, "n", 4, "c", 4.5, 3.5]], "line-opacity": 0.9 } });
+      L({ id: "zone-line", type: "line", source: "zones", filter: ["!", ["in", ["get", "st"], ["literal", ["u", "x"]]]], layout: { "line-join": "round" }, paint: { "line-color": ["match", ["get", "st"], "y", dk ? "#8FB0FF" : "#1F3A87", "n", dk ? "#FF9A70" : "#C2532B", "c", ["get", "c"], dk ? "#6B7686" : "#8A94A3"], "line-width": ["interpolate", ["linear"], ["zoom"], 10, ["match", ["get", "st"], "y", 1.5, "n", 1, "c", 1.2, 0.8], 12, ["match", ["get", "st"], "y", 2, "n", 1.2, "c", 1.5, 1], 14, ["match", ["get", "st"], "y", 2.5, "n", 1.5, "c", 2, 1.2], 16, ["match", ["get", "st"], "y", 3, "n", 2, "c", 2.5, 1.5]] } });
+      L({ id: "zone-line-u", type: "line", source: "zones", filter: ["in", ["get", "st"], ["literal", ["u", "x"]]], layout: { "line-join": "round" }, paint: { "line-color": dk ? "#A79BE6" : "#6E62B8", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 12, 1, 14, 1.2, 16, 1.5], "line-opacity": 0.8 } });
       L({ id: "pts", type: "circle", source: "pts", minzoom: 10.8, paint: { "circle-color": ["get", "c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 12.5, 5.5], "circle-stroke-color": halo, "circle-stroke-width": 1.2, "circle-opacity": ["min", 1, ["get", "o"]], "circle-stroke-opacity": ["min", 1, ["get", "o"]] } });
       L({ id: "sel-line", type: "line", source: "sel", paint: { "line-color": P.sel, "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.6, 16, 4.5] } });
       L({ id: "stn", type: "circle", source: "stn", minzoom: 11.3, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 3] } });
@@ -119,23 +122,23 @@
       const nm = ["coalesce", ["get", "name:ko"], ["get", "name"], ""];
       const poiTxt = (id, filter, color, minz) => [
         { id: id, type: "circle", source: "omt", "source-layer": "poi", minzoom: minz, filter, layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6], "circle-color": color, "circle-stroke-color": halo, "circle-stroke-width": 1.4 } },
-        { id: id + "-lab", type: "symbol", source: "omt", "source-layer": "poi", minzoom: Math.max(minz, 14), filter, layout: { visibility: "none", "text-field": nm, "text-font": ["Noto Sans Regular"], "text-size": 11, "text-offset": [0, 0.9], "text-anchor": "top", "text-optional": true, "text-max-width": 8 }, paint: { "text-color": color, "text-halo-color": halo, "text-halo-width": 1.6 } },
+        { id: id + "-lab", type: "symbol", source: "omt", "source-layer": "poi", minzoom: Math.max(minz, 14), filter, layout: { visibility: "none", "text-field": nm, "text-font": ["Noto Sans Regular"], "text-size": 10, "text-offset": [0, 0.9], "text-anchor": "top", "text-optional": true, "text-max-width": 8 }, paint: { "text-color": color, "text-halo-color": halo, "text-halo-width": 1.6 } },
       ];
       const SHOPC = ["shop", "grocery", "restaurant", "cafe", "fast_food", "bar", "beer", "bakery", "clothing_store", "ice_cream", "alcohol_shop", "convenience", "hairdresser", "laundry", "shoe_shop", "jewelry", "optician", "furniture", "mobile_phone", "cosmetics", "florist", "butcher", "deli", "pharmacy"];
       const sz = (f, k) => ["interpolate", ["exponential", 1.6], ["zoom"], 10, ["*", ["sqrt", ["get", f]], k * 0.35], 13, ["*", ["sqrt", ["get", f]], k], 16, ["*", ["sqrt", ["get", f]], k * 3.2]];
       L({ id: "ly-biz", type: "circle", source: "sang", filter: [">=", ["get", "st"], 80], layout: { visibility: "none" }, paint: { "circle-radius": sz("st", 0.9), "circle-color": dk ? "rgba(236,150,60,.16)" : "rgba(232,140,40,.12)", "circle-stroke-color": dk ? "rgba(236,150,60,.7)" : "rgba(200,110,20,.6)", "circle-stroke-width": 1 } });
       L({ id: "ly-biz-lab", type: "symbol", source: "sang", minzoom: 13, filter: [">=", ["get", "st"], 80], layout: { visibility: "none", "text-field": ["format", ["get", "n"], {}, "\n", {}, ["concat", "점포 ", ["to-string", ["get", "st"]], ["case", [">", ["get", "sa"], 0], ["concat", " · 분기 매출 ", ["to-string", ["get", "sa"]], "억"], ""]], { "font-scale": 0.85 }], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-optional": true, "text-max-width": 9 }, paint: { "text-color": dk ? "#F2B37A" : "#9A4E0C", "text-halo-color": halo, "text-halo-width": 1.8 } });
       L({ id: "ly-acad", type: "circle", source: "sang", filter: [">=", ["get", "ac"], 15], layout: { visibility: "none" }, paint: { "circle-radius": sz("ac", 1.9), "circle-color": dk ? "rgba(190,150,240,.3)" : "rgba(122,63,184,.2)", "circle-stroke-color": dk ? "#C9A0F0" : "#7A3FB8", "circle-stroke-width": 1.2 } });
-      L({ id: "ly-acad-lab", type: "symbol", source: "sang", minzoom: 11.5, filter: [">=", ["get", "ac"], 40], layout: { visibility: "none", "text-field": ["concat", ["get", "n"], "\n학원 ", ["to-string", ["get", "ac"]]], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-optional": true, "text-max-width": 9 }, paint: { "text-color": dk ? "#D8B8F6" : "#5E2A96", "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "ly-acad-lab", type: "symbol", source: "sang", minzoom: 11.5, filter: [">=", ["get", "ac"], 40], layout: { visibility: "none", "text-field": ["concat", ["get", "n"], "\n학원 ", ["to-string", ["get", "ac"]]], "text-font": ["Noto Sans Regular"], "text-size": 10, "text-optional": true, "text-max-width": 8 }, paint: { "text-color": dk ? "#D8B8F6" : "#5E2A96", "text-halo-color": halo, "text-halo-width": 2 } });
       poiTxt("ly-edu", ["all", ["in", ["get", "class"], ["literal", ["school"]]], ["any", ["in", "초등학교", nm], ["in", "중학교", nm], ["in", "고등학교", nm]]], dk ? "#7FB2E8" : "#1D5FA8", 12).forEach(L);
       poiTxt("ly-med", ["all", ["==", ["get", "class"], "hospital"], ["any", ["in", "병원", nm], ["in", "의료원", nm], ["in", "의료센터", nm]]], dk ? "#F08A8A" : "#C2272D", 11).forEach(L);
       poiTxt("ly-mart", ["all", ["in", ["get", "subclass"], ["literal", ["supermarket", "department_store", "mall", "wholesale"]]], ["any", ["in", "이마트", nm], ["in", "홈플러스", nm], ["in", "롯데마트", nm], ["in", "코스트코", nm], ["in", "트레이더스", nm], ["in", "백화점", nm], ["in", "하나로", nm]]], dk ? "#6FCF9A" : "#13744A", 11).forEach(L);
       L({ id: "ly-hj", type: "circle", source: "hj", layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4, 15, 8], "circle-color": halo, "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 15, 4] } });
-      L({ id: "ly-hj-lab", type: "symbol", source: "hj", layout: { visibility: "none", "text-field": ["format", ["get", "n"], {}, "\n", {}, ["get", "s"], { "font-scale": 0.85 }], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-offset": [0, 1.2], "text-anchor": "top", "text-optional": true, "text-max-width": 10 }, paint: { "text-color": ["get", "c"], "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "ly-hj-lab", type: "symbol", source: "hj", minzoom: 13.5, layout: { visibility: "none", "text-field": ["get", "sn"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14, 10, 16, 11], "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true, "text-max-width": 8, "symbol-sort-key": 10 }, paint: { "text-color": dk ? "#AAB3C0" : "#5B6472", "text-halo-color": halo, "text-halo-width": 1 } });
       L({ id: "ly-hi", type: "symbol", source: "hi", layout: { visibility: "none", "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-offset": [0, -1.9], "text-allow-overlap": false, "text-optional": true }, paint: { "text-color": dk ? "#FF9C8A" : "#B42318", "text-halo-color": halo, "text-halo-width": 2.2 } });
       // 구 화면 줌(11.8 아래)에서도 내 돈으로 되는 구역은 값만 보이게
       L({ id: "zone-lab-y", type: "symbol", source: "zlab", minzoom: 10.6, maxzoom: 11.8, filter: ["all", ["==", ["get", "y"], 1], ["!=", ["get", "p"], ""]], layout: { "text-field": ["format", ["get", "n"], { "font-scale": 0.85 }, " ", {}, ["get", "p"], {}], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-padding": 2, "text-variable-anchor": ["top", "bottom", "left", "right"], "text-radial-offset": 0.7, "text-justify": "auto", "symbol-avoid-edges": true }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
-      L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 11.8, layout: { "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 11.8, layout: { "symbol-sort-key": ["case", ["==", ["get", "y"], 1], 0, 1], "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
       const pill = (id, bg, bd) => { if (map.hasImage(id)) return; const c = document.createElement("canvas"), r = 2, w = 40 * r, h = 28 * r; c.width = w; c.height = h; const x = c.getContext("2d"); x.fillStyle = bg; x.strokeStyle = bd; x.lineWidth = 2 * r; const rr = 12 * r; x.beginPath(); x.moveTo(rr, r); x.arcTo(w - r, r, w - r, h - r, rr); x.arcTo(w - r, h - r, r, h - r, rr); x.arcTo(r, h - r, r, r, rr); x.arcTo(r, r, w - r, r, rr); x.closePath(); x.fill(); x.stroke(); map.addImage(id, { width: w, height: h, data: x.getImageData(0, 0, w, h).data }, { pixelRatio: r, stretchX: [[14 * r, 26 * r]], stretchY: [[12 * r, 16 * r]], content: [8 * r, 5 * r, 32 * r, 23 * r] }); };
       pill("pill-on", P.y, P.y); pill("pill-off", dk ? "#1b2230" : "#ffffff", dk ? "#3a4556" : "#c9d0da");
       L({ id: "gub", type: "symbol", source: "gub", maxzoom: 12.2, layout: { "icon-image": ["case", [">", ["get", "k"], 0], "pill-on", ""], "icon-text-fit": "both", "icon-allow-overlap": true, "text-field": ["case", [">", ["get", "k"], 0], ["format", ["get", "n"], { "font-scale": 0.82 }, " ", {}, ["get", "v"], { "font-scale": 1.12 }], ["format", ["get", "n"], { "font-scale": 0.78 }]], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 9.5, 10, 10.6, 12.5], "symbol-sort-key": ["-", 0, ["get", "k"]], "text-allow-overlap": true, "text-padding": 0 }, paint: { "text-color": ["case", [">", ["get", "k"], 0], "#ffffff", dk ? "#8e99a8" : "#8a93a1"], "text-halo-color": ["case", [">", ["get", "k"], 0], "rgba(0,0,0,0)", dk ? "#11161D" : "#ffffff"], "text-halo-width": 1.4 } });
@@ -172,7 +175,7 @@
     }
     // 서울 전체 화면: 구 이름 + 가능 구역 수(확대하면 사라지고 구역 경계가 보인다)
     // 구별 말풍선: 면적 중심에 두고, 화면에서 서로 겹치면 밀어내 겹침 없이 배치
-    let GUB = null, OVR = null;   // OVR: 게이지를 끄는 동안 쓰는 임시 구별 숫자
+    let GUB = null, OVR = null, LASTB = [];   // OVR: 게이지를 끄는 동안 쓰는 임시 구별 숫자
     function guCenters() {
       if (GUB) return GUB;
       GUB = geo.gu.map((g) => {
@@ -205,6 +208,7 @@
       }
       for (let it = 0; it < 200; it++) {
         let moved = false;
+        B.forEach((P) => { P.y = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y)); P.x = Math.min(xMax(P), Math.max(M + P.w / 2, P.x)); });
         for (let a = 0; a < B.length; a++) for (let b = a + 1; b < B.length; b++) {
           const P = B[a], Q = B[b], dx = Q.x - P.x, dy = Q.y - P.y;
           const ox = (P.w + Q.w) / 2 + 2 - Math.abs(dx), oy = (P.h + Q.h) / 2 + 2 - Math.abs(dy);
@@ -216,6 +220,7 @@
         if (!moved) break;
       }
       B.forEach((P) => { P.y = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y)); P.x = Math.min(xMax(P), Math.max(M + P.w / 2, P.x)); });   // 밀려도 화면 안
+      LASTB = B.map((P) => ({ g: P.c.n, x: P.x, y: P.y, w: P.w, h: P.h, k: P.k }));
       const F = B.map((P) => ({ type: "Feature", geometry: { type: "Point", coordinates: map.unproject([P.x, P.y]).toArray() }, properties: { n: P.edge ? P.edge + " " + P.nm : P.nm, g: P.c.n, v: P.v, k: P.k } }));
       map.getSource("gub").setData(FC(F));
     }
@@ -259,8 +264,8 @@
       const F = [];
       (HJD.items || []).forEach((h) => {
         if (/개통/.test(h.st || "") && !(h.stn || []).some(([, s]) => !/개통/.test(s))) return;
-        (h.stn || []).forEach(([n, s]) => { if (/개통/.test(s)) return; const st = stnBy(n); if (st) F.push({ type: "Feature", geometry: { type: "Point", coordinates: [st.ll[1], st.ll[0]] }, properties: { n: `${h.n} ${n}`, s, c: h.c || "#7A3FB8" } }); });
-        if (h.pt && h.pt.length === 2) { const [a, b] = h.pt; const ll = a > 90 ? [a, b] : [b, a]; F.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { n: h.n.replace(/\s*\(.*\)$/, ""), s: h.st || "", c: h.c || "#7A3FB8" } }); }
+        (h.stn || []).forEach(([n, s]) => { if (/개통/.test(s)) return; const st = stnBy(n); if (st) F.push({ type: "Feature", geometry: { type: "Point", coordinates: [st.ll[1], st.ll[0]] }, properties: { n: `${h.n} ${n}`, sn: (`${h.n.replace(/\s*\(.*\)$/, "")} ${n}`).slice(0, 10), s, c: h.c || "#7A3FB8" } }); });
+        if (h.pt && h.pt.length === 2) { const [a, b] = h.pt; const ll = a > 90 ? [a, b] : [b, a]; F.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { n: h.n.replace(/\s*\(.*\)$/, ""), sn: h.n.replace(/\s*\(.*\)$/, "").slice(0, 10), s: h.st || "", c: h.c || "#7A3FB8" } }); }
       });
       map.getSource("hj").setData(FC(F));
       const H = [];
@@ -293,12 +298,12 @@
       const off = [], est = [], lab = [], pts = [];
       for (const r of vis) {
         const st0 = colorBy === "cash" ? dotState(r) : "", c = colorOf(r, P), z = Z[r.id], o = BINS[colorBy] ? (metric(r) == null ? 0.4 : 1.25) : st0 === "x" ? 0.45 : st0 === "n" || st0 === "u" ? 0.75 : st0 === "y" ? 1.3 : 1;
-        if (z && !z.e) {   // 추정 원(공식 경계 없음)은 큰 원 대신 점으로
-          (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id, c, o } });
+        if (z) {
+          (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id, c, o, st: colorBy === "cash" ? st0 || "u" : "c" } });
           lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), p: /\d/.test(labelOf(r)) ? labelOf(r).replace(/^지금\s*/, "") : "", y: st0 === "y" ? 1 : 0 } });
         }
-        if ((!z || z.e) && st0 === "y") lab.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), p: /\d/.test(labelOf(r)) ? labelOf(r).replace(/^지금\s*/, "") : "", y: 1 } });
-        if (!z || z.e) pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, c, o } });
+        if (!z && st0 === "y") lab.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), p: /\d/.test(labelOf(r)) ? labelOf(r).replace(/^지금\s*/, "") : "", y: 1 } });
+        if (!z) pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, c, o } });
       }
       map.getSource("zones").setData(FC(off));
       map.getSource("zest").setData(FC(est));
@@ -407,6 +412,7 @@
       map.on("click", (e) => {
         const gb = map.getLayer("gub") ? map.queryRenderedFeatures(e.point, { layers: ["gub"] }) : [];
         if (gb.length && mapView === "seoul") { enterGu(gb[0].properties.g, {}); return; }
+        if (mapView === "seoul" && map.getZoom() < 12.2) { const hit = LASTB.find((b) => b.k > 0 && Math.abs(e.point.x - b.x) <= b.w / 2 + 6 && Math.abs(e.point.y - b.y) <= b.h / 2 + 6); if (hit) { enterGu(hit.g, {}); return; } }
         const ls = hit.concat(["zone-lab", "zone-lab-y"]).filter((l) => map.getLayer(l));
         const fs = map.queryRenderedFeatures(e.point, { layers: ls });
         if (!fs.length) return;
@@ -462,7 +468,7 @@
     return {
       enter, exit, use, seoul,
       on: () => !!(map && $("lmap") && !$("lmap").hidden),
-      paint: () => { OVR = null; if (map && ready) paint(); },
+      paint: () => { if (map && ready) paint(); },
       counts: (o) => { OVR = o; if (map && ready) guBubbles(); },
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
       zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else fitAff(true); },
