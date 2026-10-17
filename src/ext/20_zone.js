@@ -6,6 +6,11 @@
     const dv = (k) => (D.dv && D.dv[k]) || D.asOf;
     let TXD = null, TXP = null;
     const loadTx = () => TXP || (TXP = fetch(`data/tx.json?v=${dv("tx")}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((d) => (TXD = d && typeof d === "object" ? d : {})));
+    // 주변 빌라 매수가 표본(tools/near.py) — 구역 경계에서 반경 안 거래 하나하나(머리 큰 숫자·계산 매수가를 거래 탭에서 맞춰 볼 수 있게)
+    let NRD = null, NRP = null;
+    const loadNear = () => NRP || (NRP = fetch(`data/near.json?v=${dv("near")}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((d) => (NRD = (d && d.z) || {})));
+    // 이 구역 계산 매수가가 주변 표본이고, 목록이 표본 건수와 맞을 때만 돌려준다(어긋나면 보여 주지 않음)
+    const nearOf = (r) => { const en = r && r.mk && r.mk.entry, z = NRD && r && NRD[r.id]; return en && en.src === "villa" && (en.radius || 0) >= 100 && z && z.s && z.s.length === en.n ? z : null; };
     const PCL = new Map();
     const loadPcl = (id) => PCL.get(id) || (PCL.set(id, fetch(`data/pcl/${id}.json?v=${dv("tx")}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)), PCL.get(id));
     const bandOf = (r) => (r.s >= 9 || r.dn ? "done" : r.s <= 2 ? "early" : r.s <= 4 ? "mid" : "late");
@@ -225,7 +230,7 @@
     }
     function paneTx(r) {
       const p = $("pane"), z = GEO_Z && GEO_Z[r.id];
-      if (!TXD) { p.innerHTML = `<p class="note">구역 실거래를 불러오는 중…</p>`; loadTx().then(() => { if (cur === r && curTab === "tx" && $("pane")) paneTx(r); }); return; }
+      if (!TXD || !NRD) { p.innerHTML = `<p class="note">구역 실거래를 불러오는 중…</p>`; Promise.all([loadTx(), loadNear()]).then(() => { if (cur === r && curTab === "tx" && $("pane")) paneTx(r); }); return; }
       const z0 = TXD[r.id] || {}, S = Array.isArray(z0.s) ? z0.s : [], J = Array.isArray(z0.j) ? z0.j : [];
       const t = { ...(r.tx || {}), ...(z0.x || {}) }, h = t.hd && t.hd.u ? t.hd : null;
       const rdx = rights(r);
@@ -279,10 +284,17 @@
       };
       const tblV = tbl(SV, true, "txListV"), tblA = tbl(SA, false, "txListA");
       const scope = t.m === "jibun" ? "대표지번과 같은 본번" : t.m === "name" ? `단지 이름으로 찾은 ${esc((t.cx && t.cx.nm) || "같은 단지")}` : "구역 경계 안";
-      const secV = tblV ? `<div class="sect"><h3>최근 매매 · 빌라·단독 <small>${scope} · 대지 3.3㎡당 · 국토부 신고 기준${h && h.b === "v" ? " · 위 큰 숫자 기준" : ""}</small></h3>${tblV}</div>` : "";
+      const nearB = !!(r.mk && r.mk.entry && r.mk.entry.src === "villa" && (r.mk.entry.radius || 0) >= 100);
+      const secV = tblV ? `<div class="sect"><h3>최근 매매 · 빌라·단독 <small>${scope} · 대지 3.3㎡당 · 국토부 신고 기준${nearB ? " · 계산 매수가 표본 아님(참고)" : h && h.b === "v" ? " · 위 큰 숫자 기준" : ""}</small></h3>${tblV}</div>` : "";
       const aLab = SA.some((v) => v[1] === 2) && SA.some((v) => v[1] === 3) ? `아파트·${TY[3]}` : SA.some((v) => v[1] === 3) ? TY[3] : "아파트";
       const secA = tblA ? `<div class="sect"><h3>최근 매매 · ${aLab} <small>${scope} · 전용 3.3㎡당 · 국토부 신고 기준${h && h.b !== "v" ? " · 위 큰 숫자 기준" : ""}</small></h3>${tblA}</div>` : "";
       const salesSecs = h && h.b !== "v" ? secA + secV : secV + secA;
+      // 매수가 표본(주변 빌라): 머리 큰 숫자·'이 숫자 믿어도 될까'·계산 매수가가 쓰는 바로 그 거래들, 새 거래부터
+      const nz = nearOf(r), nen = r.mk && r.mk.entry;
+      const secN = nz ? (() => {
+        const rowN = (v) => `<tr><td${C1}>${ymd2(v[0])} · 빌라${v[5] ? ` ${+v[5] < 0 ? "지하" + -v[5] : esc(String(v[5]))}층` : ""} · <span style="white-space:nowrap">전용 ${v[1]}㎡</span><small${SM}>${esc(v[6])} · ${v[7] ? `경계에서 ${fmt(v[7])}m` : "구역 안"} · ${v[3]}년 준공${v[2] > 0 ? ` · 대지 ${v[2]}㎡` : ""}</small></td><td class="n"><b>${eok(v[4])}</b></td><td class="n">${v[2] > 0 ? eok(Math.round((v[4] / v[2]) * 3.3058)) : "–"}</td></tr>`;
+        return `<div class="sect nearsmp"><h3>매수가 표본 · 주변 ${fmt(nz.r)}m 빌라 ${fmt(nz.s.length)}건 <small>새 거래부터 · 최근 ${nz.w}개월 · ${nen.yr_cap || 2010}년 이전 준공 · 전용 30~70㎡ · 구역 경계에서 ${fmt(nz.r)}m 안 · 계산 매수가 ${eok(nen.med)} = 이 ${fmt(nz.s.length)}건의 가운데 값</small></h3><div id="txListN" class="txl"><table class="tx"${TS}><thead><tr><th scope="col">계약일 · 위치</th><th scope="col" class="n">가격</th><th scope="col" class="n">대지 3.3㎡당</th></tr></thead><tbody>${nz.s.map(rowN).join("")}</tbody></table></div></div>`;
+      })() : "";
       const calcNote = (() => {
         if (x.price == null) return "";
         const LCW = { n: "매수가 표본이 3건 미만이라", old: "매수가에 쓴 거래가 1년 넘게 지난 것이라", thin: "구역 안 거래가 1~2건뿐이고 1년 넘게 지나 주변 시세로 정한 값을 확인할 수 없어" };
@@ -309,9 +321,11 @@
           <div><dt>국공유지</dt><dd>${pc.pub}%<small>필지 수 기준 · 많으면 무상양도 협의가 사업성에 영향</small></dd></div>
           <div><dt>도로 필지</dt><dd>${pc.rd}%<small>필지 수 기준</small></dd></div>
           ${pc.jm ? `<div><dt>지목 구성</dt><dd class="tx">${pc.jm.map(([k, v]) => `${esc(k)} ${fmt(v)}`).join(" · ")}</dd></div>` : ""}</dl></div>` : ""}
+        ${secN}
         ${salesSecs}
         ${J.length ? `<div class="sect"><h3>최근 전세 <small>연립다세대</small></h3><div id="jList" class="txl"><table class="tx" style="min-width:0"><thead><tr><th scope="col">계약일</th><th scope="col" class="n">준공</th><th scope="col" class="n">임대 면적</th><th scope="col" class="n">보증금</th></tr></thead><tbody>${J.slice(0, 20).map((v) => `<tr><td>${ymd2(v[0])}</td><td class="n">${v[1] || "–"}</td><td class="n">${v[2]}㎡</td><td class="n"><b>${eok(v[3])}</b></td></tr>`).join("")}</tbody></table></div></div>` : ""}
         <p class="note src">자료: 서울시 부동산 실거래가·전월세가 정보(서울 열린데이터광장, 매매 ${esc(ymd(D.txAsOf?.sale))}·전세 ${esc(ymd(D.txAsOf?.rent))}까지), 정비구역 경계·필지 서울도시공간포털. 구역 경계 안 필지 번호와 맞춘 거래만 셉니다.</p>`;
+      if ($("txListN")) moreRows($("txListN"), 5);
       if ($("txListV")) moreRows($("txListV"), 5);
       if ($("txListA")) moreRows($("txListA"), 5);
       if ($("jList")) moreRows($("jList"), 5);
@@ -380,7 +394,7 @@
       const hj = p.querySelector(".hjl"); if (hj) moreRows(hj.parentElement, 3);
       p.querySelectorAll(".nc-go").forEach((b) => (b.onclick = () => { curTab = "money"; select(b.dataset.go, false, false, { scroll: !MQ_SHEET.matches }); }));
     };
-    return { chartSVG, paneTx, rights, rightsHTML, pace, geoReady, loadTx, moreRows, geoZ: () => GEO_Z };
+    return { chartSVG, paneTx, rights, rightsHTML, pace, geoReady, loadTx, loadNear, near: nearOf, moreRows, geoZ: () => GEO_Z };
   })();
   function paneTx(r) { ZX.geoReady(); ZX.paneTx(r); }
   // 매수가가 없을 때 이유(짧게 · 20자 안팎). 자세한 설명은 실거래·입주 현금 탭에

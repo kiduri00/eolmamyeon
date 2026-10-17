@@ -543,3 +543,10 @@ html.simple #sTT{margin-bottom:16px}
   html.simple #report{position:static;max-height:none;overflow:visible;overscroll-behavior:auto}
   html.simple #report .tabs{position:sticky;top:var(--hdr-h,60px);z-index:3;background:var(--surface)}
 }
+/* PC '이 돈이면'이 1~2곳뿐일 때: 남는 자리에 '조금 더 있으면 몇 곳' 한 줄(목록 줄과 같은 단추 꼴) */
+@media (min-width:1180px){
+  .s-sum-x{margin:6px 0 0;padding:6px 0 0;border-top:1px dashed var(--divider)}
+  .s-sum .s-sum-x button span{color:var(--text-2);font-weight:600}
+  .s-sum .s-sum-x button small{margin-left:4px}
+}
+@media (max-width:1179px){.s-sum-x{display:none}}

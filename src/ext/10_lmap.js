@@ -126,7 +126,7 @@
       // 바탕 이름: 구(줌 9.5~13.4) → 동(13.2부터) → 큰 역(12부터, 환승역). 회색으로 작게, 구역 카드가 먼저 자리 잡는다
       const T1 = dk ? "#8A95A5" : "#6A7482", T2 = dk ? "#7A8696" : "#7C8693";
       L({ id: "gu-lab", type: "symbol", source: "gun", minzoom: 8.8, maxzoom: 13.4, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10.5, 12.5, 12.5], "text-padding": 4, "text-letter-spacing": 0.04, "text-variable-anchor": ["center", "top", "bottom", "right", "left"], "text-radial-offset": 0.7, "text-justify": "auto" }, paint: { "text-color": T1, "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.6, 0.95, 13.4, 0], "text-halo-color": halo, "text-halo-width": 1.6 } });
-      L({ id: "dong-lab", type: "symbol", source: "dong", minzoom: 13.2, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 13.2, 10.5, 16, 12], "text-padding": 6, "symbol-sort-key": ["get", "k"] }, paint: { "text-color": T2, "text-halo-color": halo, "text-halo-width": 1.6 } });
+      L({ id: "dong-lab", type: "symbol", source: "dong", minzoom: 13.2, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 13.2, 10.5, 16, 12], "text-padding": 6, "text-variable-anchor": ["center", "top", "bottom"], "text-radial-offset": 0.9, "symbol-sort-key": ["get", "k"] }, paint: { "text-color": T2, "text-halo-color": halo, "text-halo-width": 1.6 } });
       // 구역: 네이버 부동산처럼 한 가지 색(브랜드 남색) 반투명 면 + 같은 색 선. 공식 경계 없는 추정 범위는 점선.
       // 내 돈으로 안 되는 곳은 같은 남색을 아주 옅게(feature-state a=false) → 되는 곳만 또렷하게
       const ZC = dk ? "#5B8CFF" : "#1F3A87", ZL = dk ? "#7FA6FF" : "#1F3A87";
@@ -165,7 +165,7 @@
       // 학교·병원·마트: 구역(남색)과 헷갈리지 않게 레이어마다 다른 색 + 그림 아이콘(동그라미 안 흰 그림)
       ["edu", "med", "mart"].forEach((k) => { const c = poiIcon(k, dk, 2); if (map.hasImage("poi-" + k)) map.removeImage("poi-" + k); map.addImage("poi-" + k, c.getContext("2d").getImageData(0, 0, c.width, c.height), { pixelRatio: 2 }); });
       const poiTxt = (id, filter, color, minz) => [
-        { id: id, type: "symbol", source: "omt", "source-layer": "poi", minzoom: minz, filter, layout: { visibility: "none", "icon-image": "poi-" + id.slice(3), "icon-size": ["interpolate", ["linear"], ["zoom"], 14, 0.85, 16, 1.1], "icon-allow-overlap": true, "icon-ignore-placement": true }, paint: {} },
+        { id: id, type: "symbol", source: "omt", "source-layer": "poi", minzoom: minz, filter, layout: { visibility: "none", "icon-image": "poi-" + id.slice(3), "icon-size": ["interpolate", ["linear"], ["zoom"], 14, 0.85, 16, 1.1], "icon-allow-overlap": true, "icon-ignore-placement": false, "icon-padding": 1 }, paint: {} },
         { id: id + "-lab", type: "symbol", source: "omt", "source-layer": "poi", minzoom: Math.max(minz, 14), filter, layout: { visibility: "none", "text-field": nm, "text-font": ["Noto Sans Regular"], "text-size": 10, "text-offset": [0, 1.15], "text-anchor": "top", "text-optional": true, "text-max-width": 8 }, paint: { "text-color": color, "text-halo-color": halo, "text-halo-width": 1.6 } },
       ];
       const SHOPC = ["shop", "grocery", "restaurant", "cafe", "fast_food", "bar", "beer", "bakery", "clothing_store", "ice_cream", "alcohol_shop", "convenience", "hairdresser", "laundry", "shoe_shop", "jewelry", "optician", "furniture", "mobile_phone", "cosmetics", "florist", "butcher", "deli", "pharmacy"];
@@ -207,7 +207,7 @@
       // 내 돈으로 되는 곳 = 남색 카드, 안 되는 곳 = 옅은 회청색 카드(면과 같은 규칙)
       const NM_C = ["case", ["==", ["get", "y"], 1], "#FFFFFF", dk ? "#C3CCD8" : "#2E3A55"];
       const HI = dk ? "#FF9C8A" : "#C0261B", two = ["any", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]];
-      const card = (id, f, maxz, src, top) => L({ id, type: "symbol", source: src || "zlab", minzoom: top ? 11 : 13, maxzoom: maxz || 24, filter: f, layout: { ...(top ? { "icon-allow-overlap": true, "text-allow-overlap": true } : {}), "icon-image": ["concat", ["case", ["==", ["get", "y"], 1], "zcard", "zcardL"], ["case", two, "", "1"]], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": NM_C }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": NM_C }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, "text-anchor": "top", "text-offset": [0, 0.35], "symbol-sort-key": ["get", "k"] }, paint: {} });
+      const card = (id, f, maxz, src, top) => L({ id, type: "symbol", source: src || "zlab", minzoom: top ? 11 : 13, maxzoom: maxz || 24, filter: f, layout: { ...(top ? { "icon-allow-overlap": true, "text-allow-overlap": true } : {}), "icon-image": ["concat", ["case", ["==", ["get", "y"], 1], "zcard", "zcardL"], ["case", two, "", "1"]], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": NM_C }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": NM_C }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, ...(top ? { "text-anchor": "top", "text-offset": [0, 0.35] } : { "text-variable-anchor": ["top", "bottom", "right", "left"], "text-radial-offset": 0.35, "text-justify": "center" }), "symbol-sort-key": ["get", "k"] }, paint: {} });
       card("zone-lab", ["==", ["get", "p"], 0]);
       card("zone-lab-p", ["==", ["get", "p"], 1], 16);   // 핀 있는 곳은 16부터 핀 라벨('이름 · X억')로
       // ---- 핀: 핀 끝 = 구역 중심. 순서 선택 > 내 핀 > 살 수 있는 핀(위 레이어가 먼저 자리 잡음) ----
@@ -220,7 +220,9 @@
       pinL("pin-s", "zps", 0);
       // 보이지 않는 핀 자리표: 서울·구 줌(13 아래)에서 구 이름·큰 역 이름이 ₩ 핀 밑에 깔리지 않고 옆으로 비켜 가게(핀 자체는 배치 계산에서 빠져 있음)
       // 핀 레이어들 아래에 둬서 핀끼리의 배치(겹치면 숨김)에는 끼어들지 않는다
-      if (!map.getLayer("pin-blk")) map.addLayer({ id: "pin-blk", type: "symbol", source: "zpa", maxzoom: 13, layout: { "icon-image": "zpin-a", "icon-anchor": "bottom", "icon-size": ["coalesce", ["get", "s"], 0.55], "icon-allow-overlap": true, "icon-padding": 1 }, paint: { "icon-opacity": 0 } }, "pin-sh");
+      if (!map.getLayer("pin-blk")) map.addLayer({ id: "pin-blk", type: "symbol", source: "zpa", layout: { "icon-image": "zpin-a", "icon-anchor": "bottom", "icon-size": ["coalesce", ["get", "s"], 0.55], "icon-allow-overlap": true, "icon-padding": 1 }, paint: { "icon-opacity": 0 } }, "pin-sh");
+      // 보이지 않는 역 자리표(줌 14+): 구역 카드가 역 점을 덮지 않고 아래·위·옆으로 비켜 가게(카드는 자리 4곳 중 빈 곳으로)
+      if (!map.getLayer("stn-blk")) map.addLayer({ id: "stn-blk", type: "symbol", source: "stn", minzoom: 14, layout: { "text-field": "●", "text-font": ["Noto Sans Regular"], "text-size": 14, "text-allow-overlap": true, "text-padding": 1 }, paint: { "text-opacity": 0 } }, "pin-sh");
       // 고른 구역 카드: 다른 카드·핀에 밀려 숨지 않게 맨 위에 늘 그린다(값은 그 구역 id로 계산)
       card("sel-lab", ["==", ["get", "p"], 0], 24, "sellab", true);
       card("sel-lab-p", ["==", ["get", "p"], 1], 16, "sellab", true);
@@ -231,7 +233,7 @@
       // 역 이름: 구역 카드가 먼저 자리 잡고(카드 레이어 아래에 둠), 역 이름은 아래·오른쪽·왼쪽·위 중 비어 있는 쪽에. 다 막히면 아래에 겹쳐서라도 보인다
       if (!map.getLayer("spt-lab")) map.addLayer({ id: "spt-lab", type: "symbol", source: "spt", filter: ["==", ["get", "k"], "s"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-variable-anchor": ["bottom", "left", "right", "top"], "text-radial-offset": 0.85, "text-padding": 2, "text-justify": "auto", "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": dk ? "#C7D6FF" : "#1F3A87", "text-halo-color": halo, "text-halo-width": 2 } }, "zone-lab");
       // 목록 줄에 마우스: 그 구역 이름표를 맨 위에(줌과 상관없이, 다른 카드에 안 가림)
-      L({ id: "hov-lab", type: "symbol", source: "hov", filter: ["==", ["geometry-type"], "Point"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-anchor": "bottom", "text-offset": [0, -1.35], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": dk ? "#F5C33B" : "#7A5200", "text-halo-color": halo, "text-halo-width": 2.4 } });
+      L({ id: "hov-lab", type: "symbol", source: "hov", filter: ["==", ["geometry-type"], "Point"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-anchor": "bottom", "text-offset": [0, -1.35], "text-allow-overlap": true, "text-ignore-placement": false }, paint: { "text-color": dk ? "#F5C33B" : "#7A5200", "text-halo-color": halo, "text-halo-width": 2.4 } });
       stnDraw(); hovDraw(); guDraw();
       PIN.clear(); pinAnim.clear(); pinK = null;
       ready = true;
@@ -845,6 +847,16 @@
         map.setFilter("zone-lab-p", ["all", ["==", ["get", "p"], 1], ["within", poly]]);
         // 구 이름도 가장자리에서 반쯤 잘려 보이지 않게(예: 왼쪽 끝 '강서구'), 레일·확대 버튼 밑에서는 빼기
         if (map.getLayer("gu-lab")) map.setFilter("gu-lab", ["within", poly]);
+        // 핀(₩·내 핀·클러스터)도 레일·확대 버튼·위 작은 게이지 밑에 깔리지 않게: 핀 끝(아래)이 그 칸 바로 아래 30px 안이면 머리가 칸에 가려서 같이 뺀다
+        const PH = [], pinTop = top > 4 ? top + 26 : 0;
+        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, .s-fullx, #lmNotes").forEach((e) => {
+          if (!e.offsetWidth || e.hidden) return;
+          const b = e.getBoundingClientRect();
+          if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;
+          PH.push([Math.max(1, b.left - cb.left - 12), Math.max(pinTop + 1, b.top - cb.top - 2), Math.min(W - 1, b.right - cb.left + 12), Math.min(H - 1, b.bottom - cb.top + 30)]);
+        });
+        const pPoly = { type: "Polygon", coordinates: [ring(0, pinTop, W, H)].concat(PH.filter((h) => h[2] > h[0] && h[3] > h[1]).map((h) => ring(...h))) };
+        [["pin-a", ["!", ["has", "point_count"]]], ["pin-clu", ["has", "point_count"]], ["pin-m", null], ["pin-s", null]].forEach(([l, f]) => { if (map.getLayer(l)) map.setFilter(l, f ? ["all", f, ["within", pPoly]] : ["within", pPoly]); });
       } catch (e) {}
     }
     const edgeSoon = () => { clearTimeout(edgeT); edgeT = setTimeout(edgeFilter, 60); };

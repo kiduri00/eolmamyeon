@@ -556,6 +556,21 @@ const SIMPLE = (() => {
     el.innerHTML = top.length
       ? `<p class="s-sum-h"><b>이 돈이면</b><span>${skip ? "입주 계산되는 곳 중 " : "가장 싼 "}${top.length}곳</span></p><ol>${top.map(({ r, m, n }) => `<li><button type="button" data-id="${r.id}" aria-label="${esc(shortName(r.n))} ${esc(r.g)} · 지금 ${eokS(m)}${n.total != null ? ` · 입주까지 현금 ${eokS(n.total)}` : ""} · 리포트 열기"><span>${esc(shortName(r.n))}<small>${esc(r.g)}</small></span><b>${eokS(m)}</b></button></li>`).join("")}</ol>${lo != null ? `<p class="s-sum-f"><span>입주까지 현금 <b>${lo === hi ? eokS(lo) : `${eokS(lo)}~${eokS(hi)}`}</b><small> · 잔금대출 제외</small></span></p>` : ""}`
       : `<p class="s-sum-h"><b>이 돈이면</b></p><p class="s-sum-e">아직 되는 곳이 없어요. <br>게이지를 올려 보세요.</p>`;
+    // 넓은 PC에서 1~2곳뿐이면 남는 자리에 '조금 더 있으면 몇 곳'을 한 줄로(끄는 중엔 계산하지 않고, 멈춘 뒤 한 번)
+    clearTimeout(sumT);
+    if (MQ_SUM.matches && top.length < 3) sumT = setTimeout(() => { try { sumMore(); } catch (e) {} }, 350);
+  }
+  let sumT = 0, sumK = "";
+  function sumMore() {
+    const el = $("sSum"); if (!el || dragging || el.querySelector(".s-sum-x")) return;
+    const k = `${CASH}|${gapMode()}|${effBasis()}|${kind}|${gu}`; if (k === sumK && el.dataset.x) { const a = el.querySelector("ol") || el.querySelector(".s-sum-e"); if (a) a.insertAdjacentHTML("afterend", el.dataset.x); bindX(); return; }
+    let hit = null; const n0 = countAt(CASH);   // 곳 수는 첫 화면 큰 숫자와 같은 기준(ZP_count)
+    for (const d of [0.1, 0.2, 0.3, 0.5, 0.7, 1, 1.5, 2, 3, 5]) { const c = Math.round((CASH + d) * 10) / 10; if (c > 15) break; const n = countAt(c); if (n >= n0 + 2) { hit = [c, n]; break; } }
+    const h = hit ? `<p class="s-sum-x"><button type="button" data-sumup="${hit[0]}" aria-label="내 현금 ${eokS(hit[0])}으로 올려 ${fmt(hit[1])}곳 보기"><span>${eokS(hit[0])}이면 ${fmt(hit[1])}곳 <small>지금보다 ${fmt(hit[1] - n0)}곳 더</small></span><b>보기 →</b></button></p>` : "";
+    sumK = k; el.dataset.x = h;
+    if (h) { put(h); bindX(); }
+    function put(x) { const a = el.querySelector("ol") || el.querySelector(".s-sum-e"); if (a) a.insertAdjacentHTML("afterend", x); else el.insertAdjacentHTML("beforeend", x); }
+    function bindX() { const b = el.querySelector("[data-sumup]"); if (b) b.onclick = () => setCash(+b.dataset.sumup, true); }
   }
   MQ_SUM.addEventListener("change", () => { try { render(); } catch (e) {} });
   // 좁은 화면: 흐름선 때문에 이름·동네가 잘리거나 줄이 바뀌면 그 줄만 흐름선을 뺀다
