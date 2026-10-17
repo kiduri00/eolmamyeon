@@ -193,13 +193,14 @@
         const p = map.project(c.ll), w = k > 0 ? (nm.length * 0.82 + v.length * 0.62 + 0.4) * fs + 16 : nm.length * 0.8 * fs + 4, h = k > 0 ? fs * 1.25 + 10 : fs + 4;
         return { c, k, nm, v, x: p.x, y: p.y, x0: p.x, y0: p.y, w, h };
       });
-      const cv = map.getCanvas(), VW = cv.clientWidth, VH = cv.clientHeight, TOP = 52, M = 8;
+      const cv = map.getCanvas(), VW = cv.clientWidth, VH = cv.clientHeight, TOP = 8, M = 8, RR = innerWidth > 980 ? 176 : 144;   // 오른쪽 위 RR px 높이까지는 겹쳐 보기 레일 자리
+      const xMax = (P) => VW - M - P.w / 2 - (P.y < RR ? 44 : 0);
       const AR = (dx, dy) => (Math.abs(dx) > Math.abs(dy) * 1.6 ? (dx < 0 ? "←" : "→") : Math.abs(dy) > Math.abs(dx) * 1.6 ? (dy < 0 ? "↑" : "↓") : (dy < 0 ? (dx < 0 ? "↖" : "↗") : (dx < 0 ? "↙" : "↘")));
       for (let i = B.length - 1; i >= 0; i--) {
         const P = B[i], out = P.x < 0 || P.x > VW || P.y < TOP - 10 || P.y > VH;
         if (!out) continue;
         if (!P.k) { B.splice(i, 1); continue; }
-        const cx = Math.min(VW - M - P.w / 2, Math.max(M + P.w / 2, P.x)), cy = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y));
+        const cy = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y)); P.y = cy; const cx = Math.min(xMax(P) - 7, Math.max(M + P.w / 2 + 7, P.x));
         P.edge = AR(P.x - VW / 2, P.y - VH / 2); P.x = P.x0 = cx; P.y = P.y0 = cy; P.w += 14;
       }
       for (let it = 0; it < 200; it++) {
@@ -214,7 +215,7 @@
         B.forEach((P) => { P.x += (P.x0 - P.x) * 0.02; P.y += (P.y0 - P.y) * 0.02; });
         if (!moved) break;
       }
-      B.forEach((P) => { P.x = Math.min(VW - M - P.w / 2, Math.max(M + P.w / 2, P.x)); P.y = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y)); });   // 밀려도 화면 안
+      B.forEach((P) => { P.y = Math.min(VH - M - P.h / 2, Math.max(TOP + P.h / 2, P.y)); P.x = Math.min(xMax(P), Math.max(M + P.w / 2, P.x)); });   // 밀려도 화면 안
       const F = B.map((P) => ({ type: "Feature", geometry: { type: "Point", coordinates: map.unproject([P.x, P.y]).toArray() }, properties: { n: P.edge ? P.edge + " " + P.nm : P.nm, g: P.c.n, v: P.v, k: P.k } }));
       map.getSource("gub").setData(FC(F));
     }
@@ -236,7 +237,7 @@
     function fitAff(anim) {
       if (!map || !ready || mapView !== "seoul" || gu) return;
       map.resize();
-      map.fitBounds(affBB(), { padding: { top: 52, bottom: 24, left: 20, right: 20 }, maxZoom: 12, duration: anim && !reduceMotion() ? 700 : 0 });
+      map.fitBounds(affBB(), { padding: { top: 24, bottom: 24, left: 20, right: 52 }, maxZoom: 12, duration: anim && !reduceMotion() ? 700 : 0 });
     }
     function seoul() {
       gu = null;
@@ -248,7 +249,7 @@
           if (mapView !== "seoul") return;
           if (!init()) { show(false); return; }
           // 처음엔 서울 전체가 아니라 '내 돈으로 되는 구역'이 모인 곳에 맞춘다(폰 지도는 작아서 전체는 답답함)
-          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); map.fitBounds(CORE, { padding: { top: 46, bottom: 46, left: 6, right: 6 }, duration: 0 }); } };
+          const fitS = () => { if (mapView === "seoul" && !gu) { map.resize(); map.fitBounds(CORE, { padding: { top: 20, bottom: 20, left: 6, right: 44 }, duration: 0 }); } };
           fitS(); requestAnimationFrame(fitS); map.once("idle", fitS);
           if (ready) paint();
         })

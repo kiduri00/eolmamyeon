@@ -95,25 +95,49 @@ const TOOLS = (() => {
   return { init };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", TOOLS.init) : setTimeout(TOOLS.init, 0);
-/* ===================== 지도 겹쳐 보기: 팝업 대신 지도 위 칩 한 줄(한 번 탭으로 켜고 끄기) ===================== */
+/* ===================== 지도 겹쳐 보기: 오른쪽 위 세로 아이콘 레일(디자이너 안) =====================
+   호재·신고가·학교는 늘 보이고, 나머지(학원가·상권·병원·마트)는 ⋯ 를 누르면 왼쪽으로 펼쳐진다. 한 번 탭 = 켜고 끄기. */
 (() => {
-  const ICON = { hj: "🚇", hi: "📈", edu: "🏫", acad: "📚", biz: "🛍️", med: "🏥", mart: "🛒" };
+  const P = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const IC = {
+    hj: P('<rect x="6" y="3" width="12" height="14" rx="3"/><path d="M6 10h12M9 13.5h.01M15 13.5h.01M8 21l2-4M16 21l-2-4"/>'),
+    hi: P('<path d="M3 17l6-6 4 4 8-8M16 7h5v5"/>'),
+    edu: P('<path d="M3 9l9-6 9 6M5 9v12h14V9M12 3V1.5h3M10 21v-5h4v5"/>'),
+    acad: P('<path d="M12 6C9.5 4.5 6 4.5 3 5.5v13c3-1 6.5-1 9 .5 2.5-1.5 6-1.5 9-.5v-13c-3-1-6.5-1-9 .5zM12 6v14"/>'),
+    biz: P('<path d="M3 8l2-4h14l2 4M3 8c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3M5 11v10h14V11M10 21v-5h4v5"/>'),
+    med: P('<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/>'),
+    mart: P('<path d="M2 4h3l2 10h11l2-8H6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>'),
+    more: P('<path d="M6 12h.01M12 12h.01M18 12h.01" stroke-width="3"/>'),
+  };
+  const NM = { hj: "호재", hi: "신고가", edu: "학교", acad: "학원가", biz: "상권", med: "병원", mart: "마트" };
+  const MAIN = ["hj", "hi", "edu"], EXTRA = ["acad", "biz", "med", "mart"];
   function build() {
     const p = document.getElementById("lmLayers"), box = document.getElementById("mapbox");
     if (!p || !box) return false;
-    if (document.querySelector(".s-lyr")) return true;
-    const cs = [...p.querySelectorAll("input[type=checkbox]")];
-    if (!cs.length) return false;
-    const row = document.createElement("div");
-    row.className = "s-lyr"; row.setAttribute("role", "group"); row.setAttribute("aria-label", "지도에 겹쳐 보기");
-    row.innerHTML = `<span class="s-lyr-h">겹쳐 보기</span>` + cs.map((c) => { const t = { hj: "호재", hi: "신고가", edu: "학교", acad: "학원가", biz: "상권", med: "병원", mart: "마트" }[c.value] || c.value; return `<button type="button" data-l="${c.value}" aria-pressed="${c.checked}">${t}</button>`; }).join("");
-    row.addEventListener("click", (e) => {
+    if (box.querySelector(".s-rail")) return true;
+    if (!p.querySelector("input[type=checkbox]")) return false;
+    document.querySelectorAll(".s-lyr").forEach((x) => x.remove());
+    const chk = (k) => p.querySelector(`input[value="${k}"]`);
+    const btn = (k) => { const c = chk(k); return c ? `<button type="button" data-l="${k}" aria-pressed="${c.checked}" aria-label="${NM[k]} 겹쳐 보기" title="${NM[k]}">${IC[k]}</button>` : ""; };
+    const w = document.createElement("div");
+    w.className = "s-rail-w";
+    w.innerHTML = `<div class="s-rail" role="group" aria-label="지도에 겹쳐 보기">${MAIN.map(btn).join("")}<button type="button" class="s-rmore" aria-expanded="false" aria-label="겹쳐 보기 더보기">${IC.more}<i></i></button></div><div class="s-fly" role="group" aria-label="겹쳐 보기 더보기" hidden>${EXTRA.map(btn).join("")}</div><span class="s-tip" aria-live="polite"></span>`;
+    box.appendChild(w);
+    const fly = w.querySelector(".s-fly"), more = w.querySelector(".s-rmore"), tip = w.querySelector(".s-tip");
+    const dot = () => more.classList.toggle("on", EXTRA.some((k) => chk(k) && chk(k).checked));
+    let tt = 0;
+    w.addEventListener("click", (e) => {
+      if (e.target.closest(".s-rmore")) { const o = fly.hidden; fly.hidden = !o; more.setAttribute("aria-expanded", String(o)); return; }
       const b = e.target.closest("button[data-l]"); if (!b) return;
-      const c = p.querySelector(`input[value="${b.dataset.l}"]`); if (!c) return;
+      const c = chk(b.dataset.l); if (!c) return;
       c.checked = !c.checked; c.dispatchEvent(new Event("change", { bubbles: true }));
-      b.setAttribute("aria-pressed", String(c.checked));
+      b.setAttribute("aria-pressed", String(c.checked)); dot();
+      try { navigator.vibrate && navigator.vibrate(10); } catch (er) {}
+      tip.textContent = `${NM[b.dataset.l]} ${c.checked ? "켜짐" : "꺼짐"}`; tip.classList.add("on");
+      clearTimeout(tt); tt = setTimeout(() => tip.classList.remove("on"), 1200);
     });
-    (box.closest(".mapcard") || box).before(row);   // 지도 카드 바로 위 한 줄로(지도를 가리지 않게)
+    document.getElementById("lmap")?.addEventListener("pointerdown", () => { if (!fly.hidden) { fly.hidden = true; more.setAttribute("aria-expanded", "false"); } });
+    dot();
     return true;
   }
   const t = setInterval(() => { if (build()) clearInterval(t); }, 500);

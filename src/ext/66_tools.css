@@ -28,13 +28,30 @@
 .sp-b b{order:-1;font-size:11px;color:var(--text-2)}.sp-b span{font-size:11.5px}
 #supZ h3{font-size:16px;margin:4px 0 6px}
 html.simple #gapTop:not(.s-on),html.simple #diagTop:not(.s-on),html.simple #supplyTop:not(.s-on){display:none!important}
-/* 겹쳐 보기: 지도 밖 위쪽 얇은 한 줄(지도를 가리지 않음) */
-html.simple #mapbox .lm-ctl,html.simple #mapbox .lm-layers{display:none!important}
-.s-lyr{display:flex;align-items:center;gap:6px;margin:0 0 8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.s-lyr::-webkit-scrollbar{display:none}
-.s-lyr-h{flex:none;font-size:12.5px;font-weight:600;color:var(--text-3);margin-right:2px}
-.s-lyr button{flex:none;height:30px;padding:0 11px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text-2);font:600 12.5px var(--font);cursor:pointer;white-space:nowrap}
-.s-lyr button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
-html.s-full .s-lyr{display:none}
-html.simple #mapZoom{top:12px!important}
-html.simple .s-lyr{margin:4px 0 8px}html.simple .s-lyr+.mapcard{margin-top:0!important}
+/* 겹쳐 보기 레일: 오른쪽 위 세로 아이콘 카드 */
+html.simple #mapbox .lm-ctl,html.simple #mapbox .lm-layers,.s-lyr{display:none!important}
+.s-rail-w{position:absolute;top:8px;right:8px;z-index:6;display:flex;flex-direction:row-reverse;align-items:flex-start;gap:6px;pointer-events:none}
+.s-rail,.s-fly{pointer-events:auto;display:flex;flex-direction:column;border:1px solid rgba(31,58,135,.12);border-radius:10px;background:rgba(255,255,255,.92);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:0 1px 4px rgba(0,0,0,.12);overflow:hidden}
+.s-fly{flex-direction:row}
+.s-fly[hidden]{display:none}
+.s-rail button,.s-fly button{position:relative;display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;background:transparent;color:#5B6478;cursor:pointer}
+.s-rail button+button{border-top:1px solid rgba(31,58,135,.10)}
+.s-fly button+button{border-left:1px solid rgba(31,58,135,.10)}
+.s-rail svg,.s-fly svg{width:18px;height:18px}
+.s-rail button::after,.s-fly button::after{content:"";position:absolute;inset:-6px}
+.s-rail button[aria-pressed="true"],.s-fly button[aria-pressed="true"]{background:#1F3A87;color:#fff}
+.s-rail button[data-l="hi"][aria-pressed="true"]{background:#F5C33B;color:#1F3A87}
+.s-rmore i{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:#F5C33B;display:none}
+.s-rmore.on i{display:block}
+.s-tip{position:absolute;right:calc(100% + 6px);top:4px;height:24px;padding:0 10px;border-radius:999px;background:#1F3A87;color:#fff;font:600 12px/24px var(--font);white-space:nowrap;opacity:0;transform:translateX(6px);transition:opacity .15s,transform .15s;pointer-events:none}
+.s-fly:not([hidden])~.s-tip{display:none}
+.s-tip.on{opacity:1;transform:none}
+@media (min-width:981px){.s-rail-w{top:12px;right:12px}.s-rail button,.s-fly button{width:40px;height:40px}.s-rail svg,.s-fly svg{width:20px;height:20px}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-rail,:root:not([data-theme="light"]) .s-fly{background:rgba(24,28,40,.92);border-color:rgba(255,255,255,.10)}:root:not([data-theme="light"]) .s-rail button,:root:not([data-theme="light"]) .s-fly button{color:#C3CAD9}:root:not([data-theme="light"]) .s-rail button[aria-pressed="true"],:root:not([data-theme="light"]) .s-fly button[aria-pressed="true"]{background:#F5C33B;color:#14213D}}
+:root[data-theme="dark"] .s-rail,:root[data-theme="dark"] .s-fly{background:rgba(24,28,40,.92);border-color:rgba(255,255,255,.10)}
+:root[data-theme="dark"] .s-rail button,:root[data-theme="dark"] .s-fly button{color:#C3CAD9}
+:root[data-theme="dark"] .s-rail button[aria-pressed="true"],:root[data-theme="dark"] .s-fly button[aria-pressed="true"]{background:#F5C33B;color:#14213D}
+/* 다른 지도 버튼과 자리 나누기 */
+html.simple #mapZoom{top:auto!important;bottom:44px;right:8px}
+html.simple.s-full .s-rail-w{top:76px}
+html.simple .s-lyr+.mapcard{margin-top:0}
