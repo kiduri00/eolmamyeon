@@ -235,3 +235,34 @@ html.simple #report .s-fold p.note,html.simple #report .s-fold .t-note{display:b
 html.simple footer{margin-top:24px}
 html.simple #report .rep-head .formal,html.simple #report .gtl li:not(.gt1) small,html.simple #pane table td small,html.simple #pane .lb-pos+*{display:none!important}
 html.simple #pane table small{display:none!important}
+
+/* 게이지 v3: 제목을 카드 안으로, 내 현금 → 살 수 있는 곳을 한 줄로 */
+.s-gauge{position:relative;padding:22px 26px 16px;border-radius:24px;background:linear-gradient(180deg,var(--surface) 0%,color-mix(in srgb,var(--brand) 3%,var(--surface)) 100%)}
+.s-ghead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.s-gauge .s-h1{margin:0;font-size:15px;font-weight:600;letter-spacing:-.01em;color:var(--text-2)}
+.s-gmain{display:flex;align-items:flex-end;gap:18px;margin:14px 0 8px}
+.s-cash{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.s-cash small,.s-count small{font-size:13px;font-weight:600;color:var(--text-3);letter-spacing:-.01em}
+.s-cash b,.s-count b{font-size:clamp(40px,6vw,60px);line-height:1;font-weight:750;letter-spacing:-.045em;font-feature-settings:"tnum" 1;color:var(--text-1)}
+.s-cash b small{margin-left:3px;font-size:.45em;font-weight:650;letter-spacing:-.02em;color:var(--text-2)}
+.s-arrow{display:grid;place-items:center;width:36px;height:36px;margin-bottom:6px;border-radius:50%;background:var(--surface-2);color:var(--text-3);flex:none}
+.s-count{display:flex;flex-direction:column;gap:2px;align-items:flex-start;margin:0;padding:0;border:0}
+.s-count b{color:var(--brand)}
+.s-count b i{font-style:normal;margin-left:3px;font-size:.45em;font-weight:650;letter-spacing:-.02em}
+#sCash{margin-top:6px}
+html.simple .s-hero{gap:10px}
+@media (max-width:640px){
+  .s-gauge{padding:16px 16px 10px;border-radius:20px}
+  .s-gauge .s-h1{font-size:14px}
+  .s-gmain{gap:10px;margin:10px 0 4px}
+  .s-cash b,.s-count b{font-size:40px}
+  .s-arrow{width:28px;height:28px;margin-bottom:4px}
+  .s-arrow svg{width:16px;height:16px}
+}
+.s-count b span{font-size:inherit!important;font-weight:inherit!important;color:inherit!important;letter-spacing:inherit}
+@media (max-width:640px){
+  .s-ghead{flex-wrap:nowrap;gap:8px}
+  .s-gauge .s-h1{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .s-ghead .s-mode{flex:none;padding:3px}
+  .s-ghead .s-mode button{min-height:28px;padding:0 9px;font-size:12px}
+}

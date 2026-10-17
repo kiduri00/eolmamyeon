@@ -43,13 +43,16 @@ const SIMPLE = (() => {
     hero.className = "s-hero"; hero.id = "sHero";
     hero.innerHTML = `
       <button type="button" class="s-search" id="sSearch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>구역 이름, 주소, 역으로 검색</button>
-      <h1 class="s-h1">내 돈으로 서울 재개발 어디까지?</h1>
       <div class="s-gauge">
-        <div class="s-gtop"><label for="sCash" class="s-cash"><b id="sCashV">1억</b><span>있으면</span></label>
+        <div class="s-ghead"><h1 class="s-h1">내 돈으로 서울 재개발 어디까지?</h1>
           <div class="s-mode" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">현금만</button></div></div>
+        <div class="s-gmain">
+          <label for="sCash" class="s-cash"><small>내 현금</small><b id="sCashV">1억</b></label>
+          <span class="s-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          <p class="s-count" id="sCount" aria-live="polite"><small id="sNL">살 수 있는 곳</small><b><span id="sN">0</span><i>곳</i></b></p>
+        </div>
         <input type="range" id="sCash" min="0.5" max="15" step="0.1" value="1" aria-describedby="sCount" aria-label="가진 현금(억)">
         <div class="s-ticks" aria-hidden="true"><span>0.5</span><span>5</span><span>10</span><span>15억</span></div>
-        <p class="s-count" id="sCount" aria-live="polite"><b id="sN">0</b><span id="sNL">곳 가능</span><span class="s-hint">아래 지도에 바로 표시돼요</span></p>
       </div>`;
     map.insertBefore(hero, map.firstChild);
     const list = document.createElement("div");
@@ -119,7 +122,10 @@ const SIMPLE = (() => {
     // 이벤트
     const sl = $("sCash");
     sl.addEventListener("input", () => { label(+sl.value); live(+sl.value); });
-    sl.addEventListener("change", () => { clearTimeout(timer); setCash(+sl.value); });
+    sl.addEventListener("pointerdown", () => { dragging = true; });
+    const up = () => { if (!dragging) return; dragging = false; clearTimeout(idleT); idleT = setTimeout(() => setCash(+sl.value, true), 30); };
+    window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
+    sl.addEventListener("change", () => { clearTimeout(timer); clearTimeout(idleT); setCash(+sl.value, true); });
     map.querySelector(".s-mode").addEventListener("click", (e) => { const b = e.target.closest("button[data-f]"); if (!b) return; if (b.dataset.f === "cash") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (er) {} } setFund(b.dataset.f); });
     list.querySelector(".s-flt").addEventListener("click", (e) => {
       const b = e.target.closest("button[data-k]"); if (!b) return;
@@ -163,16 +169,29 @@ const SIMPLE = (() => {
     $("sCash").style.setProperty("--p", pct + "%");
   }
   // 끄는 동안에도 지도·숫자가 따라오게(계산은 약 30ms라 프레임마다 한 번까지만)
-  let liveT = 0, liveV = null;
+  // 끄는 동안: 무거운 전체 계산 대신 '필요한 돈 ≤ 현금' 판정만 다시 해 숫자·목록·구별 말풍선을 매 프레임 갱신.
+  // 손을 떼거나 잠깐 멈추면 전체 계산(지도 색·구 통계)을 한 번 돌린다.
+  let liveT = 0, liveV = null, idleT = 0, bubK = "", bubT = 0, dragging = false;
   function live(v) {
-    liveV = v;
-    if (liveT) return;
-    liveT = setTimeout(() => requestAnimationFrame(() => { liveT = 0; setCash(liveV); }), 90);
+    liveV = Math.round(v * 10) / 10;
+    if (!liveT) liveT = requestAnimationFrame(() => {
+      liveT = 0;
+      try {
+        $("pCash").value = String(liveV); CASH = liveV;
+        render();
+        if (mapView === "seoul") {
+          const o = {}; R.forEach((r) => { if (okR(r)) o[r.g] = (o[r.g] || 0) + 1; });
+          const k = JSON.stringify(o), now = performance.now();
+          if (k !== bubK && now - bubT > 90) { bubK = k; bubT = now; LMX.counts(o); }
+        }
+      } catch (e) {}
+    });
+    clearTimeout(idleT); if (!dragging) idleT = setTimeout(() => setCash(liveV, true), 220);
   }
-  function setCash(v) {
+  function setCash(v, force) {
     v = Math.round(v * 10) / 10;
     const el = $("pCash");
-    if (+el.value === v) return render();
+    if (+el.value === v && !force) return render();
     el.value = String(v);
     try { PREV_CASH = null; } catch (e) {}
     planN = PLAN0();
@@ -180,10 +199,16 @@ const SIMPLE = (() => {
   }
   // 곳 수가 바뀔 때 숫자가 툭 바뀌지 않고 굴러가게
   function tween(el, to) {
-    const from = +(el.dataset.v || 0); el.dataset.v = to;
-    if (from === to || matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = fmt(to); return; }
-    cancelAnimationFrame(el._tw); const t0 = performance.now(), D = 260;
-    const step = (t) => { const k = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(Math.round(from + (to - from) * e)); if (k < 1) el._tw = requestAnimationFrame(step); };
+    el._to = to;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { el._v = to; el.textContent = fmt(to); return; }
+    if (el._tw) return;
+    if (el._v == null) el._v = to;
+    const step = () => {
+      const d = el._to - el._v;
+      el._v = Math.abs(d) < 0.5 ? el._to : el._v + d * 0.28;
+      el.textContent = fmt(Math.round(el._v));
+      el._tw = el._v === el._to ? 0 : requestAnimationFrame(step);
+    };
     el._tw = requestAnimationFrame(step);
   }
   // ---------- 목록 ----------
@@ -199,7 +224,7 @@ const SIMPLE = (() => {
     const all = R.filter(okR).length;
     tween($("sN"), all);
     if ($("sMiniN")) $("sMiniN").textContent = fmt(all);
-    $("sNL").textContent = gap ? "곳 전세 끼고 살 수 있어요" : effBasis() === "total" ? "곳 입주까지 내 돈으로 돼요" : "곳 대출 끼고 살 수 있어요";
+    $("sNL").textContent = gap ? "전세 끼고 살 수 있는 곳" : effBasis() === "total" ? "입주까지 되는 곳" : "대출 끼고 살 수 있는 곳";
     $("sLT").textContent = gu ? `${gu} · ${fmt(L.length)}곳` : `살 수 있는 곳 · ${fmt(L.length)}곳`;
     $("sLS").textContent = gap || effBasis() !== "total" ? "큰 숫자 = 지금 필요한 돈" : "큰 숫자 = 입주까지 필요한 돈";
     const sg = $("sGu");

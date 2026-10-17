@@ -170,7 +170,7 @@
     }
     // 서울 전체 화면: 구 이름 + 가능 구역 수(확대하면 사라지고 구역 경계가 보인다)
     // 구별 말풍선: 면적 중심에 두고, 화면에서 서로 겹치면 밀어내 겹침 없이 배치
-    let GUB = null;
+    let GUB = null, OVR = null;   // OVR: 게이지를 끄는 동안 쓰는 임시 구별 숫자
     function guCenters() {
       if (GUB) return GUB;
       GUB = geo.gu.map((g) => {
@@ -185,7 +185,7 @@
       const C = guCenters(), z = map.getZoom();
       const fs = Math.max(10, Math.min(12.5, 10 + (z - 9.5) * (2.5 / 1.1)));
       const B = C.map((c) => {
-        const k = typeof guMetric === "function" ? guMetric(c.n) : 0;
+        const k = OVR ? OVR[c.n] || 0 : typeof guMetric === "function" ? guMetric(c.n) : 0;
         const nm = c.n.length <= 2 ? c.n : c.n.replace(/구$/, ""), v = String(k);
         const p = map.project(c.ll), w = (nm.length * 0.82 + v.length * 0.62 + 0.4) * fs + 16, h = fs * 1.25 + 10;
         return { c, k, nm, v, x: p.x, y: p.y, x0: p.x, y0: p.y, w, h };
@@ -426,7 +426,8 @@
     return {
       enter, exit, use, seoul,
       on: () => !!(map && $("lmap") && !$("lmap").hidden),
-      paint: () => { if (map && ready) paint(); },
+      paint: () => { OVR = null; if (map && ready) paint(); },
+      counts: (o) => { OVR = o; if (map && ready) guBubbles(); },
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
       zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else map.fitBounds(SEOUL_BB, { padding: 8, duration: reduceMotion() ? 0 : 400 }); },
       geo: () => loadGeo(),
