@@ -6,8 +6,8 @@
     let back = false;
     try { back = sessionStorage.getItem("emr_seen") === "1"; sessionStorage.setItem("emr_seen", "1"); } catch (e) {}
     const nt = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0] || {}).type;
-    if (back || nt === "reload" || nt === "back_forward") {
-      if (h && matchMedia("(max-width:980px)").matches && !/^(join=|membership)/.test(h)) {
+    if (nt === "reload" || nt === "back_forward") {
+      if (h && matchMedia("(max-width:980px)").matches && !/^(join=|membership)/.test(h) && !/^[a-z]+Top$|^(results|planner)$/.test(h)) {
         history.replaceState(null, "", location.pathname + location.search);
         if ("scrollRestoration" in history) history.scrollRestoration = "manual";
         window.scrollTo(0, 0);

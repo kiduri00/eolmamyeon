@@ -267,8 +267,11 @@ def headline(s, r):
         inw = [x for x in qq[k] if x[0] >= u0]; v = [x for x in inw if tuple(x) in uset]
         v += _filt([x for x in qq[k] if x[0] < u0], b, qref)[0]
         if v: q.append([k, round(med([_unit(x, b) for x in v])), len(v)])
+    # 'X㎡ 기준 Y억'이 서로 맞도록: 가장 거래가 많은 면적대(전용 ±10㎡) 안 거래만으로 가격·면적 가운데 값을 같이 낸다(동률이면 최근 거래 쪽)
+    cen = max(used, key=lambda x: sum(1 for y in used if abs(y[3] - x[3]) <= 10))
+    band = [x for x in used if abs(x[3] - cen[3]) <= 10]
     h = {'b': b, 'u': round(med([_unit(x, b) for x in used])), 'w': w, 'n': len(used), 'xo': xo, 'from': used[-1][0], 'to': used[0][0],
-         'p': round(med([x[5] for x in used])), 'pa': round(med([x[3] for x in used]), 1), 'q': q, 'r': [x[:7] for x in used[:5]]}
+         'p': round(med([x[5] for x in band])), 'pa': round(med([x[3] for x in band]), 1), 'pn': len(band), 'q': q, 'r': [x[:7] for x in used[:5]]}
     if xn: h['xn'] = xn   # 2016년 이후 신축·대지 10㎡ 미만이라 뺀 거래(최근 24개월)
     if w == 0 and used[0][0] < HD12: h['st'] = 1   # 오래된 거래 1건뿐(원자료 최근 계약일 기준 12개월보다 전)
     return h

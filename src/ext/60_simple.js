@@ -168,6 +168,7 @@ const SIMPLE = (() => {
     });
     $("sMore").onclick = () => { shown += 10; render(); };
     $("sList").addEventListener("click", (e) => {
+      const w = e.target.closest("[data-why]"); if (w) { e.preventDefault(); e.stopPropagation(); why(w.dataset.why, w); return; }
       const a = e.target.closest("[data-id]"); if (!a) return;
       e.preventDefault(); curTab = "money"; keepY = scrollY; select(a.dataset.id, false, false, { scroll: !MQ_SHEET.matches });
     });
@@ -251,6 +252,95 @@ const SIMPLE = (() => {
     };
     el._tw = requestAnimationFrame(step);
   }
+  // ---------- 목록 줄 보조: 최근 2년 실거래 흐름(작은 선) ----------
+  // tx.json[id].x.hd.q = [["26Q2", 값, 건수], …] — 처음 그린 뒤 한 번만 늦게 불러와 다시 그린다. 없으면 아무것도 안 그린다.
+  let TX = null, txAsk = false;
+  const SP = new Map();
+  const qIdx = (q) => { const m = /^(\d\d)Q([1-4])$/.exec(q || ""); return m ? +m[1] * 4 + +m[2] - 1 : null; };
+  const Q_NOW = (() => { const d = new Date(); return (d.getFullYear() % 100) * 4 + Math.floor(d.getMonth() / 3); })();
+  function spark(id) {
+    if (!TX) return "";
+    if (!fitSp.on) { fitSp.on = 1; addEventListener("resize", () => fitSp()); }
+    if (SP.has(id)) return SP.get(id);
+    let out = "";
+    try {
+      const q = (((TX[id] || {}).x || {}).hd || {}).q || [];
+      const pts = q.map((e) => [qIdx(e[0]), +e[1]]).filter((p) => p[0] != null && isFinite(p[1]) && p[1] > 0).sort((a, b) => a[0] - b[0]);
+      const last = pts.length ? pts[pts.length - 1][0] : null;
+      const P8 = last != null && last >= Q_NOW - 4 ? pts.filter((p) => p[0] > last - 8) : [];
+      if (P8.length >= 3) {
+        const W = 44, H = 16, pad = 2, x0 = last - 7;
+        const vs = P8.map((p) => p[1]), lo = Math.min(...vs), hi = Math.max(...vs), rg = hi - lo || 1;
+        const xy = P8.map(([i, v]) => [((i - x0) / 7) * (W - pad * 2) + pad, H - pad - ((v - lo) / rg) * (H - pad * 2)].map((n) => Math.round(n * 10) / 10));
+        const [ex, ey] = xy[xy.length - 1];
+        let chg = null;
+        if (P8.length >= 6) { const b = P8.filter((p) => p[0] <= last - 4).pop(); if (b) chg = (P8[P8.length - 1][1] / b[1] - 1) * 100; }
+        const tr = chg != null && Math.abs(chg) >= 3 ? `<i class="${chg > 0 ? "up" : "dn"}">${chg > 0 ? "▲" : "▼"}${Math.round(Math.abs(chg))}%</i>` : "";
+        out = `<span class="s-sp" title="최근 2년 실거래 흐름${tr ? ` · 1년 ${chg > 0 ? "+" : "−"}${Math.round(Math.abs(chg))}%` : ""}"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${xy.map((p) => p.join(",")).join(" ")}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${ex}" cy="${ey}" r="1.9" fill="currentColor"/></svg>${tr}</span>`;
+      }
+    } catch (e) { out = ""; }
+    SP.set(id, out);
+    return out;
+  }
+  function askTx() {
+    if (txAsk || typeof ZX === "undefined" || !ZX.loadTx) return;
+    txAsk = true;
+    const go = () => { try { ZX.loadTx().then((d) => { if (d && typeof d === "object" && Object.keys(d).length) { TX = d; SP.clear(); render(); } }).catch(() => {}); } catch (e) {} };
+    (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 2500 }) : (f) => setTimeout(f, 900))(go);
+  }
+  // ---------- '왜 이 금액?' 작은 설명(새 화면 없이) ----------
+  let whyEl = null, whyFor = null;
+  function whyClose() { if (!whyEl || whyEl.hidden) return; whyEl.hidden = true; const b = whyFor; whyFor = null; if (b && document.contains(b) && whyEl.contains(document.activeElement)) b.focus(); }
+  function why(id, btn) {
+    const r = byId[id]; if (!r) return;
+    if (whyEl && !whyEl.hidden && whyFor === btn) return whyClose();
+    if (!whyEl) {
+      whyEl = document.createElement("div"); whyEl.className = "s-why"; whyEl.id = "sWhy"; whyEl.hidden = true;
+      whyEl.setAttribute("role", "dialog"); whyEl.setAttribute("aria-labelledby", "sWhyT");
+      document.body.appendChild(whyEl);
+      whyEl.addEventListener("click", (e) => { if (e.target.closest("[data-x]")) whyClose(); else if (e.target.closest("[data-go]")) { const z = e.target.closest("[data-go]").dataset.go; whyClose(); curTab = "money"; keepY = scrollY; select(z, false, false, { scroll: !MQ_SHEET.matches }); } });
+      document.addEventListener("pointerdown", (e) => { if (whyEl && !whyEl.hidden && !whyEl.contains(e.target) && !e.target.closest("[data-why]")) whyClose(); }, true);
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") whyClose(); });
+      window.addEventListener("resize", whyClose);
+    }
+    const gap = gapMode(), x = investC(r), est = !!(OV[r.id] && OV[r.id].est);
+    const wS = (v) => (v > 0 && v < 0.1 ? `${fmt(Math.round(v * 1e4))}만원` : eokS(v));
+    const ln = (op, k, v, c) => `<li${c ? ` class="${c}"` : ""}><span>${op ? `<i>${op}</i>` : ""}${k}</span><b>${wS(v)}</b></li>`;
+    let rowsH = "", tail = "";
+    if (gap) {
+      const g = gapOf(r);
+      if (g.na) rowsH = `<li class="s-wna">매수가 자료가 아직 없어요</li>`;
+      else {
+        rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, x.price) + ln("−", `전세${g.userJ ? "" : ` <small>(${Math.round(g.jr)}%)</small>`}`, g.D) + ln("+", "세금", x.tax) + ln("=", "지금 필요한 돈", g.now, "s-wsum");
+        if (g.total != null) tail = `입주까지 ${eokS(g.total)} · 이주비·분담금 포함`;
+      }
+    } else if (x.price == null) rowsH = `<li class="s-wna">매수가 자료가 아직 없어요</li>`;
+    else {
+      rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, x.price) + ln("−", "대출", x.loanCap || 0) + ln("+", "세금", x.tax) + ln("=", "지금 필요한 돈", x.needBuy, "s-wsum");
+      if (x.ok && x.needTotal != null) tail = `입주까지 ${eokS(x.needTotal)} · 분담금·이자 포함`;
+    }
+    whyEl.innerHTML = `<div class="s-wh"><b id="sWhyT">왜 이 금액?</b><span>${esc(shortName(r.n))}</span><button type="button" data-x aria-label="닫기">×</button></div><ul>${rowsH}</ul>${tail ? `<p>${tail}</p>` : ""}<button type="button" class="s-wgo" data-go="${r.id}">계산 근거 자세히 →</button>`;
+    whyFor = btn; whyEl.hidden = false;
+    const sheet = matchMedia("(max-width:640px)").matches;
+    whyEl.classList.toggle("bs", sheet);
+    if (sheet) { whyEl.style.left = whyEl.style.top = ""; }
+    else {
+      const b = btn.getBoundingClientRect(), w = whyEl.offsetWidth, h = whyEl.offsetHeight;
+      let top = b.bottom + 6; if (top + h > innerHeight - 8) top = Math.max(8, b.top - h - 6);
+      whyEl.style.left = Math.max(8, Math.min(innerWidth - w - 8, b.right - w)) + "px"; whyEl.style.top = top + "px";
+    }
+    const xb = whyEl.querySelector("[data-x]"); if (xb) xb.focus({ preventScroll: true });
+  }
+  // ---------- 첫 방문 안내 한 번: 게이지를 끌어 보라고 ----------
+  function coach() {
+    try { if (localStorage.getItem("emr.coach1")) return; } catch (e) { return; }
+    const g = document.querySelector(".s-gauge"), sl = $("sCash"); if (!g || !sl || g.querySelector(".s-coach")) return;
+    const t = document.createElement("div"); t.className = "s-coach"; t.setAttribute("role", "status"); t.textContent = "끌어서 내 현금을 맞춰 보세요";
+    const place = () => { const gr = g.getBoundingClientRect(), sr = sl.getBoundingClientRect(), w = t.offsetWidth, x = sr.left - gr.left + 14 + ((sr.width - 28) * (parseFloat(sl.style.getPropertyValue("--p")) || 8)) / 100, L = Math.max(6, Math.min(gr.width - w - 6, x - w / 2)); t.style.top = Math.round(sr.bottom - gr.top + 4) + "px"; t.style.left = Math.round(L) + "px"; t.style.setProperty("--ax", Math.round(x - L) + "px"); };
+    g.appendChild(t); place(); addEventListener("resize", place);
+    const done = () => { t.remove(); removeEventListener("resize", place); ["pointerdown", "keydown", "wheel"].forEach((k) => removeEventListener(k, done, true)); try { localStorage.setItem("emr.coach1", "1"); } catch (e) {} };
+    ["pointerdown", "keydown", "wheel"].forEach((k) => addEventListener(k, done, { capture: true, passive: true }));
+  }
   // ---------- 목록 ----------
   function render() {
     if (!$("sList")) return;
@@ -272,11 +362,25 @@ const SIMPLE = (() => {
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
     if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
-      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "입주까지 계산 전") : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
+      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.nbp ? ' · <em class="s-tag nb">주변 시세 기준</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span>${spark(r.id)}</a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(shortName(r.n))} 필요한 돈 ${eokS(gap || effBasis() !== "total" ? n.now : n.total)} · 왜 이 금액인지 보기" aria-haspopup="dialog"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "입주까지 계산 전") : `계약 ${eokS(n.now)}`}</small></button></li>`).join("")
       : `<li class="s-empty">${gu ? `${esc(gu)}에는 이 금액으로 되는 곳이 없어요.` : "이 금액으로 되는 곳이 없어요."} 게이지를 올려 보세요.</li>`;
     const m = $("sMore");
     m.hidden = L.length <= shown;
     m.textContent = `더 보기 (${fmt(L.length - shown)}곳)`;
+    if (whyEl && !whyEl.hidden && whyFor && !document.contains(whyFor)) { const nb = $("sList").querySelector(`[data-why="${whyFor.dataset.why}"]`); if (nb) whyFor = nb; else whyClose(); }
+    askTx();
+    if (TX) fitSp();
+  }
+  // 좁은 화면: 흐름선 때문에 이름·동네가 잘리거나 줄이 바뀌면 그 줄만 흐름선을 뺀다
+  let fitT = 0;
+  function fitSp() {
+    cancelAnimationFrame(fitT);
+    fitT = requestAnimationFrame(() => $$("#sList li").forEach((li) => {
+      const sp = li.querySelector(".s-sp"); if (!sp) return;
+      li.classList.remove("s-nosp");
+      const b = li.querySelector(".s-nm b"), sm = li.querySelector(".s-nm small");
+      if ((b && b.scrollWidth > b.clientWidth + 1) || (sm && sm.getClientRects().length && sm.offsetHeight > parseFloat(getComputedStyle(sm).lineHeight || "0") * 1.5)) li.classList.add("s-nosp");
+    }));
   }
   // ---------- 기능 화면 열기/닫기 ----------
   let cur = "";
@@ -301,6 +405,8 @@ const SIMPLE = (() => {
     if (scroll) requestAnimationFrame(() => { const t = $("sTiles"); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); });
   }
   function init() {
+    // 같은 페이지에서 주소의 #도구 이름만 바뀌어도(링크·뒤로가기) 그 도구를 연다
+    window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (IDS.includes(h) && cur !== h) { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (e) {} open(h); } });
     window.addEventListener("popstate", () => { if (document.documentElement.classList.contains("s-full") && !(history.state && history.state.sFull)) fullMap(false); });
     if (P.fund === "cash" && P.basis !== "now") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (e) {} }
     build();
@@ -353,6 +459,7 @@ const SIMPLE = (() => {
     try { if (localStorage.getItem("emr.lyr") == null) localStorage.setItem("emr.lyr", "[]"); } catch (e) {}
     try { const q = $("q"); if (q && matchMedia("(max-width:640px)").matches) q.placeholder = "구역·동·역 검색"; } catch (e) {}
     render();
+    try { coach(); } catch (e) {}
   }
   return { init, open, close, render };
 })();

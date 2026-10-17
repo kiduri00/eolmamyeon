@@ -232,6 +232,18 @@ for r in R:
 # ---------- 3. 구역 실거래 요약 병합 + 매수가 ----------
 T = TX['tx']; DONG = TX['dong']; APT = TX['apt']; DC = TX['dcode']
 # ---------- 특수 사업 표시: 역세권 장기전세주택(lt) · 시장·상가 정비(mk) — 매수가 계산 전에 정한다 ----------
+# ---------- 2c. 같은 사업이 두 번 등록된 곳: 상위(묶음) 이름 하나와 '(A구역)'·'(B구역)'처럼 그 이름 + 괄호 하위 구역이 따로 있으면
+#   상위 기록은 하위 구역과 같은 대표지번·같은 매수가를 그대로 써서 목록·갭 순위에 같은 이름이 두 번 나온다(예: 응암3동 재개발 연계형 o99 ↔ A구역 o98).
+#   상위 기록을 dn(진행 목록·순위 제외)으로 두고 dupOf에 하위 구역 id를 적는다. 하위 구역이 대표지번까지 같을 때만.
+_sq = lambda n: re.sub(r'\s+', '', n)
+_byg = collections.defaultdict(list)
+for r in R:
+    if act(r) and r.get('src') != 'moa': _byg[r['g']].append(r)
+for L in _byg.values():
+    for a in L:
+        kids = [b['id'] for b in L if b is not a and _sq(b['n']).startswith(_sq(a['n'])) and re.fullmatch(r'\([^)]*구역\)', _sq(b['n'])[len(_sq(a['n'])):])]
+        if kids and any((b.get('j') == a.get('j')) for b in L if b['id'] in kids):
+            a['dn'] = 1; a['dupOf'] = kids; stat['dup_umbrella'] += 1
 for r in R:
     r.pop('tag', None)
     if '장기전세' in r['n']: r['tag'] = 'lt'; stat['tag_lt'] += 1
@@ -329,9 +341,19 @@ for r in R:
     t = r.get('tx') or {}; hd = t.get('hd') or {}
     inz = en.get('fill') in ('zone', 'zoneapt')
     last = t.get('ol') if en.get('fill') == 'zone' and t.get('ol') else _d8(en.get('last'))
+    # thin: 구역 밖 시세로 정했는데 구역 안 매매가 아예 없거나(머리글 없음) 최근 24개월 안에 하나도 없거나(w 0) 1~2건이 모두 12개월보다 오래됨
     why = ('n' if (en.get('n') or 0) < 3 else 'old' if last and last < _c12 else
-           'thin' if not inz and hd and hd.get('n', 9) < 3 and (hd.get('to') or '') < _c12 else None)
-    if why: en['lc'] = 1; en['lcw'] = why; r['lc'] = 1; stat['entry_lc_' + why] += 1
+           'thin' if not inz and (not hd or hd.get('w') == 0 or (hd.get('n', 9) < 3 and (hd.get('to') or '') < _c12)) else None)
+    # thin(구역 안 최근 거래 없이 주변 시세로 정한 값)은 목록에서 빼지 않고 '주변 시세 기준' 표시만 한다(빼면 살 수 있는 곳이 절반 가까이 사라짐)
+    if why == 'thin': en['nbp'] = 1; r['nbp'] = 1; stat['entry_nbp'] += 1
+    elif why: en['lc'] = 1; en['lcw'] = why; r['lc'] = 1; stat['entry_lc_' + why] += 1
+# 매수가가 아예 없는 진행 중 구역: 화면이 같은 구 다른 구역 빌라 시세 가운데 값(구 평균 추정)을 넣어 '대출 끼고 지금 X억'을 보여 준다(예: s84 무교다동 — 구역 안 거래 0건).
+#   구역 안 거래로 확인할 수 없는 값이라 참고값(lc, lcw 'est')으로 둔다.
+for r in R:
+    if not act(r) or r.get('src') == 'moa' or (r.get('mk') or {}).get('entry') or r.get('nx') in ('biz', 'mk'): continue
+    if r.get('s', 0) >= 7 or r['k'] in ('재건축', '소규모재건축'): continue
+    t = r.get('tx') or {}; hd = t.get('hd') or {}
+    if not hd or hd.get('w') == 0 or (hd.get('n', 9) < 3 and (hd.get('to') or '') < _c12): r['lc'] = 1; r['lcw'] = 'est'; stat['entry_lc_est'] += 1
 # ---------- 4b. 같은 이름의 끝난 옛 사업장(예: 노량진제1구역 이전고시 · 노량진1재정비촉진구역 진행 중): 이름은 그대로 두고 표시만 ----------
 #   화면 검색(src/app.js)이 s>=9 구역 이름 뒤에 '(완료)'를 붙이므로 데이터 이름은 바꾸지 않는다(바꾸면 '완료 (완료)'로 겹침). 서로 다른 사업이라 지우지 않는다.
 def _nk(n):
@@ -340,8 +362,20 @@ def _nk(n):
 _live = collections.defaultdict(list)
 for r in R:
     if act(r): _live[(r['g'], _nk(r['n']))].append(r['id'])
+# 화면 검색은 이름을 줄여 '노량진1구역 (완료)'처럼 보여 진행 중인 같은 이름 구역과 구분이 안 된다(괄호 안은 줄일 때 지워진다).
+#   준공일(정보몽땅 추진경과)이 있으면 이름에 괄호 없이 'YYYY 준공'을 넣고(예: '미아 제4구역 2017 준공 주택재개발정비사업조합' → '미아4구역 2017 준공 (완료)'),
+#   준공일도 구역 안 거래도 없어 보여 줄 내용이 없는 옛 사업장(예: o758 노량진제1구역 · 이전고시)은 목록에서 뺀다.
+_drop = set()
 for r in R:
-    if r.get('s', 0) >= 9 and _live.get((r['g'], _nk(r['n']))): r['doneTwin'] = _live[(r['g'], _nk(r['n']))]; stat['done_twin'] += 1
+    if r.get('s', 0) >= 9 and _live.get((r['g'], _nk(r['n']))):
+        r['doneTwin'] = _live[(r['g'], _nk(r['n']))]; stat['done_twin'] += 1
+        y = ((PREM.get(r['id']) or {}).get('dt') or {}).get('준공', '')[:4]
+        if y.isdigit() and y not in r['n']:
+            m = re.search(r'제?\s*\d+\s*(재정비촉진구역|구역)?', r['n'])
+            r['n'] = (r['n'][:m.end()] + f" {y} 준공 " + r['n'][m.end():].lstrip()).strip() if m else f"{r['n']} {y} 준공"; stat['done_twin_year'] += 1
+        elif not y and not (r.get('tx') or {}).get('n'): _drop.add(r['id']); stat['done_twin_drop'] += 1
+if _drop:
+    D['recs'] = [r for r in R if r['id'] not in _drop]; R = D['recs']; print('drop stale done twins', sorted(_drop))
 # ---------- 5. 법정동이 비어 있는 구역(주소 없음·이름에 동 없음): 경계 안 필지 PNU 앞 10자리 → 법정동 이름(dg) ----------
 # api.py dong()과 같은 규칙으로 비어 있는지 본다
 DONG_RE = re.compile(r'^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)')
@@ -373,6 +407,16 @@ D['jrz'] = TX.get('jrz'); D['txAsOf'] = TX.get('asOf')
 D['rvj'] = TX.get('rvj')
 import datetime as _dt
 D['upd'] = _dt.date.today().isoformat()
+# ---------- 경사도(tools/slope.py 캐시): 평균 경사로 평지·완만·경사·급경사 ----------
+_SLP = os.path.join(ROOT, 'pipeline/cache/slope.json')
+if os.path.exists(_SLP):
+    _sl = json.load(open(_SLP)); _ns = 0
+    for r in D['recs']:
+        v = _sl.get(r['id'])
+        if not v or v.get('a') is None: continue
+        a_ = v['a']; k = '평지' if a_ < 3 else '완만' if a_ < 7 else '경사' if a_ < 12 else '급경사'
+        r['sl'] = {'a': v['a'], 'd': v.get('d'), 'p': v.get('p'), 'k': k}; _ns += 1
+    print('slope', _ns)
 json.dump(D, open(os.path.join(ROOT, 'pipeline/data.enriched.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print(dict(stat))
 miss = [(r['id'], r['n'], r['k'], r.get('j')) for r in R if act(r) and r.get('src') != 'moa' and not (r.get('mk') or {}).get('entry') and r.get('nx') not in ('biz', 'mk')]

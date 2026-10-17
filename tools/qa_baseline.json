@@ -1,0 +1,10 @@
+{
+  "note": "QA gate baseline: touch = count of visible buttons/links smaller than 40x40 CSS px. Fails only when the count grows. Update: node tools/qa.js --update-baseline",
+  "updated": "2026-10-17",
+  "touch": {
+    "home_m360": 6,
+    "sheet_m360": 4,
+    "home_m390": 7,
+    "sheet_m390": 4
+  }
+}
