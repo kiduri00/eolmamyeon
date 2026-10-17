@@ -95,3 +95,27 @@ const TOOLS = (() => {
   return { init };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", TOOLS.init) : setTimeout(TOOLS.init, 0);
+/* ===================== 지도 겹쳐 보기: 팝업 대신 지도 위 칩 한 줄(한 번 탭으로 켜고 끄기) ===================== */
+(() => {
+  const ICON = { hj: "🚇", hi: "📈", edu: "🏫", acad: "📚", biz: "🛍️", med: "🏥", mart: "🛒" };
+  function build() {
+    const p = document.getElementById("lmLayers"), box = document.getElementById("mapbox");
+    if (!p || !box) return false;
+    if (box.querySelector(".s-lyr")) return true;
+    const cs = [...p.querySelectorAll("input[type=checkbox]")];
+    if (!cs.length) return false;
+    const row = document.createElement("div");
+    row.className = "s-lyr"; row.setAttribute("role", "group"); row.setAttribute("aria-label", "지도에 겹쳐 보기");
+    row.innerHTML = cs.map((c) => { const t = { hj: "호재", hi: "신고가", edu: "학교", acad: "학원가", biz: "상권", med: "병원", mart: "마트" }[c.value] || c.value; return `<button type="button" data-l="${c.value}" aria-pressed="${c.checked}"><span aria-hidden="true">${ICON[c.value] || "•"}</span>${t}</button>`; }).join("");
+    row.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-l]"); if (!b) return;
+      const c = p.querySelector(`input[value="${b.dataset.l}"]`); if (!c) return;
+      c.checked = !c.checked; c.dispatchEvent(new Event("change", { bubbles: true }));
+      b.setAttribute("aria-pressed", String(c.checked));
+    });
+    box.appendChild(row);
+    return true;
+  }
+  const t = setInterval(() => { if (build()) clearInterval(t); }, 500);
+  setTimeout(() => clearInterval(t), 30000);
+})();
