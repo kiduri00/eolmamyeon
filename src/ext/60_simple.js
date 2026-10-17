@@ -55,6 +55,19 @@ const SIMPLE = (() => {
       || (sortK === "fit" ? Math.round(b.m * 10) - Math.round(a.m * 10) : sortK === "eta" ? (a.eta === b.eta ? 0 : a.eta < b.eta ? -1 : 1) : Math.round(a.m * 10) - Math.round(b.m * 10))
       || a.m - b.m);
   }
+  // 유형 칩으로 0곳일 때: 그 유형은 지금 방식으로 최소 얼마부터 되는지(목록과 같은 판정·금액)
+  const KNAME = { redev: "재개발", rebuild: "재건축", small: "가로·소규모" };
+  function kindEmpty() {
+    const nowK = gapMode() || effBasis() !== "total", save = CASH;
+    let lo = Infinity;
+    try {
+      CASH = 999;
+      R.forEach((r) => { if (KIND(r) !== kind || r.lc || (gu && r.g !== gu) || !okR(r)) return; const n = needOf(r), m = nowK ? n.now : n.total; if (m != null && isFinite(m) && m < lo) lo = m; });
+    } catch (e) {} finally { CASH = save; }
+    const nm = KNAME[kind] || "이 유형";
+    const msg = isFinite(lo) ? `${nm}은 최소 <b>${eokS(Math.max(0.1, Math.ceil(lo * 10) / 10))}</b>부터 살 수 있어요` : `${nm}은 ${gapMode() ? "전세 끼고" : "지금 방식으로"} 살 수 있는 곳이 없어요`;
+    return `${gu ? `${esc(gu)} · ` : ""}${msg} · <button type="button" class="btn text sm" id="sKindAll">전체 보기</button>`;
+  }
   // 아래 탭바: 지금 보는 화면에 맞는 탭을 켠다
   function navMark(k) {
     document.querySelectorAll("#sNav button").forEach((x) => { if (x.dataset.nav === k) x.setAttribute("aria-current", "page"); else x.removeAttribute("aria-current"); });
@@ -425,7 +438,8 @@ const SIMPLE = (() => {
     if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
       ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.nbp ? ' · <em class="s-tag nb">주변 시세 기준</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span>${spark(r.id)}</a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(shortName(r.n))} 필요한 돈 추정 ${eokS(gap || effBasis() !== "total" ? n.now : n.total)} · 왜 이 금액인지 보기" aria-haspopup="dialog"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "입주까지 계산 전") : `계약 ${eokS(n.now)}`}</small></button></li>`).join("")
-      : `<li class="s-empty">${gu ? `${esc(gu)}에는 이 금액으로 되는 곳이 없어요.` : "이 금액으로 되는 곳이 없어요."} 게이지를 올려 보세요.</li>`;
+      : `<li class="s-empty">${kind ? kindEmpty() : `${gu ? `${esc(gu)}에는 이 금액으로 되는 곳이 없어요.` : "이 금액으로 되는 곳이 없어요."} 게이지를 올려 보세요.`}</li>`;
+    { const kx = $("sKindAll"); if (kx) kx.onclick = () => { const b = $$(".s-flt button", $("sListW")).find((x) => x.dataset.k === ""); if (b) b.click(); }; }
     const m = $("sMore");
     m.hidden = L.length <= shown;
     m.textContent = `더 보기 (${fmt(Math.max(0, L.length - shown))}곳)`;
