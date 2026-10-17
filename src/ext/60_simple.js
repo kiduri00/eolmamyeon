@@ -5,16 +5,18 @@
 const SIMPLE = (() => {
   // [화면 id, 이름, 아이콘 경로, 아이콘 색]
   const VIEWS = [
-    ["planner", "세부 계산", "M4 6h16M4 12h10M4 18h7", "#1f3a87"],
+    ["gapTop", "갭 순위", "M4 20h16M7 16V9M12 16V5M17 16v-4", "#1f3a87"],
+    ["diagTop", "매물진단", "M9 12l2 2 4-4M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z", "#16a34a"],
+    ["planner", "분담금", "M4 4h16v16H4zM8 8h8M8 12h2M12 12h2M16 12h0M8 16h2M12 16h4", "#4f46e5"],
+    ["txrTop", "가격 흐름", "M4 18l5-6 4 3 7-9M15 6h5v5", "#dc2626"],
+    ["ntcTop", "단계 소식", "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4", "#0e7490"],
+    ["favTop", "구역 비교", "M4 5h7v14H4zM13 5h7v14h-7z", "#d97706"],
     ["commuteTop", "출퇴근", "M7 3h10a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM5 10h14M8 20l2-4M16 20l-2-4", "#2f6feb"],
-    ["rankTop", "입지 순위", "M5 20V11M12 20V4M19 20v-6", "#d97706"],
-    ["txrTop", "실거래", "M4 18l5-6 4 3 7-9M15 6h5v5", "#dc2626"],
-    ["ntcTop", "고시·공고", "M6 3h9l4 4v14H6zM9 12h7M9 16h5", "#0e7490"],
-    ["saveTop", "모으면 언제", "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l3 2M9 2h6", "#4f46e5"],
+    ["supplyTop", "입주 물량", "M3 21V10l5-3v14M8 21V5l7-3v19M15 21V9l6 3v9", "#b45309"],
   ];
   // 아이콘 격자에는 안 넣지만 메뉴(⋯)·링크로 여는 화면
-  const MORE = ["results", "newTop", "rulesTop", "readsTop", "statsTop"];
-  const LINKS = [["guide/rebuild-30y", "재건축 30년", "M4 21V8l8-5 8 5v13M9 21v-6h6v6", "#b45309"], ["report/", "월간 리포트", "M5 4h14v17H5zM8 9h8M8 13h8M8 17h5", "#1f3a87"]];
+  const MORE = ["results", "newTop", "rulesTop", "readsTop", "statsTop", "rankTop", "saveTop"];
+  const LINKS = [];
   const IDS = VIEWS.map((v) => v[0]).concat(MORE, ["favTop"]);
   const KN = [[0, 0.5], [28, 2], [58, 5], [88, 10], [100, 15]];
   const toCash = (p) => { for (let i = 1; i < KN.length; i++) if (p <= KN[i][0]) { const [a, x] = KN[i - 1], [b, y] = KN[i]; return Math.round((x + ((p - a) / (b - a)) * (y - x)) * 10) / 10; } return 15; };
@@ -103,7 +105,7 @@ const SIMPLE = (() => {
     const tiles = document.createElement("section");
     tiles.className = "sec s-tiles"; tiles.id = "sTiles"; tiles.setAttribute("aria-labelledby", "sTT");
     const ic = (d, c) => `<i aria-hidden="true" style="--ic:${c}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg></i>`;
-    const SUB = {"planner": "집 수·대출까지 넣고 계산", "commuteTop": "회사까지 몇 분 안", "rankTop": "교통·생활 점수 순", "txrTop": "거래 많은 곳·신고가", "ntcTop": "최근 인가·시공자 선정", "saveTop": "매달 모으면 언제 되나"}, LSUB = { "guide/rebuild-30y": "30년 넘은 아파트 1,077단지", "report/": "매달 단계 변경 정리" };
+    const SUB = { gapTop: "적은 돈으로 들어갈 곳", diagTop: "이 매물 입주권 나오나", planner: "감정가·비례율로 내 분담금", txrTop: "신고가·거래 많은 곳", ntcTop: "인가·시공자 선정 새 소식", favTop: "찜한 구역 나란히", commuteTop: "회사까지 몇 분 안", supplyTop: "해마다 입주 몇 세대" }, LSUB = { "guide/rebuild-30y": "30년 넘은 아파트 1,077단지", "report/": "매달 단계 변경 정리" };
     tiles.innerHTML = `<h2 id="sTT">더 알아보기</h2><div class="s-tg">${VIEWS.map(([id, t, d, c]) => `<a href="#${id}" class="s-t" data-view="${id}">${ic(d, c)}<span class="s-tx"><b>${t}</b><small>${SUB[id] || ""}</small></span></a>`).join("")}${LINKS.map(([u, t, d, c]) => `<a href="${u}" class="s-t">${ic(d, c)}<span class="s-tx"><b>${t}</b><small>${LSUB[u] || ""}</small></span></a>`).join("")}</div>`;
     map.after(tiles);
     hero.insertBefore(hero.querySelector('#sSearch'), hero.firstChild);

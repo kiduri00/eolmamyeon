@@ -61,7 +61,7 @@ const HM = (() => {
     box.__hmOn = 1;
     let t;
     const mo = new MutationObserver((ms) => {
-      if (ms.every((m) => [...m.addedNodes, ...m.removedNodes].every((x) => x === box.__hmBtn))) return;
+      if (ms.every((m) => (box.__hmBtn && box.__hmBtn.contains(m.target)) || [...m.addedNodes, ...m.removedNodes].every((x) => x === box.__hmBtn))) return;   // 버튼 글자 바뀜은 무시
       box.__hmOpen = 0;
       clearTimeout(t);
       t = setTimeout(() => { clamp(box, sel, n, nm); mo.takeRecords(); }, 30);
