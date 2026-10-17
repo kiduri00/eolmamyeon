@@ -106,3 +106,24 @@ html.simple #mapTop>.s-gauge{margin:0 0 14px}
 .s-gauge.stuck .s-cash b{font-size:24px}
 .s-gauge.stuck .s-count{margin:0;padding:0;white-space:nowrap}
 .s-gauge.stuck .s-count b{font-size:18px}.s-gauge.stuck .s-count span{font-size:13px}
+/* 레드팀 반영: 지도 주변 잔글씨 최소화 */
+html.simple #legend>:not(.ml-scale){display:none!important}
+html.simple #mapbox[data-view="gu"] ~ * #legend,html.simple #legend[data-view="gu"]{display:none!important}
+html.simple #mapGuCnt,html.simple #mapKind,html.simple .lm-sel,html.simple .lm-ctl .lm-lg,html.simple .lm-legend{display:none!important}
+html.simple .maplibregl-ctrl-attrib:not(.maplibregl-compact-show) .maplibregl-ctrl-attrib-inner{display:none}
+/* 데스크톱 구별 요약: 숫자만, 막대·'지도 N곳' 빼고 가능 0곳 구는 숨김 */
+html.simple .gu-list .stbar,html.simple .gu-list .gl-p{display:none}
+html.simple .gu-list li.s-zero{display:none}
+html.simple #report .rep-empty .gl-cap{display:none}
+/* 목록 머리 */
+.s-lsub{margin:2px 0 0;font-size:12.5px;color:var(--text-3)}
+/* 게이지는 모바일에서만 붙인다 */
+@media (min-width:981px){.s-gauge,.s-gauge.stuck{position:static;display:block;padding:18px 20px 12px;box-shadow:none}}
+.s-hint{display:inline}
+@media (max-width:640px){.s-hint{display:block;margin:2px 0 0;width:100%}}
+.s-gauge.stuck .s-hint{display:none}
+/* 아래 탭바 선택 표시 */
+.s-nav button[aria-current="page"]{color:var(--brand)}
+.s-nav button:first-child:not([aria-current]){color:var(--text-2)}
+@media (max-width:980px){html.simple #report:not(.sheet){display:none!important}}
+html.simple .s-on>.sec-h p,html.simple .s-on .t-note,html.simple .s-on .loc-key{display:none!important}
