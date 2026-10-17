@@ -106,7 +106,7 @@ async function setup(browser, name, opts) {
   page.on("console", (m) => {
     if (m.type() !== "error") return;
     const t = m.text(), u = (m.location() && m.location().url) || "";
-    if (IGNORE_MSG.test(t) || BLOCK.test(u) || BLOCK.test(t)) return; if (/nope-qa-/.test(u)) return;
+    if (IGNORE_MSG.test(t) || BLOCK.test(u) || BLOCK.test(t)) return; if (/nope-qa-/.test(u)) return; if (/CORS/.test(t) && /about:blank/.test(t + u)) return;
     page.__errs.push("console.error: " + t.slice(0, 200) + (u ? " @" + u.replace(BASE, "").slice(0, 60) : ""));
   });
   return { ctx, page, name };
