@@ -110,7 +110,7 @@ html.simple .s-nm small em:not(.s-tag){font-style:normal;color:var(--text-3)}
 /* 판정 줄: 입주권 · 전세 끼고 · 단계 */
 .ov-vdw{margin-top:-4px}
 .ov-vd{display:flex;flex-wrap:wrap;gap:8px 6px}
-.ov-p{position:relative;display:inline-flex;align-items:center;gap:5px;min-height:36px;max-width:100%;padding:0 10px;border-radius:999px;border:1px solid transparent;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ov-p{position:relative;display:inline-flex;align-items:center;gap:5px;min-height:40px;max-width:100%;padding:0 10px;border-radius:999px;border:1px solid transparent;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .ov-p span{font-size:11.5px;font-weight:600;color:var(--text-3);white-space:nowrap}
 .ov-p b{font-size:13px;font-weight:700;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ov-p.ok{background:var(--ok-soft)}.ov-p.ok b{color:var(--ok-ink)}
@@ -147,7 +147,7 @@ html.simple .s-nm small em:not(.s-tag){font-style:normal;color:var(--text-3)}
 .ov-src a{display:inline-flex;align-items:center;min-height:44px;color:var(--text-2);text-decoration:none;font-weight:600}
 .ov-src a:hover{text-decoration:underline}
 /* 판정 칩: 보이는 크기는 36px, 누르는 범위는 44px */
-.ov-p::after{content:"";position:absolute;inset:-4px -3px}
+.ov-p::after{content:"";position:absolute;inset:-2px -3px}
 /* 단계 타임라인 가로 스크롤: 키보드로 닿게(포커스 표시) */
 .ov-tl-sc:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
 .ov-tl li[aria-current] small{color:var(--brand)}
@@ -164,7 +164,7 @@ svg.ov-bar rect.lo{fill:color-mix(in srgb,var(--brand) 13%,transparent)}
 svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 .ov-chn{margin:2px 4px 0;font-size:11px;color:var(--text-3)}
 /* 입지 칩: 누르면 설명 */
-#report .rep-head .gb.lb[role=button]{cursor:pointer}
+#report .rep-head .gb.lb[role=button]{cursor:pointer;min-height:40px;box-sizing:border-box}
 #report .rep-head .gb.lb[aria-expanded="true"]{outline:1.5px solid var(--text-3);outline-offset:1px}
 .ov-wl{display:inline-flex;align-items:center;min-height:32px;padding:0;border:0;background:none;color:var(--brand);font:700 13px var(--font);cursor:pointer}
 .ov-tl-now.ov-stl{padding:2px 8px;border-radius:999px;color:var(--warn-ink);background:var(--warn-soft);font-weight:700}

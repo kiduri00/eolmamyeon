@@ -247,3 +247,6 @@ html.s-full .pc-save,html.s-full .pc-act{display:none}
   #report.sheet .sheet-bar::before{top:4px}
   #report .sheet-bar>.pn-hpin{height:38px;min-height:38px}
 }
+
+/* 데스크톱: 핀 꽂기 띠와 목록 제목 사이 숨 쉴 틈 */
+@media (min-width:981px){html.simple #pcSave{margin-bottom:16px}}
