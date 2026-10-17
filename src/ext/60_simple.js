@@ -267,7 +267,7 @@ const SIMPLE = (() => {
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
     if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
-      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "입주까지 –") : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
+      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "") : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
       : `<li class="s-empty">${gu ? `${esc(gu)}에는 이 금액으로 되는 곳이 없어요.` : "이 금액으로 되는 곳이 없어요."} 게이지를 올려 보세요.</li>`;
     const m = $("sMore");
     m.hidden = L.length <= shown;

@@ -1023,7 +1023,7 @@
     return { L, skip };
   }
   const stageName = (r) =>
-    r.src === "moa" ? r.sr : (ladderLabels(r).L[isSmallR(r) && r.s === 6 ? 5 : r.s] || r.sr).replace(/ \(.*\)$/, "");
+    (r.src === "moa" ? r.sr : (ladderLabels(r).L[isSmallR(r) && r.s === 6 ? 5 : r.s] || r.sr).replace(/ \(.*\)$/, "")).replace("조합설립 또는 사업시행자 지정", "조합·시행자 지정").replace(/^정비구역지정$/, "정비구역 지정").replace(/사업시행계획인가/, "사업시행인가");
   const srLabel = (r) => (isPublic(r) && r.s === 4 && /조합설립/.test(r.sr) ? "조합설립·시행자 지정(공공)" : r.sr);
   function chkText(r) {
     const c = r.chk || "";
@@ -1149,7 +1149,7 @@
   const yieldT = () => (window.scheduler && scheduler.yield ? scheduler.yield() : new Promise((r) => setTimeout(r, 0)));
   $("eyebrow").innerHTML =
     `<span class="live" aria-hidden="true"></span><span class="eb-l">서울 진행 중 정비사업 ${fmt(POP.length)}곳 · 모아타운 관리지역 ${fmt(MOA_ALL.length)}곳 별도 · 데이터 갱신 ${UPD}</span><span class="eb-s">서울 정비사업 ${fmt(POP.length)}곳 · ${+(D.upd || D.asOf).slice(5, 7)}.${+(D.upd || D.asOf).slice(8, 10)} 갱신</span>`;
-  $("asof").textContent = D.txAsOf && D.txAsOf.sale ? `실거래 ${D.txAsOf.sale.slice(2, 4)}.${D.txAsOf.sale.slice(4, 6)}.${D.txAsOf.sale.slice(6, 8)}까지 · 매일 갱신` : `데이터 갱신 ${ASOF} · 매달 갱신`;
+  $("asof").textContent = D.txAsOf && D.txAsOf.sale ? `실거래 ${D.txAsOf.sale.slice(0, 4)}.${D.txAsOf.sale.slice(4, 6)}.${D.txAsOf.sale.slice(6, 8)}까지 · 매일 갱신` : `데이터 갱신 ${ASOF} · 매달 갱신`;
   const KINDS = [
     ["재개발", (r) => r.k === "재개발" || r.k === "도시정비형 재개발"],
     ["재건축", (r) => r.k === "재건축"],
@@ -1321,7 +1321,7 @@
       svgW = svg.getBoundingClientRect().width;
     }).observe(svg);
   function affOk(r, basis) {
-    if (estHide(r)) return false;
+    if (estHide(r) || r.lc) return false;
     if (P.fund === "gap") return gapOk(r);
     if (r.dn || r.s >= 9 || r.cx || r.src === "moa") return false;
     if ($("pTrade").checked && restricted(r)) return false;
@@ -1354,7 +1354,7 @@
     [60, Infinity, "60+"],
   ];
   let MAP_MODE = "total";
-  const modeOf = () => (!mapAff ? "prog" : MAP_MODE);
+  const modeOf = () => (!mapAff && !document.documentElement.classList.contains("simple") ? "prog" : MAP_MODE);
   const effBasis = () => (MAP_MODE === "now" ? "now" : P.basis);
   const binOf = (v) => (modeOf() === "prog" ? BIN_PROG : BIN_AFF).findIndex(([a, b]) => v >= a && v <= b);
   const NICE_MAX = [5, 10, 20, 30, 50, 100, 150, 200, 300, 500];
@@ -4514,7 +4514,7 @@
       ? hits
           .map(
             (h, i) =>
-              `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${h.r.id}" tabindex="-1"><span>${esc(shortName(h.r.n))}<small>${esc(h.r.g)} ${esc(h.r.j)} · ${esc(h.r.k)} · ${esc(stageName(h.r))}</small></span><em>${h.r.st ? esc(h.r.st.n.replace(/역$/, "")) + "역 " + Math.max(1, Math.round((h.r.st.d * 1.3) / 67)) + "분" : ""}</em></button>`,
+              `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${h.r.id}" tabindex="-1"><span>${esc(shortName(h.r.n))}${h.r.s >= 9 ? " (완료)" : ""}<small>${esc(h.r.g)} ${esc(h.r.j)} · ${esc(h.r.k)} · ${esc(stageName(h.r))}</small></span><em>${h.r.st ? esc(h.r.st.n.replace(/역$/, "")) + "역 " + Math.max(1, Math.round((h.r.st.d * 1.3) / 67)) + "분" : ""}</em></button>`,
           )
           .join("") +
         (all.length > hits.length
@@ -6382,7 +6382,12 @@
   function gapStrip(r) {
     const g = gapOf(r);
     if (g.block === "계산 대상 아님") return "";
-    if (g.block) return `<p class="cstrip gblock"><span>전세 끼고 사기</span><b class="gb-t">불가</b><small>${esc(g.block)}</small></p>`;
+    if (g.block) {
+      // 전세 끼고는 안 되면 대출 끼고 사는 길을 바로 보여 준다
+      let alt = "";
+      try { const x = investC(r); if (x && x.needBuy != null && !r.lc && r.tag !== "mk") alt = `<b class="gb-alt">대출 끼고 사면 지금 ${f1(x.needBuy)}억${x.ok ? ` · 입주까지 ${f1(x.needTotal)}억` : ""}</b>`; } catch (e) {}
+      return `<p class="cstrip gblock"><span>전세 끼고 사기 <b class="gb-t">불가</b></span>${alt}<small>${esc(g.block)}</small></p>`;
+    }
     if (g.na)
       return `<p class="cstrip na"><span>전세 끼고 지금 필요한 돈</span><b>–</b><small>${noPriceTxt(r)}</small></p>`;
     return `<div class="cstrip gstrip ${CASH - g.now >= -0.05 ? "ok" : "short"}"><span>전세 끼고 사면${isEst(r) ? `<span class="zb est">구 평균 시세로 추정${P.est ? "" : " · 곳 수 제외"}</span>` : ""}</span><b>${g.now <= CASH + 0.05 ? `지금 ${f1(g.now)}억이면 계약 가능` : `지금 ${f1(g.now)}억 필요 <em class="gs-sh">${f1(g.now - CASH)}억 모자라요</em>`}</b><small class="gs-2">${g.x.ok ? `입주까지 총 ${f1(g.total)}억${g.total > CASH ? ` · 내 돈 ${e2(CASH)}억 빼면 ${f1(g.total - CASH)}억 더` : ""}` : "입주까지는 계산 전"}</small></div>`;

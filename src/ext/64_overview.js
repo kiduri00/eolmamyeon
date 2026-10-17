@@ -38,7 +38,7 @@ const OVX = (() => {
     const bars = qq.map((x, i) => {
       const y = Y(x[1]), yr = "20" + x[0].slice(0, 2), lab = yr !== lastYr ? ((lastYr = yr), `<text x="${(X(i)).toFixed(1)}" y="${H - 4}" class="yr">${yr}</text>`) : "";
       const cx = X(i) + bw / 2, anc = cx > W - 24 ? "end" : cx < 24 ? "start" : "middle", tx = anc === "end" ? X(i) + bw : anc === "start" ? X(i) : cx;
-      const v = i === n - 1 || (i === imx && imx < n - 2) ? `<text x="${tx.toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="${anc}" class="bv${i === n - 1 ? " last" : ""}">${eok(x[1])}</text>` : "";
+      const v = i === n - 1 || (i === imx && imx < n - 2) ? `<text x="${tx.toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="${anc}" class="bv${i === n - 1 ? " last" : ""}">${i === n - 1 ? "최근 분기 " : ""}${eok(x[1])}</text>` : "";
       return `<rect x="${X(i).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pb - y).toFixed(1)}" rx="4" class="${i === n - 1 ? "on" : ""}"><title>${x[0]} · ${eok(x[1])} · ${x[2]}건</title></rect>${v}${lab}`;
     }).join("");
     return `<div class="ov-ch"><div class="ov-cht">${unit} · 분기별</div><svg class="ov-bar" viewBox="0 0 ${W} ${H}" role="img" aria-label="${unit} 분기별 가운데 값">${bars}</svg></div>`;
@@ -51,7 +51,7 @@ const OVX = (() => {
     const win = h.w === 0 ? "최근 거래" : h.w === 24 ? "2년" : "1년";
     const sz = h.b !== "v" && h.pa ? `전용 ${Math.round(h.pa)}㎡ 기준 ${eok(h.p)}` : h.p ? `가운데 거래가 ${eok(h.p)}` : "";
     const chips = [sz, `${win} ${h.n}건`, h.to ? `최근 ${ym(h.to)}` : ""].filter(Boolean);
-    const TY = ["빌라", "단독", "아파트", "입주권"], S = (h.r || []).slice(0, 3);
+    const TY = ["빌라", "단독", "아파트", "입주권"], S = (h.r || []).slice(0, matchMedia("(max-width:640px)").matches ? 2 : 3);
     return `<div class="ov-c ov-tx"><h3>실거래 ${yoy}</h3>
       <div class="ov-big"><span>${per}</span><b>${eok(h.u)}</b></div>
       <div class="ov-chips">${chips.map((c) => `<span>${c}</span>`).join("")}</div>
@@ -108,7 +108,7 @@ const OVX = (() => {
         if (z) {
           mm.addSource("z", { type: "geojson", data: { type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: {} } });
           mm.addLayer({ id: "zf", type: "fill", source: "z", paint: { "fill-color": "#2f6feb", "fill-opacity": 0.16 } });
-          mm.addLayer({ id: "zl", type: "line", source: "z", paint: { "line-color": "#1f3a87", "line-width": 2.5 } });
+          mm.addLayer({ id: "zl", type: "line", source: "z", paint: { "line-color": matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark" ? "#8fb0ff" : "#1f3a87", "line-width": 2.5 } });
         } else {
           mm.addSource("p", { type: "geojson", data: { type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: {} } });
           mm.addLayer({ id: "p", type: "circle", source: "p", paint: { "circle-radius": 8, "circle-color": "#1f3a87", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
@@ -126,7 +126,7 @@ const OVX = (() => {
     w.innerHTML = `<div class="ov-map" id="ovMap" role="img" aria-label="${esc(shortName(r.n))} 위치"></div><div class="ov-row"><div class="ov-oldw">${oldHTML(t0, r)}</div><div class="ov-txw">${txHTML(t0, r, null)}</div></div>`;
     // 주소 줄: 구 동 · 단계 · 역 도보
     const wh = head.querySelector(".where");
-    if (wh) { const dong = ((r.j || r.bj || "").match(/^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)/) || [, r.dg || ""])[1]; const st = r.st && r.st.d ? `${r.st.n.replace(/역$/, "")}역 ${Math.max(1, Math.round(r.st.d * 1.3 / 67))}분` : ""; wh.classList.add("ov-w"); wh.removeAttribute("title"); wh.innerHTML = `<b>${esc(r.g)} ${esc(dong)}</b><span class="ov-chip">${esc(stageName(r))}</span>${st ? `<span class="ov-chip g">${esc(st)}</span>` : ""}`; }
+    if (wh) { const dong = ((r.j || r.bj || "").match(/^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)/) || [, r.dg || ""])[1]; const wm = r.st && r.st.d ? Math.max(1, Math.round(r.st.d * 1.3 / 67)) : 0, st = wm ? (wm > 20 ? "역에서 멀어요" : `${r.st.n.replace(/역$/, "")}역 ${wm}분`) : ""; wh.classList.add("ov-w"); wh.removeAttribute("title"); wh.innerHTML = `<b>${esc(r.g)} ${esc(dong)}</b><span class="ov-chip">${esc(stageName(r))}</span>${st ? `<span class="ov-chip g">${esc(st)}</span>` : ""}`; }
     const where = head.querySelector(".where");
     (where || head.firstElementChild).after(w);
     w.addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; const tb = document.getElementById("tab-" + b.dataset.tab); if (tb) { tb.click(); tb.scrollIntoView({ block: "start", behavior: "smooth" }); } });
@@ -153,6 +153,12 @@ const OVX = (() => {
       p.querySelectorAll(".chk3, .lead-card, .leadc, [class*=lead]").forEach((x) => (x.hidden = true));
     }
     if (curTab === "money" && apt) p.querySelectorAll(".rvj").forEach((x) => (x.hidden = true));
+    if (curTab === "req") hideSect(/적용 기준|동의 기준|접도|조례/);
+    // 입주 현금 탭이 접힌 근거만 남아 비면, 위 카드의 결론을 한 번 더 크게
+    if (curTab === "money") {
+      const vis = [...p.children].filter((x) => !x.hidden && getComputedStyle(x).display !== "none" && !x.classList.contains("s-fold"));
+      if (!vis.length) { const cs = document.querySelector("#report .rep-head .cstrip"); p.insertAdjacentHTML("afterbegin", `<div class="ov-c ov-msg">${cs ? cs.innerHTML : "이 구역은 아직 계산할 자료가 부족해요."}</div>`); }
+    }
     p.querySelectorAll("dl.facts > div").forEach((d) => { const t = d.textContent; if (/자료 없음|미공개|계산 불가|일반분양 비율/.test(t)) d.hidden = true; });
   }
   function init() {
