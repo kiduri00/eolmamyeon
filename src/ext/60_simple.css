@@ -274,3 +274,8 @@ html.simple .s-hero{gap:10px}
   .s-cash b,.s-count b{font-size:clamp(52px,6vw,72px)}
   .s-cash small,.s-count small{font-size:14px}
 }
+.s-gauge .s-h1 em{font-style:normal;color:var(--brand)}
+@media (max-width:640px){
+  .s-ghead{flex-wrap:wrap;gap:10px}
+  .s-gauge .s-h1{white-space:normal;font-size:22px}
+}

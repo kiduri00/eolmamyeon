@@ -44,7 +44,7 @@ const SIMPLE = (() => {
     hero.innerHTML = `
       <button type="button" class="s-search" id="sSearch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>구역 이름, 주소, 역으로 검색</button>
       <div class="s-gauge">
-        <div class="s-ghead"><h1 class="s-h1">얼마면 돼?<span class="sr-only"> 내 돈으로 살 수 있는 서울 재개발</span></h1>
+        <div class="s-ghead"><h1 class="s-h1">내 돈으로 살 수 있는 <em>서울 재개발</em></h1>
           <div class="s-mode" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">현금만</button></div></div>
         <div class="s-gmain">
           <label for="sCash" class="s-cash"><small>내 현금</small><b id="sCashV">1억</b></label>
