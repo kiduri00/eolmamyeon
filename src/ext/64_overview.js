@@ -222,7 +222,7 @@ const OVX = (() => {
     const alts = [
       near ? [`구역 안 ${per}`, eok(h.u), hdBasis] : null,
       sm && h.u && Math.abs(h.u - sm.u) >= 1 ? ["대표 거래", eok(h.u), hdBasis] : null,
-      lq && !(h.q && h.q.length > 2) ? ["최근 분기", eok(lq[1]), `${lq[0].replace(/^(\d\d)Q/, "'$1년 ")}분기 · ${lq[2]}건`] : null,
+      lq && !(h.q && h.q.length > 2) && !(near && lq[2] >= h.n) ? ["최근 분기", eok(lq[1]), `${lq[0].replace(/^(\d\d)Q/, "'$1년 ")}분기 · ${lq[2]}건`] : null,
       h.b === "v" && ag && ag.c != null ? ["31년 이상 건물", eok(ag.c), `구역 안 전체 기간 · ${agn.c || 0}건`] : null,
     ];
     const ch = h.q && h.q.length > 2 ? chart(r, h.q, per) : "";
