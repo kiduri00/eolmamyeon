@@ -355,3 +355,49 @@ html.simple.s-full .lm-layers{top:124px}
 :root[data-theme="dark"] .s-t i{background:color-mix(in srgb,var(--ic,#8fa8ff) 22%,#1b2029)}
 /* 겹쳐 보기 버튼: 작은 홈 지도에선 숨기고 전체 지도에서만 */
 html.simple:not(.s-full) #mapbox[data-view="seoul"] .lm-ctl{display:none}
+
+/* ===== 목록 줄: 이름 · 작은 흐름선 · 금액(눌러서 '왜 이 금액?') ===== */
+.s-list li:not(.s-empty){display:flex;align-items:stretch}
+.s-list li:not(.s-empty):hover{background:var(--surface-2)}
+.s-list li>a{flex:1 1 auto;min-width:0;padding-right:4px}
+.s-list a:hover{background:none}
+.s-sp{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:1px;width:44px;color:var(--text-3);line-height:1}
+.s-sp svg{display:block;opacity:.85}
+.s-sp i{font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:-.02em;color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+button.s-amt{margin:0;padding:6px 16px 6px 8px;border:0;background:none;color:inherit;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;justify-content:center;align-items:flex-end}
+button.s-amt b{border-bottom:1px dashed color-mix(in srgb,var(--brand) 40%,transparent);line-height:1.15}
+button.s-amt:hover b{border-bottom-style:solid}
+button.s-amt:focus-visible{outline:2px solid var(--focus);outline-offset:-4px;border-radius:10px}
+@media (max-width:640px){button.s-amt{padding-right:14px}}
+.s-list li.s-nosp .s-sp{display:none}
+
+.s-why{position:fixed;z-index:60;width:min(300px,calc(100vw - 16px));padding:12px 14px 10px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text-1);box-shadow:0 10px 30px -8px rgba(15,23,42,.28);font-size:14px}
+.s-why[hidden]{display:none}
+.s-why.bs{left:8px!important;right:8px;width:auto;top:auto!important;bottom:calc(72px + env(safe-area-inset-bottom,0px));border-radius:16px}
+html.sheet-open .s-why.bs,html.menu-open .s-why.bs{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+.s-wh{display:flex;align-items:baseline;gap:8px;margin:0 0 6px}
+.s-wh b{font-size:14.5px;font-weight:800}
+.s-wh span{flex:1;min-width:0;font-size:12.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-wh button{flex:none;width:32px;height:32px;margin:-8px -8px -8px 0;border:0;border-radius:50%;background:none;color:var(--text-2);font-size:20px;line-height:1;cursor:pointer}
+.s-why ul{list-style:none;margin:0;padding:0;font-variant-numeric:tabular-nums}
+.s-why li{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+.s-why li span{color:var(--text-2)}
+.s-why li i{display:inline-block;width:16px;font-style:normal;color:var(--text-3);font-weight:700}
+.s-why li small{color:var(--text-3);font-size:12px}
+.s-why li b{font-weight:700}
+.s-why li.s-wsum{margin-top:4px;padding-top:7px;border-top:1px solid var(--divider)}
+.s-why li.s-wsum span{color:var(--text-1);font-weight:700}
+.s-why li.s-wsum b{color:var(--brand);font-weight:800;font-size:16px}
+.s-why li.s-wna{color:var(--text-2)}
+.s-why p{margin:6px 0 0;font-size:12.5px;color:var(--text-3)}
+.s-wgo{display:block;margin:8px 0 0 auto;padding:6px 0;border:0;background:none;color:var(--brand);font:600 13px var(--font);cursor:pointer}
+
+/* 첫 방문 안내 한 번(눌러도 아래를 막지 않음) */
+.s-coach{position:absolute;z-index:3;padding:6px 10px;border-radius:8px;background:var(--text-1);color:var(--surface);font:600 12.5px var(--font);white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(15,23,42,.2);animation:sCoach .35s ease-out both}
+.s-coach::after{content:"";position:absolute;left:var(--ax,50%);top:-5px;width:10px;height:10px;margin-left:-5px;background:inherit;transform:rotate(45deg);border-radius:2px}
+@keyframes sCoach{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.s-coach{animation:none}}
+/* 브랜드: 집핀 */
+.logo .logo-t{font-size:20px;font-weight:800;letter-spacing:-.04em;color:var(--text-1)}
+.logo .logo-s{margin-left:6px;font-size:12px;font-weight:600;color:var(--text-3);letter-spacing:-.01em;align-self:center}
+@media (max-width:640px){.logo .logo-s{display:none}}

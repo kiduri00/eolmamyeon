@@ -26,7 +26,7 @@ const EXTRA = (() => {
     const g = cv.getContext("2d"), F = (w, s) => `${w} ${s}px "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
     const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#1f3a87"); gr.addColorStop(1, "#142659");
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
-    g.fillStyle = "rgba(255,255,255,.6)"; g.font = F(600, 38); g.fillText("얼마면 재개발", 88, 130);
+    g.fillStyle = "rgba(255,255,255,.6)"; g.font = F(600, 38); g.fillText("집핀 · 서울 재개발 지도", 88, 130);
     g.fillStyle = "#fff"; g.font = F(800, shortName(r.n).length > 10 ? 76 : 96);
     g.fillText(shortName(r.n), 88, 300, W - 176);
     g.fillStyle = "rgba(255,255,255,.75)"; g.font = F(500, 40); g.fillText(`${r.g} ${dongOfR(r)} · ${String(srLabel(r)).replace(/(회|합)(승인|인가)/, "$1 $2")}`, 88, 375, W - 176);
@@ -60,7 +60,7 @@ const EXTRA = (() => {
     const file = blob && typeof File === "function" ? new File([blob], name, { type: "image/png" }) : null;
     const url = `https://jaegaebal.alwaysquestions.kr/z/${r.id}`;
     try {
-      if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: shortName(r.n), text: `${shortName(r.n)} · 얼마면 재개발 ${url}` }); return; }
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: shortName(r.n), text: `${shortName(r.n)} · 집핀 ${url}` }); return; }
     } catch (e) { if (e && e.name === "AbortError") return; }
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
