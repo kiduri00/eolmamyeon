@@ -93,6 +93,7 @@ document.addEventListener("click", (e) => {
 (() => {
   const SEL = '#tabbar a[data-sec], [data-menu], [data-jump2], .next-steps a[href^="#"]';
   document.addEventListener("click", (e) => {
+    if (document.documentElement.classList.contains("simple")) return;   // 단순 화면은 60_simple.js가 기록을 관리
     const a = e.target.closest && e.target.closest(SEL);
     if (!a || e.metaKey || e.ctrlKey) return;
     if (document.getElementById("report").classList.contains("sheet")) return;
