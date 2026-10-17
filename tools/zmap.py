@@ -111,6 +111,13 @@ def minimap(r, GEO, D, short):
     st.sort()
     for _, x, y, n in st[:6]:
         o.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.5" class="mm-st"/><text x="{x:.1f}" y="{y - 10:.1f}" class="mm-tx" text-anchor="middle">{esc(n)}</text>')
+    if not st:   # 보이는 역이 없으면 가장 가까운 역 쪽 가장자리에 방향 표시
+        best = min(((((s_[2] - cx) * kx) ** 2 + ((s_[1] - cy) * ky) ** 2) ** .5, s_) for s_ in (D.get('stations') or [])) if D.get('stations') else None
+        if best:
+            dm, s_ = best; x, y = P(s_[2], s_[1]); dx, dy = x - W / 2, y - H / 2; f = min((W / 2 - 70) / max(1e-6, abs(dx)), (H / 2 - 40) / max(1e-6, abs(dy)))
+            ex, ey = W / 2 + dx * f, H / 2 + dy * f; ang = math.degrees(math.atan2(dy, dx))
+            lab = f'{s_[0]} {round(dm / 50) * 50:,}m'
+            o.append(f'<g class="mm-off"><path d="M0,-7L12,0L0,7z" transform="translate({ex:.1f},{ey:.1f}) rotate({ang:.0f})"/><text x="{ex - (dx > 0) * 10 + (dx <= 0) * 10:.1f}" y="{ey + (18 if dy < 0 else -12):.1f}" text-anchor="{"end" if dx > 0 else "start"}" class="mm-tx">{esc(lab)}</text></g>')
     # 구역 이름표
     top = min(P(*q)[1] for rg in rings for q in rg)
     nm = short(r['n']); tw = min(300, 16 + 13.5 * len(nm))
@@ -128,10 +135,10 @@ def minimap(r, GEO, D, short):
            '.mm-st{fill:#fff;stroke:#333d4b;stroke-width:2.5}.mm-tx{font:700 12.5px Pretendard,system-ui,sans-serif;fill:#333d4b;paint-order:stroke;stroke:#fff;stroke-width:3.5;stroke-linejoin:round}'
            '.mm-lab rect{fill:#1f3a87}.mm-lab text{font:700 13px Pretendard,system-ui,sans-serif;fill:#fff}'
            '.mm-sb rect,.mm-n circle{fill:#fff;fill-opacity:.9}.mm-sb path{stroke:#333d4b;stroke-width:2;fill:none}.mm-sb text{font:600 11px Pretendard,system-ui,sans-serif;fill:#333d4b}'
-           '.mm-n path{fill:#333d4b}.mm-n text{font:700 8px system-ui,sans-serif;fill:#333d4b}.mm-gn{font:700 13px Pretendard,system-ui,sans-serif;fill:#4e5968;paint-order:stroke;stroke:#fbfcfd;stroke-width:4}'
+           '.mm-n path,.mm-off path{fill:#333d4b}.mm-n text{font:700 8px system-ui,sans-serif;fill:#333d4b}.mm-gn{font:700 13px Pretendard,system-ui,sans-serif;fill:#4e5968;paint-order:stroke;stroke:#fbfcfd;stroke-width:4}'
            '@media (prefers-color-scheme:dark){.mm-bg{fill:#121722}.mm-og{fill:#171d2a;stroke:#3a4458}.mm-gu{fill:#1b2130;stroke:#8b95a8}.mm-grid{stroke:#fff}.mm-oz{fill:#7da2ff;stroke:#7da2ff}'
            '.mm-lc{stroke:#1b2130}.mm-z{fill:#7da2ff;stroke:#9db8ff}.mm-st{fill:#1b2130;stroke:#d5dae3}.mm-tx{fill:#d5dae3;stroke:#1b2130}.mm-lab rect{fill:#9db8ff}.mm-lab text{fill:#14213d}'
-           '.mm-sb rect,.mm-n circle{fill:#1b2130}.mm-sb path{stroke:#d5dae3}.mm-sb text,.mm-n text{fill:#d5dae3}.mm-n path{fill:#d5dae3}.mm-gn{fill:#c3cad9;stroke:#1b2130}}')
+           '.mm-sb rect,.mm-n circle{fill:#1b2130}.mm-sb path{stroke:#d5dae3}.mm-sb text,.mm-n text{fill:#d5dae3}.mm-n path,.mm-off path{fill:#d5dae3}.mm-gn{fill:#c3cad9;stroke:#1b2130}}')
     cap = f'정비구역 경계(서울도시공간포털·정비사업 현황){" · 경계 자료가 없어 면적 기준 원으로 표시(점선)" if est else ""} · 옅은 칸은 주변 정비구역 · 점선은 {esc(r["g"])} 경계'
     return (f'<figure class="mm" style="margin:16px 0 8px"><svg viewBox="0 0 {W} {H}" role="img" aria-label="{esc(short(r["n"]))} 위치 지도: 정비구역 경계와 가까운 지하철역">'
             f'<style>{css}</style><rect width="{W}" height="{H}" class="mm-bg"/>{"".join(o)}</svg>'

@@ -1160,6 +1160,7 @@
   const yieldT = () => (window.scheduler && scheduler.yield ? scheduler.yield() : new Promise((r) => setTimeout(r, 0)));
   // 구역 수는 한 기준만: 진행 중 = 준공·해산 빼고 모아타운 관리지역 뺀 곳(tools/zpages.py의 /z·/gu 숫자와 같음)
   window.ZP_zones = { live: POP.length, done: R.filter((r) => isDone(r) && r.src !== "moa").length, moa: MOA_ALL.length };
+  try { $("eyebrow").title = `진행 중 ${fmt(POP.length)}곳 = 준공·해산 ${fmt(window.ZP_zones.done)}곳과 모아타운 관리지역 ${fmt(MOA_ALL.length)}곳을 뺀 숫자`; } catch (e) {}
   document.querySelectorAll("[data-zcount]").forEach((el) => (el.textContent = `진행 중 ${fmt(POP.length)}곳 한 장씩`));
   $("eyebrow").innerHTML =
     `<span class="live" aria-hidden="true"></span><span class="eb-l">서울 진행 중 정비사업 ${fmt(POP.length)}곳 · 모아타운 관리지역 ${fmt(MOA_ALL.length)}곳 별도 · 데이터 갱신 ${UPD}</span><span class="eb-s">서울 정비사업 ${fmt(POP.length)}곳 · ${+(D.upd || D.asOf).slice(5, 7)}.${+(D.upd || D.asOf).slice(8, 10)} 갱신</span>`;
@@ -4265,7 +4266,8 @@
         const st = i < ladderIdx ? "done" : i === ladderIdx ? "now" : "";
         const d = dates[i];
         const sk = skip.has(i) || (i === 3 && (r.skip || []).includes("추진위"));
-        const later = d && dates.slice(i + 1).some((x) => x && x < d);
+        // 뒤 단계 날짜가 더 이르면 변경 지정·고시일. 단 구역지정보다 이른 추진위는 2009년 전 제도상 정상이라 보지 않는다
+        const later = d && dates.slice(i + 1).some((x, j) => x && x < d && !(dMap[i] === "구역지정" && dMap[i + 1 + j] === "추진위"));
         return `<li class="${st}${sk ? " skip" : ""}"><span class="d">${sk ? "–" : i < ladderIdx ? "✓" : i}</span><div><b>${esc(l)}</b>${sk && i === 3 && (r.skip || []).includes("추진위") && !r.trust ? "<p>생략 (공공지원 조합직접설립)</p>" : ""}${later ? "<p>이 날짜는 변경 지정·고시일로 보여요 (최초 지정은 더 이름)</p>" : ""}</div><span class="t">${d ? d.replaceAll("-", ".") + ((r.dq || []).includes(dMap[i]) ? " ?" : "") + (later ? " (변경)" : "") : i === ladderIdx ? "현재" : ""}</span></li>`;
       },
     ).join(
@@ -8790,8 +8792,8 @@
       requestAnimationFrame(() => jumpTo("mapTop"));
     }
     // #report(구별 요약): 모바일에선 빈 리포트 칸이 숨겨지므로 같은 내용인 '지역 · 필요한 돈' 목록으로
-    const hashT = hash0 === "report" && !byId[hash0] && $("report") && !$("report").offsetParent && $("sList") ? "sList" : hash0;
-    if (hashT && !gu0 && $(hashT)) requestAnimationFrame(() => jumpTo(hashT));
+    if (hash0 === "report" && !$("report").offsetParent && $("sListW")) setTimeout(() => $("sListW").scrollIntoView({ block: "start" }), 300);
+    else if (hash0 && !gu0 && $(hash0)) requestAnimationFrame(() => jumpTo(hash0));
     refreshFades();
   }
   initFold();

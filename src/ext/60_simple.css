@@ -471,5 +471,4 @@ html.simple #mapbox:not(.lm-on){min-height:560px}
   html:not(.s-full) .s-mini{top:calc(var(--hdr-h,56px) - 1px);left:0;right:0;border-radius:0;border-width:0 0 1px;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));background:var(--surface);box-shadow:0 6px 12px -8px rgba(15,23,42,.25)}
 }
 /* 푸터: 데이터 기준 줄과 첫 링크 사이 12px, 링크 줄은 44px */
-html.simple .site-foot #footAsof{margin-bottom:12px}
-@media (max-width:980px){html.simple .site-foot .f-bot a{display:flex;align-items:center;min-height:44px;padding:0}}
+@media (max-width:980px){html.simple .site-foot #footAsof{margin-bottom:12px}html.simple .site-foot .f-bot a{display:flex;align-items:center;min-height:44px;padding:0}}

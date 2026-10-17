@@ -699,7 +699,17 @@
       map.on("moveend", edgeSoon); map.on("resize", () => { shortMark(); edgeSoon(); });
       let nRaf = 0;
       map.on("zoom", () => { if (!nRaf) nRaf = requestAnimationFrame(() => { nRaf = 0; notes(); }); });
-      map.once("load", () => { const a = $("lmap").querySelector(".maplibregl-ctrl-attrib"); if (a) a.classList.remove("maplibregl-compact-show"); });
+      // 출처는 접힌 'i' 단추로만(라이브러리가 로딩 중 저절로 펼쳤다 접으면 자리가 흔들림 = CLS). 사람이 누를 때만 펼친다
+      {
+        const at = $("lmap").querySelector(".maplibregl-ctrl-attrib");
+        if (at) {
+          let userT = 0;
+          const fold = () => { if (Date.now() - userT < 800) return; if (at.classList.contains("maplibregl-compact-show")) at.classList.remove("maplibregl-compact-show"); if (at.hasAttribute("open")) at.removeAttribute("open"); };
+          ["pointerdown", "keydown", "click"].forEach((t) => at.addEventListener(t, () => { userT = Date.now(); }, true));
+          try { new MutationObserver(fold).observe(at, { attributes: true, attributeFilter: ["class", "open"] }); } catch (e) {}
+          fold();
+        }
+      }
       map.on("error", (e) => {
         const m = String((e && e.error && e.error.message) || "");
         if (/openfreemap|Failed to fetch|NetworkError/.test(m) && !$("lmap").querySelector(".lm-err")) {
@@ -803,7 +813,7 @@
       zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else fitAff(true); },
       geo: () => loadGeo(),
       fitAff: (anim) => fitAff(anim),
-      fit: () => { shortMark(); if (!map) return; map.resize(); fitAff(false); },
+      fit: () => { shortMark(); if (!map) return; map.resize(); if (!cur) fitAff(false); },   // 고른 구역이 있으면 보던 자리 그대로
       lib: () => loadLib(), style: () => style(), subway: () => subwayGeo(),
       map: () => map,
     };

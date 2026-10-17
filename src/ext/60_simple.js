@@ -73,8 +73,9 @@ const SIMPLE = (() => {
     [60, 300, 800].forEach((t) => setTimeout(() => { try { LMX.fit(); } catch (e) {} }, t));
     try {
       const base = location.pathname + location.search;
-      if (on && !(history.state && history.state.sFull)) { if (location.hash === "#map") history.replaceState({ sFull: 1 }, "", base + "#map"); else history.pushState({ sFull: 1 }, "", base + "#map"); }
-      else if (!on && history.state && history.state.sFull) history.back();
+      // /#map 으로 바로 들어온 경우(root)는 뒤로 갈 곳이 사이트 밖이라 주소만 지운다
+      if (on && !(history.state && history.state.sFull)) { if (location.hash === "#map") history.replaceState({ sFull: 1, root: 1 }, "", base + "#map"); else history.pushState({ sFull: 1 }, "", base + "#map"); }
+      else if (!on && history.state && history.state.sFull) { if (history.state.root) history.replaceState(null, "", base); else history.back(); }
       else if (!on && location.hash === "#map") history.replaceState(null, "", base);
     } catch (e) {}
   }
@@ -471,18 +472,18 @@ const SIMPLE = (() => {
     // 같은 페이지에서 주소의 #도구 이름만 바뀌어도(링크·뒤로가기) 그 도구를 연다
     window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (IDS.includes(h) && cur !== h) { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (e) {} open(h); } });
     window.addEventListener("popstate", () => { const on = document.documentElement.classList.contains("s-full"), want = !!(history.state && history.state.sFull) || location.hash === "#map"; if (on && !want) fullMap(false); else if (!on && want && history.state && history.state.sFull) fullMap(true); });
-    if (location.hash === "#map") setTimeout(() => fullMap(true), 0);
     if (P.fund === "cash" && P.basis !== "now") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (e) {} }
     build();
     // 메뉴(⋯)는 shell.html에 도구·자료·사이트로 묶어 둔다
     try { SECT.mapTop(); } catch (e) {}
     try { LMX.seoul(); } catch (e) {}   // 첫 지도도 실제 지도(구역 경계·지하철)로
+    if (location.hash === "#map") fullMap(true);   // /#map 링크 = 전체 지도로 바로
     // 기존 '바로가기'(메뉴·다음 단계·히어로 링크)는 해당 기능 화면을 연다
     document.addEventListener("click", (e) => {
       const a = e.target.closest && e.target.closest("[data-menu],[data-jump2],[data-sec],a[href^='#']");
       if (!a || a.closest("#sTiles") || a.closest("#sList")) return;
       // 본문 바로가기: 열린 기능 화면을 닫고 첫 화면 본문(제목)으로 초점
-      if (a.classList.contains("skip")) { e.preventDefault(); e.stopImmediatePropagation(); close(); const t = document.querySelector(".s-h1") || $("mapTop"); if (t) { if (!t.hasAttribute("tabindex")) t.setAttribute("tabindex", "-1"); t.focus(); } return; }
+      if (a.classList.contains("skip")) { e.preventDefault(); e.stopImmediatePropagation(); const wasOpen = !!cur; close(); const t = document.querySelector(".s-h1") || $("mapTop"); if (t) { if (!t.hasAttribute("tabindex")) t.setAttribute("tabindex", "-1"); const f = () => t.focus({ preventScroll: true }); f(); setTimeout(() => { f(); window.scrollTo({ top: 0, behavior: "auto" }); }, wasOpen ? 120 : 0); } return; }
       const id = a.dataset.menu || a.dataset.jump2 || a.dataset.sec || (a.getAttribute("href") || "").slice(1);
       if (IDS.includes(id)) { e.preventDefault(); e.stopImmediatePropagation(); if (a.closest("#menuPop")) $("menuBtn").click(); open(id); }
       else if (id === "mapTop" || id === "planner0") { e.preventDefault(); close(); }

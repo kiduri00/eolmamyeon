@@ -121,7 +121,7 @@ def page(r):
     # 인가 이력
     hist = [(lab, dt[key]) for key, lab in DTK if dt.get(key)]
     if hist:
-        o.append('<h2>인가 이력</h2><ul class="steps">' + ''.join(f'<li class="{"cur" if i == len(hist) - 1 else ""}"><b>{esc(l)}</b><span>{esc(d[:10].replace("-", "."))}{" (변경)" if any(d2 < d for _, d2 in hist[i + 1:]) else ""}</span></li>' for i, (l, d) in enumerate(hist)) + '</ul>')
+        o.append('<h2>인가 이력</h2><ul class="steps">' + ''.join(f'<li class="{"cur" if i == len(hist) - 1 else ""}"><b>{esc(l)}</b><span>{esc(d[:10].replace("-", "."))}{" (변경)" if any(d2 < d and not (l == "정비구역 지정" and l2 == "추진위원회 승인") for l2, d2 in hist[i + 1:]) else ""}</span></li>' for i, (l, d) in enumerate(hist)) + '</ul>')
     ev = [e for e in (pm.get('ev') or []) if e and e[0] <= datetime.date.today().isoformat()][:6]
     if ev:
         o.append('<h3>정보몽땅 최근 기록</h3><ul class="steps tl">' + ''.join(f'<li><b>{esc(d.replace("-", "."))}</b><span>{esc(sec)} · {esc(re.sub(r"^\[([^]]*)\]\s*(.*)$", lambda m: m.group(1) + (" · " + m.group(2) if m.group(2) else ""), tx))}</span></li>' for d, sec, tx in ev) + '</ul>')
