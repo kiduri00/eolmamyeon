@@ -160,7 +160,7 @@ svg.ov-bar .gl{stroke:var(--divider,var(--border));stroke-width:1}
 svg.ov-bar .gl.b{stroke:var(--border)}
 svg.ov-bar .ax{font:500 9.5px var(--font);fill:var(--text-3);text-anchor:end}
 svg.ov-bar .bn{font:500 9.5px var(--font);fill:var(--text-3);text-anchor:middle;font-variant-numeric:tabular-nums}
-svg.ov-bar rect.lo{fill:color-mix(in srgb,var(--brand) 10%,transparent)}
+svg.ov-bar rect.lo{fill:color-mix(in srgb,var(--brand) 13%,transparent)}
 svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 .ov-chn{margin:2px 4px 0;font-size:11px;color:var(--text-3)}
 /* 입지 칩: 누르면 설명 */
@@ -168,3 +168,6 @@ svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 #report .rep-head .gb.lb[aria-expanded="true"]{outline:1.5px solid var(--text-3);outline-offset:1px}
 .ov-wl{display:inline-flex;align-items:center;min-height:32px;padding:0;border:0;background:none;color:var(--brand);font:700 13px var(--font);cursor:pointer}
 .ov-tl-now.ov-stl{padding:2px 8px;border-radius:999px;color:var(--warn-ink);background:var(--warn-soft);font-weight:700}
+.ov-calc{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;margin-top:8px;padding:8px 12px;border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--text-2)}
+.ov-calc b{font-size:17px;font-weight:800;color:var(--text-1);font-variant-numeric:tabular-nums}
+.ov-calc small{font-size:12px;color:var(--text-3)}

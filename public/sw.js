@@ -1,7 +1,7 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "aa059223"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "96106463"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
@@ -9,7 +9,7 @@ const CDN = "eolma-cdn-" + V;
 const BUND = "eolma-bund-" + V;
 const PAGES = "eolma-pages"; // 다녀간 구역·구·리포트 페이지(버전과 무관하게 유지 · 오프라인에서 다시 열기)
 const KEEP = [SHELL, DATA, TILE, CDN, BUND, PAGES];
-const PRE = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png"];
+const PRE = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-small.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png"];
 const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30, [BUND]: 6, [PAGES]: 80 };
 const isDoc = (p) => /^\/(z|gu|report|guide|feed)\//.test(p) || /^\/(years|about|method|contact|terms|privacy)$/.test(p);
 

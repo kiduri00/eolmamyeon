@@ -612,7 +612,7 @@ const PINS = (() => {
       out.addEventListener("click", onClick);
       $("pnCmpOut") && $("pnCmpOut").addEventListener("click", onClick);
       out.addEventListener("input", (e) => { const i = e.target.closest && e.target.closest("[data-pmemo]"); if (!i) return; const sp = SNAP[i.dataset.pmemo]; if (sp) { sp.memo = i.value.slice(0, 20).trim(); saveS(); } });
-      out.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches && e.target.matches("[data-pmemo]")) e.target.blur(); });
+      out.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing && e.target.matches && e.target.matches("[data-pmemo]")) { e.preventDefault(); e.target.blur(); } }, true);
       // 메모 입력 중에 '목표 세우기'·'핀 빼기'를 누르면: 포커스가 빠지며(change) 목록을 다시 그려 버튼이 사라지던 문제.
       // 편집 줄 버튼을 누르는 순간(pointerdown)을 기억해 그때는 다시 그리지 않고, 포커스 이동 자체도 막는다.
       out.addEventListener("pointerdown", (e) => { if (e.target.closest && e.target.closest(".pn-ed button")) PEND = Date.now(); }, true);

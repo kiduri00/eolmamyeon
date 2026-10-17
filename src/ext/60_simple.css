@@ -418,11 +418,12 @@ html.simple #planner.s-on>.s-back{grid-column:1/-1;justify-self:start;height:aut
 .s-coach::after{left:-4px;top:50%;margin:-5px 0 0}
 .s-coach.l::after{left:auto;right:-4px}
 /* 대출 가정 칩 */
-.s-asm{position:relative;margin:0;display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:0 6px 0 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text-2);font:600 12px var(--font);white-space:nowrap;cursor:pointer}
+.s-asm{position:relative;z-index:0;margin:-8px 0;display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:0 6px 0 10px;border:0;background:none;color:var(--text-2);font:600 12px var(--font);white-space:nowrap;cursor:pointer}
+.s-asm::before{content:"";position:absolute;left:0;right:0;top:8px;bottom:8px;z-index:-1;border:1px solid var(--border);border-radius:999px;background:var(--surface)}
 .s-asm[hidden]{display:none}
 .s-asm i{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--surface-3);color:var(--text-2);font:700 10.5px var(--font);font-style:normal}
-.s-asm:hover{border-color:var(--brand-line,var(--border));color:var(--text-1)}
-.s-asm::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:44px;transform:translate(-50%,-50%)}
+.s-asm:hover{color:var(--text-1)}
+.s-asm:focus-visible{outline:none}.s-asm:focus-visible::before{outline:2px solid var(--focus);outline-offset:1px}
 .s-ghead{justify-content:flex-start;column-gap:8px}
 .s-ghead .s-h1{flex:1 1 auto}
 /* 목록: 정렬 선택(글자만, 눌러 바꾸기) */

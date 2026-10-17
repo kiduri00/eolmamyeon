@@ -37,13 +37,13 @@ def minimap(r):
         if 14 <= x <= W - 14 and 14 <= y <= H - 14: st.append((x, y, s_[0]))
     sts = ''.join(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5" class="mm-st"/><text x="{x:.1f}" y="{y - 10:.1f}" class="mm-tx" text-anchor="middle">{esc(n)}</text>' for x, y, n in st[:4])
     bar = 500 * sc
-    return (f'<figure class="mm" style="margin:16px 0 8px"><svg viewBox="0 0 {W} {H}" width="100%" role="img" aria-label="{esc(short(r["n"]))} 정비구역 경계 지도" style="display:block;max-width:640px;border-radius:14px;border:1px solid rgba(127,127,127,.25)">'
+    return (f'<div class="mm" style="margin:16px 0 8px"><svg viewBox="0 0 {W} {H}" width="100%" role="img" aria-label="{esc(short(r["n"]))} 정비구역 경계 지도" style="display:block;width:100%;height:auto;max-width:640px;border-radius:14px;border:1px solid rgba(127,127,127,.25)">'
             '<style>.mm-bg{fill:#f3f5f9}.mm-gu{fill:none;stroke:#8b95a1;stroke-width:1.5;stroke-dasharray:6 4}.mm-z{fill:rgba(31,58,135,.22);stroke:#1f3a87;stroke-width:2.5;stroke-linejoin:round}'
             '.mm-st{fill:#fff;stroke:#00a84d;stroke-width:2.5}.mm-tx{font:600 13px Pretendard,system-ui,sans-serif;fill:#4e5968;paint-order:stroke;stroke:#f3f5f9;stroke-width:3}.mm-sb{stroke:#4e5968;stroke-width:2}'
             '@media (prefers-color-scheme:dark){.mm-bg{fill:#1b2130}.mm-z{fill:rgba(91,140,255,.25);stroke:#7da2ff}.mm-tx{fill:#c3cad9;stroke:#1b2130}.mm-st{fill:#1b2130}.mm-sb{stroke:#c3cad9}}</style>'
             f'<rect width="{W}" height="{H}" class="mm-bg"/>{gp}<path d="{path(rings)}" class="mm-z" fill-rule="evenodd"/>{sts}'
             f'<line x1="16" y1="{H - 16}" x2="{16 + bar:.1f}" y2="{H - 16}" class="mm-sb"/><text x="16" y="{H - 22}" class="mm-tx">500m</text></svg>'
-            f'<figcaption class="meta">정비구역 경계(서울도시공간포털·정비사업 현황) · 점선은 {esc(r["g"])} 경계 · <a href="../#{r["id"]}">앱 지도에서 크게 보기</a></figcaption></figure>')
+            f'<p class="meta" style="margin-top:6px">정비구역 경계(서울도시공간포털·정비사업 현황) · 점선은 {esc(r["g"])} 경계 · <a href="../#{r["id"]}">앱 지도에서 크게 보기</a></p></div>')
 HDB = {'i': ('입주권 전용 3.3㎡당', '아파트 입주권'), 'a': ('아파트 전용 3.3㎡당', '아파트 매매'), 'v': ('대지 3.3㎡당', '빌라·단독 매매')}
 def short(n):
     n = re.sub(r'^\s*(\(가칭\)|\[임시\]|\(임시\))\s*', '', n)

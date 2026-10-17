@@ -93,9 +93,9 @@ for r, z in zip(R, Z):
 # 현금별 가능 구역 수
 steps = [x / 2 for x in range(1, 31)]
 # 사이트 첫 화면과 같은 기준: eligible(입주권·토지거래허가·추정 제외 등 판정 통과) + 필요한 돈 ≤ 현금
-gapN = lambda z, c: z['need']['gap']['eligible'] and z['need']['gap']['now'] is not None and z['need']['gap']['now'] <= c
-cashN = lambda z, c: z['need']['cash']['eligible'] and z['need']['cash']['now'] is not None and z['need']['cash']['now'] <= c
-cashT = lambda z, c: z['need']['cash']['eligible'] and z['need']['cash']['total'] is not None and z['need']['cash']['total'] <= c
+gapN = lambda z, c: not z.get('lowConfidence') and z['need']['gap']['eligible'] and z['need']['gap']['now'] is not None and z['need']['gap']['now'] <= c
+cashN = lambda z, c: not z.get('lowConfidence') and z['need']['cash']['eligible'] and z['need']['cash']['now'] is not None and z['need']['cash']['now'] <= c
+cashT = lambda z, c: not z.get('lowConfidence') and z['need']['cash']['eligible'] and z['need']['cash']['total'] is not None and z['need']['cash']['total'] <= c
 gus = sorted({z['gu'] for z in Z})
 W('cash.json', {'updated': D.get('upd'), 'unit': '억원', 'note': '무주택·84㎡·기본 가정. 사이트 화면은 내 조건(보유 주택·소득 등)을 반영해 조금 다를 수 있음',
                'steps': [{'cash': c, 'gapNow': sum(gapN(z, c) for z in Z), 'cashNow': sum(cashN(z, c) for z in Z), 'cashTotal': sum(cashT(z, c) for z in Z),

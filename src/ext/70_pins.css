@@ -26,6 +26,7 @@
 .pn-toast.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
 .pn-toast>span{display:flex;align-items:center;gap:8px;min-width:0}.pn-toast b{white-space:nowrap}
 .pn-toast .pn-tt{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.pn-toast{min-width:min(300px,calc(100vw - 32px))}.pn-toast>span{flex:1}.pn-toast .pn-tt{flex:1}
 .pn-toast small{font-weight:500;font-size:13px;color:rgba(255,255,255,.75);overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
 .pn-toast button{flex:none;min-height:36px;padding:0 12px;border:0;border-radius:10px;background:rgba(255,255,255,.12);color:#ffd45c;font:700 14px var(--font);cursor:pointer}
 /* 폰: 하단 탭 위에(내 핀 화면의 버튼을 가리지 않게). 시트에선 맨 아래(머리의 핀 버튼·제목을 가리지 않게) */

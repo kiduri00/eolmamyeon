@@ -18,8 +18,19 @@ html.is-app .s-nav{-webkit-user-select:none;user-select:none;-webkit-touch-callo
 
 /* 터치 영역 44px 보장(모바일·터치): 겉모습은 그대로 두고 보이지 않는 히트 영역만 넓힌다 */
 @media (max-width:980px),(pointer:coarse){
-  .hu-lead,.hu-menu,.s-flt button,.s-mode button,.favb,.ov-more{position:relative}
-  .hu-lead::after,.hu-menu::after,.s-flt button::after,.s-mode button::after,.favb::after,.ov-more::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
+  .hu-menu,.favb,.ov-more{position:relative}
+  .hu-menu::after,.favb::after,.ov-more::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
+  /* 칩·토글·머리 링크: 버튼 상자 자체를 44px로 키우고, 보이는 알약은 ::before로 그대로(음수 여백으로 흐름 높이 유지) */
+  .s-flt button,.s-mode button,.hu-lead{position:relative;z-index:0;min-height:44px;height:auto;border-color:transparent!important;background:none!important;box-shadow:none!important}
+  .s-flt button::before,.s-mode button::before,.hu-lead::before{content:"";position:absolute;left:0;right:0;z-index:-1;border-radius:999px;pointer-events:none}
+  .s-flt button{margin:-5px 0}
+  .s-flt button::before{top:5px;bottom:5px;border:1px solid var(--border);background:var(--surface)}
+  .s-flt button[aria-pressed="true"]::before{background:var(--text-1);border-color:var(--text-1)}
+  .s-mode button,.s-ghead .s-mode button{margin:-4px 0;min-height:44px}
+  .s-mode button::before{top:4px;bottom:4px}
+  .s-mode button[aria-pressed="true"]::before{background:var(--surface);box-shadow:0 1px 3px rgba(15,23,42,.15)}
+  .hu-lead{height:44px}
+  .hu-lead::before{top:6px;bottom:6px;border:1px solid color-mix(in srgb,var(--brand) 45%,var(--border))}
   /* 현금 슬라이더: 상자 높이를 44px로(아래 음수 여백으로 흐름 높이는 그대로) */
   #sCash{height:44px;margin-bottom:-12px}
   /* 지도 출처(i) 버튼 */

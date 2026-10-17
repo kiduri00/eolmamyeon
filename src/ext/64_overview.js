@@ -175,16 +175,24 @@ const OVX = (() => {
     const yoy = h.b === "v" && r.tx && r.tx.yoy != null ? `<em class="${r.tx.yoy >= 0 ? "up" : "dn"}">1년 ${r.tx.yoy >= 0 ? "▲" : "▼"} ${Math.abs(r.tx.yoy)}%</em>` : "";
     const per = `${BN} 3.3㎡당`;
     const win = h.w === 0 ? "최근 거래" : h.w === 24 ? "2년" : "1년";
-    const sz = h.b !== "v" && h.pa ? `전용 ${Math.round(h.pa)}㎡ 기준 ${eok(h.p)}` : h.p ? `가운데 거래가 ${eok(h.p)}` : "";
+    // 계산기 매수가와 다른 표본이라 '○건 가운데'로 표본을 붙여 같은 값처럼 보이지 않게
+    const smp = `${win} ${h.n}건${h.n > 1 ? " 가운데" : ""}`;
+    const sz = h.p ? (h.b !== "v" && h.pa ? `${smp} 전용 ${Math.round(h.pa)}㎡ ${eok(h.p)}` : `${smp} ${eok(h.p)}`) : `${win} ${h.n}건`;
     const thin = thinTag(h.n, h.to) || (h.st || h.w === 0 ? `오래된 거래${h.to ? ` · 최근 ${ym(h.to)}` : ""}` : "");
-    const chips = thin ? [sz, `${win} ${h.n}건`] : [sz, `${win} ${h.n}건`, h.to ? `최근 ${ym(h.to)}` : ""].filter(Boolean);
+    const chips = thin ? [sz] : [sz, h.to ? `최근 ${ym(h.to)}` : ""].filter(Boolean);
     const TY = ["빌라", "단독", "아파트", "입주권"], S = (h.r || []).slice(0, matchMedia("(max-width:640px)").matches ? 2 : 3);
     return `<div class="ov-c ov-tx${thin ? " thin" : ""}"><h3>실거래 ${yoy}</h3>
       <div class="ov-big"><span>${per}</span><b${thin ? ' title="표본이 적거나 오래돼 지금 시세와 다를 수 있어요"' : ""}>${eok(h.u)}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>
-      <div class="ov-chips">${chips.filter(Boolean).map((c) => `<span>${c}</span>`).join("")}</div>
+      ${calcRow(r)}<div class="ov-chips">${chips.filter(Boolean).map((c) => `<span>${c}</span>`).join("")}</div>
       ${h.q && h.q.length > 2 ? chart(r, h.q, per) : ""}
       ${S.length ? `<ul class="ov-l">${S.map((x) => `<li><span>${esc(ym(x[0]))}</span><span>${TY[x[1]] || ""}${x[6] ? ` ${+x[6] < 0 ? "지하" + -x[6] : esc(String(x[6]))}층` : ""}${x[3] ? ` · ${x[3]}㎡` : ""}</span><b>${eok(x[5])}</b></li>`).join("")}</ul>` : ""}
       <button type="button" class="ov-more" data-tab="tx">거래 전체 보기 →</button></div>`;
+  }
+  // 입주 현금 계산에 실제로 쓴 매수가(/z/ 페이지와 같은 값)
+  function calcRow(r) {
+    let x = null; try { x = investC(r); } catch (e) {}
+    if (!x || x.price == null || !isFinite(x.price)) return "";
+    return `<div class="ov-calc"><span>계산에 쓴 매수가</span><b>${e2(x.price)}억</b><small>${x.priceSrc === "user" ? "직접 입력" : "입주 현금 계산 기준"}</small></div>`;
   }
   function txHTML(t, r, d) {
     if (t.hd && t.hd.u) return hdHTML(t.hd, t, r);
@@ -202,7 +210,7 @@ const OVX = (() => {
     const chips = [!IP && !A && t.med && big && !/빌라/.test(big[0]) ? `빌라 ${eok(t.med)}` : "", nn ? `거래 ${nn}건` : "", last && !thin ? `최근 ${last}` : ""].filter(Boolean);
     return `<div class="ov-c ov-tx${thin ? " thin" : ""}"><h3>실거래 ${yoy}</h3>
       ${big ? `<div class="ov-big"><span>${big[0]}</span><b>${big[1]}</b>${thin ? `<em class="ov-thin">${thin}</em>` : ""}</div>` : ""}
-      ${chips.length ? `<div class="ov-chips">${chips.map((c) => `<span>${c}</span>`).join("")}</div>` : ""}
+      ${calcRow(r)}${chips.length ? `<div class="ov-chips">${chips.map((c) => `<span>${c}</span>`).join("")}</div>` : ""}
       ${ser[0] && ser[0].length > 2 ? chart(r, ser[0], ser[1]) : ""}
       ${S.length ? `<ul class="ov-l">${S.map((x) => `<li><span>${esc(ym(x[0]))}</span><span>${TY[x[1]] || ""}${x[6] ? ` ${+x[6] < 0 ? "지하" + -x[6] : esc(String(x[6]))}층` : ""}${x[3] ? ` · ${x[3]}㎡` : ""}</span><b>${eok(x[5])}</b></li>`).join("")}</ul>` : ""}
       <button type="button" class="ov-more" data-tab="tx">거래 전체 보기 →</button></div>`;
@@ -299,7 +307,7 @@ const OVX = (() => {
   function etaLabel(r) {
     try {
       const pr = projection(r);
-      if (r.stale || pr.stall || pr.past) return "진행 확인 필요";
+      if (r.stale || pr.stale || pr.stall || pr.past) return "진행 확인 필요";
       if (hasEta(pr) || pr.pre) return etaSpan(r, pr);
     } catch (e) {}
     return "";

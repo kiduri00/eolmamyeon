@@ -111,10 +111,10 @@
       // 내 돈으로 안 되는 곳은 같은 남색을 아주 옅게(feature-state a=false) → 되는 곳만 또렷하게
       const ZC = dk ? "#5B8CFF" : "#1F3A87", ZL = dk ? "#7FA6FF" : "#1F3A87";
       const A = ["boolean", ["feature-state", "a"], true];
-      const zo = (k) => (dk ? [10, 0.46, 12, 0.36, 14, 0.25, 16, 0.2] : [10, 0.42, 12, 0.32, 14, 0.2, 16, 0.16]).map((v, i) => (i % 2 ? ["case", A, v * k, (dk ? 0.07 : 0.05) * k] : v));
+      const zo = (k) => (dk ? [10, 0.46, 12, 0.36, 14, 0.25, 16, 0.2] : [10, 0.42, 12, 0.32, 14, 0.2, 16, 0.16]).map((v, i) => (i % 2 ? ["case", A, v * k, (dk ? 0.11 : 0.085) * k] : v));
       const zop = ["interpolate", ["linear"], ["zoom"], ...zo(1)];
       const zlw = ["interpolate", ["linear"], ["zoom"], 10, ["case", A, 0.9, 0.5], 12, ["case", A, 1.3, 0.7], 14, ["case", A, 1.8, 0.9], 16, ["case", A, 2.1, 1]];
-      const zlo = ["case", A, 0.95, dk ? 0.32 : 0.26];
+      const zlo = ["case", A, 0.95, dk ? 0.42 : 0.38];
       L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ZC, "fill-opacity": ["interpolate", ["linear"], ["zoom"], ...zo(0.8)] } });
       L({ id: "zest-line", type: "line", source: "zest", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-dasharray": [2.2, 1.6], "line-opacity": zlo } });
       L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ZC, "fill-opacity": zop, "fill-antialias": true } });
@@ -152,23 +152,26 @@
       // 9-patch 이미지 하나로 두 칸 배경을 만들고 icon-text-fit으로 글자에 맞춘다(위·아래 늘림 구간이 같아 두 줄 경계가 가운데에 온다)
       const CARD_TOP = dk ? "#3E6AE0" : "#1F3A87", CARD_BOT = dk ? "#1A2130" : "#FFFFFF", CARD_INK = dk ? "#E8EDF5" : "#191F28";
       const rr = (x, X, Y, w, h, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
-      const img = (id, two) => {
+      const img = (id, two, lite) => {
+        const TOP = lite ? (dk ? "#273041" : "#E8ECF4") : CARD_TOP, EDGE = lite ? (dk ? "#3B4656" : "#B8C2D6") : CARD_TOP;
         if (map.hasImage(id)) map.removeImage(id);
         const k = 2, W = 40, H = two ? 38 : 22, sh = 2, c = document.createElement("canvas"); c.width = W * k; c.height = (H + sh) * k;
         const x = c.getContext("2d"); x.scale(k, k);
         x.fillStyle = dk ? "rgba(0,0,0,.35)" : "rgba(15,30,70,.16)"; rr(x, 0.5, 1.5, W - 1, H - 1, 6); x.fill();   // 아래로 살짝 그림자
         rr(x, 0.5, 0.5, W - 1, H - 1, 6); x.save(); x.clip();
-        x.fillStyle = CARD_TOP; x.fillRect(0, 0, W, H);
+        x.fillStyle = TOP; x.fillRect(0, 0, W, H);
         if (two) { x.fillStyle = CARD_BOT; x.fillRect(0, H / 2, W, H / 2); }
-        x.restore(); x.strokeStyle = CARD_TOP; x.lineWidth = 1; rr(x, 0.5, 0.5, W - 1, H - 1, 6); x.stroke();
+        x.restore(); x.strokeStyle = EDGE; x.lineWidth = 1; rr(x, 0.5, 0.5, W - 1, H - 1, 6); x.stroke();
         const m = H / 2;
         map.addImage(id, x.getImageData(0, 0, W * k, (H + sh) * k), { pixelRatio: k, stretchX: [[8 * k, 32 * k]], stretchY: two ? [[5 * k, (m - 4) * k], [(m + 4) * k, (H - 5) * k]] : [[7 * k, (H - 7) * k]], content: two ? [7 * k, 4 * k, 33 * k, (H - 4) * k] : [7 * k, 4 * k, 33 * k, (H - 4) * k] });
       };
-      img("zcard", true); img("zcard1", false);
+      img("zcard", true); img("zcard1", false); img("zcardL", true, true); img("zcardL1", false, true);
       const csz = ["interpolate", ["linear"], ["zoom"], 13, 11, 16, 12.5];
       // 카드 형식은 하나: 금액이 있으면 '이름 / X억'(두 칸), 없으면 이름만(한 칸). 신고가를 켜면 아래 칸에 빨간 '▲신고가'
+      // 내 돈으로 되는 곳 = 남색 카드, 안 되는 곳 = 옅은 회청색 카드(면과 같은 규칙)
+      const NM_C = ["case", ["==", ["get", "y"], 1], "#FFFFFF", dk ? "#C3CCD8" : "#2E3A55"];
       const HI = dk ? "#FF9C8A" : "#C0261B", two = ["any", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]];
-      const card = (id, f, maxz) => L({ id, type: "symbol", source: "zlab", minzoom: 13, maxzoom: maxz || 24, filter: f, layout: { "icon-image": ["case", two, "zcard", "zcard1"], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": "#FFFFFF" }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": "#FFFFFF" }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, "text-anchor": "top", "text-offset": [0, 0.35], "symbol-sort-key": ["get", "k"] }, paint: {} });
+      const card = (id, f, maxz) => L({ id, type: "symbol", source: "zlab", minzoom: 13, maxzoom: maxz || 24, filter: f, layout: { "icon-image": ["concat", ["case", ["==", ["get", "y"], 1], "zcard", "zcardL"], ["case", two, "", "1"]], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": NM_C }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": NM_C }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, "text-anchor": "top", "text-offset": [0, 0.35], "symbol-sort-key": ["get", "k"] }, paint: {} });
       card("zone-lab", ["==", ["get", "p"], 0]);
       card("zone-lab-p", ["==", ["get", "p"], 1], 16);   // 핀 있는 곳은 16부터 핀 라벨('이름 · X억')로
       // ---- 핀: 핀 끝 = 구역 중심. 순서 선택 > 내 핀 > 살 수 있는 핀(위 레이어가 먼저 자리 잡음) ----
@@ -207,10 +210,13 @@
         if (!r.ll) return;
         const t = String(r.j || "").trim().split(/\s+/)[0] || "";
         if (!/^[가-힣\d]{1,8}(동|가)$/.test(t)) return;
-        const k = r.g + t, m = M.get(k) || { n: t, a: 0, b: 0, c: 0 };
-        m.a += r.ll[0]; m.b += r.ll[1]; m.c++; M.set(k, m);
+        // 같은 이름 동끼리 3km 안이면 하나로(구 경계에 걸친 동이 두 번 찍히지 않게)
+        const L = M.get(t) || []; M.set(t, L);
+        let m = L.find((q) => Math.hypot((q.a / q.c - r.ll[0]) * 111, (q.b / q.c - r.ll[1]) * 88) < 3);
+        if (!m) { m = { n: t, a: 0, b: 0, c: 0 }; L.push(m); }
+        m.a += r.ll[0]; m.b += r.ll[1]; m.c++;
       });
-      return FC([...M.values()].map((m) => ({ type: "Feature", geometry: { type: "Point", coordinates: [m.b / m.c, m.a / m.c] }, properties: { n: m.n, k: -m.c } })));
+      return FC([...M.values()].flat().map((m) => ({ type: "Feature", geometry: { type: "Point", coordinates: [m.b / m.c, m.a / m.c] }, properties: { n: m.n, k: -m.c } })));
     }
     // 노선: 사이트 SVG 지도 좌표(xy)를 역 좌표로 맞춘 1차 변환의 역변환으로 위경도로 바꿔 그린다
     let SUBG = null;
@@ -272,7 +278,7 @@
         const cv = map.getCanvas(), H = cv.clientHeight - pad.top - pad.bottom, W = cv.clientWidth;
         const y0 = maplibregl.MercatorCoordinate.fromLngLat([bb[0][0], bb[1][1]]).y, y1 = maplibregl.MercatorCoordinate.fromLngLat([bb[0][0], bb[0][1]]).y;
         const h = (y1 - y0) * 512 * Math.pow(2, z);
-        if (H > W * 1.15 && h > 0 && H / h > 1.3) z += Math.min(0.75, Math.log2(H / h) * 0.6);
+        if (H > W * 1.15 && h > 0 && H / h > 1.3) z += Math.min(0.45, Math.log2(H / h) * 0.5);
       } catch (e) {}
       map.easeTo({ center: cam.center, zoom: Math.min(z, maxZ + 0.75), duration: anim && !reduceMotion() ? 700 : 0 });
     }
@@ -579,7 +585,7 @@
       if (el.parentNode !== host) host.appendChild(el);
       const on = !$("lmap").hidden, z = map.getZoom(), H = [];
       const far = Object.keys(LMINZ).filter((k) => lyr.has(k) && z < LMINZ[k]).map((k) => ({ edu: "학교", med: "병원", acad: "학원가", biz: "상권" })[k]);
-      if (far.length) H.push(`<p class="lm-n-hint"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 10.5 14 14M7 5v4M5 7h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>${far.join("·")} 확대하면 보여요</p>`);
+      if (far.length) H.push(`<p class="lm-n-hint"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 10.5 14 14M7 5v4M5 7h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>${far.join("·")}${(far[far.length - 1].charCodeAt(far[far.length - 1].length - 1) - 0xac00) % 28 ? "은" : "는"} 확대하면 보여요</p>`);
       if (lyr.has("hj")) H.push(`<p><i class="lm-n-hj"></i>새 역·개발 예정지<small>테 색 = 노선</small></p>`);
       if (lyr.has("hi")) H.push(`<p><i class="lm-n-hi"></i>신고가<small>최근 3개월</small></p>`);
       el.innerHTML = H.join("");
