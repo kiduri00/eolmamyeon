@@ -23,22 +23,22 @@ const OVX = (() => {
     const o = t.old;
     if (!o || !o.k || r.s >= 7 || /재건축/.test(r.k)) return "";   // 재건축은 노후도 요건이 아니라 준공 30년 기준
     const ok = o.pol >= 60;
-    const sl = r.sl && r.sl.k ? `<span class="ov-sl">경사 ${esc(r.sl.k)}${r.sl.d != null && isFinite(r.sl.d) ? ` · 고저차 ${Math.round(+r.sl.d)}m` : ""}</span>` : "";
-    return `<div class="ov-c ov-old"><div class="ov-gw">${gauge(o.pol)}<div class="ov-gs"><h3>노후도</h3><b class="${ok ? "ok" : "no"}">${ok ? "요건 충족" : "요건 미달"}</b><span>평균 ${Math.round(o.avg)}년${o.new10 ? ` · 신축 ${o.new10}동` : ""}</span>${sl}</div></div></div>`;
+    return `<div class="ov-c ov-old"><div class="ov-gw">${gauge(o.pol)}<div class="ov-gs"><h3>노후도</h3><b class="${ok ? "ok" : "no"}">${ok ? "요건 충족" : "요건 미달"}</b><span>평균 ${Math.round(o.avg)}년${o.new10 ? ` · 신축 ${o.new10}동` : ""}</span></div></div></div>`;
   }
 
   // ---------- 판정: 입주권 · 전세 끼고 · 단계 (누르면 한 줄 이유) ----------
   const ymd = (d) => (d ? String(d).replaceAll("-", ".").slice(0, 10) : "");
   const curStep = (r) => { const T = tlSteps(r), i = T.reduce((a, s, k) => (s[1] <= r.s ? k : a), -1); return [T, i]; };
   function verdicts(r) {
-    const out = [], fin = isDone(r);
+    const out = [], fin = isDone(r); let noIp = false;
     if (!fin) {
       try {
         const w = buyWindow(r), rt = (() => { try { return ZX.rights(r); } catch (e) { return {}; } })();
         const [c, v] = w.cls === "ok" ? ["ok", "✓ 나와요"] : w.cls === "no" ? ["no", "✕ 안 나와요"] : ["warn", "! 확인 필요"];
+        noIp = c === "no";
         out.push({ k: "입주권", c, v, why: () => [w.due || w.t, rt.k === "set" ? `권리산정기준일 ${rt.d} 전 건물만` : ""].filter(Boolean).join(" · ") });
       } catch (e) {}
-      try {
+      if (!noIp) try {
         const lp = landPermit(r);
         let blk = null; try { blk = gapOf(r).block; } catch (e) { blk = typeof gapBlock === "function" ? gapBlock(r) : null; }
         if (lp) out.push({ k: "전세 끼고", c: "no", v: /가능성/.test(lp.t) ? "! 토지거래허가 가능성" : "✕ 토지거래허가·실거주 2년", why: () => (/가능성/.test(lp.t) ? "신속통합기획 구역은 토지거래허가로 묶이는 경우가 많아요 · 구청 확인" : "토지거래허가구역 · 2년 실거주라 전세 낀 매수 불가") });
@@ -93,8 +93,8 @@ const OVX = (() => {
     const [T, i] = curStep(r);
     if (i < 1) return Promise.resolve(null);
     const cd = stepDate(r, T[i][0]); if (!cd) return Promise.resolve(null);
-    let j = i - 1; while (j >= 0 && !stepDate(r, T[j][0])) j--;
-    if (j < 0) return Promise.resolve(null);
+    const j = i - 1;   // 바로 앞 단계 날짜가 있을 때만 비교(단계 건너뛴 비교 금지)
+    if (!stepDate(r, T[j][0])) return Promise.resolve(null);
     const a = T[j][0], b = T[i][0], mine = yrs(stepDate(r, a), cd), sm = isSmallR(r);
     if (!(mine > 0)) return Promise.resolve(null);
     const key = a + ">" + b + (sm ? "|s" : "");
@@ -128,7 +128,7 @@ const OVX = (() => {
     paceVs(r).then((p) => {
       const em = w.querySelector(".ov-pv"); if (!p || !em || cur !== r) return;
       const ad = Math.abs(p.diff), n = ad >= 2 ? Math.round(ad) : Math.round(ad * 10) / 10;
-      em.textContent = ad < 0.5 ? "서울 평균 수준" : `서울 평균보다 ${n}년 ${p.diff < 0 ? "빠름" : "늦음"}`;
+      em.textContent = ad < 0.5 ? "평균 수준" : `서울 평균보다 ${n}년 ${p.diff < 0 ? "빠름" : "늦음"}`;
       em.className = "ov-pv " + (ad < 0.5 ? "eq" : p.diff < 0 ? "fast" : "slow");
       em.title = `${p.a} → ${p.b} ${p.mine.toFixed(1)}년 · 서울 ${p.n}곳 평균 ${p.avg.toFixed(1)}년`;
       em.hidden = false;
@@ -238,7 +238,7 @@ const OVX = (() => {
     vdBind(w, V);
     // 주소 줄: 구 동 · 단계 · 역 도보
     const wh = head.querySelector(".where");
-    if (wh) { const dong = ((r.j || r.bj || "").match(/^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)/) || [, r.dg || ""])[1]; const wm = r.st && r.st.d ? Math.max(1, Math.round(r.st.d * 1.3 / 67)) : 0, st = wm ? (wm > 20 ? "역에서 멀어요" : `${r.st.n.replace(/역$/, "")}역 ${wm}분`) : ""; wh.classList.add("ov-w"); wh.removeAttribute("title"); wh.innerHTML = `<b>${esc(r.g)} ${esc(dong)}</b><span class="ov-chip">${esc(stageName(r))}</span>${st ? `<span class="ov-chip g">${esc(st)}</span>` : ""}${r.lc ? `<span class="ov-chip w">거래 적어 추정</span>` : ""}`; }
+    if (wh) { const dong = ((r.j || r.bj || "").match(/^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)/) || [, r.dg || ""])[1]; const wm = r.st && r.st.d ? Math.max(1, Math.round(r.st.d * 1.3 / 67)) : 0, st = wm ? (wm > 20 ? "역에서 멀어요" : `${r.st.n.replace(/역$/, "")}역 ${wm}분`) : ""; wh.classList.add("ov-w"); wh.removeAttribute("title"); wh.innerHTML = `<b>${esc(r.g)} ${esc(dong)}</b><span class="ov-chip">${esc(stageName(r))}</span>${st ? `<span class="ov-chip g">${esc(st)}</span>` : ""}${r.lc ? `<span class="ov-chip w">거래 적어 추정</span>` : ""}${r.sl && r.sl.k ? `<span class="ov-chip g ov-sl"${r.sl.d != null && isFinite(r.sl.d) ? ` title="고저차 ${Math.round(+r.sl.d)}m"` : ""}>경사 ${esc(r.sl.k)}</span>` : ""}`; }
     const where = head.querySelector(".where");
     (where || head.firstElementChild).after(w);
     w.addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; const tb = document.getElementById("tab-" + b.dataset.tab); if (tb) { tb.click(); tb.scrollIntoView({ block: "start", behavior: "smooth" }); } });

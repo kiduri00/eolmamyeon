@@ -144,4 +144,3 @@ html.simple .s-nm small em:not(.s-tag){font-style:normal;color:var(--text-3)}
 .ov-src{margin:-2px 2px 0;font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ov-src a{color:var(--text-2);text-decoration:none;font-weight:600}
 .ov-src a:hover{text-decoration:underline}
-.ov-sl{font-size:12px!important;color:var(--text-3)!important}
