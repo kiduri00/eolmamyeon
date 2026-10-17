@@ -84,10 +84,12 @@ def page(r):
     sd = (cur[1] if cur else r.get('sd') or '')[:7].replace('-', '.')
     lede = f"{esc(nm)}{josa(nm)} 지금 <b>{esc(stage)}</b> 단계예요" + (f" ({sd} 기준)." if sd else ".")
     if c.get('p10') is not None: lede += f" 서울 사업장 기록으로 낸 10년 안 준공 가능성은 약 {round(c['p10'] * 100)}%예요(예측이 아닌 통계)."
-    o.append(f'<p class="lede">{lede} 아래 숫자는 무주택·현금 매수·84㎡ 기본 가정이에요. 내 조건은 <a href="../#{rid}">계산기에서 이 구역 열기</a>로 바꿔 볼 수 있어요.</p>')
+    o.append(f'<p class="lede">{lede} 아래 숫자는 무주택·84㎡ 기본 가정이고, 첫 화면 계산기와 같은 <b>전세 끼고 사는</b> 기준이에요. 내 조건은 <a href="../#{rid}">계산기에서 이 구역 열기</a>로 바꿔 볼 수 있어요.</p>')
     k = []
     k.append(('현재 단계', esc(stage), f'{sd} 인가·고시' if sd else '날짜 확인 중'))
-    if c.get('need') is not None: k.append(('입주까지 필요한 현금', eok(c['need']), f'기본 가정 · 매수가 {eok(c.get("price"))} 기준'))
+    if c.get('gapOk') and c.get('gapTotal') is not None:   # 첫 화면 기본 모드(전세 끼고)와 같은 숫자
+        k.append(('전세 끼고 입주까지', eok(c['gapTotal']), f'지금 {eok(c.get("gapNow"))} · 매수가 {eok(c.get("price"))}' + (f' · 현금으로 사면 {eok(c["need"])}' if c.get('cashOk') and c.get('need') is not None else '')))
+    elif c.get('need') is not None: k.append(('현금으로 사면 입주까지', eok(c['need']), f'기본 가정 · 매수가 {eok(c.get("price"))} 기준'))
     elif c.get('winT'): k.append(('입주권', esc(c['winT']), '기본 가정 판정'))
     if c.get('st'): k.append(('가까운 역', f"{esc(c['st']['n'])} 도보 {max(1, round(c['st']['d'] * 1.3 / 67))}분", ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])))
     if c.get('owners'): k.append(('토지등소유자', f"{int(c['owners']):,}명", f"구역 면적 {int((r.get('sm') or {}).get('area') or 0):,}㎡" if (r.get('sm') or {}).get('area') else ''))
@@ -104,11 +106,12 @@ def page(r):
         rows = []
         if t.get('pp'): rows.append(('대지 3.3㎡당', man(t['pp']), f"빌라·단독 매매 {t.get('nv', t.get('n', 0))}건 · 2024년~"))
         if t.get('med'): rows.append(('빌라 매매', man(t['med']), f"2015년 이전 준공 · 최근 {t.get('nwin', 18)}개월 {t.get('no', 0)}건 · 전용 {t.get('ar', '–')}㎡"))
+        if t.get('im'): rows.append(('입주권 매매', man(t['im']), f"아파트 입주권 · 최근 {t.get('iw', 12)}개월 {t.get('in', 0)}건"))
         if t.get('jm'): rows.append(('빌라 전세', man(t['jm']), f"전세 {t.get('jn', 0)}건 · 임대 {t.get('ja', '–')}㎡"))
         if t.get('n12') is not None: rows.append(('12개월 거래', f"{t['n12']}건", '빌라·단독·아파트 · 계약일 기준'))
         if t.get('yoy') is not None: rows.append(('1년 변화', f"{'+' if t['yoy'] > 0 else ''}{t['yoy']}%", f"표본 {t['yon'][0]}/{t['yon'][1]}건 · 한 건물 쏠림 제외"))
         if rows:
-            o.append(f'<h2>구역 안 실거래 <small class="meta">국토교통부·서울시 실거래 · {TXD[:4]}.{TXD[4:6]}.{TXD[6:]}까지</small></h2><table class="ov"><tbody>' + ''.join(f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">가운데 값 · {s}</small></td></tr>' if a in ('대지 3.3㎡당', '빌라 매매', '빌라 전세') else f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">{s}</small></td></tr>' for a, b, s in rows) + '</tbody></table>')
+            o.append(f'<h2>구역 안 실거래 <small class="meta">국토교통부·서울시 실거래 · {TXD[:4]}.{TXD[4:6]}.{TXD[6:]}까지</small></h2><table class="ov"><tbody>' + ''.join(f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">가운데 값 · {s}</small></td></tr>' if a in ('대지 3.3㎡당', '빌라 매매', '입주권 매매', '빌라 전세') else f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">{s}</small></td></tr>' for a, b, s in rows) + '</tbody></table>')
     if t.get('old') and r.get('s', 0) < 7:
         x = t['old']
         o.append(f'<h2>노후도 <small class="meta">경계 안 건축물 {x["n"]:,}동 · 사용승인연도 확인 {x["k"]:,}동 · 서울도시공간포털 건물 레이어</small></h2><p>노후·불량 건축물 비율 <b>{x["pol"]}%</b>(철근콘크리트 30년·그 밖 20년 기준), 30년 넘은 건물 {x["p30"]}%, 평균 {x["avg"]}년이에요. 서울 재개발 구역지정 요건(노후도 60% 이상)과 비교해 보세요.</p>')
@@ -138,6 +141,9 @@ def page(r):
     o.append(FOOT.format(upd=UPD))
     return ''.join(o)
 R = [r for r in D['recs'] if not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n')]   # 화면의 '진행 중'과 같은 기준
+_ALL = {r['id'] for r in D['recs']}
+for f in os.listdir(ZD):   # 자료에서 빠진 구역(시험 등록 등)의 자동 페이지는 지운다(손으로 쓴 페이지는 둔다)
+    if f.endswith('.html') and f != 'index.html' and f[:-5] not in _ALL and not is_hand(f[:-5]): os.remove(os.path.join(ZD, f)); print('  removed stale page', f)
 PAGES = {r['id'] for r in R} | {f[:-5] for f in os.listdir(ZD) if f.endswith('.html') and f != 'index.html'}
 made = kept = 0
 for r in R:
@@ -173,7 +179,12 @@ def guPage(g, L):
     o.append(f'<p class="eyebrow"><a href="./">구역별 페이지</a> · 데이터 기준 {UPD}</p><h1>{esc(g)} 재개발·재건축 {len(L)}곳</h1>')
     o.append('<p class="lede">' + ' · '.join(f'{esc(k)} {v}곳' for k, v in st.most_common(6) if k) + '</p>')
     if cheap: o.append('<p>전세 끼고 적은 돈으로 시작할 수 있는 곳: ' + ', '.join(f'<a href="{x["id"]}">{esc(short(x["n"]))}</a> {eok(c(x)["gapNow"])}' for x in cheap) + f'. <a href="../#map-{esc(g)}">지도에서 내 돈으로 보기 →</a></p>')
-    rows = ''.join(f'<tr><td><a href="{x["id"]}">{esc(short(x["n"]))}</a><br><small>{esc(KIND.get(x["k"], x["k"]))} · {esc(c(x).get("stage") or x.get("sr") or "")}</small></td><td class="n">{eok(c(x).get("gapNow")) if c(x).get("gapOk") else "–"}</td><td class="n">{eok(c(x).get("need")) if c(x).get("cashOk") else "–"}</td></tr>' for x in sorted(L, key=lambda x: (-x.get('s', 0), short(x['n']))))
+    def rowkey(x):   # 숫자가 있는 줄 먼저(전세 끼고 지금 적은 순 → 현금만 있는 줄), 숫자 없는 줄은 뒤에 단계순
+        v = c(x)
+        if v.get('gapOk') and v.get('gapNow') is not None: return (0, v['gapNow'], short(x['n']))
+        if v.get('cashOk') and v.get('need') is not None: return (1, v['need'], short(x['n']))
+        return (2, -x.get('s', 0), short(x['n']))
+    rows = ''.join(f'<tr><td><a href="{x["id"]}">{esc(short(x["n"]))}</a><br><small>{esc(KIND.get(x["k"], x["k"]))} · {esc(c(x).get("stage") or x.get("sr") or "")}</small></td><td class="n">{eok(c(x).get("gapNow")) if c(x).get("gapOk") else "–"}</td><td class="n">{eok(c(x).get("need")) if c(x).get("cashOk") else "–"}</td></tr>' for x in sorted(L, key=rowkey))
     o.append(f'<div class="tw"><table class="t" style="min-width:0;width:100%"><thead><tr><th>구역</th><th class="n">전세 끼고 지금</th><th class="n">입주까지 현금</th></tr></thead><tbody>{rows}</tbody></table></div>')
     o.append(f'<p class="meta">새 소식 받기: <a href="../feed/gu/{esc(g)}.xml">{esc(g)} RSS</a></p>')
     o.append('<p class="note">무주택·84㎡·시세 상승 0% 같은 기본 가정으로 계산한 추정이에요. 내 조건은 <a href="../">계산기</a>에서 바꿔 볼 수 있어요. 투자 권유가 아니에요.</p>')

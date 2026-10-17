@@ -76,3 +76,7 @@ svg.ov-bar .bv.last{fill:var(--brand);font-size:11.5px}
 html.simple #pane .gpane:not(:has(h3)){display:none}
 html.simple .s-lsub,html.simple .s-hint{display:none!important}
 @media (max-width:640px){html.simple{scroll-padding-bottom:88px}}
+html.simple #pane .bigrow.b3,html.simple #pane .f label small,html.simple #pane .f .est,html.simple #pane .est2,
+html.simple #pane .rvj p.note,html.simple .map-attr,html.simple #mapHint,html.simple .map-hint{display:none!important}
+html.simple #report .tabs{scroll-margin-top:calc(var(--hdr-h,56px) + 4px)}
+html.sheet-open #report .tabs{position:sticky;top:0;z-index:5;background:var(--surface)}

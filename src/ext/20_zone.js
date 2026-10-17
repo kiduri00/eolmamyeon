@@ -240,7 +240,7 @@
         const rdY = (() => { const x = rights(r); return x.k === "set" ? +x.d.slice(0, 4) : null; })();
         $("txList").innerHTML = S.length
           ? `<table class="tx"><thead><tr><th scope="col">계약일</th><th scope="col">유형</th><th scope="col" class="n">준공</th><th scope="col" class="n">전용</th><th scope="col" class="n">대지</th><th scope="col" class="n">가격</th><th scope="col" class="n">대지 3.3㎡당</th></tr></thead><tbody>${S.slice(0, 40)
-              .map((x) => `<tr><td>${ymd2(x[0])}</td><td>${TY[x[1]] || ""}${x[6] ? ` ${esc(String(x[6]))}층` : ""}${x[2] >= 2016 && x[4] > 0 && x[4] <= 15 ? ' <em class="flag" title="최근 준공·대지 15㎡ 이하: 지분 쪼개기 신축일 수 있어요">쪼개기 의심</em>' : rdY && x[2] > rdY ? ' <em class="flag" title="권리산정기준일 뒤 준공">기준일 뒤 준공</em>' : ""}</td><td class="n">${x[2] || "–"}</td><td class="n">${x[3]}㎡</td><td class="n">${x[4] || "–"}㎡</td><td class="n"><b>${eok(x[5])}</b></td><td class="n">${x[4] > 0 ? eok(Math.round((x[5] / x[4]) * 3.3058)) : "–"}</td></tr>`)
+              .map((x) => `<tr><td>${ymd2(x[0])}</td><td>${TY[x[1]] || ""}${x[6] ? ` ${+x[6] < 0 ? "지하" + -x[6] : esc(String(x[6]))}층` : ""}${x[2] >= 2016 && x[4] > 0 && x[4] <= 15 ? ' <em class="flag" title="최근 준공·대지 15㎡ 이하: 지분 쪼개기 신축일 수 있어요">쪼개기 의심</em>' : rdY && x[2] > rdY ? ' <em class="flag" title="권리산정기준일 뒤 준공">기준일 뒤 준공</em>' : ""}</td><td class="n">${x[2] || "–"}</td><td class="n">${x[3]}㎡</td><td class="n">${x[4] ? x[4] + "㎡" : "–"}</td><td class="n"><b>${eok(x[5])}</b></td><td class="n">${x[4] > 0 ? eok(Math.round((x[5] / x[4]) * 3.3058)) : "–"}</td></tr>`)
               .join("")}</tbody></table>`
           : '<p class="note keep">최근 구역 안 매매가 없어요.</p>';
         $("jList").innerHTML = J.length

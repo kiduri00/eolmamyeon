@@ -133,10 +133,12 @@
       L({ id: "ly-hj", type: "circle", source: "hj", layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4, 15, 8], "circle-color": halo, "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 15, 4] } });
       L({ id: "ly-hj-lab", type: "symbol", source: "hj", layout: { visibility: "none", "text-field": ["format", ["get", "n"], {}, "\n", {}, ["get", "s"], { "font-scale": 0.85 }], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-offset": [0, 1.2], "text-anchor": "top", "text-optional": true, "text-max-width": 10 }, paint: { "text-color": ["get", "c"], "text-halo-color": halo, "text-halo-width": 2 } });
       L({ id: "ly-hi", type: "symbol", source: "hi", layout: { visibility: "none", "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-offset": [0, -1.9], "text-allow-overlap": false, "text-optional": true }, paint: { "text-color": dk ? "#FF9C8A" : "#B42318", "text-halo-color": halo, "text-halo-width": 2.2 } });
+      // 구 화면 줌(11.8 아래)에서도 내 돈으로 되는 구역은 값만 보이게
+      L({ id: "zone-lab-y", type: "symbol", source: "zlab", minzoom: 10.6, maxzoom: 11.8, filter: ["==", ["get", "y"], 1], layout: { "text-field": ["get", "s"], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-padding": 2 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
       L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 11.8, layout: { "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
       const pill = (id, bg, bd) => { if (map.hasImage(id)) return; const c = document.createElement("canvas"), r = 2, w = 40 * r, h = 28 * r; c.width = w; c.height = h; const x = c.getContext("2d"); x.fillStyle = bg; x.strokeStyle = bd; x.lineWidth = 2 * r; const rr = 12 * r; x.beginPath(); x.moveTo(rr, r); x.arcTo(w - r, r, w - r, h - r, rr); x.arcTo(w - r, h - r, r, h - r, rr); x.arcTo(r, h - r, r, r, rr); x.arcTo(r, r, w - r, r, rr); x.closePath(); x.fill(); x.stroke(); map.addImage(id, { width: w, height: h, data: x.getImageData(0, 0, w, h).data }, { pixelRatio: r, stretchX: [[14 * r, 26 * r]], stretchY: [[12 * r, 16 * r]], content: [8 * r, 5 * r, 32 * r, 23 * r] }); };
       pill("pill-on", P.y, P.y); pill("pill-off", dk ? "#1b2230" : "#ffffff", dk ? "#3a4556" : "#c9d0da");
-      L({ id: "gub", type: "symbol", source: "gub", maxzoom: 12.2, layout: { "icon-image": ["case", [">", ["get", "k"], 0], "pill-on", "pill-off"], "icon-text-fit": "both", "icon-allow-overlap": true, "text-field": ["format", ["get", "n"], { "font-scale": 0.82 }, " ", {}, ["get", "v"], { "font-scale": 1.12 }], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 9.5, 10, 10.6, 12.5], "symbol-sort-key": ["-", 0, ["get", "k"]], "text-allow-overlap": true, "text-padding": 0 }, paint: { "text-color": ["case", [">", ["get", "k"], 0], "#ffffff", dk ? "#aab4c3" : "#5c6573"] } });
+      L({ id: "gub", type: "symbol", source: "gub", maxzoom: 12.2, layout: { "icon-image": ["case", [">", ["get", "k"], 0], "pill-on", ""], "icon-text-fit": "both", "icon-allow-overlap": true, "text-field": ["case", [">", ["get", "k"], 0], ["format", ["get", "n"], { "font-scale": 0.82 }, " ", {}, ["get", "v"], { "font-scale": 1.12 }], ["format", ["get", "n"], { "font-scale": 0.78 }]], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 9.5, 10, 10.6, 12.5], "symbol-sort-key": ["-", 0, ["get", "k"]], "text-allow-overlap": true, "text-padding": 0 }, paint: { "text-color": ["case", [">", ["get", "k"], 0], "#ffffff", dk ? "#8e99a8" : "#8a93a1"], "text-halo-color": ["case", [">", ["get", "k"], 0], "rgba(0,0,0,0)", dk ? "#11161D" : "#ffffff"], "text-halo-width": 1.4 } });
       ready = true;
       layerData();
       layers();
@@ -182,12 +184,13 @@
     }
     function guBubbles() {
       if (!map || !ready || !geo || !map.getSource("gub")) return;
+      if (typeof mapView !== "undefined" && mapView !== "seoul") { map.getSource("gub").setData(FC([])); return; }
       const C = guCenters(), z = map.getZoom();
       const fs = Math.max(10, Math.min(12.5, 10 + (z - 9.5) * (2.5 / 1.1)));
       const B = C.map((c) => {
         const k = OVR ? OVR[c.n] || 0 : typeof guMetric === "function" ? guMetric(c.n) : 0;
         const nm = c.n.length <= 2 ? c.n : c.n.replace(/구$/, ""), v = String(k);
-        const p = map.project(c.ll), w = (nm.length * 0.82 + v.length * 0.62 + 0.4) * fs + 16, h = fs * 1.25 + 10;
+        const p = map.project(c.ll), w = k > 0 ? (nm.length * 0.82 + v.length * 0.62 + 0.4) * fs + 16 : nm.length * 0.8 * fs + 4, h = k > 0 ? fs * 1.25 + 10 : fs + 4;
         return { c, k, nm, v, x: p.x, y: p.y, x0: p.x, y0: p.y, w, h };
       });
       for (let it = 0; it < 60; it++) {
@@ -260,7 +263,7 @@
         const st0 = colorBy === "cash" ? dotState(r) : "", c = colorOf(r, P), z = Z[r.id], o = BINS[colorBy] ? (metric(r) == null ? 0.4 : 1.25) : st0 === "x" ? 0.45 : st0 === "n" || st0 === "u" ? 0.75 : st0 === "y" ? 1.3 : 1;
         if (z) {
           (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id, c, o } });
-          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r) } });
+          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), y: st0 === "y" ? 1 : 0 } });
         }
         if (!z) pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, c, o } });
       }

@@ -280,3 +280,32 @@ html.simple .s-hero{gap:10px}
   .s-gauge .s-h1{white-space:normal;font-size:22px}
 }
 html.simple:not(.s-built) #report{visibility:hidden}
+.s-ticks span:nth-child(2){left:25%;transform:translateX(-50%)}
+.s-ticks span:nth-child(3){left:50%;transform:translateX(-50%)}
+.s-ticks span:nth-child(4){left:75%;transform:translateX(-50%);right:auto}
+.s-ticks span:nth-child(5){right:0;left:auto;transform:none}
+#sMiniR{--p:3%}
+#sMiniR::-webkit-slider-runnable-track{background:linear-gradient(90deg,var(--brand) 0 var(--p),var(--surface-3) var(--p) 100%)}
+#sMiniR::-moz-range-progress{height:8px;border-radius:99px;background:var(--brand)}
+.s-mode button{min-height:40px}
+@media (max-width:640px){.s-ghead .s-mode button{min-height:36px;padding:0 12px;font-size:13px}}
+.s-mini span i{font-style:normal;font-size:12px;color:var(--text-3)}
+/* 폰 전체 지도 */
+.s-fullx{display:none}
+@media (max-width:640px){
+  html.s-full,html.s-full body{overflow:hidden}
+  html.s-full #mapbox{position:fixed!important;left:0;right:0;top:var(--hdr-h,56px);bottom:calc(62px + env(safe-area-inset-bottom,0px));height:auto!important;max-height:none!important;z-index:24;margin:0;border-radius:0;border:0}
+  html.s-full .s-mini{top:calc(var(--hdr-h,56px) + 8px)}
+  html.s-full .s-fullx{display:inline-flex;align-items:center;gap:6px;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:26;height:42px;padding:0 18px;border:0;border-radius:999px;background:var(--text-1);color:var(--surface);font:700 14px var(--font);box-shadow:0 6px 18px rgba(15,23,42,.25)}
+  html.s-full .lm-ctl,html.s-full .map-bar{top:calc(64px + 8px)}
+}
+@media (max-width:640px){html.simple #sOpen{display:none!important}}
+/* 구 화면 상단 막대: 지도 위에 떠 있는 알약 */
+html.simple .map-bar{position:absolute!important;left:12px;top:12px;max-width:calc(100% - 24px);padding:4px 12px 4px 4px;background:var(--surface);border:1px solid var(--border);border-radius:999px;box-shadow:0 4px 14px rgba(15,23,42,.14)}
+html.simple .map-bar #mapBack{border-radius:999px;min-height:36px}
+html.simple #mapbox:has(.map-bar:not([hidden])) .lm-ctl{top:64px}
+/* PC: 오른쪽이 길어져도 지도 칸이 늘어나지 않게, 지도는 따라 내려오게 */
+@media (min-width:981px){
+  html.simple #mapTop .main{align-items:start}
+  html.simple #mapTop .main>.mapcard{position:sticky;top:calc(var(--hdr-h,60px) + 16px)}
+}

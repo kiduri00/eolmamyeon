@@ -24,9 +24,13 @@ LAD = D.get('ladder') or []
 def short(n):
     n = re.sub(r'^\s*(\(가칭\)|\[임시\]|\(임시\))\s*', '', n)
     return re.sub(r'\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?(사업)?\s*(조합|추진위원회|조합설립추진위원회|주민대표회의)?\s*$', '', n).strip() or n
+# 법정동 이름 전체: 'OO동', 'OO동N가', 'OON가', 'OO로N가', 'OO로'(세종로 등). 지번이 바로 붙은 '수유동392-9'도. '구로동'을 '구로'로 자르지 않는다
+DONG_RE = re.compile(r'^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)')
 def dong(r):
-    m = re.match(r'([가-힣0-9]+?(?:동\d*가|동|가))\s', (r.get('j') or '') + ' ')
-    return m.group(1) if m else ''
+    for s in (r.get('j'), r.get('n')):
+        m = DONG_RE.match((s or '').strip())
+        if m and (s == r.get('j') or not m.group(1).endswith('로')): return m.group(1)
+    return ''
 def active(r): return not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n')
 R = [r for r in D['recs'] if active(r)]
 def summary(r):
@@ -47,7 +51,8 @@ def summary(r):
         'completion': {'p10': e.get('p10'), 'mid': e.get('eMid'), 'lo': e.get('eLo'), 'hi': e.get('eHi')} if e.get('p10') is not None else None,
         'rightsDate': (r.get('rdx') or {}).get('d'),
         'oldPct': old.get('pol') if old else None,
-        'trades': {'n3': t.get('n3'), 'n12': t.get('n12'), 'yoy': t.get('yoy'), 'medVilla': t.get('med'), 'perPyeongLand': t.get('pp'), 'newHigh': t.get('hi')} if t.get('n') else None,
+        'trades': {'n3': t.get('n3'), 'n12': t.get('n12'), 'yoy': t.get('yoy'), 'medVilla': t.get('med'), 'perPyeongLand': t.get('pp'), 'newHigh': t.get('hi'),
+                   'im': t.get('im'), 'in': t.get('in'), 'iw': t.get('iw')} if t.get('n') else None,   # im: 아파트 입주권 가운데 값(만원)·in 건수·iw 기간(12 또는 24개월)
         'landPermit30d': th['n30'] if th else 0,
         'owners': c.get('owners'),
         'url': f"{SITE}/#{r['id']}", 'page': f"{SITE}/z/{r['id']}",

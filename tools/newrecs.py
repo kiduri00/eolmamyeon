@@ -10,6 +10,8 @@ J = lambda p, d=None: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) i
 D = J('src/data.json'); P = J('src/premium.json'); C = J('pipeline/cache/cleanup.json', {}); TX = J('pipeline/txsum.json', {})
 GEOC = J('pipeline/cache/geocode.json', {})
 B = "https://urban.seoul.go.kr/proxy/proxy.jsp?http://98.33.2.225:6080/arcgis/rest/services/UPIS/20200526_WFS/MapServer"
+from junk import is_junk   # 이름이 'test'·'테스트'·'임시'뿐인 시험 등록은 뺀다
+D['recs'] = [r for r in D['recs'] if not is_junk(r)]
 R = D['recs']; known = {v.get('cafe') for v in P.values() if v.get('cafe')}
 KIND = {'재건축': '재건축', '재개발(주택정비형)': '재개발', '재개발': '재개발', '재개발(도시정비형)': '도시정비형 재개발', '가로주택정비': '가로주택(모아주택)', '소규모재건축': '소규모재건축', '소규모재개발': '소규모재개발', '재정비촉진': '재개발'}
 SR2S = {'정비계획 수립': 1, '안전진단': 1, '안전진단(1차)': 1, '정비구역지정': 2, '추진위원회승인': 3, '조합설립인가': 4, '사업시행자 지정': 4, '사업시행인가': 5, '관리처분인가': 6, '철거': 7, '이주': 7, '철거 및 착공': 8, '착공': 8, '분양': 8, '준공인가': 9, '이전고시': 9, '조합해산': 9, '조합청산': 9, '청산 및 조합해산': 9}
@@ -38,6 +40,7 @@ def geocode(pnu):
 stat = collections.Counter(); added = []
 for cafe, o in C.items():
     row = o.get('row') or {}
+    if is_junk(row): stat['junk_skip'] += 1; continue
     if cafe in known or re.search('지역주택|리모델링', row.get('k', '')) or row.get('k') not in KIND: continue
     same = [r for r in R if r['g'] == row['g'] and ((r.get('j') or '') == row['j'] or (norm(r['n']) and norm(r['n']) == norm(row['n'])) or (norm(row['n']) and len(norm(row['n'])) >= 3 and (norm(row['n']) in norm(r['n']) or norm(r['n']) in norm(row['n'])) and (dong(r.get('j') or r['n']) == dong(row['j']) or (r.get('src') == 'sintong' and not r.get('j')))))]
     if same:

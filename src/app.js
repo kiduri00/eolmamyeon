@@ -5136,7 +5136,7 @@
     $("srcEtcH").textContent = `기타 공개 자료 ${etc.length}건`;
     $("srcPress").innerHTML = press.map(li).join("");
     $("pressSum").textContent = `언론·보도자료 ${press.length}건 보기 (구역별 최신 소식 근거)`;
-    $("footAsof").textContent = `데이터 갱신 ${(D.upd || ASOF).replaceAll("-", ".")} · 실거래 매일 갱신 · 원자료별 기준일은 출처 참고`;
+    $("footAsof").textContent = `데이터 갱신 ${(D.upd || ASOF).replaceAll("-", ".")} · 실거래 매일 갱신`;
     markNewWin(document.querySelector(".site-foot"));
   }
   $("pGu").innerHTML = '<option value="">서울 전체</option>' + GUS.map((g) => `<option>${g}</option>`).join("");
@@ -6165,7 +6165,7 @@
     const s1 = `<li class="gt1"><span class="gt-w">지금 · 매수</span><b>${f1(g.now)}억</b><small>매수가 ${e2(x.price)} − 전세 ${e2(g.D)} + 취득세 ${taxT(x.tax)}</small></li>`;
     const s2 =
       x.ok && g.reloc < 0.05
-        ? `<li class="gt2 z"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null && g.tR <= 4 ? " 무렵" : ""}</span><b class="z0">이주 때 추가 0원</b><small>이주비 대출 ${e2(g.M)}억으로 전세금 ${e2(g.D)}억 반환 · 추정 · 입주 때 상환</small></li>`
+        ? `<li class="gt2 z"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null && g.tR <= 4 ? " 무렵" : ""}</span><b class="z0">이주비 대출로 전세금 반환</b><small>이주비 대출 ${e2(g.M)}억으로 전세금 ${e2(g.D)}억 반환 · 추정 · 입주 때 상환</small></li>`
         : x.ok
           ? `<li class="gt2"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null && g.tR <= 4 ? " 무렵" : ""}</span><b>+${e2(g.reloc)}억</b><small>전세금 ${e2(g.D)} 반환${g.M > 0.04 ? ` − 이주비 대출 ${e2(g.M)}(추정·입주 때 상환)` : g.Mcap === 0 ? " · 다주택은 이주비 대출 불가" : ""}</small></li>`
           : `<li class="gt2 na"><span class="gt-w">이주</span><b>+${e2(g.D)}억</b><small>전세금 반환 · 이주비 대출로 일부 충당 가능(조합·규제에 따라 다름)</small></li>`;

@@ -11,8 +11,10 @@ ap.add_argument('--rent', nargs='+', required=True)
 A = ap.parse_args()
 _B = os.path.join(ROOT, 'pipeline/data.base.json')
 D = json.load(open(_B if os.path.exists(_B) else os.path.join(ROOT, 'src/data.json'), encoding='utf-8'))
-R = D['recs']
-PAR = json.load(open(os.path.join(ROOT, 'pipeline/cache/parcels.json')))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from junk import is_junk
+R = [r for r in D['recs'] if not is_junk(r)]   # 시험 등록 제외
+_JK = {r['id'] for r in D['recs']} - {r['id'] for r in R}
+PAR = {k: v for k, v in json.load(open(os.path.join(ROOT, 'pipeline/cache/parcels.json'))).items() if k not in _JK}
 med = lambda a: st.median(a) if a else None
 NOWY = datetime.date.today().year
 
@@ -160,6 +162,7 @@ for r in R:
     cut = (datetime.date.today() - datetime.timedelta(days=550)).strftime('%Y%m%d')
     # 구축 빌라(연립·다세대, 전용 20~85㎡)만 — 단독 통매매 제외. 최근 12개월 5건 이상이면 12개월, 아니면 18개월
     cut12z = (datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y%m%d')
+    c24i = (datetime.date.today() - datetime.timedelta(days=730)).strftime('%Y%m%d')
     base = [x for x in s if x[1] == 0 and x[2] and x[2] <= 2015 and 20 <= x[3] <= 85]
     cut6z = (datetime.date.today() - datetime.timedelta(days=183)).strftime('%Y%m%d')
     old, nwin = [x for x in base if x[0] >= cut6z], 6
@@ -181,7 +184,15 @@ for r in R:
             qa = collections.defaultdict(list)
             for x in sa: qa[q_of(x[0])].append(x[5])
             t['qa'] = [[k, round(med(v)), len(v)] for k, v in sorted(qa.items())]
-        if any(x[1] == 3 for x in s): t['ni'] = sum(1 for x in s if x[1] == 3)   # 입주권 거래 수
+        si = [x for x in s if x[1] == 3]
+        if si:   # 아파트 입주권(착공 뒤 구역 안 거래는 대부분 입주권 — 구축 아파트 매매가와 따로 본다)
+            t['ni'] = len(si)   # 입주권 거래 수(전체 기간)
+            i12 = [x[5] for x in si if x[0] >= cut12z]; iw = 12
+            if len(i12) < 3: i12, iw = [x[5] for x in si if x[0] >= c24i], 24
+            if i12: t['im'] = round(med(i12)); t['in'] = len(i12); t['iw'] = iw   # 가운데 값(만원)·건수·기간(개월)
+            qi = collections.defaultdict(list)
+            for x in si: qi[q_of(x[0])].append(x[5])
+            t['qi'] = [[k, round(med(v)), len(v)] for k, v in sorted(qi.items())]
         if old:
             t['no'] = len(old); t['med'] = med([x[5] for x in old]); t['nwin'] = nwin; t['ar'] = round(med([x[3] for x in old]), 1)
             t['ld'] = round(med([x[4] for x in old if x[4] > 0]) or 0, 1)
@@ -233,7 +244,7 @@ for r in R:
         if .08 < v < 1.1: t['jr2'] = round(v, 3)
     if rid in parstat: t['pc'] = parstat[rid]
     if t: OUT[rid] = t
-    xt = {k: t[k] for k in ('q', 'qa', 'age', 'agn', 'pc') if t.get(k)}
+    xt = {k: t[k] for k in ('q', 'qa', 'qi', 'age', 'agn', 'pc') if t.get(k)}
     if s or j or xt:
         DET[rid] = {'s': [x[:7] for x in sorted(s, key=lambda x: x[0], reverse=True)[:40]], 'j': sorted(j, key=lambda x: x[0], reverse=True)[:20], 'x': xt}
 zr = [v.get('jr') or v.get('jr2') for v in OUT.values() if v.get('jr') or v.get('jr2')]

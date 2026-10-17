@@ -6,7 +6,10 @@
 import json, os, re, math, collections
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p: json.load(open(os.path.join(ROOT, p), encoding='utf-8'))
-D = J('pipeline/data.base.json') if os.path.exists(os.path.join(ROOT, 'pipeline/data.base.json')) else J('src/data.json'); R = D['recs']
+D = J('pipeline/data.base.json') if os.path.exists(os.path.join(ROOT, 'pipeline/data.base.json')) else J('src/data.json')
+from junk import is_junk   # 시험 등록(이름이 'test'·'테스트'·'임시'뿐) 제외 — 화면·정적 페이지·API 모두 이 파일을 쓴다
+_JUNK = {r['id'] for r in D['recs'] if is_junk(r)}
+D['recs'] = [r for r in D['recs'] if r['id'] not in _JUNK]; R = D['recs']
 GEO = J('public/data/geo.json')['z']
 TX = J('pipeline/txsum.json')
 PARC = J('pipeline/cache/parcels.json') if os.path.exists(os.path.join(ROOT, 'pipeline/cache/parcels.json')) else {}
@@ -57,6 +60,7 @@ for pid, pm in PREM.items():
         if not isinstance(v, str): continue
         if last and v[:10] < last and k in ('착공', '준공', '관리처분', '사업시행'): dt.pop(k); stat['dt_order_drop'] += 1; continue
         if k != '시행자지정': last = max(last, v[:10])
+for _k in _JUNK: PREM.pop(_k, None)   # 뺀 시험 레코드
 json.dump(PREM, open(os.path.join(ROOT, 'public/premium.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 if stage_changes: print('단계 변경', stage_changes[:20])
 
@@ -150,7 +154,7 @@ def parse_j(r):
 for r in R:
     t = T.get(r['id'])
     if t:
-        r['tx'] = {k: v for k, v in t.items() if v not in (None, [], {}) and k not in ('q', 'qa', 'age', 'agn', 'pc')}   # 상세는 data/tx.json에서 지연 로딩
+        r['tx'] = {k: v for k, v in t.items() if v not in (None, [], {}) and k not in ('q', 'qa', 'qi', 'age', 'agn', 'pc')}   # 상세는 data/tx.json에서 지연 로딩
     if not act(r) or r.get('src') == 'moa': continue
     mk = r.setdefault('mk', {}); en = mk.get('entry')
     villa_kind = r['k'] not in ('재건축', '소규모재건축')
