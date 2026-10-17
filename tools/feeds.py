@@ -46,7 +46,6 @@ for r in D['recs']:
     for d, sec, t in (pm.get('ev') or []):
         if d and d <= today: ev[(d, t[:60])] = f'{sec} · {t}'
     for d, _, sec, t, c in NB.get(r['id'], []): ev[(d, t[:60])] = f'{sec} · {t}'
-    if not ev: continue
     its = sorted(ev.items(), key=lambda x: x[0][0], reverse=True)[:30]
     items = ''.join(f'<item><title>{esc(t)}</title><link>{SITE}/z/{r["id"]}</link><guid isPermaLink="false">{r["id"]}-{d}-{hashlib.md5(t.encode()).hexdigest()[:8]}</guid><pubDate>{rd(d)}</pubDate><description>{esc(desc)}</description></item>' for (d, t), desc in its)
     open(os.path.join(zd, r['id'] + '.xml'), 'w', encoding='utf-8').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>{esc(r["n"])} 소식 · 얼마면 재개발</title><link>{SITE}/z/{r["id"]}</link><description>{esc(r["g"])} {esc(r["n"])} 인가·고시·추진경과</description><language>ko</language>{items}</channel></rss>\n')
