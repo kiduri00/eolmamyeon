@@ -779,10 +779,8 @@
       fit: () => { if (!map) return; map.resize(); fitAff(false); },
       lib: () => loadLib(), style: () => style(), subway: () => subwayGeo(),
       map: () => map,
-      _dbg: () => ({ R, D, geo, byId }),
     };
   })();
-  try { window.__lmx = LMX; } catch (e) {}
   // 데스크톱: 목록·검색에서 구역을 고르면 실제 지도가 그 구역으로 가서 굵은 테두리로 보여 준다
   {
     const _selL = select;
