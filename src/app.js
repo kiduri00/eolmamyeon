@@ -4514,13 +4514,13 @@
       ? hits
           .map(
             (h, i) =>
-              `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${h.r.id}" tabindex="-1"><span>${esc(h.r.n)}<small>${esc(h.r.g)} ${esc(h.r.j)} · ${esc(h.r.k)} · ${esc(srLabel(h.r))}</small></span><em>${h.r.st ? esc(h.r.st.n) + " " + fmt(h.r.st.d) + "m" : ""}</em></button>`,
+              `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${h.r.id}" tabindex="-1"><span>${esc(shortName(h.r.n))}<small>${esc(h.r.g)} ${esc(h.r.j)} · ${esc(h.r.k)} · ${esc(stageName(h.r))}</small></span><em>${h.r.st ? esc(h.r.st.n.replace(/역$/, "")) + "역 " + Math.max(1, Math.round((h.r.st.d * 1.3) / 67)) + "분" : ""}</em></button>`,
           )
           .join("") +
         (all.length > hits.length
           ? `<div class="more-hits" role="presentation">외 ${all.length - hits.length}곳 · 지번이나 구 이름을 더 넣어 좁혀 보세요</div>`
           : "")
-      : `<div class="s-none" role="presentation">일치하는 사업장이 없습니다. 지번(예: 자양동 799)이나 구역 이름으로 다시 검색해 보세요.</div>`;
+      : `<div class="s-none" role="presentation">찾는 구역이 없어요. 동 이름이나 '자양동 799'처럼 지번으로 찾아보세요.</div>`;
     $("sugg").hidden = false;
     $("q").setAttribute("aria-expanded", "true");
     $("suggLive").textContent = hits.length ? `${all.length}곳 찾음` : "일치하는 사업장 없음";
@@ -5748,7 +5748,7 @@
     }
   }
   const NAME_TAIL =
-    /\s*(주택)?(재정비촉진구역|정비구역)?\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?\s*(사업)?\s*(조합설립)?\s*(추진위원회|추진위|조합|준비위원회|주민협의체|주민대표회의|사업시행자)?\s*$/;
+    /\s*(주택)?(재정비촉진구역|정비구역)?\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?\s*(사업)?\s*(조합설립)?\s*(정비사업)?\s*(추진위원회|추진위|조합|준비위원회|주민협의체|주민대표회의|사업시행자|위원회)?\s*(재개발구역|구역)?\s*$/;
   function shortName(n) {
     let s = n
       .replace(/\([^)]*\)/g, "")
@@ -5765,6 +5765,9 @@
       .replace(/\s*(주택정비형|도시정비형|역세권활성화)?\s*$/, "")
       .replace(/번지/g, "")
       .replace(/\s*일[대원](?=\s|$)/g, "")
+      .replace(/^\S*재정비촉진지구\s+(?=\S+구역)/, "")
+      .replace(/\s+\d+동(,\s*\d+동)+$/, "")
+      .replace(/\s*(장기전세주택|소규모재건축|가로주택정비|도시정비형)(\s|$)/g, "$2")
       .replace(/\s+/g, " ")
       .trim();
     return s.length >= 2 ? s : n;
@@ -6382,7 +6385,7 @@
     if (g.block) return `<p class="cstrip gblock"><span>전세 끼고 사기</span><b class="gb-t">불가</b><small>${esc(g.block)}</small></p>`;
     if (g.na)
       return `<p class="cstrip na"><span>전세 끼고 지금 필요한 돈</span><b>–</b><small>${noPriceTxt(r)}</small></p>`;
-    return `<div class="cstrip gstrip ${CASH - g.now >= 0 ? "ok" : "short"}"><span>전세 끼고 사면${isEst(r) ? `<span class="zb est">구 평균 시세로 추정${P.est ? "" : " · 곳 수 제외"}</span>` : ""}</span><b>${g.now <= CASH + 1e-9 ? `지금 ${f1(g.now)}억이면 계약 가능` : `지금 ${f1(g.now)}억 필요 <em class="gs-sh">${f1(g.now - CASH)}억 모자라요</em>`}</b><small class="gs-2">${g.x.ok ? `입주까지 총 ${f1(g.total)}억${g.total > CASH ? ` · 내 돈 ${e2(CASH)}억 빼면 ${f1(g.total - CASH)}억 더` : ""}` : "입주까지는 계산 전"}</small></div>`;
+    return `<div class="cstrip gstrip ${CASH - g.now >= -0.05 ? "ok" : "short"}"><span>전세 끼고 사면${isEst(r) ? `<span class="zb est">구 평균 시세로 추정${P.est ? "" : " · 곳 수 제외"}</span>` : ""}</span><b>${g.now <= CASH + 0.05 ? `지금 ${f1(g.now)}억이면 계약 가능` : `지금 ${f1(g.now)}억 필요 <em class="gs-sh">${f1(g.now - CASH)}억 모자라요</em>`}</b><small class="gs-2">${g.x.ok ? `입주까지 총 ${f1(g.total)}억${g.total > CASH ? ` · 내 돈 ${e2(CASH)}억 빼면 ${f1(g.total - CASH)}억 더` : ""}` : "입주까지는 계산 전"}</small></div>`;
   }
   function gapFrame(g) {
     const ok = g.now <= CASH + 1e-9;

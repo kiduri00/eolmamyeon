@@ -46,7 +46,7 @@ const SIMPLE = (() => {
     if (on && m) m.hidden = false;
     if (!on) { const nb = document.querySelector('#sNav [data-nav="home"]'); if (nb) { document.querySelectorAll("#sNav button").forEach((x) => x.removeAttribute("aria-current")); nb.setAttribute("aria-current", "page"); } }
     setTimeout(() => window.dispatchEvent(new Event("resize")), 30);
-    [120, 400].forEach((t) => setTimeout(() => { try { if (mapView === "seoul") LMX.seoul(); } catch (e) {} }, t));
+    [60, 300, 800].forEach((t) => setTimeout(() => { try { LMX.fit(); } catch (e) {} }, t));
     try { if (on && !(history.state && history.state.sFull)) history.pushState({ sFull: 1 }, "", location.href); else if (!on && history.state && history.state.sFull) history.back(); } catch (e) {}
   }
   // ---------- 화면 만들기 ----------
@@ -239,9 +239,9 @@ const SIMPLE = (() => {
     if (el._tw) return;
     let last = performance.now();
     const step = (now) => {
-      const dt = now - last; last = now;
-      const d = el._to - el._v;
-      el._v = Math.abs(d) < 0.5 || now - el._t0 > 320 ? el._to : el._v + d * (1 - Math.exp(-dt / 60));
+      const dt = Math.max(0, Math.min(100, now - last)); last = Math.max(last, now);
+      const d = el._to - el._v, k = Math.min(1, Math.max(0, 1 - Math.exp(-dt / 60)));
+      el._v = Math.abs(d) < 0.5 || performance.now() - el._t0 > 320 ? el._to : el._v + d * k;
       el.textContent = fmt(Math.round(el._v));
       el._tw = el._v === el._to ? 0 : requestAnimationFrame(step);
     };
@@ -267,7 +267,7 @@ const SIMPLE = (() => {
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
     if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
-      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.tag === "lt" ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "입주까지 –") : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
+      ? L.slice(0, shown).map(({ r, n, early }) => `<li><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${early ? ' · <em>초기 단계</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span><span class="s-amt"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small>${gap || effBasis() !== "total" ? (n.total != null ? `입주까지 ${eokS(n.total)}` : "입주까지 –") : `계약 ${eokS(n.now)}`}</small></span></a></li>`).join("")
       : `<li class="s-empty">${gu ? `${esc(gu)}에는 이 금액으로 되는 곳이 없어요.` : "이 금액으로 되는 곳이 없어요."} 게이지를 올려 보세요.</li>`;
     const m = $("sMore");
     m.hidden = L.length <= shown;

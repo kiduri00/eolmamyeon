@@ -310,3 +310,21 @@ html.simple #mapbox:has(.map-bar:not([hidden])) .lm-ctl{top:64px}
   html.simple #mapTop .main>.mapcard{position:sticky;top:calc(var(--hdr-h,60px) + 16px)}
 }
 .s-nm small em.s-tag{font-style:normal;color:var(--text-2);font-weight:600}
+/* 폰 첫 화면에서 목록 첫 줄이 보이게 */
+@media (max-width:640px){
+  html.simple #mapbox.lm-on{height:min(72vw,300px)}
+  html.simple .s-search{min-height:44px;margin:0 0 8px}
+  .s-gauge{padding:14px 16px 8px}
+  .s-ghead{gap:8px}
+  .s-gauge .s-h1{font-size:21px}
+  .s-gmain{margin:8px 0 2px}
+  .s-cash small,.s-count small{font-size:12px}
+  .s-cash b,.s-count b{font-size:38px}
+  html.simple #mapTop>.s-gauge,html.simple .s-hero{margin-bottom:10px}
+  .s-list-w{margin-top:12px}
+}
+@media (max-width:640px){
+  html.simple.s-full .map-bar{top:76px}
+  html.simple.s-full #mapbox .lm-ctl{top:76px}
+  html.simple.s-full #mapbox:has(.map-bar:not([hidden])) .lm-ctl{top:130px}
+}

@@ -134,7 +134,7 @@
       L({ id: "ly-hj-lab", type: "symbol", source: "hj", layout: { visibility: "none", "text-field": ["format", ["get", "n"], {}, "\n", {}, ["get", "s"], { "font-scale": 0.85 }], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-offset": [0, 1.2], "text-anchor": "top", "text-optional": true, "text-max-width": 10 }, paint: { "text-color": ["get", "c"], "text-halo-color": halo, "text-halo-width": 2 } });
       L({ id: "ly-hi", type: "symbol", source: "hi", layout: { visibility: "none", "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-offset": [0, -1.9], "text-allow-overlap": false, "text-optional": true }, paint: { "text-color": dk ? "#FF9C8A" : "#B42318", "text-halo-color": halo, "text-halo-width": 2.2 } });
       // 구 화면 줌(11.8 아래)에서도 내 돈으로 되는 구역은 값만 보이게
-      L({ id: "zone-lab-y", type: "symbol", source: "zlab", minzoom: 10.6, maxzoom: 11.8, filter: ["==", ["get", "y"], 1], layout: { "text-field": ["format", ["get", "n"], { "font-scale": 0.85 }, " ", {}, ["get", "p"], {}], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-padding": 2 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "zone-lab-y", type: "symbol", source: "zlab", minzoom: 10.6, maxzoom: 11.8, filter: ["all", ["==", ["get", "y"], 1], ["!=", ["get", "p"], ""]], layout: { "text-field": ["format", ["get", "n"], { "font-scale": 0.85 }, " ", {}, ["get", "p"], {}], "text-font": ["Noto Sans Bold"], "text-size": 11.5, "text-padding": 2 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
       L({ id: "zone-lab", type: "symbol", source: "zlab", minzoom: 11.8, layout: { "text-field": ["format", ["get", "n"], { "font-scale": 1 }, "\n", {}, ["get", "s"], { "font-scale": 0.84 }], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-max-width": 9, "text-padding": 4 }, paint: { "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 2 } });
       const pill = (id, bg, bd) => { if (map.hasImage(id)) return; const c = document.createElement("canvas"), r = 2, w = 40 * r, h = 28 * r; c.width = w; c.height = h; const x = c.getContext("2d"); x.fillStyle = bg; x.strokeStyle = bd; x.lineWidth = 2 * r; const rr = 12 * r; x.beginPath(); x.moveTo(rr, r); x.arcTo(w - r, r, w - r, h - r, rr); x.arcTo(w - r, h - r, r, h - r, rr); x.arcTo(r, h - r, r, r, rr); x.arcTo(r, r, w - r, r, rr); x.closePath(); x.fill(); x.stroke(); map.addImage(id, { width: w, height: h, data: x.getImageData(0, 0, w, h).data }, { pixelRatio: r, stretchX: [[14 * r, 26 * r]], stretchY: [[12 * r, 16 * r]], content: [8 * r, 5 * r, 32 * r, 23 * r] }); };
       pill("pill-on", P.y, P.y); pill("pill-off", dk ? "#1b2230" : "#ffffff", dk ? "#3a4556" : "#c9d0da");
@@ -193,7 +193,7 @@
         const p = map.project(c.ll), w = k > 0 ? (nm.length * 0.82 + v.length * 0.62 + 0.4) * fs + 16 : nm.length * 0.8 * fs + 4, h = k > 0 ? fs * 1.25 + 10 : fs + 4;
         return { c, k, nm, v, x: p.x, y: p.y, x0: p.x, y0: p.y, w, h };
       });
-      for (let it = 0; it < 60; it++) {
+      for (let it = 0; it < 200; it++) {
         let moved = false;
         for (let a = 0; a < B.length; a++) for (let b = a + 1; b < B.length; b++) {
           const P = B[a], Q = B[b], dx = Q.x - P.x, dy = Q.y - P.y;
@@ -263,7 +263,7 @@
         const st0 = colorBy === "cash" ? dotState(r) : "", c = colorOf(r, P), z = Z[r.id], o = BINS[colorBy] ? (metric(r) == null ? 0.4 : 1.25) : st0 === "x" ? 0.45 : st0 === "n" || st0 === "u" ? 0.75 : st0 === "y" ? 1.3 : 1;
         if (z && !z.e) {   // 추정 원(공식 경계 없음)은 큰 원 대신 점으로
           (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id, c, o } });
-          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), p: labelOf(r).replace(/^지금\s*/, ""), y: st0 === "y" ? 1 : 0 } });
+          lab.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id, n: shortName(r.n), s: labelOf(r), p: /\d/.test(labelOf(r)) ? labelOf(r).replace(/^지금\s*/, "") : "", y: st0 === "y" ? 1 : 0 } });
         }
         if (!z || z.e) pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id, c, o } });
       }
@@ -343,7 +343,7 @@
       try {
         map = new maplibregl.Map({
           container: "lmap", style: style(), bounds: SEOUL_BB, fitBoundsOptions: { padding: 12 },
-          minZoom: 8.8, maxZoom: 17.6, maxBounds: [[126.55, 37.3], [127.42, 37.82]], attributionControl: false,
+          minZoom: 8.8, maxZoom: 17.6, maxBounds: [[126.2, 37.05], [127.75, 38.05]], attributionControl: false,
           localIdeographFontFamily: "'Pretendard Variable','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif",
           cooperativeGestures: matchMedia("(pointer: coarse)").matches, dragRotate: false, pitchWithRotate: false, touchPitch: false,
           locale: { "CooperativeGesturesHandler.WindowsHelpText": "Ctrl 키를 누른 채 스크롤하면 확대·축소돼요", "CooperativeGesturesHandler.MacHelpText": "⌘ 키를 누른 채 스크롤하면 확대·축소돼요", "CooperativeGesturesHandler.MobileHelpText": "두 손가락으로 지도를 움직여 보세요" },
@@ -374,7 +374,7 @@
       map.on("click", (e) => {
         const gb = map.getLayer("gub") ? map.queryRenderedFeatures(e.point, { layers: ["gub"] }) : [];
         if (gb.length && mapView === "seoul") { enterGu(gb[0].properties.g, {}); return; }
-        const ls = hit.filter((l) => map.getLayer(l));
+        const ls = hit.concat(["zone-lab", "zone-lab-y"]).filter((l) => map.getLayer(l));
         const fs = map.queryRenderedFeatures(e.point, { layers: ls });
         if (!fs.length) return;
         // 겹치면 작은(구체적인) 구역 우선
@@ -434,6 +434,7 @@
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
       zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else map.fitBounds(SEOUL_BB, { padding: 8, duration: reduceMotion() ? 0 : 400 }); },
       geo: () => loadGeo(),
+      fit: () => { if (!map) return; map.resize(); if (mapView === "seoul" && !gu) map.fitBounds(SEOUL_BB, { padding: 14, duration: 0 }); },
       lib: () => loadLib(), style: () => style(), subway: () => subwayGeo(),
     };
   })();
