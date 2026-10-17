@@ -52,3 +52,4 @@ html.is-app .s-nav{-webkit-user-select:none;user-select:none;-webkit-touch-callo
   .menu-pop.mp-v2{width:auto}
   .mp-v2 .mp-grid a,.mp-v2 .mp-row a{padding:0 12px;min-height:44px}
 }
+@media (min-width:641px){.mp-v2 .mp-h{display:none}}
