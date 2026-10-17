@@ -18,8 +18,9 @@ android {
         applicationId 'kr.alwaysquestions.jaegaebal'
         minSdk 24
         targetSdk 36
-        versionCode 1
-        versionName '1.0.0'
+        // 플레이에 올릴 때마다 1씩 올린다: ./gradlew bundleRelease -PversionCode=2 -PversionName=1.0.1
+        versionCode((project.findProperty('versionCode') ?: '1') as Integer)
+        versionName(project.findProperty('versionName') ?: '1.0.0')
 
         manifestPlaceholders = [
             hostName       : host,

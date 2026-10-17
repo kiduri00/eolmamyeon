@@ -8,18 +8,63 @@
   "start_url": "/?utm_source=pwa",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#FFFFFF",
-  "theme_color": "#1F3A87",
-  "categories": ["finance", "productivity", "utilities"],
+  "theme_color": "#FFFFFF",
+  "categories": [
+    "lifestyle",
+    "navigation",
+    "utilities"
+  ],
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "찜한 구역", "short_name": "찜", "url": "/?utm_source=pwa#favTop", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "월간 리포트", "short_name": "리포트", "url": "/report/?utm_source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+    {
+      "name": "찜한 구역",
+      "short_name": "찜",
+      "url": "/?utm_source=pwa#favTop",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "월간 리포트",
+      "short_name": "리포트",
+      "url": "/report/?utm_source=pwa",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }
