@@ -65,3 +65,9 @@ out = shell.replace('<style>/*APPCSS*/</style>', f'<link rel="stylesheet" href="
 for k in ('/*APPCSS*/', '/*APPJS*/', '/*DATA*/'): assert k not in out
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)
 print('public/index.html', len(out.encode()), 'bytes')
+# 서비스 워커 캐시 이름 = 이번 빌드 내용 해시(배포마다 옛 캐시를 비운다)
+SW = os.path.join(R, 'public', 'sw.js')
+if os.path.exists(SW):
+    sw0 = open(SW, encoding='utf-8').read(); swv = hashlib.md5(out.encode()).hexdigest()[:8]
+    sw1 = re.sub(r'^const V = "[^"]*";', f'const V = "{swv}";', sw0, count=1, flags=re.M)
+    if sw1 != sw0: open(SW, 'w', encoding='utf-8').write(sw1); print('sw.js cache', swv)

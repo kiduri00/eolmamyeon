@@ -18,7 +18,13 @@
 <p class="eyebrow">404</p>
 <h1>페이지를 찾을 수 없어요</h1>
 <p class="lede">주소가 바뀌었거나, 구역이 정리돼 페이지가 없어졌을 수 있어요.</p>
-<p><a href="/">계산기(홈)에서 찾기</a> · <a href="/z/">구역별 페이지 전체 보기</a></p>
+<form class="nf-s" action="/" method="get" role="search" style="display:flex;gap:8px;max-width:520px;margin:20px 0 12px">
+<label for="nfq" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">구역·동·역 이름</label>
+<input id="nfq" name="q" type="search" placeholder="구역·동·역 이름 (예: 한남3, 성수동)" autocomplete="off" enterkeyhint="search" required style="flex:1;min-width:0;min-height:48px;padding:0 14px;border:1px solid rgba(127,127,127,.4);border-radius:12px;background:transparent;color:inherit;font:500 16px inherit">
+<button type="submit" style="min-height:48px;padding:0 18px;border:0;border-radius:12px;background:#1F3A87;color:#fff;font:700 15px inherit;cursor:pointer">찾기</button>
+</form>
+<p>자주 찾는 곳: <a href="/gu/">자치구별 보기</a> · <a href="/z/">구역별 페이지 전체</a> · <a href="/report/">월간 리포트</a> · <a href="/">계산기(홈)</a></p>
+<script>(function(){try{var m=location.pathname.match(/^\/z\/([^/.]+)/);var q=document.getElementById("nfq");if(!m){var t=decodeURIComponent(location.pathname.split("/").pop()||"").replace(/\.html$/,"").replace(/[-_]/g," ");if(/[가-힣]/.test(t))q.value=t.slice(0,30);}}catch(e){}})();</script>
 </main>
 <footer class="f"><p><a href="/report/">월간 리포트</a> · <a href="/z/">구역별 페이지</a> · <a href="/guide/">가이드·분석</a> · <a href="/about">소개</a> · <a href="/contact">문의하기</a> · <a href="/method">출처·계산 방법</a> · <a href="/terms">이용약관</a> · <a href="/privacy"><b>개인정보처리방침</b></a></p><p class="f-c">© 2026 집핀</p></footer>
 </body>

@@ -167,3 +167,4 @@ svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 #report .rep-head .gb.lb[role=button]{cursor:pointer}
 #report .rep-head .gb.lb[aria-expanded="true"]{outline:1.5px solid var(--text-3);outline-offset:1px}
 .ov-wl{display:inline-flex;align-items:center;min-height:32px;padding:0;border:0;background:none;color:var(--brand);font:700 13px var(--font);cursor:pointer}
+.ov-tl-now.ov-stl{padding:2px 8px;border-radius:999px;color:var(--warn-ink);background:var(--warn-soft);font-weight:700}

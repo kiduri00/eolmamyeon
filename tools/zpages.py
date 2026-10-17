@@ -13,6 +13,37 @@ esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 UPD = (D.get('upd') or datetime.date.today().isoformat()).replace('-', '.')
 TXD = (D.get('txAsOf') or {}).get('sale', '')
 TXX = J('public/data/tx.json', {}) or {}   # 구역별 실거래 상세: x.hd = 화면 머리글과 같은 기준(tools/tx.py)
+GEO = J('public/data/geo.json', {}) or {}   # 앱 지도와 같은 정비구역·구 경계(작은 지도 그림용)
+GUG = {x['n']: x['r'] for x in (GEO.get('gu') or [])}
+def minimap(r):
+    """구역 경계를 작은 정적 SVG로(주변 1.2km 안팎 · 구 경계 · 가까운 역). 경계가 없으면 빈 문자열."""
+    z = (GEO.get('z') or {}).get(r['id'])
+    if not z or not z.get('g'): return ''
+    rings = z['g'] if isinstance(z['g'][0][0][0], (int, float)) else [rg for poly in z['g'] for rg in poly]
+    xs = [p[0] for rg in rings for p in rg]; ys = [p[1] for rg in rings for p in rg]
+    cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+    kx = math.cos(math.radians(cy)) * 111320; ky = 110540   # 도 → m
+    span = max(1200, (max(xs) - min(xs)) * kx * 1.8, (max(ys) - min(ys)) * ky * 1.8)
+    W, H = 640, 360; sc = min(W, H) / span
+    P = lambda lng, lat: ((lng - cx) * kx * sc + W / 2, H / 2 - (lat - cy) * ky * sc)
+    path = lambda rgs: ''.join('M' + 'L'.join(f'{x:.1f},{y:.1f}' for x, y in (P(*q) for q in rg)) + 'Z' for rg in rgs)
+    gu = GUG.get(r['g']); gp = ''
+    if gu:
+        grs = gu if isinstance(gu[0][0][0], (int, float)) else [rg for poly in gu for rg in poly]
+        gp = f'<path d="{path(grs)}" class="mm-gu"/>'
+    st = []
+    for s_ in (D.get('stations') or []):
+        x, y = P(s_[2], s_[1])
+        if 14 <= x <= W - 14 and 14 <= y <= H - 14: st.append((x, y, s_[0]))
+    sts = ''.join(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5" class="mm-st"/><text x="{x:.1f}" y="{y - 10:.1f}" class="mm-tx" text-anchor="middle">{esc(n)}</text>' for x, y, n in st[:4])
+    bar = 500 * sc
+    return (f'<figure class="mm" style="margin:16px 0 8px"><svg viewBox="0 0 {W} {H}" width="100%" role="img" aria-label="{esc(short(r["n"]))} 정비구역 경계 지도" style="display:block;max-width:640px;border-radius:14px;border:1px solid rgba(127,127,127,.25)">'
+            '<style>.mm-bg{fill:#f3f5f9}.mm-gu{fill:none;stroke:#8b95a1;stroke-width:1.5;stroke-dasharray:6 4}.mm-z{fill:rgba(31,58,135,.22);stroke:#1f3a87;stroke-width:2.5;stroke-linejoin:round}'
+            '.mm-st{fill:#fff;stroke:#00a84d;stroke-width:2.5}.mm-tx{font:600 13px Pretendard,system-ui,sans-serif;fill:#4e5968;paint-order:stroke;stroke:#f3f5f9;stroke-width:3}.mm-sb{stroke:#4e5968;stroke-width:2}'
+            '@media (prefers-color-scheme:dark){.mm-bg{fill:#1b2130}.mm-z{fill:rgba(91,140,255,.25);stroke:#7da2ff}.mm-tx{fill:#c3cad9;stroke:#1b2130}.mm-st{fill:#1b2130}.mm-sb{stroke:#c3cad9}}</style>'
+            f'<rect width="{W}" height="{H}" class="mm-bg"/>{gp}<path d="{path(rings)}" class="mm-z" fill-rule="evenodd"/>{sts}'
+            f'<line x1="16" y1="{H - 16}" x2="{16 + bar:.1f}" y2="{H - 16}" class="mm-sb"/><text x="16" y="{H - 22}" class="mm-tx">500m</text></svg>'
+            f'<figcaption class="meta">정비구역 경계(서울도시공간포털·정비사업 현황) · 점선은 {esc(r["g"])} 경계 · <a href="../#{r["id"]}">앱 지도에서 크게 보기</a></figcaption></figure>')
 HDB = {'i': ('입주권 전용 3.3㎡당', '아파트 입주권'), 'a': ('아파트 전용 3.3㎡당', '아파트 매매'), 'v': ('대지 3.3㎡당', '빌라·단독 매매')}
 def short(n):
     n = re.sub(r'^\s*(\(가칭\)|\[임시\]|\(임시\))\s*', '', n)
@@ -108,6 +139,7 @@ def page(r):
     if c.get('st'): k.append(('가까운 역', f"{esc(c['st']['n'])} 도보 {max(1, round(c['st']['d'] * 1.3 / 67))}분", ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])))
     if c.get('owners'): k.append(('토지등소유자', f"{int(c['owners']):,}명", f"구역 면적 {int((r.get('sm') or {}).get('area') or 0):,}㎡" if (r.get('sm') or {}).get('area') else ''))
     o.append('<div class="kpis">' + ''.join(f'<div class="kpi"><span>{a}</span><b>{b}</b><small>{s}</small></div>' for a, b, s in k) + '</div>')
+    o.append(minimap(r))
     # 인가 이력
     hist = [(lab, dt[key]) for key, lab in DTK if dt.get(key)]
     if hist:
@@ -198,7 +230,7 @@ def guPage(g, L):
     desc = f'{g}에서 진행 중인 정비사업 {len(L)}곳. ' + (f'전세 끼고 가장 적은 돈으로 살 수 있는 곳은 {short(cheap[0]["n"])}(지금 {eok(c(cheap[0])["gapNow"])}). ' if cheap else '') + f'데이터 기준 {UPD}.'
     ld = json.dumps({"@context": "https://schema.org", "@type": "CollectionPage", "name": f"{g} 정비사업", "url": url}, ensure_ascii=False)
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace(' aria-current="page"', '')]
-    o.append(f'<p class="eyebrow"><a href="./">구역별 페이지</a> · 데이터 기준 {UPD}</p><h1>{esc(g)} 재개발·재건축 {len(L)}곳</h1>')
+    o.append(f'<p class="eyebrow"><a href="./">구역별 페이지</a> · <a href="../gu/">자치구별</a> · 데이터 기준 {UPD}</p><h1>{esc(g)} 재개발·재건축 {len(L)}곳</h1>')
     o.append('<p class="lede">' + ' · '.join(f'{esc(k)} {v}곳' for k, v in st.most_common(6) if k) + '</p>')
     if cheap: o.append('<p>전세 끼고 적은 돈으로 시작할 수 있는 곳: ' + ', '.join(f'<a href="{x["id"]}">{esc(short(x["n"]))}</a> {eok(c(x)["gapNow"])}' for x in cheap) + f'. <a href="../#map-{esc(g)}">지도에서 내 돈으로 보기 →</a></p>')
     def rowkey(x):   # 숫자가 있는 줄 먼저(전세 끼고 지금 적은 순 → 현금만 있는 줄), 숫자 없는 줄은 뒤에 단계순
@@ -218,6 +250,25 @@ def guPage(g, L):
     return ''.join(o)
 for g in sorted(byg): open(os.path.join(GD, g + '.html'), 'w', encoding='utf-8').write(guPage(g, byg[g]))
 print('gu pages', len(byg))
+# 구 목록 페이지: public/gu/index.html (/gu/ 가 404가 나지 않게)
+def guIndex():
+    url = f'{SITE}/gu/'
+    ld = json.dumps({"@context": "https://schema.org", "@type": "CollectionPage", "name": "서울 자치구별 정비사업", "url": url, "inLanguage": "ko",
+                     "mainEntity": {"@type": "ItemList", "numberOfItems": len(byg), "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": g, "url": f"{SITE}/gu/{g}"} for i, g in enumerate(sorted(byg))]}}, ensure_ascii=False)
+    title = f'서울 자치구별 재개발·재건축 {len(byg)}개 구 | 집핀 - 서울 재개발 지도'
+    desc = f'서울 {len(byg)}개 자치구의 진행 중 정비사업 {len(R)}곳을 구별로 모았어요. 구를 누르면 구역마다 진행 단계와 필요한 돈을 볼 수 있어요. 데이터 기준 {UPD}.'
+    o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace('<meta name="emr-auto" content="1">\n', '').replace(' aria-current="page"', '').replace('<base href="/z/">', '<base href="/gu/">')]
+    o.append(f'<p class="eyebrow">자치구별 페이지 · 데이터 기준 {UPD}</p><h1>서울 자치구별 재개발·재건축</h1><p class="lede">서울에서 진행 중인 정비사업 {len(R)}곳을 {len(byg)}개 구로 나눴어요. 구를 고르면 그 구의 구역을 전세 끼고 지금 필요한 돈 순으로 볼 수 있어요.</p>')
+    def card(g):
+        L = byg[g]; ok = [C.get(x['id'], {}).get('gapNow') for x in L if (C.get(x['id']) or {}).get('gapOk') and (C.get(x['id']) or {}).get('gapNow') is not None and not x.get('lc') and x.get('tag') != 'mk']
+        sub = f"{len(L)}곳" + (f" · 전세 끼고 최소 {eok(min(ok))}" if ok else '')
+        return f'<a class="zl" href="{esc(g)}">{esc(g)}<small>{sub}</small></a>'
+    o.append('<div class="grid2">' + ''.join(card(g) for g in sorted(byg)) + '</div>')
+    o.append('<p class="meta"><a href="../z/">구역별 페이지 전체</a> · <a href="../">계산기에서 내 돈으로 보기</a></p>')
+    o.append(FOOT.format(upd=UPD))
+    return ''.join(o).replace('href="../gu/', 'href="')
+open(os.path.join(GD, 'index.html'), 'w', encoding='utf-8').write(guIndex())
+print('gu index', len(byg))
 # 손으로 쓴 소개·기간 페이지의 '데이터 기준' 날짜를 앱과 같은 갱신일로 맞춘다(예전엔 2026.09.26에 멈춰 있었다)
 for fn, pats in (('years.html', [(r'(<p class="eyebrow">데이터 기준 )[\d.]+(</p>)', r'\g<1>' + UPD + r'\2')]),
                  ('about.html', [(r'(지금 기준일은 )[\d.]+(이에요)', r'\g<1>' + UPD + r'\2')])):
@@ -226,3 +277,35 @@ for fn, pats in (('years.html', [(r'(<p class="eyebrow">데이터 기준 )[\d.]+
     h0 = open(fp, encoding='utf-8').read(); h1 = h0
     for a, b in pats: h1 = re.sub(a, b, h1)
     if h1 != h0: open(fp, 'w', encoding='utf-8').write(h1); print('date synced', fn, UPD)
+
+# /report·/years 구조화 데이터(JSON-LD): 다른 도구(report.py·feeds.py)가 이 페이지의 <head>를 틀로 베끼므로 <main> 바로 안에 한 덩이만 넣고 매번 바꿔 끼운다
+def _ld_put(fp, obj):
+    if not os.path.exists(fp): return
+    h0 = open(fp, encoding='utf-8').read()
+    tag = '<script type="application/ld+json" id="zp-ld">' + json.dumps(obj, ensure_ascii=False).replace('</', '<\\/') + '</script>'
+    h1 = re.sub(r'<script type="application/ld\+json" id="zp-ld">.*?</script>', lambda m: tag, h0, flags=re.S) if 'id="zp-ld"' in h0 else h0.replace('<main>', '<main>' + tag, 1)
+    if h1 != h0: open(fp, 'w', encoding='utf-8').write(h1); print('json-ld', os.path.relpath(fp, ROOT))
+def _meta(h, name):
+    m = re.search(r'<title>(.*?)</title>', h, re.S) if name == 'title' else re.search(r'<meta name="description" content="([^"]*)"', h)
+    return html.unescape(m.group(1)).strip() if m else ''
+_pub = {"@type": "Organization", "name": "집핀", "url": SITE, "logo": f"{SITE}/icon-512.png"}
+RD = os.path.join(ROOT, 'public/report')
+if os.path.isdir(RD):
+    iss = sorted((f for f in os.listdir(RD) if re.match(r'\d{4}-\d{2}\.html$', f)), reverse=True)
+    for f in iss:
+        h = open(os.path.join(RD, f), encoding='utf-8').read(); ym = f[:7]
+        h1m = re.search(r'<h1[^>]*>(.*?)</h1>', h, re.S)
+        _ld_put(os.path.join(RD, f), {"@context": "https://schema.org", "@type": "Article", "headline": re.sub(r'<[^>]+>', '', h1m.group(1)).strip()[:110] if h1m else _meta(h, 'title'),
+                 "description": _meta(h, 'desc'), "inLanguage": "ko", "datePublished": ym + "-01", "url": f"{SITE}/report/{ym}", "mainEntityOfPage": f"{SITE}/report/{ym}",
+                 "image": f"{SITE}/og.png", "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": _pub})
+    ix = os.path.join(RD, 'index.html')
+    if os.path.exists(ix):
+        h = open(ix, encoding='utf-8').read()
+        _ld_put(ix, {"@context": "https://schema.org", "@type": "CollectionPage", "name": _meta(h, 'title'), "description": _meta(h, 'desc'), "url": f"{SITE}/report/", "inLanguage": "ko", "publisher": _pub,
+                     "mainEntity": {"@type": "ItemList", "itemListElement": [{"@type": "ListItem", "position": i + 1, "url": f"{SITE}/report/{f[:7]}"} for i, f in enumerate(iss)]}})
+YF = os.path.join(ROOT, 'public/years.html')
+if os.path.exists(YF):
+    h = open(YF, encoding='utf-8').read()
+    _ld_put(YF, {"@context": "https://schema.org", "@type": "Article", "headline": _meta(h, 'title').split(' | ')[0], "description": _meta(h, 'desc'), "inLanguage": "ko",
+                 "dateModified": UPD.replace('.', '-'), "url": f"{SITE}/years", "mainEntityOfPage": f"{SITE}/years", "image": f"{SITE}/og.png",
+                 "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": _pub})

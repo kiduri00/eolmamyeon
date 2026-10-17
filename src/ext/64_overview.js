@@ -22,7 +22,7 @@ const OVX = (() => {
     const o = t.old;
     if (!o || !o.k || r.s >= 7 || /재건축/.test(r.k)) return "";   // 재건축은 노후도 요건이 아니라 준공 30년 기준
     const ok = o.pol >= 60;
-    return `<div class="ov-c ov-old"><div class="ov-gw">${gauge(o.pol)}<div class="ov-gs"><h3>노후도</h3><b class="${ok ? "ok" : "no"}">${ok ? "요건 충족" : "요건 미달"}</b><span>요건 60% 이상 · 평균 ${Math.round(o.avg)}년${o.new10 ? ` · 신축 ${o.new10}동` : ""}</span></div></div></div>`;
+    return `<div class="ov-c ov-old"><div class="ov-gw">${gauge(o.pol)}<div class="ov-gs"><h3>노후도</h3><b class="${ok ? "ok" : "no"}">${ok ? "요건 충족" : "요건 미달"}</b><span>평균 ${Math.round(o.avg)}년${o.new10 ? ` · 신축 ${o.new10}동` : ""}</span></div></div></div>`;
   }
 
   // ---------- 판정: 입주권 · 전세 끼고 · 단계 (누르면 한 줄 이유) ----------
@@ -114,7 +114,8 @@ const OVX = (() => {
     const sn = stageName(r), nz = (x) => String(x).replace(/인가|\s|·/g, "");
     const pre = !done && (i < 0 || !nz(sn).startsWith(nz(T[i][0]))) ? `<span class="ov-tl-now">지금 ${esc(sn)}</span>` : "";
     const li = T.map(([k], n) => { const d = stepDate(r, k), st = n < i || (n === i && done) ? "dn" : n === i ? "on" : ""; return `<li class="${st}"${n === i && !done ? ' aria-current="step"' : ""}><i></i><b>${k === "시행자지정" ? "시행자" : k}</b><small>${d ? esc(d.slice(2, 7).replace("-", ".")) : n === i && !done ? "지금" : n < i ? "–" : ""}</small></li>`; }).join("");
-    return `<div class="ov-c ov-tl"><h3>진행 단계 ${pre}<em class="ov-pv" hidden></em></h3><div class="ov-tl-sc" tabindex="0" role="group" aria-label="진행 단계 ${T.length}칸${i >= 0 ? ` · 지금 ${esc(sn)}` : ""}"><ol style="--n:${T.length}">${li}</ol></div></div>`;
+    const stl = r.stale && !done ? `<span class="ov-tl-now ov-stl" title="오랫동안 새 인가·공고 기록이 없어요">진행 확인 필요</span>` : "";
+    return `<div class="ov-c ov-tl"><h3>진행 단계 ${pre}${stl}<em class="ov-pv" hidden></em></h3><div class="ov-tl-sc" tabindex="0" role="group" aria-label="진행 단계 ${T.length}칸${i >= 0 ? ` · 지금 ${esc(sn)}` : ""}"><ol style="--n:${T.length}">${li}</ol></div></div>`;
   }
   function srcHTML(r) {
     const s = D.txAsOf && D.txAsOf.sale, d = s && s.length >= 8 ? `${s.slice(0, 4)}.${s.slice(4, 6)}.${s.slice(6, 8)}` : "";
@@ -144,7 +145,7 @@ const OVX = (() => {
     if (qq.length < 3) return "";
     const W = 320, H = 150, pl = 42, pr = 2, pt = 18, pb = 32, n = qq.length, gap = 4, bw = Math.min(24, (W - pl - pr - gap * (n - 1)) / n);
     const mx = Math.max(...qq.map((x) => x[1])), st = nice(mx / 2), ticks = [];
-    for (let t = st; t <= mx * 1.02 || ticks.length < 1; t += st) ticks.push(t);
+    for (let t = st; !ticks.length || ticks[ticks.length - 1] < mx; t += st) ticks.push(t);
     const top = Math.max(mx, ticks[ticks.length - 1]), base = H - pb;
     const off = pl + (W - pl - pr - (n * (bw + gap) - gap)) / 2;
     const X = (i) => off + i * (bw + gap), Y = (v) => pt + (base - pt) * (1 - v / top);
@@ -306,7 +307,7 @@ const OVX = (() => {
   function fixGtl(p, r) {
     const gt = p.querySelector(".gtl"); if (!gt) return;
     const e3 = gt.querySelector(".gt3 .gt-w"), e2w = gt.querySelector(".gt2 .gt-w"), lab = etaLabel(r);
-    if (e3 && lab && (r.stale || /시점 미정|일정 산정 불가/.test(e3.textContent))) e3.textContent = `입주 · ${lab}`;
+    if (e3 && lab && (r.stale || /시점 미정|일정 산정 불가/.test(e3.textContent)) && e3.textContent !== `입주 · ${lab}`) e3.textContent = `입주 · ${lab}`;
     if (e2w && /시점 미정/.test(e2w.textContent)) e2w.textContent = r.s >= 7 ? "이주 · 진행 중" : "이주 · 관리처분 뒤";
   }
   function tidyPane() {
@@ -331,6 +332,9 @@ const OVX = (() => {
   }
   function init() {
     const _rp = renderPane; renderPane = function () { const x = _rp.apply(this, arguments); try { tidyPane(); } catch (e) {} return x; };
+    // 입주 현금 시간표는 첫 렌더·자료 도착 때 다른 경로로도 다시 그려져, 바뀔 때마다 '시점 미정'을 고친다
+    let gq = 0;
+    try { new MutationObserver(() => { if (gq) return; gq = requestAnimationFrame(() => { gq = 0; const p = document.getElementById("pane"); if (p && cur) try { fixGtl(p, cur); } catch (e) {} }); }).observe(document.getElementById("report"), { childList: true, subtree: true }); } catch (e) {}
     // 탭을 누르면 탭 막대가 위로 오게
     document.addEventListener("click", (e) => { const t = e.target.closest("#report [role=tab]"); if (!t) return; requestAnimationFrame(() => { const tb = document.querySelector("#report .tabs"); if (tb) tb.scrollIntoView({ block: "start", behavior: "smooth" }); }); });
     const _rr = renderReport;

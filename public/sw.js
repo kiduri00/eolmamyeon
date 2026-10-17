@@ -1,15 +1,17 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "v1";
+const V = "aa059223"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
 const CDN = "eolma-cdn-" + V;
 const BUND = "eolma-bund-" + V;
-const KEEP = [SHELL, DATA, TILE, CDN, BUND];
+const PAGES = "eolma-pages"; // 다녀간 구역·구·리포트 페이지(버전과 무관하게 유지 · 오프라인에서 다시 열기)
+const KEEP = [SHELL, DATA, TILE, CDN, BUND, PAGES];
 const PRE = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png"];
-const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30, [BUND]: 6 };
+const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30, [BUND]: 6, [PAGES]: 80 };
+const isDoc = (p) => /^\/(z|gu|report|guide|feed)\//.test(p) || /^\/(years|about|method|contact|terms|privacy)$/.test(p);
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => Promise.all(PRE.map((u) => c.add(new Request(u, { cache: "reload" })).catch(() => {})))).then(() => self.skipWaiting()));
@@ -55,17 +57,36 @@ const cacheFirst = async (e, name) => {
   return r;
 };
 
-// HTML: 네트워크 우선, 실패하면 같은 주소 저장본 → 첫 화면 저장본
+// 주소 정리: 검색어·끝의 .html·끝 슬래시 차이를 한 키로
+const keyOf = (href) => { const u = new URL(href); u.search = ""; u.hash = ""; u.pathname = u.pathname.replace(/\.html$/, "").replace(/\/index$/, "/"); return u.href; };
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+// 오프라인인데 저장본이 없는 구역 페이지: 다녀간 페이지 목록을 보여 준다(첫 화면으로 튕기지 않게)
+const offlinePage = async () => {
+  const pc = await caches.open(PAGES);
+  const ks = (await pc.keys()).slice(-30).reverse();
+  const items = await Promise.all(ks.map(async (k) => { try { const t = await (await pc.match(k)).text(); const m = t.match(/<title>([^<|]*)/); return [new URL(k.url).pathname, (m ? m[1] : new URL(k.url).pathname).trim()]; } catch (_) { return null; } }));
+  const li = items.filter(Boolean).map(([u, t]) => `<li><a href="${esc(u)}">${esc(t)}</a></li>`).join("");
+  return new Response(`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>오프라인 | 집핀</title><body style="font:16px/1.6 system-ui,sans-serif;padding:24px;max-width:640px;margin:auto"><h1 style="font-size:22px">오프라인이에요</h1><p>이 페이지는 아직 저장돼 있지 않아요. 연결되면 다시 시도해 주세요.</p>${li ? `<h2 style="font-size:17px">이 기기에 저장된 페이지</h2><ul>${li}</ul>` : ""}<p><a href="/">첫 화면(저장본)으로</a></p></body></html>`, { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } });
+};
+// HTML: 네트워크 우선, 실패하면 같은 주소 저장본 → (구역·리포트 페이지면 저장 목록) → 첫 화면 저장본
 const page = async (e) => {
-  const c = await caches.open(SHELL);
+  const c = await caches.open(SHELL), pc = await caches.open(PAGES);
+  const path = new URL(e.request.url).pathname, doc = isDoc(path);
   try {
     const r = (await e.preloadResponse) || (await fetch(e.request));
-    if (okToCache(r)) { const u = new URL(e.request.url); u.search = ""; e.waitUntil(c.put(u.href, r.clone()).then(() => trim(SHELL))); }
+    if (okToCache(r)) {
+      const tc = doc ? pc : c, nm = doc ? PAGES : SHELL, cp = r.clone();
+      e.waitUntil((async () => { await tc.put(keyOf(e.request.url), cp.clone()); if (r.url && keyOf(r.url) !== keyOf(e.request.url)) await tc.put(keyOf(r.url), cp); await trim(nm); })());
+    }
     return r;
   } catch (err) {
-    const hit = (await c.match(e.request, { ignoreSearch: true })) || (await c.match("/"));
+    const k = keyOf(e.request.url);
+    const hit = (await pc.match(k)) || (await c.match(k)) || (await c.match(e.request, { ignoreSearch: true }));
     if (hit) return hit;
-    return new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>오프라인</title><p style="font:16px system-ui;padding:24px">오프라인이에요. 연결되면 다시 시도해 주세요.</p>', { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } });
+    if (doc) return offlinePage();
+    const home = await c.match(keyOf(new URL("/", e.request.url).href));
+    if (home) return home;
+    return offlinePage();
   }
 };
 

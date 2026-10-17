@@ -4517,12 +4517,15 @@
     if ($("hdr").classList.contains("searching")) closeSearchNow({ keepHistory: true });
     const mob = matchMedia("(max-width:980px)").matches,
       nb = document.querySelector('#sNav [data-nav="map"]');
-    if (mob && nb) nb.click();
+    if (mob && nb) {
+      nb.click();
+      setTimeout(() => { document.querySelectorAll("#sNav [data-nav]").forEach((x) => x.removeAttribute("aria-current")); nb.setAttribute("aria-current", "page"); }, 120);
+    }
     else ($("mapbox") || $("mapTop"))?.scrollIntoView({ block: "center", behavior: "smooth" });
     const fly = () => {
       try {
         const m = window.__lmx && window.__lmx.map && window.__lmx.map();
-        if (m) m.flyTo({ center: [s[2], s[1]], zoom: 14.6, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700 });
+        if (m) m.flyTo({ center: [s[2], s[1]], zoom: 14, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700 });
         return !!m;
       } catch (e) {
         return false;
@@ -4579,7 +4582,7 @@
           (normQ(q).length >= 2 && vs.some((v) => x.a.includes(normQ(v)))) ||
           altHit(x),
       )
-      .map((x) => ({ ...x, nh: altHit(x) && !nameHit(x) ? 1 : lvl(x) }))
+      .map((x) => ({ ...x, nh: altHit(x) && !nameHit(x) ? ((isCho ? x.cho : x.rom).split("|").some((w) => w.startsWith(qc)) ? 1 : 2) : lvl(x) }))
       .sort(
         (a, b) =>
           (a.nh === 0 ? 0 : 1) - (b.nh === 0 ? 0 : 1) ||
@@ -4679,6 +4682,18 @@
       b.click();
     }
   });
+  // /?q=검색어 (404 페이지 검색창 등): 검색창을 열고 결과를 바로 보여 준다
+  try {
+    const q0 = new URLSearchParams(location.search).get("q");
+    if (q0 && q0.trim())
+      setTimeout(() => {
+        const sb = $("sSearch") || $("sOpen");
+        if (matchMedia("(max-width:980px)").matches && sb && !$("hdr").classList.contains("searching")) sb.click();
+        $("q").value = q0.trim().slice(0, 40);
+        $("q").focus({ preventScroll: true });
+        renderSugg();
+      }, 700);
+  } catch (e) {}
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".search")) {
       $("sugg").hidden = true;

@@ -185,6 +185,7 @@
       layers();
       paint();
       focus(pendFocus); pendFocus = false;
+      notes(); edgeSoon();
     }
     // 구 이름 자리: 가장 큰 고리의 면적 중심. 동 이름 자리: 그 동(지번 주소 첫 낱말) 구역들의 평균 위치
     function guLabels() {
@@ -540,6 +541,16 @@
       pinDraw();
       if (!zoom) return;
       const dur = reduceMotion() ? 0 : 650;
+      if (zoom === "soft") {
+        if (map.isMoving()) return;
+        // 데스크톱에서 구역을 고르면: 이미 화면 안에 잘 보이면 그대로, 아니면 그 구역으로 부드럽게 이동(줌 14.5~15.5)
+        const bb = z ? bboxOf(z.g) : [[cur.ll[1], cur.ll[0]], [cur.ll[1], cur.ll[0]]];
+        const cv = map.getCanvas(), a = map.project(bb[0]), b = map.project(bb[1]), rp = railPad();
+        const inV = Math.min(a.x, b.x) > 40 && Math.max(a.x, b.x) < cv.clientWidth - rp && Math.min(a.y, b.y) > 50 && Math.max(a.y, b.y) < cv.clientHeight - 50;
+        if (inV && map.getZoom() >= 13.5) return;
+        map.fitBounds(bb, { padding: { top: 80, bottom: 80, left: 60, right: Math.max(60, rp) }, maxZoom: Math.min(15.5, Math.max(14.5, map.getZoom())), duration: dur });
+        return;
+      }
       if (z) map.fitBounds(bboxOf(z.g), { padding: { top: 70, bottom: 70, left: 60, right: Math.max(60, railPad()) }, maxZoom: 16.3, duration: dur });
       else map.flyTo({ center: [cur.ll[1], cur.ll[0]], zoom: Math.max(map.getZoom(), 15), duration: dur });
     }
@@ -558,6 +569,54 @@
       const PC = PIN_COL(dark());
       el.innerHTML = `<span><i class="lm-pin" style="background:${PC.a}"></i>핀 = 내 돈으로 살 수 있는 곳</span><span><i class="lm-pin" style="background:${PC.m}"></i>내 핀</span>${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
     }
+    // 레이어 범례·'확대하면 보여요' 안내: 오른쪽 위 레일 바로 아래에 작은 글자로
+    const LMINZ = { edu: 14, med: 13, acad: 11, biz: 11 };
+    function notes() {
+      if (!map) return;
+      const host = ($("mapbox") && $("mapbox").querySelector(".s-rail-w")) || $("lmap");
+      let el = $("lmNotes");
+      if (!el) { el = document.createElement("div"); el.id = "lmNotes"; el.className = "lm-notes"; el.setAttribute("aria-live", "polite"); }
+      if (el.parentNode !== host) host.appendChild(el);
+      const on = !$("lmap").hidden, z = map.getZoom(), H = [];
+      const far = Object.keys(LMINZ).filter((k) => lyr.has(k) && z < LMINZ[k]).map((k) => ({ edu: "학교", med: "병원", acad: "학원가", biz: "상권" })[k]);
+      if (far.length) H.push(`<p class="lm-n-hint"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 10.5 14 14M7 5v4M5 7h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>${far.join("·")} 확대하면 보여요</p>`);
+      if (lyr.has("hj")) H.push(`<p><i class="lm-n-hj"></i>새 역·개발 예정지<small>테 색 = 노선</small></p>`);
+      if (lyr.has("hi")) H.push(`<p><i class="lm-n-hi"></i>신고가<small>최근 3개월</small></p>`);
+      el.innerHTML = H.join("");
+      el.hidden = !on || !H.length;
+    }
+    // 구역 카드는 화면 가장자리·떠 있는 버튼(레일·확대 버튼·목록 보기) 밑에서는 그리지 않는다 → 잘리거나 가려진 카드 없음
+    let edgeT = 0;
+    function edgeFilter() {
+      if (!map || !ready || !map.getLayer("zone-lab")) return;
+      try {
+        const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, cb = cv.getBoundingClientRect();
+        if (W < 50 || H < 50) return;
+        let top = 4;
+        const holes = [];
+        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, .s-mini, .s-fullx, #lmNotes").forEach((e) => {
+          if (!e.offsetWidth || e.hidden) return;
+          const b = e.getBoundingClientRect();
+          if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;
+          const r = [b.left - cb.left, b.top - cb.top, b.right - cb.left, b.bottom - cb.top];
+          if (r[2] - r[0] > W * 0.6 && r[1] <= 40) { top = Math.max(top, r[3] + 2); return; }
+          holes.push([r[0] - 46, r[1] - 42, r[2] + 46, r[3] + 2]);
+        });
+        const O = [34, top, W - 34, H - 40];
+        // 겹치는 구멍은 하나로 합친다(짝홀 규칙이 꼬이지 않게)
+        for (let i = 0; i < holes.length; i++) for (let j = i + 1; j < holes.length; j++) {
+          const a = holes[i], b = holes[j];
+          if (a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]) { holes[i] = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])]; holes.splice(j, 1); i = -1; break; }
+        }
+        const ring = (x0, y0, x1, y1) => { const u = (x, y) => { const l = map.unproject([x, y]); return [l.lng, l.lat]; }; return [u(x0, y0), u(x0, y1), u(x1, y1), u(x1, y0), u(x0, y0)]; };
+        const cl = (h) => [Math.max(h[0], O[0] + 1), Math.max(h[1], O[1] + 1), Math.min(h[2], O[2] - 1), Math.min(h[3], O[3] - 1)];
+        const rings = [ring(...O)].concat(holes.map(cl).filter((h) => h[2] > h[0] && h[3] > h[1]).map((h) => ring(...h)));
+        const poly = { type: "Polygon", coordinates: rings };
+        map.setFilter("zone-lab", ["all", ["==", ["get", "p"], 0], ["within", poly]]);
+        map.setFilter("zone-lab-p", ["all", ["==", ["get", "p"], 1], ["within", poly]]);
+      } catch (e) {}
+    }
+    const edgeSoon = () => { clearTimeout(edgeT); edgeT = setTimeout(edgeFilter, 60); };
     function ui() {
       const box = $("mapbox");
       if (!box || $("lmap")) return;
@@ -565,6 +624,11 @@
       d.id = "lmap"; d.className = "lmap"; d.hidden = true;
       d.innerHTML = `<div class="lm-ctl" role="group" aria-label="지도 보기"><label class="lm-sel"><span>카드 값</span><select id="lmColor" aria-label="구역 카드에 보일 값">${MODES.map(([k, t]) => `<option value="${k}"${colorBy === k ? " selected" : ""}>${t}</option>`).join("")}</select></label><button type="button" class="lm-ly" aria-expanded="false" aria-controls="lmLayers" aria-label="겹쳐 보기(학교·학원·상권 등)" title="겹쳐 보기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 13 10 5 10-5"/></svg>${lyr.size ? ` <b>${lyr.size}</b>` : ""}</button><button type="button" class="lm-lg" aria-expanded="false" aria-controls="lmLegend">범례</button></div><div class="lm-layers" id="lmLayers" hidden><p>겹쳐 보기</p>${LAYERS.map(([k, t, sub]) => `<label><input type="checkbox" value="${k}"${lyr.has(k) ? " checked" : ""}><span>${t}<small>${sub}</small></span></label>`).join("")}<p class="lm-ln">상권·학원가: 서울시 상권분석서비스 <span id="lmSangQ"></span> 점포 수·추정매출. 학교·병원·마트: OpenStreetMap 기준이라 빠진 곳이 있을 수 있어요.</p></div><div class="lm-legend" id="lmLegend" hidden></div>`;
       d.querySelector(".lm-lg").onclick = (e) => { const lg = $("lmLegend"), on = lg.hidden; lg.hidden = !on; e.currentTarget.setAttribute("aria-expanded", String(on)); if (on) { $("lmLayers").hidden = true; d.querySelector(".lm-ly").setAttribute("aria-expanded", "false"); } };
+      const zm = document.createElement("div");
+      zm.className = "lm-zoom"; zm.setAttribute("role", "group"); zm.setAttribute("aria-label", "지도 확대·축소");
+      zm.innerHTML = `<button type="button" data-z="1" aria-label="확대"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button><button type="button" data-z="-1" aria-label="축소"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>`;
+      zm.addEventListener("click", (e) => { const b = e.target.closest("button[data-z]"); if (!b || !map) return; const o = { duration: reduceMotion() ? 0 : 250 }; if (+b.dataset.z > 0) map.zoomIn(o); else map.zoomOut(o); });
+      d.appendChild(zm);
       box.appendChild(d);
       d.querySelector("#lmColor").addEventListener("change", (e) => {
         colorBy = e.target.value; store.set("emr.mapc", colorBy);
@@ -583,6 +647,8 @@
         d.querySelector(".lm-ly").innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 13 10 5 10-5"/></svg>${lyr.size ? ` <b>${lyr.size}</b>` : ""}`;
         layerData();
         layers();
+        if (c.value === "hi") paint();
+        notes();
       });
       const bar = $("mapBar");
       if (bar && !$("mapKind")) {
@@ -607,6 +673,8 @@
       map.touchZoomRotate.disableRotation();
       map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '정비구역 경계 <a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a>' }), "bottom-right");
       map.on("style.load", () => { ready = false; loadGeo().then(overlays); });
+      map.on("moveend", edgeSoon); map.on("resize", edgeSoon);
+      map.on("zoomend", () => notes());
       map.once("load", () => { const a = $("lmap").querySelector(".maplibregl-ctrl-attrib"); if (a) a.classList.remove("maplibregl-compact-show"); });
       map.on("error", (e) => {
         const m = String((e && e.error && e.error.message) || "");
@@ -625,9 +693,20 @@
         map.on("mousemove", l, (e) => { const r = byId[e.features[0].properties.id]; if (!r) return; map.getCanvas().style.cursor = "pointer"; pop.setLngLat(e.lngLat).setHTML(tipOf(r)).addTo(map); });
         map.on("mouseleave", l, () => { map.getCanvas().style.cursor = ""; pop.remove(); });
       });
+      let lastPT = "touch";
+      map.getCanvasContainer().addEventListener("pointerdown", (e) => { lastPT = e.pointerType || "mouse"; }, true);
       map.on("click", (e) => {
         const ls = ["pin-s", "pin-m", "pin-a", "pin-clu", "zone-lab", "zone-lab-p"].concat(hit).filter((l) => map.getLayer(l));
-        const fs = map.queryRenderedFeatures(e.point, { layers: ls });
+        let fs = map.queryRenderedFeatures(e.point, { layers: ls });
+        // 손가락은 넓게: 정확히 안 맞으면 둘레 12px(마우스 5px) 안에서 가장 가까운 구역
+        if (!fs.length) {
+          const t = lastPT === "mouse" ? 5 : 12, p = e.point;
+          const near = map.queryRenderedFeatures([[p.x - t, p.y - t], [p.x + t, p.y + t]], { layers: ls });
+          if (near.length) {
+            const d = (f) => { try { const c = f.geometry.type === "Point" ? f.geometry.coordinates : null; if (c) { const q = map.project(c); return Math.hypot(q.x - p.x, q.y - p.y); } } catch (er) {} return t; };
+            fs = near.sort((a, b) => d(a) - d(b));
+          }
+        }
         if (!fs.length) return;
         if (fs[0].layer.id === "pin-clu") { const c = fs[0]; Promise.resolve(map.getSource("zpa").getClusterExpansionZoom(c.properties.cluster_id)).then((zm) => map.easeTo({ center: c.geometry.coordinates, zoom: zm + 0.2, duration: reduceMotion() ? 0 : 400 })).catch(() => {}); return; }
         // 겹치면 작은(구체적인) 구역 우선
@@ -654,7 +733,8 @@
       const bar = $("mapBar");
       if (on && bar && getComputedStyle(bar).position !== "absolute") $("mapbox").style.setProperty("--lm-top", bar.offsetHeight + "px");
       else $("mapbox").style.removeProperty("--lm-top");
-      if (on && map) requestAnimationFrame(() => map.resize());
+      if (on && map) requestAnimationFrame(() => { map.resize(); notes(); edgeSoon(); });
+      else if (!on && $("lmNotes")) $("lmNotes").hidden = true;
     }
     function enter(n) {
       gu = n;
@@ -686,6 +766,7 @@
       counts: () => { if (map && ready) pins(false); },
       pins: () => { if (map && ready) pins(true); },   // 내 핀이 바뀌면 불러 주세요   // 구별 숫자 말풍선은 없앰. 끄는 동안 핀만 다시 꽂는다(120ms 간격)
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
+      noLoc: () => noLoc(),
       zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else if (gu) fitGu(gu); else fitAff(true); },
       geo: () => loadGeo(),
       fitAff: (anim) => fitAff(anim),
@@ -696,3 +777,12 @@
     };
   })();
   try { window.__lmx = LMX; } catch (e) {}
+  // 데스크톱: 목록·검색에서 구역을 고르면 실제 지도가 그 구역으로 가서 굵은 테두리로 보여 준다
+  {
+    const _selL = select;
+    select = function (id) {
+      const x = _selL.apply(this, arguments);
+      try { if (!MQ_SHEET.matches && cur && cur.id === id && LMX.on()) setTimeout(() => LMX.focus("soft"), 30); } catch (e) {}
+      return x;
+    };
+  }

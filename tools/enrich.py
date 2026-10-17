@@ -479,7 +479,7 @@ for r in R:
         m2, s2, st2, _ = _par(g, tr)
         tot = tot + _np.exp(m2 + s2 * rng.standard_normal(N_DRAW)); dead |= rng.uniform(0, 1, N_DRAW) < st2
     tot = _np.where(dead, _np.inf, tot)
-    _mix.update(collections.Counter((_TODAY.year + _np.floor(tot[tot <= 20] + (_TODAY.month - 0.5) / 12)).astype(int).tolist())) if True else None
+    _mix.update(collections.Counter((_TODAY.year + _np.floor(tot[tot <= 20] + (_TODAY.month - 0.5) / 12)).astype(int).tolist()))   # 연도별 기대 준공 수(점검용 출력)
     ok = tot[tot <= H]
     if len(ok) < N_DRAW * 0.05: r['eta'] = {'p10': float(_np.mean(tot <= 10)), 'p15': float(_np.mean(tot <= 15)), 'cond': len(ok) / N_DRAW, 'grp': g, 'noDate': src != 'date'}; continue
     lo, md, hi = _np.percentile(ok, [25, 50, 75])
