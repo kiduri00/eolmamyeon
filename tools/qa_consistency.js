@@ -23,6 +23,7 @@ const T0 = Date.now();
 const el = () => Date.now() - T0;
 const over = () => el() > BUDGET_MS;
 const TODAY = new Date();
+let LOADS = 0;
 
 const BLOCK = /googlesyndication|googletagmanager|google-analytics|doubleclick|adservice|adtrafficquality|fundingchoices|pagead2/i;
 const IGNORE_MSG = /GL Driver|WebGL|GPU stall|swiftshader|adsbygoogle|googlesyndication|pagead|\[Report Only\]|report-only|Content-Security-Policy-Report-Only/i;
@@ -59,14 +60,14 @@ function money(s) {
 }
 const eqMoney = (a, b) => a && b && Math.abs(a.v - b.v) <= Math.max(a.tol, b.tol) + 1e-6;
 const eqApi = (disp, api) => disp && api != null && Math.abs(disp.v - api) <= disp.tol + 0.001;
-const fm = (m) => (m ? (+m.v.toFixed(4)).toString() + "억" : "–");
+const fm = (m) => (!m ? "–" : m.v < 1 ? `${Math.round(m.v * 1e4).toLocaleString("en-US")}만` : `${+m.v.toFixed(4)}억`);
 
 // 화면 글자에 나오면 안 되는 것(회차별 보고서에서 실제로 나왔던 것들)
 const BAD_TOKENS = [
   [/\bNaN\b/, "NaN"], [/\bundefined\b/, "undefined"], [/\bnull\b/, "null"], [/\bInfinity\b/, "Infinity"], [/\[object/, "[object"],
   [/[–-]\s?억/, "–억"], [/곳(?:를|는|와|가)(?=[\s.,·)!?]|$)/, "곳+틀린 조사(곳를/곳는…)"], [/\(\s*-\d+\s*곳\)/, "음수 곳 수"],
-  [/1건 가운데 값/, "1건 가운데 값"], [/12개월 모든 거래/, "12개월 모든 거래(→구역 안)"], [/(?<!정보)(?<!사업 )정비몽땅/, "정비몽땅(→정비사업 정보몽땅)"],
-  [/동의율\s*:?\s*\d+(?:\.\d+)?(?!\d|\.\d|\s*%)/, "동의율 % 빠짐"], [/\d\s?m²/, "m²(→㎡)"],
+  [/(?<![\d,])1건 가운데 값/, "1건 가운데 값"], [/12개월 모든 거래/, "12개월 모든 거래(→구역 안)"], [/(?<!정보)(?<!사업 )정비몽땅/, "정비몽땅(→정비사업 정보몽땅)"],
+  [/동의율\s*:?\s*\d+\.\d+(?!\d|\s*%)/, "동의율 % 빠짐"], [/\d\s?m²/, "m²(→㎡)"],
 ];
 const DOUBLED = /(?:^|[ (·])([가-힣]{2,})(?: \1)(?=$|[ ·,.)])/m;
 function badText(txt) {
@@ -182,8 +183,8 @@ async function newPage(browser, opts, errs) {
 }
 async function loadHome(page, hash = "") {
   page.__where = "/" + hash;
-  if (hash) await page.goto("about:blank");
-  await page.goto(BASE + "/" + hash, { waitUntil: "domcontentloaded", timeout: 30000 });
+  // 해시만 바꾸면 같은 문서로 남으므로 쿼리를 바꿔 새로 불러온다(about:blank를 거치면 매니페스트 CORS 오류가 덤으로 생김)
+  await page.goto(BASE + "/" + (hash ? "?qac=" + (++LOADS) : "") + hash, { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.waitForFunction(() => { const e = document.getElementById("sN"); return e && /\d/.test(e.textContent) && typeof window.ZP_count === "function"; }, null, { timeout: 20000, polling: 100 }).catch(() => {});
   await page.waitForLoadState("load", { timeout: 15000 }).catch(() => {});
 }
@@ -200,9 +201,9 @@ async function setCash(page, c) {
   await page.evaluate((v) => { const s = document.getElementById("sCash"); s.value = String(v); s.dispatchEvent(new Event("input", { bubbles: true })); s.dispatchEvent(new Event("change", { bubbles: true })); }, toPos(c));
   await settle(page, 450);
 }
-async function stableText(page, sel, maxMs = 4000) {
+async function stableText(page, sel, maxMs = 4000, need = 1) {
   let prev = "", same = 0; const t0 = Date.now();
-  while (Date.now() - t0 < maxMs) { const t = await page.evaluate((s) => { const e = document.querySelector(s); return e ? e.innerText : ""; }, sel); if (t && t === prev) { if (++same >= 2) return t; } else same = 0; prev = t; await page.waitForTimeout(250); }
+  while (Date.now() - t0 < maxMs) { const t = await page.evaluate((s) => { const e = document.querySelector(s); return e ? e.innerText : ""; }, sel); if (t && t === prev) { if (++same >= need) return t; } else same = 0; prev = t; await page.waitForTimeout(200); }
   return prev;
 }
 
@@ -253,7 +254,7 @@ async function staticLane(api) {
     const z = parseZ(r.text); zData.set(zid, z);
     const where = `/z/${zid}`;
     // 제목·h1 겹친 유형어
-    const dt = (s) => { const m = /([가-힣]{2,})\s*\1/.exec(s.replace(/\s*\|.*$/, "")); return m && /정비형|재개발|재건축|정비|주택|장기전세|가로|소규모|사업|구역/.test(m[1]) ? m[1] : null; };
+    const dt = (s) => { const m = /(?:^|\s)([가-힣]{2,})\s+\1/.exec(s.replace(/\s*\|.*$/, "")); return m && /정비형|재개발|재건축|정비|주택|장기전세|가로|소규모|사업|구역/.test(m[1]) ? m[1] : null; };
     const d1 = dt(z.title), d2 = dt(z.h1);
     expect(!d1 && !d2, "z.title", "/z 제목·h1에 같은 유형어 두 번 없음(도시정비형 도시정비형)", `${where}: title "${z.title}" h1 "${z.h1}"`);
     expect(!/얼마면/.test(z.title), "z.title", "/z 제목·h1에 같은 유형어 두 번 없음(도시정비형 도시정비형)", `${where}: old brand in title`);
@@ -455,12 +456,13 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
       if (!opened) { bad("zone.open", "구역 리포트가 열림", `${where}: report did not render`); continue; }
       ok("zone.open", "구역 리포트가 열림");
       // tx.json은 리포트를 열 때 늦게 불러온다 → 글자가 멈출 때까지
-      const ov = await stableText(page, "#report", 5000);
+      await page.waitForFunction(() => /믿어도 될까|최근 구역 안 거래 없음|계산 안 함/.test((document.getElementById("report") || {}).innerText || ""), null, { timeout: 5000, polling: 150 }).catch(() => {});
+      const ov = await stableText(page, "#report", 4000, 2);
       const tabs = await page.evaluate(() => [...document.querySelectorAll("#report [role=tab]")].map((b) => b.dataset.tab));
       const pane = {};
       for (const k of tabs) {
         await page.evaluate((k) => { const b = document.querySelector(`#report [role=tab][data-tab="${k}"]`); b && b.click(); }, k);
-        pane[k] = await stableText(page, "#pane", 2500);
+        pane[k] = await stableText(page, "#pane", 2500, 1);
       }
       await page.evaluate(() => { const b = document.querySelector('#report [role=tab][data-tab="money"]'); b && b.click(); });
       const all = [ov, ...Object.values(pane)].join("\n");
@@ -696,8 +698,9 @@ async function mapLane(browser, api, errs, shortSrc) {
   const timed = (k, p) => { const t = Date.now(); return p.then((v) => { timing[k] = Date.now() - t; return v; }); };
   // 정적 검사는 바로 시작, 브라우저는 두 줄로(코어 2개)
   const stat = timed("static", staticLane(api));
-  const lane1 = timed("counts+zones", (async () => { await countsLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds); })());
-  const lane2 = timed("map+ui", (async () => { await mapLane(browser, api, errs, shortSrc); const st = await stat.catch(() => ({})); shared.liveCounts = st.liveCounts; await uiLane(browser, api, errs, shared); })());
+  const cut = Math.ceil(zoneIds.length * 0.6);
+  const lane1 = timed("counts+zones", (async () => { await countsLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(0, cut)); })());
+  const lane2 = timed("map+ui+zones", (async () => { await mapLane(browser, api, errs, shortSrc); const st = await stat.catch(() => ({})); shared.liveCounts = st.liveCounts; await uiLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(cut)); })());
   await Promise.all([stat.catch((e) => bad("runtime", "검사 실행", "static crashed: " + e.message)), lane1, lane2]);
   await browser.close();
 
