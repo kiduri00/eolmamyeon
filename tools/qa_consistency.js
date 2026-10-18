@@ -521,7 +521,7 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
       }
       await page.evaluate(() => { const b = document.querySelector('#report [role=tab][data-tab="money"]'); b && b.click(); });
       const all = [ov, ...Object.values(pane)].join("\n");
-      const pinBtns = await page.evaluate(() => [...document.querySelectorAll("#report button, #report a")].filter((b) => window.__qc.vis(b) && /핀 꽂기/.test(b.textContent)).length);
+      const pinBtns = await page.evaluate(() => [...document.querySelectorAll("#report button, #report a")].filter((b) => window.__qc.vis(b) && /핀 꽂(기|고)/.test(b.textContent)).length);
       const R = parseRep(ov);
       // 글자 결함
       const bt = badText(all);
