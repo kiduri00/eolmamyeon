@@ -540,7 +540,7 @@
       if ($("lmap").hidden) { pillsSet(new Map()); gusSet([]); GUMORE = { c: 0, L: [] }; guMoreDraw(); return; }
       const city = map.getZoom() <= CITYZ + 1e-6;
       lastCity = city; keyDraw(city);
-      if (city) { pillsSet(new Map()); dotsSet([]); guLayout(); }
+      if (city) { pillsSet(new Map(), true); dotsSet([]); guLayout(); }
       else { gusSet([]); guMoreDraw(); pillsLayout(); }
     }
     function pillsLayout() {
@@ -558,7 +558,8 @@
         if (q.x < 4 || q.x > W - 4 || q.y < 4 || q.y > H - 4) continue;
         if (P.size >= PILL_MAX) { if (s.st === "ok") hid.push(q); continue; }
         const t = pillText(s), fav = mine.has(r.id), nm = named ? cardName(r) : "", nw = SIMPLE.isNew(r, s.need);
-        const w = measure(t, 13) + 18 + (fav ? 14 : 0) + (nm ? measure(nm, 12, 600) + 6 : 0) + (nw ? 30 : 0), h = 28;
+        // 가까이(줌 15+)는 두 줄 알약: 이름 11/600 위 · 금액 13/800 아래 · 폭 최대 120(17차)
+        const w = nm ? Math.min(120, Math.max(measure(t, 13, 800) + (fav ? 14 : 0) + (nw ? 30 : 0), measure(nm, 11, 600)) + 22) : measure(t, 13) + 18 + (fav ? 14 : 0) + (nw ? 30 : 0), h = nm ? 44 : 28;
         const bx = [q.x - w / 2 - 2, q.y - h - 2, q.x + w / 2 + 2, q.y + 1];
         if (bx[0] < 2 || bx[2] > W - 2 || bx[1] < 2 || (r.id !== sel && (obs.some((o) => hitB(o, bx)) || placed.some((o) => hitB(o, bx))))) { if (s.st === "ok") hid.push(q); continue; }
         placed.push(bx); P.set(r.id, { r, s, t, fav, nm, nw, sel: r.id === sel, q, more: 0 });
@@ -582,13 +583,13 @@
       const k = city ? "c" : "z";
       if (el.dataset.k === k) return;
       el.dataset.k = k;
-      el.innerHTML = city ? `<span><i class="k-gu"></i>구 묶음 = 갈 수 있는 곳 수</span>` : `<span><i class="k-ok"></i>가능</span><span><i class="k-near"></i>조금 모자람</span><span><i class="k-far"></i>멀다</span><span><i class="k-na"></i>정보 부족</span>`;
-      el.setAttribute("aria-label", city ? "범례: 구 묶음 숫자는 그 구에서 갈 수 있는 곳 수" : "범례: 남색 알약 가능, 흰 알약 조금 모자람(모자란 돈 표시), 작은 점 멀다, 점선 점 정보 부족");
+      el.innerHTML = city ? `<span><i class="k-gu"></i>많음</span><span><i class="k-gu k-gu2"></i>적음</span><span>숫자 = 갈 수 있는 곳</span>` : `<span><i class="k-ok"></i>가능</span><span><i class="k-near"></i>조금 모자람</span><span><i class="k-far"></i>멀다</span><span><i class="k-na"></i>정보 부족</span>`;
+      el.setAttribute("aria-label", city ? "범례: 구 묶음 숫자는 그 구에서 갈 수 있는 곳 수, 진한 원은 많은 구, 옅은 원은 적은 구" : "범례: 남색 알약 가능, 흰 알약 조금 모자람(모자란 돈 표시), 작은 점 멀다, 점선 점 정보 부족");
     }
     // 같은 점이면 다시 넣지 않는다(지도 크기·위치만 바뀐 경우 — 1,300개 점을 일꾼에 다시 보내지 않게)
     let dotK = "";
     function dotsSet(F) { const k = F.map((f) => f.properties.id + f.properties.t).join(","); if (k === dotK) return; dotK = k; try { map.getSource("zdot").setData(FC(F)); } catch (e) {} }
-    function pillsSet(P) {
+    function pillsSet(P, noBlk) {
       PILLS.forEach((p, id) => { if (!P.has(id)) { p.mk.remove(); PILLS.delete(id); } });
       const B = [];
       P.forEach((v, id) => {
@@ -606,16 +607,16 @@
         const key = [v.s.st, v.t, v.fav, v.sel, v.nm, v.nw, v.more].join("|");
         if (p.key !== key) {
           p.key = key;
-          p.el.className = `zpill st-${v.s.st}${v.fav ? " fav" : ""}${v.sel ? " sel" : ""}`;
+          p.el.className = `zpill st-${v.s.st}${v.fav ? " fav" : ""}${v.sel ? " sel" : ""}${v.nm ? " two" : ""}`;
           p.el.style.zIndex = v.sel ? 4 : v.fav ? 3 : v.s.st === "ok" ? 2 : 1;
-          p.el.innerHTML = `<span class="zp-in">${v.fav ? HEART_S : ""}${v.nm ? `<i class="zp-n">${esc(v.nm)}</i>` : ""}<b class="zp-v">${esc(v.t)}</b>${v.nw ? '<em class="zp-new">NEW</em>' : ""}${v.more ? `<i class="zp-more" aria-hidden="true">+${v.more}</i>` : ""}</span>`;
+          p.el.innerHTML = `<span class="zp-in">${v.nm ? `<i class="zp-n">${esc(v.nm)}</i>` : ""}<span class="zp-l">${v.fav ? HEART_S : ""}<b class="zp-v">${esc(v.t)}</b></span>${v.nw ? '<em class="zp-new">NEW</em>' : ""}${v.more ? `<i class="zp-more" aria-hidden="true">+${v.more}</i>` : ""}</span>`;
           p.el.setAttribute("aria-label", pillLabel(v.r, v.s, v.fav, v.nw) + (v.more ? `, 근처 갈 수 있는 곳 ${v.more}곳 더(확대하면 보여요)` : ""));
           p.el.setAttribute("aria-pressed", String(!!v.sel));
         }
         B.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { t: (v.fav ? "♥ " : "") + (v.nm ? v.nm + " " : "") + v.t + (v.nw ? " NEW" : "") } });
       });
       const bk = B.map((f) => f.properties.t + f.geometry.coordinates).join("|");
-      if (bk !== pbK) { pbK = bk; try { map.getSource("pillb").setData(FC(B)); } catch (e) {} }
+      if (!noBlk && bk !== pbK) { pbK = bk; try { map.getSource("pillb").setData(FC(B)); } catch (e) {} }
     }
     let pbK = "";
     // 알약 누르기: 처음 = 고르기(진한 남색·1.15배) + 목록의 그 카드(PC는 목록에서 스크롤, 폰은 지도 아래 카드) · 같은 알약 한 번 더 = 상세
@@ -705,7 +706,10 @@
       gusSet(keep);
       GUMORE = { c: left.reduce((a, g) => a + g.c, 0), L: left, y: chipBox()[1] };
       guMoreDraw();
-      pbK = ""; try { map.getSource("pillb").setData(FC(keep.map((g) => ({ type: "Feature", geometry: { type: "Point", coordinates: g.ll }, properties: { t: g.sn + "\n가능 " + g.c, c: 1 } })))); } catch (e) {}
+      // 자리표 글자는 숫자 자리만 맞춘다('가능 8' → '가능 0') — 금액을 끄는 동안 숫자만 바뀌면 다시 넣지 않는다(지도 다시 그리기 한 번이 느린 기기에서 수백 ms)
+      const gB = keep.map((g) => ({ type: "Feature", geometry: { type: "Point", coordinates: g.ll }, properties: { t: g.sn + "\n가능 " + String(g.c).replace(/\d/g, "0"), c: 1 } }));
+      const gk = "g|" + gB.map((f) => f.properties.t + f.geometry.coordinates).join("|");
+      if (gk !== pbK) { pbK = gk; try { map.getSource("pillb").setData(FC(gB)); } catch (e) {} }
     }
     // 자리를 못 잡은(겹침·화면 밖) 구 묶음 → 지도 왼쪽 위 '+N곳' 칩 하나. 누르면 그 구들 목록(누르면 그 구로)
     function guMoreDraw() {
@@ -1092,11 +1096,14 @@
         t.addEventListener("click", (e) => { const b = e.target.closest("button[data-m]"); if (!b) return; use(b.dataset.m === "real", true); });
       }
     }
+    // GPU 없이 CPU로 그리는 WebGL(SwiftShader·llvmpipe 등)이면 지도 픽셀 수를 1배로 — 한 장 그리는 데 수백 ms씩 걸려 첫 화면 뒤 긴 작업이 이어지던 것(17차 성능)
+    let swgl = null;
+    const SWGL = () => { if (swgl != null) return swgl; swgl = false; try { const c = document.createElement("canvas"), g = c.getContext("webgl"), e = g && g.getExtension("WEBGL_debug_renderer_info"), r = e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL) || "") : ""; swgl = /SwiftShader|llvmpipe|softpipe|Software|Microsoft Basic Render/i.test(r); const lc = g && g.getExtension("WEBGL_lose_context"); if (lc) lc.loseContext(); } catch (e) {} return swgl; };
     function init() {
       if (map) return true;
       try {
         map = new maplibregl.Map({
-          container: "lmap", style: style(), bounds: SEOUL_BB, fitBoundsOptions: { padding: 12 },
+          container: "lmap", style: style(), bounds: SEOUL_BB, fadeDuration: 0, ...(SWGL() ? { pixelRatio: 1 } : {}), fitBoundsOptions: { padding: 12 },
           minZoom: 8.8, maxZoom: 17.6, maxBounds: [[126.2, 37.05], [127.75, 38.05]], attributionControl: false,
           localIdeographFontFamily: "'Pretendard Variable','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif",
           cooperativeGestures: false, dragRotate: false, pitchWithRotate: false, touchPitch: false,

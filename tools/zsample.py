@@ -167,7 +167,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
     o = {'now': '–', 'basis': '', 'alt': '', 'tot': '–', 'tsub': '', 'eta': eta_show(r, dt, as_of, upd)}
     if r.get('src') == 'moa': o['basis'] = o['tsub'] = '모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요'
     elif done: o['basis'] = '사업이 끝난 곳이에요 · 일반 아파트 매매'; o['tsub'] = '새 아파트 입주까지 계산 대상이 아니에요'
-    elif nt: o['basis'] = ''; o['tsub'] = '계산 안 해요'; o['eta'] = '입주권 없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 노려야 해요'   # 입주권 이야기는 '언제 입주' 칸에서 한 번(앱 76_detail.js와 같은 글)
+    elif nt: o['basis'] = ''; o['tsub'] = '계산하지 않아요'; o['eta'] = '입주권 없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 노려야 해요'   # 입주권 이야기는 '언제 입주' 칸에서 한 번(앱 76_detail.js와 같은 글)
     elif c.get('gapBlock') and c['gapBlock'] != '계산 대상 아님':
         o['basis'] = '전세 끼고는 못 사요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
         if c.get('now') is not None and not r.get('lc') and r.get('tag') != 'mk': o['alt'] = f"대출 끼고 사면 지금 {cash(c['now'])}" + (f" · 입주까지 {cash(c['need'])}" if c.get('cashOk') and c.get('need') is not None else '')

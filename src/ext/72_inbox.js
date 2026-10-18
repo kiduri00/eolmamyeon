@@ -39,8 +39,10 @@ const INBOX = (() => {
     if (!CH) return [];
     const P = new Set(pinIds());
     const O = off();
-    return CH.items.filter((e) => P.has(e.id) && TY[e.type] && byId[e.id] && !O.includes(e.type));
+    return uniq(CH.items.filter((e) => P.has(e.id) && TY[e.type] && byId[e.id] && !O.includes(e.type)));
   }
+  // 같은 구역·같은 날·같은 글(경매 두 건이 요약이 똑같은 경우 등)은 한 줄로(17차: 소식에 같은 줄이 두 번 보이던 것)
+  function uniq(L) { const s = new Set(); return L.filter((e) => { const k = `${e.id}|${e.date}|${e.type}|${e.text}`; if (s.has(k)) return false; s.add(k); return true; }); }
   function unread(e) {
     const s = seen(), pd = day(PINS.snapT(e.id) || 0);
     if (e.date < pd) return false;   // 핀 꽂기 전 일은 목록에만
@@ -70,7 +72,7 @@ const INBOX = (() => {
       if (!i) { i = document.createElement("b"); i.className = "pn-nb"; i.setAttribute("aria-hidden", "true"); nb.appendChild(i); }
       i.hidden = !n; i.textContent = n > 9 ? "9+" : String(n);
       let fl = 0; try { fl = pinIds().length; } catch (e) {}
-      nb.setAttribute("aria-label", `관심${fl ? ` ${fl}곳` : ""}${n ? `, 새 소식 ${n}건` : ""}`);
+      nb.setAttribute("aria-label", `관심 구역 ${fl}곳${n ? `, 새 소식 ${n}건` : ""}`);
     }
     // 홈 화면 앱 아이콘 숫자(설치한 앱에서만 보임) = 관심 탭 숫자. 소식을 보면 0으로 지워진다
     try { if (installed() && navigator.setAppBadge && CH) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
@@ -80,7 +82,7 @@ const INBOX = (() => {
   // ---------- 소식 목록(내 조건에 맞는 소식) ----------
   const dLabel = (d) => { const t = day(); if (d === t) return "오늘"; if (d === addDay(t, -1)) return "어제"; const x = new Date(d + "T00:00:00Z"); return `${x.getUTCMonth() + 1}.${x.getUTCDate()} (${"일월화수목금토"[x.getUTCDay()]})`; };
   function condHTML() {
-    const A = CH ? CH.items.filter((e) => e.type === "auction" && byId[e.id]) : [], P = new Set(pinIds());
+    const A = CH ? uniq(CH.items.filter((e) => e.type === "auction" && byId[e.id])) : [], P = new Set(pinIds());
     const noAu = isOff("auction"), noAdd = isOff("price");
     const L = conds().map((n) => { const I = new Set(n.ids); if (noAdd) n = Object.assign({}, n, { add: [] }); return Object.assign(n, { au: noAu ? [] : A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0) && !(e.mn > n.c.cash * 1.1 + 1e-9)) })   /* 경매: 조건 현금(+10%)을 넘는 물건은 '갈 수 있는 곳'에 넣지 않는다(condAuc·푸시와 같은 기준) */; }).filter((n) => n.add.length || n.au.length);
     if (!L.length) return "";
@@ -146,7 +148,7 @@ const INBOX = (() => {
     if (isOn() && perm === "granted") return `<div class="ib-push on" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림 켜짐</b><small>매일 아침 관심 구역·알림 조건에 새 소식이 있으면 알려 드려요</small></span><button type="button" class="btn text sm" data-iboff>끄기</button></div>`;
     if (perm === "denied") return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>알림이 막혀 있어요</b><small>주소창 왼쪽 자물쇠(사이트 설정) → 알림 허용 뒤 다시 열어 주세요</small></span></div>`;
     if (PMSG === P_FAIL) return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림을 켤 수 없어요</b><small>이 브라우저에선 안 돼요 · 새 소식은 여기 소식 탭에 모아 드려요</small></span></div>`;
-    return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>새 소식을 폰 알림으로 받기</b><small>${PMSG ? esc(PMSG) : "새 실거래·단계·경매, 살 수 있게 된 곳"}</small></span><button type="button" class="btn primary sm" data-ibon>알림 받기</button></div>`;
+    return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>새 소식을 폰 알림으로 받기</b><small>${PMSG ? esc(PMSG) : "새 실거래·단계·경매, 갈 수 있게 된 곳"}</small></span><button type="button" class="btn primary sm" data-ibon>알림 받기</button></div>`;
   }
   const u8 = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
@@ -237,8 +239,8 @@ const INBOX = (() => {
     if (isOn() && Notification.permission === "granted") return;   // 이미 폰 알림을 받는 기기
     const r = byId[id];
     const items = kind === "cond"
-      ? [["ok", "내 돈으로 살 수 있는 새 구역"], ["dn", "필요한 돈이 줄어든 곳"], ["au", "경매 물건 등장"], ["st", "단계 변경·인가"]]
-      : [["tr", "새 실거래·신고가"], ["st", "단계 변경·인가"], ["au", "경매 물건 등장"], ["ok", "내 돈으로 살 수 있게 됨"]];
+      ? [["ok", "내 돈으로 갈 수 있는 새 구역"], ["dn", "필요한 돈이 줄어든 곳"], ["au", "경매 물건 등장"], ["st", "단계 변경·인가"]]
+      : [["tr", "새 실거래·신고가"], ["st", "단계 변경·인가"], ["au", "경매 물건 등장"], ["ok", "내 돈으로 갈 수 있게 된 곳"]];
     const IN = window.ZP_INSTALL, canI = !!(IN && IN.can()), ios = !!(IN && IN.ios);
     const back = document.activeElement;
     const ov = document.createElement("div");

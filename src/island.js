@@ -16,6 +16,18 @@
   var toCash = function (p) { for (var i = 1; i < KN.length; i++) if (p <= KN[i][0]) { var a = KN[i - 1][0], x = KN[i - 1][1], b = KN[i][0], y = KN[i][1], v = x + ((p - a) / (b - a)) * (y - x); return v < 2 ? Math.round(v * 10) / 10 : v < 10 ? Math.round(v * 2) / 2 : Math.round(v); } return KN[KN.length - 1][1]; };
   // 60_simple.js SHOW0와 같은 줄 수
   var show0 = function () { try { return matchMedia("(min-width:981px)").matches ? Math.max(6, Math.min(12, Math.floor((Math.min(innerHeight - 79, 902) - 120) / 84) + 2)) : 8; } catch (e) { return 8; } };
+  // 목록 줄 '남는 돈 · 딱 맞아요'(60_simple cardHTML과 같은 식·같은 ZF.cash 꼴) — 미리 뜬 줄에는 비워 두고 여기서 채운다
+  var cashT = function (v) { var a = Math.abs(v), m = Math.ceil(a * 100 - 1e-6); if (a < 0.005) return "0원"; if (m < 100) return (m * 100).toLocaleString("ko-KR") + "만"; var u = Math.ceil(a * 10 - 1e-6) / 10; return u.toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + "억"; };
+  function fx(L, c) {
+    var li = L ? L.querySelectorAll("li[data-need]") : [];
+    for (var k = 0; k < li.length; k++) {
+      var n = +li[k].getAttribute("data-need"), el = li[k].querySelector(".s-fx"), a = li[k].querySelector("a.s-cm");
+      if (!el || !isFinite(n)) continue;
+      var left = Math.max(0, Math.round((c - n) * 100) / 100), fit = left <= c * 0.1 + 1e-9, t = fit ? "딱 맞아요" : left >= 0.01 ? "남는 돈 " + cashT(left) : "";
+      el.innerHTML = fit ? '<em class="s-fit">딱 맞아요</em>' : t ? '<span class="s-left">' + t + "</span>" : "";
+      if (a && t && !/, (딱 맞아요|남는 돈)/.test(a.getAttribute("aria-label") || "")) a.setAttribute("aria-label", (a.getAttribute("aria-label") || "") + ", " + t);
+    }
+  }
   var moreT = null;
   ["gap", "cash"].forEach(function (f) { P.st[f].forEach(function (s) { var t = S(s[0][6]); if (!moreT && t && /\d/.test(t)) moreT = t.replace(/[\d,]+(?=곳)/, "{n}"); }); });
   var cur = { f: P.def.f, i: STOPS.indexOf(P.def.c) };
@@ -36,6 +48,7 @@
     $("sSum").innerHTML = S(t[5]);
     var n = show0(), L = $("sList"), tot = num(S(t[2]));
     L.innerHTML = st[1].slice(0, n).map(function (r) { return P.rows[r]; }).join("");
+    fx(L, STOPS[i]);
     el = $("sMore");
     if (el) { el.hidden = !(tot > n); if (tot > n && moreT) el.textContent = moreT.replace("{n}", fmt(tot - n)); }
     el = $("sAsm");
@@ -178,6 +191,7 @@
   W.addEventListener("resize", function () { if (!hyd() && $("sList").children.length !== Math.min(show0(), P.st[cur.f][cur.i][1].length)) apply(cur.f, cur.i, true); else fit(); });
   ph();
   initial();
+  fx($("sList"), STOPS[cur.i]);
   requestAnimationFrame(function () { setTimeout(function () { if (!hyd()) fit(); }, 0); });
   W.ZP_island = { ready: 1, set: function (f, c) { var i = STOPS.indexOf(c); if (i >= 0) apply(f, i); }, state: function () { return { f: cur.f, c: STOPS[cur.i] }; } };
   if (B.hyd) phDone();

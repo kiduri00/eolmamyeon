@@ -23,7 +23,7 @@ const DTL = (() => {
     if (o.moa) { o.basis = "모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요"; o.why2 = o.basis; return o; }
     if (done) { o.basis = "사업이 끝난 곳이에요 · 일반 아파트 매매"; o.why2 = "새 아파트 입주까지 계산 대상이 아니에요"; return o; }
     // 입주권 없는 곳: 입주권 이야기는 '언제 입주' 칸에서 한 번만(지금·입주까지 칸은 '계산 안 해요'만)
-    if (nt) { o.need = null; o.total = null; o.basis = ""; o.why2 = "계산 안 해요"; return o; }
+    if (nt) { o.need = null; o.total = null; o.basis = ""; o.why2 = "계산하지 않아요"; return o; }
     if (gapMode()) {
       let g = null; try { g = gapOf(r); } catch (e) {}
       if (g && g.block && g.block !== "계산 대상 아님") {

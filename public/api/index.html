@@ -21,7 +21,7 @@
 <div class="tw"><table class="ep"><thead><tr><th>주소</th><th>내용</th></tr></thead><tbody>
 <tr><td><a href="v1/meta.json">v1/meta.json</a></td><td>갱신 시각, 실거래 기준일, 계산 가정, 엔드포인트 목록</td></tr>
 <tr><td><a href="v1/zones.json">v1/zones.json</a></td><td>진행 중 구역 전체 요약(목록·지도용). 위치, 단계, 가까운 역, 필요한 현금(전세 끼고/현금만), 입주권 판정, 10년 준공 확률, 권리산정기준일, 노후도, 실거래 요약, 최근 30일 토지거래허가 수</td></tr>
-<tr><td><code>v1/zones/{id}.json</code></td><td>구역 상세: 인가 이력, 정보몽땅 최근 기록, 최근 매매 20건·전세 10건, 토지거래허가 내역, 반경 1km 상권</td></tr>
+<tr><td><code>v1/zones/{id}.json</code></td><td>구역 상세: 인가 이력, 정비사업 정보몽땅 최근 기록, 최근 매매 20건·전세 10건, 토지거래허가 내역, 반경 1km 상권</td></tr>
 <tr><td><a href="v1/cash.json">v1/cash.json</a></td><td>현금 0.5억~15억(0.5억 단위)별 가능 구역 수: 전체·구별, 전세 끼고/현금만. 사이트 첫 화면 게이지와 같은 숫자</td></tr>
 <tr><td><a href="v1/rank.json">v1/rank.json</a></td><td>구역 실거래 순위: 최근 3개월 거래량, 1년 변화, 최근 신고가</td></tr>
 <tr><td><a href="v1/notice.json">v1/notice.json</a></td><td>최근 90일 고시·공고(인가·고시 / 변경 인가 / 시공자 선정 / 신청·공람)</td></tr>
@@ -31,7 +31,7 @@
 </tbody></table></div>
 <h2>필요한 현금(need) 읽는 법</h2>
 <p>단위는 억원이고 무주택·84㎡·시세 상승 0%·비례율 100% 기본 가정이에요. <code>gap.now</code>는 전세를 끼고 지금 계약할 때 드는 돈(매수가 − 전세 + 취득세), <code>gap.total</code>은 입주까지 드는 돈이에요. <code>cash.now</code>는 대출을 끼고 지금 살 때, <code>cash.total</code>은 현금으로 입주까지예요. <code>eligible</code>이 false면 입주권·토지거래허가(실거주 의무) 등으로 그 방식으로는 살 수 없다는 뜻이라 개수에서 빼요.</p>
-<pre>// 내 현금 2억, 전세 끼고 살 수 있는 구역
+<pre>// 내 돈 2억, 전세 끼고 갈 수 있는 구역
 const { items } = await (await fetch("https://jaegaebal.alwaysquestions.kr/api/v1/zones.json")).json();
 const ok = items.filter(z =&gt; z.need.gap.eligible &amp;&amp; z.need.gap.now != null &amp;&amp; z.need.gap.now &lt;= 2)
                 .sort((a, b) =&gt; a.need.gap.now - b.need.gap.now);</pre>

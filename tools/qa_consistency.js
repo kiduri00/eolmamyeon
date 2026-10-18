@@ -1045,7 +1045,7 @@ async function r14Lane(browser, api, errs) {
   // --- ui.onboard: 첫 실행 질문(저장된 조건·딥링크 없을 때만) → 2억을 고르면 카드·곳 수가 2억 · 딥링크·두 번째 방문은 건너뜀
   //     url.cash: ?cash=2 로 열면 2억 · ui.budgetSheet: 예산 시트 막대(고른 금액) 곳 수 == 카드 곳 수 == 시트 곳 수 == ZP_count
   {
-    const T = "첫 실행 질문: 처음엔 '지금 바로 쓸 수 있는 현금' 질문 · 2억 고르면 카드 2억·곳 수 == ZP_count(2) · 딥링크(#구역)·두 번째 방문은 질문 없음";
+    const T = "첫 실행 질문: 처음엔 '지금 쓸 수 있는 현금' 질문 · 2억 고르면 카드 2억·곳 수 == ZP_count(2) · 딥링크(#구역)·두 번째 방문은 질문 없음";
     const ctx = await browser.newContext({ ...M, serviceWorkers: "block" });   // IN_PAGE(질문 답한 사용자) 없이
     try {
       await ctx.route(BLOCK, (r) => r.abort());
@@ -1053,7 +1053,7 @@ async function r14Lane(browser, api, errs) {
       page.on("pageerror", (e) => errs.push({ where: "/ (onboard)", msg: "pageerror: " + (e.message || String(e)).split("\n")[0].slice(0, 200) }));
       await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
       const a = await page.evaluate(() => { const o = document.getElementById("onb"), r = o && o.getBoundingClientRect(); return { on: !!o && !o.hidden && r.width > 200 && r.height > 300, q: o ? o.innerText : "", chips: o ? [...o.querySelectorAll("[data-oc]")].map((b) => b.textContent.trim()) : [] }; });
-      expect(a.on && /지금 바로 쓸 수 있는 현금이 얼마예요\?/.test(a.q) && a.chips.join(",") === "5천만,1억,2억,3억,5억,7억,10억+,잘 모르겠어요 → 1억으로 둘러보기", "ui.onboard", T, `first run: shown ${a.on} · chips [${a.chips.join(", ")}]`);
+      expect(a.on && /지금 쓸 수 있는 현금이 얼마예요\?/.test(a.q) && a.chips.join(",") === "5,000만,1억,2억,3억,5억,7억,10억,15억+,잘 모르겠어요 → 1억으로 둘러보기", "ui.onboard", T, `first run: shown ${a.on} · chips [${a.chips.join(", ")}]`);
       await page.tap('#onb [data-oc="2"]').catch(() => page.click('#onb [data-oc="2"]'));
       await page.waitForTimeout(250);
       const st2 = await page.evaluate(() => { const s = document.querySelector('#onb [data-st="2"]'); return !!s && !s.hidden && /집 있어요\?/.test(s.innerText) && s.querySelectorAll("[data-oh]").length === 4; });
@@ -1401,9 +1401,9 @@ async function r3Lane(browser, errs) {
       });
       if (!a) bad("list.heart", T, "no ♡ in list");
       else {
-        expect(a.on && a.pressed === "true" && /관심\s*1곳/.test(a.nav) && a.toast && a.undo && a.w >= 44 && a.hh >= 44, "list.heart", T, JSON.stringify(a));
+        expect(a.on && a.pressed === "true" && /관심( 구역)?\s*1곳/.test(a.nav) && a.toast && a.undo && a.w >= 44 && a.hh >= 44, "list.heart", T, JSON.stringify(a));
         const b = await page.evaluate(async (id) => { document.querySelector(`#sList .s-heart[data-heart="${id}"]`).click(); await new Promise((r) => setTimeout(r, 400)); return { on: window.PINS.list().includes(id), pressed: document.querySelector(`#sList .s-heart[data-heart="${id}"]`).getAttribute("aria-pressed"), nav: document.querySelector('#sNav [data-nav="fav"]').getAttribute("aria-label") }; }, a.id);
-        expect(!b.on && b.pressed === "false" && !/곳/.test(b.nav), "list.heart", T, `second tap: ${JSON.stringify(b)}`);
+        expect(!b.on && b.pressed === "false" && (!/곳/.test(b.nav) || /관심 구역 0곳/.test(b.nav)), "list.heart", T, `second tap: ${JSON.stringify(b)}`);
       }
     }
     // --- list.infinite: 목록 끝에 닿으면 20곳씩 더(누르지 않아도) · 줄 + 더 보기 == 제목
@@ -1461,16 +1461,20 @@ const TERM_BAN = [
   [/필요 현금|필요한 현금|필요 돈/, "필요 현금 → 지금 필요한 돈·입주까지 현금"], [/(?<!집)핀(?!\s*Zippin)/, "핀(저장한 구역) → 관심 구역"], [/부족액|부족분/, "부족액 → 'N 더 필요해요'"],
   [/내 현금/, "내 현금 → 내 돈"], [/찜|즐겨찾기/, "찜 → 관심 구역"], [/관심구역|관심 지역/, "관심구역 → 관심 구역"], [/입주까지 총/, "입주까지 총 → 입주까지 현금"],
   [/(?<![가-힣])갭(?![가-힣]*투자)/, "갭 → 전세 끼고"], [/실행 취소/, "실행 취소 → 되돌리기"],
+  // 17차: '살 수 있'(갈 수 있) · 가용 현금 · 5천만(5,000만) · 계산 안 해요(계산하지 않아요) · 지금 바로 쓸 수 있는 현금(지금 쓸 수 있는 현금)
+  [/살 수 있/, "살 수 있 → 갈 수 있"], [/가용 현금/, "가용 현금 → 내 돈"], [/5천만/, "5천만 → 5,000만"], [/계산 안 해요/, "계산 안 해요 → 계산하지 않아요"], [/지금 바로 쓸 수 있는 현금/, "지금 바로 쓸 수 있는 현금 → 지금 쓸 수 있는 현금"],
 ];
+// 앱 코드(JS 묶음)의 화면 글자에서 찾을 말(코드 속 낱말 '핀'·'갭' 등은 빼고 글자로만 쓰이는 것)
+const TERM_BAN_JS = [/살 수 있/, /가용 현금/, /필요 현금/, /5천만/, /내 현금/, /계산 안 해요/, /지금 바로 쓸 수 있는 현금/, /살 수 있게 됨/];
 const TERM_FIRST = [[/권리가액/, /내 지분 값\(권리가액\)/, "권리가액 첫 언급 → '내 지분 값(권리가액)'"], [/프리미엄/, /웃돈\(프리미엄\)/, "프리미엄 첫 언급 → '웃돈(프리미엄)'"]];
-function termScan(txt, where) {
+function termScan(txt, where, noDisc) {
   const T = "용어집만: 같은 개념을 다른 말로 부르지 않음(가능 금액·살 수 있는 곳·이 돈이면·필요 현금·핀·부족액·내 현금…) · 권리가액·프리미엄 첫 언급은 쉬운 말(원래 말)";
   const hits = [];
   for (const [re, nm] of TERM_BAN) { const m = new RegExp(".{0,18}" + re.source + ".{0,18}").exec(txt); if (m) hits.push(`[${nm}] "${m[0].replace(/\s+/g, " ")}"`); }
   for (const [re, full, nm] of TERM_FIRST) { const i = txt.search(re); if (i >= 0) { const j = txt.search(full); if (j < 0 || j > i - 6) hits.push(`[${nm}] "${txt.slice(Math.max(0, i - 14), i + 14).replace(/\s+/g, " ")}"`); } }
   expect(!hits.length, "term.glossary", T, `${where}: ${hits.slice(0, 3).join(" ; ")}`);
   const dn = (txt.match(/투자 권유/g) || []).length;
-  expect(dn <= 1, "term.disclaimer", "면책 문구('투자 권유 아님')는 화면마다 한 번 이하 · 구역 상세는 맨 아래 한 번", `${where}: ${dn} times`);
+  if (!noDisc) expect(dn <= 1, "term.disclaimer", "면책 문구('투자 권유 아님')는 화면마다 한 번 이하 · 구역 상세는 맨 아래 한 번", `${where}: ${dn} times`);
 }
 async function r4Lane(browser, api, errs) {
   const { ctx, page } = await newPage(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }, errs);
@@ -1578,6 +1582,133 @@ async function r4Lane(browser, api, errs) {
   }
   for (const g of ["구로구", "강남구"]) { const r = await getPage("/gu/" + g); if (r.status === 200) termScan(htmlText(r.text.replace(/<head[\s\S]*?<\/head>/i, "")), `/gu/${g}`); }
 }
+// ================================================================ 17차 2부: 이름으로 답하기 · 고른 상태 남색 · 알림 하나 · 끄는 동안 숫자 · 용어(코드·메타·매니페스트·리포트)
+async function r17bLane(browser, api, errs) {
+  // ---- term.glossary(정적): 메타 태그 · 매니페스트 · 월간 리포트 · 앱 코드(JS 묶음) 화면 글자 ----
+  try {
+    const home = await getPage("/");
+    const metas = [...home.text.matchAll(/<meta\s+[^>]*(?:name|property)="(description|og:[a-z:_]+|twitter:[a-z:_]+)"[^>]*content="([^"]*)"/g)].map((m) => m[2]).concat([(/<title>([^<]*)<\/title>/.exec(home.text) || [])[1] || ""]);
+    termScan(metas.join(" / "), "home <meta>·<title>", true);   // 메타는 화면이 아니라 면책 횟수는 안 셈
+    const mf = await getPage("/manifest.webmanifest");
+    if (mf.status === 200) { const strs = []; const walk = (o) => { if (typeof o === "string") strs.push(o); else if (o && typeof o === "object") Object.values(o).forEach(walk); }; try { walk(JSON.parse(mf.text)); } catch (e) {} termScan(strs.join(" / "), "manifest.webmanifest", true); }
+    for (const rp of ["/report/", "/report/2026-07", "/report/2026-08", "/report/2026-09"]) { const r = await getPage(rp); if (r.status === 200) termScan(htmlText(r.text.replace(/<head[\s\S]*?<\/head>/i, "")), rp); }
+    const T = "용어집만: 같은 개념을 다른 말로 부르지 않음(가능 금액·살 수 있는 곳·이 돈이면·필요 현금·핀·부족액·내 현금…) · 권리가액·프리미엄 첫 언급은 쉬운 말(원래 말)";
+    const js = [...new Set([...home.text.matchAll(/\/b\/[ah]\.[0-9a-f]+\.js/g)].map((m) => m[0]))];
+    for (const u of js) {
+      const r = await getPage(u); if (r.status !== 200) continue;
+      const lits = []; const re = /(["'`])((?:\\.|(?!\1)[^\\\n])*?)\1/g; let m;
+      while ((m = re.exec(r.text))) if (/[가-힣]/.test(m[2])) lits.push(m[2]);
+      const hits = []; for (const b of TERM_BAN_JS) { const x = lits.find((l) => b.test(l)); if (x) { const i = x.search(b); hits.push(`[${b.source}] "${x.slice(Math.max(0, i - 16), i + 18)}"`); } }
+      expect(!hits.length, "term.glossary", T, `${u.replace(/\.[0-9a-f]+\.js/, ".js")} strings: ${hits.slice(0, 3).join(" ; ")}`);
+    }
+  } catch (e) { bad("runtime", "검사 실행", "r17b static crashed: " + String(e.message || e).split("\n")[0]); }
+  // ---- home.namesFold · ui.alertOne · ui.selectedNavy · perf.drag ----
+  const TN = "첫 화면(스크롤 전)에 실제 구역 이름 + 금액(예산 카드 밑 맞춤순 3곳) — 390×844 · 360×740";
+  const TA = "알림 권유는 화면마다 하나 이하 · 노랑·크림 바탕 없음";
+  const TS = "고른 칩·세그먼트는 남색(#1f3a87 · 다크 #9fb3ff) — 검정·흰색 바탕 고른 상태 없음";
+  const TD = "막대를 끄는 동안 곳 수가 150ms 안에 바뀜(이 기기, 50ms마다 움직임 · 가운데 값)";
+  const rgb = `(c) => { const m = /rgba?\\(([^)]+)\\)/.exec(c || ""); if (!m) return null; const v = m[1].split(",").map((x) => parseFloat(x)); return v.length > 3 && v[3] < 0.5 ? null : v.slice(0, 3); }`;
+  for (const [w, h, dark] of [[390, 844, false], [360, 740, false], [390, 844, true]]) {
+    const where = `${w}×${h}${dark ? " dark" : ""}`;
+    const { ctx, page } = await newPage(browser, { viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: dark ? "dark" : "light" }, errs);
+    try {
+      await page.evaluate(() => {}).catch(() => {});
+      await loadHome(page);
+      await setMode(page, "gap"); await setCash(page, 2);
+      await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(400);
+      const f = await page.evaluate(() => {
+        const nav = document.getElementById("sNav"), nb = nav && nav.offsetHeight ? nav.getBoundingClientRect().top : innerHeight;
+        const cards = [...document.querySelectorAll("#sSum .s-rail3 button[data-id]")].map((b) => { const r = b.getBoundingClientRect(); return { n: (b.querySelector(".s-rn") || {}).textContent || "", v: (b.querySelector(".s-rv") || {}).textContent || "", top: Math.round(r.top), bot: Math.round(r.bottom), l: Math.round(r.left), vis: r.width > 0 && getComputedStyle(b).visibility !== "hidden" }; });
+        return { nb: Math.round(nb), cards, n: +document.getElementById("sN").textContent.replace(/\D/g, ""), first: ((document.querySelector("#sList .s-card .s-nm b") || {}).textContent || "") };
+      });
+      const inFold = f.cards.filter((c) => c.vis && c.bot <= f.nb && c.l < w && /[가-힣]/.test(c.n) && /\d/.test(c.v) && /(억|만)/.test(c.v));
+      if (!dark) {
+        expect(inFold.length >= 1, "home.namesFold", TN, `${where}: rail cards above fold ${inFold.length} (cards ${JSON.stringify(f.cards.slice(0, 2))}, nav top ${f.nb})`);
+        expect(!f.cards.length || f.cards[0].n === f.first.trim() || f.first === "", "home.namesFold", TN, `${where}: rail first "${(f.cards[0] || {}).n}" ≠ list first "${f.first}" (맞춤순 위 3곳)`);
+      }
+      // 끄는 동안 숫자(가벼운 길): 50ms마다 움직여 #sN이 바뀌기까지
+      if (!dark && w === 390) {
+        // 지도가 다 그려진 뒤(첫 화면 뒤 한가할 때) 잰다
+        await page.waitForFunction(() => { try { const m = window.ZP_lmx && ZP_lmx.map && ZP_lmx.map(); return !m || (m.loaded() && !m.isMoving()); } catch (e) { return true; } }, null, { timeout: 15000, polling: 200 }).catch(() => {});
+        await page.waitForTimeout(1500);
+        const lat = await page.evaluate(async () => {
+          const el = document.getElementById("sScrub"); if (!el) return null;
+          el.scrollIntoView({ block: "center" }); await new Promise((r) => setTimeout(r, 400));
+          const bars = el.querySelector(".scr-bars").getBoundingClientRect(), y = bars.top + bars.height / 2;
+          const ev = (t, x) => el.dispatchEvent(new PointerEvent(t, { bubbles: true, pointerId: 9, pointerType: "mouse", clientX: x, clientY: y, button: 0, isPrimary: true }));
+          const sN = document.getElementById("sN"), out = [];
+          ev("pointerdown", bars.left + bars.width * 0.12); await new Promise((r) => setTimeout(r, 300));
+          for (let i = 1; i <= 10; i++) {
+            const before = sN.textContent, t0 = performance.now();
+            ev("pointermove", bars.left + bars.width * (0.12 + i * 0.045));
+            // 글자가 바뀐 순간(MutationObserver) 뒤 다음 프레임까지 = 화면에 보이기까지
+            const t = await new Promise((res) => { const mo = new MutationObserver(() => { if (sN.textContent === before) return; mo.disconnect(); requestAnimationFrame(() => res(performance.now() - t0)); }); mo.observe(sN, { childList: true, characterData: true, subtree: true }); setTimeout(() => { mo.disconnect(); res(null); }, 2000); });
+            if (t != null) out.push(Math.round(t));
+            await new Promise((r) => setTimeout(r, 50));
+          }
+          ev("pointerup", bars.left + bars.width * 0.57);
+          return out;
+        });
+        const md = lat && lat.length ? lat.slice().sort((a, b) => a - b)[Math.floor(lat.length / 2)] : null;
+        expect(md != null && md <= 150, "perf.drag", TD, `${where}: count update ${JSON.stringify(lat)}ms (median ${md})`);
+        if (md != null && md > 100) wrn("perf.drag", TD, `${where}: median ${md}ms > 100ms target`);
+      }
+      // 알림 권유 하나 · 노랑 없음(홈 · 관심 · 소식 · MY)
+      for (const tab of ["home", "fav", "news", "my"]) {
+        if (tab !== "home") { await page.evaluate((n) => { const e = [...document.querySelectorAll(`[data-nav="${n}"]`)].find((x) => x.offsetParent); e && e.click(); }, tab); await page.waitForTimeout(1200); }
+        const a = await page.evaluate((rgbS) => {
+          const rgb = eval(rgbS), yel = [];
+          const vis = (e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return r.width > 2 && r.height > 2 && cs.visibility !== "hidden" && cs.display !== "none" && e.offsetParent !== null; };
+          const ctas = [...document.querySelectorAll(".pc-al, .ib-push:not(.on), [data-wson]")].filter(vis).length;
+          for (const e of document.querySelectorAll("body *")) {
+            if (!vis(e)) continue;
+            for (const c of [getComputedStyle(e).backgroundColor, getComputedStyle(e, "::before").backgroundColor]) {
+              const v = rgb(c); if (!v) continue;
+              const [r, g, b] = v.map((x) => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn; if (d < 0.08) continue;
+              let hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; hh *= 60; if (hh < 0) hh += 360;
+              const sat = d / (1 - Math.abs(2 * l - 1));
+              if (hh >= 38 && hh <= 62 && sat > 0.5 && l > 0.45) { yel.push((e.id ? "#" + e.id : e.className && e.className.baseVal === undefined ? "." + String(e.className).split(" ")[0] : e.tagName) + " " + c); break; }
+            }
+            if (yel.length > 3) break;
+          }
+          return { ctas, yel };
+        }, rgb);
+        expect(a.ctas <= 1, "ui.alertOne", TA, `${where} ${tab}: ${a.ctas} alert CTAs visible`);
+        expect(!a.yel.length, "ui.alertOne", TA, `${where} ${tab}: yellow/cream backgrounds ${a.yel.join(" ; ")}`);
+        // 고른 상태: 남색(검정·흰 바탕 아님)
+        if (tab === "home") { await page.evaluate(() => document.getElementById("sCashBtn").click()); await page.waitForTimeout(700); }
+        const sel = await page.evaluate((rgbS) => {
+          const rgb = eval(rgbS), out = [];
+          for (const e of document.querySelectorAll('[aria-pressed="true"], [role="tab"][aria-selected="true"]')) {
+            const r = e.getBoundingClientRect(); if (!r.width || !e.offsetParent) continue;
+            if (e.matches(".s-heart, .favb, .pn-hpin, .dt-fav, [data-heart], .zpill, .my-v, .pn-main, #sCashBtn, .ov-p, .lm-ctl button")) continue;   // 하트·저장·지도 알약은 '고른 칩'이 아님
+            if (!e.closest(".s-flt, .s-mode, .bs-chips, .pn-sort, .pc-chip, .fchips, .hub-tabs, .my-seg, .pc-mode, .onb-c, #ntcF")) continue;
+            let v = rgb(getComputedStyle(e).backgroundColor) || rgb(getComputedStyle(e, "::before").backgroundColor);
+            if (!v) { out.push(`${e.textContent.trim().slice(0, 8)}: transparent`); continue; }
+            const [R, G, B] = v, mx = Math.max(R, G, B), mn = Math.min(R, G, B);
+            if (mx - mn < 24) out.push(`${e.textContent.trim().slice(0, 8)}: rgb(${v.join(",")})`);   // 무채색(검정·회색·흰색) 바탕 = 남색 아님
+          }
+          return out;
+        }, rgb);
+        expect(!sel.length, "ui.selectedNavy", TS, `${where} ${tab}: ${sel.slice(0, 4).join(" ; ")}`);
+        if (tab === "home") { await page.keyboard.press("Escape"); await page.waitForTimeout(400); }
+      }
+      // 아래 탭 '관심' 이름(화면 읽기): '관심0' 같은 이름 없이 '관심 구역 N곳'
+      const al = await page.evaluate(() => { const b = document.querySelector('#sNav [data-nav="fav"]'); return b ? b.getAttribute("aria-label") || b.textContent.trim() : ""; });
+      expect(/^관심 구역 \d+곳/.test(al), "a11y.names", "아래 탭 '관심'의 화면 읽기 이름은 '관심 구역 N곳'", `${where}: "${al}"`);
+      // MY '데이터 모두 지우기' 글자 대비 4.5:1
+      const ct = await page.evaluate(() => {
+        const b = document.getElementById("myWipe"); if (!b || !b.offsetParent) return null;
+        const p = (c) => (/rgba?\(([^)]+)\)/.exec(c) || [, "0,0,0"])[1].split(",").map(parseFloat);
+        let e = b, bg = null; while (e) { const v = p(getComputedStyle(e).backgroundColor); if (v.length < 4 || v[3] > 0.5) { bg = v; break; } e = e.parentElement; }
+        const fg = p(getComputedStyle(b).color), L = (v) => { const a = v.slice(0, 3).map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; };
+        const l1 = L(fg), l2 = L(bg || [255, 255, 255]); return Math.round(((Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)) * 100) / 100;
+      });
+      if (ct != null) expect(ct >= 4.5, "a11y.contrast", "MY '데이터 모두 지우기' 글자 대비 4.5:1 이상(라이트·다크)", `${where}: ${ct}:1`);
+    } catch (e) { bad("runtime", "검사 실행", `r17bLane ${where} crashed: ` + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+}
 // ================================================================ main
 (async () => {
   // API
@@ -1619,6 +1750,8 @@ async function r4Lane(browser, api, errs) {
   if (!ONLY || ONLY === "r4") await timed("r4", r4Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r4Lane crashed: " + e.message)));
   // 17차(구 묶음 합 · 뒤로 가기 겹 · 새로고침 유지 · 시트 위 시트 없음)
   if (!ONLY || ONLY === "r17") await timed("r17", navLane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "navLane crashed: " + e.message)));
+  // 17차 2부(이름으로 답하기 · 고른 상태 남색 · 알림 하나 · 끄는 동안 숫자 · 용어 코드·메타·리포트) — 혼자(끄는 시간 재기)
+  if (!ONLY || ONLY === "r17b") await timed("r17b", r17bLane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r17bLane crashed: " + e.message)));
   await browser.close();
 
   // 콘솔 오류

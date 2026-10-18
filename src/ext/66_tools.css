@@ -94,7 +94,7 @@ td.txr-m small{font-size:11px}
 .dg-ex{margin:2px 0 8px;padding:8px 12px;border-radius:10px;background:var(--surface-2);font-size:13px;color:var(--text-2)}
 .sv-unit{font-weight:700}
 .sv-gn{display:block;margin-top:4px;font-size:12.5px;font-weight:500;color:var(--text-3)}
-/* 검색 결과: 필요한 돈 + 살 수 있음 */
+/* 검색 결과: 필요한 돈 + 갈 수 있음 */
 .sugg em.sg-c{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
 .sugg em.sg-c b{font-size:15px;font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums}
 .sugg em.sg-c small{margin:0;font-size:11.5px}
@@ -124,7 +124,7 @@ td.txr-m small{font-size:11px}
   #supZ:empty::before{content:"연도를 누르면 그해 입주할 만한 구역이 여기에 나와요";display:block;padding:24px;border-radius:14px;background:var(--surface-2);color:var(--text-2);font-size:14px}
   #txrTop table.txr td,#txrTop table.txr th{padding-left:14px;padding-right:14px}
 }
-/* #report 딥링크(모바일): 구별 요약 대신 '살 수 있는 곳' 목록 머리로 — 헤더+고정 게이지 아래 */
+/* #report 딥링크(모바일): 구별 요약 대신 '갈 수 있는 곳' 목록 머리로 — 헤더+고정 게이지 아래 */
 html.simple #sListW{scroll-margin-top:calc(var(--hdr-h,56px) + 72px)}
 small.asm{display:block;font-size:11px;line-height:1.3;margin-top:1px}
 /* #results 유형 칩 줄(가장자리까지 미는 스크롤)이 360폭에서 1px 넘쳐 화면이 옆으로 밀리던 것 */

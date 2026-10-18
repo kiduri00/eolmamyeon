@@ -28,8 +28,10 @@ const PINS = (() => {
   // ---------- 아이콘 ----------
   const PIN_D = "M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6z";
   const PIN_H = "M12 5.3 16.3 9.1H15v4H9v-4H7.7zM10.9 13.1v-2.8h2.2v2.8z";   // 핀 머리 안 집(앱 아이콘과 같은 꼴, 문은 뚫림)
-  const pinY = (s = 26) => `<svg class="pn-yp" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="${PIN_D}"/><path class="h" fill-rule="evenodd" d="${PIN_H}"/></svg>`;
-  const pinLine = `<path d="${PIN_D}"/><circle cx="12" cy="9.4" r="2.6"/>`;
+  // 17차: 관심 = 하트 하나(탭·저장 버튼·목록·빈 화면 모두). 작은 글 속(14px 이하)은 하트만, 큰 자리는 #eef1f9 타일 안 남색 하트
+  const HEART_D = "M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.4 7.2 4.4c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.5 3.1 4.4 6.5-1.6 4.8-9.2 9.4-9.2 9.4z";
+  const pinY = (s = 26) => s <= 16 ? `<svg class="pn-yp pn-hh" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="${HEART_D}" fill="currentColor"/></svg>` : `<span class="pn-tile${s >= 30 ? " lg" : ""}" aria-hidden="true"><svg width="${s >= 30 ? 26 : 18}" height="${s >= 30 ? 26 : 18}" viewBox="0 0 24 24"><path d="${HEART_D}" fill="currentColor"/></svg></span>`;
+  const pinLine = `<path d="M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.4 7.2 4.4c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.5 3.1 4.4 6.5-1.6 4.8-9.2 9.4-9.2 9.4z"/>`;   // 17차: 관심 = 하트
 
   // ---------- 숫자 ----------
   const amt = (v) => { v = Math.abs(v); if (v >= 0.95) return `${Math.round(v * 10) / 10}억`; const c = Math.round(v * 10); return c >= 1 ? `${c}천` : `${Math.max(100, Math.round((v * 1e4) / 100) * 100)}만`; };
@@ -78,7 +80,7 @@ const PINS = (() => {
     const hi = r.tx && r.tx.hi;
     if (hi && hi[1] && (sp.hi ? hi[1] > sp.hi : hi[1] > ymdOf(sp.t))) b.push({ k: "hi", t: hi[2] ? `신고가 평당 ${hiAmt(hi[2])}` : "신고가", c: "hi", h: "신고가", v: hi[1] });
     const ok = cmp == null ? null : cmp <= CASH + 1e-9;
-    if (ok === true && sp.ok === false) b.push({ k: "ok", t: sm === m ? "이제 살 수 있어요" : `${MODE_T[sm]} 이제 살 수 있어요`, c: "good", h: "이제 살 수 있어요", v: "" });
+    if (ok === true && sp.ok === false) b.push({ k: "ok", t: sm === m ? "이제 갈 수 있어요" : `${MODE_T[sm]} 이제 갈 수 있어요`, c: "good", h: "이제 갈 수 있어요", v: "" });
     if (ok === false && sp.ok === true) b.push({ k: "short", t: `${sm === m ? "" : MODE_T[sm] + " "}${amt(cmp - CASH)} 모자라요`, c: "bad", h: "돈이 모자라요", v: "" });
     const d = cmp != null && sp.now != null && Math.abs(cmp - sp.now) >= 0.05 ? cmp - sp.now : null;
     return { r, sp, b, now, cmp, sm, d, ok, alt: m !== mode(), salt: sm !== m, sig: b.map((x) => x.k + x.v).join("|") };
@@ -105,7 +107,7 @@ const PINS = (() => {
     let goal = "";
     if (sp.goal && now != null) {
       const p = Math.max(0, Math.min(1, CASH / Math.max(now, 0.01)));
-      goal = now <= CASH + 1e-9 ? `<p class="pn-goal done">${pinY(14)}목표 달성! 이제 살 수 있어요</p>` : `<p class="pn-goal"><span class="pn-gbar" aria-hidden="true"><i style="width:${Math.round(p * 100)}%"></i></span>여기까지 <b>${amt(now - CASH)}</b> 더</p>`;
+      goal = now <= CASH + 1e-9 ? `<p class="pn-goal done">${pinY(14)}목표 달성! 이제 갈 수 있어요</p>` : `<p class="pn-goal"><span class="pn-gbar" aria-hidden="true"><i style="width:${Math.round(p * 100)}%"></i></span>여기까지 <b>${amt(now - CASH)}</b> 더</p>`;
     }
     const sub = `${esc(r.g)} · ${esc(stageName(r))}`;
     // 최근 소식 한 줄(data/changes.json: 실거래·단계·고시·경매)
@@ -121,7 +123,7 @@ const PINS = (() => {
       ? `<button type="button" class="pn-main sel" data-cmp="${r.id}" aria-pressed="${CMP.includes(r.id)}"><span class="pn-ck" aria-hidden="true"></span>${main}</button>`
       : `<button type="button" class="pn-main" data-open="${r.id}" aria-label="${esc(shortName(r.n))} 리포트 열기">${main}</button><button type="button" class="pn-more" data-pedit="${r.id}" aria-expanded="${EDIT === r.id}" aria-controls="pnEd${i}" title="메모·목표·빼기" aria-label="${esc(shortName(r.n))} 메모·목표·빼기"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>`;
     const ed = !SEL && EDIT === r.id
-      ? `<div class="pn-ed" id="pnEd${i}"><label class="sr-only" for="pnMemo${i}">메모</label><input id="pnMemo${i}" class="pn-memo-in" data-pmemo="${r.id}" maxlength="20" placeholder="메모 (예: 부모님 근처)" value="${esc(sp.memo || "")}" enterkeyhint="done">${!sp.goal && now != null && now <= CASH + 1e-9 ? `<span class="pn-gok">${pinY(14)}이미 살 수 있어요</span>` : `<button type="button" class="btn secondary sm" data-pgoal="${r.id}" aria-pressed="${!!sp.goal}">${sp.goal ? "목표 지우기" : "목표 세우기"}</button>`}<button type="button" class="btn text sm" data-punpin="${r.id}">관심 구역에서 빼기</button><small class="pn-since">${dot(sp.t)}에 추가${sp.mig ? " · 예전 목록에서 옮겨 옴" : ""}</small></div>`
+      ? `<div class="pn-ed" id="pnEd${i}"><label class="sr-only" for="pnMemo${i}">메모</label><input id="pnMemo${i}" class="pn-memo-in" data-pmemo="${r.id}" maxlength="20" placeholder="메모 (예: 부모님 근처)" value="${esc(sp.memo || "")}" enterkeyhint="done">${!sp.goal && now != null && now <= CASH + 1e-9 ? `<span class="pn-gok">${pinY(14)}이미 갈 수 있어요</span>` : `<button type="button" class="btn secondary sm" data-pgoal="${r.id}" aria-pressed="${!!sp.goal}">${sp.goal ? "목표 지우기" : "목표 세우기"}</button>`}<button type="button" class="btn text sm" data-punpin="${r.id}">관심 구역에서 빼기</button><small class="pn-since">${dot(sp.t)}에 추가${sp.mig ? " · 예전 목록에서 옮겨 옴" : ""}</small></div>`
       : "";
     const mb = !SEL && EDIT !== r.id ? `<div class="pn-foot"><button type="button" class="pn-addm" data-pedit="${r.id}" aria-expanded="false" aria-label="${esc(shortName(r.n))} ${sp.memo ? "메모 고치기" : "메모 추가"}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">${sp.memo ? '<path d="M4 20h4L19 9l-4-4L4 16z"/>' : '<path d="M12 5v14M5 12h14"/>'}</svg>${sp.memo ? "메모 고치기" : "메모 추가"}</button></div>` : "";
     return `<div class="pn-row${nw ? " new" : ""}${SEL && CMP.includes(r.id) ? " on" : ""}" role="listitem"><div class="pn-top">${head}</div>${bd}${goal}${mb}${ed}</div>`;
@@ -144,7 +146,7 @@ const PINS = (() => {
       <div class="pn-tools"><div class="pn-sort" role="group" aria-label="정렬">${srt}</div><label class="pn-money"><input type="checkbox" id="pnMoney"${MONEY ? " checked" : ""}>공유 이미지에 금액 넣기</label></div>`;
     return `${top}${condHTML()}<p class="pn-base">오른쪽은 ${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 살 때 필요한 돈 · 내 돈 ${ZF.cash(CASH)} 기준 · 추가한 날과 비교</p><div class="pn-list" role="list" aria-label="관심 구역 목록">${L.map(rowHTML).join("")}</div><span class="share-fb" id="pnShareFb" role="status"></span>${SEL ? "" : moveHTML(L.length)}`;
   }
-  // 관심 구역 요약 카드: 관심 구역 N곳 · 이번 주 소식 N건 · 살 수 있게 된 곳 N곳 + 이번 주 요약(구역별 소식 묶음)
+  // 관심 구역 요약 카드: 관심 구역 N곳 · 이번 주 소식 N건 · 갈 수 있게 된 곳 N곳 + 이번 주 요약(구역별 소식 묶음)
   let DIG = false;
   function sumHTML(L) {
     const has = typeof INBOX !== "undefined";
@@ -152,7 +154,7 @@ const PINS = (() => {
     const W = has && INBOX.ready() ? INBOX.week() : [], okN = L.filter((n) => n.b.some((x) => x.k === "ok")).length;
     const by = new Map(); W.forEach((e) => { if (!by.has(e.id)) by.set(e.id, []); by.get(e.id).push(e); });
     const dig = DIG ? `<ul class="pn-dg" id="pnDg" aria-label="이번 주 요약">${by.size ? [...by].map(([id, E]) => { const r = byId[id], c = {}; E.forEach((e) => { const t = e.hi ? "신고가" : INBOX.TY[e.type][0]; c[t] = (c[t] || 0) + 1; }); return `<li><button type="button" data-open="${id}"><b>${esc(shortName(r.n))}</b><span class="pn-dgc">${Object.entries(c).map(([t, k]) => `${t} ${k}`).join(" · ")}</span><small>${esc(E[0].text)}</small></button></li>`; }).join("") : '<li class="pn-dg0">이번 주에는 새 소식이 없어요</li>'}</ul>` : "";
-    return `<div class="pn-sum"><div class="pn-sum-n"><span><b>${L.length}<i>곳</i></b><small>관심 구역</small></span><span><b>${has && INBOX.ready() ? W.length : "–"}<i>건</i></b><small>이번 주 소식</small></span><span class="${okN ? "ok" : ""}"><b>${okN}<i>곳</i></b><small>살 수 있게 됨</small></span></div><button type="button" class="pn-sum-dg" id="pnDgB" aria-expanded="${DIG}" aria-controls="pnDg">${DIG ? "이번 주 요약 접기" : "이번 주 요약 보기"}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="${DIG ? "m6 15 6-6 6 6" : "m6 9 6 6 6-6"}"/></svg></button>${dig}</div>`;
+    return `<div class="pn-sum"><div class="pn-sum-n"><span><b>${L.length}<i>곳</i></b><small>관심 구역</small></span><span><b>${has && INBOX.ready() ? W.length : "–"}<i>건</i></b><small>이번 주 소식</small></span><span class="${okN ? "ok" : ""}"><b>${okN}<i>곳</i></b><small>갈 수 있게 된 곳</small></span></div><button type="button" class="pn-sum-dg" id="pnDgB" aria-expanded="${DIG}" aria-controls="pnDg">${DIG ? "이번 주 요약 접기" : "이번 주 요약 보기"}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="${DIG ? "m6 15 6-6 6 6" : "m6 9 6 6 6-6"}"/></svg></button>${dig}</div>`;
   }
   // 다른 기기로 옮기기: 핀·메모·목표·꽂을 때 값·조건 핀을 압축해 주소(#pins=)에 담아 복사(로그인 불필요)
   const moveHTML = (n) => { const m = FAV.filter((id) => SNAP[id] && SNAP[id].memo).length; return `<div class="pn-move"><div><b>다른 기기로 옮기기</b><small>다른 폰·PC에서 열면 ${josa(`관심 구역 ${n}곳${CONDS.length ? ` · 알림 조건 ${CONDS.length}개` : ""}${m ? ` · 메모` : ""}`, "을", "를")} 그대로 가져와요</small></div><button type="button" class="btn secondary sm" id="pnMove">링크 복사</button><span class="share-fb" id="pnMoveFb" role="status"></span></div>`; };
@@ -368,7 +370,7 @@ const PINS = (() => {
       if (!i) { i = document.createElement("b"); i.className = "pn-nb"; i.setAttribute("aria-hidden", "true"); nb.appendChild(i); }
       i.hidden = !n; i.textContent = nTxt(n);
       const fl = FAV.filter((x) => byId[x]).length;
-      nb.setAttribute("aria-label", `관심${fl ? ` ${fl}곳` : ""}${n ? `, 새 소식 ${n}곳` : ""}`);
+      nb.setAttribute("aria-label", `관심 구역 ${fl}곳${n ? `, 새 소식 ${n}곳` : ""}`);
     }
     condBtn();
     // 앱 아이콘 숫자는 알림함(72_inbox paint)이 종 숫자와 같게 맞춘다
@@ -391,7 +393,7 @@ const PINS = (() => {
     if (c.nextElementSibling !== hero) hero.before(c);
     const f = U[0], cn = CN[0];
     const txt = f
-      ? `<b>관심 구역 ${U.length}곳에 새 소식</b> · ${esc(shortName(f.r.n))} ${esc(f.b[0].h)}${cn && cn.add.length ? ` · 살 수 있는 새 구역 ${freshIds().length || newIds().length}` : ""}`
+      ? `<b>관심 구역 ${U.length}곳에 새 소식</b> · ${esc(shortName(f.r.n))} ${esc(f.b[0].h)}${cn && cn.add.length ? ` · 갈 수 있는 새 구역 ${freshIds().length || newIds().length}` : ""}`
       : `<b>${esc(cn.c.name)}</b> · ${cn.add.length ? `새로 들어온 곳 ${cn.add.length}` : ""}${cn.add.length && cn.out.length ? " · " : ""}${cn.out.length ? `빠진 곳 ${cn.out.length}` : ""}`;
     c.innerHTML = `<button type="button" class="pn-hm-go">${pinY(22)}<span>${txt}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button><button type="button" class="pn-hm-x" aria-label="이번 주 동안 닫기"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
     c.hidden = false;
@@ -598,7 +600,7 @@ const PINS = (() => {
         <label class="pc-nm"><span>이름</span><input data-cn maxlength="30" value="${esc(c.name || autoName(c))}" placeholder="${esc(autoName(c))}"></label>
         <div data-cchips>${chips()}</div>
         <p class="pc-cnt" data-ccnt aria-live="polite">${cnt()}</p>
-        <p class="pc-why">새로 살 수 있게 된 곳·경매 물건이 생기면 알려 드려요</p>
+        <p class="pc-why">새로 갈 수 있게 된 곳·경매 물건이 생기면 알려 드려요</p>
         <div class="pc-btns"><button type="button" class="btn secondary sm" data-cx>닫기</button><button type="button" class="btn primary sm" data-csave>${edit ? "저장" : "알림 켜기"}</button></div>`;
     ov.innerHTML = `<div class="pn-dlg pc-dlg" role="dialog" aria-modal="true" aria-labelledby="pcST">${body()}</div>`;
     document.body.appendChild(ov);
@@ -759,6 +761,18 @@ const PINS = (() => {
     toast("알림 조건 저장했어요", "조건 바꾸기", () => condSheet(CONDS.find((y) => y.id === x.id)), `${nm} · 지금 ${fmt(ids.length)}곳`);
     try { if (typeof INBOX !== "undefined") setTimeout(() => INBOX.watch("cond"), 900); } catch (e) {}
   }
+  // 폰 알림 줄 자리: 목록(#sList) 다섯째 카드 바로 뒤 <li class="s-alli"> · 카드가 없으면 목록 뒤. 목록을 다시 그릴 때마다(60_simple render) 다시 끼운다
+  function alSlot() {
+    const w = $("pcSave"), sl = $("sList"); if (!w || !sl || matchMedia("(min-width:981px)").matches) return;
+    let li = sl.querySelector(":scope > li.s-alli");
+    const cards = sl.querySelectorAll(":scope > li.s-card");
+    if (!cards.length) { if (li) li.remove(); if (sl.nextElementSibling !== w) sl.after(w); return; }
+    const ref = cards[Math.min(4, cards.length - 1)];
+    if (!li) { li = document.createElement("li"); li.className = "s-alli"; }
+    if (ref.nextElementSibling !== li) ref.after(li);
+    if (w.parentNode !== li) li.appendChild(w);
+  }
+  window.ZP_alSlot = () => { try { if ($("pcSave")) alSlot(); } catch (e) {} };
   function condBtn() {
     const hero = $("sHero"); if (!hero) return;
     // 자리: shell.html 첫 페인트 자리(.pc-ph) 바로 앞 — 예산 카드가 PC에서 목록 칸으로 옮겨 가도 알림 카드는 #mapTop에 남는다
@@ -777,13 +791,12 @@ const PINS = (() => {
     }
     // PC 두 칸: 알림 카드는 왼쪽 목록 칸 맨 아래(목록과 같은 높이 안 — 지도 옆에 빈 띠가 생기지 않게)
     const lw = $("sListW");
-    if (lw && matchMedia("(min-width:981px)").matches) { if (lw.lastElementChild !== w) lw.appendChild(w); }
-    else if (lw && w.parentNode === lw) { ph ? ph.before(w) : g0 ? g0.after(w) : hero.appendChild(w); }
-    else if (ph ? w.nextElementSibling !== ph && !(w.nextElementSibling && w.nextElementSibling.id === "pcAct") : g0 && w.previousElementSibling !== g0 && !(w.previousElementSibling && w.previousElementSibling.id === "pcAct")) ph ? ph.before(w) : g0.after(w);
+    if (lw && matchMedia("(min-width:981px)").matches) { const li = w.closest("li.s-alli"); if (lw.lastElementChild !== w) lw.appendChild(w); if (li) li.remove(); }
+    else alSlot();   // 폰: 목록 다섯째 줄 뒤 56px 한 줄(17차 — 첫 화면은 이름·금액이 먼저)
     const b = w.firstElementChild, sc = sameCond();
     if (!sc) {
       b.classList.remove("on");
-      b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>갈 수 있는 곳 생기면 알려 드려요</b><small>새 구역·가격 하락·경매 물건 등장 시 알림</small></span><span class="pc-al-go">알림 받기</span>`;
+      b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>갈 수 있는 곳 생기면 알려 드려요</b></span><span class="pc-al-go">받기</span>`;
       b.setAttribute("aria-label", "갈 수 있는 곳 생기면 알려 드려요 — 새 구역·가격 하락·경매 물건 등장 시 알림");
       return;
     }
@@ -795,7 +808,7 @@ const PINS = (() => {
     if (!condBtn.mq) { condBtn.mq = 1; try { matchMedia("(min-width:981px)").addEventListener("change", () => { try { condBtn(); } catch (e) {} }); } catch (e) {} }
     if (!condBtn.pw) { condBtn.pw = 1; try { navigator.permissions && navigator.permissions.query({ name: "notifications" }).then((st) => { st.onchange = () => { try { condBtn(); } catch (e) {} }; }).catch(() => {}); } catch (e) {} addEventListener("focus", () => { try { condBtn(); } catch (e) {} }); addEventListener("push:perm", () => { try { condBtn(); } catch (e) {} }); }
     const onT = perm === "granted" ? "알림 켜짐" : perm === "denied" ? "알림함으로 받는 중 · 폰 알림 꺼짐" : "알림함으로 받는 중";
-    b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>${onT}${N ? ` · 새 구역 ${N}곳` : ""}</b><small>${N ? `${esc(sc.name)} · ${f ? "아직 안 본 곳" : "새로 살 수 있게 된 곳"}` : `지금 ${fmt(n.ids.length)}곳 · 새로 생기면 알려 드려요`}</small></span><span class="pc-al-go">${N ? "보기" : "알림 조건"} →</span>`;
+    b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>${onT}${N ? ` · 새 구역 ${N}곳` : ""}</b><small>${N ? `${esc(sc.name)} · ${f ? "아직 안 본 곳" : "새로 갈 수 있게 된 곳"}` : `지금 ${fmt(n.ids.length)}곳 · 새로 생기면 알려 드려요`}</small></span><span class="pc-al-go">${N ? "보기" : "알림 조건"} →</span>`;
     b.setAttribute("aria-label", `${onT}${N ? `, 새 구역 ${N}곳 보기` : ", 알림 조건 보기"}`);
   }
   const newIds = () => [...new Set(condsAll().flatMap((n) => n.add))];

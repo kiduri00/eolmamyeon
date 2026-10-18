@@ -126,7 +126,7 @@ const TOOLS = (() => {
     items.push([lock ? "no" : "ok", "조합원 지위양도", `${rb ? "재건축은 조합설립인가" : "재개발은 관리처분인가"} 뒤 매수는 조합원 승계 불가(10년 보유·5년 거주 1주택 등 예외 매물만) · ${lock ? "지금 이 단계라 예외 매물만" : "지금은 아직 그 전"}`, [LAW + "/제39조", "도정법 제39조"]]);
     return items;
   }
-  const dgLi = ([c, k, v, src]) => `<li class="${c}"><i aria-hidden="true">${c === "ok" ? "✓" : c === "no" ? "✕" : c === "na" ? "?" : "!"}</i><span><b>${k}</b><small>${esc(v)}${src ? ` <a href="${esc(src[0])}" target="_blank" rel="noopener">${esc(src[1])} ↗</a>` : ""}</small></span></li>`;
+  const dgLi = ([c, k, v, src]) => `<li class="${c}"><i aria-hidden="true">${c === "ok" ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : c === "no" ? "✕" : c === "na" ? "?" : "!"}</i><span><b>${k}</b><small>${esc(v)}${src ? ` <a href="${esc(src[0])}" target="_blank" rel="noopener">${esc(src[1])} ↗</a>` : ""}</small></span></li>`;
   function diagShow(ex) {
     const r = dSel, box = document.getElementById("dgR"); if (!r || !box) return;
     const items = diagItems(r, () => { if (dSel === r) diagShow(ex); });

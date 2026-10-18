@@ -36,6 +36,17 @@ const BD = (() => {
   // '단계 변경' = 인가·승인으로 단계가 오른 기록(같은 단계를 고친 '변경 인가'·신청·공람 제외) — 구역·단계마다 처음 한 번만
   let NT = null, C = "";
   const CL = { up: "단계 변경", ok: "인가·고시", chg: "변경 인가", con: "시공자", req: "신청·공람" };
+  // 한 줄 글: 칩(인가·고시 등)과 단계 이름이 이미 말한 낱말은 빼고 남은 것만 — '인가·고시 관리처분인가 인가 고시' → '인가·고시 관리처분인가'(17차)
+  const ACTW = new Set(["인가", "고시", "승인", "신청", "공람", "변경"]);
+  function ntBody(x) {
+    const lab = CL[x.c] || "", lt = new Set(lab.split(/[·\s]+/).filter(Boolean));
+    let sec = String(x.sec || "");
+    if (lab && sec.startsWith(lab) && sec.length > lab.length) sec = sec.slice(lab.length);   // '시공자 · 시공자선정' → '시공자 · 선정'
+    const parts = String(x.txt || "").split(" · "), act = parts.shift() || "";
+    const aw = act.split(/\s+/).filter((w) => w && !(ACTW.has(w) && (lt.has(w) || sec.endsWith(w) || x.c === "up" || x.c === "ok")) && !(sec && w === sec));
+    const tail = [aw.join(" "), ...parts].filter(Boolean).join(" · ");
+    return `<b>${esc(sec)}</b>${tail ? " " + esc(tail) : ""}`;
+  }
   function feed() {
     const L = [], key = new Map();
     NT.items.slice().sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).forEach(([d, id, sec, t, c]) => {
@@ -55,7 +66,17 @@ const BD = (() => {
       const it = { d: m.date, id: m.id, sec: STEP_K[m.step] || m.step, txt: "월간 리포트 기록", c: "up", src: m.src || "" };
       key.set(k, it); L.push(it);
     });
-    return L.sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0));
+    L.sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0));
+    // 같은 구역·같은 단계의 인가와 고시가 며칠 사이로 두 번 실린 것 · 똑같은 줄 → 한 줄(단계 변경이 있으면 그것을 남김)
+    const dd = (a, b) => Math.abs(new Date(a) - new Date(b)) / 864e5;
+    const out = [];
+    L.forEach((x) => {
+      const same = out.find((y) => y.id === x.id && y.sec === x.sec && ((y.txt === x.txt && y.c === x.c) || (dd(y.d, x.d) <= 7 && ((y.c === "up" && x.c === "ok") || (y.c === "ok" && x.c === "up")))));
+      if (!same) { out.push(x); return; }
+      if (x.c === "up" && same.c === "ok") { Object.assign(same, { c: "up", d: same.d > x.d ? same.d : x.d }); }
+      if (!same.src && x.src) same.src = x.src;
+    });
+    return out;
   }
   // 단계가 오른 줄: 지금 사면 입주까지 현금(목록·리포트와 같은 ZF.cashToMoveIn)
   function money(r) {
@@ -74,7 +95,7 @@ const BD = (() => {
     const ups = new Set(A.filter((x) => x.c === "up").map((x) => x.id)).size, pins = A.filter((x) => isFav(x.id)).length;
     const sum = `<p class="nt-sum"><b>최근 90일 ${fmt(A.length)}건</b> · 단계 오른 곳 ${fmt(ups)}곳${FAV.length ? ` · 관심 구역 소식 ${fmt(pins)}건` : ""}</p>`;
     out.innerHTML = L.length
-      ? `${sum}<ul class="ntl">${L.slice(0, 80).map((x) => { const r = byId[x.id], fav = isFav(x.id); return `<li class="c-${x.c}${fav ? " fav" : ""}"><span class="nt-d mono">${x.d.slice(2).replaceAll("-", ".")}</span><span class="nt-b">${fav ? `<i class="nt-pin" aria-label="관심 구역">${SVG_PIN(true)}</i>` : ""}${go(x.id)}<small>${esc(r.g)} · ${esc(stageName(r))}</small><span class="nt-t"><em class="nt-c">${CL[x.c]}</em><b>${esc(x.sec)}</b> ${esc(x.txt)}${x.src ? ` <a href="${esc(x.src)}" target="_blank" rel="noopener" data-nw="1">기사 ↗<span class="sr-only"> (새 창)</span></a>` : ""}</span>${x.c === "up" ? money(r) : ""}</span></li>`; }).join("")}</ul><p class="t-note">출처: 서울시 정비사업 정보몽땅 사업장별 추진경과·월간 리포트 · ${esc(String(NT.asOf).replaceAll("-", "."))} 기준 · '변경 인가'는 이미 받은 인가 내용을 고친 것이라 단계가 오른 게 아니에요${MO ? ` · 달마다 정리한 목록: <a href="${MO.url}">${moLabel()} 리포트</a>` : ""}</p>`
+      ? `${sum}<ul class="ntl">${L.slice(0, 80).map((x) => { const r = byId[x.id], fav = isFav(x.id); return `<li class="c-${x.c}${fav ? " fav" : ""}"><span class="nt-d mono">${x.d.slice(2).replaceAll("-", ".")}</span><span class="nt-b">${fav ? `<i class="nt-pin" aria-label="관심 구역">${SVG_PIN(true)}</i>` : ""}${go(x.id)}<small>${esc(r.g)} · ${esc(stageName(r))}</small><span class="nt-t"><em class="nt-c">${CL[x.c]}</em>${ntBody(x)}${x.src ? ` <a href="${esc(x.src)}" target="_blank" rel="noopener" data-nw="1">기사 ↗<span class="sr-only"> (새 창)</span></a>` : ""}</span>${x.c === "up" ? money(r) : ""}</span></li>`; }).join("")}</ul><p class="t-note">출처: 서울시 정비사업 정보몽땅 사업장별 추진경과·월간 리포트 · ${esc(String(NT.asOf).replaceAll("-", "."))} 기준 · '변경 인가'는 이미 받은 인가 내용을 고친 것이라 단계가 오른 게 아니에요${MO ? ` · 달마다 정리한 목록: <a href="${MO.url}">${moLabel()} 리포트</a>` : ""}</p>`
       : `${sum}<p class="mut nt-e">${C === "fav" ? (FAV.length ? "관심 구역의 최근 90일 소식이 없어요." : "구역을 열고 관심 구역에 추가하면 그 구역 소식만 모아 볼 수 있어요.") : "최근 90일 기록이 없어요."}</p>`;
   }
   function init() {

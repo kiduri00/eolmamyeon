@@ -1594,7 +1594,7 @@
       ? DOT_TXT[a]
       : P.fund === "gap"
         ? a === "y"
-          ? "전세 끼고 내 돈으로 살 수 있음"
+          ? "전세 끼고 내 돈으로 갈 수 있음"
           : "전세 끼고도 현금 부족"
         : a === "y"
           ? effBasis() === "total"
@@ -3419,7 +3419,7 @@
             md === "prog"
               ? `색이 ${dk} 진행 중 구역이 많은 구`
               : P.fund === "gap"
-                ? `색이 ${dk} 전세 끼고 ${ZF.cash(CASH)}으로 살 수 있는 구역이 많은 구`
+                ? `색이 ${dk} 전세 끼고 ${ZF.cash(CASH)}으로 갈 수 있는 구역이 많은 구`
                 : md === "now"
                   ? `색이 ${dk} 내 돈 ${ZF.cash(CASH)}으로 지금 매수 가능한 구역이 많은 구 (입주까지는 부족)`
                   : `색이 ${dk} 내 돈 ${ZF.cash(CASH)}으로 ${P.basis === "total" ? "입주" : "지금 매수"} 가능한 구역이 많은 구`;
@@ -3428,7 +3428,7 @@
           md !== "prog"
             ? (() => {
                 const n = R.filter((r) => r.xy && !isDone(r) && dotState(r) === "y").length;
-                return `<p class="ml-glow"><i class="gd" aria-hidden="true"></i>반짝이는 점 = ${P.fund === "gap" ? "전세 끼고 지금 계약할 수 있는 구역" : P.basis === "total" ? "내 돈으로 입주까지 되는 구역" : "내 돈으로 지금 살 수 있는 구역"} <b>${fmt(n)}곳</b>${n ? " · 구를 누르면 하나씩 볼 수 있어요" : " · 금액을 바꿔 보세요"}</p>`;
+                return `<p class="ml-glow"><i class="gd" aria-hidden="true"></i>반짝이는 점 = ${P.fund === "gap" ? "전세 끼고 지금 계약할 수 있는 구역" : P.basis === "total" ? "내 돈으로 입주까지 되는 구역" : "내 돈으로 지금 갈 수 있는 구역"} <b>${fmt(n)}곳</b>${n ? " · 구를 누르면 하나씩 볼 수 있어요" : " · 금액을 바꿔 보세요"}</p>`;
               })()
             : ""
         }<div class="ml-scale" role="img" aria-label="색 범례: 회색 0곳, 옅은 파랑 1곳부터 진한 파랑 ${SMAX}곳 이상까지"><span class="ml-zero"><i></i>0</span><div class="ml-bar"><div class="ml-grad"></div><span class="ml-cur" id="mlCur" hidden></span><div class="ml-ticks">${ticks.map((v) => `<span style="left:${(tOf(v) * 100).toFixed(1)}%">${v}</span>`).join("")}</div></div><span class="ml-unit">곳</span></div>${showStn ? `<p class="ml-stk" id="mlStk">${HUB_KEY}</p>` : ""}`;
@@ -4211,7 +4211,7 @@
         const sk = skip.has(i) || (i === 3 && (r.skip || []).includes("추진위"));
         // 뒤 단계 날짜가 더 이르면 변경 지정·고시일. 단 구역지정보다 이른 추진위는 2009년 전 제도상 정상이라 보지 않는다
         const later = d && dates.slice(i + 1).some((x, j) => x && x < d && !(dMap[i] === "구역지정" && dMap[i + 1 + j] === "추진위"));
-        return `<li class="${st}${sk ? " skip" : ""}"><span class="d">${sk ? "–" : i < ladderIdx ? "✓" : i}</span><div><b>${esc(l)}</b>${sk && i === 3 && (r.skip || []).includes("추진위") && !r.trust ? "<p>생략 (공공지원 조합직접설립)</p>" : ""}${later ? "<p>이 날짜는 변경 지정·고시일로 보여요 (최초 지정은 더 이름)</p>" : ""}</div><span class="t">${d ? d.replaceAll("-", ".") + ((r.dq || []).includes(dMap[i]) ? " ?" : "") + (later ? " (변경)" : "") : i === ladderIdx ? "현재" : ""}</span></li>`;
+        return `<li class="${st}${sk ? " skip" : ""}"><span class="d">${sk ? "–" : i < ladderIdx ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : i}</span><div><b>${esc(l)}</b>${sk && i === 3 && (r.skip || []).includes("추진위") && !r.trust ? "<p>생략 (공공지원 조합직접설립)</p>" : ""}${later ? "<p>이 날짜는 변경 지정·고시일로 보여요 (최초 지정은 더 이름)</p>" : ""}</div><span class="t">${d ? d.replaceAll("-", ".") + ((r.dq || []).includes(dMap[i]) ? " ?" : "") + (later ? " (변경)" : "") : i === ladderIdx ? "현재" : ""}</span></li>`;
       },
     ).join(
       "",
@@ -4403,7 +4403,7 @@
           e5 = v("q5"),
           f = v("q6");
         const it = (ok, t) =>
-          `<li><span class="mk ${ok == null ? "q" : ok ? "ok" : "no"}" aria-hidden="true">${ok == null ? "?" : ok ? "✓" : "!"}</span><span>${ok == null ? '<span class="sr-only">미확인: </span>' : ok ? '<span class="sr-only">충족: </span>' : '<span class="sr-only">미충족: </span>'}${t}</span></li>`;
+          `<li><span class="mk ${ok == null ? "q" : ok ? "ok" : "no"}" aria-hidden="true">${ok == null ? "?" : ok ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : "!"}</span><span>${ok == null ? '<span class="sr-only">미확인: </span>' : ok ? '<span class="sr-only">충족: </span>' : '<span class="sr-only">미충족: </span>'}${t}</span></li>`;
         const opt = [
           c != null ? c >= 40 : null,
           d != null ? d <= 40 : null,
@@ -4602,7 +4602,7 @@
     const row = (r, i, near) => {
       const n = needS(r), ok = okZ(r);
       const wt = near || moaIn.has(r.id) ? `${esc(stn[0].replace(/역$/, ""))}역 ${ZF.walkMin(stnW(r))}분${moaIn.has(r.id) ? " · 15분 안" : ""}` : r.st ? walkT(r) : "";
-      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b>${e1S(n.v)}</b><small>${n.l}</small>` : ""}${ok ? '<i class="sg-ok">살 수 있음</i>' : ""}</em></button>`;
+      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b>${e1S(n.v)}</b><small>${n.l}</small>` : ""}${ok ? '<i class="sg-ok">갈 수 있음</i>' : ""}</em></button>`;
     };
     const stnRow = stn
       ? `<button type="button" role="option" id="sgS" aria-selected="false" data-stn="${esc(stn[0])}" tabindex="-1" class="sg-stn"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="14" rx="3"/><path d="M6 10h12M8 21l2-4M16 21l-2-4"/></svg>${esc(stn[0])}<small>${esc((stn[3] || []).join(" · "))} · 지도에서 역 주변 보기</small></span><em>지도 →</em></button>`
@@ -6193,8 +6193,9 @@
   const cheapSentence = (x, need, lab) =>
     `가장 적게 드는 곳은 <b>${esc(shortName(x.r.n))}</b>, ${lab} <b>${ZF.cash(need)}</b>이에요${cheapFlag(x) ? ` <span class="flag">(${cheapFlag(x)})</span>` : ""}.`;
   // 내 핀 아이콘: 남색 물방울 핀 + 노란 점(public/icon.svg와 같은 모양)
+  // 관심 구역 아이콘 = 하트 하나(17차: 탭·저장 버튼·목록 모두 같은 모양)
   const SVG_PIN = (on) =>
-    `<svg class="pin-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6z" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="9.4" r="2.6" fill="${on ? "var(--pin-dot, #F5C33B)" : "none"}" stroke="${on ? "none" : "currentColor"}" stroke-width="1.7"/></svg>`;
+    `<svg class="pin-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.4 7.2 4.4c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.5 3.1 4.4 6.5-1.6 4.8-9.2 9.4-9.2 9.4z" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg>`;
   const SVG_STAR = SVG_PIN;
   const byName = (a, b) => a.localeCompare(b, "ko");
   const FAV_KEY = "jg-fav";
@@ -7099,7 +7100,7 @@
         ? `<table class="sm-t"><caption class="sr-only">${cap}</caption><thead><tr><th scope="col">구역</th><th scope="col">단계</th><th scope="col" class="n">① 지금</th><th scope="col" class="n">③ 입주까지</th><th scope="col" class="n">10년 준공</th><th scope="col">입주(추정)</th><th scope="col">가까운 역</th></tr></thead><tbody>${rows.map((x) => `<tr><th scope="row">${esc(shortName(x.r.n))}<small>${esc(x.r.g)}</small></th><td>${esc(x.stg)}</td><td class="n">${eok(x.now)}</td><td class="n"><b>${eok(x.tot)}</b></td><td class="n">${pc(x.p10)}</td><td>${yr(x.eta)}</td><td>${esc(x.stn)}</td></tr>`).join("")}</tbody></table>`
         : "";
     const nowLab = gap ? "전세 끼고 지금 드는 돈(매수가 − 전세금 + 취득세)" : "지금 드는 돈(매수가 + 취득세 − 매수 대출)";
-    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${ZF.cash(CASH)}으로 ${gap ? "전세 끼고 지금 살 수 있는" : P.basis === "now" ? "지금 살 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>${LBL.cashToMoveIn}이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>관심 구역 ${fav.length}곳</h3>${tbl(fav, "관심 구역")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
+    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${ZF.cash(CASH)}으로 ${gap ? "전세 끼고 지금 갈 수 있는" : P.basis === "now" ? "지금 갈 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>${LBL.cashToMoveIn}이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>관심 구역 ${fav.length}곳</h3>${tbl(fav, "관심 구역")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
   }
   function sumOpen() {
     if (!isMember()) {
@@ -8788,7 +8789,7 @@
     }
   });
   function gapSavePlan(cash0, m, at) {
-    // 홈 플래너와 같은 기준(참고값 lc 제외)으로 센다 → '살 수 있는 N곳 · ③ 계산 M곳'이 두 곳에서 같게
+    // 홈 플래너와 같은 기준(참고값 lc 제외)으로 센다 → '갈 수 있는 N곳 · ③ 계산 M곳'이 두 곳에서 같게
     const buy = baseList()
       .map(gapOf)
       .filter((g) => !g.r.lc && !g.block && !g.na && g.now != null && g.now <= cash0 + 1e-9);
@@ -8797,9 +8798,9 @@
     // 머리말: 갈 수 있는 곳 → ③(입주까지 현금) 계산되는 곳 → 이주 시점까지 나온 곳, 빠지는 단계를 숫자로 밝힘
     const sub =
       buy.length > gs.length
-        ? `지금 전세 끼고 살 수 있는 ${fmt(buy.length)}곳 중 ③이 계산되는 ${tot.length > gs.length ? `${fmt(tot.length)}곳, 그중 이주 시점까지 나온 ` : ""}`
+        ? `지금 전세 끼고 갈 수 있는 ${fmt(buy.length)}곳 중 ③이 계산되는 ${tot.length > gs.length ? `${fmt(tot.length)}곳, 그중 이주 시점까지 나온 ` : ""}`
         : "";
-    if (!gs.length) return `<p class="t-hint">지금 ${ZF.cash(cash0)}으로 전세 끼고 살 수 있고 입주 시점까지 계산되는 곳이 없어요.</p>`;
+    if (!gs.length) return `<p class="t-hint">지금 ${ZF.cash(cash0)}으로 전세 끼고 갈 수 있고 입주 시점까지 계산되는 곳이 없어요.</p>`;
     if (!isMember())
       return `<div class="gsv"><h3>전세 끼고 지금 ${ZF.cash(cash0)}으로 사면, 매달 ${fmt(Math.round(m * 1e4))}만 원으로 제때 모을 수 있을까?</h3>${lockCard({ kind: "table", title: `구역별 표 · ${fmt(gs.length)}곳`, line: `구역마다 지금 ①·이주 ②·${LBL.cashToMoveIn} ③과 매달 필요한 돈을 표로 보여 줘요.`, ctx: "save" })}</div>`;
     const need = (g) => Math.max((g.now + g.reloc - cash0) / (12 * g.tR), (g.total - cash0) / (12 * g.tM), 0) * 1e4;

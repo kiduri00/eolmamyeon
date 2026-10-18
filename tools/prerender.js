@@ -69,7 +69,8 @@ async function state(out) {
       const snap = () => {
         const li = [...$("sList").children].map((el) => {
           const c = el.cloneNode(true); c.classList.remove("s-nosp"); if (!c.className) c.removeAttribute("class");
-          const h = c.outerHTML; if (!rowIx.has(h)) { rowIx.set(h, rows.length); rows.push(h); } return rowIx.get(h);
+          // 금액마다 달라지는 '남는 돈 · 딱 맞아요'는 빼고 뜬다(섬이 data-need로 다시 채움 — 줄 모양이 금액마다 새로 생기지 않게)
+          const h = c.outerHTML.replace(/<span class="s-fx">.*?<\/span><small class="s-sub">/, '<span class="s-fx"></span><small class="s-sub">').replace(/, (딱 맞아요|남는 돈 [^"]*)(?=")/, ""); if (!rowIx.has(h)) { rowIx.set(h, rows.length); rows.push(h); } return rowIx.get(h);
         });
         const ok = [];
         let nOk = 0;
@@ -86,6 +87,8 @@ async function state(out) {
       const go = async (c, full) => {
         const sl = $("sCash"); sl.value = String(toPos(c));
         sl.dispatchEvent(new Event("input", { bubbles: true })); if (full) sl.dispatchEvent(new Event("change", { bubbles: true }));
+        // 끄는 중엔 숫자만 바로, 목록·지도는 손이 멈춘 뒤(60_simple heavyT 180ms) — 그 뒤 상태를 뜬다
+        await new Promise((r) => setTimeout(r, 230));
         let prev = "", same = 0, i = 0;
         for (; i < 60 && same < 2; i++) { await raf(); const v = $("sN").textContent + "|" + $("sLT").textContent + "|" + $("sList").innerHTML + "|" + $("sSum").innerHTML + "|" + $("pCash").value; if (v === prev) same++; else { same = 0; prev = v; } }
         if (Math.abs(+$("pCash").value - c) > 1e-9) throw new Error(`pCash ${$("pCash").value} != ${c}`);

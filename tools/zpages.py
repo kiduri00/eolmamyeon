@@ -341,7 +341,8 @@ for _a, _k in (D.get('alias') or {}).items():
     print('  alias page', _a, '->', _k)
 # 손으로 쓴 글(구역 정리 페이지·가이드·리포트·소개): 본문은 두고 용어만 정식 말로 · 푸터 '데이터 기준'은 오늘 자료 날짜로(매 실행, 같은 결과면 그대로)
 TERM_FIX = [(re.compile(r'입주까지 총액|입주까지 총(?=[\s ③<])'), LBL['cashToMoveIn']), (re.compile(r'(?<!정보)(?<!사업 )정비몽땅'), '정비사업 정보몽땅'),
-            (re.compile(r'입주까지 필요한 현금'), LBL['cashToMoveIn']), (re.compile(r'지금 필요한 현금'), '지금 필요한 돈'), (re.compile(r'내 현금'), '내 돈'), (re.compile(r'살 수 있는 곳'), '갈 수 있는 곳')]   # 용어집(리뉴얼 5단계)
+            (re.compile(r'입주까지 필요한 현금'), LBL['cashToMoveIn']), (re.compile(r'지금 필요한 현금'), '지금 필요한 돈'), (re.compile(r'내 현금'), '내 돈'), (re.compile(r'살 수 있는 곳'), '갈 수 있는 곳'),
+            (re.compile(r'살 수 있'), '갈 수 있'), (re.compile(r'가용 현금'), '내 돈'), (re.compile(r'필요 현금'), LBL['cashToMoveIn']), (re.compile(r'5천만'), '5,000만'), (re.compile(r'계산 안 해요'), '계산하지 않아요'), (re.compile(r'즐겨찾기해 두면'), '북마크해 두면'), (re.compile(r'내 찜'), '내 관심 구역')]   # 17차 용어 통일   # 용어집(리뉴얼 5단계)
 JARGON = [(re.compile(r'내 지분 값\(권리가액\)|권리가액'), '내 지분 값(권리가액)', '내 지분 값'), (re.compile(r'웃돈\(프리미엄\)|프리미엄'), '웃돈(프리미엄)', '웃돈')]
 def plain(h):
     """본문 글자(태그·스크립트 밖)에서 처음 나오는 '권리가액'·'프리미엄'은 '내 지분 값(권리가액)'·'웃돈(프리미엄)', 그 뒤는 쉬운 말만(앱 76_detail.js plain과 같은 규칙)."""
@@ -530,7 +531,7 @@ for fn, pats in (('years.html', [(r'(<p class="eyebrow">데이터 기준 )[\d.]+
 
 # 손으로 쓴 정적 글(소개·방법·가이드·리포트·피드 목록): 용어 정식화 + 푸터 데이터 기준 날짜(term_fix) — 글 본문 숫자는 그대로
 import glob
-for fp in sorted(set(glob.glob(os.path.join(ROOT, 'public', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'guide', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'report', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'feed', '*.html')))):
+for fp in sorted(set(glob.glob(os.path.join(ROOT, 'public', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'guide', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'api', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'report', '*.html')) + glob.glob(os.path.join(ROOT, 'public', 'feed', '*.html')))):
     if os.path.basename(fp) == 'index.html' and os.path.dirname(fp) == os.path.join(ROOT, 'public'): continue   # 앱 첫 화면은 build.py
     h0 = open(fp, encoding='utf-8').read(); h1 = term_fix(h0)
     if '/feed/' not in fp: h1 = static_norm(h1)   # 머리 검색·theme-color·정보몽땅 첫 언급(피드 목록은 feeds.py 몫)
