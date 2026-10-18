@@ -154,7 +154,7 @@
     const aucJibun = (o) => !!o.jb;   // 지분 매각(auction_match.py가 몫만 남김: '13분의2' · 몫 모름 '1')
     const aucJb = (o) => { if (!o.jb) return ""; const f = o.jb !== "1" ? esc(o.jb) : ""; return `<span class="auc-f j" title="${f ? `지분 ${f}만 매각` : "지분만 매각"} — 낙찰받아도 전체 소유가 아니에요">지분${f ? ` ${f}` : ""}</span>`; };
     const aucFail = (o) => (o.fail == null ? "" : o.fail > 0 ? `<span class="auc-f n">유찰 ${o.fail}회</span>` : `<span class="auc-f">신건</span>`);
-    const aucSub = (o) => [aucUse(o.use), String(o.addr || "").replace(/^\S+구\s+/, "")].filter(Boolean).join(" · ");
+    const aucSub = (o) => [aucUse(o.use), String(o.addr || "").replace(/^\S+구\s+/, "").replace(/\^/g, ", ")].filter(Boolean).join(" · ");
     // 물건 한 건: 사건번호(·물건번호) · 유찰 / 용도 · 지번 / 최저가(감정가 %) · 감정가 · 입찰기일(D-day)
     function aucItem(o, k, inG) {
       const s = aucSt(o), dd = s === "up" ? aucDd(o.date) : "";
