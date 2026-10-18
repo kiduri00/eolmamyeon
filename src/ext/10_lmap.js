@@ -819,7 +819,7 @@
       let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) {}
       const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, obs = obstacles(), phone = MQ_SHEET.matches;
       // 칩 자리(범례 바로 위 왼쪽): 칩이 필요할 때만 비워 두고 다시 놓는다
-      const chipBox = () => { const k = $("lmKey"), cb = cv.getBoundingClientRect(); let y = H - 40; try { if (k && k.offsetWidth) y = k.getBoundingClientRect().top - cb.top - 6; } catch (e) {} return [4, y - 36, 120, y]; };
+      const chipBox = () => { const k = $("lmKey"), nt = $("lmNotes"), cb = cv.getBoundingClientRect(); let y = H - 40; try { if (k && k.offsetWidth) y = k.getBoundingClientRect().top - cb.top - 6; if (nt && !nt.hidden && nt.offsetWidth && nt.parentNode === $("lmap")) { const b = nt.getBoundingClientRect(); if (b.left - cb.left < 130) y = Math.min(y, b.top - cb.top - 6); } } catch (e) {} return [4, y - 36, 120, y]; };   // 레이어 범례가 왼쪽 아래에 있으면 그 위로
       // 자리 잡기는 지도 자리 그림(ghost.js)과 같은 함수 — 같은 카메라면 같은 자리
       const { keep, left } = ZP_G.place({ W, H, obs, phone, gus: GUL.map((g) => ({ n: g.n, ll: g.ll, c: cnt[g.n] || 0 })), proj: (ll) => map.project(ll), chip: chipBox() });
       gusSet(keep);

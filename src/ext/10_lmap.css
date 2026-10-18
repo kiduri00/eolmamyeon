@@ -96,8 +96,9 @@
 #mapbox.lm-short .lm-zoom{flex-direction:row;bottom:36px;right:8px}
 #mapbox.lm-short .lm-zoom button{width:40px;height:40px}
 #mapbox.lm-short .lm-zoom button+button{border-top:0;border-left:1px solid rgba(31,58,135,.10)}
-/* 19차: 키 작은 폰 지도는 레이어 범례·"확대하면 보여요"를 오른쪽 확대 버튼 위에 쌓는다(왼쪽 아래 구 묶음 범례·"+N곳" 칩과 겹치지 않게) */
-#mapbox.lm-short #lmap>.lm-notes{top:auto;left:auto;right:6px;bottom:92px;align-items:flex-end;max-height:calc(100% - 190px);overflow:hidden}
+/* 19차: 키 작은 폰 지도는 레이어 범례·"확대하면 보여요"를 구 묶음 범례 바로 위에 가로로 쌓는다(겹치지 않게 · "+N곳" 칩은 그 위로) */
+#mapbox.lm-short #lmap>.lm-notes{top:auto;right:auto;left:8px;bottom:39px;flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:3px;max-width:calc(100% - 112px)}
+#mapbox.lm-short #lmap>.lm-notes p{padding:3px 7px}
 :root[data-theme="dark"] #mapbox.lm-short .s-rail button{border-right-color:rgba(255,255,255,.08)}
 :root[data-theme="dark"] #mapbox.lm-short .s-rail button:nth-child(n+4){border-top-color:rgba(255,255,255,.08)!important}
 :root[data-theme="dark"] #mapbox.lm-short .lm-zoom button+button{border-left-color:rgba(255,255,255,.10)}

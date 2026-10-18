@@ -4249,8 +4249,8 @@
         ? Math.round(Math.abs(x) * 1e4) === 0
           ? "0원"
           : fmt(Math.round(x * 1e4)) + "만"
-        : NF2.format(Math.round(x * 100) / 100) + "억";
-  const NF2 = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
+        : NF2.format(Math.round(x * 10) / 10) + "억";   // 19차: 억은 소수 한 자리(1.4억 · 앱 전체 같은 꼴)
+  const NF2 = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 });
   function taxDesc(x) {
     if (x.land0) return "멸실 후 토지 취득 4.6% (취득세 4% + 교육세·농특세)";
     if (P.homes === 2) return "조정지역 3주택 이상 중과 12% + 지방교육세 0.4%" + (x.big ? " + 농특세" : "");

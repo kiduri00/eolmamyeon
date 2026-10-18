@@ -451,6 +451,23 @@ const OVX = (() => {
     if (e3 && lab && !e3.textContent.startsWith(`입주 · ${lab}`)) e3.textContent = `입주 · ${lab}`;
     if (e2w && /시점 미정/.test(e2w.textContent)) e2w.textContent = r.s >= 7 ? "이주 · 진행 중" : "이주 · 관리처분 뒤";
   }
+  function mergeAlt(p) {
+    try {
+      if (!p) return;
+      let box = p.querySelector("details.ov-alt1");
+      const DL = [...p.querySelectorAll("details.ov-alt")].filter((d) => !d.classList.contains("ov-alt1"));
+      if (!DL.length || (!box && DL.length < 2)) return;
+      if (!box) { box = document.createElement("details"); box.className = "ov-alt ov-alt1"; box.innerHTML = `<summary>다른 기준 보기 <small></small></summary>`; DL[0].before(box); }
+      DL.forEach((d) => {
+        const sm = d.querySelector(":scope>summary"), h3 = sm && sm.querySelector("h3"), sec = document.createElement("div");
+        sec.className = "ov-alt-s";
+        sec.innerHTML = `<h4>${h3 ? h3.innerHTML.replace(/^\s*다른 기준 보기\s*·\s*/, "") : "대지 3.3㎡당 다른 기준"}</h4>`;
+        [...d.childNodes].forEach((c) => { if (c !== sm) sec.appendChild(c); });
+        box.appendChild(sec); d.remove();
+      });
+      box.querySelector(":scope>summary small").textContent = `${box.querySelectorAll(":scope>.ov-alt-s").length}가지`;
+    } catch (e) {}
+  }
   function tidyPane() {
     const p = document.getElementById("pane"); if (!p || !cur) return;
     const r = cur, apt = /재건축/.test(r.k) || !!(r.tx && r.tx.hd && r.tx.hd.b && r.tx.hd.b !== "v");
@@ -462,23 +479,8 @@ const OVX = (() => {
       p.querySelectorAll(".chk3, .lead-card, .leadc, [class*=lead]").forEach((x) => (x.hidden = true));
     }
     if (curTab === "money") try { fixGtl(p, r); } catch (e) {}
-    // 19차: 거래 탭의 '다른 기준 보기' 여러 개(3.3㎡당 · 구역 안 거래 · 연식별)를 하나로 접는다
-    if (curTab === "tx") try {
-      const DL = [...p.querySelectorAll("details.ov-alt")].filter((d) => !d.classList.contains("ov-alt1"));
-      if (DL.length > 1) {
-        const box = document.createElement("details"); box.className = "ov-alt ov-alt1";
-        box.innerHTML = `<summary>다른 기준 보기 <small>${DL.length}가지</small></summary>`;
-        DL[0].before(box);
-        DL.forEach((d) => {
-          const sm = d.querySelector(":scope>summary"), h3 = sm && sm.querySelector("h3"), sec = document.createElement("div");
-          sec.className = "ov-alt-s";
-          const head = h3 ? h3.innerHTML.replace(/^\s*다른 기준 보기\s*·\s*/, "") : "대지 3.3㎡당 다른 기준";
-          sec.innerHTML = `<h4>${head}</h4>`;
-          [...d.childNodes].forEach((c) => { if (c !== sm) sec.appendChild(c); });
-          box.appendChild(sec); d.remove();
-        });
-      }
-    } catch (e) {}
+    // 19차: 거래 탭의 '다른 기준 보기' 여러 개(3.3㎡당 · 구역 안 거래 · 연식별)를 하나로 접는다(늦게 붙는 머리 카드 것도 · 잠깐 뒤 한 번 더)
+    if (curTab === "tx") { mergeAlt(p); [60, 400].forEach((t) => setTimeout(() => { if (cur === r && curTab === "tx") mergeAlt(document.getElementById("pane")); }, t)); }
     // 입주 현금 탭이 짧아 아래가 비면 '계산 근거 · 숫자 바꿔 보기'를 펼쳐 둔다(한 번만 · 사용자가 접으면 그대로)
     if (curTab === "money") requestAnimationFrame(() => { const pp = document.getElementById("pane"), f = pp && pp.querySelector(".s-fold"); if (!f || f.dataset.auto || cur !== r) return; f.dataset.auto = "1"; if (pp.getBoundingClientRect().height < innerHeight * 0.9) f.open = true; });
     if (curTab === "money" && apt) p.querySelectorAll(".rvj").forEach((x) => (x.hidden = true));
