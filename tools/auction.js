@@ -8,7 +8,7 @@ const URL0 = 'https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100
 const API = /\/pgj\/pgjsearch\/searchControllerMain\.on/;
 const COURTS = ['서울중앙지방법원', '서울동부지방법원', '서울서부지방법원', '서울남부지방법원', '서울북부지방법원'];
 const SEL_COURT = '#mf_wfm_mainFrame_sbx_rletCortOfc', BTN = '#mf_wfm_mainFrame_btn_gdsDtlSrch';
-const MAX_PAGES = +process.env.AUCTION_MAX_PAGES || 80;   // 법원 하나당 쪽 수 상한
+const MAX_PAGES = +process.env.AUCTION_MAX_PAGES || 150;   // 법원 하나당 쪽 수 상한
 const DAYS = +process.env.AUCTION_DAYS || 45;              // 기일 검색 기간(화면이 받아 주면 넓힌다 · 기본은 14일)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const jitter = (a, b) => a + Math.floor(Math.random() * (b - a));
