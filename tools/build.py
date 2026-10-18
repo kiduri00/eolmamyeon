@@ -90,7 +90,7 @@ if blobs:
 d_url = emit('d', pre_js + "window.__ZPD=JSON.parse('" + data.replace('\\', '\\\\').replace("'", "\\'") + "');")
 a_url = emit('a', js)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
-shell = shell.replace('__ZPVER__', '2.0 · ' + a_url.split('.')[1][:7])
+shell = shell.replace('__ZPVER__', '버전 2.0')   # 사용자에게는 버전만(빌드 해시는 /b/ 파일 이름에만)
 c_url = emit('c', css, 'css')
 # 지난 빌드 파일은 이번 것 + 바로 전 것만 남김(배포 직후 옛 화면이 잠깐 참조할 수 있게)
 KEEP = 2

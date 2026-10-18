@@ -1,5 +1,4 @@
-/* 모바일: 리포트를 연 채 나갔다가 다시 열면(새로고침·탭 복원·뒤로가기) 주소의 #구역이 남아 첫 화면 대신 리포트가 뜨던 문제
-   → 같은 탭에서 돌아온 경우엔 구역·지도 해시를 지우고 첫 화면부터. 처음 받은 공유 링크(#구역)는 그대로 연다. */
+/* 모바일 새로고침·탭 복원: #구역 상세·#my 등은 그대로 다시 연다(앱처럼 보던 화면 유지). 구 확대 해시(#map-○○구)만 지우고 첫 화면부터. */
 (() => {
   try {
     const h = location.hash.slice(1);
@@ -7,7 +6,8 @@
     try { back = sessionStorage.getItem("emr_seen") === "1"; sessionStorage.setItem("emr_seen", "1"); } catch (e) {}
     const nt = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0] || {}).type;
     if (nt === "reload" || nt === "back_forward") {
-      if (h && matchMedia("(max-width:980px)").matches && !/^(join=|membership)/.test(h) && !/^[a-z]+Top$|^(results|planner|map|rankHub|news)$/.test(h)) {
+      // 새로고침은 보던 자리 그대로(#my·#구역 상세·#관심 등) — 구 확대(#map-○○구)만 첫 화면으로
+      if (h && matchMedia("(max-width:980px)").matches && /^map-/.test(h)) {
         history.replaceState(null, "", location.pathname + location.search);
         if ("scrollRestoration" in history) history.scrollRestoration = "manual";
         window.scrollTo(0, 0);
@@ -87,6 +87,7 @@ function ZP_home() {
   const H = document.documentElement, base = location.pathname + location.search;
   try { history.replaceState(null, "", base); } catch (e) {}   // 먼저 주소·기록 상태를 비워 아래 닫기들이 history.back()을 하지 않게
   const T = (f) => { try { f(); } catch (e) {} };
+  T(() => ZL.reset());
   T(() => { const x = document.querySelector("#ibSheet [data-ibx]"); if (x) x.click(); });
   T(() => document.querySelectorAll(".pn-ov").forEach((o) => o.remove()));
   H.classList.remove("ib-lock");

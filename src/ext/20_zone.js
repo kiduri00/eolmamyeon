@@ -428,7 +428,8 @@
       const en = r.mk?.entry;
       const per = h ? `${HDB[h.b]} 3.3㎡당` : "";
       const big = [];
-      if (h) big.push(`<div class="big hl"><span>${per}${h.n === 1 || h.w === 0 ? " · 거래 1건" : " 가운데 값"}</span><b>${eok(h.u)}</b><small>${hdWin(h)} · ${esc(ymd2(h.from))}${h.from !== h.to ? "~" + esc(ymd2(h.to)) : ""}${h.st ? ' · <em class="flag">오래된 거래</em>' : ""}${h.xo ? ` · 시세와 크게 다른 ${h.xo}건 제외` : ""}${h.xn ? ` · 2016년 이후 신축·대지 10㎡ 미만 ${h.xn}건 제외` : ""}</small></div>`);
+      // 표본을 이름에 박는다: 위 머리 큰 숫자(매수가 표본 · 주변 300m 등)와 다른 표본이라 같은 '대지 3.3㎡당'이 두 값으로 보이지 않게
+      if (h) big.push(`<div class="big hl"><span>${per} · ${h.n === 1 || h.w === 0 ? "구역 안 거래 1건" : `구역 안 ${fmt(h.n)}건 가운데 값`}</span><b>${eok(h.u)}</b><small>${hdWin(h)} · ${esc(ymd2(h.from))}${h.from !== h.to ? "~" + esc(ymd2(h.to)) : ""}${h.st ? ' · <em class="flag">오래된 거래</em>' : ""}${h.xo ? ` · 시세와 크게 다른 ${h.xo}건 제외` : ""}${h.xn ? ` · 2016년 이후 신축·대지 10㎡ 미만 ${h.xn}건 제외` : ""}</small></div>`);
       if (h && h.b !== "v") big.push(`<div class="big"><span>${h.b === "i" ? "입주권" : "아파트"} 거래가 가운데 값</span><b>${eok(h.p)}</b><small>같은 ${fmt(h.n)}건 · 전용 ${h.pa}㎡ 가운데</small></div>`);
       else if (t.med) big.push(`<div class="big"><span>구축 빌라 매매 가운데 값</span><b>${eok(t.med)}</b><small>2015년 이전 준공 빌라 최근 ${t.nwin || 18}개월 ${fmt(t.no)}건 · 전용 ${t.ar}㎡ · 대지 ${t.ld}㎡</small></div>`);
       if (t.jm) big.push(`<div class="big"><span>빌라 전세 가운데 값</span><b>${eok(t.jm)}</b><small>${t.jy ? `${t.jy[0] === t.jy[1] ? t.jy[0] : t.jy[0] + "~" + t.jy[1]}년 준공(매매 표본과 같은 연식) ` : ""}전세 ${fmt(t.jn)}건 · 임대 ${t.ja}㎡${t.jr ? ` · 전세가율 ${Math.round(t.jr * 100)}%` : t.jr2 ? ` · 전세가율 약 ${Math.round(t.jr2 * 100)}%` : ""}${(() => {

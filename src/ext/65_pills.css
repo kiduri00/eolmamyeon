@@ -43,9 +43,11 @@
 .lm-pick[hidden]{display:none}
 .lm-pick .s-list{border-radius:16px}
 .lm-pick .s-card{cursor:pointer}
-.lm-pick-x{position:absolute;top:-14px;right:-4px;display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;background:none;cursor:pointer;color:var(--text-2)}
-.lm-pick-x svg{box-sizing:content-box;padding:6px;border-radius:50%;background:var(--surface);border:1px solid var(--border);box-shadow:0 1px 4px rgba(15,23,42,.18)}
-.lm-pick-x:focus-visible svg{outline:2px solid var(--focus)}
+.lm-pick-x{position:absolute;top:2px;right:2px;z-index:1;display:grid;place-items:center;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:none;cursor:pointer;color:var(--text-3)}
+.lm-pick-x svg{width:16px;height:16px}
+.lm-pick-x:hover{background:var(--surface-2)}
+.lm-pick-x:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.lm-pick .s-list li.s-card{padding-right:28px}
 
 /* ---------- 범례: 상태 4가지를 말로 ---------- */
 .lm-legend .lm-lgt{flex-basis:100%;font-size:12px;color:var(--text-1)}
@@ -168,7 +170,29 @@ html.simple .s-gauge.bc .scrub{margin:8px 0 18px}
 .lm-key .k-gu{width:10px;height:10px;border-radius:50%;background:var(--zn)}
 #lmap:has(.lm-pick:not([hidden])) .lm-key{display:none}
 /* 2줄: 역·분이 먼저 자리 잡고, 동은 남는 자리가 있을 때만(모자라면 통째로 다음 줄 = 숨김) */
-.s-card .s-sub{display:flex;flex-flow:row-reverse wrap;justify-content:flex-end;min-width:0;height:1.3em;overflow:hidden}
-.s-card .s-sub .s-dg,.s-card .s-sub .s-wk{flex:none;white-space:nowrap}
-.s-card .s-l2 .s-stg{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;display:block;line-height:18px}
+/* 2줄: 단계 칩은 줄이지 않는다(4글자 '정비계획'도 다) · 좁으면 동·역 글자가 먼저 … 으로 줄어든다 */
+.s-card .s-sub{display:block;min-width:0;height:1.3em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-card .s-sub .s-dg,.s-card .s-sub .s-wk{white-space:nowrap}
+.s-card .s-l2 .s-stg{flex:none;display:block;line-height:18px}
 @media (max-width:374px){.s-card button.s-amt small{font-size:12px}.s-card .s-av .s-al{font-size:11px}}
+
+/* 구 묶음: 자리가 좁으면 작게 · 자리를 못 잡은 구는 '+N곳' 칩 하나로(사라지지 않게) */
+.zgu.sm b{font-size:10px}.zgu.sm span{font-size:10px;margin-top:1px}
+/* 작게 줄인 묶음: 보이는 동그라미는 작아도 누르는 자리는 40px */
+.zgu.sm{width:40px;height:40px;isolation:isolate;background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+.zgu.sm::before{content:"";position:absolute;left:50%;top:50%;z-index:-1;width:var(--d,34px);height:var(--d,34px);transform:translate(-50%,-50%);box-sizing:border-box;border-radius:50%;border:1.5px solid var(--zn);background:var(--zn);box-shadow:0 1px 3px rgba(15,23,42,.2)}
+.zgu.sm.t2::before{background:var(--zn-mid)}
+.zgu.sm.t1::before{background:var(--zn-soft);border-color:color-mix(in srgb,var(--zn) 60%,transparent)}
+.lm-gumore{position:absolute;left:8px;z-index:3}
+.lm-gumore-b{display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 12px;border-radius:18px;border:1.5px solid var(--zn);background:var(--surface);color:var(--zn);font:800 13px/1 var(--font);cursor:pointer;box-shadow:0 1px 3px rgba(15,23,42,.18);-webkit-tap-highlight-color:transparent}
+.lm-gumore-b small{font:600 11px/1 var(--font);color:var(--text-2)}
+.lm-gumore-l{display:none;position:absolute;left:0;bottom:calc(100% + 6px);min-width:150px;max-height:220px;overflow:auto;margin:0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 20px rgba(15,23,42,.18)}
+.lm-gumore.open .lm-gumore-l{display:block}
+.lm-gumore-l button{display:flex;justify-content:space-between;gap:10px;width:100%;min-height:40px;padding:0 10px;border:0;border-radius:8px;background:none;color:var(--text-1);font:600 14px/1 var(--font);cursor:pointer;text-align:left}
+.lm-gumore-l button b{color:var(--zn);font-weight:800}
+.lm-gumore-l button:hover{background:var(--zn-soft)}
+:root[data-theme="dark"] .lm-gumore-b,:root[data-theme="dark"] .lm-gumore-l button b{color:#DCE5FF;border-color:#9fb3ff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lm-gumore-b,:root:not([data-theme="light"]) .lm-gumore-l button b{color:#DCE5FF;border-color:#9fb3ff}}
+.zpill .zp-more{position:absolute;top:-10px;right:-9px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--surface);color:var(--zn);border:1.5px solid var(--zn);font:800 10px/15px var(--font);font-style:normal;text-align:center;box-sizing:border-box;pointer-events:none}
+:root[data-theme="dark"] .zpill .zp-more{color:#DCE5FF;border-color:#9fb3ff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .zpill .zp-more{color:#DCE5FF;border-color:#9fb3ff}}

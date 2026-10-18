@@ -19,7 +19,8 @@ const MY = (() => {
     document.querySelectorAll("#myMode button[data-f]").forEach((x) => x.setAttribute("aria-pressed", String((x.dataset.f === "gap") === !!g)));
   }
   // ---------- 알림 ----------
-  const SW = (k, t, onv) => `<li><button type="button" class="my-r my-sw" role="switch" aria-checked="${onv}" data-kind="${k}"><span class="my-t"><b>${t}</b></span><i class="my-tg" aria-hidden="true"></i></button></li>`;
+  // 폰 알림이 꺼져 있으면 종류 스위치는 흐리게·누를 수 없게(켜진 것처럼 보이지 않게) + 한 줄 안내
+  const SW = (k, t, onv, dis) => `<li><button type="button" class="my-r my-sw" role="switch" aria-checked="${dis ? "false" : onv}" data-kind="${k}"${dis ? ' disabled aria-disabled="true" aria-describedby="myKindsC"' : ""}><span class="my-t"><b>${t}</b></span><i class="my-tg" aria-hidden="true"></i></button></li>`;
   function alerts() {
     if (typeof INBOX === "undefined") return;
     const s = INBOX.st(), S = $("myPermS"), B = $("myPermB"), Hh = $("myPermH");
@@ -33,8 +34,14 @@ const MY = (() => {
     S.textContent = txt;
     if (B.innerHTML !== btn) B.innerHTML = btn;
     if (Hh) { Hh.textContent = help; Hh.hidden = !help; }
-    const K = $("myKinds");
-    if (K) K.innerHTML = INBOX.KINDS.map(([k, t]) => SW(k, t, !INBOX.isOff(k))).join("");
+    const K = $("myKinds"), dis = !s.on;
+    if (K) {
+      K.innerHTML = INBOX.KINDS.map(([k, t]) => SW(k, t, !INBOX.isOff(k), dis)).join("");
+      K.classList.toggle("off", dis);
+      let c = $("myKindsC");
+      if (!c) { c = document.createElement("p"); c.id = "myKindsC"; c.className = "my-kc"; K.before(c); }
+      c.textContent = "폰 알림을 켜면 골라 받을 수 있어요"; c.hidden = !dis;
+    }
   }
   // ---------- 관심 구역 옮기기 ----------
   function move() {
@@ -60,8 +67,10 @@ const MY = (() => {
     const a = $("myAsof"), src = $("asof"); if (a && src && src.textContent.trim()) a.textContent = src.textContent.trim();
   }
   // ---------- 지우기 ----------
-  function wipeOpen(v) {
+  function wipeOpen(v, pop) {
     const box = $("myWipeBox"), b = $("myWipe"); if (!box || !b) return;
+    if (!v && box.hidden) return;
+    if (v) ZL.open("wipe", () => wipeOpen(false, true)); else if (pop !== true) ZL.done("wipe");
     box.hidden = !v; b.setAttribute("aria-expanded", String(v));
     if (v) { const n = $("myWipeN"); if (n) n.textContent = String(T(() => PINS.list().length) || 0); const g = $("myWipeNo"); g && g.focus({ preventScroll: true }); }
     else b.focus({ preventScroll: true });
@@ -85,7 +94,7 @@ const MY = (() => {
       if (t.closest("#myMode") && t.dataset.f) { const o = document.querySelector(`#mapTop .s-mode button[data-f="${t.dataset.f}"]`); if (o) o.click(); setTimeout(cond, 60); return; }
       if (t.id === "myPushOn") { INBOX.subscribe(t).then(alerts); return; }
       if (t.id === "myPushOff") { INBOX.unsubscribe().then(alerts); return; }
-      if (t.dataset.kind) { const v = t.getAttribute("aria-checked") !== "true"; INBOX.setKind(t.dataset.kind, v); t.setAttribute("aria-checked", String(v)); return; }
+      if (t.dataset.kind) { if (t.disabled) return; const v = t.getAttribute("aria-checked") !== "true"; INBOX.setKind(t.dataset.kind, v); t.setAttribute("aria-checked", String(v)); return; }
       if (t.id === "myMove") { T(() => PINS.move($("myMoveFb"))); return; }
       if (t.id === "myInstB") {
         const I = window.ZP_INSTALL, st = I && I.state ? I.state() : {};
@@ -103,7 +112,10 @@ const MY = (() => {
       r.addEventListener("change", () => { T(() => SIMPLE.setCash(SIMPLE.toCash(+r.value))); setTimeout(cond, 80); });
     }
     s.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("myWipeBox").hidden) { e.stopPropagation(); wipeOpen(false); } });
-    addEventListener("zp:view", (e) => { if (e.detail === "my") { paint(); T(() => INBOX.pushKey().then(alerts)); } });
+    // 지우기 확인은 MY를 떠나면(다른 탭·화면) 접힌 처음 상태로
+    const wipeReset = () => { const box = $("myWipeBox"), b = $("myWipe"); if (!box || box.hidden) return; T(() => ZL.done("wipe")); box.hidden = true; if (b) b.setAttribute("aria-expanded", "false"); };
+    addEventListener("zp:view", (e) => { if (e.detail === "my") { wipeReset(); paint(); T(() => INBOX.pushKey().then(alerts)); } else wipeReset(); });
+    T(() => new MutationObserver(() => { if (!s.classList.contains("s-on")) wipeReset(); }).observe(s, { attributes: true, attributeFilter: ["class"] }));
     addEventListener("zp:alerts", () => { if (on()) alerts(); });
     T(() => PINS.on(() => { if (on()) move(); }));
     addEventListener("beforeinstallprompt", () => setTimeout(() => { if (on()) inst(); }, 0));

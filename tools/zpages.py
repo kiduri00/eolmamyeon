@@ -168,7 +168,7 @@ def key3_html(r, c, dt, cap=False):
     return (f'<section class="zk" aria-label="핵심 숫자"><p class="zk-nl"><b>{esc(short(r["n"]))}</b><span>{esc(r["g"])} {esc(dong_of(r))}</span><span class="zk-st">{esc(stage)}</span></p><div class="zk-k">'
             f'<div class="zk-i"><span class="zk-l">지금 필요한 돈</span><b class="zk-v">{k["now"]}</b><span class="zk-s">{esc(k["basis"])}</span>' + (f'<span class="zk-s zk-alt">{esc(k["alt"])}</span>' if k['alt'] else '') + f'<a class="zk-my" href="../#{rid}">내 돈으로 되는지 보기 ›</a></div>'
             f'<div class="zk-i"><span class="zk-l">{LBL["cashToMoveIn"]}</span><b class="zk-v">{k["tot"]}</b><span class="zk-s">{esc(k["tsub"] or "기본 가정 · 전세 끼고 · 입주 잔금대출 뺀 값")}</span></div>'
-            f'<div class="zk-i"><span class="zk-l">언제 입주</span><b class="zk-v zk-eta">{esc(k["eta"])}</b>{ip}</div></div>' +
+            f'<div class="zk-i"><span class="zk-l">언제 입주</span><b class="zk-v zk-eta">{esc(k["eta"])}</b>{ip}' + (f'<span class="zk-s">{esc(k["esub"])}</span>' if k.get('esub') else '') + '</div></div>' +
             (f'<p class="zk-cap">최신 숫자 · 기본 가정 · 데이터 기준 {UPD}</p>' if cap else '') + f'<a class="zk-tr {cls}" href="{thref}"><span class="zk-tc">{esc(tc)}</span><span class="zk-tt">{esc(tt)}{f"<b>{esc(lv)}</b>" if lv else ""}</span><i aria-hidden="true">›</i></a></section>')
 REPORT_P = lambda r: f'<p class="zk-rep"><a class="zk-rb" href="{report_href(r)}">이 숫자가 틀렸어요</a><span>구역 ID {esc(r["id"])}가 메일에 자동으로 들어가요 · 받는 주소 <span class="zk-ad">{MAIL}</span></span></p>'
 def page(r):

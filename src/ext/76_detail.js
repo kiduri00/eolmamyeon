@@ -22,7 +22,8 @@ const DTL = (() => {
     let x = null; try { x = investC(r); } catch (e) {}
     if (o.moa) { o.basis = "모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요"; o.why2 = o.basis; return o; }
     if (done) { o.basis = "사업이 끝난 곳이에요 · 일반 아파트 매매"; o.why2 = "새 아파트 입주까지 계산 대상이 아니에요"; return o; }
-    if (nt) { o.need = null; o.total = null; o.basis = "지금 사면 입주권이 안 나와 계산하지 않아요"; o.why2 = "새 아파트를 받지 못해 계산 안 해요"; return o; }
+    // 입주권 없는 곳: 입주권 이야기는 '언제 입주' 칸에서 한 번만(지금·입주까지 칸은 '계산 안 해요'만)
+    if (nt) { o.need = null; o.total = null; o.basis = ""; o.why2 = "계산 안 해요"; return o; }
     if (gapMode()) {
       let g = null; try { g = gapOf(r); } catch (e) {}
       if (g && g.block && g.block !== "계산 대상 아님") {
@@ -48,13 +49,17 @@ const DTL = (() => {
     const n = nums(r);
     const v1 = n.need != null ? C(n.need) : "–", v2 = n.total != null ? C(n.total) : "–";
     const fit = n.need != null && upC(n.need) <= CASH + 1e-9;
-    const vd1 = n.need == null ? "" : fit ? `<em class="dt-vd ok">✓ 내 돈 ${C(CASH)}으로 가능</em>` : `<em class="dt-vd no">${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : C(n.need - CASH))} 더 필요해요</em>`;
+    // 판정 한 줄(가능 · 사는 방법): '✓ 가능'과 '전세 끼고 ✓ 가능' 칩을 따로 두지 않는다
+    const how = gapMode() ? "전세 끼고" : "대출 끼고";
+    const CK = '<svg class="dt-ck" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const vd1 = n.need == null ? "" : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : C(n.need - CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
     const sub2 = n.total == null ? esc(n.why2) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${C(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
     let eta = "–"; try { eta = etaShow(r); } catch (e) {}
+    if (n.nt) eta = "입주권 없음";
     return `<section class="dt-k" aria-label="핵심 숫자">
       <div class="dt-i" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b><span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && !n.moa && !n.done && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1}<span class="dt-slot" data-slot="gap"></span></span></div>
       <div class="dt-i" data-k="tot"><span class="dt-l">${LBL.cashToMoveIn}</span><b class="dt-v">${v2}</b><span class="dt-s">${sub2}</span></div>
-      <div class="dt-i" data-k="eta"><span class="dt-l">언제 입주</span><b class="dt-v dt-eta">${esc(eta)}</b><span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span></div>
+      <div class="dt-i" data-k="eta"><span class="dt-l">언제 입주</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 노려야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
     </section>`;
   }
   // ---------- 신뢰 한 줄: 추정 칩 하나 · 표본 · 믿을 만함 › (누르면 '돈' 탭의 '이 숫자 믿어도 될까'로) ----------
@@ -65,7 +70,7 @@ const DTL = (() => {
     if (cls === "na" || lv === "안 함") {
       let x = null; try { x = investC(r); } catch (e) {}
       let nt = false; try { nt = noTicket(r); } catch (e) {}
-      const why = r.src === "moa" ? "모아타운은 사업구역마다 달라요" : nt ? "입주권이 안 나와요" : x && x.stale ? "이주·철거가 시작됐어요" : x && x.noApt ? "단지 거래가 없어요" : "매수가로 쓸 거래가 없어요";
+      const why = r.src === "moa" ? "모아타운은 사업구역마다 달라요" : nt ? "새 아파트 계산 대상이 아니에요" : x && x.stale ? "이주·철거가 시작됐어요" : x && x.noApt ? "단지 거래가 없어요" : "매수가로 쓸 거래가 없어요";
       return `<button type="button" class="dt-trust na" data-dttrust><span class="dt-tc">계산 안 함</span><span class="dt-tt">${esc(why)} · 이유 보기</span><i aria-hidden="true">›</i></button>`;
     }
     let est = false; try { est = isEst(r); } catch (e) {}
@@ -99,10 +104,14 @@ const DTL = (() => {
     const box = document.createElement("div"); box.className = "dt-top";
     box.innerHTML = keyHTML(r);
     (wa || wh || head.querySelector(".rep-t")).after(box);
-    if (bIp) { const s = bIp.querySelector("span"); if (s) s.textContent = "입주권"; bIp.classList.add("dt-ip"); box.querySelector('[data-slot="ip"]').appendChild(bIp); }
-    if (bGap) { bGap.classList.add("dt-gap"); box.querySelector('[data-slot="gap"]').appendChild(bGap); }
+    const ipSlot = box.querySelector('[data-slot="ip"]');
+    if (bIp && ipSlot) { const s = bIp.querySelector("span"); if (s) s.textContent = "입주권"; bIp.classList.add("dt-ip"); ipSlot.appendChild(bIp); }
+    // 전세 끼고 칩: '가능'이면 판정 한 줄이 이미 말한다 → 못 사는 경우(✕·불가)만 남긴다
+    if (bGap && !/가능/.test(bGap.textContent.replace(/불가능/g, ""))) { bGap.classList.add("dt-gap"); box.querySelector('[data-slot="gap"]').appendChild(bGap); }
     const why = w && w.querySelector(".ov-vdw .ov-why"); if (why) box.querySelector(".dt-k").after(why);
-    const noip = w && w.querySelector(".ov-noip"); if (noip) box.appendChild(noip);
+    // 입주권 없음 설명은 '언제 입주' 칸 아래 한 줄로 합친다(같은 말을 네 번 하지 않게)
+    const noip = w && w.querySelector(".ov-noip");
+    if (noip) { const nt = box.querySelector(".dt-nt"), sp = noip.querySelector("span"); if (nt && sp) { nt.textContent = sp.textContent.replace(/\s*아래 시세는 참고용이에요\.?/, ""); noip.remove(); } else box.appendChild(noip); }
     const risk = head.querySelector(".lb-risk"); if (risk) box.appendChild(risk);
     box.insertAdjacentHTML("beforeend", trustLine(r));
     // 첫 화면에서 내리는 것: 입지 점수(입지 탭 맨 위에 있음) · 머리 현금 띠(3숫자와 같은 값) · 공식 이름(맨 아래 출처로) · 판정 줄 자리
@@ -224,8 +233,10 @@ const DTL = (() => {
     s.addEventListener("click", (e) => { if (e.target.closest("[data-dtx]")) repClose(); });
     s.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); repClose(); } });
     requestAnimationFrame(() => { const f = s.querySelector("input[name=dtWhy]:checked"); if (f) f.focus({ preventScroll: true }); });
+    ZL.open("rep", () => repClose(true));   // 뒤로 가기 = 이 시트만 닫기(상세는 그대로)
   }
-  function repClose() {
+  function repClose(pop) {
+    if (pop !== true) ZL.done("rep");
     const s = $("dtRep"); if (s) s.remove();
     document.documentElement.classList.remove("dt-rs-on");
     if (lastFocus && lastFocus.isConnected) try { lastFocus.focus({ preventScroll: true }); } catch (e) {}

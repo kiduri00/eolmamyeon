@@ -27,8 +27,14 @@
 .dt-m{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;margin-top:2px}
 .dt-m:empty{display:none}
 .dt-slot:empty{display:none}
-.dt-vd{font-style:normal;font-size:14px;font-weight:700;line-height:40px}
-.dt-vd.ok{color:var(--ok-ink)}
+.dt-vd{display:inline-flex;align-items:center;gap:6px;font-style:normal;font-size:15px;font-weight:700;line-height:40px}
+.dt-vd b{font-weight:700}
+.dt-vd small{font-size:13px;font-weight:500;color:var(--text-3)}
+.dt-vd .dt-ck{flex:none}
+.dt-vd.ok{color:var(--brand)}
+:root[data-theme="dark"] .dt-vd.ok{color:#9DBBFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dt-vd.ok{color:#9DBBFF}}
+.dt-nt{color:var(--warn-ink)!important}
 .dt-vd.no{color:var(--warn-ink)}
 #report .ov-p.dt-ip{min-height:36px;margin-top:6px}
 #report .ov-p.dt-ip span{font-size:12.5px;color:var(--text-2)}
@@ -109,3 +115,7 @@ html.dt-rs-on{overflow:hidden}
 .dt-rs-ad input{flex:1 1 auto;min-width:0;min-height:44px;padding:0 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);color:var(--text-1);font:500 14px var(--font);user-select:all;-webkit-user-select:all}
 .dt-rs-ad .btn{min-height:44px;flex:none}
 .dt-rs-x{width:100%;min-height:46px;margin:10px 0 0;justify-content:center}
+/* 규제 탭: 제목만 남고 내용이 비어 보이던 두 칸(토지거래허가 최근 내역 · 매물 지번으로 확인)은 설명 글을 늘 보인다 */
+html.simple #report #pane .sect.toh>p.note,html.simple #report #pane .sect.acheck>p.note{display:block!important;margin:8px 0 0;font-size:14px;line-height:1.55;color:var(--text-2)}
+html.simple #report #pane .sect.toh>h3 small,html.simple #report #pane .sect.acheck>h3 small{display:block!important;font-size:12.5px;font-weight:500;color:var(--text-3)}
+html.simple #report #pane .sect.toh>h3,html.simple #report #pane .sect.acheck>h3{flex-wrap:wrap}

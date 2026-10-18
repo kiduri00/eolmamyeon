@@ -1,0 +1,22 @@
+/* ===== PC(≥981px) 두 칸: 왼쪽 420~440px(예산 카드·목록/상세), 오른쪽 지도(머리 아래 붙어 화면 높이 가득 · 화면의 55% 이상) ===== */
+@media (min-width:981px){
+  html.simple:not(.s-view) main.wrap{max-width:none;padding:0;min-height:calc(100vh - var(--hdr-h,57px))}
+  html.simple #hdr .hdr-top>.wrap{max-width:none;padding-inline:20px}
+  html.simple:not(.s-view) #mapTop{display:grid;grid-template-columns:432px minmax(0,1fr);column-gap:20px;align-items:start;max-width:none;width:auto;margin:0;padding:0 0 0 20px;box-sizing:border-box}
+  html.simple:not(.s-view) #mapTop>*{grid-column:1;min-width:0}
+  html.simple:not(.s-view) #mapTop>.main{display:contents}
+  html.simple:not(.s-view) #mapTop>.main>.s-right{grid-column:1;grid-row:1;order:0;padding-top:12px}
+  html.simple:not(.s-view) #mapTop>.pc-save,html.simple:not(.s-view) #mapTop>.pc-act,html.simple:not(.s-view) #mapTop>.pc-ph{order:2;margin:12px 0 20px}
+  html.simple:not(.s-view) #mapTop>#sHero,html.simple:not(.s-view) #mapTop>.s-sen{grid-column:1;grid-row:1;margin:0}
+  html.simple:not(.s-view) #mapTop>.main>.mapcard{grid-column:2;grid-row:1 / span 8;align-self:stretch;position:sticky;top:var(--hdr-h,57px);height:calc(100vh - var(--hdr-h,57px));min-height:480px;margin:0;padding:0;border:0;border-radius:0;box-shadow:none}
+  html.simple:not(.s-view) body #mapbox.lm-on,html.simple:not(.s-view) #mapTop #mapbox{height:100%!important;min-height:0!important;max-height:none!important;border-radius:0;border:0;margin:0}
+  html.simple:not(.s-view) .s-right .s-list-w{position:sticky;top:calc(var(--hdr-h,57px) + 12px);height:calc(100vh - var(--hdr-h,57px) - 12px);max-height:none;min-height:420px;box-sizing:border-box;padding-bottom:8px}
+  html.simple.s-rep:not(.s-view) .s-right .s-list-w{position:static;height:auto;min-height:0}
+  /* 알림 카드: 목록 칸 맨 아래 한 줄(목록 높이 안) */
+  html.simple .s-list-w>.pc-save{flex:none;margin:8px 0 0}
+  html.simple .s-list-w>.pc-save .pc-al{padding:8px 10px}
+  html.simple .s-list-w>.pc-save .pc-al small{display:none}
+  html.simple:not(.s-view) #mapTop>.pc-ph{display:none}
+  /* 지도 아래 푸터와 사이 빈 띠 없음 */
+  html.simple:not(.s-view) #mapTop{padding-bottom:0}
+}

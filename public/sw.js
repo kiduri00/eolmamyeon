@@ -1,7 +1,7 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "edddd982"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "b13aaba2"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
@@ -14,7 +14,9 @@ const PRE = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-small.svg", "/ico
 const GUS = "강남구 강동구 강북구 강서구 관악구 광진구 구로구 금천구 노원구 도봉구 동대문구 동작구 마포구 서대문구 서초구 성동구 성북구 송파구 양천구 영등포구 용산구 은평구 종로구 중구 중랑구".split(" ");
 const PRE_PAGES = ["/gu/"].concat(GUS.map((g) => "/gu/" + encodeURIComponent(g)));
 const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30, [BUND]: 12, [PAGES]: 80 };
-const isDoc = (p) => /^\/(z|gu|report|guide|feed)\//.test(p) || /^\/(years|about|method|contact|terms|privacy)$/.test(p);
+const isDoc = (p) => /^\/(z|gu|report|guide|feed)\//.test(p) || /^\/(years|about|method|contact|terms|privacy|faq)(\.html)?$/.test(p);
+// 앱 첫 화면 주소("/" · "/index.html")만 앱 저장본으로 대신한다 — 그 밖(/faq 등)은 저장본이 없으면 오프라인 안내(앱 첫 화면을 다른 주소로 보이지 않게)
+const isApp = (p) => p === "/" || p === "/index.html";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => Promise.all(PRE.map((u) => c.add(new Request(u, { cache: "reload" })).catch(() => {})))).then(() => keep(PRE_PAGES).catch(() => {}))
@@ -89,7 +91,7 @@ const page = async (e) => {
     const k = keyOf(e.request.url);
     const hit = (await pc.match(k)) || (await c.match(k)) || (await c.match(e.request, { ignoreSearch: true }));
     if (hit) return hit;
-    if (doc) return offlinePage();
+    if (doc || !isApp(path)) return offlinePage();
     const home = await c.match(keyOf(new URL("/", e.request.url).href));
     if (home) return home;
     return offlinePage();

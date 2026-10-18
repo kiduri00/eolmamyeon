@@ -26,9 +26,33 @@
     el.classList.add("on");
     clearTimeout(tm); tm = setTimeout(() => el.classList.remove("on"), ms);
   };
-  addEventListener("offline", () => { H.classList.add("is-offline"); toast("오프라인이에요 · 저장된 자료로 보여요", 4200); });
-  addEventListener("online", () => { if (!H.classList.contains("is-offline")) return; H.classList.remove("is-offline"); toast("다시 연결됐어요", 1800); });
-  const boot = () => { if (navigator.onLine === false) { H.classList.add("is-offline"); toast("오프라인이에요 · 저장된 자료로 보여요", 4200); } };
+  // 오프라인 동안 늘 보이는 띠 '오프라인 · 10.18 기준'(앱 자료 기준일) · 다시 연결되면 띠를 걷고 새 자료가 있는지 보고 새로 받는다
+  const asOf = () => { let u = ""; try { u = String((typeof D !== "undefined" && (D.upd || D.asOf)) || ""); } catch (_) {} const m = /(\d{4})-?(\d\d)-?(\d\d)/.exec(u); return m ? `${+m[2]}.${m[3]}` : ""; };
+  let bar = null;
+  const offBar = (on) => {
+    if (!document.body) return;
+    if (!bar) { bar = document.createElement("div"); bar.id = "offBar"; bar.className = "off-bar"; bar.setAttribute("role", "status"); bar.hidden = true; document.body.appendChild(bar); }
+    const d = asOf();
+    bar.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 4.2-2.6M10.6 5.1A15 15 0 0 1 22 8.8M5 12.6a10 10 0 0 1 3.4-2M16 10.8a10 10 0 0 1 3 1.8M8.5 16.4a5 5 0 0 1 5.4-.9M12 20h.01M3 3l18 18"/></svg><b>오프라인</b>${d ? ` · ${d} 기준` : ""}<span> · 저장된 자료로 보여요</span>`;
+    bar.hidden = !on; H.classList.toggle("off-on", !!on);
+  };
+  const goOff = (t) => { H.classList.add("is-offline"); offBar(true); if (t) toast("오프라인이에요 · 저장된 자료로 보여요", 3000); };
+  // 다시 연결: 최신 첫 화면을 받아 자료 묶음(/b/d.…js) 이름이 바뀌었으면 새 자료 → 열린 시트·입력이 없으면 바로 새로 고침(보던 #화면은 그대로), 아니면 안내
+  const refresh = async () => {
+    try { const r = await navigator.serviceWorker?.getRegistration?.(); r && r.update && r.update().catch(() => {}); } catch (_) {}
+    try {
+      const t = await (await fetch("/?fresh=" + Date.now(), { cache: "no-store" })).text();
+      const cur = (document.querySelector('script[src*="/b/d."]') || {}).getAttribute?.("src") || "", nw = (t.match(/\/b\/d\.[0-9a-f]{10}\.js/) || [])[0] || "";
+      if (!nw || !cur || cur.includes(nw)) { toast("다시 연결됐어요 · 최신 자료예요", 2200); return; }
+      const busy = () => H.classList.contains("sheet-open") || H.classList.contains("bs-on") || document.querySelector(".pn-ov, #dtRep") || /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "");
+      if (!busy()) { toast("다시 연결됐어요 · 새 자료를 받아요", 1500); setTimeout(() => location.reload(), 900); }
+      else toast("다시 연결됐어요 · 새 자료는 화면을 닫으면 받아요", 3200);
+    } catch (_) { toast("다시 연결됐어요", 1800); }
+  };
+  window.ZP_offline = { bar: () => !!(bar && !bar.hidden), text: () => (bar ? bar.textContent : "") };
+  addEventListener("offline", () => goOff(true));
+  addEventListener("online", () => { if (!H.classList.contains("is-offline")) return; H.classList.remove("is-offline"); offBar(false); refresh(); });
+  const boot = () => { if (navigator.onLine === false) goOff(true); };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true }); else boot();
 
   // 화면 읽기: 결과 목록 전체(#maxBox·#cmOut)를 다시 읽지 않고 곳 수 한 줄만 알린다(바뀐 뒤 잠깐 쉬었을 때 한 번)

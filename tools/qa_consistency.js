@@ -858,7 +858,10 @@ async function r1Lane(browser, api, errs) {
     expect(!r.miss.length && r.kinds >= 4 && r.tools === 6 && /\d/.test(r.ver) && !/__/.test(r.ver) && /\d/.test(r.asof) && /억|만/.test(r.cash) && r.mail, "ui.my", TM, `missing [${r.miss}] kinds ${r.kinds} tools ${r.tools} ver "${r.ver}" asof "${r.asof}" cash "${r.cash}" mail ${r.mail}`);
     expect(!r.small.length, "ui.my", TM, `rows < 44px: ${r.small.join(" ; ")}`);
     // 종류 끄기 → 저장
-    await page.evaluate(() => { const b = document.querySelector('#myKinds [data-kind="trade"]'); b && b.click(); });
+    // 폰 알림이 꺼져 있으면(점검 브라우저는 늘 꺼짐) 종류 스위치는 흐리게·누를 수 없음·켜진 것처럼 보이지 않음 + '폰 알림을 켜면 골라 받을 수 있어요'
+    { const k = await page.evaluate(() => { const on = window.ZP_INBOX && window.ZP_INBOX.st().on; const S = [...document.querySelectorAll("#myKinds [role=switch]")]; const c = document.getElementById("myKindsC"); return { on: !!on, n: S.length, dis: S.filter((b) => b.disabled).length, onN: S.filter((b) => b.getAttribute("aria-checked") === "true").length, cap: c && !c.hidden ? c.textContent : "" }; });
+      if (!k.on) expect(k.n && k.dis === k.n && !k.onN && /폰 알림을 켜면/.test(k.cap), "ui.myToggles", "폰 알림 꺼짐: MY 알림 종류 스위치 흐리게(disabled)·꺼진 모양 + 안내 한 줄", `push off: ${k.dis}/${k.n} disabled, ${k.onN} look ON, caption "${k.cap}"`); }
+    await page.evaluate(() => { const b = document.querySelector('#myKinds [data-kind="trade"]'); if (b && !b.disabled) b.click(); else if (window.ZP_INBOX) window.ZP_INBOX.setKind("trade", false); });
     { const v = await page.evaluate(() => localStorage.getItem("zp-alert-off")); expect(/trade/.test(v || ""), "ui.my", TM, `alert kind toggle not stored: ${v}`); }
     // 지우기: 첫 누름은 확인 칸만(데이터 그대로) · 닫기 → 그대로 · 모두 지우기 → 저장소 빔 · 첫 화면
     await page.evaluate(() => document.getElementById("myWipe").click()); await page.waitForTimeout(200);
@@ -1146,7 +1149,7 @@ async function r14Lane(browser, api, errs) {
         await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.PINS === "object", null, { timeout: 10000 }).catch(() => {});
         await b.click().catch(() => {});
         await page.waitForFunction(() => { const t = document.getElementById("pnToast"); return t && t.classList.contains("on"); }, null, { timeout: 2500, polling: 100 }).catch(() => {});
-        const o = await page.evaluate(() => { const t = document.getElementById("pnToast"); if (!t || !t.classList.contains("on")) return null; return [...t.querySelectorAll("b,small,span")].filter((e) => e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflow !== "visible" || e.getBoundingClientRect().right > t.querySelector("button").getBoundingClientRect().left + 1 && e.closest(".pn-tt")).map((e) => e.className + ":" + e.textContent.slice(0, 20)); });
+        const o = await page.evaluate(() => { const t = document.getElementById("pnToast"); if (!t || !t.classList.contains("on")) return null; return [...t.querySelectorAll("b,small,span")].filter((e) => e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflow !== "visible" || e.closest(".pn-tt") && [...t.querySelectorAll("button")].some((bt) => { const a = e.getBoundingClientRect(), b = bt.getBoundingClientRect(); return a.right > b.left + 1 && b.right > a.left + 1 && a.bottom > b.top + 1 && b.bottom > a.top + 1; })).map((e) => e.className + ":" + e.textContent.slice(0, 20)); });
         if (o) expect(!o.length, "ui.pinToast", "핀 꽂기 토스트 글자가 '실행 취소' 단추 밑으로 넘치지 않음(360)", o.join(" ; ")); else skip("ui.pinToast", "핀 꽂기 토스트 글자가 '실행 취소' 단추 밑으로 넘치지 않음(360)", "no toast");
         await loadHome(page, "#favTop"); await page.waitForTimeout(1200);
         const ft = await page.evaluate(() => (document.getElementById("fvOut") || {}).innerText || "");
@@ -1199,6 +1202,20 @@ async function r14Lane(browser, api, errs) {
       await page.waitForTimeout(600);
       const al = await page.evaluate(() => { const m = document.getElementById("mapbox").getBoundingClientRect(), l = document.getElementById("sListW").getBoundingClientRect(); return [Math.round(m.bottom), Math.round(l.bottom)]; });
       expect(Math.abs(al[0] - al[1]) <= 6, "ui.deskAlign", "PC 목록 칸 아래 끝 == 지도 아래 끝(±6px)", `map bottom ${al[0]} vs list bottom ${al[1]}`);
+      // PC 두 칸: 왼쪽 420~440px · 지도 폭 ≥ 55% · 머리 바로 밑에 붙어(sticky) 화면 높이 · 확대 버튼·범례가 화면 안 · Tab 순서 예산 카드 → 지도 버튼
+      for (const y of [0, 400, 2000]) {
+        const L = await page.evaluate(async (y) => {
+          scrollTo(0, y); await new Promise((r) => setTimeout(r, 250));
+          const hd = document.getElementById("hdr").getBoundingClientRect().bottom, m = document.getElementById("mapbox").getBoundingClientRect(), l = document.getElementById("sRight").getBoundingClientRect();
+          const z = document.querySelector("#lmap .lm-zoom"), zb = z ? z.getBoundingClientRect() : null, k = document.getElementById("lmKey"), kb = k && k.offsetWidth ? k.getBoundingClientRect() : null;
+          const cb = document.getElementById("sCashBtn"), zbtn = z && z.querySelector("button");
+          const tabOk = !!(cb && zbtn && cb.compareDocumentPosition(zbtn) & Node.DOCUMENT_POSITION_FOLLOWING);
+          return { hd: Math.round(hd), mt: Math.round(m.top), mb: Math.round(m.bottom), mw: m.width / innerWidth, lw: Math.round(l.width), zb: zb ? Math.round(zb.bottom) : 1e9, kb: kb ? Math.round(kb.bottom) : 0, ih: innerHeight, tabOk, sy: Math.round(scrollY) };
+        }, y);
+        const top = L.sy > 0 ? Math.abs(L.mt - L.hd) <= 12 : L.mt <= L.hd + 12;
+        expect(L.mw >= 0.55 && L.lw >= 420 && L.lw <= 440 && top && L.mb <= L.ih + 1 && L.zb <= L.ih && L.kb <= L.ih && L.tabOk, "ui.deskLayout", "PC 두 칸: 왼쪽 420~440px · 지도 ≥55% 폭 · 머리 밑 sticky · 확대 버튼·범례 화면 안 · Tab 예산 카드가 지도 버튼보다 먼저", `scroll ${y}→${L.sy}: map ${(L.mw * 100).toFixed(1)}% top ${L.mt} (hdr ${L.hd}) bottom ${L.mb}/${L.ih} · left ${L.lw}px · zoom bottom ${L.zb} · key ${L.kb} · tab order ${L.tabOk}`);
+      }
+      await page.evaluate(() => scrollTo(0, 0));
       // 홈 분모 글자는 없앴다 → 같은 판정(첫 화면 곳 수 함수 ZP_count, 전세 끼고, 금액 상한 없음)으로 모집단을 잰다
       await setMode(page, "gap");
       const cap = await page.evaluate(() => { try { return typeof window.ZP_count === "function" ? window.ZP_count(999) : null; } catch (e) { return null; } });
@@ -1225,6 +1242,95 @@ async function r14Lane(browser, api, errs) {
   }
 }
 // ================================================================ 리뉴얼 3단계: 지도 알약·구 묶음·목록 ♡·막대 금액 끌기 (폰 390)
+// ================================================================ 17차: 폰 지도 구 묶음 합 == 홈 곳 수 · 뒤로 가기 겹 · 새로고침 유지 · 시트 위 시트 없음
+// (예전 map.guCluster는 그려진 묶음 숫자만 각 구 목록과 비교해, 겹쳐서 빠진 구는 보지 못했다 → 합을 본다)
+async function navLane(browser, api, errs) {
+  const mob = (w, h) => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+  const mapIdle = (page) => page.waitForFunction(() => { const m = window.ZP_lmx && window.ZP_lmx.map && window.ZP_lmx.map(); return m && !m.isMoving() && m.loaded(); }, null, { timeout: 15000, polling: 150 }).catch(() => {});
+  // --- map.guCluster(합): 360·390 첫 화면(자동 맞춤) 여러 금액에서 Σ 구 묶음 + '+N곳' 칩 == ZP_count · 묶음은 지도 칸 안
+  for (const [w, h] of [[360, 740], [390, 844]]) {
+    if (over()) { skip("map.guCluster", "구 묶음", "time budget"); break; }
+    const { ctx, page } = await newPage(browser, mob(w, h), errs);
+    try {
+      await loadHome(page); await settle(page, 500);
+      await page.waitForFunction(() => window.ZP_lmx && window.ZP_lmx.gus && window.ZP_lmx.gus().length > 0, null, { timeout: 20000, polling: 200 }).catch(() => {});
+      for (const [mode, c] of [["gap", 1], ["gap", 2], ["gap", 5], ["gap", 15], ["cash", 3]]) {
+        await setMode(page, mode); await setCash(page, c);
+        await page.evaluate(() => window.ZP_lmx.zoom(0)); await page.waitForTimeout(500); await mapIdle(page); await page.waitForTimeout(500);
+        const g = await page.evaluate(() => { const G = window.ZP_lmx.gus(), cv = window.ZP_lmx.map().getCanvas().getBoundingClientRect(); const out = [...document.querySelectorAll("#lmap .zgu")].filter((e) => { const b = e.getBoundingClientRect(); return b.left < cv.left - 1 || b.right > cv.right + 1 || b.top < cv.top - 1 || b.bottom > cv.bottom + 1; }).map((e) => e.dataset.gu); return { n: window.ZP_count(), sum: G.reduce((a, x) => a + x.c, 0), more: window.ZP_lmx.gusMore ? window.ZP_lmx.gusMore() : -1, k: G.length, z: window.ZP_lmx.map().getZoom(), out }; });
+        const where = `${w}px ${mode} ${c}억 z${g.z.toFixed(2)}`;
+        if (g.z > 11.01) { ok("map.guCluster", "구 묶음"); continue; }   // 되는 곳이 적어 알약 줌으로 맞춘 경우
+        expect(g.sum + g.more === g.n && g.k > 0 && !g.out.length, "map.guCluster", "폰 첫 화면 구 묶음 숫자 합 + '+N곳' 칩 == 홈 '갈 수 있는 곳'(어느 금액에서나) · 묶음은 지도 안", `${where}: clusters ${g.k} sum ${g.sum} + chip ${g.more} vs count ${g.n}${g.out.length ? ` · outside map: ${g.out}` : ""}`);
+      }
+    } catch (e) { bad("runtime", "검사 실행", `navLane cluster ${w} crashed: ` + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- ui.backStack · ui.reloadKeep · ui.noStack (390)
+  const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+  const T = "뒤로 가기 = 맨 위 겹 하나만 닫기(신고 시트 → 상세 → 홈 · 구 확대 · 고른 카드 · 예산·정렬 시트) · 앱 밖(about:blank)으로 나가지 않음";
+  const st = () => page.evaluate(() => ({ url: location.href, rep: !!document.getElementById("dtRep"), sheet: document.getElementById("report").classList.contains("sheet"), view: (document.getElementById("mapbox") || {}).dataset ? document.getElementById("mapbox").dataset.view : "", pick: !!(document.getElementById("lmPick") && !document.getElementById("lmPick").hidden), bs: !!(document.getElementById("bSheet") && !document.getElementById("bSheet").hidden), ss: !!(document.getElementById("sortSheet") && !document.getElementById("sortSheet").hidden) }));
+  const back = async () => { await page.goBack({ timeout: 5000 }).catch(() => {}); await page.waitForTimeout(700); return st(); };
+  const inApp = (s) => s.url.startsWith(BASE);
+  try {
+    const zid = (api.zones.find((z) => z.id === "o1070") || api.zones.find((z) => z.need && z.need.gap && z.need.gap.now != null) || api.zones[0]).id;
+    await loadHome(page, "#" + zid);
+    await page.waitForFunction(() => document.querySelector("#report [data-dtrep]"), null, { timeout: 12000, polling: 150 }).catch(() => {});
+    await page.waitForTimeout(500);
+    await page.evaluate(() => { const b = document.querySelector("#report [data-dtrep]"); b && b.click(); }); await page.waitForTimeout(400);
+    let s = await st();
+    expect(s.rep && s.sheet, "ui.backStack", T, `#${zid}: 신고 시트 ${s.rep} 상세 ${s.sheet}`);
+    s = await back();
+    expect(!s.rep && s.sheet && inApp(s) && s.url.includes("#" + zid), "ui.backStack", T, `back 1 (신고 시트만 닫기): sheet open ${s.sheet} · 신고 ${s.rep} · ${s.url.replace(BASE, "")}`);
+    s = await back();
+    expect(!s.rep && !s.sheet && inApp(s), "ui.backStack", T, `back 2 (상세 닫기): sheet ${s.sheet} · ${s.url.replace(BASE, "")}`);
+    // 예산 시트 · 정렬 시트
+    await page.evaluate(() => { const b = document.getElementById("sCashBtn"); b && b.click(); }); await page.waitForTimeout(400);
+    s = await st(); const bs0 = s.bs; s = await back();
+    expect(bs0 && !s.bs && inApp(s), "ui.backStack", T, `budget sheet: open ${bs0} → after back open ${s.bs} · ${s.url.replace(BASE, "")}`);
+    await page.evaluate(() => { const b = document.getElementById("sSortB"); b && b.click(); }); await page.waitForTimeout(400);
+    s = await st(); const ss0 = s.ss; s = await back();
+    expect(ss0 && !s.ss && inApp(s), "ui.backStack", T, `sort sheet: open ${ss0} → after back open ${s.ss} · ${s.url.replace(BASE, "")}`);
+    // 구 묶음 → 알약 카드 → 뒤로(카드만) → 뒤로(서울 전체)
+    await loadHome(page); await settle(page, 400);
+    await page.waitForFunction(() => window.ZP_lmx && window.ZP_lmx.gus && window.ZP_lmx.gus().length > 0, null, { timeout: 20000, polling: 200 }).catch(() => {});
+    await page.evaluate(() => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 70); });
+    await mapIdle(page); await page.waitForTimeout(600);
+    const gn = await page.evaluate(() => { const g = window.ZP_lmx.gus().sort((a, b) => b.c - a.c)[0]; if (!g) return null; document.querySelector(`.zgu[data-gu="${g.n}"]`).click(); return g.n; });
+    if (gn) {
+      await page.waitForTimeout(1200); await mapIdle(page); await page.waitForTimeout(800);
+      const pid = await page.evaluate(() => { const b = document.querySelector("#lmap button.zpill[data-zid]"); if (!b) return null; b.click(); return b.dataset.zid; });
+      await page.waitForTimeout(500);
+      s = await st();
+      expect(s.view === "gu" && (!pid || s.pick), "ui.backStack", T, `${gn}: view ${s.view} · card ${s.pick} (pill ${pid})`);
+      if (pid) { s = await back(); expect(!s.pick && s.view === "gu" && inApp(s), "ui.backStack", T, `${gn} card back: card ${s.pick} view ${s.view} · ${s.url.replace(BASE, "")}`); }
+      s = await back();
+      expect(s.view !== "gu" && inApp(s), "ui.backStack", T, `${gn} back: view ${s.view} · ${s.url.replace(BASE, "")}`);
+    } else bad("ui.backStack", T, "no 구 cluster to tap");
+    // --- ui.reloadKeep: #my · #구역 새로고침해도 그 화면
+    const TR = "새로고침해도 보던 화면 유지(#my · #구역 상세)";
+    await loadHome(page, "#my"); await page.waitForTimeout(800); await page.reload({ waitUntil: "load" }); await page.waitForTimeout(2500);
+    s = await page.evaluate(() => ({ h: location.hash, on: !!(document.getElementById("my") && document.getElementById("my").classList.contains("s-on")) }));
+    expect(s.h === "#my" && s.on, "ui.reloadKeep", TR, `#my reload → hash "${s.h}" MY shown ${s.on}`);
+    await loadHome(page, "#" + zid); await page.waitForTimeout(1500); await page.reload({ waitUntil: "load" }); await page.waitForTimeout(3500);
+    s = await page.evaluate(() => ({ h: location.hash, sheet: document.getElementById("report").classList.contains("sheet"), t: (document.getElementById("repTitle") || {}).textContent || "" }));
+    expect(s.h === "#" + zid && s.sheet && s.t, "ui.reloadKeep", TR, `#${zid} reload → hash "${s.h}" detail ${s.sheet} "${s.t}"`);
+    // --- ui.noStack: 첫 관심 구역 추가 → '알림 받을 준비' 시트를 상세·토스트 위에 저절로 띄우지 않음 · 토스트 안 '알림 켜기'
+    const TN = "시트 위에 시트 없음: 첫 관심 구역 추가 뒤 알림 시트가 저절로 뜨지 않고 토스트 안 '알림 켜기' 버튼으로";
+    await page.evaluate(() => { try { localStorage.removeItem("zp-watch-pin"); localStorage.removeItem("jg-fav"); } catch (e) {} });
+    await loadHome(page, "#" + zid); await page.waitForFunction(() => document.querySelector("#report .dt-fav"), null, { timeout: 12000, polling: 150 }).catch(() => {}); await page.waitForTimeout(500);
+    await page.evaluate(() => { const b = document.querySelector("#report .dt-fav"); b && b.click(); }); await page.waitForTimeout(600);
+    const t1 = await page.evaluate(() => { const t = document.getElementById("pnToast"); return { on: !!(t && t.classList.contains("on")), btns: t ? [...t.querySelectorAll("button")].map((b) => b.textContent.trim()) : [] }; });
+    await page.waitForTimeout(3200);
+    const ws = await page.evaluate(() => !!document.getElementById("wsSheet"));
+    expect(t1.on && t1.btns.includes("알림 켜기") && t1.btns.includes("되돌리기") && !ws, "ui.noStack", TN, `toast ${t1.on} [${t1.btns}] · wsSheet after 3.8s ${ws}`);
+    await page.evaluate(() => { const b = [...document.querySelectorAll("#pnToast button")].find((x) => x.textContent.trim() === "알림 켜기"); b && b.click(); }); await page.waitForTimeout(600);
+    const ws2 = await page.evaluate(() => ({ ws: !!document.getElementById("wsSheet"), toast: !!(document.getElementById("pnToast") && document.getElementById("pnToast").classList.contains("on")) }));
+    expect(ws2.ws && !ws2.toast, "ui.noStack", TN, `'알림 켜기' → sheet ${ws2.ws} toast still on ${ws2.toast}`);
+    s = await back(); const ws3 = await page.evaluate(() => !!document.getElementById("wsSheet"));
+    expect(!ws3 && s.sheet && inApp(s), "ui.backStack", T, `alert sheet back: sheet gone ${!ws3} · detail ${s.sheet} · ${s.url.replace(BASE, "")}`);
+  } catch (e) { bad("runtime", "검사 실행", "navLane crashed: " + String(e.message || e).split("\n")[0]); }
+  finally { await ctx.close().catch(() => {}); }
+}
 async function r3Lane(browser, errs) {
   const { ctx, page } = await newPage(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }, errs);
   const mapIdle = () => page.waitForFunction(() => { const m = window.ZP_lmx && window.ZP_lmx.map && window.ZP_lmx.map(); return m && !m.isMoving() && m.loaded(); }, null, { timeout: 15000, polling: 150 }).catch(() => {});
@@ -1392,7 +1498,8 @@ async function r4Lane(browser, api, errs) {
         const tr = rp.querySelector(".dt-trust"), tb = tr && tr.getBoundingClientRect();
         const ip = rp.querySelector('.dt-k [data-k="eta"] .dt-ip');
         const head = rp.querySelector(".rep-head"); const est = head ? (head.innerText.match(/추정/g) || []).length : 0;
-        return { H, bh: Math.round(bh), its, trBot: tb ? Math.round(tb.bottom) : null, trTxt: tr ? tr.innerText.replace(/\s+/g, " ") : "", ip: ip ? ip.innerText.replace(/\s+/g, " ") : "", est, noip: !!rp.querySelector(".dt-top .ov-noip") };
+        const top = rp.querySelector(".dt-top"), eta = rp.querySelector('.dt-k [data-k="eta"] .dt-v');
+        return { H, bh: Math.round(bh), its, trBot: tb ? Math.round(tb.bottom) : null, trTxt: tr ? tr.innerText.replace(/\s+/g, " ") : "", ip: ip ? ip.innerText.replace(/\s+/g, " ") : "", est, noip: !!rp.querySelector(".dt-top .ov-noip"), eta: eta ? eta.textContent.trim() : "", nt: !!rp.querySelector(".dt-k .dt-nt"), ipN: top ? (top.innerText.match(/입주권/g) || []).length : 0, okN: top ? (top.innerText.match(/가능/g) || []).length : 0 };
       });
       const lim = f.H - f.bh;
       const labs = f.its.map((x) => x.l).join("|");
@@ -1401,8 +1508,10 @@ async function r4Lane(browser, api, errs) {
       expect(f.trBot != null && f.trBot <= lim, "zone.fold3", T3, `#${zid}: trust line bottom ${f.trBot} > fold ${lim}`);
       expect(f.its.every((x) => x.fs >= 24 && x.fw >= 700 && /tabular-nums/.test(x.tab)), "zone.fold3", T3, `#${zid}: number style ${f.its.map((x) => `${x.fs}/${x.fw}/${x.tab}`).join(" ")}`);
       expect(f.est <= 1, "zone.fold3", T3, `#${zid}: '추정' ${f.est} times on first screen`);
-      expect(/^입주권 /.test(f.ip), "zone.fold3", T3, `#${zid}: 입주권 chip "${f.ip}"`);
-      if (/✕/.test(f.ip)) { noIp++; expect(f.noip && /계산 안 함/.test(f.trTxt), "zone.fold3", T3, `#${zid}: no-입주권 zone needs red note + '계산 안 함' trust line (note ${f.noip}, "${f.trTxt}")`); }
+      // 입주권 없는 곳: '언제 입주' 칸이 '입주권 없음' + 일반분양 한 줄(입주권 이야기는 첫 화면에 한 번 · 몇 년 뒤 입주 숫자 없음) · 신뢰 줄 '계산 안 함'
+      if (f.eta === "입주권 없음") { noIp++; expect(!f.ip && f.nt && !f.noip && f.ipN <= 1 && /계산 안 함/.test(f.trTxt), "zone.fold3", T3, `#${zid}: no-입주권 zone: chip "${f.ip}" note ${f.nt}/${f.noip} '입주권' ×${f.ipN} trust "${f.trTxt}"`); }
+      else { expect(/^입주권 /.test(f.ip), "zone.fold3", T3, `#${zid}: 입주권 chip "${f.ip}"`); expect(!/✕/.test(f.ip), "zone.fold3", T3, `#${zid}: '입주권 ✕' chip but 언제 입주 "${f.eta}"`); }
+      expect(f.okN <= 1, "zone.fold3", T3, `#${zid}: '가능' ${f.okN} times on first screen (one status row)`);
       // ---- zone.report: '이 숫자가 틀렸어요' → 메일(구역 ID 자동) · 주소 복사 · 고마워요 ----
       if (FOLD.indexOf(zid) < 3) {
         const TR = "'이 숫자가 틀렸어요': 메일 제목 '[집핀 신고] <구역 ID> <이름>' · 본문에 구역 ID·주소·데이터 기준·고른 이유 · 주소 보이고 복사 · 누르면 '고마워요. 확인 후 반영할게요'";
@@ -1508,6 +1617,8 @@ async function r4Lane(browser, api, errs) {
   if (!ONLY || ONLY === "r3") await timed("r3", r3Lane(browser, errs).catch((e) => bad("runtime", "검사 실행", "r3Lane crashed: " + e.message)));
   // 리뉴얼 4·5단계(상세 첫 화면 3숫자 · 숫자 신고 · 용어집 · 면책)
   if (!ONLY || ONLY === "r4") await timed("r4", r4Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r4Lane crashed: " + e.message)));
+  // 17차(구 묶음 합 · 뒤로 가기 겹 · 새로고침 유지 · 시트 위 시트 없음)
+  if (!ONLY || ONLY === "r17") await timed("r17", navLane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "navLane crashed: " + e.message)));
   await browser.close();
 
   // 콘솔 오류

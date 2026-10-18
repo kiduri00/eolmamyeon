@@ -252,7 +252,8 @@ const INBOX = (() => {
       ${canI ? `<button type="button" class="btn ${push ? "secondary" : "primary"} ws-in" data-wsin aria-expanded="false"><img src="/icon-192.png" alt="" width="22" height="22">앱으로 설치하면 놓치지 않아요</button>
         <div class="ws-ios" data-wsios hidden><b>홈 화면에 추가하는 법</b><ol><li>Safari 아래 <svg viewBox="0 0 24 24" width="15" height="15" aria-label="공유"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 공유 버튼</li><li><b>홈 화면에 추가</b></li><li>홈 화면의 집핀을 열고 소식 탭에서 <b>알림 받기</b></li></ol><small>iPhone은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요</small></div>` : ""}
       <button type="button" class="btn text sm ws-x" data-wsx>${push || canI ? "나중에" : "확인"}</button></div>`;
-    const close = (later) => { ov.remove(); document.removeEventListener("keydown", kd); removeEventListener("hashchange", close); if (later === true && canI) try { IN.later(); } catch (e) {} try { back && back.focus && back.focus(); } catch (e) {} };
+    let closed = false;
+    const close = (later, pop) => { if (closed) return; closed = true; if (pop !== true) ZL.done("ws"); ov.remove(); document.removeEventListener("keydown", kd); removeEventListener("hashchange", close); if (later === true && canI) try { IN.later(); } catch (e) {} try { back && back.focus && back.focus(); } catch (e) {} };
     const kd = (e) => { if (e.key === "Escape") close(true); };
     const draw = (push) => { ov.innerHTML = render(push); const h = ov.querySelector("#wsT"); h && h.focus({ preventScroll: true }); };
     ov.addEventListener("click", async (e) => {
@@ -279,6 +280,7 @@ const INBOX = (() => {
     document.body.appendChild(ov);
     draw(false);
     document.addEventListener("keydown", kd); addEventListener("hashchange", close, { once: true });
+    ZL.open("ws", () => close(false, true));
     pushKey().then((k) => { if (k && ov.isConnected && Notification.permission !== "denied") draw(true); });
   }
   function onPins(ids) {
@@ -286,8 +288,9 @@ const INBOX = (() => {
     if (n > was && was >= 0 && !(Date.now() - (window.__zpImport || 0) < 8000)) {
       // 첫 관심 구역: '알림 받을 준비' 시트(설치 권유 포함) · 그 뒤로는 관심 구역을 더한 직후에만 설치 권유 카드(닫으면 30일 쉼, 69_install)
       // 꽂기 토스트('실행 취소')가 떠 있는 동안은 기다렸다가(되돌릴 틈을 남김 · 되돌리면 시트 없음) — 예전엔 0.9초 만에 시트가 토스트를 걷어 냈다
-      if (!lsR("zp-watch-pin", 0)) { let k = 0; const go = () => { const t = $("pnToast"); if (t && t.classList.contains("on") && k++ < 20) return setTimeout(go, 300); const cur = pinIds(); if (cur.length) watch("pin", cur[cur.length - 1]); }; setTimeout(go, 900); }
-      else setTimeout(() => { try { window.ZP_INSTALL && ZP_INSTALL.offer("pin"); } catch (e) {} }, 3600);
+      // 첫 관심 구역의 '알림 받을 준비'는 꽂기 토스트 안 '알림 켜기' 버튼으로만(70_pins notify) — 시트가 상세·토스트 위에 저절로 겹치지 않게
+      if (Date.now() - (window.__zpOffer || 0) < 15000 || !lsR("zp-watch-pin", 0)) return;
+      setTimeout(() => { try { if ($("pnToast") && $("pnToast").classList.contains("on")) return; if (document.querySelector(".pn-ov, .dt-rs, html.bs-on")) return; window.ZP_INSTALL && ZP_INSTALL.offer("pin"); } catch (e) {} }, 4600);
     }
   }
 
@@ -320,4 +323,5 @@ const INBOX = (() => {
   function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); rerender(); sync(true); }
   return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind };
 })();
+window.ZP_INBOX = INBOX;   // 점검(QA): 폰 알림 상태·종류 끄기
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", INBOX.init) : setTimeout(INBOX.init, 0);

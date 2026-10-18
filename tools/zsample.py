@@ -167,7 +167,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
     o = {'now': '–', 'basis': '', 'alt': '', 'tot': '–', 'tsub': '', 'eta': eta_show(r, dt, as_of, upd)}
     if r.get('src') == 'moa': o['basis'] = o['tsub'] = '모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요'
     elif done: o['basis'] = '사업이 끝난 곳이에요 · 일반 아파트 매매'; o['tsub'] = '새 아파트 입주까지 계산 대상이 아니에요'
-    elif nt: o['basis'] = '지금 사면 입주권이 안 나와 계산하지 않아요'; o['tsub'] = '새 아파트를 받지 못해 계산 안 해요'
+    elif nt: o['basis'] = ''; o['tsub'] = '계산 안 해요'; o['eta'] = '입주권 없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 노려야 해요'   # 입주권 이야기는 '언제 입주' 칸에서 한 번(앱 76_detail.js와 같은 글)
     elif c.get('gapBlock') and c['gapBlock'] != '계산 대상 아님':
         o['basis'] = '전세 끼고는 못 사요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
         if c.get('now') is not None and not r.get('lc') and r.get('tag') != 'mk': o['alt'] = f"대출 끼고 사면 지금 {cash(c['now'])}" + (f" · 입주까지 {cash(c['need'])}" if c.get('cashOk') and c.get('need') is not None else '')
@@ -180,7 +180,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
     else: o['basis'] = '매수가로 쓸 거래가 없어 계산하지 않아요'; o['tsub'] = '매수가가 없어 계산하지 않아요'
     if o['now'] == '–' and not o['alt'] and r.get('src') != 'moa' and not done: o['alt'] = ref_price(r)
     w = c.get('win')
-    o['ip'] = ('입주권 ✓ 나와요', 'ok') if w == 'ok' else ('입주권 ✕ 안 나와요', 'no') if w == 'no' else ('입주권 ! 확인 필요', 'warn') if not done and r.get('src') != 'moa' else None
+    o['ip'] = None if nt else ('입주권 ✓ 나와요', 'ok') if w == 'ok' else ('입주권 ✕ 안 나와요', 'no') if w == 'no' else ('입주권 ! 확인 필요', 'warn') if not done and r.get('src') != 'moa' else None
     en = (r.get('mk') or {}).get('entry') or {}
     if c.get('price') is not None and c.get('priceSrc') in PSRC and not nt and r.get('src') != 'moa' and not done:
         lv, _ = trust(r, c)
@@ -188,6 +188,6 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         basis = f"같은 구({r.get('g', '')}) 빌라 시세 기준" if est else (f"{('구역 안 아파트' if en.get('fill') == 'zoneapt' else '단지') if en.get('src') == 'complex' else '같은 동 빌라' if en.get('fill') == 'dong' else '주변 빌라' if en.get('radius') else '같은 본번 빌라' if en.get('m') == 'jibun' else '구역 안 빌라'} {en['n']}건 기준" if en.get('n') else '실거래 기준')
         o['trust'] = ('추정', f'{basis} · 믿을 만함: ', lv, {'높음': 'hi', '보통': 'md', '낮음': 'lo'}.get(lv, ''))
     else:
-        why = '모아타운은 사업구역마다 달라요' if r.get('src') == 'moa' else '입주권이 안 나와요' if nt else '이주·철거가 시작됐어요' if 7 <= s < 9 else '매수가로 쓸 거래가 없어요'
+        why = '모아타운은 사업구역마다 달라요' if r.get('src') == 'moa' else '새 아파트 계산 대상이 아니에요' if nt else '이주·철거가 시작됐어요' if 7 <= s < 9 else '매수가로 쓸 거래가 없어요'
         o['trust'] = ('계산 안 함', f'{why} · 이유 보기', '', 'na')
     return o

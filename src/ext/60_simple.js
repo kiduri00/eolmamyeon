@@ -157,11 +157,11 @@ const SIMPLE = (() => {
     const tag = sortK === "eta" ? etaTag(r) : sortK === "gain" ? gainTag(r) : "";   // 초기 단계는 단계 칩이 말한다
     // 2줄: 동 · 역 N분(구는 뺀다 — 짧게, 이름이 먼저) · 동을 못 찾으면 구
     // 동은 좁으면 먼저 줄어들고(…) 역·분은 늘 다 보인다
-    const sub = `${wk ? `<span class="s-wk">${esc(wk)}${tag}</span>` : ""}<span class="s-dg">${esc(dongOf(r) || r.g)}${wk ? " ·\u00a0" : tag}</span>`;
+    const sub = `<span class="s-dg">${esc(dongOf(r) || r.g)}${wk ? " ·\u00a0" : tag}</span>${wk ? `<span class="s-wk">${esc(wk)}${tag}</span>` : ""}`;
     // 입주권 ✓는 화면 읽기 이름에만(카드 2줄을 동·역에 양보) · ✕만 주황 배지
     const bdg = `${tk === "n" ? '<em class="s-b s-b-no">입주권 ✕</em>' : ""}${nw ? '<em class="s-b s-b-new">NEW</em>' : ""}`;
     const mt = main != null ? eokS(main) : "–";
-    const line2 = nowK ? (z.total != null ? `입주까지<span class="sr-only"> 현금</span> <b>${eokS(z.total)}</b>` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(z.need)}`;
+    const line2 = nowK ? (z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(z.need)}`;
     const word = ST_WORD[z.st], gapT = z.st === "near" && z.need != null ? `, ${shortTxt(z.need).slice(1)} 더 필요` : "";
     const lab = `${nm}, ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} ${mt}, ${word}${gapT}${z.total != null && nowK ? `, ${LBL.cashToMoveIn} ${eokS(z.total)}` : ""}, ${stg}${tk === "n" ? ", 입주권 안 나옴" : tk === "y" ? ", 입주권 나옴" : ""}${nw ? ", 이번 주 새로 가능" : ""}`;
     return `<li class="s-card st-${z.st}${fav ? " fav" : ""}${o.cls ? " " + o.cls : ""}" data-zid="${r.id}"><a href="#${r.id}" data-id="${r.id}" class="s-cm" aria-label="${esc(lab)}"><span class="s-nm"><b>${esc(nm)}</b></span><span class="s-l2"><em class="s-b s-stg">${esc(stg)}</em>${bdg}<small class="s-sub">${sub}</small></span></a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(nm)} ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} 추정 ${mt}${z.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · ${LBL.cashToMoveIn} ${eokS(z.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog"><span class="s-av"><i class="s-al" aria-hidden="true">${nowK ? "지금" : "입주까지"}</i><b>${mt}</b></span><small${z.total == null && nowK ? ' class="s-na"' : ""}>${z.st === "near" ? `<span class="s-gapt">${shortTxt(z.need)} 더 필요</span>` : line2}</small></button><button type="button" class="s-heart" data-heart="${r.id}" aria-pressed="${fav}" aria-label="${esc(heartLbl(r, fav))}">${HEART(fav)}</button></li>`;
@@ -249,8 +249,9 @@ const SIMPLE = (() => {
     // 예산 카드(#sGauge): PC는 왼쪽 목록 칸 맨 위, 폰은 검색 밑(지도 바로 위) — shell.html 첫 페인트 스크립트와 같은 규칙
     const gg = $("sGauge");
     const place = () => {
-      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); if (gg && list.firstElementChild !== gg) list.insertBefore(gg, list.firstElementChild); }
-      else { if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); }
+      // PC: 왼쪽 칸(예산 카드·목록)이 문서 순서로도 지도보다 먼저(Tab이 예산 카드 → 목록 → 지도 버튼 순)
+      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); if (gg && list.firstElementChild !== gg) list.insertBefore(gg, list.firstElementChild); if (main.firstElementChild !== right) main.insertBefore(right, main.firstElementChild); }
+      else { if (main.lastElementChild !== right) main.appendChild(right); if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); }
     };
     place(); matchMedia("(min-width:981px)").addEventListener("change", place);
     $("sToList").onclick = () => document.documentElement.classList.remove("s-rep");
@@ -664,15 +665,18 @@ const SIMPLE = (() => {
     $("sCashBtn").setAttribute("aria-expanded", "true");
     histK = ""; sheetSync(R.filter(okR).length);
     requestAnimationFrame(() => { b.classList.add("in"); try { $("sCash").focus({ preventScroll: true }); } catch (e) {} });
+    ZL.open("budget", () => sheetClose(false, true));
   }
-  function sheetClose(go) {
+  function sheetClose(go, pop) {
     const b = $("bSheet"); if (!b || b.hidden) return;
+    const hp = pop === true ? null : ZL.done("budget");
     b.classList.remove("in"); b.hidden = true; document.documentElement.classList.remove("bs-on");
     $("sCashBtn").setAttribute("aria-expanded", "false");
     if (go) {
       // 결과로: 폰은 지도·목록이 이어지는 자리(카드 바로 밑 지도), PC는 왼쪽 목록 맨 위
       const l = matchMedia("(min-width:981px)").matches ? $("sList") : $("sListW");
-      if (l) window.scrollTo({ top: Math.max(0, l.getBoundingClientRect().top + scrollY - HDR() - (matchMedia("(max-width:980px)").matches ? 74 : 8)), behavior: "auto" });
+      const toL = () => { if (l) window.scrollTo({ top: Math.max(0, l.getBoundingClientRect().top + scrollY - HDR() - (matchMedia("(max-width:980px)").matches ? 74 : 8)), behavior: "auto" }); };
+      toL(); if (hp) hp.then((r) => { if (r) requestAnimationFrame(toL); });
       const f = $("sList").querySelector("[data-id]"); if (f) f.focus({ preventScroll: true }); else $("sCashBtn").focus({ preventScroll: true });
     } else if (bsLast && document.contains(bsLast)) bsLast.focus({ preventScroll: true });
   }
@@ -717,11 +721,12 @@ const SIMPLE = (() => {
     sh.innerHTML = `<div class="bs-scr" data-sx aria-hidden="true"></div><div class="bs-card"><div class="bs-grab" aria-hidden="true"></div><div class="bs-h"><h2 id="sortT">정렬</h2><button type="button" class="bs-x" data-sx>닫기</button></div><div class="ss-l" role="radiogroup" aria-labelledby="sortT">${SORTS.map(([k, t, d]) => `<button type="button" role="radio" data-sort="${k}" aria-checked="false"><span><b>${esc(t)}</b><small>${esc(d)}</small></span><i aria-hidden="true"></i></button>`).join("")}</div></div>`;
     document.body.appendChild(sh);
     const opts = () => $$("[data-sort]", sh);
-    const close = (back) => { if (sh.hidden) return; sh.classList.remove("in"); sh.hidden = true; document.documentElement.classList.remove("bs-on"); b.setAttribute("aria-expanded", "false"); if (back !== false) b.focus({ preventScroll: true }); };
+    const close = (back, pop) => { if (sh.hidden) return; if (pop !== true) ZL.done("sort"); sh.classList.remove("in"); sh.hidden = true; document.documentElement.classList.remove("bs-on"); b.setAttribute("aria-expanded", "false"); if (back !== false) b.focus({ preventScroll: true }); };
     b.addEventListener("click", () => {
       opts().forEach((o) => { const on = o.dataset.sort === sortK; o.setAttribute("aria-checked", String(on)); o.tabIndex = on ? 0 : -1; });
       sh.hidden = false; document.documentElement.classList.add("bs-on"); b.setAttribute("aria-expanded", "true");
       requestAnimationFrame(() => { sh.classList.add("in"); const c = sh.querySelector('[aria-checked="true"]'); if (c) c.focus({ preventScroll: true }); });
+      ZL.open("sort", () => close(false, true));
     });
     sh.addEventListener("click", (e) => {
       if (e.target.closest("[data-sx]")) return close();
@@ -738,7 +743,6 @@ const SIMPLE = (() => {
       const F = [sh.querySelector(".bs-x"), ...L.filter((o) => o.tabIndex === 0)];
       if (e.shiftKey && document.activeElement === F[0]) { e.preventDefault(); F[F.length - 1].focus(); } else if (!e.shiftKey && document.activeElement === F[F.length - 1]) { e.preventDefault(); F[0].focus(); }
     });
-    addEventListener("popstate", () => close(false));
   }
   // ---------- 무한 스크롤: 마지막 카드가 화면(PC는 목록 칸) 300px 안에 들어오면 20곳씩 더 · #sMore '더 보기 (N곳)'는 키보드·화면 읽기용 버튼으로 남는다 ----------
   let mIO = null, mRoot = null, mLast = null;
@@ -796,7 +800,7 @@ const SIMPLE = (() => {
     sg.hidden = !gu && !bbF;
     if (!gu && bbF) { sg.innerHTML = `<button type="button" class="s-bbx" id="sBbX" aria-label="지도 범위만 보기 해제 · 지금 ${fmt(L.length)}곳">지도 범위만 · ${fmt(L.length)}곳<i aria-hidden="true">✕</i></button>`; $("sBbX").onclick = () => { bbF = null; shown = SHOW0(); render(); const f = $("sList").querySelector("[data-id]"); if (f) f.focus({ preventScroll: true }); }; }
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
-    if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
+    if (gu) $("sGuX").onclick = () => { if (history.state && history.state.gu && !history.state.zl) { try { history.back(); return; } catch (e) {} } exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
       ? L.slice(0, shown).map(({ r, n }) => cardHTML(r, { z: { st: "ok", need: n.now != null && isFinite(n.now) ? n.now : null, total: n.total != null && isFinite(n.total) ? n.total : null }, cls: r.id === pickId ? "sel" : "" })).join("")
       : `<li class="s-empty">${kindEmpty()}</li>`;
@@ -886,7 +890,8 @@ const SIMPLE = (() => {
       if (known(id)) { e.preventDefault(); e.stopImmediatePropagation(); if (a.closest("#menuPop")) $("menuBtn").click(); open(id); }
       else if (id === "mapTop" || id === "planner0") { e.preventDefault(); close(); }
     }, true);
-    const fromHash = () => { const h = location.hash.slice(1); if (known(h)) open(h, false); else if (cur && !byId[h]) close("pop"); };
+    // 같은 화면 위의 겹(시트·확인 상자)만 닫힌 뒤로 가기면 화면을 다시 열지(맨 위로 스크롤) 않는다
+    const fromHash = () => { if (window.ZL && ZL.skipping()) return; const h = location.hash.slice(1); if (known(h)) { if (cur !== ((ALIAS[h] && ALIAS[h][0]) || h)) open(h, false); } else if (cur && !byId[h]) close("pop"); };
     addEventListener("popstate", fromHash);
     fromHash();
     // 딥링크: 브라우저 앵커 이동이 끝난 뒤 다시 맞춘다

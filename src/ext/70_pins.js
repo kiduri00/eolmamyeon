@@ -291,20 +291,32 @@ const PINS = (() => {
   const quiet = (f) => { QUIET++; try { return f(); } finally { QUIET--; } };
   function notify(id, on) {
     const nm = byId[id] ? shortName(byId[id].n) : "";
-    if (on) toast("관심 구역에 추가했어요", "되돌리기", () => { if (isFav(id)) quiet(() => toggleFav(id)); toast("관심 구역에서 뺐어요", "", null, nm); }, `소식 생기면 알려 드려요 · ${nm}`);
+    // 첫 관심 구역이면 '알림 켜기'를 토스트 안 버튼으로(시트를 토스트·상세 위에 겹쳐 띄우지 않는다)
+    let offer = false;
+    try { offer = on && !localStorage.getItem("zp-watch-pin") && typeof INBOX !== "undefined" && !INBOX.st().on; } catch (e) {}
+    if (offer) window.__zpOffer = Date.now();
+    const undo = () => { if (isFav(id)) quiet(() => toggleFav(id)); toast("관심 구역에서 뺐어요", "", null, nm); };
+    if (on && offer) toast("관심 구역에 추가했어요", "되돌리기", undo, `소식 생기면 알려 드려요 · ${nm}`, ["알림 켜기", () => { try { INBOX.watch("pin", id); } catch (e) {} }], 7000, () => { try { localStorage.setItem("zp-watch-pin", "1"); } catch (e) {} });
+    else if (on) toast("관심 구역에 추가했어요", "되돌리기", undo, `소식 생기면 알려 드려요 · ${nm}`);
     else toast("관심 구역에서 뺐어요", "되돌리기", () => { if (!isFav(id) && room(id)) { quiet(() => toggleFav(id)); toast("다시 추가했어요", "", null, nm); } }, nm);
   }
-  function toast(msg, act, fn, sub) {
+  // act2 = [이름, 함수] 두 번째 버튼(예: 알림 켜기) · ms = 떠 있는 시간 · end = 닫힐 때 한 번
+  let toastEnd = null;
+  function toast(msg, act, fn, sub, act2, ms, end) {
     let t = $("pnToast");
     if (!t) { t = document.createElement("div"); t.id = "pnToast"; t.className = "pn-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
     clearTimeout(toastT);
-    t.innerHTML = `<span>${pinY(18)}<span class="pn-tt"><b>${esc(msg)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span></span>${act ? `<button type="button">${esc(act)}</button>` : ""}`;
-    const bt = t.querySelector("button"); if (bt) bt.onclick = () => { clearTimeout(toastT); t.classList.remove("on"); fn && fn(); };
+    if (toastEnd) { const f = toastEnd; toastEnd = null; try { f(); } catch (e) {} }
+    toastEnd = end || null;
+    t.innerHTML = `<span>${pinY(18)}<span class="pn-tt"><b>${esc(msg)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span></span>${act || act2 ? `<span class="pn-ta">${act ? `<button type="button" data-ta="1">${esc(act)}</button>` : ""}${act2 ? `<button type="button" data-ta="2" class="pn-ta2">${esc(act2[0])}</button>` : ""}</span>` : ""}`;
+    const hide = () => { clearTimeout(toastT); t.classList.remove("on"); if (toastEnd) { const f = toastEnd; toastEnd = null; try { f(); } catch (e) {} } };
+    const b1 = t.querySelector('[data-ta="1"]'); if (b1) b1.onclick = () => { hide(); fn && fn(); };
+    const b2 = t.querySelector('[data-ta="2"]'); if (b2) b2.onclick = () => { toastEnd = null; hide(); act2[1](); };   // 두 번째 버튼(알림 켜기)은 닫힐 때 일(end) 대신 그 일을 한다
     t.classList.add("on");
-    toastT = setTimeout(() => t.classList.remove("on"), 4000);
+    toastT = setTimeout(hide, ms || 4000);
   }
   // 화면이 바뀌면(내 핀·기능 화면 열기/닫기, 전체 지도, 하단 탭) 토스트를 바로 걷는다
-  function hideToast() { clearTimeout(toastT); const t = $("pnToast"); if (t) t.classList.remove("on"); }
+  function hideToast() { clearTimeout(toastT); const t = $("pnToast"); if (t) t.classList.remove("on"); if (toastEnd) { const f = toastEnd; toastEnd = null; try { f(); } catch (e) {} } }
   function toastWatch() {
     let prev = document.documentElement.className;
     const key = (c) => ["s-view", "s-full"].map((k) => (` ${c} `).includes(` ${k} `)).join();
@@ -320,10 +332,12 @@ const PINS = (() => {
     ov.className = "pn-ov"; ov.id = "pnFull";
     ov.innerHTML = `<div class="pn-dlg" role="dialog" aria-modal="true" aria-labelledby="pnFullT"><h3 id="pnFullT">관심 구역은 ${MAX}곳까지예요. 하나 빼고 추가할까요?</h3><p>오래 전에 추가한 곳부터 보여 드려요.</p><div class="pn-old">${old.map((x) => `<button type="button" data-pswap="${x}">${pinY(18)}<span><b>${esc(shortName(byId[x].n))}</b><small>${esc(byId[x].g)} · ${SNAP[x] ? dot(SNAP[x].t) + "에 추가" : ""}</small></span><em>빼고 추가하기</em></button>`).join("")}</div><button type="button" class="btn secondary sm" id="pnFullX">닫기</button></div>`;
     document.body.appendChild(ov);
-    const close = (nav) => { ov.remove(); document.removeEventListener("keydown", esc_); removeEventListener("hashchange", onNav); removeEventListener("popstate", onNav); if (nav !== true) try { back && back.focus(); } catch (e) {} };
+    let closed = false;
+    const close = (nav, pop) => { if (closed) return; closed = true; if (pop !== true) ZL.done("pnFull"); ov.remove(); document.removeEventListener("keydown", esc_); removeEventListener("hashchange", onNav); if (nav !== true) try { back && back.focus(); } catch (e) {} };
     const onNav = () => close(true);
     const esc_ = (e) => { if (e.key === "Escape") close(); };
-    document.addEventListener("keydown", esc_); addEventListener("hashchange", onNav); addEventListener("popstate", onNav);
+    document.addEventListener("keydown", esc_); addEventListener("hashchange", onNav);
+    ZL.open("pnFull", () => close(true, true));
     ov.addEventListener("click", (e) => {
       if (e.target === ov || e.target.closest("#pnFullX")) return close();
       const s = e.target.closest("[data-pswap]"); if (!s) return;
@@ -592,10 +606,12 @@ const PINS = (() => {
     let named = !!(edit && edit.name && edit.name !== autoName(edit));
     const refresh = () => { const nm = dlg.querySelector("[data-cn]"); if (nm && !named) nm.value = autoName(c); dlg.querySelector("[data-cchips]").innerHTML = chips(); dlg.querySelector("[data-ccnt]").innerHTML = cnt(); };
     // 주소가 바뀌면(뒤로 가기·#구역 이동) 시트를 닫는다 — 열린 채 남아 다른 화면을 가리지 않게
-    const close = (nav) => { ov.remove(); document.removeEventListener("keydown", kd); removeEventListener("hashchange", onNav); removeEventListener("popstate", onNav); if (nav !== true) try { back && back.focus(); } catch (e) {} };
+    let closed = false;
+    const close = (nav, pop) => { if (closed) return; closed = true; if (pop !== true) ZL.done("pcSheet"); ov.remove(); document.removeEventListener("keydown", kd); removeEventListener("hashchange", onNav); if (nav !== true) try { back && back.focus(); } catch (e) {} };
     const onNav = () => close(true);
     const kd = (e) => { if (e.key === "Escape") close(); };
-    document.addEventListener("keydown", kd); addEventListener("hashchange", onNav); addEventListener("popstate", onNav);
+    document.addEventListener("keydown", kd); addEventListener("hashchange", onNav);
+    ZL.open("pcSheet", () => close(true, true));
     const lite = () => { const nm = dlg.querySelector("[data-cn]"); if (nm && !named) nm.value = autoName(c); dlg.querySelector("[data-ccnt]").innerHTML = cnt(); };
     let cT = 0, cashBad = false;
     dlg.addEventListener("input", (e) => {
@@ -758,7 +774,12 @@ const PINS = (() => {
         openView(); setTimeout(() => { const h = $("pcT"); if (h) { h.scrollIntoView({ block: "start", behavior: "auto" }); h.tabIndex = -1; h.focus({ preventScroll: true }); } }, 120);
       };
       ph ? ph.before(w) : g0 ? g0.after(w) : hero.appendChild(w);
-    } else if (ph ? w.nextElementSibling !== ph && !(w.nextElementSibling && w.nextElementSibling.id === "pcAct") : g0 && w.previousElementSibling !== g0 && !(w.previousElementSibling && w.previousElementSibling.id === "pcAct")) ph ? ph.before(w) : g0.after(w);
+    }
+    // PC 두 칸: 알림 카드는 왼쪽 목록 칸 맨 아래(목록과 같은 높이 안 — 지도 옆에 빈 띠가 생기지 않게)
+    const lw = $("sListW");
+    if (lw && matchMedia("(min-width:981px)").matches) { if (lw.lastElementChild !== w) lw.appendChild(w); }
+    else if (lw && w.parentNode === lw) { ph ? ph.before(w) : g0 ? g0.after(w) : hero.appendChild(w); }
+    else if (ph ? w.nextElementSibling !== ph && !(w.nextElementSibling && w.nextElementSibling.id === "pcAct") : g0 && w.previousElementSibling !== g0 && !(w.previousElementSibling && w.previousElementSibling.id === "pcAct")) ph ? ph.before(w) : g0.after(w);
     const b = w.firstElementChild, sc = sameCond();
     if (!sc) {
       b.classList.remove("on");
@@ -771,6 +792,7 @@ const PINS = (() => {
     // 폰 알림 권한이 거절됐으면 '켜짐'이라 하지 않는다(알림함으로만 받음)
     // 권한이 바뀌면(거절·허용) 이 카드를 다시 그린다 — 거절 뒤에도 '알림 켜짐'이 남아 있었다
     let perm = "default"; try { perm = typeof Notification !== "undefined" ? Notification.permission : "unsupported"; } catch (e) {}
+    if (!condBtn.mq) { condBtn.mq = 1; try { matchMedia("(min-width:981px)").addEventListener("change", () => { try { condBtn(); } catch (e) {} }); } catch (e) {} }
     if (!condBtn.pw) { condBtn.pw = 1; try { navigator.permissions && navigator.permissions.query({ name: "notifications" }).then((st) => { st.onchange = () => { try { condBtn(); } catch (e) {} }; }).catch(() => {}); } catch (e) {} addEventListener("focus", () => { try { condBtn(); } catch (e) {} }); addEventListener("push:perm", () => { try { condBtn(); } catch (e) {} }); }
     const onT = perm === "granted" ? "알림 켜짐" : perm === "denied" ? "알림함으로 받는 중 · 폰 알림 꺼짐" : "알림함으로 받는 중";
     b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>${onT}${N ? ` · 새 구역 ${N}곳` : ""}</b><small>${N ? `${esc(sc.name)} · ${f ? "아직 안 본 곳" : "새로 살 수 있게 된 곳"}` : `지금 ${fmt(n.ids.length)}곳 · 새로 생기면 알려 드려요`}</small></span><span class="pc-al-go">${N ? "보기" : "알림 조건"} →</span>`;

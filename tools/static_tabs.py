@@ -23,7 +23,13 @@ CSS = ('.zp-tabs{display:none}'
        '@media (max-width:980px) and (prefers-color-scheme:dark){:root:not([data-theme="light"]) .zp-tabs{background:var(--surface,#15181d);border-top-color:var(--border,#2a3038)}'
        ':root:not([data-theme="light"]) .zp-tabs a{color:var(--text-2,#b4bcc6)}:root:not([data-theme="light"]) .zp-tabs a[aria-current="page"]{color:var(--brand,#93ade6)}}'
        '@media (max-width:980px){.logo .logo-s{display:none!important}}'
-       '@media print{.zp-tabs{display:none!important}}')
+       '@media print{.zp-tabs{display:none!important}}'
+       # 앱 머리(로고 + 검색 알약)만 · 웹 메뉴 줄 없음 · 설치 앱(standalone)에서는 웹 푸터 숨김 · 메뉴·푸터 링크는 밑줄 없는 글자 버튼
+       '.top .in{flex-wrap:nowrap!important}.top .tsr{order:2;flex:1 1 auto!important;max-width:480px!important;min-width:0!important;margin-left:auto}'
+       '.top .tsr input{height:40px!important;border:0!important;background-color:var(--surface-2,#f2f4f6)!important;font-size:15px!important}'
+       'footer.f a{color:var(--text-2,#4e5968);text-decoration:none!important;font-weight:600}footer.f a:hover{color:var(--brand,#1f3a87)}'
+       'footer.f p:first-child{display:flex;flex-wrap:wrap;gap:2px 4px;line-height:1.2}footer.f p:first-child a{display:inline-flex;align-items:center;min-height:36px;padding:0 6px;border-radius:8px}'
+       '@media (display-mode:standalone){footer.f{display:none!important}}')
 
 
 def block(cur):
@@ -33,6 +39,20 @@ def block(cur):
 
 
 RX = re.compile(r'<!--zp-tabs-->.*?<!--/zp-tabs-->', re.S)
+HDR = re.compile(r'<header class="top">.*?</header>', re.S)
+NAV = re.compile(r'<nav aria-label="사이트 메뉴">.*?</nav>', re.S)
+PH = '구역·동·지번·역 검색'   # 앱 검색칸과 같은 글
+FORM = f'<form class="tsr" action="/" method="get" role="search"><label class="sr-only" for="tq">구역 검색</label><input id="tq" name="q" type="search" placeholder="{PH}" autocomplete="off" enterkeyhint="search" maxlength="40"></form>'
+
+
+def app_header(h):
+    """정적 페이지 머리 = 앱 머리: 웹 메뉴 줄(계산기·월간 리포트·구역별 페이지·가이드)을 빼고 로고 + 검색 알약만."""
+    m = HDR.search(h)
+    if not m: return h
+    hd = NAV.sub('', m.group(0))
+    if 'class="tsr"' not in hd: hd = hd.replace('</div></header>', FORM + '</div></header>', 1)
+    hd = re.sub(r'(<input id="tq"[^>]*placeholder=")[^"]*(")', lambda x: x.group(1) + PH + x.group(2), hd)
+    return h[:m.start()] + hd + h[m.end():]
 
 
 def main():
@@ -48,6 +68,7 @@ def main():
             cur = 'home' if rel.startswith(('z/', 'gu/')) or rel == '404.html' else 'my'
             b = block(cur)
             h1 = RX.sub(lambda m: b, h, count=1) if RX.search(h) else h.replace('</body>', b + '\n</body>', 1)
+            h1 = app_header(h1)
             if h1 != h:
                 open(fp, 'w', encoding='utf-8').write(h1); n += 1
     print('static tabs:', n, 'pages updated')
