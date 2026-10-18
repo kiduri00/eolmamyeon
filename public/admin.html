@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<title>집핀 문의함</title>
+<link rel="icon" href="/icon-small.svg" type="image/svg+xml">
+<style>
+:root{--zn:#1F3A87;--bg:#F5F6F8;--sf:#fff;--tx:#141821;--t2:#4A5361;--t3:#6A7482;--bd:#D7DCE5;--warn:#C2410C}
+@media (prefers-color-scheme:dark){:root{--zn:#9FB3FF;--bg:#0E1117;--sf:#181C24;--tx:#E6EAF2;--t2:#B4BCC6;--t3:#8A95A5;--bd:#2E3644}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 "Pretendard Variable",system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px 16px 48px}
+h1{margin:4px 0 12px;font-size:22px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+button,.btn{min-height:44px;padding:0 14px;border:1px solid var(--bd);border-radius:12px;background:var(--sf);color:var(--tx);font:600 14px/1 inherit;font-family:inherit;cursor:pointer}
+button.pri{border-color:var(--zn);background:var(--zn);color:#fff}
+@media (prefers-color-scheme:dark){button.pri{color:#0B1530}}
+button:focus-visible,input:focus-visible{outline:2px solid var(--zn);outline-offset:2px}
+input[type=password]{width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--bd);border-radius:12px;background:var(--sf);color:var(--tx);font:inherit;font-size:16px}
+.st{color:var(--t2);font-size:14px}.st.bad{color:var(--warn);font-weight:600}
+ol{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+li.m{padding:14px;border:1px solid var(--bd);border-radius:14px;background:var(--sf)}
+li.m.new{border-color:var(--zn);box-shadow:inset 3px 0 0 var(--zn)}
+.h{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;font-size:13px;color:var(--t3)}
+.h b{color:var(--zn);font-size:14px}
+.k{display:inline-block;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--zn) 12%,transparent);color:var(--zn);font-weight:700;font-size:12px}
+.tx{margin:8px 0;white-space:pre-wrap;word-break:break-word;font-size:15px}
+.meta{font-size:12.5px;color:var(--t3);word-break:break-all}
+.meta a,.h a{color:var(--zn)}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.acts a.btn{display:inline-flex;align-items:center;text-decoration:none}
+.empty{padding:24px;text-align:center;color:var(--t3)}
+</style>
+</head>
+<body>
+<main>
+<h1>집핀 문의함</h1>
+<section id="login" hidden>
+  <p class="st">운영자 토큰을 한 번 넣으면 이 기기(브라우저)에만 저장돼요. 토큰은 사이트 어디에도 적혀 있지 않아요.</p>
+  <form id="lf"><label for="tok">운영자 토큰</label><input id="tok" type="password" autocomplete="off" spellcheck="false" required><div class="bar" style="margin-top:10px"><button class="pri" type="submit">열기</button></div></form>
+</section>
+<section id="app" hidden>
+  <div class="bar"><button type="button" id="rf">새로 받기</button><button type="button" id="push">새 문의 알림 받기</button><button type="button" id="out">이 기기에서 토큰 지우기</button></div>
+  <p class="st" id="st" role="status" aria-live="polite"></p>
+  <ol id="list"></ol>
+  <div class="bar"><button type="button" id="more" hidden>더 보기</button></div>
+</section>
+</main>
+<script>
+(function () {
+  var K = "zp.adminToken", $ = function (i) { return document.getElementById(i); };
+  var tok = function () { try { return localStorage.getItem(K) || ""; } catch (e) { return ""; } };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  var st = function (t, bad) { $("st").textContent = t || ""; $("st").className = "st" + (bad ? " bad" : ""); };
+  var api = function (p, body) {
+    return fetch("/api/contact/admin/" + p, { method: body ? "POST" : "GET", headers: Object.assign({ Authorization: "Bearer " + tok() }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined, cache: "no-store" })
+      .then(function (r) { if (r.status === 401) { show(false); throw new Error("토큰이 맞지 않아요"); } return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; }); });
+  };
+  var cursor = null;
+  var when = function (iso) { try { return new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return iso; } };
+  function row(m) {
+    var subj = "[집핀] 문의 답장" + (m.zone ? " · " + m.zone : "");
+    return '<li class="m' + (m.read ? "" : " new") + '" data-id="' + esc(m.id) + '"><div class="h"><span class="k">' + esc(m.kindT || m.kind) + "</span><span>" + esc(when(m.ts)) + "</span>" + (m.read ? "" : "<b>새 문의</b>") + (m.zone ? '<a href="/#' + encodeURIComponent(m.zone) + '" target="_blank" rel="noopener">구역 ' + esc(m.zone) + "</a>" : "") + "</div>"
+      + '<p class="tx">' + esc(m.text) + "</p>"
+      + '<p class="meta">' + [m.why ? "틀린 곳: " + esc(m.why) : "", m.nums ? "화면 숫자: " + esc(m.nums) : "", m.asOf ? "데이터 기준 " + esc(m.asOf) : "", m.url ? "보낸 화면: " + esc(m.url) : "", m.ua ? esc(m.ua) : ""].filter(Boolean).join("<br>") + "</p>"
+      + '<div class="acts">' + (m.email ? '<a class="btn" href="mailto:' + esc(m.email) + "?subject=" + encodeURIComponent(subj) + '">' + esc(m.email) + "에 답장</a>" : '<span class="meta">답장 이메일 없음</span>')
+      + (m.read ? "" : '<button type="button" data-a="read">읽음</button>') + '<button type="button" data-a="delete">지우기</button></div></li>';
+  }
+  function load(more) {
+    st("받는 중…");
+    api("list?limit=30" + (more && cursor ? "&cursor=" + cursor : "")).then(function (j) {
+      cursor = j.cursor;
+      var html = j.items.map(row).join("");
+      if (more) $("list").insertAdjacentHTML("beforeend", html); else $("list").innerHTML = html || '<li class="empty">아직 받은 문의가 없어요</li>';
+      $("more").hidden = !cursor;
+      var n = j.items.filter(function (x) { return !x.read; }).length;
+      st("모두 " + j.total + "건" + (n ? " · 이 화면에 새 문의 " + n + "건" : ""));
+    }).catch(function (e) { st("불러오지 못했어요 · " + e.message, true); });
+  }
+  function show(on) { $("login").hidden = on; $("app").hidden = !on; if (on) load(false); else { try { localStorage.removeItem(K); } catch (e) {} } }
+  $("lf").addEventListener("submit", function (e) { e.preventDefault(); var t = $("tok").value.trim(); if (!t) return; try { localStorage.setItem(K, t); } catch (er) {} $("tok").value = ""; show(true); });
+  $("rf").onclick = function () { load(false); };
+  $("more").onclick = function () { load(true); };
+  $("out").onclick = function () { if (confirm("이 기기에서 운영자 토큰을 지울까요? 다시 열려면 토큰이 필요해요.")) show(false); };
+  $("list").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-a]"); if (!b) return;
+    var li = b.closest("li"), id = li.getAttribute("data-id"), a = b.getAttribute("data-a");
+    if (a === "delete" && !confirm("이 문의를 지울까요? 되돌릴 수 없어요.")) return;
+    b.disabled = true;
+    api(a, { id: id }).then(function () { if (a === "delete") li.remove(); else { li.classList.remove("new"); b.remove(); var h = li.querySelector(".h b"); if (h) h.remove(); } }).catch(function (er) { b.disabled = false; st("처리하지 못했어요 · " + er.message, true); });
+  });
+  var u8 = function (s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; var r = atob(s), o = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) o[i] = r.charCodeAt(i); return o; };
+  $("push").onclick = function () {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) { st("이 브라우저는 알림을 받을 수 없어요", true); return; }
+    st("알림 켜는 중…");
+    Notification.requestPermission().then(function (p) {
+      if (p !== "granted") throw new Error("알림 권한이 꺼져 있어요");
+      return Promise.all([navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(function () { return navigator.serviceWorker.ready; }), api("key")]);
+    }).then(function (x) {
+      var reg = x[0], key = x[1].key;
+      return reg.pushManager.getSubscription().then(function (s) { return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(key) }); });
+    }).then(function (s) { return api("sub", { sub: s.toJSON() }); })
+      .then(function () { st("이 기기로 새 문의 알림을 보내 드려요"); })
+      .catch(function (e) { st("알림을 켜지 못했어요 · " + e.message, true); });
+  };
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && tok() && !$("app").hidden) load(false); });
+  if (tok()) show(true); else $("login").hidden = false;
+})();
+</script>
+</body>
+</html>

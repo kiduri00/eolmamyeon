@@ -154,28 +154,24 @@ def place_ld(r, url):   # 구역 장소(Place): 위경도는 구역 대표점 �
     return o
 def crumbs(*xs):   # BreadcrumbList: (이름, 주소) 차례로
     return {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": u} for i, (n, u) in enumerate(xs)]}
-MAIL = 'choi3kim1@gmail.com'   # 문의 주소(문의하기 페이지와 같은 곳)
 def dong_of(r):   # 구 다음 동 이름(화면 64_overview 주소 줄과 같은 규칙)
     m = re.match(r'^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)', str(r.get('j') or r.get('bj') or ''))
     return m.group(1) if m else (r.get('dg') or '')
 def report_href(r):
-    """'이 숫자가 틀렸어요' 메일(앱 76_detail.js mailto와 같은 제목) — 구역 ID·주소·데이터 기준을 자동으로 넣는다."""
-    from urllib.parse import quote
-    nm = short(r['n']); subj = f"[집핀 신고] {r['id']} {nm}"
-    body = '\n'.join([f"구역 ID: {r['id']}", f"구역: {nm} ({r['g']})", f"주소: {SITE}/z/{r['id']}", f"데이터 기준: {UPD}", '틀린 곳: (가격 · 단계 · 위치 · 이름 · 기타 중에서 적어 주세요)', '', '내용:', ''])
-    return f"mailto:{MAIL}?subject={quote(subj)}&body={quote(body)}"
+    """'이 숫자가 틀렸어요' → 사이트 안 문의 양식(/contact?kind=error&zone=<id>) · cf.js가 있으면 시트로 연다(앱과 같은 양식 · 메일 주소는 내지 않음, 20차)."""
+    return f"../contact?kind=error&zone={r['id']}"
 def key3_html(r, c, dt, cap=False):
     """상세 첫 화면 3숫자 + 신뢰 한 줄(앱 구역 상세와 같은 이름·값 · 기본 가정 = 전세 끼고)."""
     k = key3(r, c, dt, D.get('asOf'), D.get('upd')); rid = r['id']; stage = (c or {}).get('stage') or r.get('sr') or ''
     ip = f'<span class="zk-ip {k["ip"][1]}">{esc(k["ip"][0])}</span>' if k.get('ip') else ''
-    tc, tt, lv, cls = k['trust']
+    tc, tt, lv, cls = k['trust'] or ('', '', '', '')
     thref = '#trust' if cls != 'na' else f'../#{rid}'
     return (f'<section class="zk" aria-label="핵심 숫자"><p class="zk-nl"><b>{esc(short(r["n"]))}</b><span>{esc(r["g"])} {esc(dong_of(r))}</span><span class="zk-st">{esc(stage)}</span></p><div class="zk-k">'
             f'<div class="zk-i"><span class="zk-l">지금 필요한 돈</span><b class="zk-v">{k["now"]}</b><span class="zk-s">{esc(k["basis"])}</span>' + (f'<span class="zk-s zk-alt">{esc(k["alt"])}</span>' if k['alt'] else '') + f'<a class="zk-my" href="../#{rid}">내 돈으로 되는지 보기 ›</a></div>'
             f'<div class="zk-i"><span class="zk-l">{LBL["cashToMoveIn"]}</span><b class="zk-v">{k["tot"]}</b><span class="zk-s">{esc(k["tsub"] or "기본 가정 · 전세 끼고 · 입주 잔금대출 뺀 값")}</span></div>'
-            f'<div class="zk-i"><span class="zk-l">언제 입주</span><b class="zk-v zk-eta">{esc(k["eta"])}</b>{ip}' + (f'<span class="zk-s">{esc(k["esub"])}</span>' if k.get('esub') else '') + '</div></div>' +
-            (f'<p class="zk-cap">최신 숫자 · 기본 가정 · 데이터 기준 {UPD}</p>' if cap else '') + f'<a class="zk-tr {cls}" href="{thref}"><span class="zk-tc">{esc(tc)}</span><span class="zk-tt">{esc(tt)}{f"<b>{esc(lv)}</b>" if lv else ""}</span><i aria-hidden="true">›</i></a></section>')
-REPORT_P = lambda r: f'<p class="zk-rep"><a class="zk-rb" href="{report_href(r)}">이 숫자가 틀렸어요</a><span>구역 ID {esc(r["id"])}가 메일에 자동으로 들어가요 · 받는 주소 <span class="zk-ad">{MAIL}</span></span></p>'
+            f'<div class="zk-i"><span class="zk-l">{esc(k.get("elab") or "언제 입주")}</span><b class="zk-v zk-eta">{esc(k["eta"])}</b>{ip}' + (f'<span class="zk-s">{esc(k["esub"])}</span>' if k.get('esub') else '') + '</div></div>' +
+            (f'<p class="zk-cap">최신 숫자 · 기본 가정 · 데이터 기준 {UPD}</p>' if cap else '') + (f'<a class="zk-tr {cls}" href="{thref}"><span class="zk-tc">{esc(tc)}</span><span class="zk-tt">{esc(tt)}{f"<b>{esc(lv)}</b>" if lv else ""}</span><i aria-hidden="true">›</i></a>' if k['trust'] else '') + '</section>')
+REPORT_P = lambda r: f'<p class="zk-rep"><a class="zk-rb" href="{report_href(r)}" data-zp-contact data-kind="error" data-zone="{esc(r["id"])}" data-asof="{UPD}" data-title="이 숫자가 틀렸어요" data-meta="{esc(short(r["n"]))} · 구역 ID {esc(r["id"])} · {UPD} 기준">이 숫자가 틀렸어요</a><span>구역 ID {esc(r["id"])}가 문의에 자동으로 들어가요 · 운영자가 직접 읽어요</span></p><script src="/cf.js" defer></script>'
 def page(r):
     rid = r['id']; pm = P.get(rid) or {}; c = C.get(rid) or {}; t = r.get('tx') or {}
     nm = short(r['n']); kind = KIND.get(r['k'], r['k']); stage = c.get('stage') or r.get('sr') or ''

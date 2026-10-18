@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { encrypt, unb64u, b64u, vapidKeys, vapidAuth } from "./webpush.js";
 import { handleFetch, runCron, match, compose, okEndpoint } from "./push.js";
 import worker from "./index.js";
+import { cleanMsg, KINDS } from "./contact.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 let n = 0; const ok = (m) => { n++; console.log("ok", n, m); };
@@ -198,5 +199,58 @@ const CH = {
     const msg = compose(m, ch.items[0].date); assert.ok(msg && msg.title && new TextEncoder().encode(JSON.stringify(msg)).length < 3000);
     ok("real public/data/changes.json shape + payload size");
   }
+}
+
+// ---------- 6. 문의 양식 /api/contact · 운영자 /api/contact/admin/* ----------
+{
+  const E = env({ items: [] });
+  const ip = (x) => ({ "CF-Connecting-IP": x, "User-Agent": "Mozilla/5.0 (iPhone) test" });
+  const good = { kind: "error", text: "미아16구역 지금 필요한 돈이 이상해요", email: "me@example.com", zone: "o1070", url: ORIGIN + "/#o1070", asOf: "2026.10.18", nums: "지금 2억", why: "가격", website: "" };
+  // 검사
+  assert.equal(cleanMsg({ ...good, kind: "x" }).error, "kind");
+  assert.equal(cleanMsg({ ...good, text: "짧아요" }).error, "text");
+  assert.equal(cleanMsg({ ...good, text: "가".repeat(2001) }).error, "text");
+  assert.equal(cleanMsg({ ...good, email: "not-an-email" }).error, "email");
+  assert.equal(cleanMsg({ ...good, website: "http://spam" }).error, "spam");
+  assert.ok(cleanMsg({ ...good, email: "" }).ok, "이메일은 안 적어도 된다");
+  assert.equal(cleanMsg({ ...good, zone: "<x>" }).v.zone, "");
+  assert.deepEqual(Object.keys(KINDS), ["general", "error", "idea", "etc"]);
+  let r = await worker.fetch(post("/api/contact", { ...good, website: "x" }, ip("1.1.1.1")), E); assert.equal(r.status, 400, "허니팟");
+  r = await worker.fetch(post("/api/contact", good, { Origin: "https://evil.example.com" }), E); assert.equal(r.status, 403, "다른 출처");
+  r = await worker.fetch(new Request(ORIGIN + "/api/contact"), E); assert.equal(r.status, 405);
+  r = await worker.fetch(post("/api/contact", good, ip("1.1.1.1")), E);
+  assert.deepEqual(await r.json(), { ok: true }); assert.equal(r.headers.get("Cache-Control"), "no-store");
+  const msgs = () => [...E.PUSH.m.keys()].filter((k) => k.startsWith("msg:"));
+  assert.equal(msgs().length, 1);
+  const saved = JSON.parse(E.PUSH.m.get(msgs()[0]));
+  assert.equal(saved.text, good.text); assert.equal(saved.zone, "o1070"); assert.equal(saved.email, "me@example.com"); assert.equal(saved.read, false);
+  assert.ok(!JSON.stringify(saved).includes("1.1.1.1") && ![...E.PUSH.m.values()].some((v) => String(v).includes("1.1.1.1")) && ![...E.PUSH.m.keys()].some((k) => k.includes("1.1.1.1")), "IP는 어디에도 저장하지 않는다");
+  for (let i = 0; i < 4; i++) { r = await worker.fetch(post("/api/contact", good, ip("1.1.1.1")), E); assert.equal(r.status, 200); }
+  r = await worker.fetch(post("/api/contact", good, ip("1.1.1.1")), E); assert.equal(r.status, 429, "1시간에 5번까지");
+  r = await worker.fetch(post("/api/contact", good, ip("2.2.2.2")), E); assert.equal(r.status, 200, "다른 IP는 따로 센다");
+  // 운영자: 토큰은 딱 한 번
+  r = await worker.fetch(new Request(ORIGIN + "/api/contact/admin/list"), E); assert.equal(r.status, 401);
+  r = await worker.fetch(new Request(ORIGIN + "/api/contact/admin/init"), E); assert.equal(r.status, 200);
+  const tok = (await r.json()).token; assert.ok(/^[A-Za-z0-9_-]{40,}$/.test(tok));
+  assert.ok(!E.PUSH.m.get("admin:tokenhash").includes(tok) && /^[0-9a-f]{64}$/.test(E.PUSH.m.get("admin:tokenhash")), "토큰은 해시만 저장");
+  r = await worker.fetch(new Request(ORIGIN + "/api/contact/admin/init"), E); assert.equal(r.status, 403, "두 번째 init은 늘 403");
+  const A = (p, b) => new Request(ORIGIN + p, b ? { method: "POST", headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: JSON.stringify(b) } : { headers: { Authorization: "Bearer " + tok } });
+  r = await worker.fetch(new Request(ORIGIN + "/api/contact/admin/list", { headers: { Authorization: "Bearer " + "x".repeat(43) } }), E); assert.equal(r.status, 401, "틀린 토큰");
+  r = await worker.fetch(A("/api/contact/admin/list?limit=4"), E); let L = await r.json();
+  assert.equal(L.total, 6); assert.equal(L.items.length, 4); assert.equal(L.cursor, "4"); assert.ok(L.items[0].ts >= L.items[1].ts, "최신순"); assert.equal(L.items[0].kindT, "숫자 오류");
+  r = await worker.fetch(A("/api/contact/admin/list?cursor=4&limit=4"), E); L = await r.json(); assert.equal(L.items.length, 2); assert.equal(L.cursor, null);
+  const id = L.items[0].id;
+  r = await worker.fetch(A("/api/contact/admin/read", { id }), E); assert.equal(r.status, 200); assert.equal(JSON.parse(E.PUSH.m.get(id)).read, true);
+  r = await worker.fetch(A("/api/contact/admin/read", { id: "sub:x" }), E); assert.equal(r.status, 400, "msg: 키만");
+  r = await worker.fetch(A("/api/contact/admin/delete", { id }), E); assert.equal(r.status, 200); assert.equal(msgs().length, 5);
+  // 운영자 푸시: 구독을 저장하면 새 문의마다 한 통
+  const ua = uaKeys(), sent = [];
+  r = await worker.fetch(A("/api/contact/admin/sub", { sub: mkSub(ua, "https://fcm.googleapis.com/fcm/send/ADMIN") }), E); assert.equal(r.status, 200);
+  const { handleContact } = await import("./contact.js");
+  r = await handleContact(post("/api/contact", { ...good, kind: "idea" }, ip("3.3.3.3")), E, null, { fetch: async (u, o) => { sent.push({ u, o }); return new Response("", { status: 201 }); } });
+  assert.equal(r.status, 200); assert.equal(sent.length, 1); assert.equal(sent[0].u, "https://fcm.googleapis.com/fcm/send/ADMIN");
+  const pl = JSON.parse(Buffer.from(decrypt(new Uint8Array(await new Response(sent[0].o.body).arrayBuffer()), ua)).toString());
+  assert.equal(pl.title, "새 문의 1건 · 기능 제안"); assert.equal(pl.url, "/admin.html");
+  ok("contact: validation · honeypot · origin · rate limit 5/h (hashed IP, not stored) · admin token once · list/read/delete · admin push");
 }
 console.log(`all ${n} passed`);

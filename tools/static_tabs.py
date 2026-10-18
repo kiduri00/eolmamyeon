@@ -63,7 +63,7 @@ def main():
             if not f.endswith('.html'): continue
             fp = os.path.join(root, f)
             rel = os.path.relpath(fp, PUB).replace(os.sep, '/')
-            if rel == 'index.html' or rel.startswith('b/'): continue
+            if rel == 'index.html' or rel == 'admin.html' or rel.startswith('b/'): continue   # 운영자 화면(admin.html)은 사이트 탭 없이
             h = open(fp, encoding='utf-8').read()
             if '</body>' not in h: continue
             cur = 'home' if rel.startswith(('z/', 'gu/')) or rel == '404.html' else 'my'

@@ -2,9 +2,8 @@
    첫 화면(390×844) 안에: 이름 줄(짧은 이름 · 구 동 · 단계 칩) → 핵심 3숫자(지금 필요한 돈 · 입주까지 현금 · 언제 입주/입주권) → 신뢰 한 줄.
    숫자는 목록 카드와 같은 함수(SIMPLE.zstate)에서, 꼴은 ZF.cash 하나. 정적 /z/<id> 페이지도 같은 이름·같은 값(tools/zpages.py key3).
    그 밖 머리 블록(실거래·노후도·신뢰 상자·진행 단계·작은 지도)은 섹션 탭(돈·일정·거래·입지·규제) 안으로 옮긴다 — 지우지 않는다.
-   맨 아래: 출처 · '이 숫자가 틀렸어요'(메일 · 구역 ID 자동) · 면책 한 번. 아래 고정: [♡ 관심 구역에 추가] [공유]. */
+   맨 아래: 출처 · '이 숫자가 틀렸어요'(사이트 안 문의 양식 · 구역 ID 자동) · 면책 한 번. 아래 고정: [♡ 관심 구역에 추가] [공유]. */
 const DTL = (() => {
-  const MAIL = "choi3kim1@gmail.com";
   const SITE = "https://jaegaebal.alwaysquestions.kr";
   const ok = (v) => v != null && isFinite(v);
   const C = (v) => ZF.cash(v);
@@ -23,7 +22,7 @@ const DTL = (() => {
     if (o.moa) { o.basis = "모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요"; o.why2 = o.basis; return o; }
     if (done) { o.basis = "사업이 끝난 곳이에요 · 일반 아파트 매매"; o.why2 = "새 아파트 입주까지 계산 대상이 아니에요"; return o; }
     // 입주권 없는 곳: 입주권 이야기는 '언제 입주' 칸에서 한 번만(지금·입주까지 칸은 '계산 안 해요'만)
-    if (nt) { o.need = null; o.total = null; o.basis = ""; o.why2 = "계산하지 않아요"; return o; }
+    if (nt) { o.need = null; o.total = null; o.basis = ""; o.why2 = ""; const t = r.tx || {}; o.im = r.s >= 8 && t.im ? t.im : null; return o; }
     if (gapMode()) {
       let g = null; try { g = gapOf(r); } catch (e) {}
       if (g && g.block && g.block !== "계산 대상 아님") {
@@ -47,7 +46,8 @@ const DTL = (() => {
   const upC = (v) => Math.ceil(v * 100 - 1e-6) / 100;   // 화면 금액(올림)으로 판정 — 목록 '+2,000만'과 같은 셈
   function keyHTML(r) {
     const n = nums(r);
-    const v1 = n.need != null ? C(n.need) : "–", v2 = n.total != null ? C(n.total) : "–";
+    // 계산하지 않는 칸은 맨 '–' 대신 말로(20차): 지금 '계산 안 함' · 입주까지 현금 '계산 보류'(목록·/gu·/z와 같은 이름)
+    const v1 = n.need != null ? C(n.need) : "계산 안 함", v2 = n.total != null ? C(n.total) : "계산 보류";
     const fit = n.need != null && upC(n.need) <= CASH + 1e-9;
     // 판정 한 줄(가능 · 사는 방법): '✓ 가능'과 '전세 끼고 ✓ 가능' 칩을 따로 두지 않는다
     const how = gapMode() ? "전세 끼고" : "대출 끼고";
@@ -55,11 +55,12 @@ const DTL = (() => {
     const vd1 = n.need == null ? "" : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : C(n.need - CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
     const sub2 = n.total == null ? esc(n.why2) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${C(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
     let eta = "–"; try { eta = etaShow(r); } catch (e) {}
-    if (n.nt) eta = "입주권 없음";
+    // 입주권 없는 곳: 셋째 칸 이름 '입주권' · 이유는 그 아래 한 번 · 착공 뒤처럼 입주권 거래가 있으면 '조합원 입주권을 사야 해요'(참고 시세) — '입주권 없음'과 시세가 부딪치지 않게(20차 G3)
+    if (n.nt) eta = n.im ? "조합원 입주권을 사야 해요" : "없음";
     return `<section class="dt-k" aria-label="핵심 숫자">
-      <div class="dt-i" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b><span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && !n.moa && !n.done && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1}<span class="dt-slot" data-slot="gap"></span></span></div>
+      <div class="dt-i" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b><span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && !n.moa && !n.done && !n.im && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1}<span class="dt-slot" data-slot="gap"></span></span></div>
       <div class="dt-i" data-k="tot"><span class="dt-l">${LBL.cashToMoveIn}</span><b class="dt-v">${v2}</b><span class="dt-s">${sub2}</span></div>
-      <div class="dt-i" data-k="eta"><span class="dt-l">언제 입주</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 노려야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
+      <div class="dt-i" data-k="eta"><span class="dt-l">${n.nt ? "입주권" : "언제 입주"}</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `${n.im ? `<span class="dt-s dt-alt">참고 입주권 시세 ${ZF.eok(n.im)}</span>` : ""}<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 노려야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
     </section>`;
   }
   // ---------- 신뢰 한 줄: 추정 칩 하나 · 표본 · 믿을 만함 › (누르면 '돈' 탭의 '이 숫자 믿어도 될까'로) ----------
@@ -111,9 +112,11 @@ const DTL = (() => {
     const why = w && w.querySelector(".ov-vdw .ov-why"); if (why) box.querySelector(".dt-k").after(why);
     // 입주권 없음 설명은 '언제 입주' 칸 아래 한 줄로 합친다(같은 말을 네 번 하지 않게)
     const noip = w && w.querySelector(".ov-noip");
-    if (noip) { const nt = box.querySelector(".dt-nt"), sp = noip.querySelector("span"); if (nt && sp) { nt.textContent = sp.textContent.replace(/\s*아래 시세는 참고용이에요\.?/, ""); noip.remove(); } else box.appendChild(noip); }
+    if (noip) { const nt = box.querySelector(".dt-nt"), sp = noip.querySelector("span"); if (nt && sp) { const im = !!box.querySelector('[data-k="eta"] .dt-alt'); nt.textContent = im ? sp.textContent.replace(/새 아파트를 원하면[^.]*\.?/, "새 아파트를 원하면 이미 나온 조합원 입주권을 사야 해요.").replace(/\s*아래 시세는 참고용이에요\.?/, "") : sp.textContent.replace(/\s*아래 시세는 참고용이에요\.?/, ""); noip.remove(); } else box.appendChild(noip); }
     const risk = head.querySelector(".lb-risk"); if (risk) box.appendChild(risk);
-    box.insertAdjacentHTML("beforeend", trustLine(r));
+    // 입주권 없는 곳은 '계산 안 함 · 이유 보기' 줄을 두지 않는다(이유는 셋째 칸에서 한 번 · 20차 G3)
+    let ntR = false; try { ntR = noTicket(r); } catch (e) {}
+    if (!ntR) box.insertAdjacentHTML("beforeend", trustLine(r));
     // 첫 화면에서 내리는 것: 입지 점수(입지 탭 맨 위에 있음) · 머리 현금 띠(3숫자와 같은 값) · 공식 이름(맨 아래 출처로) · 판정 줄 자리
     head.querySelectorAll(".rep-t > .gb, .cstrip, .hjsum").forEach((e) => e.classList.add("dt-hide"));
     const vdw = w && w.querySelector(".ov-vdw"); if (vdw) vdw.remove();
@@ -156,7 +159,8 @@ const DTL = (() => {
   // 돈: 맨 아래 '이 숫자 믿어도 될까' · 일정: 맨 위 진행 단계 + 노후도 · 거래: 맨 위 실거래 카드 · 입지: 맨 위 작은 지도(폰)
   // 탭 내용(#pane)은 여러 길(자료 도착·숫자 바꿔 보기)로 통째 다시 그려지므로, 옮긴 블록은 참조로 들고 있다가 빠지면 다시 끼운다.
   // 지금 탭이 아닌 블록은 머리 보관함(.ov-top, 숨김)에 둔다 — 64_overview가 늦게 오는 자료로 그 블록을 고칠 수 있게.
-  const SLOT = { money: [".ov-trw"], biz: [".ov-tlw", ".ov-oldw"], tx: [".ov-txw"] };
+  // 일정 탭의 단계 목록은 탭 본문(추진 단계 번호 목록) 하나만 — 머리 '진행 단계' 칩 줄은 옮기지 않는다(20차 G9: 단계 목록 두 개)
+  const SLOT = { money: [".ov-trw"], biz: [".ov-oldw"], tx: [".ov-txw"] };
   const SELS = [".ov-trw", ".ov-tlw", ".ov-oldw", ".ov-txw"];
   let held = {}, mapBox = null, mapId = null, busy = false;
   function place() {
@@ -201,45 +205,13 @@ const DTL = (() => {
 
   // ---------- '이 숫자가 틀렸어요' 시트 ----------
   const REASONS = [["price", "가격", "지금 필요한 돈·입주까지 현금·시세가 이상해요"], ["stage", "단계", "진행 단계·날짜가 달라요"], ["loc", "위치", "경계·주소·역 거리가 달라요"], ["name", "이름", "구역 이름이 달라요"], ["etc", "기타", "그 밖의 것"]];
-  let lastFocus = null;
-  function mailto(r, why, txt) {
-    const n = nums(r), subj = `[집핀 신고] ${r.id} ${shortName(r.n)}`;
-    const body = [`구역 ID: ${r.id}`, `구역: ${shortName(r.n)} (${r.g})`, `주소: ${pageOf(r)}`, `데이터 기준: ${asOf()}`, `틀린 곳: ${why}`,
-      `화면 숫자: 지금 필요한 돈 ${n.need != null ? C(n.need) : "–"} · ${LBL.cashToMoveIn} ${n.total != null ? C(n.total) : "–"} (${gapMode() ? LBL.gap : LBL.loan} · 내 돈 ${C(CASH)})`,
-      "", "내용:", txt || "(적지 않음)"].join("\n");
-    return `mailto:${MAIL}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
-  }
+  // '이 숫자가 틀렸어요' = 사이트 안 문의 양식(src/contact.js) — 구역 ID·주소·데이터 기준·화면 숫자를 함께 보낸다(메일 주소는 화면에 내지 않음 · 20차)
+  function numsTxt(r) { const n = nums(r); return `지금 필요한 돈 ${n.need != null ? C(n.need) : "계산 안 함"} · ${LBL.cashToMoveIn} ${n.total != null ? C(n.total) : "계산 보류"} (${gapMode() ? LBL.gap : LBL.loan} · 내 돈 ${C(CASH)})`; }
   function repOpen() {
-    const r = cur; if (!r) return;
-    lastFocus = document.activeElement;
-    let s = $("dtRep");
-    if (s) s.remove();
-    s = document.createElement("div"); s.id = "dtRep"; s.className = "dt-rs"; s.setAttribute("role", "dialog"); s.setAttribute("aria-modal", "true"); s.setAttribute("aria-labelledby", "dtRepT");
-    s.innerHTML = `<div class="dt-rs-bg" data-dtx></div><div class="dt-rs-in"><i class="dt-rs-h" aria-hidden="true"></i>
-      <h3 id="dtRepT">이 숫자가 틀렸어요</h3><p class="dt-rs-z">${esc(shortName(r.n))} · 구역 ID <b>${esc(r.id)}</b> · ${asOf()} 기준</p>
-      <fieldset class="dt-rs-r"><legend>어디가 틀렸나요</legend>${REASONS.map(([k, t, d], i) => `<label><input type="radio" name="dtWhy" value="${k}"${i ? "" : " checked"}><span><b>${t}</b><small>${d}</small></span></label>`).join("")}</fieldset>
-      <label class="dt-rs-t"><span>무엇이 다른지 적어 주세요 <small>(안 적어도 돼요)</small></span><textarea id="dtRepTx" rows="3" maxlength="600" placeholder="예: 최근 매물은 1.4억이에요"></textarea></label>
-      <p class="dt-rs-ok" id="dtRepOk" role="status" hidden><b>고마워요. 확인 후 반영할게요</b><span>답은 보내 주신 메일 주소로 드려요.</span></p>
-      <div class="dt-rs-ad"><label for="dtRepAd">메일 앱이 안 열리면 이 주소로 보내 주세요</label><div><input id="dtRepAd" readonly value="${MAIL}"><button type="button" class="btn secondary sm" id="dtRepCp">주소 복사</button></div></div>
-      <div class="dt-rs-ft"><button type="button" class="btn secondary dt-rs-x" data-dtx>닫기</button><a class="btn primary dt-rs-go" id="dtRepGo" href="#">메일로 보내기</a></div></div>`;
-    document.body.appendChild(s);
-    document.documentElement.classList.add("dt-rs-on");
-    const go = $("dtRepGo"), tx = $("dtRepTx");
-    const upd = () => { const k = (s.querySelector("input[name=dtWhy]:checked") || {}).value || "etc", R0 = REASONS.find((x) => x[0] === k) || REASONS[4]; go.href = mailto(r, `${R0[1]} (${R0[2]})`, tx.value.trim()); };
-    s.addEventListener("change", upd); tx.addEventListener("input", upd); upd();
-    go.addEventListener("click", () => { upd(); setTimeout(() => { const o = $("dtRepOk"); if (o) o.hidden = false; go.textContent = "메일 다시 열기"; }, 250); });
-    $("dtRepCp").onclick = async () => { const i = $("dtRepAd"); let done = false; try { await navigator.clipboard.writeText(MAIL); done = true; } catch (e) { try { i.select(); done = document.execCommand("copy"); } catch (er) {} } $("dtRepCp").textContent = done ? "복사했어요" : "주소를 길게 눌러 복사"; };
-    s.addEventListener("click", (e) => { if (e.target.closest("[data-dtx]")) repClose(); });
-    s.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); repClose(); } });
-    requestAnimationFrame(() => { const f = s.querySelector("input[name=dtWhy]:checked"); if (f) f.focus({ preventScroll: true }); });
-    ZL.open("rep", () => repClose(true));   // 뒤로 가기 = 이 시트만 닫기(상세는 그대로)
+    const r = cur; if (!r || !window.ZP_contact) return;
+    ZP_contact.open({ kind: "error", title: "이 숫자가 틀렸어요", meta: `${shortName(r.n)} · 구역 ID ${r.id} · ${asOf()} 기준`, reasons: REASONS, ph: "예: 최근 매물은 1.4억이에요", ctx: { zone: r.id, url: pageOf(r), asOf: asOf(), nums: numsTxt(r) } });
   }
-  function repClose(pop) {
-    if (pop !== true) ZL.done("rep");
-    const s = $("dtRep"); if (s) s.remove();
-    document.documentElement.classList.remove("dt-rs-on");
-    if (lastFocus && lastFocus.isConnected) try { lastFocus.focus({ preventScroll: true }); } catch (e) {}
-  }
+  function repClose() { try { ZP_contact.close(); } catch (e) {} }
 
   function init() {
     // 탭: '호재'(near)는 '입지' 아래에 이어 붙인다 — 옛 링크·버튼이 near를 불러도 입지 탭으로
@@ -279,7 +251,7 @@ const DTL = (() => {
     });
     try { if (cur && document.querySelector("#report .rep-head")) decorate(); } catch (e) {}
   }
-  return { init, nums, repOpen, repClose, mailto };
+  return { init, nums, repOpen, repClose, numsTxt };
 })();
 window.ZP_detail = DTL;   // 점검(QA): 첫 화면 숫자·신고 메일 주소
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", DTL.init) : setTimeout(DTL.init, 0);

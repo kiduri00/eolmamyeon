@@ -44,7 +44,7 @@
       const t = await (await fetch("/?fresh=" + Date.now(), { cache: "no-store" })).text();
       const cur = (document.querySelector('script[src*="/b/d."]') || {}).getAttribute?.("src") || "", nw = (t.match(/\/b\/d\.[0-9a-f]{10}\.js/) || [])[0] || "";
       if (!nw || !cur || cur.includes(nw)) { toast("다시 연결됐어요 · 최신 자료예요", 2200); return; }
-      const busy = () => H.classList.contains("sheet-open") || H.classList.contains("bs-on") || document.querySelector(".pn-ov, #dtRep") || /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "");
+      const busy = () => H.classList.contains("sheet-open") || H.classList.contains("bs-on") || document.querySelector(".pn-ov, #dtRep, #cfSheet") || /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "");
       if (!busy()) { toast("다시 연결됐어요 · 새 자료를 받아요", 1500); setTimeout(() => location.reload(), 900); }
       else toast("다시 연결됐어요 · 새 자료는 화면을 닫으면 받아요", 3200);
     } catch (_) { toast("다시 연결됐어요", 1800); }

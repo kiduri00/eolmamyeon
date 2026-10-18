@@ -111,6 +111,9 @@ import ghost_geo
 GHOST_JS = S('ghost.js'); assert GHOST_JS.count('/*GHOST*/ null') == 1
 GHOST_JS = GHOST_JS.replace('/*GHOST*/ null', json.dumps(ghost_geo.build(D), ensure_ascii=False, separators=(',', ':')))
 js = GHOST_JS + js
+# 문의하기 양식(src/contact.js): 앱 묶음에 넣고, 정적 페이지(/contact · /faq · /z)용으로 public/cf.js 로도 낸다(같은 코드)
+CONTACT_JS = S('contact.js')
+js = CONTACT_JS + js
 css = S('app.css') + ext_css
 # 배포본만 줄이기(원본 src는 그대로): esbuild가 있으면 JS·CSS를 압축. 없으면 그대로 둔다.
 import shutil, subprocess
@@ -121,10 +124,12 @@ if ESB and not os.environ.get('NO_MINIFY'):
         if r.returncode: raise SystemExit('esbuild 실패: ' + r.stderr[:500])
         return r.stdout
     js0, css0 = len(js), len(css)
-    js = mini(js, 'js'); css = mini(css, 'css')
+    js = mini(js, 'js'); css = mini(css, 'css'); CONTACT_JS = mini(CONTACT_JS, 'js')
     print(f'minify js {js0}->{len(js)} css {css0}->{len(css)}')
 # 큰 데이터·앱 코드는 내용 해시가 박힌 파일로 따로(브라우저·서비스 워커가 오래 저장) → index.html은 작게
 B = os.path.join(R, 'public', 'b'); os.makedirs(B, exist_ok=True)
+_cf = os.path.join(R, 'public', 'cf.js')
+if not os.path.exists(_cf) or open(_cf, encoding='utf-8').read() != CONTACT_JS: open(_cf, 'w', encoding='utf-8').write(CONTACT_JS)
 def emit(prefix, body, ext='js'):
     h = hashlib.md5(body.encode()).hexdigest()[:10]; fn = f'{prefix}.{h}.{ext}'
     open(os.path.join(B, fn), 'w', encoding='utf-8').write(body)

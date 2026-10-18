@@ -1,7 +1,7 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "9c7cfd4f"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "57d4de83"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
@@ -131,6 +131,7 @@ self.addEventListener("fetch", (e) => {
   const u = new URL(req.url);
   if (u.origin === location.origin) {
     if (u.pathname === "/sw.js" || u.pathname.startsWith("/api/push/")) return; // 웹 푸시 API는 저장하지 않는다(키·구독은 늘 새로)
+    if (u.pathname.startsWith("/api/contact") || /^\/admin(\.html)?$/.test(u.pathname)) return; // 문의 양식·운영자 화면은 저장하지 않는다(늘 네트워크)
     if (req.mode === "navigate") return e.respondWith(page(e));
     if (u.pathname.startsWith("/b/")) return e.respondWith(cacheFirst(e, BUND)); // 해시가 박힌 앱 코드·데이터
     if (u.pathname.startsWith("/data/") || u.pathname.startsWith("/api/") || /^\/(premium\.json|manifest\.webmanifest|icon[^/]*\.(png|svg)|og\.png)$/.test(u.pathname)) return e.respondWith(swr(e, u.pathname.startsWith("/icon") || u.pathname.startsWith("/manifest") ? SHELL : DATA));
@@ -156,6 +157,8 @@ self.addEventListener("notificationclick", (e) => {
   const url = new URL((e.notification.data && e.notification.data.url) || "/", self.location.origin).href;
   e.waitUntil((async () => {
     const cs = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    // 새 문의 알림(/admin.html): 열린 운영자 화면이 있으면 그 창을 앞으로(화면이 다시 보이면 목록을 새로 받는다), 없으면 새 창
+    if (/\/admin(\.html)?$/.test(new URL(url).pathname)) { const a = cs.find((x) => /\/admin(\.html)?$/.test(new URL(x.url).pathname)); if (a) { try { await a.focus(); } catch (_) {} return; } await self.clients.openWindow(url); return; }
     const c = cs.find((x) => new URL(x.url).origin === self.location.origin && new URL(x.url).pathname === "/") || null;
     if (c) { try { await c.focus(); } catch (_) {} c.postMessage({ t: "zp-open", url }); return; }
     await self.clients.openWindow(url);

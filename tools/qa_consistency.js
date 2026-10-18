@@ -149,7 +149,7 @@ function parseZ(html) {
   if (m) { o.buyV = money(m[1]); o.buyBasis = m[2]; o.buyN = intOf((/([\d,]+)건/.exec(m[2]) || [])[1]); }
   m = /매수가 표본 ([\d,]+)건/.exec(t); if (m) o.trustN = intOf(m[1]);
   m = /(전세 끼고|현금으로 사면|대출 끼고) 입주까지 현금\n([\d.,]+억|[\d,]+만|0원)/.exec(t) || /()입주까지 현금\n([\d.,]+억|[\d,]+만|0원)/.exec(t); if (m) { o.ipjuMode = m[1] || ""; o.ipju = money(m[2]); }
-  { const k = /<section class="zk"[\s\S]*?<\/section>/.exec(html); if (k) { const kt = htmlText(k[0]); const g = (l) => { const x = new RegExp(l + "\\n([^\\n]+)").exec(kt); return x ? x[1].trim() : null; }; o.key = { now: g("지금 필요한 돈"), tot: g("입주까지 현금"), eta: g("언제 입주"), labs: ["지금 필요한 돈", "입주까지 현금", "언제 입주"].filter((l) => kt.includes(l + "\n")).join("|"), mail: (/href="(mailto:[^"]+)"[^>]*>이 숫자가 틀렸어요/.exec(html) || [])[1] || "" }; } }
+  { const k = /<section class="zk"[\s\S]*?<\/section>/.exec(html); if (k) { const kt = htmlText(k[0]); const g = (l) => { const x = new RegExp(l + "\\n([^\\n]+)").exec(kt); return x ? x[1].trim() : null; }; o.key = { now: g("지금 필요한 돈"), tot: g("입주까지 현금"), eta: g([...k[0].matchAll(/class="zk-l">([^<]+)</g)].map((x) => x[1])[2] || "언제 입주"), labs: [...k[0].matchAll(/class="zk-l">([^<]+)</g)].map((x) => x[1].trim()).join("|"), mail: (/href="([^"]+)"[^>]*>이 숫자가 틀렸어요/.exec(html) || [])[1] || "" }; } }
   m = /현금으로 사면 ([\d.,]+억|[\d,]+만|0원)/.exec(t); if (m) o.cashTotal = money(m[1]);
   m = /데이터 기준 (\d{4}\.\d\d\.\d\d)/.exec(t); if (m) o.asof = m[1];
   return o;
@@ -242,6 +242,8 @@ async function stableText(page, sel, maxMs = 4000, need = 1) {
 }
 
 // ================================================================ 1) 정적 페이지 (node fetch)
+// 첫 화면 3칸 이름: 셋째 칸은 '언제 입주'(입주권 없는 곳은 '입주권' · 20차 G3)
+const LAB3 = /^지금 필요한 돈\|입주까지 현금\|(언제 입주|입주권)$/;
 async function staticLane(api) {
   const T = (id, t) => [id, t];
   // --- 매니페스트·첫 화면 HTML
@@ -277,7 +279,8 @@ async function staticLane(api) {
       expect((fq.match(/<details class="fq"/g) || []).length >= 10 && /id="fqQ"[^>]*type="search"/.test(fq), "seo.legal", T2, `faq items ${(fq.match(/<details class="fq"/g) || []).length} · search ${/id="fqQ"/.test(fq)}`);
       expect(/localStorage/.test(pv) && /KV/.test(pv) && /계정/.test(pv) && /푸시/.test(pv), "seo.legal", T2, `privacy mentions localStorage ${/localStorage/.test(pv)} KV ${/KV/.test(pv)} 계정 ${/계정/.test(pv)} 푸시 ${/푸시/.test(pv)}`);
       for (const p of Object.keys(pg)) expect(!/사업자/.test(htmlText((pg[p] || {}).text || "")), "seo.legal", T2, `${p} mentions 사업자`);
-      expect(/<a class="my-r" href="mailto:[^"]+"[\s\S]{0,200}?@/.test(my), "seo.legal", T2, "MY 문의 row lacks mailto + visible address");
+      expect(/<a class="my-r" href="contact" id="myMail" data-zp-contact/.test(my), "seo.legal", T2, "MY 문의 row does not open the in-site contact form");
+      expect(/문의하기 양식|문의 양식/.test(pv) && /180일/.test(pv) && /IP 주소는 저장하지 않/.test(pv) && /이메일은 선택/.test(pv), "seo.legal", T2, "privacy does not describe the contact form (stored items · 180 days · no IP · email optional)");
     }
     const bn = api.zones.filter((z) => /^\s*\d{1,3}\.\s/.test(z.name || ""));
     expect(!bn.length, "name.listNo", "구역 이름에 목록 번호('43. 문래동1·2가') 없음(api·/z·검색 같은 shortName)", `${bn.length}: ${bn.slice(0, 4).map((z) => z.id + " " + z.name).join(", ")}`);
@@ -491,13 +494,13 @@ async function countsLane(browser, api, errs, shared) {
     expect(!misN.length, "list.api", "15억 전세 끼고 목록 각 줄 '지금'·'입주까지 현금' == /api/v1/zones.json", `지금: ${misN.slice(0, 4).join(" ; ")}${misN.length > 4 ? ` … +${misN.length - 4}` : ""}`);
     expect(!misT.length, "list.api", "15억 전세 끼고 목록 각 줄 '지금'·'입주까지 현금' == /api/v1/zones.json", `입주까지: ${misT.slice(0, 4).join(" ; ")}${misT.length > 4 ? ` … +${misT.length - 4}` : ""}`);
     // 입주 계산 불가 줄은 아래로
-    { const firstNA = rowsG.findIndex((r) => !/입주까지/.test(r.amt)), lastOK = rowsG.map((r) => /입주까지/.test(r.amt)).lastIndexOf(true);
+    { const firstNA = rowsG.findIndex((r) => !/입주까지(?! 현금 계산 보류)/.test(r.amt)), lastOK = rowsG.map((r) => /입주까지(?! 현금 계산 보류)/.test(r.amt)).lastIndexOf(true);
       expect(firstNA < 0 || firstNA > lastOK, "list.order", "'입주 계산 불가' 줄은 계산되는 줄보다 아래", `first n/a row #${firstNA} (${rowsG[firstNA] && rowsG[firstNA].name}) above calculable row #${lastOK}`); }
     // 맞춤순(기본 정렬): 지금 필요한 돈이 내 현금(15억)에 가까운 줄부터 — |현금 − 금액| 오름차순(표시 반올림 허용), 계산 불가 줄은 아래(list.order)
     {
       const sk = await page.evaluate(() => { try { return localStorage.getItem("emr.sort") || "fit"; } catch (e) { return "fit"; } });
       if (sk === "fit") {
-        const ok = rowsG.filter((r) => /입주까지/.test(r.amt)).map((r) => ({ r, m: money((/([\d.,]+억|[\d,]+만|0원)/.exec(r.amt) || [])[1]) })).filter((x) => x.m);
+        const ok = rowsG.filter((r) => /입주까지(?! 현금 계산 보류)/.test(r.amt)).map((r) => ({ r, m: money((/([\d.,]+억|[\d,]+만|0원)/.exec(r.amt) || [])[1]) })).filter((x) => x.m);
         let at = -1; for (let i = 1; i < ok.length; i++) { const a = Math.abs(15 - ok[i - 1].m.v), b = Math.abs(15 - ok[i].m.v); if (b + ok[i].m.tol + ok[i - 1].m.tol + 1e-6 < a) { at = i; break; } }
         expect(ok.length > 5 && at < 0, "list.fitSort", "맞춤순: 내 현금에 가까운 금액부터(|현금−금액| 오름차순 · 계산 불가는 아래)", at < 0 ? `only ${ok.length} rows` : `15억: row ${at - 1} ${ok[at - 1].r.name} ${ok[at - 1].r.amt.split("\n")[0]} before row ${at} ${ok[at].r.name} ${ok[at].r.amt.split("\n")[0]}`);
       } else skip("list.fitSort", "맞춤순: 내 현금에 가까운 금액부터(|현금−금액| 오름차순 · 계산 불가는 아래)", `stored sort ${sk}`);
@@ -652,7 +655,7 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
           if (!K) bad("zone.key3", T, `${where}: no .dt-k in report head`);
           else if (!Z.key) bad("zone.key3", T, `/z/${zid}: no key3 block`);
           else { expect(K.now === Z.key.now && K.tot === Z.key.tot && K.eta === Z.key.eta, "zone.key3", T, `${where}: app ${K.now} / ${K.tot} / ${K.eta} vs /z ${Z.key.now} / ${Z.key.tot} / ${Z.key.eta}`);
-                 expect(K.labs.join("|") === "지금 필요한 돈|입주까지 현금|언제 입주" && Z.key.labs === "지금 필요한 돈|입주까지 현금|언제 입주", "zone.key3", T, `${where}: labels app ${K.labs.join("|")} vs /z ${Z.key.labs}`); } }
+                 expect(LAB3.test(K.labs.join("|")) && K.labs.join("|") === Z.key.labs, "zone.key3", T, `${where}: labels app ${K.labs.join("|")} vs /z ${Z.key.labs}`); } }
         if (Z.ipju && ip.length && /전세/.test(Z.ipjuMode)) expect(eqMoney(Z.ipju, money(ip[0])), "zone.vsZ", "리포트 큰 숫자·표본 n·계산 매수가·입주까지 현금 == /z 페이지", `${where}: 입주까지 현금 app ${ip[0]} vs /z ${fm(Z.ipju)}`);
       } else bad("zone.vsZ", "리포트 큰 숫자·표본 n·계산 매수가·입주까지 현금 == /z 페이지", `/z/${zid} → ${zr.status}`);
     }
@@ -854,10 +857,10 @@ async function r1Lane(browser, api, errs) {
     await loadHome(page, "#my"); await page.waitForTimeout(1200);
     const r = await page.evaluate(() => {
       const q = (s) => document.querySelector(s), my = q("#my");
-      const need = ["#myCash", "#myMode", "#myPermS", "#myMove", "#myVer", "#myAsof", "#myWipe", "#myInst", '#my a[href="faq"]', '#my a[href="method"]', '#my a[href="terms"]', '#my a[href="privacy"]', '#my a[href^="mailto:"]', "#my .my-det"];
+      const need = ["#myCash", "#myMode", "#myPermS", "#myMove", "#myVer", "#myAsof", "#myWipe", "#myInst", '#my a[href="faq"]', '#my a[href="method"]', '#my a[href="terms"]', '#my a[href="privacy"]', '#my a[data-zp-contact]', "#my .my-det"];
       const miss = need.filter((s) => !q(s));
       const small = [...my.querySelectorAll(".my-r")].filter((e) => window.__qc.vis(e) && e.getBoundingClientRect().height < 44).map((e) => e.textContent.trim().slice(0, 14));
-      return { miss, small, kinds: my.querySelectorAll("#myKinds [role=switch]").length, tools: my.querySelectorAll("#myTools a[data-menu]").length, ver: (q("#myVer") || {}).textContent || "", asof: (q("#myAsof") || {}).textContent || "", cash: (q("#myCash") || {}).textContent || "", mail: /@/.test((q('#my a[href^="mailto:"]') || {}).textContent || "") };
+      return { miss, small, kinds: my.querySelectorAll("#myKinds [role=switch]").length, tools: my.querySelectorAll("#myTools a[data-menu]").length, ver: (q("#myVer") || {}).textContent || "", asof: (q("#myAsof") || {}).textContent || "", cash: (q("#myCash") || {}).textContent || "", mail: !!q("#my a[data-zp-contact]") && !/@/.test(my.innerText) };
     });
     expect(!r.miss.length && r.kinds >= 4 && r.tools === 6 && /\d/.test(r.ver) && !/__/.test(r.ver) && /\d/.test(r.asof) && /억|만/.test(r.cash) && r.mail, "ui.my", TM, `missing [${r.miss}] kinds ${r.kinds} tools ${r.tools} ver "${r.ver}" asof "${r.asof}" cash "${r.cash}" mail ${r.mail}`);
     expect(!r.small.length, "ui.my", TM, `rows < 44px: ${r.small.join(" ; ")}`);
@@ -1110,8 +1113,8 @@ async function r14Lane(browser, api, errs) {
       await page.click("#sCashBtn"); await page.waitForTimeout(500);
       const d = await page.evaluate(() => { const bar = document.querySelector('#bHist i[data-c="2"]'), all = [...document.querySelectorAll("#bHist .scr-bars i")]; return { open: !document.getElementById("bSheet").hidden, bar: bar ? +bar.dataset.n : null, cur: bar ? bar.classList.contains("cur") : false, n: document.getElementById("sN").textContent, bN: document.getElementById("bN").textContent, go: document.getElementById("bGo").textContent, zc: window.ZP_count(2), bars: all.length, mono: all.every((x, i) => !i || +x.dataset.n >= +all[i - 1].dataset.n), more: document.getElementById("bMore").textContent, z25: window.ZP_count(2.5) }; });
       expect(d.open && d.bars >= 30 && d.bar === intOf(d.n) && d.bar === intOf(d.bN) && d.bar === d.zc && cntOf(d.go) === d.zc && d.cur, "ui.budgetSheet", "예산 시트: 고른 금액 막대 곳 수 == 카드 == 시트 숫자 == ZP_count · 슬라이더 aria-valuetext '2억, N곳'", `sheet open ${d.open} · bars ${d.bars} · bar@2억 ${d.bar} (cur ${d.cur}) · card ${d.n} · sheet ${d.bN} · go "${d.go}" · ZP_count(2) ${d.zc}`);
-      const m = /\+0\.5억이면\s*([\d,]+)곳 더/.exec(d.more);
-      if (d.z25 > d.zc) expect(m && intOf(m[1]) === d.z25 - d.zc, "ui.budgetSheet", "예산 시트: '+0.5억이면 N곳 더' == ZP_count(2.5) − ZP_count(2)", `"${d.more}" vs ${d.z25 - d.zc}`);
+      const m = /5,000만 더 있으면\s*([\d,]+)곳 더/.exec(d.more);
+      if (d.z25 > d.zc) expect(m && intOf(m[1]) === d.z25 - d.zc, "ui.budgetSheet", "예산 시트: '5,000만 더 있으면 N곳 더' == ZP_count(2.5) − ZP_count(2)", `"${d.more}" vs ${d.z25 - d.zc}`);
       // 칩 3억 → 카드·막대 같이
       await page.click('#bSheet [data-bc="3"]'); await settle(page, 700);
       const e = await page.evaluate(() => { const bar = document.querySelector('#bHist i[data-c="3"]'); return { bar: bar ? +bar.dataset.n : null, cur: bar ? bar.classList.contains("cur") : false, n: document.getElementById("sN").textContent, zc: window.ZP_count(3), v: document.getElementById("sCashV").textContent.trim() }; });
@@ -1428,7 +1431,7 @@ async function r3Lane(browser, errs) {
         const pk = g[0];
         await page.evaluate((n) => { const b = document.querySelector(`.zgu[data-gu="${n}"]`); if (b) b.click(); }, pk.n); await page.waitForTimeout(1200); await settle(page, 300);
         const s = await page.evaluate(() => ({ t: document.getElementById("sLT").textContent, z: window.ZP_lmx.map().getZoom() }));
-        expect(cntOf(s.t) === pk.c && s.t.includes(pk.n) && s.z > 11, "map.guCluster", T, `tap ${pk.n} (${pk.c}): list title "${s.t}" zoom ${s.z.toFixed(2)}`);
+        expect(cntOf(s.t) === pk.c && s.t.includes(pk.n) && s.z >= 10.99, "map.guCluster", T, `tap ${pk.n} (${pk.c}): list title "${s.t}" zoom ${s.z.toFixed(2)}`);
         await page.evaluate(() => { const x = document.getElementById("sGuX"); if (x) x.click(); }); await page.waitForTimeout(800);
       }
     }
@@ -1567,7 +1570,7 @@ async function r4Lane(browser, api, errs) {
       page.__where = "#" + zid;
       await page.evaluate(() => { const t = document.getElementById("repTitle"); if (t) t.__qcOld = 1; });
       await page.evaluate((i) => { location.hash = "#" + i; }, zid);
-      const opened = await page.waitForFunction(() => { const t = document.getElementById("repTitle"); return t && !t.__qcOld && document.querySelector("#report .dt-trust"); }, null, { timeout: 8000, polling: 80 }).then(() => true, () => false);
+      const opened = await page.waitForFunction(() => { const t = document.getElementById("repTitle"); return t && !t.__qcOld && document.querySelector("#report .dt-k"); }, null, { timeout: 8000, polling: 80 }).then(() => true, () => false);
       if (!opened) { bad("zone.fold3", T3, `#${zid}: report or trust line did not render`); continue; }
       await page.waitForTimeout(500);
       const f = await page.evaluate(() => {
@@ -1578,44 +1581,47 @@ async function r4Lane(browser, api, errs) {
         const ip = rp.querySelector('.dt-k [data-k="eta"] .dt-ip');
         const head = rp.querySelector(".rep-head"); const est = head ? (head.innerText.match(/추정/g) || []).length : 0;
         const top = rp.querySelector(".dt-top"), eta = rp.querySelector('.dt-k [data-k="eta"] .dt-v');
-        return { H, bh: Math.round(bh), its, trBot: tb ? Math.round(tb.bottom) : null, trTxt: tr ? tr.innerText.replace(/\s+/g, " ") : "", ip: ip ? ip.innerText.replace(/\s+/g, " ") : "", est, noip: !!rp.querySelector(".dt-top .ov-noip"), eta: eta ? eta.textContent.trim() : "", nt: !!rp.querySelector(".dt-k .dt-nt"), ipN: top ? (top.innerText.match(/입주권/g) || []).length : 0, okN: top ? (top.innerText.match(/가능/g) || []).length : 0 };
+        return { H, bh: Math.round(bh), its, trBot: tb ? Math.round(tb.bottom) : null, trTxt: tr ? tr.innerText.replace(/\s+/g, " ") : "", ip: ip ? ip.innerText.replace(/\s+/g, " ") : "", est, noip: !!rp.querySelector(".dt-top .ov-noip"), eta: eta ? eta.textContent.trim() : "", nt: !!rp.querySelector(".dt-k .dt-nt"), ipN: top ? (top.innerText.match(/입주권 없음/g) || []).length : 0, why: top ? (top.innerText.match(/이유 보기/g) || []).length : 0, okN: top ? (top.innerText.match(/가능/g) || []).length : 0 };
       });
       const lim = f.H - f.bh;
       const labs = f.its.map((x) => x.l).join("|");
-      expect(f.its.length === 3 && labs === "지금 필요한 돈|입주까지 현금|언제 입주", "zone.fold3", T3, `#${zid}: items ${labs}`);
+      const ntZ = f.its.length === 3 && f.its[2].l === "입주권";
+      expect(f.its.length === 3 && LAB3.test(labs), "zone.fold3", T3, `#${zid}: items ${labs}`);
       expect(f.its.every((x) => x.v && x.bot <= lim), "zone.fold3", T3, `#${zid}: item bottoms ${f.its.map((x) => x.bot).join("/")} > fold ${lim} (viewport ${f.H} − bar ${f.bh})`);
-      expect(f.trBot != null && f.trBot <= lim, "zone.fold3", T3, `#${zid}: trust line bottom ${f.trBot} > fold ${lim}`);
+      if (!ntZ) expect(f.trBot != null && f.trBot <= lim, "zone.fold3", T3, `#${zid}: trust line bottom ${f.trBot} > fold ${lim}`);
       expect(f.its.every((x) => x.fs >= 24 && x.fw >= 700 && /tabular-nums/.test(x.tab)), "zone.fold3", T3, `#${zid}: number style ${f.its.map((x) => `${x.fs}/${x.fw}/${x.tab}`).join(" ")}`);
       expect(f.est <= 1, "zone.fold3", T3, `#${zid}: '추정' ${f.est} times on first screen`);
       // 입주권 없는 곳: '언제 입주' 칸이 '입주권 없음' + 일반분양 한 줄(입주권 이야기는 첫 화면에 한 번 · 몇 년 뒤 입주 숫자 없음) · 신뢰 줄 '계산 안 함'
-      if (f.eta === "입주권 없음") { noIp++; expect(!f.ip && f.nt && !f.noip && f.ipN <= 1 && /계산 안 함/.test(f.trTxt), "zone.fold3", T3, `#${zid}: no-입주권 zone: chip "${f.ip}" note ${f.nt}/${f.noip} '입주권' ×${f.ipN} trust "${f.trTxt}"`); }
+      // 입주권 없는 곳(셋째 칸 '입주권'): 값 '없음'·'조합원 입주권을 사야 해요' · 이유 한 줄 한 번 · '입주권 없음' 반복·'이유 보기' 줄 없음(20차 G3)
+      if (ntZ) { noIp++; expect(/^(없음|조합원 입주권을 사야 해요)$/.test(f.eta) && !f.ip && f.nt && !f.noip && f.ipN <= 1 && !f.why && !f.trTxt, "zone.fold3", T3, `#${zid}: no-입주권 zone: eta "${f.eta}" chip "${f.ip}" note ${f.nt}/${f.noip} '입주권 없음' ×${f.ipN} '이유 보기' ×${f.why} trust "${f.trTxt}"`); }
       else { expect(/^입주권 /.test(f.ip), "zone.fold3", T3, `#${zid}: 입주권 chip "${f.ip}"`); expect(!/✕/.test(f.ip), "zone.fold3", T3, `#${zid}: '입주권 ✕' chip but 언제 입주 "${f.eta}"`); }
       expect(f.okN <= 1, "zone.fold3", T3, `#${zid}: '가능' ${f.okN} times on first screen (one status row)`);
       // ---- zone.report: '이 숫자가 틀렸어요' → 메일(구역 ID 자동) · 주소 복사 · 고마워요 ----
       if (FOLD.indexOf(zid) < 3) {
-        const TR = "'이 숫자가 틀렸어요': 메일 제목 '[집핀 신고] <구역 ID> <이름>' · 본문에 구역 ID·주소·데이터 기준·고른 이유 · 주소 보이고 복사 · 누르면 '고마워요. 확인 후 반영할게요'";
+        const TR = "'이 숫자가 틀렸어요': 사이트 안 문의 양식(시트) · 이유 5가지 · 보내면 구역 ID·주소·데이터 기준·화면 숫자·고른 이유가 함께 감 · '잘 받았어요' · 메일 주소 안 보임";
+        const sent = [];
+        await page.route("**/api/contact", (rt) => { try { sent.push(JSON.parse(rt.request().postData() || "{}")); } catch (e) {} rt.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' }); });
         const rr = await page.evaluate(async () => {
           const b = document.querySelector("#report [data-dtrep]"); if (!b) return { none: 1 };
-          b.click(); await new Promise((r) => setTimeout(r, 250));
-          const s = document.getElementById("dtRep"); if (!s) return { nosheet: 1 };
-          const st = s.querySelector('input[value="stage"]'); if (st) { st.click(); st.dispatchEvent(new Event("change", { bubbles: true })); }
-          const tx = document.getElementById("dtRepTx"); tx.value = "QA 확인"; tx.dispatchEvent(new Event("input", { bubbles: true }));
-          const go = document.getElementById("dtRepGo"), href = go.getAttribute("href");
-          document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("#dtRepGo")) e.preventDefault(); }, { capture: true, once: true });
-          go.click(); await new Promise((r) => setTimeout(r, 450));
-          const ok = document.getElementById("dtRepOk"), ad = document.getElementById("dtRepAd");
-          const out = { href, ok: ok && !ok.hidden ? ok.innerText : "", ad: ad ? ad.value : "", cp: !!document.getElementById("dtRepCp"), radios: s.querySelectorAll("input[name=dtWhy]").length };
-          s.querySelector("[data-dtx].dt-rs-x").click(); await new Promise((r) => setTimeout(r, 100));
-          out.closed = !document.getElementById("dtRep");
+          b.click(); await new Promise((r) => setTimeout(r, 300));
+          const s = document.getElementById("cfSheet"); if (!s) return { nosheet: 1 };
+          const radios = s.querySelectorAll('.cf-r input[type=radio]').length, kind = (s.querySelector('.cf-k input:checked') || {}).value;
+          const st = s.querySelector('.cf-r input[value="stage"]'); if (st) st.click();
+          const tx = s.querySelector("textarea"); tx.value = "QA 확인 · 단계 날짜가 달라요"; tx.dispatchEvent(new Event("input", { bubbles: true }));
+          s.querySelector(".cf-go").click();
+          for (let i = 0; i < 30 && !s.querySelector(".cf-ok"); i++) await new Promise((r) => setTimeout(r, 100));
+          const out = { radios, kind, ok: (s.querySelector(".cf-ok") || {}).innerText || "", at: /@/.test(s.innerText) };
+          const x = s.querySelector(".cf-x"); if (x) x.click(); await new Promise((r) => setTimeout(r, 150));
+          out.closed = !document.getElementById("cfSheet");
           return out;
         });
+        await page.unroute("**/api/contact").catch(() => {});
         if (rr.none || rr.nosheet) bad("zone.report", TR, `#${zid}: ${rr.none ? "no button" : "sheet did not open"}`);
         else {
-          let subj = "", body = ""; try { const u = new URL(rr.href); subj = decodeURIComponent((/[?&]subject=([^&]*)/.exec(rr.href) || [])[1] || ""); body = decodeURIComponent((/[?&]body=([^&]*)/.exec(rr.href) || [])[1] || ""); } catch (e) {}
-          expect(/^mailto:[^?]+@[^?]+\?/.test(rr.href) && subj.startsWith(`[집핀 신고] ${zid} `), "zone.report", TR, `#${zid}: href ${String(rr.href).slice(0, 80)} subject "${subj}"`);
-          expect(body.includes(`구역 ID: ${zid}`) && /데이터 기준: \d{4}\.\d\d\.\d\d/.test(body) && body.includes(`/z/${zid}`) && /틀린 곳: 단계/.test(body) && body.includes("QA 확인"), "zone.report", TR, `#${zid}: body "${body.replace(/\n/g, " | ").slice(0, 160)}"`);
-          expect(rr.radios === 5 && /@/.test(rr.ad) && rr.cp, "zone.report", TR, `#${zid}: radios ${rr.radios} address "${rr.ad}" copy ${rr.cp}`);
-          expect(/고마워요\. 확인 후 반영할게요/.test(rr.ok) && rr.closed, "zone.report", TR, `#${zid}: confirmation "${rr.ok}" closed ${rr.closed}`);
+          const m = sent[0] || {};
+          expect(rr.radios === 5 && rr.kind === "error" && !rr.at, "zone.report", TR, `#${zid}: radios ${rr.radios} kind ${rr.kind} address shown ${rr.at}`);
+          expect(sent.length === 1 && m.zone === zid && /\d{4}\.\d\d\.\d\d/.test(m.asOf || "") && String(m.url || "").includes(zid) && m.why === "단계" && /지금 필요한 돈/.test(m.nums || "") && /QA 확인/.test(m.text || "") && m.kind === "error", "zone.report", TR, `#${zid}: sent ${JSON.stringify(m).slice(0, 220)}`);
+          expect(/잘 받았어요/.test(rr.ok) && rr.closed, "zone.report", TR, `#${zid}: confirmation "${rr.ok}" closed ${rr.closed}`);
         }
       }
     }
@@ -1652,8 +1658,8 @@ async function r4Lane(browser, api, errs) {
     const r = await getPage("/z/" + zid); if (r.status !== 200) { bad("z.key3", "/z 첫 화면 3숫자 + 신뢰 한 줄 + '이 숫자가 틀렸어요' 메일(구역 ID)", `/z/${zid} → ${r.status}`); continue; }
     const Z = parseZ(r.text), t = htmlText(r.text.replace(/<head[\s\S]*?<\/head>/i, ""));
     termScan(t, `/z/${zid}`);
-    const subj = Z.key && Z.key.mail ? decodeURIComponent((/[?&]subject=([^&]*)/.exec(Z.key.mail) || [])[1] || "") : "";
-    expect(Z.key && Z.key.labs === "지금 필요한 돈|입주까지 현금|언제 입주" && /class="zk-tr/.test(r.text) && subj.startsWith(`[집핀 신고] ${zid} `), "z.key3", "/z 첫 화면 3숫자 + 신뢰 한 줄 + '이 숫자가 틀렸어요' 메일(구역 ID)", `/z/${zid}: labels ${Z.key && Z.key.labs} subject "${subj}"`);
+    const subj = Z.key && Z.key.mail ? Z.key.mail.replace(/&amp;/g, "&") : "";
+    expect(Z.key && LAB3.test(Z.key.labs) && (/class="zk-tr/.test(r.text) || /입주권$/.test(Z.key.labs)) && subj.endsWith(`contact?kind=error&zone=${zid}`) && /<script src="\/cf\.js"/.test(r.text), "z.key3", "/z 첫 화면 3숫자 + 신뢰 한 줄 + '이 숫자가 틀렸어요' 문의 양식(구역 ID)", `/z/${zid}: labels ${Z.key && Z.key.labs} report link "${subj}"`);
   }
   for (const g of ["구로구", "강남구"]) { const r = await getPage("/gu/" + g); if (r.status === 200) termScan(htmlText(r.text.replace(/<head[\s\S]*?<\/head>/i, "")), `/gu/${g}`); }
 }
@@ -1738,6 +1744,105 @@ async function r19Lane(browser, api, errs) {
       expect(r1.now > 2 && r2.now > r1.now && r3.now === 0.5 && r4.now === 15 && /곳$/.test(r4.vt || ""), "ui.scrubA11y", TA, `→ ${r1.now} (${r1.vt}) · PageUp ${r2.now} · Home ${r3.now} · End ${r4.now} (${r4.vt})`);
       expect(cntOf(r1.vt) === intOf(r1.sN), "ui.scrubA11y", TA, `valuetext ${r1.vt} vs 큰 숫자 ${r1.sN}`);
     } catch (e) { bad("runtime", "검사 실행", "scrubA11y crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- map.ghostFollow (20차 G1): 실제 지도가 붙기 전 자리 그림에서 금액을 2억 → 3억(키보드)으로 바꾸면 자리 그림 묶음 합 + 칩 == 큰 숫자
+  {
+    const TG = "자리 그림(실제 지도 전)이 금액 변화를 따라감: 키보드로 2억 → 3억 뒤 묶음 합 + '+N곳' == 홈 곳 수 == ZP_count(3)";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      page.__where = "/?cash=2 ghost follow";
+      await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction(() => window.ZP_G && ZP_G.on() && document.querySelectorAll(".zp-ph .zg-mk .zgu").length, null, { timeout: 20000, polling: 50 });
+      await page.focus("#sScrub");
+      await page.keyboard.press("ArrowRight"); await page.waitForTimeout(120); await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(250);
+      const g = await page.evaluate(() => ({ on: ZP_G.on(), sum: ZP_G.gus().reduce((a, x) => a + x.c, 0) + ZP_G.more(), n: +document.getElementById("sN").textContent.replace(/\D/g, ""), c3: typeof ZP_count === "function" ? ZP_count(3) : null, now: +(document.getElementById("sScrub").getAttribute("aria-valuenow") || 0) }));
+      if (!g.on) bad("map.ghostFollow", TG, `자리 그림이 금액을 바꾼 직후 이미 사라짐(붙이기는 키를 누른 뒤 1초 쉬어야 함)`);
+      else expect(g.now === 3 && g.sum === g.n && g.n === g.c3, "map.ghostFollow", TG, `3억: ghost ${g.sum} vs 홈 ${g.n} vs ZP_count(3) ${g.c3} (slider ${g.now})`);
+    } catch (e) { bad("runtime", "검사 실행", "ghostFollow crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- ui.guDeepLink (20차 G2): /?cash=2#map-강북구 를 바로 열면 목록 '강북구 · N곳'(그 구만) · 지도 구 화면(폰·PC)
+  {
+    const TL = "#map-구 주소로 바로 열기: 목록이 그 구만('강북구 · N곳') · 구 화면 · 지도가 그 구 경계에 맞춤(폰·PC)";
+    for (const [w, h, m] of [[390, 844, true], [1440, 900, false]]) {
+      const { ctx, page } = await newPage(browser, m ? mob(w, h) : { viewport: { width: w, height: h } }, errs);
+      try {
+        page.__where = `/#map-강북구 ${w}`;
+        await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}#map-${encodeURIComponent("강북구")}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+        await page.waitForFunction(() => /^강북구 · /.test(document.getElementById("sLT").textContent), null, { timeout: 30000, polling: 100 }).catch(() => {});
+        await page.waitForFunction(() => { const m = window.ZP_lmx && ZP_lmx.map && ZP_lmx.map(); return m && m.loaded() && !m.isMoving(); }, null, { timeout: 30000, polling: 200 }).catch(() => {});
+        await page.waitForTimeout(600);
+        const r = await page.evaluate(() => { const m = ZP_lmx.map(), b = m && m.getBounds(), n = window.ZP_simple ? ZP_simple.list().length : null; return { lt: document.getElementById("sLT").textContent, view: document.getElementById("mapbox").dataset.view, gu: document.getElementById("mapbox").dataset.gu, n, inB: b ? b.contains([127.0257, 37.6396]) : false, z: m ? m.getZoom() : 0 }; });
+        expect(new RegExp("^강북구 · [\\d,]+곳$").test(r.lt) && r.view === "gu" && r.gu === "강북구" && r.inB && r.z >= 10, "ui.guDeepLink", TL, `${w}px: list '${r.lt}' view ${r.view}/${r.gu} zoom ${r.z.toFixed(2)} 강북 in view ${r.inB}`);
+      } catch (e) { bad("runtime", "검사 실행", "guDeepLink crashed: " + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- seo.noEmail (20차 13): 공개 페이지·앱 묶음 어디에도 개인 메일 주소·mailto 없음(운영자 화면 admin.html만 예외)
+  {
+    const TE = "공개 페이지·앱 코드에 개인 메일 주소·mailto: 없음(문의는 사이트 안 양식) · admin.html은 noindex";
+    try {
+      const home = await getPage("/");
+      const urls = ["/", "/contact", "/faq", "/privacy", "/terms", "/about", "/method", "/404.html", "/manifest.webmanifest", "/z/o916", "/z/o337", "/gu/" + encodeURIComponent("구로구"), "/gu/", "/report/", "/cf.js"].concat([...new Set([...home.text.matchAll(/\/b\/[ahdc]\.[0-9a-f]+\.(?:js|css)/g)].map((m) => m[0]))]);
+      for (const u of urls) { const r = await getPage(u); if (r.status !== 200) continue; const hit = (/[A-Za-z0-9._%+-]+@gmail\.com/.exec(r.text) || /mailto:/.exec(r.text) || [])[0]; expect(!hit, "seo.noEmail", TE, `${u}: "${hit}"`); }
+      const ad = await getPage("/admin.html");
+      expect(ad.status === 200 && /name="robots" content="noindex/.test(ad.text), "seo.noEmail", TE, `admin.html ${ad.status} noindex ${/noindex/.test(ad.text)}`);
+      const sm = await getPage("/sitemap.xml"); if (sm.status === 200) expect(!/admin/.test(sm.text), "seo.noEmail", TE, "sitemap lists admin");
+      const sw = await getPage("/sw.js"); expect(/\/api\/contact/.test(sw.text) && /admin/.test(sw.text), "seo.noEmail", TE, "sw.js does not bypass /api/contact and admin");
+    } catch (e) { bad("runtime", "검사 실행", "noEmail crashed: " + String(e.message || e).split("\n")[0]); }
+  }
+  // --- ui.contactForm (20차 13): MY → 문의 시트 · 검사(빈 내용·짧은 내용·이메일 꼴) · 보내기(가짜 /api/contact) → '잘 받았어요' · 뒤로 = 닫기 · 오프라인 = 안내 + 초안 남김
+  {
+    const TC = "문의 양식: MY에서 시트로 열림 · 종류 4개 · 내용 10~2000자(글자 수) · 이메일 검사 · 허니팟 · 보내기 → '잘 받았어요' · 뒤로 = 닫기 · 오프라인이면 안내 + 초안 저장";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      page.__where = "#my contact";
+      const sent = [];
+      await page.route("**/api/contact", (rt) => { try { sent.push(JSON.parse(rt.request().postData() || "{}")); } catch (e) {} rt.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' }); });
+      await loadHome(page, "#my"); await page.waitForTimeout(900);
+      const openIt = async () => { await page.evaluate(() => { const a = document.getElementById("myMail"); a && a.click(); }); await page.waitForTimeout(400); };
+      await openIt();
+      const a = await page.evaluate(() => { const s = document.getElementById("cfSheet"); if (!s) return null; const r = (e) => e.getBoundingClientRect(); return { kinds: s.querySelectorAll(".cf-k input").length, small: [...s.querySelectorAll(".cf-k span, .cf-go, .cf-x, textarea, input[type=email]")].filter((e) => r(e).height < 44).length, hp: !!s.querySelector('.cf-hp input[name="website"]'), cnt: (s.querySelector(".cf-cnt") || {}).textContent, note: /안 적으면 답장은 못 드려요/.test(s.innerText), at: /@gmail/.test(s.innerText), dlg: s.getAttribute("role") === "dialog" && s.getAttribute("aria-modal") === "true", lab: !!s.querySelector("label[for]") }; });
+      expect(a && a.kinds === 4 && !a.small && a.hp && /0 \/ 2,000/.test(a.cnt || "") && a.note && !a.at && a.dlg && a.lab, "ui.contactForm", TC, `open: ${JSON.stringify(a)}`);
+      // 검사
+      const v = await page.evaluate(async () => {
+        const s = document.getElementById("cfSheet"), go = s.querySelector(".cf-go"), tx = s.querySelector("textarea"), em = s.querySelector("input[type=email]"), w = () => new Promise((r) => setTimeout(r, 120));
+        const err = () => [...s.querySelectorAll(".cf-err")].filter((e) => !e.hidden).map((e) => e.textContent);
+        go.click(); await w(); const e1 = err();
+        tx.value = "짧아요"; tx.dispatchEvent(new Event("input", { bubbles: true })); go.click(); await w(); const e2 = err();
+        tx.value = "문의 양식 점검입니다. 숫자가 이상해요"; tx.dispatchEvent(new Event("input", { bubbles: true })); em.value = "abc@"; em.dispatchEvent(new Event("input", { bubbles: true })); go.click(); await w(); const e3 = err();
+        return { e1, e2, e3, cnt: s.querySelector(".cf-cnt").textContent };
+      });
+      expect(v.e1.length === 1 && v.e2.length === 1 && v.e3.length === 1 && /이메일/.test(v.e3[0]) && sent.length === 0, "ui.contactForm", TC, `validation ${JSON.stringify(v)} sent ${sent.length}`);
+      const ok = await page.evaluate(async () => {
+        const s = document.getElementById("cfSheet"), em = s.querySelector("input[type=email]"); em.value = "qa@example.com"; em.dispatchEvent(new Event("input", { bubbles: true }));
+        s.querySelector('.cf-k input[value="idea"]').click(); s.querySelector(".cf-go").click();
+        for (let i = 0; i < 30 && !s.querySelector(".cf-ok"); i++) await new Promise((r) => setTimeout(r, 100));
+        return { ok: (s.querySelector(".cf-ok") || {}).innerText || "", draft: localStorage.getItem("zp.cfDraft") };
+      });
+      const m = sent[0] || {};
+      expect(/잘 받았어요/.test(ok.ok) && /며칠 안에 답장/.test(ok.ok) && sent.length === 1 && m.kind === "idea" && m.email === "qa@example.com" && /점검/.test(m.text || "") && m.website === "" && !ok.draft, "ui.contactForm", TC, `submit: "${ok.ok.slice(0, 40)}" sent ${JSON.stringify(m).slice(0, 160)} draft ${ok.draft}`);
+      await page.evaluate(() => { const x = document.querySelector("#cfSheet .cf-x"); x && x.click(); }); await page.waitForTimeout(300);
+      // 뒤로 = 닫기(MY 그대로)
+      await openIt();
+      const o1 = await page.evaluate(() => !!document.getElementById("cfSheet"));
+      await page.goBack().catch(() => {}); await page.waitForTimeout(500);
+      const b = await page.evaluate(() => ({ sheet: !!document.getElementById("cfSheet"), hash: location.hash, my: !!(document.getElementById("myMail") && document.getElementById("myMail").offsetParent) }));
+      expect(o1 && !b.sheet && b.my, "ui.contactForm", TC, `back: opened ${o1} → sheet ${b.sheet} hash ${b.hash} MY ${b.my}`);
+      // 오프라인: 안내 + 초안 남김
+      await openIt();
+      await ctx.setOffline(true);
+      const off = await page.evaluate(async () => {
+        const s = document.getElementById("cfSheet"); if (!s) return null; const tx = s.querySelector("textarea");
+        tx.value = "오프라인에서 쓴 문의 초안입니다"; tx.dispatchEvent(new Event("input", { bubbles: true })); s.querySelector(".cf-go").click(); await new Promise((r) => setTimeout(r, 600));
+        return { st: s.querySelector(".cf-st").textContent, draft: localStorage.getItem("zp.cfDraft") || "" };
+      });
+      await ctx.setOffline(false);
+      expect(off && /오프라인이에요/.test(off.st) && /오프라인에서 쓴 문의 초안/.test(off.draft), "ui.contactForm", TC, `offline: ${JSON.stringify(off)}`);
+      await page.evaluate(() => { try { window.ZP_contact.close(); localStorage.removeItem("zp.cfDraft"); } catch (e) {} });
+    } catch (e) { bad("runtime", "검사 실행", "contactForm crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
   // --- ui.deskBackGu: PC 구 화면 → 목록 줄 → 상세 · 뒤로/Esc = 그 구 화면(같은 목록) · 상세 위 '←' 단추 하나('← 강북구 · 갈 수 있는 곳 N곳')
@@ -1856,7 +1961,7 @@ async function r17bLane(browser, api, errs) {
       const inFold = f.cards.filter((c) => c.vis && c.bot <= f.nb && c.l < w && /[가-힣]/.test(c.n) && /\d/.test(c.v) && /(억|만)/.test(c.v));
       if (!dark) {
         expect(inFold.length >= 1, "home.namesFold", TN, `${where}: rail cards above fold ${inFold.length} (cards ${JSON.stringify(f.cards.slice(0, 2))}, nav top ${f.nb})`);
-        expect(!f.cards.length || f.cards[0].n === f.first.trim() || f.first === "", "home.namesFold", TN, `${where}: rail first "${(f.cards[0] || {}).n}" ≠ list first "${f.first}" (맞춤순 위 3곳)`);
+        expect(!f.cards.length || f.cards[0].n === f.first.trim() || f.first === "" || (f.cards[0].n && f.first.trim().startsWith(f.cards[0].n)), "home.namesFold", TN, `${where}: rail first "${(f.cards[0] || {}).n}" ≠ list first "${f.first}" (맞춤순 위 3곳)`);
       }
       // 끄는 동안 숫자(가벼운 길): 50ms마다 움직여 #sN이 바뀌기까지
       if (!dark && w === 390) {

@@ -10,7 +10,7 @@
     "binding": "ASSETS",
     "not_found_handling": "404-page",
     // /api/push/* 만 Worker가 먼저 받는다. 나머지 주소는 지금처럼 정적 자산이 바로 응답한다.
-    "run_worker_first": ["/api/push/*"]
+    "run_worker_first": ["/api/push/*", "/api/contact", "/api/contact/*"]
   },
   "kv_namespaces": [
     // 구독·VAPID 키 저장소. Cloudflare "zippin-push" 네임스페이스(소유자가 만듦).
