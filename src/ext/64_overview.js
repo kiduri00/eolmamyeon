@@ -238,7 +238,7 @@ const OVX = (() => {
     const en = (r.mk && r.mk.entry) || {}, t = r.tx || {};
     const H = (lv, cls, rows, msg) => `<div class="ov-c ov-trust ${cls}"><div class="ov-trh"><h3>이 숫자 믿어도 될까</h3><b class="ov-lv">${lv}</b></div>${rows.length ? `<dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}<p>${msg}</p></div>`;
     // 구역 안 거래 줄: 거래 탭 '구축 빌라 매매'와 같은 정의·기간(2015년 이전 준공 빌라 · 최근 nwin개월)을 쓰고, 그 값이 없을 때만 모든 거래 12개월
-    const n12 = t.no != null ? [[`구역 안 구축 빌라 · 최근 ${t.nwin || 18}개월`, `${t.no}건`]] : t.n12 != null ? [["구역 안 모든 거래 · 최근 12개월", `${t.n12}건`]] : [];
+    const n12 = t.no != null ? [[`구역 안 빌라 ${t.nwin || 18}개월`, `${t.no}건`]] : t.n12 != null ? [["구역 안 거래 12개월", `${t.n12}건`]] : [];
     const nearL = en.src === "villa" && (en.radius || 0) >= 100 ? `주변 ${en.radius}m 빌라 ` : en.fill === "dong" ? "같은 동 빌라 " : "";
     if (!x || x.price == null || !isFinite(x.price)) return H("계산 안 함", "na", n12, "입주 현금을 자동으로 계산할 매수가 표본이 없어요. 아는 매물가를 입주 현금 탭에 넣어 보세요.");
     let est = false; try { est = isEst(r); } catch (e) {}

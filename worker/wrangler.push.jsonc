@@ -1,0 +1,24 @@
+{
+  // 웹 푸시를 켤 때 쓸 설정(아직 적용 전). 지금 배포 설정은 저장소 루트의 wrangler.jsonc(정적 자산만)다.
+  // 이 파일 안의 경로는 이 파일 위치(worker/) 기준 → 로컬 시험: npx wrangler dev -c worker/wrangler.push.jsonc
+  // 루트 wrangler.jsonc로 옮길 때는 main을 "worker/index.js", assets.directory를 "./public"으로 바꾼다(worker/SETUP.md).
+  "name": "eolmamyeon",
+  "main": "./index.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "../public",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    // /api/push/* 만 Worker가 먼저 받는다. 나머지 주소는 지금처럼 정적 자산이 바로 응답한다.
+    "run_worker_first": ["/api/push/*"]
+  },
+  "kv_namespaces": [
+    // 구독·VAPID 키 저장소. Cloudflare 대시보드에서 만든 "zippin-push" 네임스페이스 ID로 바꾼다.
+    { "binding": "PUSH", "id": "<KV_NAMESPACE_ID>" }
+  ],
+  "triggers": {
+    // 매일 07:30(서울) = 22:30 UTC. 데이터 갱신(06:40 시작) 배포가 끝난 뒤 보낸다.
+    "crons": ["30 22 * * *"]
+  },
+  "observability": { "enabled": true }
+}

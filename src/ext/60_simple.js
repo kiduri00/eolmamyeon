@@ -3,29 +3,27 @@
    나머지 기능(계산기 세부 조건·출퇴근·순위·고시 등)은 아래 타일을 눌러 하나씩 연다.
    기존 섹션과 계산 엔진은 그대로 두고, 화면 구성만 바꾼다. */
 const SIMPLE = (() => {
-  // 도구 목록은 여기 한 곳만: 홈 '더 알아보기' 격자(앞 GRID_N개 + 더보기)와 ⋯ 메뉴 '도구' 묶음(전부)을 둘 다 이것으로 만든다
+  // 도구 목록은 여기 한 곳만: 홈 '더 알아보기' 격자와 ⋯ 메뉴 '도구' 묶음을 둘 다 이것으로 만든다("적게, 완벽하게" — 6개)
   // [화면 id, 이름, 아이콘 경로, 아이콘 색, 한 줄 설명]
   const TOOLS_ALL = window.ZP_TOOLS = [
-    ["gapTop", "갭 순위", "M4 20h16M7 16V9M12 16V5M17 16v-4", "#1f3a87", "적은 돈으로 들어갈 곳"],
-    ["diagTop", "매물진단", "M9 12l2 2 4-4M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z", "#16a34a", "이 매물 입주권 나오나"],
-    ["planner", "입주 계산", "M4 4h16v16H4zM8 8h8M8 12h2M12 12h2M16 12h0M8 16h2M12 16h4", "#4f46e5", "내 조건으로 입주까지 얼마"],
-    ["txrTop", "실거래 순위", "M4 18l5-6 4 3 7-9M15 6h5v5", "#dc2626", "신고가·거래 많은 곳"],
-    ["ntcTop", "단계 소식", "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4", "#0e7490", "인가·시공자 선정 새 소식"],
+    ["rankHub", "순위", "M4 20h16M7 16V9M12 16V5M17 16v-4", "#1f3a87", "갭·실거래·입지"],
+    ["planner", "입주 계산", "M4 4h16v16H4zM8 8h8M8 12h2M12 12h2M16 12h0M8 16h2M12 16h4", "#4f46e5", "입주까지 현금·모으면 언제"],
+    ["news", "소식", "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4", "#0e7490", "단계 변경·입주 물량"],
     ["commuteTop", "출퇴근", "M7 3h10a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM5 10h14M8 20l2-4M16 20l-2-4", "#2f6feb", "회사까지 몇 분 안"],
-    ["saveTop", "모으면 언제?", "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l3 2M10 2h4", "#b45309", "매달 모으면 몇 년 뒤"],
-    ["supplyTop", "입주 물량", "M3 21h18M5 21V10l4-3v14M13 21V5l6 3v13", "#7c3aed", "해마다 입주 몇 세대"],
-    ["favTop", "내 핀·구역 비교", "M4 5h7v14H4zM13 5h7v14h-7z", "#d97706", "핀 꽂은 구역 소식·비교"],
-    ["rankTop", "입지 순위", "M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4", "#0f766e", "역·한강·업무지구 거리 점수"],
+    ["diagTop", "매물진단", "M9 12l2 2 4-4M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z", "#16a34a", "이 매물 입주권 나오나"],
+    ["favTop", "내 핀·비교", "M4 5h7v14H4zM13 5h7v14h-7z", "#d97706", "핀 꽂은 구역 소식·비교"],
   ];
-  // 격자는 폰 4칸 × 2줄에 맞춰 7개 + '더보기'(⋯ 메뉴 열기). 내 핀은 아래 탭·머리에 늘 있어 격자에서 뺀다
-  const GRID_N = 7;
-  const VIEWS = TOOLS_ALL.slice(0, GRID_N);
+  // 예전 도구 주소(#gapTop 등)는 합친 화면 + 그 탭으로 연다(정적 페이지·공유 링크가 그대로 동작) — [화면, 탭]
+  const ALIAS = window.ZP_ALIAS = { gapTop: ["rankHub", "gap"], txrTop: ["rankHub", "txr"], rankTop: ["rankHub", "loc"], ntcTop: ["news", "feed"], newTop: ["news", "feed"], supplyTop: ["news", "supply"], saveTop: ["planner", "save"] };
+  // 격자 = 도구 6개 전부(폰 3×2 · PC 한 줄/두 줄), 더보기 없음
+  const VIEWS = TOOLS_ALL;
   // ⋯ 메뉴 '도구' 묶음: 전부(shell.html #mpTools는 비워 두고 여기서 채운다)
   { const g = document.getElementById("mpTools"); if (g) g.innerHTML = TOOLS_ALL.map(([id, t, d, c]) => `<a href="#${id}" data-menu="${id}"><i class="mp-ic" aria-hidden="true" style="--ic:${c}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg></i><b>${t}</b></a>`).join(""); }
   // 아이콘 격자에는 안 넣지만 메뉴(⋯)·링크로 여는 화면
-  const MORE = ["results", "newTop", "rulesTop", "readsTop", "statsTop"].concat(TOOLS_ALL.slice(GRID_N).map((v) => v[0]).filter((id) => id !== "favTop"));
+  const MORE = ["results", "rulesTop", "readsTop", "statsTop"];
   const LINKS = [];
-  const IDS = VIEWS.map((v) => v[0]).concat(MORE, ["favTop"]);
+  const IDS = VIEWS.map((v) => v[0]).concat(MORE);
+  const known = (id) => IDS.includes(id) || !!ALIAS[id];
   const KN = [[0, 0.5], [28, 2], [58, 5], [88, 10], [100, 15]];
   const toCash = (p) => { for (let i = 1; i < KN.length; i++) if (p <= KN[i][0]) { const [a, x] = KN[i - 1], [b, y] = KN[i]; const v = x + ((p - a) / (b - a)) * (y - x); return v < 2 ? Math.round(v * 10) / 10 : v < 10 ? Math.round(v * 2) / 2 : Math.round(v); } return 15; };
   const toPos = (c) => { c = Math.min(15, Math.max(0.5, c)); for (let i = 1; i < KN.length; i++) if (c <= KN[i][1]) { const [a, x] = KN[i - 1], [b, y] = KN[i]; return a + ((c - x) / (y - x)) * (b - a); } return 100; };
@@ -199,7 +197,7 @@ const SIMPLE = (() => {
     tiles.className = "sec s-tiles"; tiles.id = "sTiles"; tiles.setAttribute("aria-labelledby", "sTT");
     const ic = (d, c) => `<i aria-hidden="true" style="--ic:${c}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg></i>`;
     const LSUB = { "guide/rebuild-30y": "30년 넘은 아파트 1,077단지", "report/": "매달 단계 변경 정리" };
-    tiles.innerHTML = `<h2 id="sTT">더 알아보기</h2><div class="s-tg">${VIEWS.map(([id, t, d, c, sub]) => `<a href="#${id}" class="s-t" data-view="${id}">${ic(d, c)}<span class="s-tx"><b>${t}</b><small>${sub || ""}</small></span></a>`).join("")}${LINKS.map(([u, t, d, c]) => `<a href="${u}" class="s-t">${ic(d, c)}<span class="s-tx"><b>${t}</b><small>${LSUB[u] || ""}</small></span></a>`).join("")}<button type="button" class="s-t s-tall" id="sTAll" aria-haspopup="true">${ic("M5 12h.01M12 12h.01M19 12h.01", "#64748b")}<span class="s-tx"><b>더보기</b><small>도구 ${TOOLS_ALL.length}개 전부</small></span></button></div>`;
+    tiles.innerHTML = `<h2 id="sTT">더 알아보기</h2><div class="s-tg">${VIEWS.map(([id, t, d, c, sub]) => `<a href="#${id}" class="s-t" data-view="${id}">${ic(d, c)}<span class="s-tx"><b>${t}</b><small>${sub || ""}</small></span></a>`).join("")}${LINKS.map(([u, t, d, c]) => `<a href="${u}" class="s-t">${ic(d, c)}<span class="s-tx"><b>${t}</b><small>${LSUB[u] || ""}</small></span></a>`).join("")}</div>`;
     map.after(tiles);
     hero.insertBefore(hero.querySelector('#sSearch'), hero.firstChild);
     // 모바일 아래 탭바(앱처럼)
@@ -278,7 +276,7 @@ const SIMPLE = (() => {
       const a = e.target.closest("[data-id]"); if (!a) return;
       e.preventDefault(); curTab = "money"; keepY = scrollY; select(a.dataset.id, false, false, { scroll: !MQ_SHEET.matches });
     });
-    tiles.addEventListener("click", (e) => { if (e.target.closest("#sTAll")) { e.stopPropagation(); $("menuBtn").click(); return; } const a = e.target.closest("[data-view]"); if (!a) return; e.preventDefault(); open(a.dataset.view); });
+    tiles.addEventListener("click", (e) => { const a = e.target.closest("[data-view]"); if (!a) return; e.preventDefault(); open(a.dataset.view); });
   }
   // 상세 '입주 현금' 탭: 맨 위엔 지금·이주·입주 숫자만, 나머지(가정·근거·숫자 바꿔 보기)는 접어 둔다
   function foldMoney(r) {
@@ -595,21 +593,24 @@ const SIMPLE = (() => {
     });
   }
   // ---------- 기능 화면 열기/닫기 ----------
-  let cur = "";
+  let cur = "", curT = "";
   function open(id, noScroll) {
+    // 예전 주소(#txrTop 등) → 합친 화면 + 그 탭(66_tools.js ZP_HUB)
+    const from = id, al = ALIAS[id];
+    if (al) { id = al[0]; try { window.ZP_HUB && ZP_HUB.pick(al[0], al[1]); } catch (e) {} }
     if (!IDS.includes(id)) return false;
     if (!cur && !noScroll) tileY = scrollY;   // 홈 화면이 숨기 전에(숨으면 문서가 짧아져 scrollY가 줄어든다)
     IDS.forEach((x) => { const s = $(x); if (s) s.classList.toggle("s-on", x === id); });
     document.documentElement.classList.add("s-view");
     // 홈 제목(h1)이 숨는 동안은 이 도구의 제목을 1단계 제목으로(화면 읽기·axe page-has-heading-one)
     lvl(id);
-    cur = id;
+    cur = id; curT = al && al[1] === "save" ? "saveTop" : id;
     navMark(id === "favTop" ? "fav" : "more");
     const f = SECT[id]; if (f) f();
     if (id === "results" || id === "planner") { planN = PLAN0(); plan(); }
     window.dispatchEvent(new Event("resize"));
-    if (!noScroll) requestAnimationFrame(() => { const s = $(id); if (s) window.scrollTo({ top: s.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); });
-    try { if (location.hash.slice(1) !== id) history.pushState({ sView: id }, "", "#" + id); } catch (e) {}
+    if (!noScroll) requestAnimationFrame(() => { const s = (al && al[1] === "save" && $("saveTop")) || $(id); if (s) window.scrollTo({ top: s.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); });
+    try { const h = location.hash.slice(1); if (h !== id) { if (al && h === from) history.replaceState(history.state, "", "#" + id); else history.pushState({ sView: id }, "", "#" + id); } } catch (e) {}
     return true;
   }
   let tileY = null, h1El = null;
@@ -627,7 +628,7 @@ const SIMPLE = (() => {
     if (!document.documentElement.classList.contains("s-full")) navMark("home");
     let popB = false;
     if (history.state && history.state.sView) { try { history.back(); popB = true; } catch (e) {} }
-    else if (location.hash && IDS.includes(location.hash.slice(1))) try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) {}
+    else if (location.hash && known(location.hash.slice(1))) try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) {}
     // 돌아가기·뒤로: 도구를 열기 전 보던 자리(타일 격자 등)로. history.back()의 스크롤 복원이 늦게 덮어쓰므로 한 번 더
     const y0 = tileY; tileY = null;
     const back = () => { if (y0 != null) window.scrollTo({ top: y0, behavior: "auto" }); else if (scroll) { const t = $("sTiles"); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } };
@@ -641,7 +642,7 @@ const SIMPLE = (() => {
   }
   function init() {
     // 같은 페이지에서 주소의 #도구 이름만 바뀌어도(링크·뒤로가기) 그 도구를 연다
-    window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (IDS.includes(h) && cur !== h) { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (e) {} open(h); } });
+    window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (known(h) && cur !== h) { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (e) {} open(h); } });
     window.addEventListener("popstate", () => { const on = document.documentElement.classList.contains("s-full"), want = !!(history.state && history.state.sFull) || location.hash === "#map"; if (on && !want) fullMap(false); else if (!on && want && history.state && history.state.sFull) fullMap(true); });
     if (P.fund === "cash" && P.basis !== "now") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (e) {} }
     build();
@@ -656,14 +657,14 @@ const SIMPLE = (() => {
       // 본문 바로가기: 열린 기능 화면을 닫고 첫 화면 본문(제목)으로 초점
       if (a.classList.contains("skip")) { e.preventDefault(); e.stopImmediatePropagation(); const wasOpen = !!cur; close(); const t = document.querySelector(".s-h1") || $("mapTop"); if (t) { if (!t.hasAttribute("tabindex")) t.setAttribute("tabindex", "-1"); const f = () => t.focus({ preventScroll: true }); f(); setTimeout(() => { f(); window.scrollTo({ top: 0, behavior: "auto" }); }, wasOpen ? 120 : 0); } return; }
       const id = a.dataset.menu || a.dataset.jump2 || a.dataset.sec || (a.getAttribute("href") || "").slice(1);
-      if (IDS.includes(id)) { e.preventDefault(); e.stopImmediatePropagation(); if (a.closest("#menuPop")) $("menuBtn").click(); open(id); }
+      if (known(id)) { e.preventDefault(); e.stopImmediatePropagation(); if (a.closest("#menuPop")) $("menuBtn").click(); open(id); }
       else if (id === "mapTop" || id === "planner0") { e.preventDefault(); close(); }
     }, true);
-    const fromHash = () => { const h = location.hash.slice(1); if (IDS.includes(h)) open(h, false); else if (cur && !byId[h]) close("pop"); };
+    const fromHash = () => { const h = location.hash.slice(1); if (known(h)) open(h, false); else if (cur && !byId[h]) close("pop"); };
     addEventListener("popstate", fromHash);
     fromHash();
     // 딥링크: 브라우저 앵커 이동이 끝난 뒤 다시 맞춘다
-    const fix = () => { if (cur) { const el = $(cur); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } };
+    const fix = () => { if (cur) { const el = $(curT) || $(cur); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } };
     if (document.readyState === "complete") setTimeout(fix, 60); else addEventListener("load", () => setTimeout(fix, 60), { once: true });
     const _p = plan;
     plan = function () { const x = _p.apply(this, arguments); try { render(); } catch (e) {} return x; };

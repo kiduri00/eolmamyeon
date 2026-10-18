@@ -1,14 +1,61 @@
-/* ===================== 더 알아보기 도구(경쟁 서비스 조사 반영) =====================
-   갭 순위(아실 갭투자) · 매물진단(재개발뷰) · 입주 물량(부동산지인·아실)
-   섹션은 SIMPLE.init 전에 만들어 두어야 '지도로' 버튼·열기 동작이 붙는다. */
+/* ===================== 합친 도구 화면(탭) =====================
+   "적게, 완벽하게": 순위(#rankHub = 갭·실거래·입지) · 소식(#news = 단계 소식·입주 물량).
+   탭 하나 = 예전 도구 섹션 하나(#gapTop·#txrTop·#rankTop·#ntcTop·#supplyTop)를 그대로 품는다 — 그리는 함수는 예전 그대로,
+   켜진 탭 섹션에만 s-on을 붙여 '보일 때 그리기'가 그대로 동작한다. 예전 주소는 60_simple.js ZP_ALIAS가 여기 pick()으로 넘긴다. */
+const HUB = window.ZP_HUB = (() => {
+  const T = { rankHub: [["gap", "gapTop"], ["txr", "txrTop"], ["loc", "rankTop"]], news: [["feed", "ntcTop"], ["supply", "supplyTop"]] };
+  const LEAD = {
+    gap: "전세 끼고 지금 필요한 돈이 적은 순 · 작은 글씨는 입주까지 현금(잔금대출 제외)",
+    loc: "입지 점수 100 = 교통 30 · 업무지구 20 · 한강 10 · 호재 10 · 생활 인프라 30 · 가중치는 가정값이에요",
+    feed: "정비사업 정보몽땅 추진경과 최근 90일 · 매일 갱신 · '단계 변경'은 인가·승인으로 단계가 오른 곳",
+  };
+  const now = {};
+  const get = (h) => { if (now[h]) return now[h]; try { const v = sessionStorage.getItem("zp.hub." + h); if (T[h].some((x) => x[0] === v)) return v; } catch (e) {} return T[h][0][0]; };
+  function paint(h) {
+    const el = document.getElementById(h); if (!el) return;
+    const on = el.classList.contains("s-on"), t = get(h);
+    el.querySelectorAll('[role="tab"]').forEach((b) => { const s = b.dataset.tab === t; b.setAttribute("aria-selected", String(s)); b.tabIndex = s ? 0 : -1; });
+    T[h].forEach(([k, id]) => { const p = document.getElementById(id); if (!p) return; p.classList.remove("fold"); p.classList.toggle("s-on", on && k === t); });
+    const ld = el.querySelector(".hub-lead"); if (ld) { ld.textContent = LEAD[t] || ""; ld.hidden = !LEAD[t]; }
+    el.dataset.tab = t;
+    if (on && t === "loc") { try { SECT.rankTop(); } catch (e) {} }
+  }
+  function pick(h, t, user) {
+    if (!T[h] || !T[h].some((x) => x[0] === t)) return;
+    now[h] = t; try { sessionStorage.setItem("zp.hub." + h, t); } catch (e) {}
+    paint(h);
+    if (user) {
+      // 탭 줄이 머리 밑으로 올라가 있으면 탭 줄이 보이게(새 목록 맨 위부터)
+      const tl = document.querySelector(`#${h} .hub-tabs`); if (tl) { const y = tl.getBoundingClientRect().top - (HDR() || 56) - 8; if (y < 0) window.scrollTo({ top: scrollY + y, behavior: "auto" }); }
+      window.dispatchEvent(new Event("resize"));
+    }
+  }
+  Object.keys(T).forEach((h) => {
+    const el = document.getElementById(h); if (!el) return;
+    const tl = el.querySelector(".hub-tabs");
+    if (tl && !el.querySelector(".hub-lead")) { const p = document.createElement("p"); p.className = "hub-lead"; tl.after(p); }
+    tl && tl.addEventListener("click", (e) => { const b = e.target.closest('[role="tab"]'); if (b) pick(h, b.dataset.tab, true); });
+    tl && tl.addEventListener("keydown", (e) => {
+      const d = { ArrowRight: 1, ArrowLeft: -1, Home: -99, End: 99 }[e.key]; if (!d) return;
+      const L = [...tl.querySelectorAll('[role="tab"]')], i = L.findIndex((b) => b.dataset.tab === get(h));
+      const j = Math.max(0, Math.min(L.length - 1, d === 99 ? L.length - 1 : d === -99 ? 0 : (i + d + L.length) % L.length));
+      e.preventDefault(); pick(h, L[j].dataset.tab, true); L[j].focus();
+    });
+    new MutationObserver(() => paint(h)).observe(el, { attributes: true, attributeFilter: ["class"] });
+    paint(h);
+  });
+  return { pick, tab: get };
+})();
+/* ===================== 도구 그리기: 갭(순위 탭) · 매물진단 · 입주 물량(소식 탭) =====================
+   섹션 뼈대는 shell.html에 있다(없으면 여기서 만든다). */
 const TOOLS = (() => {
   const mk = (id, title) => {
     if (document.getElementById(id)) return;
     const s = document.createElement("section");
     s.className = "sec tool"; s.id = id;
     s.innerHTML = `<div class="sec-h"><div><h2>${title}</h2></div></div><div class="panel tpanel"><div class="t-out" id="${id}Out"></div></div>`;
-    const ref = document.getElementById("ntcTop") || document.getElementById("favTop");
-    ref ? ref.after(s) : document.querySelector("main")?.appendChild(s);
+    const ref = document.getElementById("favTop");
+    ref ? ref.before(s) : document.querySelector("main")?.appendChild(s);
   };
   mk("gapTop", "갭 순위");
   mk("diagTop", "매물진단");
@@ -28,8 +75,8 @@ const TOOLS = (() => {
     { const seen = new Set(); for (let i = F.length - 1; i >= 0; i--) {} const U = []; F.forEach((x) => { const k = shortName(x.r.n) + x.r.g; if (!seen.has(k)) { seen.add(k); U.push(x); } }); F.length = 0; U.forEach((x) => F.push(x)); }
     const rate = (x) => { try { const p = investC(x.r).price; return p ? Math.round((x.g.D / p) * 100) : null; } catch (e) { return null; } };
     out.innerHTML = `<div class="fchips tl-f" role="group" aria-label="거르기">${[["all", "전체"], ["near", `내 현금 ${e1(c)} ±1억`], ["redev", "재개발만"]].map(([k, t]) => `<button type="button" class="ichip" data-gf="${k}" aria-pressed="${gapF === k}">${t}</button>`).join("")}</div>
-      ${(() => { const na = F.filter((x) => !calc(x)).length; return na ? `<p class="tl-lead">입주까지 돈이 계산 안 되는 ${na}곳(주변 신축 시세 없음)은 맨 아래에 있어요</p>` : ""; })()}
-      <ol class="tl-l">${F.slice(0, gapN).map((x, i) => { const jr = rate(x); return `<li><a href="#${x.r.id}" data-id="${x.r.id}"><span class="tl-k">${i + 1}</span><span class="tl-n"><b>${esc(shortName(x.r.n))}</b><small>${esc(x.r.g)} · ${esc(stageName(x.r))}</small></span><span class="tl-v"><b>${e1(x.g.now)}</b><small>${x.g.x && x.g.x.ok && x.g.total != null ? `입주까지 ${e1(x.g.total)}` : '<span class="tl-na" title="주변 신축 시세 자료가 없어 입주 때 돈을 계산하지 못했어요">계산 불가 · 신축 시세 없음</span>'}</small></span></a></li>`; }).join("") || '<li class="tl-e">조건에 맞는 구역이 없어요</li>'}</ol>
+      ${(() => { const na = F.filter((x) => !calc(x)).length; return na ? `<p class="tl-lead">${LBL.cashToMoveIn}이 계산 안 되는 ${na}곳(주변 신축 시세 없음)은 맨 아래에 있어요</p>` : ""; })()}
+      <ol class="tl-l">${F.slice(0, gapN).map((x, i) => { const jr = rate(x); return `<li><a href="#${x.r.id}" data-id="${x.r.id}"><span class="tl-k">${i + 1}</span><span class="tl-n"><b>${esc(shortName(x.r.n))}</b><small>${esc(x.r.g)} · ${esc(stageName(x.r))}</small></span><span class="tl-v"><b>${e1(x.g.now)}</b><small>${x.g.x && x.g.x.ok && x.g.total != null ? `${LBL.cashToMoveIn} ${e1(x.g.total)}` : '<span class="tl-na" title="주변 신축 시세 자료가 없어 입주 때 돈을 계산하지 못했어요">입주까지 현금 계산 불가</span>'}</small></span></a></li>`; }).join("") || '<li class="tl-e">조건에 맞는 구역이 없어요</li>'}</ol>
       ${F.length > gapN ? `<button type="button" class="btn secondary s-more" id="gapMore">더 보기 (${F.length - gapN}곳)</button>` : ""}`;
     out.querySelectorAll("[data-gf]").forEach((b) => (b.onclick = () => { gapF = b.dataset.gf; gapN = 20; gapRender(); }));
     const m = document.getElementById("gapMore"); if (m) m.onclick = () => { gapN += 20; gapRender(); };
@@ -119,7 +166,7 @@ const TOOLS = (() => {
     out.innerHTML = `<label class="tl-q"><span>지역</span><select id="supG"><option value="">서울 전체</option>${gus.map((g) => `<option${g === supGu ? " selected" : ""}>${esc(g)}</option>`).join("")}</select></label>
       <p class="tl-lead">사업시행인가 이후 정비구역의 해마다 <b>기대 입주 세대</b>(구역별 준공 확률 × 계획 세대) · 일반 분양 아파트는 빠져요 · 서울 사업장 기록으로 낸 <b>추정</b>이라 해가 멀수록 크게 달라질 수 있어요${stale ? ` · 진행 확인 필요 ${fmt(stale)}곳은 뺐어요` : ""}</p>
       <p class="sp-key"><span><i class="sp-k0"></i>올해</span><span><i class="sp-k1"></i>추정</span><span class="sp-tot">10년 합계 약 ${fmt(tot)}세대</span></p>
-      <div class="sp-hb" role="list">${ys.map((y) => `<button type="button" role="listitem" class="sp-r${y > now ? " est" : ""}" data-y="${y}" aria-label="${y}년 ${y > now ? "추정 " : ""}약 ${fmt(Y[y].n)}세대"${Y[y].n ? "" : " disabled"}><span class="sp-y">${y}${y > now ? "<small>추정</small>" : "<small>올해</small>"}</span><span class="sp-t"><i style="width:${Y[y].n ? Math.max(2, Math.round((Y[y].n / mx) * 100)) : 0}%"></i></span><b>${Y[y].n ? "약 " + fmt(Y[y].n) + "세대" : "–"}</b></button>`).join("")}</div>
+      <div class="sp-hb" role="list">${ys.map((y) => `<button type="button" role="listitem" class="sp-r${y > now ? " est" : ""}" data-y="${y}" aria-label="${y}년 ${y > now ? "추정 " : ""}약 ${fmt(Y[y].n)}세대"${Y[y].n ? "" : " disabled"}><span class="sp-y">${y}${y > now ? "<small>추정</small>" : "<small>올해</small>"}</span><span class="sp-t"><i style="width:${Y[y].n ? Math.max(2, Math.round((Y[y].n / mx) * 100)) : 0}%"></i></span><b>${Y[y].n ? "약 " + fmt(Y[y].n) + "세대" : "거의 없음"}</b></button>`).join("")}</div>
       <div id="supZ"></div>`;
     document.getElementById("supG").onchange = (e) => { supGu = e.target.value; supRender(); };
     out.querySelectorAll("[data-y]").forEach((b) => (b.onclick = () => {

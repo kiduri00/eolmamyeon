@@ -7,7 +7,7 @@
     try { back = sessionStorage.getItem("emr_seen") === "1"; sessionStorage.setItem("emr_seen", "1"); } catch (e) {}
     const nt = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0] || {}).type;
     if (nt === "reload" || nt === "back_forward") {
-      if (h && matchMedia("(max-width:980px)").matches && !/^(join=|membership)/.test(h) && !/^[a-z]+Top$|^(results|planner|map)$/.test(h)) {
+      if (h && matchMedia("(max-width:980px)").matches && !/^(join=|membership)/.test(h) && !/^[a-z]+Top$|^(results|planner|map|rankHub|news)$/.test(h)) {
         history.replaceState(null, "", location.pathname + location.search);
         if ("scrollRestoration" in history) history.scrollRestoration = "manual";
         window.scrollTo(0, 0);
@@ -26,7 +26,7 @@ const HM = (() => {
     ["#svOut", "table.gsv-t tbody > tr", 5, 3],
     ["#fvOut", "tbody > tr, ul > li", 5, 3],
     ["#nwOut", "tbody > tr, ul > li, ol > li", 5, 3],
-    ["#txrOut", "tbody > tr", 10, 10],
+    ["#txrOut", "ol.tl-l > li", 10, 10],
     ["#ntcOut", "ul.ntl > li", 10, 3],
     ["#guList", ":scope > li", 99, 6],
     ["#rules .rules-col", ":scope > article", 99, 2],

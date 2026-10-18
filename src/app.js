@@ -6474,7 +6474,7 @@
           ? `<li class="gt2"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null && g.tR <= 4 ? " 무렵" : ""}</span><b>+${e2(g.reloc)}억</b><small>전세금 ${e2(g.D)} 반환${g.M > 0.04 ? ` − 이주비 대출 ${e2(g.M)}(추정·입주 때 상환)` : g.Mcap === 0 ? " · 다주택은 이주비 대출 불가" : ""}</small></li>`
           : `<li class="gt2 na"><span class="gt-w">이주</span><b>+${e2(g.D)}억</b><small>전세금 반환 · 이주비 대출로 일부 충당 가능(조합·규제에 따라 다름)</small></li>`;
     const s3 = x.ok
-      ? `<li class="gt3"><span class="gt-w">입주 · ${etaShow(g.r)}${(() => { const pr = projection(g.r); return pr.stall || pr.nodata ? " (계산용 가정)" : ""; })()}</span><b>${LBL.cashToMoveIn} ${f1(g.total)}억</b><small>${small ? "분담금·세금·이자 − 잔금대출" : `분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`
+      ? `<li class="gt3"><span class="gt-w">입주 · ${etaShow(g.r)}${(() => { const pr = projection(g.r); return pr.stall || pr.nodata ? " (계산용 가정)" : ""; })()}</span><b>${f1(g.total)}억</b><small>${small ? `${LBL.cashToMoveIn} = 분담금·세금·이자 − 잔금대출` : `${LBL.cashToMoveIn} = 분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`
       : `<li class="gt3 na"><span class="gt-w">입주</span><b>계산 전</b><small>입주 시점·신축 시세 자료가 부족해요</small></li>`;
     return `<ol class="gtl${small ? " sm" : ""}">${s1}${s2}${s3}</ol>`;
   }
