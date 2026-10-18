@@ -2987,14 +2987,15 @@ const SIMPLE = (() => {
   let NEWP = null, newAsk = false;
   function newLoad() {
     if (newAsk) return; newAsk = true;
-    const go = () => fetch(`data/changes.json?v=${D.upd || D.asOf || ""}-${(D.dv && D.dv.changes) || ""}`).then((x) => (x.ok ? x.json() : null)).then((j) => {
+    // 소식 탭과 같은 자료·같은 캐시(72_inbox INBOX.load) — 두 번 받지 않는다 · 첫 화면이 다 뜬 한참 뒤(한가할 때)
+    const go = () => (typeof INBOX !== "undefined" && INBOX.load ? INBOX.load() : Promise.resolve(null)).then((j) => {
       const it = (j && Array.isArray(j.items) ? j.items : []).filter((e) => e && e.type === "price" && e.v);
       if (!it.length) return;
       const cut = new Date(new Date((j.asOf || D.asOf || "") + "T00:00:00+09:00").getTime() - 6 * 864e5).toISOString().slice(0, 10);
       NEWP = new Map(); it.forEach((e) => { if (String(e.date || "") >= cut) NEWP.set(e.id, e.v); });
       if (NEWP.size) { render(); try { LMX.paint(); } catch (er) {} }
     }).catch(() => {});
-    (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 4000 }) : (f) => setTimeout(f, 1500))(go);
+    setTimeout(() => (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 6000 }) : (f) => setTimeout(f, 1500))(go), 5000);
   }
   const isNew = (r, need) => { if (!NEWP || !NEWP.has(r.id) || need == null) return false; const v = NEWP.get(r.id), a = (gapMode() ? v.g : v.c) || []; return a.length === 2 && a[0] > CASH + 1e-9 && a[1] <= CASH + 1e-9 && need <= CASH + 1e-9; };
   const HEART = (on) => `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.4 7.2 4.4c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.5 3.1 4.4 6.5-1.6 4.8-9.2 9.4-9.2 9.4z" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
@@ -3473,7 +3474,7 @@ const SIMPLE = (() => {
     const k = condK();
     if (!hist || histK !== k) {
       // 처음(첫 화면)·조건이 바뀐 때: 37개 금액 곳 수 계산은 한가한 때에(첫 그리기·LCP를 막지 않게). 시트가 열려 있거나 끄는 중이면 바로
-      if (!bsOpen() && !scr && !histIdle) { histIdle = 1; (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 900 }) : (f) => setTimeout(f, 300))(() => { histIdle = 0; histData(); scrubPaint(R.filter(okR).length); }); }
+      if (!bsOpen() && !scr && !histIdle) { histIdle = 1; (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 2500 }) : (f) => setTimeout(f, 600))(() => { histIdle = 0; histData(); scrubPaint(R.filter(okR).length); }); }
       if (bsOpen() || scr) histData();
     }
     const c = +$("pCash").value || 1, H = hist && histK === k ? hist : null, mx = H ? Math.max(1, ...H.map((h) => h[1])) : 1, ps = STOPS.map(toPos);
@@ -3601,7 +3602,7 @@ const SIMPLE = (() => {
     mIO.disconnect(); mLast = last; if (last) mIO.observe(last);
   }
   function moreGo() {
-    const m = $("sMore"); if (!m || m.hidden || !$("sList").offsetParent) return;
+    const m = $("sMore"), H = document.documentElement; if (!m || m.hidden || !$("sList").offsetParent || /\b(sheet-open|s-view|s-full|bs-on)\b/.test(H.className)) return;
     shown += STEP; render();
   }
   // 첫 실행 질문(shell.html #onb)·외부에서 쓰는 손잡이: 금액·보유 주택을 앱과 같은 길로 바꾼다

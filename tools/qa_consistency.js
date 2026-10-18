@@ -1267,8 +1267,9 @@ async function r3Lane(browser, errs) {
       // 금액을 바꾸면 알약이 바로(다음 몇 프레임 안에) 따라옴
       await setMode(page, "gap"); await setCash(page, 3);
       await goTo(12.6, await firstLL());
-      const t0 = await page.evaluate(async () => { const s = document.getElementById("sCash"); const fits = (c) => { const P = window.ZP_lmx.pills(); return P.length > 0 && P.every((p) => (p.st === "ok" ? p.need <= c + 1e-9 : p.need > c && p.need <= c * 1.2 + 1e-9)); }; if (!fits(3)) return -2; s.value = String(window.ZP_simple.toPos(2)); s.dispatchEvent(new Event("input", { bubbles: true })); const t = performance.now(); for (let i = 0; i < 30; i++) { await new Promise((r) => requestAnimationFrame(r)); if (fits(2)) return Math.round(performance.now() - t); } return -1; });
-      expect(t0 >= 0 && t0 <= 150, "map.pills", T, `pills did not update within 150ms of a budget change (${t0}ms)`);
+      const t0 = await page.evaluate(async () => { const s = document.getElementById("sCash"); const fits = (c) => { const P = window.ZP_lmx.pills(); return P.length > 0 && P.every((p) => (p.st === "ok" ? p.need <= c + 1e-9 : p.need > c && p.need <= c * 1.2 + 1e-9)); }; if (!fits(3)) return -2; s.value = String(window.ZP_simple.toPos(2)); s.dispatchEvent(new Event("input", { bubbles: true })); for (let i = 1; i <= 30; i++) { await new Promise((r) => requestAnimationFrame(r)); if (fits(2)) return i; } return -1; });
+      // 금액 입력 → 다음 프레임(목록과 같은 프레임)에 알약이 새 금액 기준 · 기계가 바빠도 프레임 수로 잰다(실기기 한 프레임 ≈ 16ms)
+      expect(t0 >= 1 && t0 <= 2, "map.pills", T, `pills did not follow a budget change within 2 frames (${t0} frames)`);
       await setCash(page, 3);
     }
     // --- list.heart: 카드 ♡ → 관심 구역 · 관심 탭 이름에 곳 수 · 되돌리기 토스트 · 다시 누르면 빠짐
@@ -1368,10 +1369,12 @@ async function r3Lane(browser, errs) {
   const ONLY = process.env.QAC_ONLY || "";   // 'r14' = 14회차 줄만(개발용)
   const lane1 = ONLY ? Promise.resolve() : timed("counts+zones", (async () => { await countsLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(0, cut)); await deskLane(browser, errs); })());
   const lane2 = ONLY ? Promise.resolve() : timed("map+ui+zones", (async () => { await mapLane(browser, api, errs, shortSrc); const st = await stat.catch(() => ({})); shared.liveCounts = st.liveCounts; await uiLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(cut)); })());
-  const lane3 = timed("r14+r3", (ONLY === "r1" ? Promise.resolve() : ONLY === "r3" ? r3Lane(browser, errs) : r14Lane(browser, api, errs).then(() => (ONLY ? null : r3Lane(browser, errs)))).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)));
+  const lane3 = timed("r14", (ONLY === "r1" ? Promise.resolve() : ONLY === "r3" ? Promise.resolve() : r14Lane(browser, api, errs)).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)));
   await Promise.all([stat.catch((e) => bad("runtime", "검사 실행", "static crashed: " + e.message)), lane1, lane2, lane3]);
   // 리뉴얼 1단계 줄(탭 4개·MY)은 다른 줄이 끝난 뒤 혼자: 코어 2개 기계에서 세 번째 브라우저가 겹치면 손가락 누름이 길게 누름으로 바뀌어 다른 줄의 탭 검사가 흔들렸다
   if (!ONLY || ONLY === "r1") await timed("r1", r1Lane(browser, api, errs));
+  // 리뉴얼 3단계(지도 알약·구 묶음·♡·막대 끌기)는 다른 줄이 다 끝난 뒤 혼자 — 지도 그리기가 무거워 같이 돌면 다른 줄의 누름 검사가 밀린다
+  if (!ONLY || ONLY === "r3") await timed("r3", r3Lane(browser, errs).catch((e) => bad("runtime", "검사 실행", "r3Lane crashed: " + e.message)));
   await browser.close();
 
   // 콘솔 오류
