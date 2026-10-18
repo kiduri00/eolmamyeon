@@ -13,8 +13,8 @@
     "run_worker_first": ["/api/push/*"]
   },
   "kv_namespaces": [
-    // 구독·VAPID 키 저장소. Cloudflare 대시보드에서 만든 "zippin-push" 네임스페이스 ID로 바꾼다.
-    { "binding": "PUSH", "id": "<KV_NAMESPACE_ID>" }
+    // 구독·VAPID 키 저장소. Cloudflare "zippin-push" 네임스페이스(소유자가 만듦).
+    { "binding": "PUSH", "id": "97677fe6952f47158d738a96a480f443" }
   ],
   "triggers": {
     // 매일 07:30(서울) = 22:30 UTC. 데이터 갱신(06:40 시작) 배포가 끝난 뒤 보낸다.

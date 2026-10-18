@@ -455,7 +455,7 @@
     }
     // ===================== 핀: 핀이 꽂힌 구역 = 내 돈으로 살 수 있는 곳 =====================
     // 크기: 줌 12 아래 15px(머리 10.5px), 12~13 16px, 14~15 22px, 16 이상 28px(+'이름 · X억'). 핀 끝이 구역 중심.
-    // 살 수 있는 핀 = 남색 머리 + 흰 ₩, 내 핀 = 노란 머리 + 남색 ₩(줌 10부터 늘 보임), 선택 = 1.25배 + 후광.
+    // 살 수 있는 핀 = 남색 머리 + 흰 집, 내 핀 = 노란 머리 + 남색 집(줌 10부터 늘 보임), 선택 = 1.25배 + 후광. 집 모양 = 앱 아이콘(icon.svg)과 같은 꼴.
     // 게이지를 움직이면 새로 되는 곳은 24px 위에서 떨어져 꽂히고(320ms, 살짝 튕김 + 그림자 펄스), 안 되는 곳은 줄며 사라진다.
     const PIN = new Map();      // id → { ll, r } 지금 꽂혀 있어야 하는 '살 수 있는' 핀
     const pinAnim = new Map();  // id → { kind: drop|fi|fo|out, t0, d, ll, r }
@@ -466,11 +466,18 @@
       const put = (id, W, H, draw) => { if (map.hasImage(id)) map.removeImage(id); const c = document.createElement("canvas"); c.width = W * k; c.height = H * k; const x = c.getContext("2d"); x.scale(k, k); draw(x); map.addImage(id, x.getImageData(0, 0, W * k, H * k), { pixelRatio: k }); };
       // 핀 28px(머리 r10) + 후광 자리 5px. 아래 끝이 앵커
       const PAD = 5, R0 = 9.6, W = 2 * (R0 + PAD) + 2, H = 28 + PAD, cx = W / 2, cy = PAD + R0 + 1;
+      // 핀 머리 안 집(지붕 + 몸통 + 문): icon.svg 64칸 좌표(머리 반지름 19.5)를 머리 R0에 맞춰 줄인 것
+      const house = (x, hx, hy, fg, door) => {
+        const s = (R0 * 0.94) / 19.5, P = (a, b) => [hx + a * s, hy + b * s];
+        x.beginPath(); [[0, -11.9], [12.4, -0.8], [8.5, -0.8], [8.5, 10.7], [-8.5, 10.7], [-8.5, -0.8], [-12.4, -0.8]].forEach(([a, b], i) => x[i ? "lineTo" : "moveTo"](...P(a, b))); x.closePath();
+        x.fillStyle = fg; x.strokeStyle = fg; x.lineWidth = 1.8 * s; x.lineJoin = "round"; x.fill(); x.stroke();
+        x.fillStyle = door; x.fillRect(...P(-3.2, 2.4), 6.4 * s, 8.3 * s);
+      };
       const tear = (x) => { x.beginPath(); x.moveTo(cx, H - 0.6); x.bezierCurveTo(cx - 2, H - 6, cx - R0, cy + 7.5, cx - R0, cy); x.arc(cx, cy, R0, Math.PI, 0); x.bezierCurveTo(cx + R0, cy + 7.5, cx + 2, H - 6, cx, H - 0.6); x.closePath(); };
       ["a", "m"].forEach((t) => ["", "-s"].forEach((sx) => put(`zpin-${t}${sx}`, W, H, (x) => {
         if (sx) { x.beginPath(); x.arc(cx, cy, R0 + 4, 0, Math.PI * 2); x.fillStyle = C.halo; x.fill(); }
         tear(x); x.fillStyle = C[t]; x.fill(); x.lineWidth = 2; x.strokeStyle = C.b; x.stroke();
-        x.fillStyle = t === "a" ? C.wa : C.wm; x.font = "800 12px 'Pretendard Variable','Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("₩", cx, cy + 0.8);
+        house(x, cx, cy, t === "a" ? C.wa : C.wm, C[t]);
       })));
       ["a", "m"].forEach((t) => put(`zdot-${t}`, 7, 7, (x) => { x.beginPath(); x.arc(3.5, 3.5, 3, 0, Math.PI * 2); x.fillStyle = C[t]; x.fill(); x.lineWidth = 1; x.strokeStyle = C.b; x.stroke(); }));
       put("zclu", 22, 22, (x) => { x.beginPath(); x.arc(11, 11, 9.5, 0, Math.PI * 2); x.fillStyle = C.a; x.fill(); x.lineWidth = 2; x.strokeStyle = C.b; x.stroke(); });
@@ -786,7 +793,9 @@
       const items = [[dark() ? "#5B8CFF" : "#1F3A87", "정비구역 (카드 아래 칸 = " + (MODES.find(([k]) => k === colorBy) || ["", "내 현금"])[1] + ")"]];
       const note = { old: "노후도 = 경계 안 건축물 중 사용승인 후 30년(철근콘크리트)·20년(그 외) 지난 비율 · 서울도시공간포털 건물 레이어(사용승인 2022년까지 반영)로 직접 계산 · 이주·철거 이후 구역과 연도 확인 건물이 적은 곳은 빼요", vol: "최근 12개월 구역 안 연립·다세대 매매 건수(단독·아파트 제외, 서울시 실거래)", yoy: "대지지분 3.3㎡당 매매가 가운데 값, 최근 12개월 vs 그 전 12개월 · 두 기간 5건 이상" }[colorBy];
       const PC = PIN_COL(dark());
-      el.innerHTML = `<span><i class="lm-pin" style="background:${PC.a}"></i>핀 = 내 돈으로 살 수 있는 곳</span><span><i class="lm-pin" style="background:${PC.m}"></i>내 핀</span>${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
+      // 범례 핀 = 지도 핀과 같은 꼴(집 든 핀)
+      const hp = (c, w) => `<svg class="lm-hp" width="12" height="15" viewBox="10 3 44 60" aria-hidden="true"><path d="M32 61C25.5 52.5 12.5 40.5 12.5 24.5a19.5 19.5 0 0 1 39 0C51.5 40.5 38.5 52.5 32 61z" fill="${c}"/><path d="M32 12.6 44.4 23.7h-3.9V35.2H23.5V23.7h-3.9z" fill="${w}"/><rect x="28.8" y="26.9" width="6.4" height="8.3" fill="${c}"/></svg>`;
+      el.innerHTML = `<span>${hp(PC.a, PC.wa)}핀 = 내 돈으로 살 수 있는 곳</span><span>${hp(PC.m, PC.wm)}내 핀</span>${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
     }
     // 레이어 범례·'확대하면 보여요' 안내: 오른쪽 위 레일 바로 아래에 작은 글자로
     // 학교·병원(OpenFreeMap POI)은 타일 줌 14부터만 들어 있다 → 레이어도 14부터, 안내도 14 기준
@@ -1074,7 +1083,8 @@
       // 데스크톱: 상세로 스크롤한 뒤 지도 칸이 머리 밑으로 밀려 올라가면(붙는 칸의 끝) 머리+8 자리까지 되돌린다
       try {
         if (!MQ_SHEET.matches) {
-          const fix = () => { const mc = document.querySelector("#mapTop .main>.mapcard"); if (!mc || document.documentElement.classList.contains("s-full")) return; const t = mc.getBoundingClientRect().top, want = (HDR() || 56) + 8; if (t < want - 2 && t > want - 400) window.scrollBy({ top: t - want, behavior: "auto" }); };
+          const fix = () => { const mc = document.querySelector("#mapTop .main>.mapcard"); if (!mc || document.documentElement.classList.contains("s-full") || !document.documentElement.classList.contains("s-rep") || cur !== sel0) return; const t = mc.getBoundingClientRect().top, want = (HDR() || 56) + 8; if (t < want - 2 && t > want - 400) window.scrollBy({ top: t - want, behavior: "auto" }); };
+          const sel0 = cur;   // 상세를 닫았거나(Esc·목록 버튼 → 보던 자리로 되돌림) 다른 구역을 열었으면 손대지 않는다
           [450, 1000].forEach((t) => setTimeout(fix, t));
         }
       } catch (e) {}

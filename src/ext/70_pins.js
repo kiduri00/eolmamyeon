@@ -27,7 +27,8 @@ const PINS = (() => {
 
   // ---------- 아이콘 ----------
   const PIN_D = "M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6z";
-  const pinY = (s = 26) => `<svg class="pn-yp" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="${PIN_D}"/><circle cx="12" cy="9.4" r="2.7"/></svg>`;
+  const PIN_H = "M12 5.3 16.3 9.1H15v4H9v-4H7.7zM10.9 13.1v-2.8h2.2v2.8z";   // 핀 머리 안 집(앱 아이콘과 같은 꼴, 문은 뚫림)
+  const pinY = (s = 26) => `<svg class="pn-yp" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="${PIN_D}"/><path class="h" fill-rule="evenodd" d="${PIN_H}"/></svg>`;
   const pinLine = `<path d="${PIN_D}"/><circle cx="12" cy="9.4" r="2.6"/>`;
 
   // ---------- 숫자 ----------
@@ -340,6 +341,7 @@ const PINS = (() => {
     condBtn();
     try { if (isApp() && navigator.setAppBadge) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
     home(U, CN);
+    try { if (typeof INBOX !== "undefined") INBOX.paint(); } catch (e) {}   // 알림함 종 배지(72_inbox)
   }
   const weekKey = () => Math.floor((Date.now() + 9 * 36e5) / 864e5 + 3) / 7 | 0;
   function home(U, CN = []) {
@@ -408,7 +410,7 @@ const PINS = (() => {
       g.save(); g.translate(p.x - 22, p.y - 48); g.scale(44 / 24, 44 / 24);
       g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = 6; g.shadowOffsetY = 2;
       g.fillStyle = "#F5C33B"; g.fill(new Path2D(PIN_D)); g.shadowColor = "transparent";
-      g.fillStyle = "#1f3a87"; g.beginPath(); g.arc(12, 9.4, 2.9, 0, 7); g.fill(); g.restore();
+      g.fillStyle = "#1f3a87"; g.fill(new Path2D(PIN_H), "evenodd"); g.restore();
     });
     // 이름표(겹치면 다른 자리)
     g.font = F(700, 28); g.textBaseline = "middle";
@@ -716,6 +718,8 @@ const PINS = (() => {
   }
   const newIds = () => [...new Set(condsAll().flatMap((n) => n.add))];
   // 본 적 없는 새 구역만: seen(마지막으로 본 sig)의 '새로 들어온' id 목록을 빼고 센다
+  // 알림함(72_inbox)에서 조건 핀 새 구역을 보여 줬을 때: 조건 핀만 '읽음'(핀 소식 배지는 그대로)
+  function markCondSeen() { let ch = 0; condsAll().forEach((n) => { if (n.c.seen !== n.sig) { n.c.seen = n.sig; ch = 1; } }); if (ch) { saveC(); badges(); } }
   const freshIds = () => [...new Set(condsAll().flatMap((n) => { const sn = new Set(String(n.c.seen || "").split("/")[0].split(",").filter(Boolean)); return n.add.filter((id) => !sn.has(id)); }))];
 
   // ---------- 화면 이벤트 ----------
@@ -802,7 +806,7 @@ const PINS = (() => {
     try { LMX.pins(); } catch (e) {}
   }
   const cmpShown = () => CMPON;
-  return { init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX };
+  return { init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
 })();
 window.PINS = { list: PINS.list, has: PINS.has, on: PINS.on, newIds: PINS.newIds };
 window.ZP_ok = PINS.zpOk;   // 홈 '살 수 있는 곳' 숫자와 같은 판정(지도 핀·게이지 토스트용)

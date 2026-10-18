@@ -51,6 +51,7 @@
 @media (max-width:600px){.lm-layers{top:100px}.lm-sel select{max-width:110px}}
 .lm-legend[hidden],.lm-layers[hidden]{display:none}
 .lm-legend i.lm-pin{width:10px;height:10px;border-radius:50% 50% 50% 0;transform:rotate(-45deg)}
+.lm-legend svg.lm-hp{flex:none;display:block}
 /* 확대·축소: 오른쪽 아래 작게(폰·데스크톱·전체 화면 공통). 실제 지도가 켜지면 옛 SVG 지도 버튼은 숨김 */
 .mapbox.lm-on .mapzoom{display:none!important}
 .lm-zoom{position:absolute;right:10px;bottom:36px;z-index:4;display:flex;flex-direction:column;border:1px solid rgba(31,58,135,.12);border-radius:10px;background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:0 1px 4px rgba(0,0,0,.12);overflow:hidden}

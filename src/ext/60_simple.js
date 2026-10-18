@@ -11,7 +11,7 @@ const SIMPLE = (() => {
     ["news", "소식", "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4", "#0e7490", "단계 변경·입주 물량"],
     ["commuteTop", "출퇴근", "M7 3h10a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM5 10h14M8 20l2-4M16 20l-2-4", "#2f6feb", "회사까지 몇 분 안"],
     ["diagTop", "매물진단", "M9 12l2 2 4-4M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z", "#16a34a", "이 매물 입주권 나오나"],
-    ["favTop", "내 핀·비교", "M4 5h7v14H4zM13 5h7v14h-7z", "#d97706", "핀 꽂은 구역 소식·비교"],
+    ["favTop", "내 핀", "M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6zM12 12a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z", "#d97706", "핀 꽂은 구역 소식"],
   ];
   // 예전 도구 주소(#gapTop 등)는 합친 화면 + 그 탭으로 연다(정적 페이지·공유 링크가 그대로 동작) — [화면, 탭]
   const ALIAS = window.ZP_ALIAS = { gapTop: ["rankHub", "gap"], txrTop: ["rankHub", "txr"], rankTop: ["rankHub", "loc"], ntcTop: ["news", "feed"], newTop: ["news", "feed"], supplyTop: ["news", "supply"], saveTop: ["planner", "save"] };
@@ -666,6 +666,8 @@ const SIMPLE = (() => {
     // 딥링크: 브라우저 앵커 이동이 끝난 뒤 다시 맞춘다
     const fix = () => { if (cur) { const el = $(curT) || $(cur); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } };
     if (document.readyState === "complete") setTimeout(fix, 60); else addEventListener("load", () => setTimeout(fix, 60), { once: true });
+    // #saveTop(입주 계산 아래 칸)은 위 계산기 답이 늦게 채워지며 밀리므로 한 번 더(그 사이 사용자가 스크롤했으면 두지 않음)
+    if (curT === "saveTop") { let touched = false; const t = () => (touched = true); ["pointerdown", "wheel", "touchstart", "keydown"].forEach((k) => addEventListener(k, t, { once: true, passive: true })); [400, 1000].forEach((ms) => setTimeout(() => { if (curT === "saveTop" && !touched) fix(); }, ms)); }
     const _p = plan;
     plan = function () { const x = _p.apply(this, arguments); try { render(); } catch (e) {} return x; };
     const _eg = enterGu, _xg = exitGu;

@@ -19,7 +19,8 @@ const HARD_LIMIT_MS = 225000;            // 4분 안에 끝나도록 스스로 �
 const T_START = Date.now();
 const elapsed = () => Date.now() - T_START;
 
-const TOOLS = ["gapTop", "diagTop", "supplyTop", "txrTop", "ntcTop", "favTop", "commuteTop", "planner"];
+// 도구 6개(ZP_TOOLS) + 예전 주소(ZP_ALIAS: 합친 화면의 탭으로 열림) 몇 개
+const TOOLS = ["rankHub", "txrTop", "rankTop", "news", "supplyTop", "diagTop", "favTop", "commuteTop", "planner", "saveTop"];
 const GAUGE = [0, 30, 58, 88, 100];
 const TOUCH_MIN = 40;
 const LONGTASK_WARN = 800;
@@ -284,8 +285,9 @@ async function zoneChecks(page, scen, id, opts) {
         const where = `${name}/#${id}`;
         await loadHome(page, "#" + id);
         await page.waitForTimeout(700);
-        const st = await page.evaluate((id) => { const s = document.getElementById(id); if (!s) return { missing: 1 }; const r = s.getBoundingClientRect(); return { on: s.classList.contains("s-on") || id === "planner", len: s.innerText.trim().length, h: Math.round(r.height), disp: getComputedStyle(s).display }; }, id);
+        const st = await page.evaluate((id) => { const s = document.getElementById(id); if (!s) return { missing: 1 }; const r = s.getBoundingClientRect(); const al = (window.ZP_ALIAS || {})[id]; return { on: s.classList.contains("s-on") || id === "planner", len: s.innerText.trim().length, h: Math.round(r.height), disp: getComputedStyle(s).display, al, hash: location.hash, hubOn: al ? !!(document.getElementById(al[0]) || {}).classList?.contains("s-on") : null }; }, id);
         if (st.missing) fail("7.deeplink", where, "section missing");
+        else if (st.al && (st.hash !== "#" + st.al[0] || !st.hubOn)) fail("7.deeplink", where, `old link should open #${st.al[0]} (${st.al[1]}): hash ${st.hash}, hub s-on ${st.hubOn}`);
         else if (st.disp === "none" || st.h < 40 || st.len < 40) fail("7.deeplink", where, `renders empty (display:${st.disp}, h=${st.h}, text=${st.len})`);
         await checkOverflow(page, where);
         await checkClip(page, where, `#${id}`);
@@ -328,7 +330,7 @@ async function zoneChecks(page, scen, id, opts) {
 
   await scenario("m360", MOB(360, 740), { api: true, gauge: true, touch: true, zones: 12, tabs: true, tools: TOOLS, zoneDeep: true, notFound: true });
   await scenario("m390", MOB(390, 844), { api: true, gauge: true, touch: true, zones: 4, tabs: false });
-  await scenario("d1440", DESK, { api: true, gauge: true, zones: 3, tabs: true, tools: ["gapTop", "planner"], zoneDeep: true });
+  await scenario("d1440", DESK, { api: true, gauge: true, zones: 3, tabs: true, tools: ["rankHub", "news", "planner"], zoneDeep: true });
   await scenario("m360-dark", { ...MOB(360, 740), colorScheme: "dark" }, { api: true, zones: 4, tabs: false, tools: ["planner"] });
   await scenario("d1440-dark", { ...DESK, colorScheme: "dark" }, { api: true, zones: 2, tabs: false });
   await browser.close();

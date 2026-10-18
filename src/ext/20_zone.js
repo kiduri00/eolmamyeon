@@ -293,7 +293,7 @@
       const nz = nearOf(r), nen = r.mk && r.mk.entry;
       const secN = nz ? (() => {
         const rowN = (v) => `<tr><td${C1}>${ymd2(v[0])} · 빌라${v[5] ? ` ${+v[5] < 0 ? "지하" + -v[5] : esc(String(v[5]))}층` : ""} · <span style="white-space:nowrap">전용 ${v[1]}㎡</span><small${SM}>${esc(v[6])} · ${v[7] ? `경계에서 ${fmt(v[7])}m` : "구역 안"} · ${v[3]}년 준공${v[2] > 0 ? ` · 대지 ${v[2]}㎡` : ""}</small></td><td class="n"><b>${eok(v[4])}</b></td><td class="n">${v[2] > 0 ? eok(Math.round((v[4] / v[2]) * 3.3058)) : "–"}</td></tr>`;
-        return `<div class="sect nearsmp"><h3>매수가 표본 · 주변 ${fmt(nz.r)}m 빌라 ${fmt(nz.s.length)}건 <small>새 거래부터 · 최근 ${nz.w}개월 · ${nen.yr_cap || 2010}년 이전 준공 · 전용 30~70㎡ · 구역 경계에서 ${fmt(nz.r)}m 안 · 계산 매수가 ${eok(nen.med)} = 이 ${fmt(nz.s.length)}건의 가운데 값</small></h3><div id="txListN" class="txl"><table class="tx"${TS}><thead><tr><th scope="col">계약일 · 위치</th><th scope="col" class="n">가격</th><th scope="col" class="n">대지 3.3㎡당</th></tr></thead><tbody>${nz.s.map(rowN).join("")}</tbody></table></div></div>`;
+        return `<div class="sect nearsmp"><h3>매수가 표본 · 주변 ${fmt(nz.r)}m 빌라 ${fmt(nz.s.length)}건</h3><p class="nz-def">계산 매수가 <b>${ZF.manT(nen.med / 1e4)}</b> = 아래 ${fmt(nz.s.length)}건의 가운데 값 · 새 거래부터 · 최근 ${nz.w}개월 · ${nen.yr_cap || 2010}년 이전 준공 · 전용 30~70㎡ · 구역 경계에서 ${fmt(nz.r)}m 안(경계 안 포함)</p><div id="txListN" class="txl"><table class="tx"${TS}><thead><tr><th scope="col">계약일 · 위치</th><th scope="col" class="n">가격</th><th scope="col" class="n">대지 3.3㎡당</th></tr></thead><tbody>${nz.s.map(rowN).join("")}</tbody></table></div></div>`;
       })() : "";
       const calcNote = (() => {
         if (x.price == null) return "";

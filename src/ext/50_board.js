@@ -16,15 +16,15 @@ const BD = (() => {
       note.textContent = "최근 3개월 구역 안 매매 건수(계약일 기준) · 많을수록 손바뀜이 활발해요";
       // 빌라 표본이 없으면 아파트 매매 → 입주권 순으로 가운데 값을 보여 준다(종류를 함께 적음)
       const mid = (t) => (t.med ? [t.med, "빌라"] : t.am ? [t.am, "아파트"] : t.im ? [t.im, "입주권"] : null);
-      val = (r) => { const m = mid(r.tx); return [`${fmt(r.tx.n3)}건`, `12개월 ${fmt(r.tx.n12 || 0)}건${m ? ` · ${m[1]} 가운데 ${eok(m[0])}` : ""}`]; };
+      val = (r) => { const m = mid(r.tx); return [`${fmt(r.tx.n3)}건`, `1년 ${fmt(r.tx.n12 || 0)}건${m ? `<span class="txr-x"> · ${m[1]} 가운데 ${eok(m[0])}</span>` : ""}`]; };
     } else if (K === "yoy") {
       L = live().filter((r) => r.tx.yoy != null && r.tx.yon && r.tx.yon[0] >= 10 && r.tx.yon[1] >= 10).sort((a, b) => b.tx.yoy - a.tx.yoy);
       note.textContent = "대지 3.3㎡당 매매가 가운데 값 · 최근 12개월과 그 전 12개월 비교 · 두 기간 모두 10건 이상인 곳만";
-      val = (r) => [`${r.tx.yoy > 0 ? "+" : r.tx.yoy < 0 ? "−" : ""}${Math.abs(r.tx.yoy)}%`, `표본 ${fmt(r.tx.yon[0])}건 / 그 전 ${fmt(r.tx.yon[1])}건`, r.tx.yoy >= 0 ? "up" : "dn"];
+      val = (r) => [`${r.tx.yoy > 0 ? "+" : r.tx.yoy < 0 ? "−" : ""}${Math.abs(r.tx.yoy)}%`, `표본 ${fmt(r.tx.yon[0])}·${fmt(r.tx.yon[1])}건`, r.tx.yoy >= 0 ? "up" : "dn"];
     } else {
       L = live().filter((r) => r.tx.hi).sort((a, b) => b.tx.hi[1].localeCompare(a.tx.hi[1]) || b.tx.hi[0] - a.tx.hi[0]);
       note.textContent = "최근 3개월 안에 3.3㎡당 가격이 2024년 이후 최고를 넘은 거래 · 앞선 거래가 5건 이상인 곳만";
-      val = (r) => [ymd(r.tx.hi[1]), `3.3㎡당 ${eok(r.tx.hi[2])}${r.tx.hi[3] === "a" ? "(아파트)" : ""} · ${fmt(r.tx.hi[0])}건`];
+      val = (r) => [ymd(r.tx.hi[1]), `3.3㎡당 ${eok(r.tx.hi[2])}${r.tx.hi[3] === "a" ? "<span class=\"txr-x\">(아파트)</span>" : ""}<span class="txr-x"> · ${fmt(r.tx.hi[0])}건</span>`];
     }
     L = L.slice(0, 30);
     out.innerHTML = L.length

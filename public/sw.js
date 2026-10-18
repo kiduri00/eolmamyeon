@@ -1,7 +1,7 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "bf491438"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "e106ee5f"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
@@ -121,7 +121,7 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const u = new URL(req.url);
   if (u.origin === location.origin) {
-    if (u.pathname === "/sw.js") return;
+    if (u.pathname === "/sw.js" || u.pathname.startsWith("/api/push/")) return; // 웹 푸시 API는 저장하지 않는다(키·구독은 늘 새로)
     if (req.mode === "navigate") return e.respondWith(page(e));
     if (u.pathname.startsWith("/b/")) return e.respondWith(cacheFirst(e, BUND)); // 해시가 박힌 앱 코드·데이터
     if (u.pathname.startsWith("/data/") || u.pathname.startsWith("/api/") || /^\/(premium\.json|manifest\.webmanifest|icon[^/]*\.(png|svg)|og\.png)$/.test(u.pathname)) return e.respondWith(swr(e, u.pathname.startsWith("/icon") || u.pathname.startsWith("/manifest") ? SHELL : DATA));
@@ -132,4 +132,23 @@ self.addEventListener("fetch", (e) => {
   if (u.hostname === "tiles.openfreemap.org") { if (/\.pbf$/.test(u.pathname)) e.respondWith(swr(e, TILE)); return; }
   // 버전이 박힌 CDN 파일(글꼴·지도 라이브러리)만
   if (((u.hostname === "cdn.jsdelivr.net" || u.hostname === "unpkg.com") && /@v?\d/.test(u.pathname)) || (u.hostname === "cdnjs.cloudflare.com" && /^\/ajax\/libs\/[^/]+\/\d/.test(u.pathname))) return e.respondWith(swr(e, CDN));
+});
+
+// ---------- 웹 푸시(관심 구역 알림): worker/push.js가 {title, body, url, tag}를 암호화해 보낸다 ----------
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : "" }; }
+  const url = typeof d.url === "string" && d.url.startsWith("/") ? d.url : "/#inbox";
+  e.waitUntil(self.registration.showNotification(d.title || "집핀 · 새 소식", { body: d.body || "핀 꽂은 구역에 새 소식이 있어요", icon: "/icon-192.png", badge: "/icon-192.png", tag: d.tag || "zippin", lang: "ko", data: { url } }));
+});
+// 알림을 누르면: 열린 집핀 창이 있으면 그 창에서 구역을 열고(앱이 메시지를 받아 #id로 이동), 없으면 새 창
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || "/", self.location.origin).href;
+  e.waitUntil((async () => {
+    const cs = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const c = cs.find((x) => new URL(x.url).origin === self.location.origin && new URL(x.url).pathname === "/") || null;
+    if (c) { try { await c.focus(); } catch (_) {} c.postMessage({ t: "zp-open", url }); return; }
+    await self.clients.openWindow(url);
+  })());
 });

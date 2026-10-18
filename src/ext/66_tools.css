@@ -127,15 +127,6 @@ td.txr-m small{font-size:11px}
 /* #report 딥링크(모바일): 구별 요약 대신 '살 수 있는 곳' 목록 머리로 — 헤더+고정 게이지 아래 */
 html.simple #sListW{scroll-margin-top:calc(var(--hdr-h,56px) + 72px)}
 small.asm{display:block;font-size:11px;line-height:1.3;margin-top:1px}
-/* 홈 도구 격자 '더보기'(⋯ 메뉴 열기) — a 타일과 같은 모양 */
-.s-t.s-tall{background:none;border:0;padding:0;margin:0;font:inherit;color:var(--text-1);cursor:pointer;-webkit-appearance:none;appearance:none}
-.s-t.s-tall i{color:var(--text-2)}
-/* 최근 단계 변경 표: 폰에서는 카드형(cardt) — 마지막 줄 구분선 없앰, 계산 불가 이유는 줄바꿈 */
-@media (max-width:640px){
-  .nw-t.cardt tbody tr:last-child{border-bottom:0}
-  .nw-t.cardt td.nw-can{flex-wrap:wrap}
-  .nw-t.cardt td.nw-can small.asm{flex-basis:100%;margin-left:0;text-align:right}
-}
 /* #results 유형 칩 줄(가장자리까지 미는 스크롤)이 360폭에서 1px 넘쳐 화면이 옆으로 밀리던 것 */
 @media (max-width:640px){#results{overflow-x:clip}}
 /* 계산기 칸 보조 글자: 흐리게(opacity) 대신 보조 글자 색 토큰 — 회색 바탕 위 4.6:1 이상 */
@@ -176,19 +167,28 @@ html.simple #rankHub:not(.s-on),html.simple #news:not(.s-on),html.simple .hub-pa
 @media (max-width:640px){.ntl li{grid-template-columns:62px 1fr}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ntl li.c-up .nt-c,:root:not([data-theme="light"]) .ntl .nt-m.ok{color:#4ade80}}
 :root[data-theme="dark"] .ntl li.c-up .nt-c,:root[data-theme="dark"] .ntl .nt-m.ok{color:#4ade80}
-/* 입주 계산 안 '모으면 언제?': 계산기 아래 한 칸 전체(지금 현금은 위 계산기 값을 그대로 씀) */
-html.simple #planner #saveTop{display:block!important}
-#planner #saveTop{grid-column:1/-1;margin:8px 0 0;padding:0}
-#planner #saveTop>.sec-h{margin:0 0 12px}
-#planner #saveTop>.sec-h h2{font-size:22px;line-height:1.3}
-#planner #saveTop .pl-save-sub{display:block!important;margin:4px 0 0;font-size:14px;color:var(--text-2)}
-#planner #saveTop .t-field:has(#svCash){display:none}
-#planner #saveTop>.fold-btn{display:none!important}
+/* 입주 계산 아래 '모으면 언제?': 입주 계산 화면이 열리면 바로 밑에 붙는다(지금 현금은 위 계산기 값을 그대로 씀)
+   계산기 안(격자)에 넣으면 오른쪽 답 카드(sticky)가 이 칸 위로 따라 내려와 겹쳐서, 형제 섹션으로 둔다 */
+html.simple #planner.s-on+#saveTop{display:block!important}
+html.simple #saveTop.pl-save{padding-top:28px}
+#saveTop.pl-save>.sec-h{margin:0 0 12px}
+#saveTop.pl-save>.sec-h h2{font-size:22px;line-height:1.3}
+#saveTop .pl-save-sub{display:block!important;margin:4px 0 0;font-size:14px;color:var(--text-2)}
+html.simple #saveTop.pl-save .t-field:has(#svCash){display:none}
+#saveTop>.fold-btn{display:none!important}
 @media (min-width:1200px){
   #txrOut .tl-l{columns:2;column-gap:48px}
   #txrOut .tl-l>li{break-inside:avoid}
-  #planner #svOut{display:grid;grid-template-columns:minmax(0,58fr) minmax(0,42fr);column-gap:40px;align-items:start}
-  #planner #svOut>*{grid-column:1/-1;min-width:0}
-  #planner #svOut>.sv-ch{grid-column:1}
-  #planner #svOut>table.sv-t:not(.gsv-t){grid-column:2;margin-top:0}
+  #saveTop.pl-save #svOut{display:grid;grid-template-columns:minmax(0,58fr) minmax(0,42fr);column-gap:40px;align-items:start}
+  #saveTop.pl-save #svOut>*{grid-column:1/-1;min-width:0}
+  #saveTop.pl-save #svOut>.sv-ch{grid-column:1}
+  #saveTop.pl-save #svOut>table.sv-t:not(.gsv-t){grid-column:2;margin-top:0}
 }
+.txr-l .tl-v small{white-space:nowrap}
+@media (max-width:640px){.txr-l .txr-x{display:none}}
+/* 홈 도구 격자: 도구 6개 — 폰 3×2, PC 카드 3×2(넓으면 한 줄 6칸) */
+.s-tg{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+@media (min-width:1200px){.s-tg{grid-template-columns:repeat(6,minmax(0,1fr))!important}.s-t{flex-direction:column!important;align-items:flex-start!important;gap:12px!important;padding:16px!important}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hub-tabs{background:rgba(255,255,255,.05)}:root:not([data-theme="light"]) .hub-tabs [role="tab"][aria-selected="true"]{background:rgba(255,255,255,.14);box-shadow:none}}
+:root[data-theme="dark"] .hub-tabs{background:rgba(255,255,255,.05)}
+:root[data-theme="dark"] .hub-tabs [role="tab"][aria-selected="true"]{background:rgba(255,255,255,.14);box-shadow:none}

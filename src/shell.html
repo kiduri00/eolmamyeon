@@ -195,19 +195,20 @@
         </figure>
       </details>
     </div>
-    <section class="sec tool pl-save" id="saveTop" aria-labelledby="svT">
-      <div class="sec-h"><div><h2 id="svT">모으면 언제?</h2><p class="pl-save-sub">위 현금에 매달 모으는 돈을 더하면 언제 몇 곳이 되는지 · 곳 수는 위 계산과 같은 기준</p></div></div>
-      <div class="panel tpanel">
-        <div class="t-form">
-          <div class="t-field t-sm"><label class="t-l" for="svCash">지금 현금</label><div class="inp"><input id="svCash" inputmode="decimal" placeholder="예: 3"><span>억</span></div></div>
-          <div class="t-field t-sm"><label class="t-l" for="svMon">매달 모으는 돈</label><div class="inp"><input id="svMon" inputmode="numeric" value="200"><span>만원</span></div></div>
-          <div class="t-field"><span class="t-l" id="svRl">모은 돈 굴리기</span><div class="seg" id="svRate" role="group" aria-labelledby="svRl"><button type="button" data-v="0" aria-pressed="true">수익 0%</button><button type="button" data-v="3" aria-pressed="false">예금 수준 연 3%</button></div></div>
-        </div>
-        <p class="t-note">시세·분담금이 지금 그대로라는 가정 · 곳 수는 계산기와 같은 조건(보유 주택·면적·지역·유형)으로 그 금액일 때 셈 · 연 3%는 월복리·세전 가정 · 투자 권유 아님</p>
-        <div id="svOut" aria-live="polite"></div>
-      </div>
-    </section>
     <p class="qans" id="qAns" aria-hidden="true"></p>
+  </section>
+
+  <section class="sec tool pl-save" id="saveTop" aria-labelledby="svT">
+    <div class="sec-h"><div><h2 id="svT">모으면 언제?</h2><p class="pl-save-sub">위 현금에 매달 모으는 돈을 더하면 언제 몇 곳이 되는지 · 곳 수는 위 계산과 같은 기준</p></div></div>
+    <div class="panel tpanel">
+      <div class="t-form">
+        <div class="t-field t-sm"><label class="t-l" for="svCash">지금 현금</label><div class="inp"><input id="svCash" inputmode="decimal" placeholder="예: 3"><span>억</span></div></div>
+        <div class="t-field t-sm"><label class="t-l" for="svMon">매달 모으는 돈</label><div class="inp"><input id="svMon" inputmode="numeric" value="200"><span>만원</span></div></div>
+        <div class="t-field"><span class="t-l" id="svRl">모은 돈 굴리기</span><div class="seg" id="svRate" role="group" aria-labelledby="svRl"><button type="button" data-v="0" aria-pressed="true">수익 0%</button><button type="button" data-v="3" aria-pressed="false">예금 수준 연 3%</button></div></div>
+      </div>
+      <p class="t-note">시세·분담금이 지금 그대로라는 가정 · 곳 수는 계산기와 같은 조건(보유 주택·면적·지역·유형)으로 그 금액일 때 셈 · 연 3%는 월복리·세전 가정 · 투자 권유 아님</p>
+      <div id="svOut" aria-live="polite"></div>
+    </div>
   </section>
 
   <section class="sec" id="results">
@@ -296,7 +297,7 @@
     <section class="sec hub-pane" id="txrTop" role="tabpanel" aria-labelledby="hbt-txr">
       <div class="sec-h"><div><h2 id="txrT">구역 실거래 순위</h2><p>정비구역 경계 안에서 신고된 연립·다세대 매매만 셌어요(단독·다가구는 원자료에 지번이 없어 빠지고, 아파트도 제외). 가격은 대지지분 3.3㎡당 · 2015년 이전 준공 · 표본이 적거나 한 건물에 몰리면 빼요.</p></div></div>
       <div class="fchips tl-f txr-seg" id="txrSeg" role="group" aria-label="실거래 순위 기준"><button type="button" class="ichip" data-k="n3" aria-pressed="true">거래 많은 곳</button><button type="button" class="ichip" data-k="yoy" aria-pressed="false">1년 상승률</button><button type="button" class="ichip" data-k="hi" aria-pressed="false">최근 신고가</button></div>
-      <div class="panel tpanel"><p class="t-note" id="txrNote"></p><div id="txrOut"></div></div>
+      <div class="panel tpanel"><p class="tl-lead" id="txrNote"></p><div id="txrOut"></div></div>
     </section>
     <section class="sec hub-pane" id="rankTop" role="tabpanel" aria-labelledby="hbt-loc">
       <div class="sec-h"><div><h2>입지 순위</h2><p>입지 점수(0~100) = 교통 30 + 업무지구 20 + 한강 10 + 주변 호재 10 + 생활 인프라 30(초등 10·중고 5·대형병원 7·대형마트 8) · 막대는 항목별로 얻은 점수 · 가중치는 작성자 가정값이며 투자 등급이 아니에요</p>
@@ -326,7 +327,7 @@
     <div class="sec-h"><div><h2 id="newsT">소식</h2></div></div>
     <div class="hub-tabs" role="tablist" aria-label="소식 종류"><button type="button" role="tab" id="hbt-feed" data-tab="feed" aria-controls="ntcTop" aria-selected="true">단계 소식</button><button type="button" role="tab" id="hbt-supply" data-tab="supply" aria-controls="supplyTop" aria-selected="false" tabindex="-1">입주 물량</button></div>
     <section class="sec tool hub-pane" id="ntcTop" role="tabpanel" aria-labelledby="hbt-feed">
-      <div class="fchips" id="ntcF" role="group" aria-label="소식 거르기"><button type="button" class="ichip" data-c="" aria-pressed="true">전체</button><button type="button" class="ichip" data-c="up" aria-pressed="false">단계 변경</button><button type="button" class="ichip" data-c="fav" aria-pressed="false">내 핀</button></div>
+      <div class="fchips tl-f" id="ntcF" role="group" aria-label="소식 거르기"><button type="button" class="ichip" data-c="" aria-pressed="true">전체</button><button type="button" class="ichip" data-c="up" aria-pressed="false">단계 변경</button><button type="button" class="ichip" data-c="fav" aria-pressed="false">내 핀</button></div>
       <div class="panel tpanel"><div id="ntcOut"><p class="mut">소식을 불러오는 중이에요.</p></div></div>
     </section>
     <section class="sec tool hub-pane" id="supplyTop" role="tabpanel" aria-labelledby="hbt-supply"><div class="panel tpanel"><div class="t-out" id="supplyTopOut"></div></div></section>

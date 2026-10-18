@@ -126,3 +126,6 @@ table.txr td.up b{color:var(--risk-ink)}table.txr td.dn b{color:var(--brand)}
 .toh-l li .mono{grid-row:span 2;color:var(--text-3);font-variant-numeric:tabular-nums}
 .toh-l li b{color:var(--text-1)}.toh-l li span:last-child{color:var(--text-3)}
 .toh-l li.no b{text-decoration:line-through;color:var(--text-3)}.toh-l li em{font-style:normal;color:var(--warn-ink);font-weight:700}
+/* 거래 탭 '매수가 표본(주변 빌라)': 표본 정의 한 줄(간단 화면에서도 보임) */
+#report .nearsmp .nz-def{margin:0 0 8px;font-size:13px;line-height:1.5;color:var(--text-2)}
+#report .nearsmp .nz-def b{color:var(--text-1)}

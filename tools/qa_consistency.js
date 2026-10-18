@@ -32,7 +32,7 @@ const IGNORE_MSG = /GL Driver|WebGL|GPU stall|swiftshader|adsbygoogle|googlesynd
 const FIXED_ZONES = ["o916", "o337", "o586", "o1059", "s78", "o747", "o111", "o135", "o136", "o914", "s45"];
 const CASH_LEVELS = [1, 3, 6, 10, 15];
 const STATIONS = ["봉천역", "신림역"];
-const EXTRA_VIEWS = ["results", "newTop", "rulesTop", "readsTop", "statsTop"];
+const EXTRA_VIEWS = ["results", "rulesTop", "readsTop", "statsTop"];
 
 // ---------------------------------------------------------------- 결과 모음
 const CHECKS = new Map();   // id -> {title, n, fails:[], warns:[], skipped}
@@ -598,6 +598,12 @@ async function uiLane(browser, api, errs, shared) {
       expect(!m.dup.length, "ui.menu", "⋯ 메뉴에 모든 도구 · 같은 항목 두 번 없음 · '이번 달' 없음", `duplicate menu items: ${m.dup.join(", ")}`);
       expect(!m.month.length, "ui.menu", "⋯ 메뉴에 모든 도구 · 같은 항목 두 번 없음 · '이번 달' 없음", `menu says: ${m.month.join(", ")}`);
       shared.toolIds = m.ids.concat(EXTRA_VIEWS);
+      shared.alias = await page.evaluate(() => window.ZP_ALIAS || {});
+    }
+    // 홈 격자: 도구(ZP_TOOLS) 6개 이하 전부 · '더보기' 없음 · 격자와 메뉴가 같은 목록
+    {
+      const g = await page.evaluate(() => ({ tiles: [...document.querySelectorAll("#sTiles [data-view]")].map((a) => a.dataset.view), more: !!document.querySelector("#sTiles #sTAll, #sTiles .s-tall"), ids: (window.ZP_TOOLS || []).map((t) => t[0]) }));
+      expect(g.ids.length <= 6 && JSON.stringify(g.tiles) === JSON.stringify(g.ids) && !g.more, "ui.tiles", "홈 격자 = 도구 6개 전부(ZP_TOOLS 순서) · 더보기 없음", `tiles [${g.tiles.join(", ")}] vs tools [${g.ids.join(", ")}]${g.more ? " · 더보기 있음" : ""}`);
     }
     // 돌아가기: 타일 격자 자리로
     {
@@ -613,11 +619,18 @@ async function uiLane(browser, api, errs, shared) {
     }
     // 도구 딥링크(새로 불러오기)마다: s-on · 돌아가기 버튼이 머리 아래 · 1단계 제목 · 가로 넘침 · 글자 결함
     const domTexts = [];
-    for (const id of shared.toolIds || []) {
+    // 예전 주소(#gapTop·#txrTop·#saveTop …)도 하나씩: 합친 화면이 열리고(주소 = 합친 화면) 그 탭·칸이 보여야 한다
+    for (const id of (shared.toolIds || []).concat(Object.keys(shared.alias || {}))) {
       if (over()) { skip("ui.deeplink", "도구 딥링크", "time budget"); break; }
       await loadHome(page, "#" + id); await page.waitForTimeout(700);
       const s = await page.evaluate((id) => {
-        const sec = document.getElementById(id); if (!sec) return { missing: 1 };
+        const al = (window.ZP_ALIAS || {})[id], pane = document.getElementById(id);
+        const sec = document.getElementById(al ? al[0] : id); if (!sec) return { missing: 1 };
+        if (al) {
+          const tab = sec.querySelector(`[role="tab"][data-tab="${al[1]}"]`);
+          const pr = pane && pane.getBoundingClientRect();
+          return { alias: al, hash: location.hash, on: sec.classList.contains("s-on"), paneVis: !!(pane && pane.offsetParent && pr.height > 40 && pane.innerText.trim().length > 40), tabSel: tab ? tab.getAttribute("aria-selected") === "true" : al[1] === "save", inView: pr ? pr.top < innerHeight && pr.bottom > 0 : false, txt: pane ? pane.innerText : "" };
+        }
         const hdr = document.getElementById("hdr"), hb = hdr ? hdr.getBoundingClientRect().bottom : 0;
         const back = [...sec.querySelectorAll(".s-back")].find((b) => window.__qc.vis(b));
         const br = back && back.getBoundingClientRect();
@@ -625,6 +638,13 @@ async function uiLane(browser, api, errs, shared) {
         return { on: sec.classList.contains("s-on"), hb: Math.round(hb), backTop: br ? Math.round(br.top) : null, lv1, len: sec.innerText.trim().length, txt: sec.innerText };
       }, id);
       const where = "#" + id;
+      if (s.alias) {
+        expect(s.hash === "#" + s.alias[0] && s.on && s.paneVis && s.tabSel && s.inView, "ui.alias", "예전 도구 주소 → 합친 화면 + 그 탭(주소 바뀜·탭 선택·칸 보임)", `${where}: hash ${s.hash} (want #${s.alias[0]}) · s-on ${s.on} · pane visible ${s.paneVis} · tab ${s.alias[1]} selected ${s.tabSel} · in view ${s.inView}`);
+        const bt = badText(s.txt); expect(!bt.length, "ui.toolText", "도구 화면 글자 결함 없음(NaN·곳를·–억·겹친 낱말…)", `${where}: ${bt.join(" ; ")}`);
+        if (id === "saveTop") { const m = /(?:^|\D)(2[1-9]|[3-9]\d|\d{3})년[^\n]{0,8}뒤/.exec(s.txt); expect(!m, "ui.save20", "모으면 언제?: 20년 넘는 'N년 뒤' 대신 '20년 넘게'", `#saveTop: "${m && m[0]}"`); }
+        const o = await page.evaluate(() => window.__qc.overflow()); expect(!o, "ui.overflow", "360px 가로 스크롤 없음(홈·도구 화면마다)", `${where}: ${o}`);
+        continue;
+      }
       if (s.missing) { bad("ui.deeplink", "도구 딥링크: s-on · 돌아가기 버튼이 머리 밑에 다 보임 · 내용 있음", `${where}: section missing`); continue; }
       expect(s.on && s.len > 40, "ui.deeplink", "도구 딥링크: s-on · 돌아가기 버튼이 머리 밑에 다 보임 · 내용 있음", `${where}: s-on=${s.on} text=${s.len}`);
       expect(s.backTop != null && s.backTop >= s.hb - 1, "ui.deeplink", "도구 딥링크: s-on · 돌아가기 버튼이 머리 밑에 다 보임 · 내용 있음", `${where}: back button top ${s.backTop} vs header bottom ${s.hb}`);
@@ -767,16 +787,16 @@ async function mapLane(browser, api, errs, shortSrc) {
       expect(!c.length, "ui.contrast", "입주 계산(#planner) 글자 대비 4.5:1 이상(밝은·어두운)", `${scheme}: ${c.length} low: ${c.slice(0, 4).join(" ; ")}`);
     }
     await page2.emulateMedia({ colorScheme: "light" });
-    // 최근 단계 변경: 정비사업 정보몽땅 고시·공고에 올라온 가장 새 인가(신청·공람 제외) 달이 목록에 있음
+    // 소식(단계 소식): 정비사업 정보몽땅 고시·공고에 올라온 가장 새 인가(신청·공람 제외)가 그 날짜로 목록에 있음 — 예전 #newTop 주소로 열어 본다
     {
       const nt = await get(BASE + "/data/notice.json");
       let it = null; try { const j = JSON.parse(nt.text); it = (j.items || []).filter((x) => x[4] === "ok" && /인가|지정|승인/.test(x[2]) && !/신청|공람/.test(x[3])).sort((a, b) => (a[0] < b[0] ? 1 : -1))[0]; } catch (e) {}
       if (it) {
         await loadHome(page2, "#newTop"); await page2.waitForTimeout(1500);
-        const t = await page2.evaluate(() => (document.getElementById("nwOut") || {}).innerText || "");
-        const mo = it[0].slice(5, 7) + ".";
-        if (!t) skip("ui.newTop", "최근 단계 변경에 고시·공고의 가장 새 인가 달이 들어감(최근 45일)", "#nwOut not on page (tool screens merged?)"); else expect(t.includes(mo), "ui.newTop", "최근 단계 변경에 고시·공고의 가장 새 인가 달이 들어감(최근 45일)", `newest notice ${it[0]} ${it[2]} (${it[1]}) — #nwOut has no "${mo}" date`);
-      } else skip("ui.newTop", "최근 단계 변경에 고시·공고의 가장 새 인가 달이 들어감(최근 45일)", "no notice item");
+        const t = await page2.evaluate(() => { const o = document.getElementById("ntcOut"); if (!o) return ""; o.querySelectorAll("[hidden]").forEach((x) => x.removeAttribute("hidden")); return o.innerText || ""; });
+        const day = it[0].slice(2).replaceAll("-", ".");
+        expect(t.includes(day) && /단계 변경/.test(t), "ui.newTop", "소식(#news, 예전 #newTop)에 고시·공고의 가장 새 인가가 그 날짜로 들어감 · '단계 변경' 표시", `newest notice ${it[0]} ${it[2]} (${it[1]}) — #ntcOut ${t ? `has no "${day}"` : "empty"}${/단계 변경/.test(t) ? "" : " · no '단계 변경' rows"}`);
+      } else skip("ui.newTop", "소식(#news, 예전 #newTop)에 고시·공고의 가장 새 인가가 그 날짜로 들어감 · '단계 변경' 표시", "no notice item");
     }
   } catch (e) { bad("runtime", "검사 실행", "desktop crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await D.ctx.close().catch(() => {}); }

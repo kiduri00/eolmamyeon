@@ -480,9 +480,7 @@
       runCommute();
       renderSave();
       renderFav();
-      renderNew();
     }
-    renderNew();
   }
   const MB_CTX = {};
   function mbOpen(ctx, keep) {
@@ -523,120 +521,11 @@
     사업시행: "사업시행인가",
     관리처분: "관리처분인가",
   };
-  // 정비사업 정보몽땅 추진경과(data/notice.json) — '최근 단계 변경'과 '정비사업 소식'(50_board)이 같은 파일 하나를 쓴다
+  // 정비사업 정보몽땅 추진경과(data/notice.json) — 소식 > 단계 소식(50_board)·구역 리포트가 같은 파일 하나를 쓴다
   let NTD = null, NTP = null;
   function ntLoad() { return NTD ? Promise.resolve(NTD) : NTP || (NTP = fetch(`data/notice.json?v=${(D.dv && D.dv.notice) || D.upd || ""}`).then((r) => (r.ok ? r.json() : null)).then((j) => (NTD = j)).catch(() => ((NTP = null), null))); }
-  const NW_DAYS = 45;
+  // 정보몽땅 단계 이름 → 짧은 단계 키(소식 > 단계 소식 50_board.js가 단계 변경을 가릴 때 씀)
   const NT_STEP = { 조합설립인가: "조합설립", 사업시행인가: "사업시행", 관리처분인가: "관리처분", 정비구역지정: "구역지정", 조합설립추진위원회승인: "추진위" };
-  // 최근 45일 단계 변경: 월간 리포트 항목 + 정보몽땅의 새 인가·고시(같은 단계를 다시 고친 '변경 인가'는 뺌), 구역·단계가 같으면 하나만
-  function newItems() {
-    const end = NTD && NTD.asOf ? new Date(String(NTD.asOf).slice(0, 10) + "T00:00:00") : new Date(), lim = new Date(end - NW_DAYS * 864e5).toISOString().slice(0, 10);
-    const out = [], seen = new Set();
-    const add = (it) => { const k = it.id + "|" + it.step; if (seen.has(k) || !byId[it.id] || it.date < lim) return; seen.add(k); out.push(it); };
-    if (NTD && NTD.items) NTD.items.forEach(([d, id, sec, t, c]) => { const st = NT_STEP[sec]; if (c !== "ok" || !st || !byId[id] || /신청|공람/.test(t)) return; try { if (ZF.evText(byId[id], d, sec, t).chg) return; } catch (e) {} add({ id, step: st, date: d, src: "", nt: 1 }); });
-    if (MO && MO.items) MO.items.forEach((it) => add(it));
-    return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  }
-  function renderNew() {
-    const out = $("nwOut");
-    if (!out) return;
-    if (!NTD) ntLoad().then((j) => { if (j) renderNew(); });
-    const NI = newItems(), nwL = `최근 ${NW_DAYS}일`;
-    let html;
-    if (!NI.length)
-      html = `<div class="t-empty"><b>이번 달 리포트를 준비하고 있어요</b><p>매달 데이터 갱신 뒤 단계가 바뀐 구역을 정리해 올려요.</p></div>`;
-    else if (!isMember())
-      html = lockCard({
-        kind: "note",
-        title: `${nwL} 단계 변경 ${new Set(NI.map((i) => i.id)).size}곳 · 내 핀과 내 현금으로 보기`,
-        line: `목록 자체는 <a href="${MO.url}">공개 리포트</a>에서 무료로 볼 수 있어요. 멤버십은 여기서 핀 꽂은 구역 표시와 '내 현금으로 되나'까지 한 번에 보여 줘요.`,
-        ctx: "new",
-      });
-    else {
-      try {
-        // 같은 구역·같은 날짜에 단계가 둘이면(소규모 정비는 사업시행·관리처분을 함께 인가) 한 줄로 합치고 원문도 공유
-        const moItems = [];
-        NI.forEach((it) => {
-          const p = moItems.find((x) => x.id === it.id && x.date === it.date);
-          if (!p) return moItems.push({ ...it, steps: [it.step] });
-          p.steps.push(it.step);
-          if (!p.src && it.src) p.src = it.src;
-        });
-        const rows = moItems
-          .map((it) => {
-            const r = byId[it.id];
-            if (!r) return "";
-            const fav = FAV.includes(it.id),
-              x = investC(r);
-            // 가정 표시: 월간 리포트(발행 당시 기본 가정)와 숫자가 다를 수 있어 '지금 시세·내 조건'임을 붙인다
-            const asm = `<small class="mut asm">현금 매수·지금 시세·내 조건</small>`;
-            const can = buyWindow(r).cls === "no"
-              ? '<span class="mut">지금 사면 입주권 없음</span>'
-              : x.ok
-              ? x.needTotal <= CASH
-                ? `<span class="okc">입주까지 현금 ${e2(x.needTotal)}억 · 됨</span>${asm}`
-                : `<span class="mut">입주까지 현금 ${e2(x.needTotal)}억</span>${asm}`
-              : `<span class="mut">${x.needBuy != null ? `지금 매수 ${e2(x.needBuy)}억 · ` : ""}입주까지 계산 불가</span><small class="mut asm">${x.nvThin ? "주변 신축 시세 표본 부족" : "입주 시점·신축 시세 자료 부족"}</small>`;
-            return `<tr${fav ? ' class="cur"' : ""}><td>${fav ? SVG_PIN(true) + " " : ""}<a href="#${esc(it.id)}">${esc(shortName(r.n))}</a><small class="mut"> ${esc(r.g)}</small></td><td data-l="단계">${it.steps.length > 1 ? `${it.steps.map((k) => esc(k)).join("·")}인가 <small class="mut">같은 날</small>` : STEP_K[it.step] || esc(it.step)}</td><td class="n" data-l="인가일">${it.date.slice(5).replace("-", ".")}</td><td data-l="고시 원문">${it.src ? `<a href="${esc(it.src)}" target="_blank" rel="noopener" data-nw="1">보기 ↗<span class="sr-only"> (새 창)</span></a>` : it.nt ? '<span class="mut">정비사업 정보몽땅 기록</span>' : '<span class="mut">원문 미확인</span>'}</td><td data-l="내 현금으로" class="nw-can">${can}</td></tr>`;
-          })
-          .join("");
-        const NX = {
-          2: "구역지정>조합설립",
-          3: "추진위>조합설립",
-          4: "조합설립>사업시행",
-          5: "사업시행>관리처분",
-          6: "관리처분>착공",
-          8: "착공>준공",
-        };
-        const favRows = FAV.slice(0, 12)
-          .map((id) => {
-            const r = byId[id];
-            if (!r) return "";
-            if (!r._prem && !r._plq) {
-              r._plq = 1;
-              premLoad(r).then(() => renderNew());
-            }
-            const d = curStageDate(r),
-              key = NX[r.s],
-              g = /가로|소규모/.test(r.k) ? "small" : "large";
-            let t = (TR[g] || {})[key];
-            if (t && t.uses && t.uses !== g) t = TR[t.uses][key];
-            if (!d || !t)
-              return `<tr><td><a href="#${esc(id)}">${esc(shortName(r.n))}</a></td><td data-l="단계">${esc(stageName(r))}</td><td class="n mut" data-l="지금 단계">–</td><td class="mut" data-l="같은 단계와 비교">${r._prem ? "단계 날짜 없음" : "불러오는 중"}</td></tr>`;
-            const mo = Math.max(0, Math.round((TODAY - new Date(d.replaceAll(".", "-") + "T00:00:00")) / 26298e5)),
-              md = Math.round(t.med * 12),
-              diff = mo - md;
-            const txt =
-              diff < -6
-                ? `가운데 값(${md}개월)까지 ${-diff}개월 남음`
-                : diff <= 6
-                  ? `가운데 값(${md}개월) 부근`
-                  : `가운데 값보다 ${diff}개월 늦음`;
-            return `<tr><td><a href="#${esc(id)}">${esc(shortName(r.n))}</a></td><td data-l="단계">${esc(stageName(r))}</td><td class="n" data-l="지금 단계">${mo}개월째</td><td data-l="같은 단계와 비교">${txt}</td></tr>`;
-          })
-          .join("");
-        const favT = FAV.length
-          ? `<p style="margin-top:14px"><b>내 핀 구역은 지금</b> · 같은 단계 서울 사업장의 가운데 값(아직 못 간 구역 포함)과 비교</p><div class="tbl-wrap"><table class="nw-t cardt"><thead><tr><th>구역</th><th>단계</th><th class="n">지금 단계</th><th>같은 단계와 비교</th></tr></thead><tbody>${favRows}</tbody></table></div>`
-          : `<p class="mut" style="margin-top:12px">구역 카드나 리포트에서 핀을 꽂으면 여기서 그 구역이 같은 단계 가운데 값보다 빠른지 늦은지 매달 보여 줘요.</p>`;
-        const chg = new Set(NI.filter((it) => FAV.includes(it.id)).map((it) => it.id)).size;
-        {
-          const hf = $("huFav");
-          if (hf) {
-            hf.classList.toggle("chg", chg > 0);
-            if (chg) hf.setAttribute("title", `핀 꽂은 구역 ${chg}곳이 ${nwL} 사이 단계가 바뀌었어요`);
-          }
-        }
-        html = `${chg ? `<p class="nw-chg"><b>핀 꽂은 구역 ${chg}곳이 ${nwL} 사이 다음 단계로 넘어갔어요.</b> 아래 표에 핀 아이콘으로 표시돼요.</p>` : ""}<div class="nw-note"><p><b>${nwL} 인가 ${NI.length}건(구역 ${new Set(NI.map((x) => x.id)).size}곳)</b> · 계산기 현금 ${e2(CASH)}억 기준 · 핀 아이콘은 내가 핀 꽂은 구역</p><div class="tbl-wrap"><table class="nw-t cardt"><thead><tr><th>구역</th><th>단계</th><th class="n">인가일</th><th>원문</th><th>내 현금으로</th></tr></thead><tbody>${rows}</tbody></table></div>${MO ? `<p class="mut">월간 리포트(자치구 집계·10년 흐름): <a href="${MO.url}">${moLabel()} 리포트</a></p>` : ""}${favT}</div>`;
-      } catch (e) {
-        html = `<div class="t-empty"><b>${nwL} 단계 변경 ${new Set(NI.map((i) => i.id)).size}곳</b><p><a href="${MO && MO.url}">리포트에서 보기</a></p></div>`;
-      }
-    }
-    if (out._h !== html) {
-      out.innerHTML = html;
-      out._h = html;
-      markNewWin && markNewWin(out);
-    }
-  }
   const NF = {};
   const nf = (d) => NF[d] || (NF[d] = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: d, minimumFractionDigits: d }));
   const fmt = (n, d = 0) => (n == null || !isFinite(n) ? "–" : nf(d).format(n));
@@ -6474,7 +6363,7 @@
           ? `<li class="gt2"><span class="gt-w">이주 · ${yrTxt(g.tR)}${g.tR != null && g.tR <= 4 ? " 무렵" : ""}</span><b>+${e2(g.reloc)}억</b><small>전세금 ${e2(g.D)} 반환${g.M > 0.04 ? ` − 이주비 대출 ${e2(g.M)}(추정·입주 때 상환)` : g.Mcap === 0 ? " · 다주택은 이주비 대출 불가" : ""}</small></li>`
           : `<li class="gt2 na"><span class="gt-w">이주</span><b>+${e2(g.D)}억</b><small>전세금 반환 · 이주비 대출로 일부 충당 가능(조합·규제에 따라 다름)</small></li>`;
     const s3 = x.ok
-      ? `<li class="gt3"><span class="gt-w">입주 · ${etaShow(g.r)}${(() => { const pr = projection(g.r); return pr.stall || pr.nodata ? " (계산용 가정)" : ""; })()}</span><b>${f1(g.total)}억</b><small>${small ? `${LBL.cashToMoveIn} = 분담금·세금·이자 − 잔금대출` : `${LBL.cashToMoveIn} = 분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`
+      ? `<li class="gt3"><span class="gt-w">입주 · ${etaShow(g.r)}${(() => { const pr = projection(g.r); return pr.stall || pr.nodata ? " (계산용 가정)" : ""; })()}</span><b>${f1(g.total)}억</b><em class="gt-l">${LBL.cashToMoveIn}</em><small>${small ? `${LBL.cashToMoveIn} = 분담금·세금·이자 − 잔금대출` : `${LBL.cashToMoveIn} = 분담금·세금·이자 − 잔금대출 · 참고: 현금으로 사면 ${f1(x.needTotal)}억(매수대출 이자 대신 이주비 이자라 차이)`}</small></li>`
       : `<li class="gt3 na"><span class="gt-w">입주</span><b>계산 전</b><small>입주 시점·신축 시세 자료가 부족해요</small></li>`;
     return `<ol class="gtl${small ? " sm" : ""}">${s1}${s2}${s3}</ol>`;
   }
@@ -7585,7 +7474,7 @@
     }
     const t = $(id);
     if (!t) return;
-    const want = () => t.getBoundingClientRect().top + window.scrollY - HDR() + (t.classList.contains("sec") && !t.classList.contains("s-on") ? SEC_GAP() - 24 : -8); // 도구 화면(s-on)은 패딩이 작아 SIMPLE.open과 같은 자리로
+    const want = () => t.getBoundingClientRect().top + window.scrollY - HDR() + (t.classList.contains("sec") && !t.classList.contains("s-on") && !document.documentElement.classList.contains("s-view") ? SEC_GAP() - 24 : -8); // 도구 화면(s-on·입주 계산 아래 칸)은 SIMPLE.open과 같은 자리로
     window.scrollTo({ top: want(), behavior: smooth() });
     const y0 = window.scrollY;
     let moved = false;
@@ -8768,7 +8657,8 @@
           : m > 0 || i
             ? `지금 ${e2(cash0)}억 · 매달 ${fmt(Math.round(m * 1e4))}만 원으로는 <b>20년 넘게</b> 걸려요${gr ? ` (집값 연 ${SV.g}% 오름 가정)` : ""}`
             : `매달 모으는 돈을 넣으면 언제 몇 곳이 되는지 보여 줘요`;
-    const W = Math.max(300, Math.round(out.clientWidth || 640)),
+    // 넓은 PC 입주 계산 아래(.pl-save)에서는 그래프가 왼쪽 칸(약 55%)만 쓴다(66_tools.css) — 글자가 줄어들지 않게 그 폭으로 그린다
+    const W = Math.max(300, Math.round((out.clientWidth || 640) * (out.closest(".pl-save") && matchMedia("(min-width:1200px)").matches ? 0.55 : 1))),
       H = W < 520 ? 200 : 240,
       pl = 40,
       pr = 14,
@@ -8949,7 +8839,6 @@
         runCommute();
         renderSave();
         renderFav();
-        renderNew();
       } catch (e) {
         console.warn(e);
       }
@@ -8989,7 +8878,7 @@
     }
     // #report(구별 요약): 모바일에선 빈 리포트 칸이 숨겨지므로 같은 내용인 '지역 · 필요한 돈' 목록으로
     if (hash0 === "report" && !$("report").offsetParent && $("sListW")) setTimeout(() => $("sListW").scrollIntoView({ block: "start" }), 300);
-    else if (hash0 && !gu0 && $(hash0)) requestAnimationFrame(() => jumpTo(hash0));
+    else if (hash0 && !gu0 && $(hash0)) requestAnimationFrame(() => jumpTo(window.ZP_ALIAS && ZP_ALIAS[hash0] ? (ZP_ALIAS[hash0][1] === "save" ? "saveTop" : ZP_ALIAS[hash0][0]) : hash0));   // 예전 도구 주소는 합친 화면 머리로(60_simple.js ZP_ALIAS)
     refreshFades();
   }
   initFold();

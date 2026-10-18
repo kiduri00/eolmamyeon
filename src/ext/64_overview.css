@@ -248,3 +248,5 @@ svg.ov-bar .bn.on{fill:#fff}
 #report:has(.pn-hpin) .rep-acts>.favb{display:none}
 /* 시트를 열 때 제목에 포커스(읽기 시작점) · 마우스·터치로 연 경우엔 링 없이 */
 #repTitle:focus{outline:none}
+/* 시간표 입주 칸: 큰 숫자가 무엇인지(입주까지 현금) 간단 화면에서도 한 줄 */
+#report .gtl .gt-l{display:block;margin-top:2px;font-style:normal;font-size:12px;font-weight:600;color:var(--text-3)}

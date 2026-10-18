@@ -12492,9 +12492,6 @@ html.mb-open {
 .mb-tag {
   display: none !important;
 }
-html:not(.is-member) #newTop {
-  display: none;
-}
 .mbs-join {
   display: flex;
   flex-direction: column;
