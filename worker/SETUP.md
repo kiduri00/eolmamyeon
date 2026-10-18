@@ -62,3 +62,18 @@ VAPID 키쌍은 Worker가 처음 `/api/push/key` 요청을 받을 때 만들어 
 - 로컬 Worker: `npx wrangler dev -c worker/wrangler.push.jsonc --test-scheduled --var PUSH_TEST_HOSTS:127.0.0.1`
   (`PUSH_TEST_HOSTS`는 로컬 수신기로 보내 보는 시험용이라 배포 설정에는 넣지 않는다.)
   cron 실행: `curl "http://127.0.0.1:8787/cdn-cgi/handler/scheduled?cron=30+22+*+*+*"`
+
+## 문의 양식(/api/contact) · 운영자 문의함(/admin.html) — 20차
+
+- 방문자 양식(src/contact.js · 정적 페이지는 /cf.js)이 `POST /api/contact`로 보낸다. 메일 주소는 사이트 어디에도 없다.
+- Worker(worker/contact.js) 검사: 종류(general·error·idea·etc) · 내용 10~2000자 · 이메일(선택) 꼴 · 허니팟 칸(website) · 같은 출처 · IP당 1시간 5번(IP는 그날 소금과 섞은 SHA-256 해시로만, 1시간 뒤 지워짐 · IP 원문은 저장 안 함).
+- 저장: KV(PUSH) `msg:<ISO 시각>:<난수>` = {kind, text, email, zone, url, why, nums, asOf, ua, ts, read} · 180일 뒤 자동 삭제.
+- 라우팅: wrangler.jsonc `assets.run_worker_first` = ["/api/push/*", "/api/contact", "/api/contact/*"].
+
+### 운영자 토큰(배포 직후 한 번)
+1. `curl https://jaegaebal.alwaysquestions.kr/api/contact/admin/init` → `{"token":"…"}` (KV `admin:tokenhash`가 없을 때 딱 한 번만. 그 뒤로는 늘 403). 토큰 원문은 어디에도 저장되지 않고 KV에는 SHA-256만 남는다.
+2. 운영자 기기에서 `/admin.html`(어디에도 링크 없음 · noindex · 사이트맵·서비스 워커 저장 제외)을 열어 토큰을 한 번 넣는다 → 그 기기 localStorage(`zp.adminToken`)에만 저장.
+3. 문의함: 최신순 목록(30개씩 · 더 보기) · 종류·시각·구역 링크·화면 숫자 · 이메일이 있으면 "…에 답장"(mailto) · 읽음 · 지우기.
+4. "새 문의 알림 받기": 이 기기의 웹 푸시 구독을 KV `admin:sub`에 저장 → 새 문의마다 "새 문의 1건 · <종류>" 알림, 누르면 /admin.html.
+- API(헤더 `Authorization: Bearer <토큰>`): GET /api/contact/admin/list?cursor=&limit= · POST /api/contact/admin/read {id} · POST /api/contact/admin/delete {id} · POST /api/contact/admin/sub {sub} · POST /api/contact/admin/unsub · GET /api/contact/admin/key
+- 토큰을 잃어버리면: Cloudflare 대시보드 KV에서 `admin:tokenhash`를 지운 뒤 1번을 다시.

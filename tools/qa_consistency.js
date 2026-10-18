@@ -1346,7 +1346,7 @@ async function navLane(browser, api, errs) {
   // --- ui.backStack · ui.reloadKeep · ui.noStack (390)
   const { ctx, page } = await newPage(browser, mob(390, 844), errs);
   const T = "뒤로 가기 = 맨 위 겹 하나만 닫기(신고 시트 → 상세 → 홈 · 구 확대 · 고른 카드 · 예산·정렬 시트) · 앱 밖(about:blank)으로 나가지 않음";
-  const st = () => page.evaluate(() => ({ url: location.href, rep: !!document.getElementById("dtRep"), sheet: document.getElementById("report").classList.contains("sheet"), view: (document.getElementById("mapbox") || {}).dataset ? document.getElementById("mapbox").dataset.view : "", pick: !!(document.getElementById("lmPick") && !document.getElementById("lmPick").hidden), bs: !!(document.getElementById("bSheet") && !document.getElementById("bSheet").hidden), ss: !!(document.getElementById("sortSheet") && !document.getElementById("sortSheet").hidden) }));
+  const st = () => page.evaluate(() => ({ url: location.href, rep: !!(document.getElementById("dtRep") || document.getElementById("cfSheet")), sheet: document.getElementById("report").classList.contains("sheet"), view: (document.getElementById("mapbox") || {}).dataset ? document.getElementById("mapbox").dataset.view : "", pick: !!(document.getElementById("lmPick") && !document.getElementById("lmPick").hidden), bs: !!(document.getElementById("bSheet") && !document.getElementById("bSheet").hidden), ss: !!(document.getElementById("sortSheet") && !document.getElementById("sortSheet").hidden) }));
   const back = async () => { await page.goBack({ timeout: 5000 }).catch(() => {}); await page.waitForTimeout(700); return st(); };
   const inApp = (s) => s.url.startsWith(BASE);
   try {
@@ -1398,9 +1398,9 @@ async function navLane(browser, api, errs) {
     await loadHome(page, "#" + zid); await page.waitForFunction(() => document.querySelector("#report .dt-fav"), null, { timeout: 12000, polling: 150 }).catch(() => {}); await page.waitForTimeout(500);
     await page.evaluate(() => { const b = document.querySelector("#report .dt-fav"); b && b.click(); }); await page.waitForTimeout(600);
     const t1 = await page.evaluate(() => { const t = document.getElementById("pnToast"); return { on: !!(t && t.classList.contains("on")), btns: t ? [...t.querySelectorAll("button")].map((b) => b.textContent.trim()) : [] }; });
-    await page.waitForTimeout(3200);
+    await page.waitForTimeout(2200);   // 토스트는 4초(20차 G11) — 그 안에 시트가 저절로 뜨지 않는지 보고, 토스트가 떠 있는 동안 '알림 받기'를 누른다
     const ws = await page.evaluate(() => !!document.getElementById("wsSheet"));
-    expect(t1.on && t1.btns.includes("알림 받기") && t1.btns.includes("되돌리기") && !ws, "ui.noStack", TN, `toast ${t1.on} [${t1.btns}] · wsSheet after 3.8s ${ws}`);
+    expect(t1.on && t1.btns.includes("알림 받기") && t1.btns.includes("되돌리기") && !ws, "ui.noStack", TN, `toast ${t1.on} [${t1.btns}] · wsSheet after 2.8s ${ws}`);
     await page.evaluate(() => { const b = [...document.querySelectorAll("#pnToast button")].find((x) => x.textContent.trim() === "알림 받기"); b && b.click(); }); await page.waitForTimeout(600);
     const ws2 = await page.evaluate(() => ({ ws: !!document.getElementById("wsSheet"), toast: !!(document.getElementById("pnToast") && document.getElementById("pnToast").classList.contains("on")) }));
     expect(ws2.ws && !ws2.toast, "ui.noStack", TN, `'알림 켜기' → sheet ${ws2.ws} toast still on ${ws2.toast}`);
@@ -1756,7 +1756,8 @@ async function r19Lane(browser, api, errs) {
       await page.waitForFunction(() => window.ZP_G && ZP_G.on() && document.querySelectorAll(".zp-ph .zg-mk .zgu").length, null, { timeout: 20000, polling: 50 });
       await page.focus("#sScrub");
       await page.keyboard.press("ArrowRight"); await page.waitForTimeout(120); await page.keyboard.press("ArrowRight");
-      await page.waitForTimeout(250);
+      await page.waitForFunction(() => +(document.getElementById("sScrub").getAttribute("aria-valuenow") || 0) === 3, null, { timeout: 4000, polling: 30 }).catch(() => {});
+      await page.waitForTimeout(150);
       const g = await page.evaluate(() => ({ on: ZP_G.on(), sum: ZP_G.gus().reduce((a, x) => a + x.c, 0) + ZP_G.more(), n: +document.getElementById("sN").textContent.replace(/\D/g, ""), c3: typeof ZP_count === "function" ? ZP_count(3) : null, now: +(document.getElementById("sScrub").getAttribute("aria-valuenow") || 0) }));
       if (!g.on) bad("map.ghostFollow", TG, `자리 그림이 금액을 바꾼 직후 이미 사라짐(붙이기는 키를 누른 뒤 1초 쉬어야 함)`);
       else expect(g.now === 3 && g.sum === g.n && g.n === g.c3, "map.ghostFollow", TG, `3억: ghost ${g.sum} vs 홈 ${g.n} vs ZP_count(3) ${g.c3} (slider ${g.now})`);

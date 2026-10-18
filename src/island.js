@@ -180,7 +180,23 @@
   var coachOff = function () { try { localStorage.setItem("emr.coach1", "1"); } catch (e) {} };
   document.addEventListener("pointerdown", function (e) { if (!hyd() && e.target && e.target.id === "sCash") { coachOff(); dragI = true; } }, true);
   W.addEventListener("pointerup", function () { if (dragI) { dragI = false; if (!hyd()) dots(); } }, true);
-  document.addEventListener("keydown", function (e) { if (!hyd() && e.target && e.target.id === "sCash") coachOff(); }, true);
+  var keyQ = [];
+  document.addEventListener("keydown", function (e) {
+    if (!e.target) return;
+    // 앱 코드는 실렸지만 막대 키 처리(scrubMount)가 아직 안 붙은 틈에 누른 키: 받아 두었다가 앱이 붙으면 그대로 다시 누른다(키가 사라지지 않게)
+    if (hyd() && e.target.id === "sScrub" && !e.target._scr && /^(Arrow(Left|Right|Up|Down)|Page(Up|Down)|Home|End)$/.test(e.key)) { e.preventDefault(); keyQ.push(e.key); return; }
+    if (hyd()) return;
+    if (e.target.id === "sCash") coachOff();
+    // 앱이 붙기 전에도 금액 막대(role=slider)를 키보드로 — 누른 키가 사라지지 않게 섬이 바로 칸을 옮긴다(앱 scrubMount와 같은 칸 · 20차)
+    if (e.target.id === "sScrub") {
+      var k = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 5, PageDown: -5 }[e.key];
+      var j = k != null ? cur.i + k : e.key === "Home" ? 0 : e.key === "End" ? STOPS.length - 1 : null;
+      if (j == null) return;
+      e.preventDefault(); coachOff();
+      j = Math.max(STOPS.indexOf(0.5) >= 0 ? STOPS.indexOf(0.5) : 0, Math.min(STOPS.length - 1, j));
+      if (j !== cur.i) { apply(cur.f, j); save(true); }
+    }
+  }, true);
   document.addEventListener("input", function (e) {
     if (hyd() || e.target.id !== "sCash") return;
     coachOff();
@@ -189,6 +205,7 @@
     rq = requestAnimationFrame(function () { var i = STOPS.indexOf(toCash(v)); if (i >= 0 && (i !== cur.i || true)) apply(cur.f, i, true); save(false); });
   }, true);
   W.addEventListener("zp:hydrated", function () {
+    var sc = $("sScrub"); keyQ.splice(0).forEach(function (k) { try { sc.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })); } catch (e) {} });
     var q = $("q");
     try { if (q && q.value) q.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) {}
     pendCh.forEach(function (k) { try { var el = document.querySelector(k); if (el) el.dispatchEvent(new Event("change", { bubbles: true })); } catch (e) {} });

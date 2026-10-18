@@ -326,7 +326,7 @@ const PINS = (() => {
     const key = (c) => ["s-view", "s-full"].map((k) => (` ${c} `).includes(` ${k} `)).join();
     if ("MutationObserver" in window) new MutationObserver(() => { const c = document.documentElement.className; if (key(c) !== key(prev)) hideToast(); prev = c; }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("#sNav button,#sNav a,[data-nav],#sTiles a,[data-menu]")) hideToast(); }, true);
-    addEventListener("hashchange", hideToast); addEventListener("popstate", hideToast);   // 20차 G11: 아래 탭·뒤로 가기로 화면이 바뀌면 바로 걷는다
+    addEventListener("hashchange", hideToast);   // 20차 G11: 아래 탭([data-nav])으로 화면이 바뀌면 바로 걷는다
   }
   // 21번째 핀: 오래된 핀 하나를 빼고 꽂기
   function full(id) {
