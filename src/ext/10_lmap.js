@@ -237,7 +237,7 @@
       // 알약·구 묶음 자리표(보이지 않는 글자, 맨 위 = 가장 먼저 자리 잡음): 구역·동·역·구 이름이 DOM 알약 밑에 깔리지 않게
       L({ id: "pill-blk", type: "symbol", source: "pillb", layout: { "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-anchor": ["case", ["has", "c"], "center", "bottom"], "text-offset": ["case", ["has", "c"], ["literal", [0, 0]], ["literal", [0, -0.55]]], "text-line-height": 1.6, "text-allow-overlap": true, "text-padding": 7 }, paint: { "text-opacity": 0 } });
       stnDraw(); hovDraw(); guDraw();
-      FSV.clear(); MW.clear();
+      FSV.clear(); MW.clear(); dotK = ""; pbK = "";
       ready = true;
       layerData();
       layers();
@@ -581,7 +581,9 @@
       el.innerHTML = city ? `<span><i class="k-gu"></i>구 묶음 = 갈 수 있는 곳 수 · 눌러서 확대</span>` : `<span><i class="k-ok"></i>가능</span><span><i class="k-near"></i>조금 모자람</span><span><i class="k-far"></i>멀다</span><span><i class="k-na"></i>정보 부족</span>`;
       el.setAttribute("aria-label", city ? "범례: 구 묶음 숫자는 그 구에서 갈 수 있는 곳 수" : "범례: 남색 알약 가능, 흰 알약 조금 모자람(모자란 돈 표시), 작은 점 멀다, 점선 점 정보 부족");
     }
-    function dotsSet(F) { try { map.getSource("zdot").setData(FC(F)); } catch (e) {} }
+    // 같은 점이면 다시 넣지 않는다(지도 크기·위치만 바뀐 경우 — 1,300개 점을 일꾼에 다시 보내지 않게)
+    let dotK = "";
+    function dotsSet(F) { const k = F.map((f) => f.properties.id + f.properties.t).join(","); if (k === dotK) return; dotK = k; try { map.getSource("zdot").setData(FC(F)); } catch (e) {} }
     function pillsSet(P) {
       PILLS.forEach((p, id) => { if (!P.has(id)) { p.mk.remove(); PILLS.delete(id); } });
       const B = [];
@@ -592,6 +594,8 @@
           const el = document.createElement("button");
           el.type = "button"; el.tabIndex = -1; el.dataset.zid = id;
           el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); pillTap(id); });
+          // 데스크톱: 알약에 마우스 → 목록 그 줄 표시(목록 줄 → 지도 노란 테두리와 짝)
+          el.addEventListener("mouseenter", () => rowMark(id)); el.addEventListener("mouseleave", () => rowMark(null));
           p = { el, key: "", mk: new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(ll).addTo(map) };
           PILLS.set(id, p);
         }
@@ -606,8 +610,10 @@
         }
         B.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { t: (v.fav ? "♥ " : "") + (v.nm ? v.nm + " " : "") + v.t + (v.nw ? " NEW" : "") } });
       });
-      try { map.getSource("pillb").setData(FC(B)); } catch (e) {}
+      const bk = B.map((f) => f.properties.t + f.geometry.coordinates).join("|");
+      if (bk !== pbK) { pbK = bk; try { map.getSource("pillb").setData(FC(B)); } catch (e) {} }
     }
+    let pbK = "";
     // 알약 누르기: 처음 = 고르기(진한 남색·1.15배) + 목록의 그 카드(PC는 목록에서 스크롤, 폰은 지도 아래 카드) · 같은 알약 한 번 더 = 상세
     function pillTap(id) {
       if (!byId[id]) return;
@@ -655,7 +661,7 @@
         placed.push(bx); keep.push(Object.assign(g, { sn, d, t: g.c ? (g.c / mx > 0.6 ? 3 : g.c / mx > 0.25 ? 2 : 1) : 0 }));
       }
       gusSet(keep);
-      try { map.getSource("pillb").setData(FC(keep.map((g) => ({ type: "Feature", geometry: { type: "Point", coordinates: g.ll }, properties: { t: g.sn + "\n가능 " + g.c, c: 1 } })))); } catch (e) {}
+      pbK = ""; try { map.getSource("pillb").setData(FC(keep.map((g) => ({ type: "Feature", geometry: { type: "Point", coordinates: g.ll }, properties: { t: g.sn + "\n가능 " + g.c, c: 1 } })))); } catch (e) {}
     }
     function gusSet(keep) {
       const K = new Map(keep.map((g) => [g.n, g]));

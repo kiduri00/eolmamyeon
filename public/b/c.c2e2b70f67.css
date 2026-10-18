@@ -14878,9 +14878,27 @@ html.scrub-on .bc-num,html.scrub-on .scrub .scr-bars i{transition:none}
 html.scrub-on,html.scrub-on body{-webkit-user-select:none;user-select:none}
 html.simple #bSheet .bs-hist.scrub{margin:6px 0 24px}
 html.simple #bSheet input.scr-in{position:absolute!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;opacity:0}
-.bs-card:has(#sCash:focus-visible) #bHist{outline:2px solid var(--focus);outline-offset:4px;border-radius:8px}
+.bs-card:has(#sCash:focus-visible) #bHist .scr-h,.bs-card:has(#sCash:focus-visible) #bHist .scr-h::before{background:var(--focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 30%,transparent)}
 html.simple .s-gauge.bc .scrub{margin:8px 0 18px}
 @media (max-width:374px){html.simple .s-gauge.bc .scrub{margin-bottom:16px}}
+
+/* ---------- 늘 보이는 작은 범례(지도 왼쪽 아래) ---------- */
+.lm-key{position:absolute;left:8px;bottom:8px;z-index:3;display:flex;flex-wrap:wrap;gap:2px 8px;max-width:calc(100% - 120px);margin:0;padding:4px 8px;border-radius:10px;background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--border);font:600 11px/1.35 var(--font);color:var(--text-2);pointer-events:none}
+.lm-key span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.lm-key i{flex:none;display:inline-block;box-sizing:border-box}
+.lm-key .k-ok{width:14px;height:9px;border-radius:5px;background:var(--zn)}
+.lm-key .k-near{width:14px;height:9px;border-radius:5px;background:var(--surface);border:1.5px solid var(--zn)}
+:root[data-theme="dark"] .lm-key .k-near{border-color:#7FA6FF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lm-key .k-near{border-color:#7FA6FF}}
+.lm-key .k-far{width:6px;height:6px;border-radius:50%;background:var(--zg)}
+.lm-key .k-na{width:8px;height:8px;border-radius:50%;border:1.4px dashed var(--zg)}
+.lm-key .k-gu{width:10px;height:10px;border-radius:50%;background:var(--zn)}
+#lmap:has(.lm-pick:not([hidden])) .lm-key{display:none}
+/* 2줄: 역·분이 먼저 자리 잡고, 동은 남는 자리가 있을 때만(모자라면 통째로 다음 줄 = 숨김) */
+.s-card .s-sub{display:flex;flex-flow:row-reverse wrap;justify-content:flex-end;min-width:0;height:1.3em;overflow:hidden}
+.s-card .s-sub .s-dg,.s-card .s-sub .s-wk{flex:none;white-space:nowrap}
+.s-card .s-l2 .s-stg{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;display:block;line-height:18px}
+@media (max-width:374px){.s-card button.s-amt small{font-size:12px}.s-card .s-av .s-al{font-size:11px}}
 .tl-f{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
 .tl-l{list-style:none;margin:0;padding:0}
 .tl-l li a{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--divider);color:var(--text-1);text-decoration:none}

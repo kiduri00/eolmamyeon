@@ -130,7 +130,7 @@ const SIMPLE = (() => {
   // 모자란 돈: 지금 필요한 돈(화면에 보이는 올림 값) − 내 돈 → '+2,000만' · '+0.2억'(ZF 꼴, 1억 아래 만 단위)
   const shortTxt = (need) => "+" + ZF.cash(Math.max(0.01, Math.ceil(need * 100 - 1e-6) / 100 - CASH));
   // 단계 칩: 짧은 이름
-  const stgShort = (r) => { let t = ""; try { t = stageName(r) || ""; } catch (e) {} return /후보지|대상지/.test(t) ? "후보지" : /정비계획/.test(t) ? "정비계획" : /구역\s?지정/.test(t) ? "구역지정" : /추진위|주민대표/.test(t) ? "추진위" : /조합|시행자 지정/.test(t) ? "조합설립" : /사업시행/.test(t) ? "사업시행" : /관리처분/.test(t) ? "관리처분" : /이주|철거/.test(t) ? "이주·철거" : /착공|분양/.test(t) ? "착공" : /준공|입주/.test(t) ? "준공" : t.slice(0, 5); };
+  const stgShort = (r) => { let t = ""; try { t = stageName(r) || ""; } catch (e) {} return /주민합의/.test(t) ? "합의체" : /후보지|대상지/.test(t) ? "후보지" : /정비계획/.test(t) ? "정비계획" : /구역\s?지정/.test(t) ? "구역지정" : /추진위|주민대표/.test(t) ? "추진위" : /조합|시행자 지정/.test(t) ? "조합설립" : /사업시행/.test(t) ? "사업시행" : /관리처분/.test(t) ? "관리처분" : /이주|철거/.test(t) ? "이주·철거" : /착공|분양/.test(t) ? "착공" : /준공|입주/.test(t) ? "준공" : t.slice(0, 5); };
   const walkTxt = (r) => { if (!r.st || !r.st.n || !isFinite(r.st.d)) return ""; const m = ZF.walkMin(r.st.d); return m > 30 ? "" : `${String(r.st.n).replace(/역$/, "")}역 ${m}분`; };
   const tkOf = (r) => { try { const c = buyWindow(r).cls; return c === "ok" ? "y" : c === "no" ? "n" : ""; } catch (e) { return ""; } };
   // NEW: 이번 주(7일)에 '지금 필요한 돈'이 내려가 지금 내 돈으로 새로 갈 수 있게 된 곳(data/changes.json price 사건 · 없으면 표시 안 함)
@@ -155,7 +155,8 @@ const SIMPLE = (() => {
     const main = nowK ? z.need : z.total, nm = shortName(r.n), fav = isFav(r.id), stg = stgShort(r), wk = walkTxt(r), tk = tkOf(r), nw = isNew(r, z.need);
     const tag = sortK === "eta" ? etaTag(r) : sortK === "gain" ? gainTag(r) : "";   // 초기 단계는 단계 칩이 말한다
     // 2줄: 동 · 역 N분(구는 뺀다 — 짧게, 이름이 먼저) · 동을 못 찾으면 구
-    const sub = [esc(dongOf(r) || r.g), wk ? esc(wk) : ""].filter(Boolean).join(" · ") + tag;
+    // 동은 좁으면 먼저 줄어들고(…) 역·분은 늘 다 보인다
+    const sub = `${wk ? `<span class="s-wk">${esc(wk)}${tag}</span>` : ""}<span class="s-dg">${esc(dongOf(r) || r.g)}${wk ? " ·\u00a0" : tag}</span>`;
     // 입주권 ✓는 화면 읽기 이름에만(카드 2줄을 동·역에 양보) · ✕만 주황 배지
     const bdg = `${tk === "n" ? '<em class="s-b s-b-no">입주권 ✕</em>' : ""}${nw ? '<em class="s-b s-b-new">NEW</em>' : ""}`;
     const mt = main != null ? eokS(main) : "–";
@@ -192,7 +193,8 @@ const SIMPLE = (() => {
     if (!li) { const L = rows(), i = L.findIndex((x) => x.r.id === id); if (i >= shown) { shown = i + 1; render(); li = $("sList").querySelector(`.s-card[data-zid="${CSS.escape(id)}"]`); } }
     if (!li) return false;
     li.classList.add("sel");
-    if (scroll) { const b = li.getBoundingClientRect(), top = HDR() + 8; if (b.top < top || b.bottom > innerHeight - 8) window.scrollTo({ top: Math.max(0, b.top + scrollY - Math.max(top, (innerHeight - b.height) / 2)), behavior: reduceMotion() ? "auto" : "smooth" }); }
+    // PC 목록은 칸 안에서 스크롤 → 그 칸 안에서 카드가 보이게(가장 가까운 자리)
+    if (scroll) try { li.scrollIntoView({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" }); } catch (e) {}
     return true;
   }
   // 아래 탭바(4개: 찾기·관심·소식·MY): 지금 보는 화면에서 탭을 정한다(인자는 예전 호출과 맞추려고 받기만 함)
@@ -737,13 +739,13 @@ const SIMPLE = (() => {
     });
     addEventListener("popstate", () => close(false));
   }
-  // ---------- 무한 스크롤: 마지막 카드가 화면(PC는 목록 칸) 600px 안에 들어오면 20곳씩 더 · #sMore '더 보기 (N곳)'는 키보드·화면 읽기용 버튼으로 남는다 ----------
+  // ---------- 무한 스크롤: 마지막 카드가 화면(PC는 목록 칸) 300px 안에 들어오면 20곳씩 더 · #sMore '더 보기 (N곳)'는 키보드·화면 읽기용 버튼으로 남는다 ----------
   let mIO = null, mRoot = null, mLast = null;
   function moreIO() { moreWatch(); }
   function moreWatch() {
     const ol = $("sList"), m = $("sMore"); if (!ol || !m || !window.IntersectionObserver) return;
     const box = matchMedia("(min-width:981px)").matches && /auto|scroll/.test(getComputedStyle(ol).overflowY) ? ol : null;
-    if (!mIO || mRoot !== box) { if (mIO) mIO.disconnect(); mRoot = box; mLast = null; mIO = new IntersectionObserver((es) => { if (es.some((x) => x.isIntersecting)) setTimeout(moreGo, 0); }, { root: box, rootMargin: "0px 0px 600px 0px" }); }
+    if (!mIO || mRoot !== box) { if (mIO) mIO.disconnect(); mRoot = box; mLast = null; mIO = new IntersectionObserver((es) => { if (es.some((x) => x.isIntersecting)) setTimeout(moreGo, 0); }, { root: box, rootMargin: "0px 0px 300px 0px" }); }
     const last = m.hidden ? null : ol.lastElementChild;
     if (last === mLast) return;
     mIO.disconnect(); mLast = last; if (last) mIO.observe(last);
