@@ -62,8 +62,8 @@ const SIMPLE = (() => {
   const inBB = (r) => !bbF || (r.ll && r.ll[1] >= bbF[0] && r.ll[1] <= bbF[2] && r.ll[0] >= bbF[1] && r.ll[0] <= bbF[3]);
   let listGu = "", gu = "", kind = "", shown = SHOW0(), timer = 0, keepY = null;
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-  // 1억 아래는 소수 둘째 자리까지(9,515만 → 0.95억, '1억'으로 올려 보이지 않게)
-  const eokS = ZF.cash;   // 1억 아래는 소수 둘째 자리까지(0.95억) — 지도·핀·리포트와 같은 ZF 꼴
+  // 1억 아래는 만 원(9,515만 → 9,500만) · 1억부터 '1.2억'
+  const eokS = ZF.cash;   // 지도·핀·리포트와 같은 ZF 꼴
   const dongOf = (r) => { const m = /^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)/.exec(r.j || r.bj || ""); return m ? m[1] : r.dg || ""; };
   const KIND = (r) => (/재건축/.test(r.k) ? "rebuild" : /가로|소규모/.test(r.k) ? "small" : "redev");
   function needOf(r) {

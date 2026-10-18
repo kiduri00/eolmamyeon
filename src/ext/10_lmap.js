@@ -408,7 +408,7 @@
         if (k === "y" || k === "n") {
           const x = gapMode() ? gapOf(r) : investC(r);
           const need = gapMode() ? x.now : effBasis() === "total" ? x.needTotal : x.needBuy;
-          if (need != null && isFinite(need)) return `${gapMode() ? "지금" : effBasis() === "total" ? "입주까지" : "지금"} ${e2(need)}억`;
+          if (need != null && isFinite(need)) return `${gapMode() ? "지금" : effBasis() === "total" ? "입주까지" : "지금"} ${ZF.cash(need)}`;
         }
         return CASH_LAB[k] || "";
       }
@@ -419,7 +419,7 @@
     function cardVal(r) {
       const t = labelOf(r);
       if (BINS[colorBy]) return t || "";
-      const m = /([\d.]+억)/.exec(t || "");
+      const m = /([\d.,]+(?:억|만|원))/.exec(t || "");
       return m ? m[1] : "";
     }
     // 같은 짧은 이름이 둘 이상이면(예: '역촌역세권 장기전세' 3곳) 지도 글자에 동을 붙여 구분한다
@@ -508,7 +508,7 @@
     const LB = new Map();
     function pinLab(r) {
       if (LB.has(r.id)) return LB.get(r.id);
-      const t = labelOf(r), m = /([\d.]+억)/.exec(t || "");
+      const t = labelOf(r), m = /([\d.,]+(?:억|만|원))/.exec(t || "");
       const v = `${fullName(r)} · ${m ? m[1] : cardVal(r) || ""}`.replace(/ · $/, "");
       LB.set(r.id, v); return v;
     }

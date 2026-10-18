@@ -81,14 +81,31 @@ const HM = (() => {
   return { init };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", HM.init) : setTimeout(HM.init, 0);
-/* 로고: 계산기(#planner)가 아니라 맨 위 첫 화면으로 */
+/* 로고: 어느 화면에서든(상세 시트·도구 화면·전체 지도·알림함·메뉴·PC 상세) 다 닫고 맨 위 첫 화면으로 · 주소의 #… 지움(새로고침 없이)
+   예전엔 주소만 지우고 도구 화면(s-view)·전체 지도는 그대로 남아 '로고를 눌러도 홈으로 안 간다'였다. 하나라도 못 닫으면 "/"로 새로 연다. */
+function ZP_home() {
+  const H = document.documentElement, base = location.pathname + location.search;
+  try { history.replaceState(null, "", base); } catch (e) {}   // 먼저 주소·기록 상태를 비워 아래 닫기들이 history.back()을 하지 않게
+  const T = (f) => { try { f(); } catch (e) {} };
+  T(() => { const x = document.querySelector("#ibSheet [data-ibx]"); if (x) x.click(); });
+  T(() => document.querySelectorAll(".pn-ov").forEach((o) => o.remove()));
+  H.classList.remove("ib-lock");
+  T(() => { const mp = document.getElementById("menuPop"); if (mp && !mp.hidden) document.getElementById("menuBtn").click(); });
+  T(() => { if (document.getElementById("report").classList.contains("sheet")) closeSheetNow(); });
+  H.classList.remove("s-rep");
+  T(() => { if (typeof SIMPLE !== "undefined") { SIMPLE.close(); SIMPLE.fullMap(false); } });
+  T(() => { if (typeof exitGu === "function") exitGu(); });
+  T(() => { const q = document.activeElement; if (q && q.blur && q !== document.body) q.blur(); });
+  const top = () => window.scrollTo({ top: 0, behavior: "auto" });
+  top(); requestAnimationFrame(top); setTimeout(top, 120);
+  // 그래도 무언가 열려 있으면 깨끗하게 새로 연다
+  setTimeout(() => { if (H.classList.contains("s-view") || H.classList.contains("s-full") || H.classList.contains("sheet-open") || document.getElementById("ibSheet")) location.assign("/"); }, 60);
+}
 document.addEventListener("click", (e) => {
   const a = e.target.closest && e.target.closest("a.logo");
-  if (!a || e.metaKey || e.ctrlKey) return;
+  if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button > 0) return;
   e.preventDefault();
-  if (document.getElementById("report").classList.contains("sheet")) closeSheetNow();
-  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
-  window.scrollTo({ top: 0, behavior: "auto" });
+  ZP_home();
 }, true);
 /* 섹션 이동(탭바·메뉴·다음 단계)도 방문 기록에 남겨, 뒤로가기가 사이트 밖으로 나가지 않고 이전 위치로 돌아오게 */
 (() => {

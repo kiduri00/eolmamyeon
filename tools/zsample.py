@@ -12,8 +12,11 @@ def num(v):   # 억 단위 금액 숫자 꼴 — 화면 ZF.num과 같은 규칙:
     if a < 0.995:
         t = f"{math.floor(a * 100 + 0.5) / 100:.2f}"; return sg + (t[:-1] if t.endswith('0') else t)
     t = f"{math.floor(a * 10 + 0.5) / 10:,.1f}"; return sg + (t[:-2] if t.endswith('.0') else t)
-def cash(v):   # → '0.69억' · '1.2억' · '0원' (화면 ZF.cash)
-    t = num(v); return t if t == '–' else '0원' if t == '0' else t + '억'
+def cash(v):   # → '6,900만' · '1.2억' · '0원' (화면 ZF.cash: 1억 아래는 만 원 100만 단위)
+    t = num(v)
+    if t in ('–', '0'): return t if t == '–' else '0원'
+    if abs(v) < 0.995: return ('-' if v < 0 else '') + f"{math.floor(abs(v) * 100 + 0.5) * 100:,}만"
+    return t + '억'
 AUSE = {'단독주택다가구': '단독·다가구', '연립주택,다세대,빌라': '연립·다세대', '상가,오피스텔,근린시설': '상가·근린시설', '대지,임야,전답': '대지·임야', '다가구주택': '다가구'}
 def auc_use(u):   # 경매 용도 원문 → 읽기 쉬운 말(화면 ZF.aucUse)
     t = str(u or '').strip(); return AUSE.get(re.sub(r'\s+', '', t)) or re.sub(r'\s*,\s*', '·', t)
@@ -42,6 +45,9 @@ def smpTxt(r, c):   # 매수가 표본 한 문장 — 화면 64_overview.js smpT
              else f"주변 {en['radius']}m 빌라" if en.get('radius') else '같은 본번 빌라' if en.get('m') == 'jibun' else '구역 안 빌라')
     span = f"({en['f']}" + (f"–{en['t']}" if en.get('t') and en['t'] != en['f'] else '') + ')' if en.get('f') else (f"(최근 {en['last'][:5]})" if en.get('last') else '')
     return f"{where} 거래 1건{span}" if en['n'] == 1 else f"{where} {en['n']}건 가운데 값{span}"   # 1건이면 '가운데 값'이라 하지 않는다
+def noTicket(r, c):   # 지금 사면 입주권이 안 나오는 구역(화면 app.js noTicket과 같은 기준) — 매수가·신뢰 상자를 내지 않는다
+    s = r.get('s', 0); done = s >= 9 or (bool(r.get('dn')) and s < 7)
+    return (c or {}).get('win') == 'no' and not done and not r.get('dn') and not r.get('cx') and r.get('src') != 'moa'
 def headline(r, c, hd):
     """구역 머리 큰 숫자 하나(화면 ZF.headline과 같은 규칙) — 계산 매수가가 있으면 그 표본으로만 말한다.
     hd = tx.json x.hd(구역 대표 거래 기준) 또는 None.  → {'kind', 'v'(만원), 'n', 'basis', 'label'}
@@ -49,7 +55,7 @@ def headline(r, c, hd):
       'p'  : 3.3㎡당을 같은 표본으로 낼 수 없으면 매수가 자체(가운데 값)를 큰 숫자로 · 구역 대표 거래 3.3㎡당은 참고 줄로
       'hd' : 매수가 표본이 없거나(추정·계산 전) 아파트·입주권 기준 구역 → 대표 거래 기준 그대로"""
     en = (r.get('mk') or {}).get('entry') or {}
-    has = bool(en.get('n')) and (en.get('med') or 0) > 0 and c.get('price') is not None and c.get('priceSrc') in ('villa', 'complex', 'apt') and not isEst(r, c)
+    has = bool(en.get('n')) and (en.get('med') or 0) > 0 and c.get('price') is not None and c.get('priceSrc') in ('villa', 'complex', 'apt') and not isEst(r, c) and not noTicket(r, c)
     if has and hd and hd.get('b') == 'v' and en.get('src') == 'villa' and en.get('u'):
         nl = en.get('nl') or en['n']
         return {'kind': 'u', 'v': en['u'], 'n': en['n'], 'label': '대지 3.3㎡당', 'basis': smpTxt(r, c) + (f' · 대지 면적 있는 {nl}건' if nl < en['n'] else '') + ' · 매수가와 같은 표본'}

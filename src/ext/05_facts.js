@@ -9,9 +9,10 @@
     const eok = (m) => (m == null || !isFinite(m) ? "–" : m >= 10000 ? (Math.round(m / 1000) / 10).toLocaleString("ko-KR") + "억" : Math.round(m).toLocaleString("ko-KR") + "만");
     const manT = (v) => { const m = Math.round(v * 1e4), a = Math.floor(m / 1e4), b = m % 1e4; return a ? `${a}억${b ? ` ${b.toLocaleString("ko-KR")}만` : ""}` : `${b.toLocaleString("ko-KR")}만`; };
     // 억 단위 금액 한 꼴(지금 필요한 돈·입주까지 현금·핀·지도 이름표·리포트 시간표 모두): 1억 아래는 소수 둘째 자리(0.97), 1억부터 첫째 자리(1.2 · 1)
-    // num → 단위 없는 숫자('0.97' · '1.2' · '0'), cash → '0.97억' · '0원'
+    // num → 단위 없는 숫자('0.97' · '1.2' · '0'), cash → '9,700만' · '1.2억' · '0원'
     const num = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (a < 0.995) return sg + (Math.round(a * 100) / 100).toFixed(2).replace(/0$/, ""); return sg + (Math.round(a * 10) / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
-    const cash = (v) => { const t = num(v); return t === "–" ? t : t === "0" ? "0원" : t + "억"; };
+    // cash → 단위까지 붙인 꼴: 1억 아래는 만 원(100만 단위 · '4,100만'), 1억부터 '1.2억', 0은 '0원' — 화면의 모든 'X억' 금액이 이것 하나(tools/zsample.py cash와 같은 규칙)
+    const cash = (v) => { const t = num(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (a < 0.995) return (v < 0 ? "-" : "") + (Math.round(a * 100) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };
     const entry = (r) => (r && r.mk && r.mk.entry) || null;
     const est = (r) => { try { return isEst(r); } catch (e) { return false; } };
     const calc = (r) => { try { return investC(r); } catch (e) { return null; } };
@@ -34,7 +35,8 @@
        'u' 매수가 표본의 대지 3.3㎡당 · 'p' 매수가 자체(3.3㎡당을 같은 표본으로 못 낼 때) · 'hd' 대표 거래 기준(표본 없음·추정·직접 입력·아파트 기준) */
     function headline(r, h) {
       const en = entry(r) || {}, x = calc(r);
-      const has = en.n > 0 && en.med > 0 && x && x.price != null && isFinite(x.price) && x.priceSrc !== "user" && x.priceSrc !== "est" && !est(r);
+      let nt = false; try { nt = noTicket(r); } catch (e) {}   // 지금 사면 입주권이 안 나오는 구역은 매수가를 계산하지 않는다(리포트 '입주 현금 계산 · 안 함') → 대표 거래 기준
+      const has = !nt && en.n > 0 && en.med > 0 && x && x.price != null && isFinite(x.price) && x.priceSrc !== "user" && x.priceSrc !== "est" && !est(r);
       if (has && h && h.b === "v" && en.src === "villa" && en.u) {
         const nl = en.nl || en.n;
         return { kind: "u", v: en.u, n: en.n, to: en.t ? "20" + en.t.replace(".", "") : "", label: "빌라·단독 대지 3.3㎡당", basis: `${smpTxt(r, x)}${nl < en.n ? ` · 대지 면적 있는 ${nl}건` : ""} · 매수가와 같은 표본` };
@@ -91,7 +93,26 @@
     // 여러 물건 대표 용도: '기타'보다 구체적인 용도를 먼저
     const aucUses = (us) => { const xs = [...new Set(us.map(aucUse).filter(Boolean))], top = xs.filter((x) => x !== "기타"); const a = top[0] || xs[0] || "부동산"; return xs.length > 1 ? `${a} 외` : a; };
     const aucJb = (jb) => { const m = String(jb || "").match(/^([\d.]+)분의([\d.]+)$/); if (!m || !(+m[1] > 0)) return null; const p = (+m[2] / +m[1]) * 100, t = p >= 10 ? Math.round(p) : Math.round(p * 10) / 10; return { pct: t, txt: `지분 약 ${t}%`, frac: `${m[1]}분의 ${m[2]}` }; };
-    return { aucUse, aucUses, aucJb, eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl };
+    // 경사(rec.sl: a 평균 경사(°) · d 고저차(m) · p 10° 넘는 땅 비율(%) · k 평지·완만·경사·급경사 — tools/slope.py·enrich.py) → '경사 완만(5%)'
+    // %는 평균 경사각을 기울기(높이/거리 ×100)로 바꾼 값: tan(3.1°) ≈ 5%
+    function slope(r) {
+      const s = r && r.sl; if (!s || !s.k) return null;
+      const pct = s.a != null && isFinite(s.a) ? Math.round(Math.tan((+s.a * Math.PI) / 180) * 100) : null;
+      const name = s.k === "평지" ? "평지" : s.k === "급경사" ? "급경사" : s.k === "경사" ? "경사 있음" : "경사 " + s.k;
+      const tip = [pct != null ? `평균 기울기 ${pct}%(100m 가면 ${pct}m 오르내림)` : "", s.d != null && isFinite(s.d) ? `높낮이 차 ${Math.round(+s.d)}m` : "", s.p ? `가파른 땅(10° 넘음) ${Math.round(+s.p)}%` : ""].filter(Boolean).join(" · ");
+      return { pct, k: s.k, txt: pct != null ? `${name}(${pct}%)` : name, tip };
+    }
+    // 매수가는 있는데 입주까지를 계산 못 한 까닭(무엇이 없는지) — 머리 줄·입주 현금 탭·관심 구역 카드가 같은 말
+    function noCalcTxt(r, x) {
+      if (!x) x = calc(r);
+      if (!x || x.price == null) return "";
+      const mk = (r && r.mk) || {}; let u = 84; try { u = P.unit === 59 ? 59 : 84; } catch (e) {}
+      const ref = u === 59 ? mk.new59 || mk.new84 : mk.new84;
+      const miss = x.nvThin ? `주변 신축 아파트 거래가 ${ref && ref.n ? ref.n + "건뿐" : "적어"}이라 입주 때 시세를 못 잡았어요` : x.nv == null ? "주변 신축 아파트 시세 자료가 없어 입주 때 시세를 못 잡았어요" : "";
+      if (r && r.src === "moa") return "모아타운 관리지역은 사업구역마다 분담금·입주 시점이 달라 입주까지는 안의 사업구역에서 계산해요";
+      return miss || "입주까지 계산에 필요한 자료가 부족해요";
+    }
+    return { noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
   })();
   // 정적 HTML(shell.html)의 방식 버튼 글자도 LBL에서: data-lbl="gap|loan|cashToMoveIn"
   { const lbl = () => document.querySelectorAll("[data-lbl]").forEach((e) => { const t = LBL[e.dataset.lbl]; if (t && e.textContent !== t) e.textContent = t; }); document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", lbl) : lbl(); }

@@ -115,7 +115,7 @@
         ["계획 세대", (q) => (q.sm?.units ? fmt(q.sm.units) : "–")],
         // 이 구역 리포트 머리 큰 숫자와 같은 값(ZF.u33: 매수가 표본의 3.3㎡당 · 머리가 매수가인 곳은 구역 안 대표 거래 값)
         ["3.3㎡당 실거래(기준)", (q) => { const h = ZF.u33(q); return h ? `${eok(h.v)}<span class="dim" style="display:block;font-size:11px;font-weight:400;color:var(--text-3)">${h.zone ? `구역 안 ${h.n || ""}건(참고 · 매수가 표본 아님)` : HDB[h.b] || ""}${h.st ? " · 오래된 거래" : ""}</span>` : "–"; }],
-        [lab, (q) => { const n = needOf(q); return n == null ? "–" : `${e2(n)}억`; }, (q) => needOf(q)],
+        [lab, (q) => { const n = needOf(q); return n == null ? "–" : `${ZF.cash(n)}`; }, (q) => needOf(q)],
         ["10년 안 준공", (q) => (q.eta?.p10 != null ? probTxt(q.eta.p10) : "–"), (q) => (q.eta?.p10 != null ? -q.eta.p10 : null)],
       ];
       // 비교하는 곳 절반 넘게 '–'인 '계획 세대' 줄은 뺀다
@@ -427,7 +427,7 @@
       else if (t.med) big.push(`<div class="big"><span>구축 빌라 매매 가운데 값</span><b>${eok(t.med)}</b><small>2015년 이전 준공 빌라 최근 ${t.nwin || 18}개월 ${fmt(t.no)}건 · 전용 ${t.ar}㎡ · 대지 ${t.ld}㎡</small></div>`);
       if (t.jm) big.push(`<div class="big"><span>빌라 전세 가운데 값</span><b>${eok(t.jm)}</b><small>${t.jy ? `${t.jy[0] === t.jy[1] ? t.jy[0] : t.jy[0] + "~" + t.jy[1]}년 준공(매매 표본과 같은 연식) ` : ""}전세 ${fmt(t.jn)}건 · 임대 ${t.ja}㎡${t.jr ? ` · 전세가율 ${Math.round(t.jr * 100)}%` : t.jr2 ? ` · 전세가율 약 ${Math.round(t.jr2 * 100)}%` : ""}${(() => {
         // 전세 표본과 매수가 표본은 면적이 달라 바로 빼면 안 된다 → 계산에 쓴 전세(전세가율)를 함께
-        try { const g = gapOf(r), am = en && en.area_med, dif = am && t.ja && Math.abs(t.ja - am) / am > 0.15; if (!g || g.block || g.na || !(g.D > 0)) return ""; return `${dif ? ` · 매수가 표본(전용 ${am}㎡)과 면적이 달라 직접 비교 불가` : ""} · 계산엔 전세 ${e2(g.D)}억(전세가율 ${fmt(g.jr, 1)}%)`; } catch (e) { return ""; }
+        try { const g = gapOf(r), am = en && en.area_med, dif = am && t.ja && Math.abs(t.ja - am) / am > 0.15; if (!g || g.block || g.na || !(g.D > 0)) return ""; return `${dif ? ` · 매수가 표본(전용 ${am}㎡)과 면적이 달라 직접 비교 불가` : ""} · 계산엔 전세 ${ZF.cash(g.D)}(전세가율 ${fmt(g.jr, 1)}%)`; } catch (e) { return ""; }
       })()}</small></div>`);
       const villaSec = h && h.b === "v";
       const ageOk = villaSec && ["a", "b", "c"].some((k) => age[k] != null);
@@ -487,7 +487,7 @@
         // 머리 카드·/z/ 페이지와 같은 한 문장(64_overview.js OVX.smp)
         const one = typeof OVX !== "undefined" && OVX.smp && x.priceSrc !== "user" ? OVX.smp(r, x) : "";
         if (one) return `${warn}<p class="note"><b>계산 매수가 ${OVX.manT(x.price)}</b> = ${esc(one)} · '입주 현금' 탭에서 바꿀 수 있어요${lc}</p>`;
-        return `${warn}<p class="note"><b>계산에 쓴 매수가 ${e2(x.price)}억</b> ${x.priceSrc === "user" ? "직접 입력한 값" : en?.scope ? esc(en.scope) + ` 실거래 가운데 값${en.n ? ` (${fmt(en.n)}건${en.area_med ? ` · 전용 ${en.area_med}㎡` : ""})` : ""}` : x.priceSrc === "complex" ? "같은 단지 아파트 실거래" : "구역 주변 구축 빌라 실거래"} · '입주 현금' 탭에서 바꿀 수 있어요${lc}</p>`;
+        return `${warn}<p class="note"><b>계산에 쓴 매수가 ${ZF.cash(x.price)}</b> ${x.priceSrc === "user" ? "직접 입력한 값" : en?.scope ? esc(en.scope) + ` 실거래 가운데 값${en.n ? ` (${fmt(en.n)}건${en.area_med ? ` · 전용 ${en.area_med}㎡` : ""})` : ""}` : x.priceSrc === "complex" ? "같은 단지 아파트 실거래" : "구역 주변 구축 빌라 실거래"} · '입주 현금' 탭에서 바꿀 수 있어요${lc}</p>`;
       })();
       p.innerHTML = `
         ${h || S.length ? "" : noTxHTML(r, t, z) + secN}

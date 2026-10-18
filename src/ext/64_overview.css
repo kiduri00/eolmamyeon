@@ -250,3 +250,15 @@ svg.ov-bar .bn.on{fill:#fff}
 #repTitle:focus{outline:none}
 /* 시간표 입주 칸: 큰 숫자가 무엇인지(입주까지 현금) 간단 화면에서도 한 줄 */
 #report .gtl .gt-l{display:block;margin-top:2px;font-style:normal;font-size:12px;font-weight:600;color:var(--text-3)}
+/* 주소 줄 칩(누르면 한 줄 설명) · 입주권 없는 구역 머리 안내 · 실거래 '참고용' 표시 */
+button.ov-chip{position:relative;border:0;font-family:inherit;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent;height:28px}
+button.ov-chip::after{content:"";position:absolute;inset:-6px -2px}
+button.ov-chip[aria-expanded="true"]{box-shadow:inset 0 0 0 1px currentColor}
+.ov-why.ov-wa{margin:0 0 10px}
+.ov-why.warn{background:var(--warn-soft);color:var(--text-1)}
+.ov-noip{display:flex;flex-direction:column;gap:3px;margin:10px 0 0;padding:10px 12px;border-radius:12px;background:var(--risk-soft);border-left:3px solid var(--risk)}
+.ov-noip b{font-size:14px;font-weight:800;color:var(--risk-ink);letter-spacing:-.01em}
+.ov-noip span{font-size:13px;line-height:1.5;color:var(--text-2)}
+.ov-ref{margin-left:6px;padding:2px 8px;border-radius:999px;background:var(--surface-2);font-size:11.5px;font-weight:700;font-style:normal;color:var(--text-3);vertical-align:2px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ov-chip.w{color:#fbbf24}}
+:root[data-theme="dark"] .ov-chip.w{color:#fbbf24}

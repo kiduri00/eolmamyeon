@@ -64,7 +64,7 @@ const fm = (m) => (!m ? "–" : m.v < 1 ? `${Math.round(m.v * 1e4).toLocaleStrin
 
 // 억 금액 한 꼴(src/ext/05_facts.js ZF.num·ZF.cash와 같은 규칙): 1억 아래 소수 둘째 자리, 1억부터 첫째 자리
 const zfNum = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (a < 0.995) return sg + (Math.round(a * 100) / 100).toFixed(2).replace(/0$/, ""); return sg + (Math.round(a * 10) / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
-const zfCash = (v) => { const t = zfNum(v); return t === "–" ? t : t === "0" ? "0원" : t + "억"; };
+const zfCash = (v) => { const t = zfNum(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (a < 0.995) return (v < 0 ? "-" : "") + (Math.round(a * 100) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };   // 1억 아래는 만 원(4,100만)
 // WCAG 대비(페이지 안): 글자색(불투명도 곱) vs 조상 배경을 겹쳐 만든 실제 바탕
 const CONTRAST_JS = (rootSel) => {
   const P = (c) => { const m = String(c).match(/rgba?\(([^)]+)\)/); if (!m) return null; const a = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [a[0], a[1], a[2], a.length > 3 ? a[3] : 1]; };
@@ -146,8 +146,8 @@ function parseZ(html) {
   m = /계산 매수가\n([^\n]+)\n=\s*([^\n]+)/.exec(t);
   if (m) { o.buyV = money(m[1]); o.buyBasis = m[2]; o.buyN = intOf((/([\d,]+)건/.exec(m[2]) || [])[1]); }
   m = /매수가 표본 ([\d,]+)건/.exec(t); if (m) o.trustN = intOf(m[1]);
-  m = /(전세 끼고|현금으로 사면|대출 끼고)? ?입주까지 현금\n([\d.,]+억)/.exec(t); if (m) { o.ipjuMode = m[1] || ""; o.ipju = money(m[2]); }
-  m = /현금으로 사면 ([\d.,]+억)/.exec(t); if (m) o.cashTotal = money(m[1]);
+  m = /(전세 끼고|현금으로 사면|대출 끼고)? ?입주까지 현금\n([\d.,]+억|[\d,]+만|0원)/.exec(t); if (m) { o.ipjuMode = m[1] || ""; o.ipju = money(m[2]); }
+  m = /현금으로 사면 ([\d.,]+억|[\d,]+만|0원)/.exec(t); if (m) o.cashTotal = money(m[1]);
   m = /데이터 기준 (\d{4}\.\d\d\.\d\d)/.exec(t); if (m) o.asof = m[1];
   return o;
 }
@@ -161,7 +161,7 @@ function parseRep(t) {
   m = /매수가 표본\n([\d,]+)건/.exec(t); if (m) o.trustN = intOf(m[1]);
   m = /마지막 거래\n(\d\d)\.(\d\d)\.(\d\d)/.exec(t); if (m) o.trustLast = m[1] + "." + m[2];
   m = /다른 기준 보기\n(\d\d\.\d\d)\n/.exec(t); if (m) o.excerpt1 = m[1];
-  o.ipju = [...t.matchAll(/입주까지 현금\s*\n?\s*([\d.,]+억)/g)].map((x) => x[1]);
+  o.ipju = [...t.matchAll(/입주까지 현금\s*\n?\s*([\d.,]+억|[\d,]+만|0원)/g)].map((x) => x[1]);
   return o;
 }
 
@@ -328,9 +328,9 @@ async function staticLane(api) {
     }
     // 금액 꼴(ZF.cash): /z '지금 X억' == api 값의 ZF 꼴(0.69억처럼 1억 아래 소수 둘째 자리)
     if (a && a.need && a.need.gap && a.need.gap.now != null) {
-      const m = /(?:^|[\s(])지금 ([\d.,]+억|0원)(?= ·|\))/.exec(z.text);
+      const m = /(?:^|[\s(])지금 ([\d.,]+억|[\d,]+만|0원)(?= ·|\))/.exec(z.text);
       // api는 소수 둘째 자리로 반올림돼 있어(2.65) 원래 값(2.648…)의 꼴과 한 자리 다를 수 있다 → ±0.005 안의 꼴이면 같은 꼴
-      if (m) expect([a.need.gap.now - 0.005, a.need.gap.now, a.need.gap.now + 0.0049].some((v) => m[1] === zfCash(v)), "term.cashFmt", "금액 꼴 하나(ZF.cash · 1억 아래 소수 둘째 자리): 목록 == /api 값 꼴 == 지도 이름표 == 리포트 시간표", `${where}: /z "지금 ${m[1]}" vs ZF꼴(api ${a.need.gap.now}) "${zfCash(a.need.gap.now)}"`);
+      if (m) expect([a.need.gap.now - 0.005, a.need.gap.now, a.need.gap.now + 0.0049].some((v) => m[1] === zfCash(v)), "term.cashFmt", "금액 꼴 하나(ZF.cash · 1억 아래는 만 원 · 4,100만): 목록 == /api 값 꼴 == 지도 이름표 == 리포트 시간표", `${where}: /z "지금 ${m[1]}" vs ZF꼴(api ${a.need.gap.now}) "${zfCash(a.need.gap.now)}"`);
     }
     if (a && z.cashTotal && a.need && a.need.cash && a.need.cash.total != null) expect(eqApi(z.cashTotal, a.need.cash.total), "z.api", "/z 입주까지 현금 == /api/v1 같은 방식 값", `${where}: 현금으로 사면 ${fm(z.cashTotal)} vs api cash.total ${a.need.cash.total}`);
     if (z.asof && updDot) expect(z.asof === updDot, "seo.dates", "정적 페이지 '데이터 기준' 날짜 == api updated", `${where}: ${z.asof} vs ${updDot}`);
@@ -368,8 +368,8 @@ async function staticLane(api) {
       if (tds.length < 3) continue;
       const now = money(tds[1]), tot = money(tds[2].split("\n")[0]), cashMode = /현금 매수 시/.test(tds[2]);
       const g = a.need.gap, c = a.need.cash;
-      if (now && /억/.test(tds[1]) && !eqApi(now, g.now)) mis.push(`${zid} 전세 끼고 지금 ${tds[1]} vs api ${g.now}`);
-      if (tot && /억/.test(tds[2])) { const ref = cashMode ? c.total : g.total; if (!eqApi(tot, ref)) mis.push(`${zid} 입주까지 ${tds[2].replace(/\n/g, " ")} vs api ${cashMode ? "cash" : "gap"}.total ${ref}`); }
+      if (now && /억|만|원/.test(tds[1]) && !eqApi(now, g.now)) mis.push(`${zid} 전세 끼고 지금 ${tds[1]} vs api ${g.now}`);
+      if (tot && /억|만|원/.test(tds[2])) { const ref = cashMode ? c.total : g.total; if (!eqApi(tot, ref)) mis.push(`${zid} 입주까지 ${tds[2].replace(/\n/g, " ")} vs api ${cashMode ? "cash" : "gap"}.total ${ref}`); }
     }
     expect(!mis.length, "gu.api", "/gu 표 숫자 == /api/v1 (전세 끼고 지금·입주까지 현금)", `${where}: ${mis.slice(0, 4).join(" ; ")}${mis.length > 4 ? ` … +${mis.length - 4}` : ""}`);
     const d = /데이터 기준 (\d{4}\.\d\d\.\d\d)/.exec(txt); if (d && updDot) expect(d[1] === updDot, "seo.dates", "정적 페이지 '데이터 기준' 날짜 == api updated", `${where}: ${d[1]} vs ${updDot}`);
@@ -451,7 +451,7 @@ async function countsLane(browser, api, errs, shared) {
     const listMap = new Map();
     const misN = [], misT = [];
     for (const r of rowsG) {
-      const m1 = /([\d.,]+억|[\d,]+만|0원)/.exec(r.amt), m2 = /입주까지 현금\s*([\d.,]+억)/.exec(r.amt);
+      const m1 = /([\d.,]+억|[\d,]+만|0원)/.exec(r.amt), m2 = /입주까지 현금\s*([\d.,]+억|[\d,]+만|0원)/.exec(r.amt);
       const now = m1 && money(m1[1]), tot = m2 && money(m2[1]);
       listMap.set(r.id, { now, tot, raw: r.amt });
       const a = apiById.get(r.id); if (!a) continue;
@@ -478,7 +478,7 @@ async function countsLane(browser, api, errs, shared) {
     {
       await setMode(page, "gap"); await setCash(page, 1);
       const L1 = await page.evaluate(() => [...document.querySelectorAll("#sList li")].slice(0, 4).map((li) => { const a = li.querySelector("a[data-id]"), b = li.querySelector(".s-amt b"); return a && b ? { id: a.dataset.id, v: b.textContent.trim() } : null; }).filter(Boolean));
-      const T = "금액 꼴 하나(ZF.cash · 1억 아래 소수 둘째 자리): 목록 == /api 값 꼴 == 지도 이름표 == 리포트 시간표";
+      const T = "금액 꼴 하나(ZF.cash · 1억 아래는 만 원 · 4,100만): 목록 == /api 값 꼴 == 지도 이름표 == 리포트 시간표";
       const labs = await page.evaluate((ids) => { try { const m = window.ZP_lmx && window.ZP_lmx.map && window.ZP_lmx.map(); const src = m && m.getSource("zlab"); const d = src && (src.serialize ? src.serialize().data : src._data); const F = (d && d.features) || []; const o = {}; ids.forEach((id) => { const f = F.find((x) => x.properties.id === id); if (f) o[id] = f.properties.s; }); return o; } catch (e) { return {}; } }, L1.map((x) => x.id));
       for (const x of L1) {
         const a = api.zones.find((z) => z.id === x.id); if (!a || a.need.gap.now == null) continue;
@@ -518,7 +518,7 @@ async function countsLane(browser, api, errs, shared) {
         expect(Math.max(0, acc) === total, "why.sum", "'왜 이 금액?' 줄을 만원으로 더하면 합계와 같음 · 목록 숫자와 같음", `${where}: ${r.lines.map((l) => `${l.op}${l.v}`).join(" ")} → 계산 ${acc}만 ≠ 합계 ${total}만`);
         const lm = /([\d.,]+억|[\d,]+만|0원)/.exec(r.amt), lv = lm && money(lm[1]);
         expect(lv && Math.abs(lv.v - total / 1e4) <= lv.tol + 1e-4, "why.sum", "'왜 이 금액?' 줄을 만원으로 더하면 합계와 같음 · 목록 숫자와 같음", `${where}: list ${lm && lm[1]} vs why 합계 ${total}만`);
-        const t1 = /입주까지 현금\s*([\d.,]+억)/.exec(r.tail), t2 = /입주까지 현금\s*([\d.,]+억)/.exec(r.amt);
+        const t1 = /입주까지 현금\s*([\d.,]+억|[\d,]+만|0원)/.exec(r.tail), t2 = /입주까지 현금\s*([\d.,]+억|[\d,]+만|0원)/.exec(r.amt);
         if (t1 || t2) expect(t1 && t2 && eqMoney(money(t1[1]), money(t2[1])), "why.sum", "'왜 이 금액?' 줄을 만원으로 더하면 합계와 같음 · 목록 숫자와 같음", `${where}: why tail "${t1 && t1[1]}" vs list "${t2 && t2[1]}"`);
       }
     }
@@ -584,7 +584,7 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
         if (m && money(m[1])) expect(eqMoney(money(m[1]), R.hdV), "zone.cmp", "'1km 안 비교' 표의 이 구역 3.3㎡ 값 == 리포트 큰 숫자", `${where}: 비교표 ${m[1]} vs 큰 숫자 ${fm(R.hdV)}`);
       }
       // 입주까지 현금: 리포트 안 모든 자리 같음 == 목록 == API == /z
-      const ip = [...new Set([...all.matchAll(/입주까지 현금\s*\n?\s*([\d.,]+억)/g)].map((m) => m[1]))];
+      const ip = [...new Set([...all.matchAll(/입주까지 현금\s*\n?\s*([\d.,]+억|[\d,]+만|0원)/g)].map((m) => m[1]))];
       const a = apiById.get(zid);
       if (ip.length) {
         expect(ip.length === 1, "zone.ipju", "입주까지 현금: 리포트 안 모든 자리 == 목록 == /api == /z (전세 끼고)", `${where}: report shows several values ${ip.join(" / ")}`);
@@ -594,13 +594,14 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
         if (lm && lm.tot) expect(eqMoney(lm.tot, rv), "zone.ipju", "입주까지 현금: 리포트 안 모든 자리 == 목록 == /api == /z (전세 끼고)", `${where}: list ${fm(lm.tot)} vs report ${ip[0]}`);
       }
       // 현금 탭 다리: 들어가는 돈 − 잔금대출 = 입주까지 현금 / 지금 + 이주 때 = 입주까지 현금
-      { const m = /입주까지 들어가는 돈 ([\d.]+)억\n?\s*− 입주 잔금대출 ([\d.]+)억\n?\s*= 입주까지 현금 ([\d.]+)억/.exec(all);
-        if (m) expect(Math.abs(+m[1] - +m[2] - +m[3]) <= 0.1 + 1e-9, "zone.bridge", "현금 탭 다리 계산(들어가는 돈 − 잔금대출 = 입주까지 현금)이 맞음", `${where}: ${m[1]} − ${m[2]} ≠ ${m[3]}`);
-        const g = /지금 ([\d.]+)억\n?\s*\+ 이주 때 ([\d.]+)억\n?\s*= 입주까지 현금 ([\d.]+)억/.exec(all);
-        if (g) expect(Math.abs(+g[1] + +g[2] - +g[3]) <= 0.1 + 1e-9, "zone.bridge", "현금 탭 다리 계산(들어가는 돈 − 잔금대출 = 입주까지 현금)이 맞음", `${where}: ${g[1]} + ${g[2]} ≠ ${g[3]}`); }
+      { const AM = "([\\d.,]+억|[\\d,]+만|0원)", mv = (x) => (money(x) || { v: NaN }).v;   // 1억 아래는 '4,100만'
+        const m = new RegExp(`입주까지 들어가는 돈 ${AM}\\n?\\s*− 입주 잔금대출 ${AM}\\n?\\s*= 입주까지 현금 ${AM}`).exec(all);
+        if (m) expect(Math.abs(mv(m[1]) - mv(m[2]) - mv(m[3])) <= 0.1 + 1e-9, "zone.bridge", "현금 탭 다리 계산(들어가는 돈 − 잔금대출 = 입주까지 현금)이 맞음", `${where}: ${m[1]} − ${m[2]} ≠ ${m[3]}`);
+        const g = new RegExp(`지금 ${AM}\\n?\\s*\\+ 이주 때 ${AM}\\n?\\s*= 입주까지 현금 ${AM}`).exec(all);
+        if (g) expect(Math.abs(mv(g[1]) + mv(g[2]) - mv(g[3])) <= 0.1 + 1e-9, "zone.bridge", "현금 탭 다리 계산(들어가는 돈 − 잔금대출 = 입주까지 현금)이 맞음", `${where}: ${g[1]} + ${g[2]} ≠ ${g[3]}`); }
       // 입주 때 시세 차이 == 비례율 표 100%
       if (pane.money) {
-        const g1 = /입주 때 시세 차이[^\n]*\n([+−-]?[\d.]+억)/.exec(pane.money), g2 = /\n100%\t([+−-]?[\d.]+억)/.exec(pane.money);
+        const g1 = /입주 때 시세 차이[^\n]*\n([+−-]?(?:[\d.,]+억|[\d,]+만|0원))/.exec(pane.money), g2 = /\n100%\t([+−-]?(?:[\d.,]+억|[\d,]+만|0원))/.exec(pane.money);
         if (g1 && g2) expect(g1[1].replace("−", "-") === g2[1].replace("−", "-"), "zone.gain", "'입주 때 시세 차이' == 비례율 표 100% 줄(같은 반올림)", `${where}: ${g1[1]} vs 100% ${g2[1]}`);
       }
       // 예상 입주: 현금 타임라인 == 일정 탭, 과거 아님
@@ -728,6 +729,20 @@ async function uiLane(browser, api, errs, shared) {
       await loadHome(page, "#pins=garbage!!"); await page.waitForTimeout(1200);
       const t = await page.evaluate(() => document.body.innerText);
       expect(/손상|잘못된 링크|열 수 없/.test(t), "ui.pinsBad", "망가진 #pins= 링크에 '링크가 손상됐어요' 안내", "no feedback for malformed #pins= link");
+    }
+    // 로고 = 홈: 구역 상세 시트(로고는 시트 밑이라 click()) · 도구 화면(손가락 탭)에서 눌러도 시트·도구가 닫히고 주소 #… 없음 · 첫 화면 맨 위
+    if (!over()) {
+      const T = "로고를 누르면 어느 화면에서든 첫 화면 맨 위로(시트·도구 닫힘 · 주소 # 없음)";
+      const st = () => page.evaluate(() => { const H = document.documentElement, m = document.getElementById("mapTop"); return { hash: location.hash, y: Math.round(scrollY), sheet: !!document.querySelector("#report.sheet"), cls: ["s-view", "s-full", "sheet-open", "s-rep", "ib-lock"].filter((c) => H.classList.contains(c)), home: !!(m && window.__qc.vis(m)) }; });
+      const ok = (s) => !s.hash && !s.sheet && !s.cls.length && s.home && s.y < 5;
+      const zid = api.zones[0].id;
+      await loadHome(page, "#" + zid); await page.waitForFunction(() => !!document.querySelector("#report.sheet .rep-head"), null, { timeout: 8000 }).catch(() => {});
+      const s0 = await st();
+      if (!s0.sheet) bad("ui.logoHome", T, `#${zid}: report sheet did not open`);
+      else { await page.evaluate(() => document.querySelector("a.logo").click()); await page.waitForTimeout(400); const s = await st(); expect(ok(s), "ui.logoHome", T, `report #${zid} → logo: hash "${s.hash}" sheet ${s.sheet} classes [${s.cls}] home visible ${s.home} scrollY ${s.y}`); }
+      await loadHome(page, "#news"); await page.waitForTimeout(600);
+      await page.tap("a.logo", { timeout: 4000 }).catch(() => {}); await page.waitForTimeout(400);
+      { const s = await st(); expect(ok(s), "ui.logoHome", T, `tool #news → logo tap: hash "${s.hash}" classes [${s.cls}] home visible ${s.home} scrollY ${s.y}`); }
     }
   } catch (e) { bad("runtime", "검사 실행", "uiLane crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await ctx.close().catch(() => {}); }

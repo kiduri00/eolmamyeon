@@ -113,10 +113,10 @@ const PINS = (() => {
     try { if (typeof INBOX !== "undefined") { const e = INBOX.evOf(r.id)[0]; if (e) { const [tl, tc] = INBOX.TY[e.type]; ev = `<small class="pn-ev"><i class="ib-tg ${e.hi ? "hi" : tc}">${e.hi ? "신고가" : tl}</i><span>${esc(INBOX.dLabel(e.date).replace(/ \(.\)$/, ""))} · ${esc(e.text)}</span></small>`; } } } catch (e) {}
     // 꽂을 때와 지금 방식이 다르면 '꽂을 때'는 그 방식 값끼리 비교(라벨에 방식 표시)
     // 방식이 다르면: '전세 3.2→2.4억'(꽂을 때 방식 값끼리)
-    const then = salt ? `<span class="pn-alt">${sm === "gap" ? "전세" : "대출"}</span> ${sp.now != null ? e2(sp.now) : "–"}→<b class="pn-cmpv${d == null ? "" : d > 0 ? " up" : " dn"}">${n.cmp != null ? `${e2(n.cmp)}억` : "–"}</b>` : `꽂을 때 ${sp.now != null ? `${e2(sp.now)}억` : "–"}`;
+    const then = salt ? `<span class="pn-alt">${sm === "gap" ? "전세" : "대출"}</span> ${sp.now != null ? ZF.cash(sp.now) : "–"}→<b class="pn-cmpv${d == null ? "" : d > 0 ? " up" : " dn"}">${n.cmp != null ? `${ZF.cash(n.cmp)}` : "–"}</b>` : `꽂을 때 ${sp.now != null ? `${ZF.cash(sp.now)}` : "–"}`;
     const main = `<span class="pn-pin">${pinY(26)}${nw ? '<i class="pn-new" aria-hidden="true"></i>' : ""}</span>
       <span class="pn-nm"><b>${esc(shortName(r.n))}</b><small>${sub}${nw ? '<span class="sr-only"> · 새 소식</span>' : ""}</small>${riskH(r) ? `<small class="pn-rk">${riskH(r)}</small>` : ""}${ev}${sp.memo ? `<small class="pn-memo">${esc(sp.memo)}</small>` : ""}</span>
-      <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><b>${alt ? '<small class="pn-alt" title="전세 끼고는 살 수 없는 구역이라 대출 끼고 금액">대출</small> ' : ""}${now != null ? `${e2(now)}억` : "–"}</b>${salt ? "" : chip}</span><small title="${salt ? `꽂을 때와 같은 ${MODE_T[sm]} 기준 비교` : ""}">${then}</small></span>`;
+      <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><b>${alt ? '<small class="pn-alt" title="전세 끼고는 살 수 없는 구역이라 대출 끼고 금액">대출</small> ' : ""}${now != null ? `${ZF.cash(now)}` : "–"}</b>${salt ? "" : chip}</span><small title="${salt ? `꽂을 때와 같은 ${MODE_T[sm]} 기준 비교` : ""}">${then}</small></span>`;
     const head = SEL
       ? `<button type="button" class="pn-main sel" data-cmp="${r.id}" aria-pressed="${CMP.includes(r.id)}"><span class="pn-ck" aria-hidden="true"></span>${main}</button>`
       : `<button type="button" class="pn-main" data-open="${r.id}" aria-label="${esc(shortName(r.n))} 리포트 열기">${main}</button><button type="button" class="pn-more" data-pedit="${r.id}" aria-expanded="${EDIT === r.id}" aria-controls="pnEd${i}" title="메모·목표·핀 빼기" aria-label="${esc(shortName(r.n))} 메모·목표·핀 빼기"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>`;
@@ -142,7 +142,7 @@ const PINS = (() => {
       ? `<div class="pn-selbar" role="group" aria-label="비교할 구역 고르기"><span><b>비교할 구역 2~3곳</b>을 골라 주세요</span><button type="button" class="btn text sm" id="pnSelX">취소</button><button type="button" class="btn primary sm" id="pnGo"${CMP.length >= 2 ? "" : " disabled"}>비교하기 (${CMP.length})</button></div>`
       : `${sumHTML(L)}<div class="pn-h"><p><b>관심 구역 ${L.length}곳</b>${nw ? `<span class="pn-nwn">새 소식 ${nw}곳</span>` : ""}</p><div class="pn-ha">${L.length >= 2 ? '<button type="button" class="btn secondary sm" id="pnCmp">비교</button>' : ""}<button type="button" class="btn secondary sm" id="pnShare">카드로 공유</button></div></div>
       <div class="pn-tools"><div class="pn-sort" role="group" aria-label="정렬">${srt}</div><label class="pn-money"><input type="checkbox" id="pnMoney"${MONEY ? " checked" : ""}>공유 이미지에 금액 넣기</label></div>`;
-    return `${top}${condHTML()}<p class="pn-base">오른쪽은 ${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 살 때 필요한 돈 · 내 현금 ${e2(CASH)}억 기준 · 꽂은 날과 비교</p><div class="pn-list" role="list" aria-label="관심 구역 목록">${L.map(rowHTML).join("")}</div><span class="share-fb" id="pnShareFb" role="status"></span>${SEL ? "" : moveHTML(L.length)}`;
+    return `${top}${condHTML()}<p class="pn-base">오른쪽은 ${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 살 때 필요한 돈 · 내 현금 ${ZF.cash(CASH)} 기준 · 꽂은 날과 비교</p><div class="pn-list" role="list" aria-label="관심 구역 목록">${L.map(rowHTML).join("")}</div><span class="share-fb" id="pnShareFb" role="status"></span>${SEL ? "" : moveHTML(L.length)}`;
   }
   // 관심 구역 요약 카드: 관심 구역 N곳 · 이번 주 소식 N건 · 살 수 있게 된 곳 N곳 + 이번 주 요약(구역별 소식 묶음)
   let DIG = false;
@@ -449,7 +449,7 @@ const PINS = (() => {
     rows.forEach((n, i) => {
       const x = 80 + (i % 2) * 470, y = top + Math.floor(i / 2) * 46;
       g.fillStyle = "#F5C33B"; g.beginPath(); g.arc(x + 8, y - 10, 8, 0, 7); g.fill();
-      g.fillStyle = "#fff"; const t = `${shortName(n.r.n)}${money && n.now != null ? ` · ${e2(n.now)}억` : ""}`;
+      g.fillStyle = "#fff"; const t = `${shortName(n.r.n)}${money && n.now != null ? ` · ${ZF.cash(n.now)}` : ""}`;
       g.fillText(t, x + 26, y, 420);
     });
     if (L.length > 8) { g.fillStyle = "rgba(255,255,255,.6)"; g.fillText(`외 ${L.length - 8}곳`, 80, top + 4 * 46); }

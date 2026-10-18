@@ -89,7 +89,7 @@ KIND = {'재개발': '재개발', '재건축': '재건축', '도시정비형 재
 DTK = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 승인'), ('조합설립', '조합설립인가'), ('시행자지정', '사업시행자 지정'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가'), ('착공', '착공'), ('준공', '준공')]
 SKEY = {2: ('구역지정',), 3: ('추진위',), 4: ('조합설립', '시행자지정'), 5: ('사업시행',), 6: ('관리처분',), 7: ('관리처분',), 8: ('착공',)}
 PSRC = {'villa': '빌라 실거래 가운데 값', 'complex': '단지 실거래 가운데 값', 'apt': '단지 실거래 가운데 값', 'est': '구 평균 시세로 추정'}
-from zsample import manT, smpTxt, trust, short, headline, LBL, josa, auc_use, auc_uses, auc_jb   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
+from zsample import manT, smpTxt, trust, short, headline, noTicket, LBL, josa, auc_use, auc_uses, auc_jb   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
 def gapWhy(c):   # 전세 끼고 계산이 안 되는 이유(화면 gapBlock과 같은 문구에서) → (표 칸 짧은 말, 설명)
     b = str(c.get('gapBlock') or '')
     if b.startswith('전세 낀 매수 불가'): return ('토허제', '토지거래허가구역이라 불가(2년 실거주)')
@@ -127,7 +127,7 @@ HEAD = '''<!doctype html>
 <script type="application/ld+json">{ld}</script>
 </head>
 <body>
-<header class="top"><div class="in"><a class="logo" href="../" aria-label="집핀 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><span class="logo-en" lang="en">Zippin</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/" aria-current="page">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav><form class="tsr" action="/" method="get" role="search"><label class="sr-only" for="tq">구역 검색</label><input id="tq" name="q" type="search" placeholder="구역·동·역 검색" autocomplete="off" enterkeyhint="search" maxlength="40"></form></div></header>
+<header class="top"><div class="in"><a class="logo" href="/" aria-label="집핀 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><span class="logo-en" lang="en">Zippin</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/" aria-current="page">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav><form class="tsr" action="/" method="get" role="search"><label class="sr-only" for="tq">구역 검색</label><input id="tq" name="q" type="search" placeholder="구역·동·역 검색" autocomplete="off" enterkeyhint="search" maxlength="40"></form></div></header>
 <main>
 '''
 FOOT = '''</main>
@@ -207,7 +207,7 @@ def page(r):
                 return (lab, man(t['pp']), pre + ('' if nv == 1 else '가운데 값 · ') + f"빌라·단독 매매 {nv}건 · 2024년~")
             return None
         trow = None
-        if c.get('price') is not None and c.get('priceSrc') in PSRC:   # '이 숫자 믿어도 될까' — 매수가와 같은 표본 n건
+        if c.get('price') is not None and c.get('priceSrc') in PSRC and not noTicket(r, c):   # '이 숫자 믿어도 될까' — 매수가와 같은 표본 n건 · 입주권 없는 구역은 계산 안 함(화면과 같게)
             lv, why = trust(r, c)
             trow = ('이 숫자 믿어도 될까', lv, ' · '.join([x for x in (f"매수가 표본 {en['n']}건" if en.get('n') else '', f"마지막 거래 {en['last']}" if en.get('last') else '') if x] + why))
         buy = ('계산 매수가', manT(c['price']), f"= {esc(smpTxt(r, c))}" + (f" · 전용 {en['area_med']:g}㎡ 안팎" if en.get('area_med') else '') + (f" · {esc(en['scope'])}" if en.get('scope') else '')) if trow else None
