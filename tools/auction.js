@@ -8,7 +8,7 @@ const URL0 = 'https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100
 const API = /\/pgj\/pgjsearch\/searchControllerMain\.on/;
 const COURTS = ['서울중앙지방법원', '서울동부지방법원', '서울서부지방법원', '서울남부지방법원', '서울북부지방법원'];
 const SEL_COURT = '#mf_wfm_mainFrame_sbx_rletCortOfc', BTN = '#mf_wfm_mainFrame_btn_gdsDtlSrch';
-const MAX_PAGES = +process.env.AUCTION_MAX_PAGES || 40;   // 법원 하나당 쪽 수 상한
+const MAX_PAGES = +process.env.AUCTION_MAX_PAGES || 80;   // 법원 하나당 쪽 수 상한
 const DAYS = +process.env.AUCTION_DAYS || 45;              // 기일 검색 기간(화면이 받아 주면 넓힌다 · 기본은 14일)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const jitter = (a, b) => a + Math.floor(Math.random() * (b - a));
@@ -127,6 +127,7 @@ function save(o) { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writ
       const c = { court, ok: false, total: null, got: 0, pages: 0 };
       res.courts.push(c);
       try {
+        if (!first) { await p.goto(URL0, { waitUntil: 'domcontentloaded', timeout: 90000 }); await p.waitForSelector(SEL_COURT, { timeout: 60000 }).catch(() => null); await sleep(jitter(2000, 3500)); await bigPage(); }
         if (!(await pickCourt(court))) throw new Error('court-select');
         await sleep(jitter(800, 1500));
         if (first) { if (process.env.AUCTION_WIDEN === '1') await widen(); await bigPage(); first = false; }

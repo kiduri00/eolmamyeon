@@ -199,10 +199,10 @@ svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 .ov-trust.hi .ov-lv{background:var(--ok-soft);color:var(--ok-ink)}
 .ov-trust.md .ov-lv{background:var(--warn-soft);color:var(--warn-ink)}
 .ov-trust.lo .ov-lv{background:color-mix(in srgb,#dc2626 12%,transparent);color:#b91c1c}
-.ov-trust dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:6px 10px;margin:0}
+.ov-trust dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:6px 10px;margin:0}
 .ov-trust dl div{min-width:0}
 .ov-trust dt{font-size:11.5px;color:var(--text-3);font-weight:500}
-.ov-trust dd{margin:1px 0 0;font-size:14px;font-weight:700;color:var(--text-1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ov-trust dd{margin:1px 0 0;font-size:14px;font-weight:700;color:var(--text-1);font-variant-numeric:tabular-nums;white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
 .ov-trust p{margin:8px 0 0;font-size:12.5px;line-height:1.5;color:var(--text-2)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ov-trust.lo .ov-lv{color:#fca5a5}}
 :root[data-theme="dark"] .ov-trust.lo .ov-lv{color:#fca5a5}
