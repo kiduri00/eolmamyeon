@@ -1,14 +1,20 @@
-/* ===================== 알림함(종) + 웹 푸시 =====================
+/* ===================== 소식 탭(예전 알림함 종) + 웹 푸시 =====================
+   소식 화면(#news) 위 칸 '내 조건에 맞는 소식'에 그린다. 새 소식 수는 아래 탭 '관심' 배지.
+   알림 종류 끄기: localStorage zp-alert-off ["trade","stage","notice","auction","price"] — 목록·배지·폰 알림(서버 o) 모두에서 뺀다.
    서버 없이 동작: 매일 파이프라인이 만드는 data/changes.json(최근 30일 구역별 사건: 단계·실거래·고시·필요한 돈)에서
    핀 꽂은 구역 것만 골라 보여 주고, 조건 핀은 앱 엔진(PINS.condsAll)의 '새로 들어온 곳'을 그대로 쓴다
    → 조건 핀 '+N 새 구역'은 홈 띠(condBtn)·내 핀 배지와 같은 수(PINS.freshIds).
    읽음: localStorage zp-inbox-seen {at: 마지막으로 연 날의 최신 날짜, k: 그날 본 사건 키}.
    웹 푸시: /api/push/key가 200일 때만(Worker 배포 뒤) '알림 받기'가 보인다. 404·오류면 숨김. */
 const INBOX = (() => {
-  const SK = "zp-inbox-seen", PK = "zp-push", AK = "zp-push-ask", SYK = "zp-push-sync";
+  const SK = "zp-inbox-seen", PK = "zp-push", AK = "zp-push-ask", SYK = "zp-push-sync", OK_ = "zp-alert-off";
+  // 알림 종류(MY > 알림 설정). price = 내 돈으로 갈 수 있게 된 곳(조건 알림)
+  const KINDS = [["trade", "새 실거래·신고가"], ["stage", "단계 변경·인가"], ["notice", "고시·공고"], ["auction", "경매 물건 등장"], ["price", "내 돈으로 갈 수 있게 된 곳"]];
+  const off = () => { const v = lsR(OK_, []); return Array.isArray(v) ? v.filter((k) => KINDS.some((x) => x[0] === k)) : []; };
+  const isOff = (k) => off().includes(k);
   const lsR = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v == null ? d : v; } catch (e) { return d; } };
   const lsW = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-  let CH = null, CHP = null, SEEN = lsR(SK, null), OPEN = null;
+  let CH = null, CHP = null, SEEN = lsR(SK, null);
   const day = (t) => new Date((t || Date.now()) + 9 * 36e5).toISOString().slice(0, 10);   // 서울 날짜
   const addDay = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
   const BELL = '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>';
@@ -32,17 +38,18 @@ const INBOX = (() => {
   function pinEvents() {
     if (!CH) return [];
     const P = new Set(pinIds());
-    return CH.items.filter((e) => P.has(e.id) && TY[e.type] && byId[e.id]);
+    const O = off();
+    return CH.items.filter((e) => P.has(e.id) && TY[e.type] && byId[e.id] && !O.includes(e.type));
   }
   function unread(e) {
     const s = seen(), pd = day(PINS.snapT(e.id) || 0);
     if (e.date < pd) return false;   // 핀 꽂기 전 일은 목록에만
     return e.date > s.at || (e.date === s.at && !s.k.includes(e.k));
   }
-  const freshN = () => { try { return PINS.freshIds().length; } catch (e) { return 0; } };
+  const freshN = () => { if (isOff("price")) return 0; try { return PINS.freshIds().length; } catch (e) { return 0; } };
   const unreadC = (e) => { const s = seen(); return e.date > s.at || (e.date === s.at && !s.k.includes(e.k)); };
   // 알림 조건에 맞는 구역의 경매(핀 꽂은 구역은 핀 소식으로 이미 셈)
-  const condAuc = () => { if (!CH) return []; const P = new Set(pinIds()), out = new Map(); conds().forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0 && !(e.mn > n.c.cash * 1.1 + 1e-9)) out.set(e.k, e); }); /* 경매: 대표 물건 최저가가 조건 현금(+10%) 안일 때만 */ }); return [...out.values()]; };
+  const condAuc = () => { if (!CH || isOff("auction")) return []; const P = new Set(pinIds()), out = new Map(); conds().forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0 && !(e.mn > n.c.cash * 1.1 + 1e-9)) out.set(e.k, e); }); /* 경매: 대표 물건 최저가가 조건 현금(+10%) 안일 때만 */ }); return [...out.values()]; };
   const count = () => pinEvents().filter(unread).length + freshN() + condAuc().filter(unreadC).length;
   function markSeen() {
     if (!CH) return;
@@ -53,39 +60,31 @@ const INBOX = (() => {
     paint();
   }
 
-  // ---------- 종 버튼(머리) ----------
-  function bell() {
-    let b = $("huBell");
-    // shell.html이 첫 페인트부터 종 자리를 깔아 둔다 → 그 버튼에 여기서 동작만 붙인다
-    if (b) { if (!b.dataset.on) { b.dataset.on = "1"; b.addEventListener("click", () => open()); } return b; }
-    const r = document.querySelector(".hdr-r"); if (!r) return null;
-    b = document.createElement("button");
-    b.type = "button"; b.id = "huBell"; b.className = "hu-bell"; b.setAttribute("aria-haspopup", "dialog");
-    b.innerHTML = `${bellSvg(20)}<b class="ib-n" id="bellN" hidden></b>`;
-    b.dataset.on = "1"; b.addEventListener("click", () => open());
-    const at = $("huFav") || $("mbHdr") || $("menuBtn");
-    at ? r.insertBefore(b, at) : r.appendChild(b);
-    return b;
-  }
+  // ---------- 배지: 아래 탭 '관심'에 새 소식 수(관심 구역·알림 조건) ----------
+  // 소식 자료(changes.json)를 받기 전에는 70_pins가 쓴 수를 그대로 둔다
   function paint() {
-    const b = bell(); if (!b) return;
     let n = 0; try { n = count(); } catch (e) {}
-    const i = b.querySelector(".ib-n");
-    i.hidden = !n; i.textContent = n > 9 ? "9+" : String(n);
-    b.setAttribute("aria-label", `알림함${n ? `, 새 알림 ${n}개` : ""}`);
-    // 홈 화면 앱 아이콘 숫자(설치한 앱에서만 보임) = 종 숫자. 알림함을 열면 0으로 지워진다
-    try { if (installed() && navigator.setAppBadge && (!CH ? false : true)) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
+    const nb = document.querySelector('#sNav [data-nav="fav"]');
+    if (nb && CH) {
+      let i = nb.querySelector(".pn-nb");
+      if (!i) { i = document.createElement("b"); i.className = "pn-nb"; i.setAttribute("aria-hidden", "true"); nb.appendChild(i); }
+      i.hidden = !n; i.textContent = n > 9 ? "9+" : String(n);
+      nb.setAttribute("aria-label", `관심${n ? `, 새 소식 ${n}건` : ""}`);
+    }
+    // 홈 화면 앱 아이콘 숫자(설치한 앱에서만 보임) = 관심 탭 숫자. 소식을 보면 0으로 지워진다
+    try { if (installed() && navigator.setAppBadge && CH) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
   }
   const installed = () => { try { return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; } catch (e) { return false; } };
 
-  // ---------- 알림함 시트 ----------
+  // ---------- 소식 목록(내 조건에 맞는 소식) ----------
   const dLabel = (d) => { const t = day(); if (d === t) return "오늘"; if (d === addDay(t, -1)) return "어제"; const x = new Date(d + "T00:00:00Z"); return `${x.getUTCMonth() + 1}.${x.getUTCDate()} (${"일월화수목금토"[x.getUTCDay()]})`; };
   function condHTML() {
     const A = CH ? CH.items.filter((e) => e.type === "auction" && byId[e.id]) : [], P = new Set(pinIds());
-    const L = conds().map((n) => { const I = new Set(n.ids); return Object.assign(n, { au: A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0) && !(e.mn > n.c.cash * 1.1 + 1e-9)) })   /* 경매: 조건 현금(+10%)을 넘는 물건은 '살 수 있는 곳'에 넣지 않는다(condAuc·푸시와 같은 기준) */; }).filter((n) => n.add.length || n.au.length);
+    const noAu = isOff("auction"), noAdd = isOff("price");
+    const L = conds().map((n) => { const I = new Set(n.ids); if (noAdd) n = Object.assign({}, n, { add: [] }); return Object.assign(n, { au: noAu ? [] : A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0) && !(e.mn > n.c.cash * 1.1 + 1e-9)) })   /* 경매: 조건 현금(+10%)을 넘는 물건은 '살 수 있는 곳'에 넣지 않는다(condAuc·푸시와 같은 기준) */; }).filter((n) => n.add.length || n.au.length);
     if (!L.length) return "";
     const F = new Set(freshN() ? PINS.freshIds() : []);
-    return `<section class="ib-sec" aria-labelledby="ibCT"><h4 id="ibCT">이 돈으로 살 수 있는 곳 알림</h4>${L.map((n) => {
+    return `<section class="ib-sec" aria-labelledby="ibCT"><h4 id="ibCT">내 돈으로 갈 수 있는 곳 알림</h4>${L.map((n) => {
       const f = n.add.filter((id) => F.has(id)).length;
       const au = n.au.slice(0, 3).map((e) => { const r = byId[e.id], nw = unreadC(e); return `<li><button type="button" class="ib-it${nw ? " new" : ""}" data-open="${e.id}"><span class="ib-tg au">경매</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(e.text)}</small></span>${nw ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("");
       return `<div class="ib-cond"><p class="ib-ch"><b>${esc(n.c.name)}</b>${f ? `<em class="pc-nb">+${f} 새 구역</em>` : n.add.length ? `<small>새로 들어온 곳 ${n.add.length}곳</small>` : ""}</p><ul>${au}${n.add.slice(0, 5).map((id) => { const r = byId[id]; if (!r) return ""; let wy = ""; try { wy = PINS.whyNew(n.c, id); } catch (e) {} return `<li><button type="button" class="ib-it${F.has(id) ? " new" : ""}" data-open="${id}"><span class="ib-tg cd">조건</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(stageName(r))}${wy ? ` · ${esc(wy)}` : ""}</small></span>${F.has(id) ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("")}${n.add.length > 5 ? `<li class="ib-more">외 ${n.add.length - 5}곳 · 관심 구역 화면에서 모두 보기</li>` : ""}</ul></div>`;
@@ -104,38 +103,26 @@ const INBOX = (() => {
   const overCash = (e) => { let c = null; try { c = CASH; } catch (er) {} return c != null && e.mn > c * 1.1 + 1e-9; };
   const foot = () => (CH && CH.asOf ? `<p class="ib-foot">최근 ${CH.days || 30}일 · 매일 아침 갱신 · ${CH.asOf.slice(5).replace("-", ".")} 기준</p>` : "");
   function body() { return `${pushBox()}${condHTML()}${pinHTML()}${foot()}`; }
-  function open() {
-    if (OPEN) return;
-    const back = document.activeElement;
-    const ov = document.createElement("div");
-    ov.className = "pn-ov ib-ov"; ov.id = "ibSheet";
-    ov.innerHTML = `<div class="pn-dlg ib-dlg" role="dialog" aria-modal="true" aria-labelledby="ibT"><div class="ib-hd"><h3 id="ibT" tabindex="-1">알림함</h3><button type="button" class="ib-x" data-ibx aria-label="닫기"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="ib-body" data-ibbody>${body()}</div></div>`;
-    document.body.appendChild(ov);
-    document.documentElement.classList.add("ib-lock");
-    const dlg = ov.firstElementChild, bodyEl = dlg.querySelector("[data-ibbody]");
-    const close = (nav) => {
-      if (!OPEN) return; OPEN = null; ov.remove(); document.documentElement.classList.remove("ib-lock");
-      document.removeEventListener("keydown", kd); removeEventListener("hashchange", onNav); removeEventListener("popstate", onNav);
-      if (nav !== true) try { back && back.focus && back.focus(); } catch (e) {}
-    };
-    const onNav = () => close(true);
-    const kd = (e) => {
-      if (e.key === "Escape") { close(); return; }
-      if (e.key === "Tab") { const f = [...dlg.querySelectorAll("button:not([disabled]),[href]")].filter((x) => x.offsetParent); if (!f.length) return; const a = f[0], z = f[f.length - 1]; if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); } }
-    };
-    OPEN = { close, rerender: () => { bodyEl.innerHTML = body(); } };
-    document.addEventListener("keydown", kd); addEventListener("hashchange", onNav); addEventListener("popstate", onNav);
-    ov.addEventListener("click", (e) => {
-      if (e.target === ov || e.target.closest("[data-ibx]")) return close();
-      if (e.target.closest("[data-open]")) { close(true); return; }   // 구역 열기는 앱 본문 [data-open] 처리가 이어서 한다
-      if (e.target.closest("[data-ibmap]")) { close(true); try { SIMPLE.close(); } catch (e2) {} requestAnimationFrame(() => { const m = $("mapTop"); if (m) window.scrollTo({ top: m.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); }); return; }
+  // 소식 화면(#news) 위 칸에 그린다 · 화면을 열면 소식을 받아 다시 그리고 잠시 뒤 읽음 처리
+  const box = () => $("nwMine");
+  const shown = () => { const s = $("news"); return !!(s && s.classList.contains("s-on")); };
+  function rerender() { const el = box(); if (el && shown()) el.innerHTML = body(); try { window.dispatchEvent(new Event("zp:alerts")); } catch (e) {} }
+  let seenT = 0;
+  function view() {
+    const el = box(); if (!el) return;
+    el.innerHTML = body();
+    clearTimeout(seenT);
+    load().then(() => { if (!shown()) return; rerender(); seenT = setTimeout(() => { if (shown()) markSeen(); }, 600); });
+    pushKey().then(() => { if (shown()) rerender(); });
+  }
+  function open() { try { if (typeof SIMPLE !== "undefined" && SIMPLE.open("news")) return; } catch (e) {} location.hash = "#news"; }
+  function bindBox() {
+    const el = box(); if (!el || el.dataset.on) return; el.dataset.on = "1";
+    el.addEventListener("click", (e) => {
+      if (e.target.closest("[data-ibmap]")) { try { SIMPLE.close(); } catch (e2) {} requestAnimationFrame(() => { const m = $("mapTop"); if (m) window.scrollTo({ top: m.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); }); return; }
       if (e.target.closest("[data-ibon]")) { subscribe(e.target.closest("[data-ibon]")); return; }
       if (e.target.closest("[data-iboff]")) { unsubscribe(); return; }
     });
-    dlg.querySelector("#ibT").focus({ preventScroll: true });
-    const fin = () => { if (!OPEN) return; OPEN.rerender(); setTimeout(() => { if (OPEN) markSeen(); }, 600); };
-    load().then(fin);
-    pushKey().then(() => { if (OPEN) OPEN.rerender(); });
   }
 
   // ---------- 웹 푸시 ----------
@@ -157,13 +144,13 @@ const INBOX = (() => {
     const perm = Notification.permission;
     if (isOn() && perm === "granted") return `<div class="ib-push on" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림 켜짐</b><small>매일 아침 관심 구역·알림 조건에 새 소식이 있으면 알려 드려요</small></span><button type="button" class="btn text sm" data-iboff>끄기</button></div>`;
     if (perm === "denied") return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>알림이 막혀 있어요</b><small>주소창 왼쪽 자물쇠(사이트 설정) → 알림 허용 뒤 다시 열어 주세요</small></span></div>`;
-    if (PMSG === P_FAIL) return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림을 켤 수 없어요</b><small>이 브라우저에선 안 돼요 · 새 소식은 여기 알림함에 모아 드려요</small></span></div>`;
+    if (PMSG === P_FAIL) return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림을 켤 수 없어요</b><small>이 브라우저에선 안 돼요 · 새 소식은 여기 소식 탭에 모아 드려요</small></span></div>`;
     return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>새 소식을 폰 알림으로 받기</b><small>${PMSG ? esc(PMSG) : "새 실거래·단계·경매, 살 수 있게 된 곳"}</small></span><button type="button" class="btn primary sm" data-ibon>알림 받기</button></div>`;
   }
   const u8 = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const swReady = (ms = 8000) => Promise.race([navigator.serviceWorker.getRegistration("/").then((r) => r || navigator.serviceWorker.register("/sw.js", { scope: "/" })).then(() => navigator.serviceWorker.ready), new Promise((_, no) => setTimeout(() => no(new Error("sw")), ms))]);
-  const payload = (sub) => ({ sub: sub.toJSON(), zones: pinIds().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.slice(0, 150) })) });
+  const payload = (sub) => ({ sub: sub.toJSON(), o: off(), zones: pinIds().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.slice(0, 150) })) });
   // 시간 제한: 구독·서버 저장이 멈춰도 '켜는 중…'에 갇히지 않게(8초)
   const tmo = (p, ms, tag) => { let t; return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(new Error(tag || "timeout")), ms); })]).finally(() => clearTimeout(t)); };
   const postSub = (sub) => {
@@ -180,7 +167,7 @@ const INBOX = (() => {
     if (!sub && create) sub = await tmo(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(KEY) }), 8000, "subscribe");
     return sub;
   }
-  const P_FAIL = "이 브라우저에선 폰 알림을 켤 수 없어요 · 알림함(\u{1F514})에 모아 드려요";
+  const P_FAIL = "이 브라우저에선 폰 알림을 켤 수 없어요 · 소식 탭에 모아 드려요";
   const P_DENY = "알림이 막혀 있어요 · 주소창 왼쪽 자물쇠(사이트 설정)에서 알림을 허용해 주세요";
   // 성공은 서버가 구독을 받았다고 답한 뒤에만. 실패하면 버튼을 되돌리고 이유를 보여 준다. 결과 { ok, msg, denied }
   async function subscribe(btn) {
@@ -204,15 +191,15 @@ const INBOX = (() => {
     } catch (e) { res = { ok: false, msg: P_FAIL }; }
     PMSG = res.ok ? "" : res.msg;
     if (btn && btn.isConnected && !res.ok) { btn.disabled = false; btn.removeAttribute("aria-busy"); btn.innerHTML = lbl; }
-    if (res.ok) tst("폰 알림 켰어요", "매일 아침 새 소식이 있으면 알려 드려요");
-    if (OPEN) OPEN.rerender();
+    if (res.ok) { tst("폰 알림 켰어요", "매일 아침 새 소식이 있으면 알려 드려요"); setTimeout(() => { try { window.ZP_INSTALL && ZP_INSTALL.offer("push"); } catch (e) {} }, 3600); }
+    rerender();
     return res;
   }
   async function unsubscribe() {
     try { const sub = await getSub(false); if (sub) { const ep = sub.endpoint; await sub.unsubscribe(); await fetch("/api/push/unsub", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: ep }) }).catch(() => {}); } } catch (e) {}
     lsW(PK, { on: 0 });
-    if (OPEN) OPEN.rerender();
-    tst("폰 알림 껐어요", "알림함은 그대로 볼 수 있어요");
+    rerender();
+    tst("폰 알림 껐어요", "소식 탭은 그대로 볼 수 있어요");
   }
   // 핀·조건이 바뀌면 서버의 구역 목록도 맞춘다(2초 모아서). 켜 둔 기기에서는 하루 한 번 다시 확인(키 바뀜·구독 사라짐)
   let syT = 0;
@@ -244,7 +231,7 @@ const INBOX = (() => {
   const ic = (k) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>`;
   function watch(kind, id) {
     const K = kind === "cond" ? "zp-watch-cond" : "zp-watch-pin";
-    if (lsR(K, 0) || $("wsSheet") || OPEN) return;
+    if (lsR(K, 0) || $("wsSheet")) return;
     lsW(K, 1);
     if (isOn() && Notification.permission === "granted") return;   // 이미 폰 알림을 받는 기기
     const r = byId[id];
@@ -258,17 +245,17 @@ const INBOX = (() => {
     const render = (push) => `<div class="pn-dlg ws-dlg" role="dialog" aria-modal="true" aria-labelledby="wsT" aria-describedby="wsD">
       <span class="ws-ic" aria-hidden="true">${bellSvg(26)}</span>
       <h3 id="wsT" tabindex="-1">${kind === "cond" ? "이 돈으로 살 수 있는 곳이 생기면 알려 드릴게요" : `${esc(r ? shortName(r.n) : "관심 구역")} 소식을 알려 드릴게요`}</h3>
-      <p id="wsD">${push ? "이런 일이 생기면 폰 알림으로 알려 드려요" : "이런 일이 생기면 알림함에 모아 알려 드려요"}</p>
+      <p id="wsD">${push ? "이런 일이 생기면 폰 알림으로 알려 드려요" : "이런 일이 생기면 소식 탭에 모아 알려 드려요"}</p>
       <ul class="ws-l">${items.map(([k, t]) => `<li><span class="ws-li ${k}">${ic(k)}</span>${t}</li>`).join("")}</ul>
-      ${push ? `<button type="button" class="btn primary ws-go" data-wson>${bellSvg(18)}알림 받기</button>` : ios && canI ? "" : `<p class="ws-note">새 소식은 위 ${bellSvg(14)} 알림함에 모아 드려요</p>`}
+      ${push ? `<button type="button" class="btn primary ws-go" data-wson>${bellSvg(18)}알림 받기</button>` : ios && canI ? "" : `<p class="ws-note">새 소식은 아래 ${bellSvg(14)} 소식 탭에 모아 드려요</p>`}
       ${canI ? `<button type="button" class="btn ${push ? "secondary" : "primary"} ws-in" data-wsin aria-expanded="false"><img src="/icon-192.png" alt="" width="22" height="22">앱으로 설치하면 놓치지 않아요</button>
-        <div class="ws-ios" data-wsios hidden><b>홈 화면에 추가하는 법</b><ol><li>Safari 아래 <svg viewBox="0 0 24 24" width="15" height="15" aria-label="공유"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 공유 버튼</li><li><b>홈 화면에 추가</b></li><li>홈 화면의 집핀을 열고 알림함에서 <b>알림 받기</b></li></ol><small>iPhone은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요</small></div>` : ""}
+        <div class="ws-ios" data-wsios hidden><b>홈 화면에 추가하는 법</b><ol><li>Safari 아래 <svg viewBox="0 0 24 24" width="15" height="15" aria-label="공유"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 공유 버튼</li><li><b>홈 화면에 추가</b></li><li>홈 화면의 집핀을 열고 소식 탭에서 <b>알림 받기</b></li></ol><small>iPhone은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요</small></div>` : ""}
       <button type="button" class="btn text sm ws-x" data-wsx>${push || canI ? "나중에" : "확인"}</button></div>`;
-    const close = () => { ov.remove(); document.removeEventListener("keydown", kd); removeEventListener("hashchange", close); try { back && back.focus && back.focus(); } catch (e) {} };
-    const kd = (e) => { if (e.key === "Escape") close(); };
+    const close = (later) => { ov.remove(); document.removeEventListener("keydown", kd); removeEventListener("hashchange", close); if (later === true && canI) try { IN.later(); } catch (e) {} try { back && back.focus && back.focus(); } catch (e) {} };
+    const kd = (e) => { if (e.key === "Escape") close(true); };
     const draw = (push) => { ov.innerHTML = render(push); const h = ov.querySelector("#wsT"); h && h.focus({ preventScroll: true }); };
     ov.addEventListener("click", async (e) => {
-      if (e.target === ov || e.target.closest("[data-wsx]")) return close();
+      if (e.target === ov || e.target.closest("[data-wsx]")) return close(true);
       const on = e.target.closest("[data-wson]");
       if (on) {
         const r = await subscribe(on);
@@ -277,7 +264,7 @@ const INBOX = (() => {
         let m = ov.querySelector("[data-wsmsg]");
         if (!m) { m = document.createElement("p"); m.className = "ws-msg"; m.dataset.wsmsg = "1"; m.setAttribute("role", "alert"); on.after(m); }
         m.textContent = r.msg;
-        if (r.denied || r.msg === P_FAIL) { on.hidden = true; const d = ov.querySelector("#wsD"); if (d) d.textContent = "이런 일이 생기면 알림함에 모아 알려 드려요"; const x = ov.querySelector("[data-wsx]"); if (x) x.textContent = "확인"; }
+        if (r.denied || r.msg === P_FAIL) { on.hidden = true; const d = ov.querySelector("#wsD"); if (d) d.textContent = "이런 일이 생기면 소식 탭에 모아 알려 드려요"; const x = ov.querySelector("[data-wsx]"); if (x) x.textContent = "확인"; }
         return;
       }
       const ins = e.target.closest("[data-wsin]");
@@ -295,30 +282,40 @@ const INBOX = (() => {
   }
   function onPins(ids) {
     const n = ids.length, was = prevN; prevN = n;
-    if (n > was && was >= 0 && !lsR("zp-watch-pin", 0) && !(Date.now() - (window.__zpImport || 0) < 8000)) setTimeout(() => { const cur = pinIds(); if (cur.length) watch("pin", cur[cur.length - 1]); }, 900);
+    if (n > was && was >= 0 && !(Date.now() - (window.__zpImport || 0) < 8000)) {
+      // 첫 관심 구역: '알림 받을 준비' 시트(설치 권유 포함) · 그 뒤로는 관심 구역을 더한 직후에만 설치 권유 카드(닫으면 30일 쉼, 69_install)
+      if (!lsR("zp-watch-pin", 0)) setTimeout(() => { const cur = pinIds(); if (cur.length) watch("pin", cur[cur.length - 1]); }, 900);
+      else setTimeout(() => { try { window.ZP_INSTALL && ZP_INSTALL.offer("pin"); } catch (e) {} }, 3600);
+    }
   }
 
-  // 알림을 눌러 열린 창: 서비스 워커가 {t:"zp-open", url} → 구역 열기 또는 알림함
+  // 알림을 눌러 열린 창: 서비스 워커가 {t:"zp-open", url} → 구역 열기 또는 소식 화면
   function go(url) {
     let h = ""; try { h = new URL(url, location.origin).hash.slice(1); } catch (e) {}
-    if (h === "inbox") return open();
+    if (h === "inbox" || h === "news") return open();
     if (byId[h]) { if (location.hash.slice(1) === h) { try { curTab = "money"; select(h, true, false, { scroll: true }); } catch (e) {} } else location.hash = "#" + h; }
   }
 
   function init() {
-    let k = 0; const tick = () => { if (!bell() && k++ < 40) setTimeout(tick, 250); else paint(); }; tick();
-    if ((location.hash || "") === "#inbox") { try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) {} setTimeout(open, 400); }
+    paint(); bindBox();
+    // 예전 알림 주소 #inbox(서버가 보내는 폰 알림 링크) = 소식 화면
+    if ((location.hash || "") === "#inbox") { try { history.replaceState(history.state, "", location.pathname + location.search + "#news"); } catch (e) {} setTimeout(open, 300); }
+    addEventListener("zp:view", (e) => { if (e.detail === "news") view(); else if (e.detail === "favTop") load().then(() => setTimeout(markSeen, 1200)); });
+    if (shown()) view();
     // 핀·조건 핀이 있을 때만 미리 받아 배지 계산(없으면 열 때 받음)
     const pre = () => { if (pinIds().length || conds().length) load().then(paint); };
     "requestIdleCallback" in window ? requestIdleCallback(pre, { timeout: 3000 }) : setTimeout(pre, 1500);
     prevN = pinIds().length;
-    try { PINS.on((ids) => { onPins(ids); sync(true); paint(); if (OPEN) OPEN.rerender(); if (ids.length && !CH) load().then(paint); }); } catch (e) {}
+    try { PINS.on((ids) => { onPins(ids); sync(true); paint(); rerender(); if (ids.length && !CH) load().then(paint); }); } catch (e) {}
     try { navigator.serviceWorker && navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.t === "zp-open") go(e.data.url); }); } catch (e) {}
     setTimeout(() => sync(false), 5000);
   }
   // 관심 구역 화면(70_pins)에서 쓰는 것: 구역별 최근 소식·이번 주 소식
   const evOf = (id) => (CH ? CH.items.filter((e) => e.id === id && TY[e.type]) : []);
   const week = () => { const d0 = addDay(day(), -6); return pinEvents().filter((e) => e.date >= d0); };
-  return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d) };
+  // MY > 알림 설정에서 쓰는 것: 폰 알림 상태(st) · 켜기/끄기 · 종류별 끄기
+  const st = () => ({ can: !!KEY && canPush(), on: isOn() && canPush() && Notification.permission === "granted", perm: canPush() ? Notification.permission : "unsupported", msg: PMSG });
+  function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); rerender(); sync(true); }
+  return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", INBOX.init) : setTimeout(INBOX.init, 0);

@@ -20,7 +20,7 @@ const SIMPLE = (() => {
   // ⋯ 메뉴 '도구' 묶음: 전부(shell.html #mpTools는 비워 두고 여기서 채운다)
   { const g = document.getElementById("mpTools"); if (g) g.innerHTML = TOOLS_ALL.map(([id, t, d, c]) => `<a href="#${id}" data-menu="${id}"><i class="mp-ic" aria-hidden="true" style="--ic:${c}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg></i><b>${t}</b></a>`).join(""); }
   // 아이콘 격자에는 안 넣지만 메뉴(⋯)·링크로 여는 화면
-  const MORE = ["results", "rulesTop", "readsTop", "statsTop"];
+  const MORE = ["results", "rulesTop", "readsTop", "statsTop", "my"];
   const LINKS = [];
   const IDS = VIEWS.map((v) => v[0]).concat(MORE);
   const known = (id) => IDS.includes(id) || !!ALIAS[id];
@@ -108,9 +108,12 @@ const SIMPLE = (() => {
     const wide = kind ? `<button type="button" class="btn secondary" id="sKindAll">전체 유형 보기</button>` : gu ? `<button type="button" class="btn secondary" id="sGuAll">서울 전체</button>` : bbF ? `<button type="button" class="btn secondary" id="sBbAll">서울 전체</button>` : "";
     return `${msg}<span class="s-eact">${up != null ? `<button type="button" class="btn primary" id="sKindUp" data-v="${up}">${eokS(up)}으로 올려 보기</button>` : ""}${wide}</span>`;
   }
-  // 아래 탭바: 지금 보는 화면에 맞는 탭을 켠다
-  function navMark(k) {
-    document.querySelectorAll("#sNav button").forEach((x) => { if (x.dataset.nav === k) x.setAttribute("aria-current", "page"); else x.removeAttribute("aria-current"); });
+  // 아래 탭바(4개: 찾기·관심·소식·MY): 지금 보는 화면에서 탭을 정한다(인자는 예전 호출과 맞추려고 받기만 함)
+  // 기능 화면이 열려 있으면 그 화면의 탭(관심 구역 = 관심 · 소식 = 소식 · 나머지 도구·가이드 = MY) · 아니면(첫 화면·전체 지도·검색) 찾기
+  const TAB_OF = (id) => (id === "favTop" ? "fav" : id === "news" ? "news" : id ? "my" : "home");
+  function navMark() {
+    const k = document.documentElement.classList.contains("s-view") ? TAB_OF(cur) : "home";
+    document.querySelectorAll("#sNav [data-nav]").forEach((x) => { if (x.dataset.nav === k) x.setAttribute("aria-current", "page"); else x.removeAttribute("aria-current"); });
   }
   // 폰: 하단 '지도'를 누르면 지도를 화면 가득(호갱노노처럼). 게이지는 위 작은 막대로.
   // 주소 #map = 전체 지도(뒤로가기로 닫힘, /#map 링크로 바로 열림). 지도 탭에 불이 들어온다
@@ -212,9 +215,12 @@ const SIMPLE = (() => {
     // shell.html이 첫 페인트부터 같은 탭바를 깔아 둔다(섬 단계에서 자리가 비지 않게) → 있으면 그것을 이어 쓴다
     const nav = $("sNav") || document.createElement("nav");
     nav.className = "s-nav"; nav.id = "sNav"; nav.setAttribute("aria-label", "주요 메뉴");
-    nav.innerHTML = [["home", "홈", "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"], ["map", "지도", "M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"], ["search", "검색", "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"], ["fav", "관심 구역", "M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6zM12 12a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z"], ["more", "더보기", "M4 6h16M4 12h16M4 18h16"]]
+    nav.innerHTML = [["home", "찾기", "M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"], ["fav", "관심", "M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6zM12 12a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z"], ["news", "소식", "M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4zM10 20.5a2.2 2.2 0 0 0 4 0"], ["my", "MY", "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 21a7.5 7.5 0 0 1 15 0"]]
       .map(([k, t, d]) => `<button type="button" data-nav="${k}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg><span>${t}</span></button>`).join("");
     if (!nav.isConnected) document.body.appendChild(nav);
+    // 넓은 화면: 탭 4개를 머리 오른쪽(.hdr-r)에 · 폰: 화면 아래(body 끝). 머리는 backdrop-filter라 fixed 자식을 품지 못해 자리를 옮긴다
+    const navPlace = () => { const r = document.querySelector("#hdr .hdr-r"); if (matchMedia("(min-width:981px)").matches) { if (r && nav.parentNode !== r) r.appendChild(nav); } else if (nav.parentNode !== document.body) document.body.appendChild(nav); };
+    navPlace(); matchMedia("(min-width:981px)").addEventListener("change", navPlace);
     const fx = document.createElement("button");
     fx.type = "button"; fx.className = "s-fullx"; fx.id = "sFullX"; fx.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>목록 보기`;
     // 목록 머리(유형 칩)가 위에 붙는 한 줄 게이지에 가리지 않게 그 높이만큼 더 띄운다. 뒤로가기 스크롤 복원 뒤에도 한 번 더
@@ -225,25 +231,17 @@ const SIMPLE = (() => {
       shown = SHOW0(); render();
       fullMap(false); requestAnimationFrame(toList); setTimeout(toList, 120); };
     document.body.appendChild(fx);
-    nav.querySelector('[data-nav="home"]').setAttribute("aria-current", "page");
+    navMark();
     nav.addEventListener("click", (e) => {
       const b = e.target.closest("[data-nav]"); if (!b) return;
       const k = b.dataset.nav, wasFull = document.documentElement.classList.contains("s-full");
-      nav.querySelectorAll("button").forEach((x) => x.removeAttribute("aria-current"));
-      if (k !== "more") b.setAttribute("aria-current", "page");
-      if (k !== "map") fullMap(false);
-      // 전체 지도에서 '검색': 지도를 닫는 뒤로 가기(popstate)가 끝난 뒤에 검색을 연다 — 먼저 열면 popstate가 검색을 다시 닫았다(두 번 눌러야 했음)
-      if (k === "search" && wasFull) { let done = false; const go = () => { if (done) return; done = true; removeEventListener("popstate", pop); search(); }; const pop = () => setTimeout(go, 30); addEventListener("popstate", pop); setTimeout(go, 450); return; }
-      if (k === "home") { close(); if ($("report").classList.contains("sheet")) closeSheetNow(); window.scrollTo({ top: 0, behavior: "smooth" }); }
-      else if (k === "map") { const v = history.state && history.state.sView; close(); if (v) setTimeout(() => fullMap(true), 120); else fullMap(true); }
-      else if (k === "search") search();
-      else if (k === "fav") {
-        // 관심 구역: 전체 지도에서 누르면 지도를 닫는 뒤로 가기(popstate)가 끝난 뒤에 연다(먼저 열면 popstate가 홈으로 되돌렸다) · 열린 시트는 닫고 · 주소는 늘 #favTop
-        const go = () => { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (er) {} if (cur === "favTop") { const s = $("favTop"); if (s) window.scrollTo({ top: s.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } else open("favTop"); if (location.hash !== "#favTop") try { history.replaceState(history.state, "", location.pathname + location.search + "#favTop"); } catch (er) {} };
-        if (wasFull) { let done = false; const g2 = () => { if (done) return; done = true; removeEventListener("popstate", pop); go(); }; const pop = () => setTimeout(g2, 30); addEventListener("popstate", pop); setTimeout(g2, 450); }
-        else go();
-      }
-      else if (k === "more") setTimeout(() => $("menuBtn").click(), 0);
+      // 찾기 = 첫 화면(지도·목록·검색) 맨 위로: 열린 시트·도구·전체 지도를 닫는다(로고와 같은 길)
+      if (k === "home") { if (typeof ZP_home === "function") ZP_home(); else { fullMap(false); close(); window.scrollTo({ top: 0, behavior: "auto" }); } navMark(); return; }
+      const id = k === "fav" ? "favTop" : k;   // 관심 → #favTop · 소식 → #news · MY → #my
+      // 전체 지도에서 누르면 지도를 닫는 뒤로 가기(popstate)가 끝난 뒤에 연다(먼저 열면 popstate가 홈으로 되돌렸다) · 열린 시트는 닫고 · 주소는 늘 #화면
+      const go = () => { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (er) {} document.documentElement.classList.remove("s-rep"); if (cur === id) { const s = $(id); if (s) window.scrollTo({ top: s.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } else open(id); if (location.hash !== "#" + id) try { history.replaceState(history.state, "", location.pathname + location.search + "#" + id); } catch (er) {} navMark(); };
+      if (wasFull) { fullMap(false); let done = false; const g2 = () => { if (done) return; done = true; removeEventListener("popstate", pop); go(); }; const pop = () => setTimeout(g2, 30); addEventListener("popstate", pop); setTimeout(g2, 450); }
+      else go();
     });
     $("sSearch").onclick = search;
     // 아래 탭 '검색': 검색이 열려 있는 동안만 켜 두고, 닫히면 보던 화면(전체 지도·홈) 탭으로
@@ -625,8 +623,9 @@ const SIMPLE = (() => {
     // 홈 제목(h1)이 숨는 동안은 이 도구의 제목을 1단계 제목으로(화면 읽기·axe page-has-heading-one)
     lvl(id);
     cur = id; curT = al && al[1] === "save" ? "saveTop" : id;
-    navMark(id === "favTop" ? "fav" : "more");
+    navMark();
     const f = SECT[id]; if (f) f();
+    try { window.dispatchEvent(new CustomEvent("zp:view", { detail: id })); } catch (e) {}
     if (id === "results" || id === "planner") { planN = PLAN0(); plan(); }
     window.dispatchEvent(new Event("resize"));
     if (!noScroll) requestAnimationFrame(() => { const s = (al && al[1] === "save" && $("saveTop")) || $(id); if (s) window.scrollTo({ top: s.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); });
@@ -645,7 +644,7 @@ const SIMPLE = (() => {
     lvl(null);
     const wasOpen = !!cur;
     cur = "";
-    if (!document.documentElement.classList.contains("s-full")) navMark("home");
+    navMark();
     let popB = false;
     if (history.state && history.state.sView) { try { history.back(); popB = true; } catch (e) {} }
     else if (location.hash && known(location.hash.slice(1))) try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) {}
@@ -750,6 +749,8 @@ const SIMPLE = (() => {
       else if (cur) close(true);
     });
   }
-  return { init, open, close, render, fullMap: (on) => fullMap(on) };
+  // 검색에서 구·역을 고르면(폰) 전체 지도로 — 예전 아래 탭 '지도'와 같은 길
+  const mapTab = () => { const v = history.state && history.state.sView; close(); if (v) setTimeout(() => fullMap(true), 120); else fullMap(true); };
+  return { init, open, close, render, fullMap: (on) => fullMap(on), mapTab, cur: () => cur, setCash: (v) => setCash(v, true), toCash, toPos };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", SIMPLE.init) : setTimeout(SIMPLE.init, 0);

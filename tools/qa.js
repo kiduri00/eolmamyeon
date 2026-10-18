@@ -107,7 +107,7 @@ async function setup(browser, name, opts) {
   page.on("console", (m) => {
     if (m.type() !== "error") return;
     const t = m.text(), u = (m.location() && m.location().url) || "";
-    if (IGNORE_MSG.test(t) || BLOCK.test(u) || BLOCK.test(t)) return; if (/nope-qa-/.test(u)) return; if (/CORS/.test(t) && /about:blank/.test(t + u)) return;
+    if (IGNORE_MSG.test(t) || BLOCK.test(u) || BLOCK.test(t)) return; if (/nope-qa-/.test(u)) return; if (/^https?:\/\/(localhost|127\.)/.test(BASE) && /\/api\/push\//.test(u)) return;   // 정적 서버엔 Worker(/api/push/*)가 없다(배포본은 Worker가 답함 · qa_consistency와 같은 예외) if (/CORS/.test(t) && /about:blank/.test(t + u)) return;
     page.__errs.push("console.error: " + t.slice(0, 200) + (u ? " @" + u.replace(BASE, "").slice(0, 60) : ""));
   });
   return { ctx, page, name };

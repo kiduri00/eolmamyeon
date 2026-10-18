@@ -1,5 +1,5 @@
 // 집핀 관심 구역 알림 — /api/push/* 요청과 매일 cron 발송. 정적 파일은 건드리지 않는다(env.ASSETS로 그대로 넘김).
-// KV(env.PUSH) 키: "vapid"(키쌍) · "state"({last, pend}) · "sub:<엔드포인트 해시>"({s, z, c, at})
+// KV(env.PUSH) 키: "vapid"(키쌍) · "state"({last, pend}) · "sub:<엔드포인트 해시>"({s, z, c, o, at}) · o = 끈 알림 종류
 import { vapidKeys, sendPush, b64u } from "./webpush.js";
 
 const MAXZ = 20, MAXC = 3, MAXCZ = 150, MAXBODY = 16384;
@@ -37,7 +37,9 @@ export function cleanSub(b, env) {
     // 지금 조건에 맞는 구역(앱 엔진 판정) — 그 구역에 경매 물건이 나오면 알린다
     z: [...new Set((Array.isArray(x && x.z) ? x.z : []).filter((i) => typeof i === "string" && ID.test(i)))].slice(0, MAXCZ),
   })).filter((x) => x.cash > 0);
-  return { s: { endpoint: s.endpoint, keys: { p256dh: k.p256dh, auth: k.auth } }, z, c, at: new Date().toISOString() };
+  // 끈 알림 종류(앱 MY > 알림 설정): 이 종류 사건은 보내지 않는다
+  const o = [...new Set((Array.isArray(b.o) ? b.o : []).filter((x) => ["trade", "stage", "notice", "auction", "price"].includes(x)))];
+  return { s: { endpoint: s.endpoint, keys: { p256dh: k.p256dh, auth: k.auth } }, z, c, o, at: new Date().toISOString() };
 }
 
 async function readBody(req) {
@@ -79,8 +81,9 @@ const TYPE_T = { stage: "단계", trade: "실거래", notice: "고시·공고", 
 const cashT = (v) => (v >= 1 ? `${Math.round(v * 10) / 10}억` : `${Math.round(v * 10)}천`);
 /** 구독 하나와 맞는 사건: 핀 구역의 단계·실거래·고시 + 조건 핀 금액 안으로 들어온 구역(price) */
 export function match(sub, items) {
-  const Z = new Set(sub.z || []), zone = [], cond = [];
+  const Z = new Set(sub.z || []), O = new Set(sub.o || []), zone = [], cond = [];
   for (const e of items) {
+    if (O.has(e.type)) continue;
     if (Z.has(e.id) && e.type !== "price") zone.push(e);
     if (e.type === "auction" && !Z.has(e.id)) {
       const c = (sub.c || []).find((x) => Array.isArray(x.z) && x.z.includes(e.id) && !(e.mn > x.cash * 1.1 + 1e-9));   // 대표 물건 최저가(억)가 조건 현금(+10%) 안일 때만

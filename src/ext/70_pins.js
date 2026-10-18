@@ -353,7 +353,7 @@ const PINS = (() => {
       let i = nb.querySelector(".pn-nb");
       if (!i) { i = document.createElement("b"); i.className = "pn-nb"; i.setAttribute("aria-hidden", "true"); nb.appendChild(i); }
       i.hidden = !n; i.textContent = nTxt(n);
-      nb.setAttribute("aria-label", `관심 구역${n ? `, 새 소식 ${n}곳` : ""}`);
+      nb.setAttribute("aria-label", `관심${n ? `, 새 소식 ${n}곳` : ""}`);
     }
     condBtn();
     // 앱 아이콘 숫자는 알림함(72_inbox paint)이 종 숫자와 같게 맞춘다
@@ -390,7 +390,7 @@ const PINS = (() => {
     const nb = document.querySelector('#sNav [data-nav="fav"]');
     if (nb && !nb.dataset.pin) {
       nb.dataset.pin = "1";
-      const sp = nb.querySelector("span"); if (sp) sp.textContent = "관심 구역";
+      const sp = nb.querySelector("span"); if (sp) sp.textContent = "관심";
       const sv = nb.querySelector("svg"); if (sv) sv.innerHTML = pinLine;
     }
     const tl = document.querySelector('#sTiles [data-view="favTop"]');
@@ -870,7 +870,9 @@ const PINS = (() => {
     try { LMX.pins(); } catch (e) {}
   }
   const cmpShown = () => CMPON;
-  return { init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
+  // MY > 관심 구역 내보내기: 관심 구역 화면의 '링크 복사'와 같은 링크·같은 복사/공유
+  const move = (fb) => moveURL().then((u) => shareLink(u, fb));
+  return { move, moveURL, init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
 })();
 window.PINS = { list: PINS.list, has: PINS.has, on: PINS.on, newIds: PINS.newIds };
 window.ZP_ok = PINS.zpOk;   // 홈 '살 수 있는 곳' 숫자와 같은 판정(지도 핀·게이지 토스트용)

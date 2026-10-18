@@ -1,0 +1,97 @@
+/* ===================== 아래 탭 4개(찾기·관심·소식·MY) ===================== */
+@media (max-width:980px){
+  .s-nav{grid-template-columns:repeat(4,1fr)}
+  .s-nav button{position:relative}
+  .s-nav .pn-nb{position:absolute;top:3px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:var(--danger,#dc2626);color:#fff;font:700 10.5px/17px var(--font);text-align:center}
+}
+/* 넓은 화면: 같은 탭 4개를 머리 오른쪽에 가로로(60_simple.js navPlace가 .hdr-r 안으로 옮긴다) */
+@media (min-width:981px){
+  .hdr-r .s-nav{display:flex;align-items:center;gap:2px;margin-left:4px}
+  .hdr-r .s-nav button{position:relative;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:0;border-radius:10px;background:none;color:var(--text-2);font:600 14px var(--font);cursor:pointer;white-space:nowrap}
+  .hdr-r .s-nav button svg{width:18px;height:18px}
+  .hdr-r .s-nav button:hover{background:var(--surface-2,#f2f4f6);color:var(--text-1)}
+  .hdr-r .s-nav button[aria-current="page"]{color:var(--brand);background:color-mix(in srgb,var(--brand) 9%,transparent)}
+  .hdr-r .s-nav .pn-nb{position:absolute;top:2px;right:0;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:var(--danger,#dc2626);color:#fff;font:700 10.5px/17px var(--font);text-align:center}
+}
+/* 부제 '서울 재개발 지도'는 데스크톱만 */
+@media (max-width:980px){.logo .logo-s{display:none!important}}
+/* 앱 화면에서는 웹 푸터를 숨긴다(출처·약관·문의는 MY에) — SEO용 푸터는 /z·/gu·/guide 정적 페이지에 남아 있다 */
+html.simple .site-foot,html.simple .ad-slot[data-slot="bottom"]{display:none!important}
+html.simple main.wrap{padding-bottom:24px}
+
+/* ===================== 앱다운 느낌 ===================== */
+html{-webkit-tap-highlight-color:transparent}
+/* 화면 틀(머리·탭·칩·단추·지도 조작)은 길게 눌러도 글자 선택·메뉴가 뜨지 않게. 본문 글자·숫자는 그대로 복사할 수 있다 */
+.hdr .logo,.s-nav,.s-mini,.s-mode,.s-flt,.s-tiles,.hub-tabs,.my-gh,.my-sw,.my-seg,#report .tabs,#report .sheet-bar,.lm-ctl,.lm-zoom,#mapbox .s-rail,.s-fullx,.zi,.app-toast,button,[role="tab"]{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* 지도·전체 지도에서 당겨서 새로고침·튕김 막기 · 시트는 안에서만 스크롤 */
+#mapbox,#lmap,.maplibregl-canvas{overscroll-behavior:none}
+html.s-full,html.s-full body{overscroll-behavior:none}
+#report.sheet,.pn-ov,.ws-ov{overscroll-behavior:contain}
+/* 시트 손잡이: 더 잘 보이게 */
+@media (max-width:980px){#report.sheet .sheet-bar::before{width:40px;height:5px;top:6px;background:color-mix(in srgb,var(--text-3,#6b7684) 55%,transparent)}}
+/* 바깥 링크 ↗ */
+.ext-ic{margin-left:2px;font-size:.92em;opacity:.75}
+
+/* ===================== 소식(#news) ===================== */
+.nw-h{margin:20px 0 10px;font-size:15px;font-weight:700;color:var(--text-1)}
+.nw-sec .nw-h{margin-top:4px}
+#nwMine .ib-sec h4{margin:4px 0 8px;font-size:14px}
+#nwMine .ib-push{margin-bottom:12px}
+#nwMine ul{list-style:none;margin:0;padding:0}
+#nwMine .ib-it{width:100%;min-height:48px}
+#nwMine .ib-empty{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:12px 4px}
+#nwMine .ib-empty p{margin:0;color:var(--text-2);font-size:14px;line-height:1.55}
+.nw-oh{margin-top:28px}
+
+/* ===================== MY(#my) ===================== */
+.my .sec-h{margin-bottom:6px}
+.my-g{margin:0 0 22px}
+.my-gh{margin:0 4px 8px;font-size:13px;font-weight:700;color:var(--text-3);letter-spacing:-.01em}
+.my-l{list-style:none;margin:0;padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden}
+.my-l>li+li{border-top:1px solid var(--divider,var(--border))}
+.my-r{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 16px;border:0;background:none;color:var(--text-1);font:inherit;text-align:left;text-decoration:none!important;box-sizing:border-box}
+a.my-r,button.my-r,.my-det>summary{cursor:pointer}
+a.my-r:hover,button.my-r:hover,.my-det>summary:hover{background:var(--surface-2,#f7f8fa)}
+a.my-r:focus-visible,button.my-r:focus-visible,.my-det>summary:focus-visible{outline:2px solid var(--brand);outline-offset:-3px;border-radius:14px}
+.my-t{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.my-t b{font-size:15px;font-weight:600;line-height:1.35}
+.my-t small{font-size:13px;line-height:1.45;color:var(--text-3)}
+.my-ch{flex:none;color:var(--text-3)}
+.my-v{flex:none;min-height:44px;padding:0 14px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--brand);font:700 16px var(--font);font-variant-numeric:tabular-nums;cursor:pointer}
+.my-v[aria-expanded="true"]{border-color:var(--brand)}
+.my-seg{flex:none;display:inline-flex;padding:3px;border-radius:12px;background:var(--surface-2,#f2f4f6)}
+.my-seg button{min-height:40px;padding:0 12px;border:0;border-radius:9px;background:none;color:var(--text-2);font:600 14px var(--font);cursor:pointer}
+.my-seg button[aria-pressed="true"]{background:var(--surface);color:var(--text-1);box-shadow:0 1px 3px rgba(15,23,42,.14)}
+.my-cash{margin:10px 0 0;padding:14px 16px 10px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+.my-cash input{width:100%;height:44px;accent-color:var(--brand)}
+.my-note{margin:8px 4px 0;font-size:13px;line-height:1.55;color:var(--text-2)}
+.my-cash .my-note{margin:2px 0 0;font-weight:600;color:var(--brand)}
+.my-kinds{margin-top:10px}
+.my-sw{justify-content:space-between}
+.my-tg{flex:none;position:relative;width:44px;height:26px;border-radius:999px;background:var(--border-strong,#c9ced6);transition:background .15s}
+.my-tg::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s}
+.my-sw[aria-checked="true"] .my-tg{background:var(--brand)}
+.my-sw[aria-checked="true"] .my-tg::after{transform:translateX(18px)}
+.my-in .btn{flex:none;min-height:40px}
+.my-in{flex-wrap:wrap}
+.my-in .share-fb{flex-basis:100%;font-size:13px;color:var(--brand)}
+.my-in .share-fb:empty{display:none}
+.my-det{display:block;padding:0}
+.my-det>summary{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 16px;list-style:none}
+.my-det>summary::-webkit-details-marker{display:none}
+.my-det[open]>summary .my-ch{transform:rotate(90deg)}
+.my-lic{margin:0;padding:0 16px 14px 32px;font-size:13px;line-height:1.7;color:var(--text-2)}
+.my-lic a{color:var(--brand)}
+.my-vv{flex:none;font-size:14px;font-weight:600;color:var(--text-2);font-variant-numeric:tabular-nums}
+.my-ver .my-t small,.my-vv{-webkit-user-select:text;user-select:text}
+.my-ios{margin:10px 0 0;padding:12px 16px;border:1px solid var(--border);border-radius:16px;background:var(--surface);font-size:14px;line-height:1.6}
+.my-ios ol{margin:6px 0 0;padding-left:20px}
+.btn.my-danger{color:var(--danger,#dc2626);border-color:color-mix(in srgb,var(--danger,#dc2626) 40%,var(--border))}
+.btn.primary.my-danger{background:var(--danger,#dc2626);border-color:var(--danger,#dc2626);color:#fff}
+.my-wipe{margin:10px 0 0;padding:14px 16px;border:1px solid color-mix(in srgb,var(--danger,#dc2626) 35%,var(--border));border-radius:16px;background:var(--surface)}
+.my-wipe p{margin:0 0 6px;font-size:14px;line-height:1.55;color:var(--text-2)}
+.my-wipe p b{font-size:15px;color:var(--text-1)}
+.my-wbtn{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.my-wbtn .btn{min-height:44px}
+@media (min-width:981px){.my{max-width:720px}}
+@media (prefers-reduced-motion:reduce){.my-tg,.my-tg::after{transition:none}}

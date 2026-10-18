@@ -32,7 +32,7 @@ const IGNORE_MSG = /GL Driver|WebGL|GPU stall|swiftshader|adsbygoogle|googlesynd
 const FIXED_ZONES = ["o916", "o337", "o586", "o1059", "s78", "o747", "o111", "o135", "o136", "o914", "s45", "m9", "o776", "o281"];
 const CASH_LEVELS = [1, 3, 6, 10, 15];
 const STATIONS = ["봉천역", "신림역"];
-const EXTRA_VIEWS = ["results", "rulesTop", "readsTop", "statsTop"];
+const EXTRA_VIEWS = ["results", "rulesTop", "readsTop", "statsTop", "my"];
 
 // ---------------------------------------------------------------- 결과 모음
 const CHECKS = new Map();   // id -> {title, n, fails:[], warns:[], skipped}
@@ -255,8 +255,23 @@ async function staticLane(api) {
   }
   {
     // 14회차: 섬(첫 페인트) 단계에도 머리 종 자리·아래 탭바·알림 카드(같은 문구)가 있다 — 앱이 붙을 때 자리가 생기며 밀리지 않게
-    const T1 = "index.html 첫 페인트에 종(#huBell)·아래 탭바(#sNav)·알림 카드 자리(.pc-ph 안 .pc-al) 있음";
-    expect(/id="huBell"/.test(idx.text) && /id="sNav"/.test(idx.text) && /class="pc-save pc-ph"[^>]*><div class="pc-al"/.test(idx.text), "ui.islandSlots", T1, `huBell ${/id="huBell"/.test(idx.text)} sNav ${/id="sNav"/.test(idx.text)} pc-ph card ${/class="pc-save pc-ph"[^>]*><div class="pc-al"/.test(idx.text)}`);
+    // 리뉴얼 1단계: 머리 종은 없앴다(소식 탭으로) → 첫 페인트에 아래 탭 4개(찾기·관심·소식·MY)가 그대로 있어야
+    const T1 = "index.html 첫 페인트에 아래 탭 4개(#sNav 찾기·관심·소식·MY)·알림 카드 자리(.pc-ph 안 .pc-al) 있음 · 머리 종·⋯ 메뉴 없음";
+    const nav0 = (/<nav class="s-nav" id="sNav"[\s\S]*?<\/nav>/.exec(idx.text) || [""])[0], navK = [...nav0.matchAll(/data-nav="(\w+)"/g)].map((m) => m[1]).join(",");
+    expect(navK === "home,fav,news,my" && /class="pc-save pc-ph"[^>]*><div class="pc-al"/.test(idx.text) && !/id="huBell"|id="menuBtn"/.test(idx.text), "ui.islandSlots", T1, `sNav [${navK}] pc-ph card ${/class="pc-save pc-ph"[^>]*><div class="pc-al"/.test(idx.text)} bell/menu ${/id="huBell"|id="menuBtn"/.test(idx.text)}`);
+    // 약관·개인정보·FAQ: 200 · MY에서 링크 · FAQ 10개 이상+찾기 칸 · 개인정보에 로컬 저장·푸시(KV)·계정 없음 · 사업자 정보 없음
+    {
+      const T2 = "약관·개인정보처리방침·FAQ가 200이고 MY에서 링크됨(FAQ 10개+찾기 · 방침에 localStorage·푸시 KV·계정 없음)";
+      const my = (/<section class="sec tool my" id="my"[\s\S]*?<\/section>\s*<section/.exec(idx.text) || [""])[0];
+      const pg = {}; for (const p of ["/terms", "/privacy", "/faq"]) pg[p] = await getPage(p);
+      for (const p of Object.keys(pg)) expect(pg[p] && pg[p].status === 200, "seo.legal", T2, `${p} → ${pg[p] && pg[p].status}`);
+      for (const h of ["terms", "privacy", "faq", "method", "about"]) expect(new RegExp(`href="${h}"`).test(my), "seo.legal", T2, `MY has no link to ${h}`);
+      const fq = (pg["/faq"] || {}).text || "", pv = htmlText((pg["/privacy"] || {}).text || "");
+      expect((fq.match(/<details class="fq"/g) || []).length >= 10 && /id="fqQ"[^>]*type="search"/.test(fq), "seo.legal", T2, `faq items ${(fq.match(/<details class="fq"/g) || []).length} · search ${/id="fqQ"/.test(fq)}`);
+      expect(/localStorage/.test(pv) && /KV/.test(pv) && /계정/.test(pv) && /푸시/.test(pv), "seo.legal", T2, `privacy mentions localStorage ${/localStorage/.test(pv)} KV ${/KV/.test(pv)} 계정 ${/계정/.test(pv)} 푸시 ${/푸시/.test(pv)}`);
+      for (const p of Object.keys(pg)) expect(!/사업자/.test(htmlText((pg[p] || {}).text || "")), "seo.legal", T2, `${p} mentions 사업자`);
+      expect(/<a class="my-r" href="mailto:[^"]+"[\s\S]{0,200}?@/.test(my), "seo.legal", T2, "MY 문의 row lacks mailto + visible address");
+    }
     const bn = api.zones.filter((z) => /^\s*\d{1,3}\.\s/.test(z.name || ""));
     expect(!bn.length, "name.listNo", "구역 이름에 목록 번호('43. 문래동1·2가') 없음(api·/z·검색 같은 shortName)", `${bn.length}: ${bn.slice(0, 4).map((z) => z.id + " " + z.name).join(", ")}`);
   }
@@ -644,10 +659,11 @@ async function uiLane(browser, api, errs, shared) {
     { const t = await page.evaluate(() => window.__qc.touch("body", "#report,.sheet,[hidden],.s-why")); expect(!t.length, "ui.touch", "360px 홈 터치 타깃 40px 이상(문장 속 링크 제외)", `home: ${t.length} small: ${t.slice(0, 6).join(" ; ")}${t.length > 6 ? " …" : ""}`); }
     // 메뉴: 모든 도구 있음, 같은 글자 두 번 없음, '이번 달' 없음
     {
-      const m = await page.evaluate((extra) => { const ids = (window.ZP_TOOLS || []).map((t) => t[0]); const links = [...document.querySelectorAll("#menuPop a, #menuPop [data-menu]")]; const hrefs = links.map((a) => (a.dataset.menu || (a.getAttribute("href") || "").replace(/^#/, ""))); const txt = links.map((a) => a.textContent.trim()); return { ids, extra, missing: ids.concat(extra.filter((x) => x !== "results" && x !== "readsTop")).filter((i) => !hrefs.includes(i)), dup: txt.filter((t, i) => t && txt.indexOf(t) !== i), month: txt.filter((t) => /이번 달/.test(t)) }; }, EXTRA_VIEWS);
-      expect(!m.missing.length, "ui.menu", "⋯ 메뉴에 모든 도구 · 같은 항목 두 번 없음 · '이번 달' 없음", `menu lacks: ${m.missing.join(", ")}`);
-      expect(!m.dup.length, "ui.menu", "⋯ 메뉴에 모든 도구 · 같은 항목 두 번 없음 · '이번 달' 없음", `duplicate menu items: ${m.dup.join(", ")}`);
-      expect(!m.month.length, "ui.menu", "⋯ 메뉴에 모든 도구 · 같은 항목 두 번 없음 · '이번 달' 없음", `menu says: ${m.month.join(", ")}`);
+      // ⋯ 메뉴는 없앴다(리뉴얼 1단계) → 도구는 MY '도구' 묶음 + 아래 탭(관심·소식)에서 연다
+      const m = await page.evaluate((extra) => { const ids = (window.ZP_TOOLS || []).map((t) => t[0]); const tl = [...document.querySelectorAll("#myTools a")], nv = [...document.querySelectorAll("#sNav [data-nav]")]; const hrefs = tl.map((a) => a.dataset.menu || (a.getAttribute("href") || "").replace(/^#/, "")).concat(nv.map((b) => (b.dataset.nav === "fav" ? "favTop" : b.dataset.nav))); const txt = tl.map((a) => a.querySelector("b") ? a.querySelector("b").textContent.trim() : a.textContent.trim()); return { ids, extra, missing: ids.concat(extra.filter((x) => x !== "results" && x !== "readsTop")).filter((i) => !hrefs.includes(i)), dup: txt.filter((t, i) => t && txt.indexOf(t) !== i), month: txt.filter((t) => /이번 달/.test(t)) }; }, EXTRA_VIEWS);
+      expect(!m.missing.length, "ui.menu", "MY 도구 묶음 + 아래 탭에 모든 도구 · 같은 항목 두 번 없음 · '이번 달' 없음", `menu lacks: ${m.missing.join(", ")}`);
+      expect(!m.dup.length, "ui.menu", "MY 도구 묶음 + 아래 탭에 모든 도구 · 같은 항목 두 번 없음 · '이번 달' 없음", `duplicate menu items: ${m.dup.join(", ")}`);
+      expect(!m.month.length, "ui.menu", "MY 도구 묶음 + 아래 탭에 모든 도구 · 같은 항목 두 번 없음 · '이번 달' 없음", `menu says: ${m.month.join(", ")}`);
       shared.toolIds = m.ids.concat(EXTRA_VIEWS);
       shared.alias = await page.evaluate(() => window.ZP_ALIAS || {});
     }
@@ -761,6 +777,81 @@ async function uiLane(browser, api, errs, shared) {
       await tapFav(); { const s = await fav(); expect(s.hash === "#favTop" && s.on && s.vis, "ui.favTab", T, `report #${zid} closed → tab: hash "${s.hash}" s-on ${s.on} visible ${s.vis}`); }
     }
   } catch (e) { bad("runtime", "검사 실행", "uiLane crashed: " + String(e.message || e).split("\n")[0]); }
+  finally { await ctx.close().catch(() => {}); }
+}
+
+// ================================================================ 리뉴얼 1단계: 아래 탭 4개 · MY 화면
+async function r1Lane(browser, api, errs) {
+  const { ctx, page } = await newPage(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }, errs);
+  let dialogs = 0; page.on("dialog", (d) => { dialogs++; d.dismiss().catch(() => {}); });
+  try {
+    // --- ui.tabs4: 보이는 탭 정확히 4개(찾기·관심·소식·MY) · 화면마다 aria-current가 하나이고 맞는 탭
+    const T = "아래 탭 정확히 4개(찾기·관심·소식·MY) · 어느 화면에서든(도구·상세 닫은 뒤·전체 지도·뒤로 가기) 지금 탭 하나만 aria-current";
+    const tabs = () => page.evaluate(() => { const B = [...document.querySelectorAll("#sNav [data-nav]")].filter((b) => window.__qc.vis(b)); return { n: B.length, lab: B.map((b) => (b.querySelector("span") || b).textContent.trim()).join(","), cur: B.filter((b) => b.getAttribute("aria-current") === "page").map((b) => b.dataset.nav) }; });
+    const want = async (where, k) => { const t = await tabs(); expect(t.n === 4 && t.lab === "찾기,관심,소식,MY" && t.cur.length === 1 && t.cur[0] === k, "ui.tabs4", T, `${where}: ${t.n} tabs [${t.lab}] current [${t.cur}] want ${k}`); };
+    for (const [h, k] of [["", "home"], ["#favTop", "fav"], ["#news", "news"], ["#my", "my"], ["#rankHub", "my"], ["#planner", "my"], ["#map", "home"]]) { await loadHome(page, h); await page.waitForTimeout(700); await want(h || "/", k); }
+    // 탭을 차례로 누르기 → 뒤로 가기
+    await loadHome(page); await page.waitForFunction(() => !window.ZP_boot || window.ZP_boot.hyd === 1, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(600);
+    const tap = async (k) => { await page.tap(`#sNav [data-nav="${k}"]`, { timeout: 4000, force: true }).catch(() => {}); await page.waitForTimeout(800); };
+    await tap("news"); await want("tap 소식", "news");
+    { const h = await page.evaluate(() => location.hash); expect(h === "#news", "ui.tabs4", T, `tap 소식 → hash ${h}`); }
+    await tap("my"); await want("tap MY", "my");
+    { const h = await page.evaluate(() => ({ h: location.hash, on: !!document.querySelector("#my.s-on") })); expect(h.h === "#my" && h.on, "ui.tabs4", T, `tap MY → hash ${h.h} s-on ${h.on}`); }
+    // MY의 도구(순위) → MY 강조 유지 → 뒤로 → MY
+    await page.evaluate(() => { const a = document.querySelector('#myTools [data-menu="rankHub"]'); a && a.click(); }); await page.waitForTimeout(800); await want("MY → 순위", "my");
+    await page.goBack().catch(() => {}); await page.waitForTimeout(900);
+    { const h = await page.evaluate(() => ({ h: location.hash, on: !!document.querySelector("#my.s-on") })); expect(h.h === "#my" && h.on, "ui.tabs4", T, `back from 순위 → hash ${h.h} MY shown ${h.on}`); }
+    await want("back → MY", "my");
+    await page.goBack().catch(() => {}); await page.waitForTimeout(900); await want("back → 소식", "news");
+    await tap("home"); await want("tap 찾기", "home");
+    // 구역 상세를 열고 닫으면(관심 화면 위에서) 관심 강조 그대로
+    const zid = api.zones[2].id;
+    await loadHome(page, "#favTop"); await page.waitForTimeout(600);
+    await page.evaluate((id) => { location.hash = "#" + id; }, zid); await page.waitForFunction(() => !!document.querySelector("#report.sheet .rep-head"), null, { timeout: 8000 }).catch(() => {});
+    await page.evaluate(() => { const b = document.getElementById("sheetClose"); b && b.click(); }); await page.waitForTimeout(700);
+    { const t = await tabs(); expect(t.cur.length === 1 && t.n === 4, "ui.tabs4", T, `report on 관심 closed → current [${t.cur}]`); }
+    // 데스크톱 1440: 같은 탭 4개가 머리 안에 보이고 강조 하나
+    {
+      const d = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: "block" }); await d.route(BLOCK, (r) => r.abort()); await d.addInitScript(IN_PAGE); const dp = await d.newPage();
+      await loadHome(dp, "#news"); await dp.waitForTimeout(800);
+      const t = await dp.evaluate(() => { const B = [...document.querySelectorAll("#sNav [data-nav]")].filter((b) => window.__qc.vis(b)); return { n: B.length, inHdr: !!document.querySelector("#hdr #sNav"), cur: B.filter((b) => b.getAttribute("aria-current") === "page").map((b) => b.dataset.nav), foot: !!(document.querySelector(".site-foot") && window.__qc.vis(document.querySelector(".site-foot"))) }; });
+      expect(t.n === 4 && t.inHdr && t.cur.join() === "news", "ui.tabs4", T, `1440 #news: ${t.n} tabs in header ${t.inHdr} current [${t.cur}]`);
+      expect(!t.foot, "ui.tabs4", T, "1440: web footer visible in app");
+      await d.close();
+    }
+    // 정적 페이지도 같은 탭 4개(폰)
+    {
+      const sp = []; for (const u of ["/z/" + api.zones[0].id + ".html", "/guide/", "/terms.html", "/404.html"]) { page.__where = u; await page.goto(BASE + u, { waitUntil: "domcontentloaded" }).catch(() => {}); sp.push([u, await page.evaluate(() => { const A = [...document.querySelectorAll(".zp-tabs a")].filter((a) => a.getBoundingClientRect().height > 30); return { n: A.length, h: A.map((a) => a.getAttribute("href")).join(","), cur: A.filter((a) => a.getAttribute("aria-current") === "page").length }; })]); }
+      for (const [u, t] of sp) expect(t.n === 4 && t.h === "/,/#favTop,/#news,/#my" && t.cur === 1, "ui.tabs4", T, `${u}: ${t.n} tabs [${t.h}] current ${t.cur}`);
+    }
+    // --- ui.my: MY 줄(44px 이상) · 지우기는 화면 안 확인 단계(confirm() 없음) → 지운 뒤 첫 실행 상태
+    const TM = "MY: 내 조건·알림 설정(종류별·권한)·옮기기·도구 6·FAQ·출처·문의·약관·저작권·버전·기준일·설치·지우기 줄이 44px 이상 · 지우기는 화면 안 확인 → 첫 실행 상태";
+    const ids = api.zones.slice(0, 2).map((z) => z.id);
+    await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }); await page.evaluate((ids) => { localStorage.setItem("jg-fav", JSON.stringify(ids)); localStorage.setItem("zp-alert-off", "[]"); }, ids);
+    await loadHome(page, "#my"); await page.waitForTimeout(1200);
+    const r = await page.evaluate(() => {
+      const q = (s) => document.querySelector(s), my = q("#my");
+      const need = ["#myCash", "#myMode", "#myPermS", "#myMove", "#myVer", "#myAsof", "#myWipe", "#myInst", '#my a[href="faq"]', '#my a[href="method"]', '#my a[href="terms"]', '#my a[href="privacy"]', '#my a[href^="mailto:"]', "#my .my-det"];
+      const miss = need.filter((s) => !q(s));
+      const small = [...my.querySelectorAll(".my-r")].filter((e) => window.__qc.vis(e) && e.getBoundingClientRect().height < 44).map((e) => e.textContent.trim().slice(0, 14));
+      return { miss, small, kinds: my.querySelectorAll("#myKinds [role=switch]").length, tools: my.querySelectorAll("#myTools a[data-menu]").length, ver: (q("#myVer") || {}).textContent || "", asof: (q("#myAsof") || {}).textContent || "", cash: (q("#myCash") || {}).textContent || "", mail: /@/.test((q('#my a[href^="mailto:"]') || {}).textContent || "") };
+    });
+    expect(!r.miss.length && r.kinds >= 4 && r.tools === 6 && /\d/.test(r.ver) && !/__/.test(r.ver) && /\d/.test(r.asof) && /억|만/.test(r.cash) && r.mail, "ui.my", TM, `missing [${r.miss}] kinds ${r.kinds} tools ${r.tools} ver "${r.ver}" asof "${r.asof}" cash "${r.cash}" mail ${r.mail}`);
+    expect(!r.small.length, "ui.my", TM, `rows < 44px: ${r.small.join(" ; ")}`);
+    // 종류 끄기 → 저장
+    await page.evaluate(() => { const b = document.querySelector('#myKinds [data-kind="trade"]'); b && b.click(); });
+    { const v = await page.evaluate(() => localStorage.getItem("zp-alert-off")); expect(/trade/.test(v || ""), "ui.my", TM, `alert kind toggle not stored: ${v}`); }
+    // 지우기: 첫 누름은 확인 칸만(데이터 그대로) · 닫기 → 그대로 · 모두 지우기 → 저장소 빔 · 첫 화면
+    await page.evaluate(() => document.getElementById("myWipe").click()); await page.waitForTimeout(200);
+    { const v = await page.evaluate(() => ({ box: !document.getElementById("myWipeBox").hidden, fav: localStorage.getItem("jg-fav") })); expect(v.box && v.fav && v.fav !== "[]", "ui.my", TM, `wipe tap 1: confirm box ${v.box} data kept ${v.fav}`); }
+    await page.evaluate(() => document.getElementById("myWipeNo").click()); await page.waitForTimeout(200);
+    { const v = await page.evaluate(() => ({ box: !document.getElementById("myWipeBox").hidden, fav: localStorage.getItem("jg-fav") })); expect(!v.box && v.fav && v.fav !== "[]", "ui.my", TM, `wipe 닫기: box ${v.box} data ${v.fav}`); }
+    await page.evaluate(() => document.getElementById("myWipe").click()); await page.waitForTimeout(200);
+    await Promise.all([page.waitForNavigation({ timeout: 8000 }).catch(() => {}), page.evaluate(() => document.getElementById("myWipeGo").click())]);
+    await page.waitForTimeout(800);
+    { const v = await page.evaluate(() => ({ fav: localStorage.getItem("jg-fav"), off: localStorage.getItem("zp-alert-off"), hash: location.hash, view: document.documentElement.classList.contains("s-view") })); expect(!v.fav && !v.off && !v.hash && !v.view, "ui.my", TM, `after wipe: jg-fav ${v.fav} zp-alert-off ${v.off} hash "${v.hash}" s-view ${v.view}`); }
+    expect(dialogs === 0, "ui.my", TM, `native dialog (confirm/alert) shown ${dialogs}×`);
+  } catch (e) { bad("runtime", "검사 실행", "r1Lane crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await ctx.close().catch(() => {}); }
 }
 
@@ -947,6 +1038,7 @@ async function r14Lane(browser, api, errs) {
   const { ctx, page } = await newPage(browser, M, errs);
   try {
     await loadHome(page); await settle(page, 500);
+    await page.waitForSelector("#pcSave .pc-al-t b", { timeout: 6000 }).catch(() => {});   // 바쁜 기계에선 알림 카드가 늦게 붙는다
     // 용어: '내 핀' 없음(도구 목록·⋯ 메뉴·소식 칩·하단 탭) · 홈 알림 카드 문구가 줄 끝 한 낱말로 남지 않게(text-wrap balance)
     {
       const r = await page.evaluate(() => ({ t: window.__qc.domText(), tools: (window.ZP_TOOLS || []).map((x) => x[1]).join(","), wrap: (() => { const b = document.querySelector("#pcSave .pc-al-t b"); return b ? getComputedStyle(b).textWrap || getComputedStyle(b).textWrapStyle || "" : "none"; })() }));
@@ -1086,7 +1178,7 @@ async function r14Lane(browser, api, errs) {
   const ONLY = process.env.QAC_ONLY || "";   // 'r14' = 14회차 줄만(개발용)
   const lane1 = ONLY ? Promise.resolve() : timed("counts+zones", (async () => { await countsLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(0, cut)); await deskLane(browser, errs); })());
   const lane2 = ONLY ? Promise.resolve() : timed("map+ui+zones", (async () => { await mapLane(browser, api, errs, shortSrc); const st = await stat.catch(() => ({})); shared.liveCounts = st.liveCounts; await uiLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(cut)); })());
-  const lane3 = timed("r14", r14Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)));
+  const lane3 = timed("r14+r1", (ONLY === "r1" ? Promise.resolve() : r14Lane(browser, api, errs)).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)).then(() => (ONLY && ONLY !== "r1" ? null : r1Lane(browser, api, errs))));
   await Promise.all([stat.catch((e) => bad("runtime", "검사 실행", "static crashed: " + e.message)), lane1, lane2, lane3]);
   await browser.close();
 

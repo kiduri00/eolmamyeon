@@ -89,6 +89,8 @@ if blobs:
     pre_js = '(function(){var J=' + json.dumps(blobs, ensure_ascii=False) + ';for(var k in J)if(!document.getElementById(k)){var s=document.createElement("script");s.type="application/json";s.id=k;s.textContent=J[k];(document.body||document.head).appendChild(s)}})();'
 d_url = emit('d', pre_js + "window.__ZPD=JSON.parse('" + data.replace('\\', '\\\\').replace("'", "\\'") + "');")
 a_url = emit('a', js)
+# MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
+shell = shell.replace('__ZPVER__', '2.0 · ' + a_url.split('.')[1][:7])
 c_url = emit('c', css, 'css')
 # 지난 빌드 파일은 이번 것 + 바로 전 것만 남김(배포 직후 옛 화면이 잠깐 참조할 수 있게)
 KEEP = 2
@@ -204,6 +206,11 @@ if os.environ.get('ZP_ISLAND', '1') != '0':
     except Exception as e:
         print('island 건너뜀:', e)
 prune()
+# 정적 페이지(/z·/gu·가이드·리포트·약관·404 …): 폰에서 앱과 같은 아래 탭 4개(찾기·관심·소식·MY)로 앱에 돌아가게.
+# 생성기마다 틀이 달라서(zpages·report·손으로 쓴 페이지) 빌드 끝에 한 번에 넣는다(표시 사이를 통째로 바꿔 몇 번 돌려도 같음)
+try:
+    import static_tabs; static_tabs.main()
+except Exception as e: print('static tabs 건너뜀:', e)
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)
 print('public/index.html', len(out.encode()), 'bytes', '(island)' if out is not full else '(full)')
 # 서비스 워커 캐시 이름 = 이번 빌드 내용 해시(배포마다 옛 캐시를 비운다)

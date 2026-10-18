@@ -1057,9 +1057,10 @@
     return r;
   }
   function markNewWin(root) {
+    // 바깥 사이트로 나가는 링크: 눈에 보이는 ↗(이미 글자에 있으면 그대로) + 화면 읽기 '(새 창)'
     (root || document).querySelectorAll('a[target="_blank"]:not([data-nw])').forEach((a) => {
       a.dataset.nw = "1";
-      a.insertAdjacentHTML("beforeend", '<span class="sr-only"> (새 창)</span>');
+      a.insertAdjacentHTML("beforeend", `${/↗/.test(a.textContent) ? "" : '<span class="ext-ic" aria-hidden="true">↗</span>'}<span class="sr-only"> (새 창)</span>`);
     });
   }
   const yieldT = () => (window.scheduler && scheduler.yield ? scheduler.yield() : new Promise((r) => setTimeout(r, 0)));
@@ -4480,9 +4481,8 @@
     $("q").setAttribute("aria-expanded", "false");
     $("q").value = "";
     if ($("hdr").classList.contains("searching")) closeSearchNow({ keepHistory: true });
-    const mob = matchMedia("(max-width:980px)").matches,
-      nb = document.querySelector('#sNav [data-nav="map"]');
-    if (mob && nb) nb.click();
+    const mob = matchMedia("(max-width:980px)").matches;
+    if (mob) { try { SIMPLE.mapTab(); } catch (e) {} }
     else ($("mapbox") || $("mapTop"))?.scrollIntoView({ block: "start", behavior: "smooth" });
     setTimeout(() => { try { enterGu(g, { hist: true }); } catch (e) {} }, mob ? 450 : 50);
   }
@@ -4492,12 +4492,8 @@
     $("q").setAttribute("aria-expanded", "false");
     $("q").value = "";
     if ($("hdr").classList.contains("searching")) closeSearchNow({ keepHistory: true });
-    const mob = matchMedia("(max-width:980px)").matches,
-      nb = document.querySelector('#sNav [data-nav="map"]');
-    if (mob && nb) {
-      nb.click();
-      setTimeout(() => { document.querySelectorAll("#sNav [data-nav]").forEach((x) => x.removeAttribute("aria-current")); nb.setAttribute("aria-current", "page"); }, 120);
-    }
+    const mob = matchMedia("(max-width:980px)").matches;
+    if (mob) { try { SIMPLE.mapTab(); } catch (e) {} }
     else ($("mapbox") || $("mapTop"))?.scrollIntoView({ block: "center", behavior: "smooth" });
     const L = window.ZP_lmx || window.__lmx;
     const fly = () => {
@@ -7572,7 +7568,7 @@
         if (on) a.setAttribute("aria-current", "true");
         else a.removeAttribute("aria-current");
       });
-      $("huFav").classList.toggle("on", curRaw === "favTop");
+      if ($("huFav")) $("huFav").classList.toggle("on", curRaw === "favTop");
       if (curS !== last) {
         last = curS;
         const a = links.find((x) => x.dataset.sec === curS);
@@ -7615,10 +7611,13 @@
     });
   })();
   {
+    // ⋯ 메뉴는 없앴다(내용은 MY 화면으로) — 메뉴가 없으면 [data-menu] 링크 처리만 남긴다
     const btn = $("menuBtn"),
-      pop = $("menuPop"),
-      bd = $("menuBd");
+      pop = $("menuPop") || document.createElement("div"),
+      bd = $("menuBd") || document.createElement("div");
+    if (!btn) pop.hidden = true;
     const place = () => {
+      if (!btn) return;
       if (matchMedia("(max-width:640px)").matches) {
         pop.style.top = "";
         pop.style.right = "";
@@ -7629,6 +7628,7 @@
       pop.style.right = Math.max(12, innerWidth - b.right) + "px";
     };
     const open = (on) => {
+      if (!btn) return;
       pop.hidden = !on;
       bd.hidden = !on;
       btn.setAttribute("aria-expanded", String(on));
@@ -7639,16 +7639,16 @@
         if (f) f.focus({ preventScroll: true });
       }
     };
-    btn.onclick = (e) => {
+    if (btn) btn.onclick = (e) => {
       e.stopPropagation();
       open(pop.hidden);
     };
     bd.onclick = () => open(false);
-    $("menuClose").onclick = () => {
+    if ($("menuClose")) $("menuClose").onclick = () => {
       open(false);
       btn.focus({ preventScroll: true });
     };
-    document.addEventListener("keydown", (e) => {
+    if (btn) document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !pop.hidden) {
         open(false);
         btn.focus({ preventScroll: true });
