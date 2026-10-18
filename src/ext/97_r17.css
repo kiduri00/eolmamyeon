@@ -280,3 +280,20 @@ html.simple #bSheet input.scr-in{position:static!important;display:block;width:1
 .bs-chips,.pn-sort,#ntcF,.fchips{row-gap:0!important}
 /* 18차: 좁은 폰(예산 카드 안쪽 여백 12px) — 이름 레일이 카드 테두리 밖으로 3px 나가지 않게 */
 @media (max-width:374px){html.simple .s-gauge.bc .s-sum{margin-left:-12px;margin-right:-12px}.s-rail3{padding:0 12px 2px;scroll-padding:0 12px}}
+/* 19차: 입주 계산(planner) 고른 칸도 남색 채움(다른 세그먼트와 같은 꼴) */
+.pl-seg button[aria-pressed="true"],#planner .seg button[aria-pressed="true"],.planner .seg button[aria-pressed="true"]{background:var(--sel)!important;color:var(--sel-ink)!important;outline:none!important;box-shadow:none!important}
+.pl-seg button[aria-pressed="true"] small,#planner .seg button[aria-pressed="true"] small{color:var(--sel-ink)!important;opacity:.85}
+/* 19차: ▾ 글자 대신 SVG 꺾쇠(앱 전체 같은 모양) */
+:root{--chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+.ov-alt>summary::after,#pane details.ov-alt.sect>summary h3::after,#pane details.ov-alt.sect[open]>summary h3::after,.rule-more>summary::after,.rule-more[open]>summary::after{content:"";display:inline-block;width:12px;height:12px;margin-left:6px;vertical-align:-1px;background:currentColor;-webkit-mask:var(--chev) center/12px no-repeat;mask:var(--chev) center/12px no-repeat;transition:transform .15s;font-size:0}
+.ov-alt[open]>summary::after,.rule-more[open]>summary::after,#pane details.ov-alt.sect[open]>summary h3::after{transform:rotate(180deg)}
+.s-fold>summary::after{content:"펼치기";padding-right:17px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231F3A87' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") right center/12px no-repeat}
+.s-fold[open]>summary::after{content:"접기";background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231F3A87' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 15 6-6 6 6'/%3E%3C/svg%3E")}
+:root[data-theme="dark"] .s-fold>summary::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239DBBFF' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+:root[data-theme="dark"] .s-fold[open]>summary::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239DBBFF' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 15 6-6 6 6'/%3E%3C/svg%3E")}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-fold>summary::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239DBBFF' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}:root:not([data-theme="light"]) .s-fold[open]>summary::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239DBBFF' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 15 6-6 6 6'/%3E%3C/svg%3E")}}
+.ov-alt1>summary small{margin-left:6px;font-weight:500;color:var(--text-3)}
+.ov-alt1 .ov-alt-s{padding:6px 0 10px}
+.ov-alt1 .ov-alt-s+.ov-alt-s{border-top:1px solid var(--divider,var(--border))}
+.ov-alt1 .ov-alt-s>h4{margin:6px 0 8px;font-size:14px;font-weight:700;color:var(--text-1)}
+.ov-alt1 .ov-alt-s>h4 small{display:block;margin-top:2px;font-size:12px;font-weight:500;color:var(--text-3)}

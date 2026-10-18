@@ -16,7 +16,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .zpill.st-near .zp-in{color:#C7D6FF;border-color:#7FA6FF}}
 .zpill.fav .zp-in{border-width:2.5px;padding:0 7px}
 .zpill .zp-h{flex:none;margin-left:-1px}
-.zpill .zp-n{font-style:normal;font-weight:600;font-size:12px;opacity:.92;max-width:9em;overflow:hidden;text-overflow:ellipsis}
+.zpill .zp-n{font-style:normal;font-weight:600;font-size:12px;opacity:.92;max-width:11em;overflow:hidden;text-overflow:ellipsis}
 .zpill .zp-new{font:800 9.5px/1 var(--font);font-style:normal;padding:2px 3px;border-radius:4px;background:var(--zn-ink);color:var(--zn);letter-spacing:.02em}
 .zpill.st-near .zp-new{background:var(--zn);color:var(--zn-ink)}
 .zpill.sel .zp-in{transform:scale(1.15);background:var(--zn-d);border-color:var(--zn-d);color:#fff;box-shadow:0 0 0 3px color-mix(in srgb,var(--zn) 28%,transparent),0 4px 12px -2px rgba(15,23,42,.4)}
@@ -74,7 +74,7 @@
 .lm-legend .lg-pill .zp-in{height:18px;padding:0 5px;font-size:11px;box-shadow:none}
 .lm-legend .lg-pill .zp-in::after{bottom:-4.5px;width:5px;height:5px;margin-left:-2.5px}
 .lm-legend .lg-dot{width:6px;height:6px;border-radius:50%;background:var(--zg);box-shadow:0 0 0 1px var(--surface)}
-.lm-legend .lg-dot.na{width:8px;height:8px;background:var(--surface);border:1.4px dashed var(--zg);box-sizing:border-box}
+.lm-legend .lg-dot.na{width:8px;height:8px;background:var(--surface);border:1.6px solid var(--zg);box-sizing:border-box}
 .lm-legend .lg-heart{width:auto;height:auto;background:none;color:var(--zn);display:inline-flex}
 :root[data-theme="dark"] .lm-legend .lg-heart{color:#7FA6FF}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lm-legend .lg-heart{color:#7FA6FF}}
@@ -186,7 +186,7 @@ html.simple .s-gauge.bc .scrub{margin:8px 0 18px}
 :root[data-theme="dark"] .lm-key .k-near{border-color:#7FA6FF}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lm-key .k-near{border-color:#7FA6FF}}
 .lm-key .k-far{width:6px;height:6px;border-radius:50%;background:var(--zg)}
-.lm-key .k-na{width:8px;height:8px;border-radius:50%;border:1.4px dashed var(--zg)}
+.lm-key .k-na{width:8px;height:8px;border-radius:50%;border:1.6px solid var(--zg);background:var(--surface)}
 .lm-key .k-gu{width:10px;height:10px;border-radius:50%;background:var(--zn)}
 #lmap:has(.lm-pick:not([hidden])) .lm-key{display:none}
 /* 2줄: 역·분이 먼저 자리 잡고, 동은 남는 자리가 있을 때만(모자라면 통째로 다음 줄 = 숨김) */

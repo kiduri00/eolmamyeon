@@ -59,6 +59,8 @@
       if (S(t[10]) != null) el.setAttribute("aria-valuetext", S(t[10]));
       if (!fromInput && Math.abs(+el.value - P.pos[i]) > 0.6) el.value = P.pos[i];
     }
+    el = $("sScrub");
+    if (el && el.getAttribute("role") === "slider") { el.setAttribute("aria-valuenow", String(Math.min(15, Math.max(0.5, STOPS[i])))); if (S(t[10]) != null) el.setAttribute("aria-valuetext", S(t[10])); }
     var bs = document.querySelectorAll(".s-mode button");
     for (var k = 0; k < bs.length; k++) if (st[2][k] != null) bs[k].setAttribute("aria-pressed", st[2][k]);
     H.classList.toggle("gapm", !!st[3]);

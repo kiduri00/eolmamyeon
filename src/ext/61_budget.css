@@ -106,3 +106,11 @@ html.bs-on{overflow:hidden}
 .s-empty .s-eact .btn.text{min-height:44px;color:var(--text-2);text-decoration:underline;text-underline-offset:3px}
 /* 18차: 칩 줄 끝 여백 16px(가로 스크롤 끝 padding이 무시되는 브라우저도) */
 @media (max-width:640px){.bs-chips{padding-right:0}.bs-chips::after{content:"";flex:none;width:10px;height:1px}}
+/* 19차: 360 폭에서 '갈 수 있는 곳'이 두 줄로 꺾이지 않게 · 칩 줄 끝 여백 20px + 오른쪽 흐림(더 있다는 표시) */
+.bs-cnt{white-space:nowrap;flex:none}
+.bs-big{flex-wrap:nowrap}
+@media (max-width:400px){.bs-cash{font-size:40px}.bs-cnt .bc-num{font-size:26px}}
+@media (max-width:640px){
+  .bs-chips{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent)}
+  .bs-chips::after{width:20px}
+}

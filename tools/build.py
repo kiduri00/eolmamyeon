@@ -139,7 +139,13 @@ for k in MOVE:
 pre_js = ''
 if blobs:
     pre_js = '(function(){var J=' + json.dumps(blobs, ensure_ascii=False) + ';for(var k in J)if(!document.getElementById(k)){var s=document.createElement("script");s.type="application/json";s.id=k;s.textContent=J[k];(document.body||document.head).appendChild(s)}})();'
-d_url = emit('d', pre_js + "window.__ZPD=JSON.parse('" + data.replace('\\', '\\\\').replace("'", "\\'") + "');")
+# 19차: 자료를 몇 조각(앞 = 구역 밖 자료, 뒤 = 구역 목록을 나눈 것)으로 — 큰 JSON.parse 하나(4배 느린 CPU에서 0.6초 넘는 긴 작업)를 짧은 작업 여러 개로
+JP = lambda o: "JSON.parse('" + json.dumps(o, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/').replace('\\', '\\\\').replace("'", "\\'") + "')"
+_core = {k: v for k, v in D.items() if k != 'recs'}; _recs = D['recs']; _N = 3; _k = -(-len(_recs) // _N)
+_parts = [pre_js + 'window.__ZPDp=[' + JP(_core) + '];'] + ['window.__ZPDp.push(' + JP(_recs[i:i + _k]) + ');' for i in range(0, len(_recs), _k)]
+_parts[-1] += '(function(){var p=window.__ZPDp,D=p[0];D.recs=[].concat.apply([],p.slice(1));window.__ZPD=D;window.__ZPDp=null})();'
+d_urls = [emit('d', x) for x in _parts]
+d_url = d_urls[0]
 a_url = emit('a', js)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
 shell = shell.replace('__ZPVER__', '버전 2.0')   # 사용자에게는 버전만(빌드 해시는 /b/ 파일 이름에만)
@@ -149,13 +155,14 @@ KEEP = 2
 def prune():
     for pre, ext in (('d', 'js'), ('a', 'js'), ('c', 'css'), ('h', 'js')):
         fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.' + ext)], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
-        for f in fs[KEEP:]:
+        cur = {u.split('/')[-1] for u in d_urls} if pre == 'd' else set()
+        for f in [x for x in fs if x not in cur][KEEP * (len(d_urls) if pre == 'd' else 1) - len(cur):]:
             try: os.remove(os.path.join(B, f))
             except OSError: pass
 # ---- 예전 방식(전체 앱을 바로) = 섬을 못 만들 때의 대비책이자, 섬 상태를 떠 오는 원본 ----
-full = shell.replace('<script type="application/json" id="data">/*DATA*/</script>', f'<script src="{d_url}"></script>', 1)
+full = shell.replace('<script type="application/json" id="data">/*DATA*/</script>', ''.join(f'<script src="{u}"></script>' for u in d_urls), 1)
 full = full.replace('<script>/*APPJS*/</script>', f'<script src="{a_url}"></script>', 1)
-full = full.replace('</head>', f'<link rel="preload" href="{d_url}" as="script"><link rel="preload" href="{a_url}" as="script">\n</head>', 1)
+full = full.replace('</head>', ''.join(f'<link rel="preload" href="{u}" as="script">' for u in d_urls) + f'<link rel="preload" href="{a_url}" as="script">\n</head>', 1)
 full = full.replace('<style>/*APPCSS*/</style>', f'<link rel="stylesheet" href="{c_url}">', 1)
 for k in ('/*APPCSS*/', '/*APPJS*/', '/*DATA*/'): assert k not in full
 out = full
@@ -196,7 +203,7 @@ def island():
     if ESB and not os.environ.get('NO_MINIFY'): isl = mini(isl, 'js'); boot = mini(boot, 'js')
     h_url = emit('h', 'window.__ZPH=' + json.dumps(P, ensure_ascii=False, separators=(',', ':')) + ';\n' + isl)
     font = re.search(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/[^"]*pretendard[^"]*)"', shell)
-    boot = boot.replace('__A__', a_url).replace('__D__', d_url).replace('__C__', c_url).replace('__F__', font.group(1) if font else '')
+    boot = boot.replace('__A__', a_url).replace('__D__', ','.join(d_urls)).replace('__C__', c_url).replace('__F__', font.group(1) if font else '')
     x = shell
     def rep(old, new, cnt=1, rx=False):
         nonlocal x

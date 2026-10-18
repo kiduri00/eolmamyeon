@@ -20,6 +20,11 @@ GUG = {x['n']: x['r'] for x in (GEO.get('gu') or [])}
 import sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import zmap   # 구역 위치 지도(SVG)·공유 카드(OG PNG) — tools/zmap.py
 OG_OK = zmap.og_ok()
+# 돈 꼴: 숫자 뒤 '만원·억원' → '만·억'(앱 ZF와 같은 꼴 · '476만' '6,920만') — 글 속(자료 원문 인용 포함) 화면 글자에만, 태그 속성은 그대로
+import re as _re
+def MONEY(h):
+    return _re.sub(r'>([^<]*)<', lambda m: '>' + _re.sub(r'(\d)(만|억)원', r'\1\2', m.group(1)) + '<', h)
+
 def minimap(r):
     """구역 경계 + 주변 정비구역 + 구 경계 + 지하철 노선·역(tools/zmap.py). 경계가 없으면 빈 문자열."""
     return zmap.minimap(r, GEO, D, short)
@@ -84,7 +89,7 @@ def eok(v, d=1):   # 억 금액 — 화면 ZF.cash와 같은 꼴(tools/zsample.c
     return cash(v)
 def man(v):
     if v is None: return '–'
-    return f"{v/10000:.1f}억".replace('.0억', '억') if v >= 10000 else f"{v:,.0f}만원"
+    return f"{v/10000:.1f}억".replace('.0억', '억') if v >= 10000 else f"{v:,.0f}만"
 KIND = {'재개발': '재개발', '재건축': '재건축', '도시정비형 재개발': '도시정비형 재개발', '가로주택(모아주택)': '가로주택정비', '소규모재건축': '소규모재건축', '소규모재개발': '소규모재개발'}
 DTK = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 승인'), ('조합설립', '조합설립인가'), ('시행자지정', '사업시행자 지정'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가'), ('착공', '착공'), ('준공', '준공')]
 SKEY = {2: ('구역지정',), 3: ('추진위',), 4: ('조합설립', '시행자지정'), 5: ('사업시행',), 6: ('관리처분',), 7: ('관리처분',), 8: ('착공',)}
@@ -182,7 +187,7 @@ def page(r):
     url = f"{SITE}/z/{rid}"
     ld0 = {"@type": "Article", "headline": f"{nmk} 진행 단계와 입주까지 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
            "mainEntityOfPage": url, "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "집핀", "url": SITE}}
-    o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld='@@LD@@')]
+    o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld='@@LD@@').replace('<link rel="canonical"', f'<link rel="alternate" type="application/rss+xml" title="{esc(nmk)} 소식" href="../feed/z/{rid}.xml">\n<link rel="canonical"', 1)]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or r.get("dg") or "")} · {esc(kind)} · 데이터 기준 {UPD}</p>')
     o.append(f'<h1>{esc(nmk)} 진행 단계와 입주까지 현금</h1>')
     if r['n'].strip() != nm: o.append(f'<p class="formal">정식 이름 {esc(r["n"].strip())}</p>')   # 제목은 앱과 같은 짧은 이름, 정식 이름은 한 줄 아래
@@ -435,7 +440,7 @@ def hand_fix(r):
 made = kept = 0
 for r in R:
     if is_hand(r['id']): kept += 1; hand_og(r); hand_fix(r); continue
-    open(os.path.join(ZD, r['id'] + '.html'), 'w', encoding='utf-8').write(page(r)); made += 1
+    open(os.path.join(ZD, r['id'] + '.html'), 'w', encoding='utf-8').write(MONEY(page(r))); made += 1
 _RID = {r['id'] for r in R}
 for r in D['recs']:   # 준공·해산 등으로 목록에서 빠졌지만 손으로 쓴 페이지가 남은 구역도 공유 카드는 붙인다
     if r['id'] not in _RID and r.get('n') and os.path.exists(os.path.join(ZD, r['id'] + '.html')) and os.path.getsize(os.path.join(ZD, r['id'] + '.html')): hand_og(r); hand_fix(r)
@@ -471,7 +476,7 @@ def guPage(g, L):
     if gc: area["geo"] = {"@type": "GeoCoordinates", "latitude": round(gc[1], 5), "longitude": round(gc[0], 5)}
     ld = json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": f"{g} 정비사업", "url": url, "inLanguage": "ko", "about": {"@id": url + "#gu"}},
                      crumbs(("집핀", SITE + "/"), ("자치구별", f"{SITE}/gu/"), (g, url)), {**area, "@id": url + "#gu"}]}, ensure_ascii=False)
-    o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace(' aria-current="page"', '')]
+    o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace(' aria-current="page"', '').replace('<link rel="canonical"', f'<link rel="alternate" type="application/rss+xml" title="{esc(g)} 정비사업 새 소식" href="../feed/gu/{esc(g)}.xml">\n<link rel="canonical"', 1)]
     o.append(f'<p class="eyebrow"><a href="./">구역별 페이지</a> · <a href="../gu/">자치구별</a> · 데이터 기준 {UPD}</p><h1>{esc(g)} 재개발·재건축 {len(L)}곳</h1>')
     top = [(k, v) for k, v in st.most_common() if k][:5]; rest = len(L) - sum(v for _, v in top)   # 단계 합이 머리글 곳 수와 꼭 맞게: 나머지는 '기타'
     o.append('<p class="lede">' + ' · '.join([f'{esc(k)} {v}곳' for k, v in top] + ([f'기타 {rest}곳'] if rest else [])) + '</p>')
@@ -499,7 +504,7 @@ def guPage(g, L):
         nm = short(x["n"]); tt = (' title="' + esc(x["n"].strip()) + '"') if nm != x["n"].strip() else ''
         stg = esc(c(x).get("stage") or x.get("sr") or "")
         return (f'<li class="gr"><a href="{x["id"]}"{tt}><span class="gr-l"><b>{esc(nm)}</b><span class="gr-s">{f"<em>{stg}</em>" if stg else ""}{esc(KIND.get(x["k"], x["k"]))}</span></span>'
-                f'<span class="gr-r">{f'<span class="gr-v"><i>지금</i> <b class="gr-now">{nowT(x)}</b></span>' if nowT(x) else f'<span class="gr-v gr-na"><i>전세 끼고</i> <b class="gr-now">{whyT(x)}</b></span>'}<small>입주까지 현금 <b class="gr-tot">{tot(x)}</b></small></span></a></li>')
+                f'<span class="gr-r">{f'<span class="gr-v"><i>지금</i> <b class="gr-now">{nowT(x)}</b></span>' if nowT(x) else f'<span class="gr-v gr-na"><i>전세 끼고</i> <b class="gr-now">{whyT(x)}</b></span>'}{f'<small>입주까지 현금 <b class="gr-tot">{tot(x)}</b></small>' if tot(x) != '–' else '<small class="gr-hold">입주까지 현금 계산 보류</small>'}</span></a></li>')
     rows = ''.join(grow(x) for x in sorted(L, key=rowkey))
     GCSS = ('<style>.gl{list-style:none;margin:12px 0;padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden}'
             '.gl li+li{border-top:1px solid var(--border)}.gl a{display:flex;align-items:center;gap:12px;min-height:72px;padding:10px 14px 10px 16px;color:var(--text-1);text-decoration:none!important}'
@@ -518,7 +523,7 @@ def guPage(g, L):
     o.append('<p class="note">무주택·84㎡·시세 상승 0% 같은 기본 가정으로 계산한 추정이에요. 내 조건은 <a href="../">찾기(첫 화면)</a>에서 바꿔 볼 수 있어요. 투자 권유가 아니에요.</p>')
     o.append(FOOT.format(upd=UPD))
     return ''.join(o)
-for g in sorted(byg): open(os.path.join(GD, g + '.html'), 'w', encoding='utf-8').write(guPage(g, byg[g]))
+for g in sorted(byg): open(os.path.join(GD, g + '.html'), 'w', encoding='utf-8').write(MONEY(guPage(g, byg[g])))
 print('gu pages', len(byg))
 # 구 목록 페이지: public/gu/index.html (/gu/ 가 404가 나지 않게)
 def guIndex():

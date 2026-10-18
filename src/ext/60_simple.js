@@ -260,7 +260,9 @@ const SIMPLE = (() => {
       else { if (main.lastElementChild !== right) main.appendChild(right); if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); }
     };
     place(); matchMedia("(min-width:981px)").addEventListener("change", place);
-    $("sToList").onclick = () => document.documentElement.classList.remove("s-rep");
+    // 상세 위 '← 목록' 단추는 하나: 구 화면에서 열었으면 '← 강북구 · 갈 수 있는 곳 6곳'(같은 목록으로) · 구 화면 기록 칸이면 뒤로 가기와 같은 길
+    $("sToList").onclick = () => { const hs = history.state || {}; if (hs.det && hs.gu) { try { history.back(); return; } catch (e) {} } document.documentElement.classList.remove("s-rep"); };
+    window.ZP_toListLbl = () => { const b = $("sToList"); if (!b) return; const m = /^(.+?) · ([\d,]+)곳$/.exec(($("sLT") && $("sLT").textContent) || ""); const t = mapView === "gu" && mapGu && m && m[1] === mapGu ? `← ${mapGu} · 갈 수 있는 곳 ${m[2]}곳` : "← 갈 수 있는 곳 목록"; if (b.textContent !== t) b.textContent = t; };
     // 스크롤해 지도를 볼 때 게이지가 머리 아래에 작게 붙어 있도록(움직이면 지도가 바로 바뀌는 걸 보며 조절)
     const g = map.querySelector(".s-gauge");
     // 넓은 PC: 게이지 오른쪽 칸 '이 돈이면'(가장 싼 3곳 · 입주까지 현금 범위). 폭이 좁으면 CSS로 숨김
@@ -530,7 +532,7 @@ const SIMPLE = (() => {
     if (whyEl && !whyEl.hidden && whyFor === btn) return whyClose();
     const inc = num("pIncome"), rate = num("aRate") ?? 4.5;
     const li = (k, v) => `<li><span>${k}</span><b>${v}</b></li>`;
-    whyShow(btn, `<div class="s-wh"><b id="sWhyT">대출 가정</b><span>지금 규제 기준 추정</span><button type="button" data-x aria-label="닫기">×</button></div><ul>${li("담보인정(LTV)", `${Math.round(ltvBuy() * 100)}%`)}${li("담보 기준", "아파트 시세 · 빌라 감정가")}${li("한도(집값 구간)", "15억↓ 6억 · 25억↓ 4억")}${li("DSR 40%", inc != null && inc > 0 ? `연소득 ${fmt(inc)}만원` : "소득 넣으면 적용")}${li("금리", `${rate}% (+3%p 스트레스)`)}</ul><p>${P.homes === 0 ? (P.first ? "무주택 생애최초 기준" : "무주택 기준") : P.homes === 1 ? "1주택 기준" : "다주택은 대출 없음으로 계산"} · 실제 한도는 은행 심사로 달라져요</p><button type="button" class="s-wgo" data-open="planner">소득·조건 바꾸기 →</button>`);
+    whyShow(btn, `<div class="s-wh"><b id="sWhyT">대출 가정</b><span>지금 규제 기준 추정</span><button type="button" data-x aria-label="닫기">×</button></div><ul>${li("담보인정(LTV)", `${Math.round(ltvBuy() * 100)}%`)}${li("담보 기준", "아파트 시세 · 빌라 감정가")}${li("한도(집값 구간)", "15억↓ 6억 · 25억↓ 4억")}${li("DSR 40%", inc != null && inc > 0 ? `연소득 ${fmt(inc)}만` : "소득 넣으면 적용")}${li("금리", `${rate}% (+3%p 스트레스)`)}</ul><p>${P.homes === 0 ? (P.first ? "무주택 생애최초 기준" : "무주택 기준") : P.homes === 1 ? "1주택 기준" : "다주택은 대출 없음으로 계산"} · 실제 한도는 은행 심사로 달라져요</p><button type="button" class="s-wgo" data-open="planner">소득·조건 바꾸기 →</button>`);
   }
   // 대출이 무엇의 몇 %인지(계산 엔진 loanOn과 같은 순서: 담보 × LTV, 가격구간 한도, DSR 중 가장 작은 값)
   // 담보 = 아파트는 매수가, 빌라·주택은 감정가 추정 × 1.2(매수가 상한) — 그래서 매수가의 40%보다 적게 나올 수 있다
@@ -598,8 +600,21 @@ const SIMPLE = (() => {
   function scrubMount(el, big) {
     if (!el || el._scr) return; el._scr = 1;
     el.classList.add("scrub"); if (big) el.classList.add("scr-lg");
-    el.setAttribute("aria-hidden", "true");
-    el.innerHTML = `<div class="scr-bars"></div><i class="scr-h"></i><span class="scr-bub" hidden></span><div class="scr-t">${TICKS.map(([c, t]) => `<span style="left:${toPos(c)}%">${t}</span>`).join("")}</div>`;
+    // 19차: 홈 금액 막대도 화면 읽기·키보드로 쓸 수 있는 슬라이더(←→ 한 칸 · PageUp/Down 다섯 칸 · Home/End)
+    el.removeAttribute("aria-hidden");
+    el.setAttribute("role", "slider"); el.tabIndex = 0;
+    el.setAttribute("aria-label", "내 돈");
+    el.setAttribute("aria-valuemin", String(STOPS[0])); el.setAttribute("aria-valuemax", String(STOPS[STOPS.length - 1]));
+    el.addEventListener("keydown", (e) => {
+      const c = +$("pCash").value || 1; let i = STOPS.findIndex((v) => v >= c - 1e-9); if (i < 0) i = STOPS.length - 1;
+      const k = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 5, PageDown: -5 }[e.key];
+      let j = k != null ? i + k : e.key === "Home" ? 0 : e.key === "End" ? STOPS.length - 1 : null;
+      if (j == null) return;
+      e.preventDefault();
+      j = Math.max(0, Math.min(STOPS.length - 1, j));
+      if (j !== i || STOPS[j] !== c) setCash(STOPS[j], true);
+    });
+    el.innerHTML = `<div class="scr-bars" aria-hidden="true"></div><i class="scr-h" aria-hidden="true"></i><span class="scr-bub" hidden aria-hidden="true"></span><div class="scr-t" aria-hidden="true">${TICKS.map(([c, t]) => `<span style="left:${toPos(c)}%">${t}</span>`).join("")}</div>`;
     let S = null;
     const bars = el.querySelector(".scr-bars");
     const at = (x) => {
@@ -812,6 +827,7 @@ const SIMPLE = (() => {
     $("sNL").textContent = "갈 수 있는 곳";
     countTo($("sNB"), all);
     $("sCash").setAttribute("aria-valuetext", `${cashTxt(Math.min(15, Math.max(0.5, v)), v)}, ${fmt(all)}곳`);
+    SCRS.forEach((x) => { if (x.getAttribute("role") !== "slider") return; x.setAttribute("aria-valuenow", String(Math.min(15, Math.max(0.5, v)))); x.setAttribute("aria-valuetext", `${cashTxt(Math.min(15, Math.max(0.5, v)), v)}, ${fmt(all)}곳`); });
     $("sLT").textContent = gu ? `${gu} · ${fmt(L.length)}곳` : `갈 수 있는 곳 · ${fmt(L.length)}곳`;
     sheetSync(all);
     $("sLS").textContent = (gap || effBasis() !== "total" ? "지금 필요한 돈 · 추정" : "입주까지 필요한 돈 · 추정");
@@ -977,7 +993,7 @@ const SIMPLE = (() => {
       selBusy = true;
       let x; try { x = _sel.apply(this, arguments); } finally { selBusy = false; }
       // 같은 구역을 다시 고르는 늦은 호출(딥링크 첫 그리기·자료 도착)은 사람이 내려 본 자리를 되돌리지 않는다
-      if (pc) { if (!was) repY = y0; keepY = null; H.classList.add("s-rep"); const id = cur && cur.id; if (!was || id !== repId) repTop(); repId = id; }
+      if (pc) { if (!was) repY = y0; keepY = null; H.classList.add("s-rep"); const id = cur && cur.id; if (!was || id !== repId) repTop(); repId = id; try { window.ZP_toListLbl(); } catch (e) {} }
       return x;
     };
     {
@@ -1000,7 +1016,7 @@ const SIMPLE = (() => {
     const _rm = refreshMap; refreshMap = function () { const x = _rm.apply(this, arguments); try { zero(); } catch (e) {} return x; };
     zero();
     // 지도 레이어 기본값: 아무것도 켜지 않음(잔글씨 방지). 사용자가 켠 적이 있으면 그대로
-    try { if (localStorage.getItem("emr.lyr") == null) localStorage.setItem("emr.lyr", "[]"); } catch (e) {}
+    // (레이어 기본값은 10_lmap.js가 '없으면 빈 목록'으로 읽는다 — 미리 써 두지 않는다: 모두 지우기 뒤 키가 되살아나 보이지 않게)
     render();
     // 키보드: '/' 검색, Esc 열린 화면 닫기(입력 중·대화상자·메뉴가 열려 있으면 그쪽에 맡긴다)
     document.addEventListener("keydown", (e) => {
@@ -1010,6 +1026,7 @@ const SIMPLE = (() => {
       if (e.key === "/" && !typing) { e.preventDefault(); search(); return; }
       if (e.key !== "Escape" || typing || H.classList.contains("sheet-open") || H.classList.contains("menu-open") || document.querySelector("dialog[open]") || (whyEl && !whyEl.hidden)) return;
       if (H.classList.contains("s-full")) fullMap(false);
+      else if (H.classList.contains("s-rep") && history.state && history.state.det && history.state.gu) { try { history.back(); } catch (er) { H.classList.remove("s-rep"); } }
       else if (H.classList.contains("s-rep")) { H.classList.remove("s-rep"); const l = $("sList"); if (l) l.focus && l.querySelector("a") && l.querySelector("a").focus({ preventScroll: true }); }
       else if (cur) close(true);
     });

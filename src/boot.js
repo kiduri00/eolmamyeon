@@ -49,20 +49,22 @@
   B.full = function (why) {
     if (B.st || ls("zp_nohyd") === "1") return;
     B.st = 1; B.why = why;
-    [B.d, B.a].forEach(function (u) { document.head.appendChild(add("link", { rel: "preload", as: "script", href: u })); });
+    var DS = String(B.d).split(",");
+    DS.concat([B.a]).forEach(function (u) { document.head.appendChild(add("link", { rel: "preload", as: "script", href: u })); });
     var run = function () {
       if (run.d) return;
       if (document.readyState === "loading") return document.addEventListener("DOMContentLoaded", run);
       run.d = 1;
       try { performance.mark("zp-hyd0"); } catch (e) {}
-      var d = add("script", { src: B.d }), a = add("script", { src: B.a });
-      d.async = a.async = false;
+      // 자료 조각들 → 앱 코드 순서대로(각 조각은 따로 실행 = 짧은 작업 여러 개)
+      var ds = DS.map(function (u) { var x = add("script", { src: u }); x.async = false; return x; }), a = add("script", { src: B.a });
+      a.async = false;
       a.onload = function () {
         // 확장 모듈 init(setTimeout 0)들이 먼저 돌고 난 다음
         setTimeout(function () { requestAnimationFrame(function () { try { performance.mark("zp-hyd"); } catch (e) {} B.hyd = 1; H.classList.remove("zp-wait"); try { W.dispatchEvent(new Event("zp:hydrated")); } catch (e) {} setTimeout(B.font, 300); }); }, 60);
       };
       a.onerror = function () { B.st = 0; H.classList.remove("zp-wait"); };
-      document.body.appendChild(d); document.body.appendChild(a);
+      ds.forEach(function (x) { document.body.appendChild(x); }); document.body.appendChild(a);
     };
     // 전체 CSS가 먼저 붙어야 앱이 만드는 요소(탭바·타일 등)가 맨몸으로 보이지 않는다
     css(B.c, run);
@@ -73,12 +75,24 @@
   EV.forEach(function (t) { W.addEventListener(t, on, { capture: true, passive: true }); });
   W.addEventListener("hashchange", on);
   // 바로 붙일 때
+  // 첫 화면 섬이 그대로 그릴 수 있는 조건(금액이 막대 칸 · 전세 끼고/대출 끼고 기본 기준)이면 전체 앱을 바로 받지 않는다(19차 · 첫 화면 JS를 섬 하나로)
+  var islOk = function (qs) {
+    try {
+      var p = new URLSearchParams(qs || ""), m = p.get("mode"), b = p.get("basis");
+      if (["homes", "first", "unit", "inc", "income", "kind", "jr", "fund"].some(function (k) { return p.has(k); })) return false;
+      if (m && m !== "jeonse" && m !== "loan") return false;
+      if (b && b !== (m === "loan" ? "now" : "total")) return false;
+      if (!p.has("cash")) return true;
+      var c = +p.get("cash"), e = 1e-6;
+      return c >= 0.5 && c <= 15 && (c < 2 ? Math.abs(c * 10 - Math.round(c * 10)) < e : c < 10 ? Math.abs(c * 2 - Math.round(c * 2)) < e : Math.abs(c - Math.round(c)) < e);
+    } catch (e) { return false; }
+  };
   var now = "";
   try {
     var q = location.search, fav = ls("jg-fav"), so = ls("emr.sort");
     if (ls("zp_full") === "1") now = "flag";
     else if (location.hash.length > 1) now = "hash";
-    else if (/[?&](cash|mode|homes|first|unit|inc|income|basis|kind|fund|jr)=/.test(q) || ls("jg-cond")) now = "cond";
+    else if ((/[?&](cash|mode|homes|first|unit|inc|income|basis|kind|fund|jr)=/.test(q) || ls("jg-cond")) && !islOk(/[?&](cash|mode|fund|inc|income)=/.test(q) ? q : ls("jg-cond") || "")) now = "cond";
     else if (so && so !== "fit") now = "sort";
     else if (fav && fav !== "[]") now = "pins";
     else if (navigator.serviceWorker && navigator.serviceWorker.controller) now = "sw";
@@ -88,5 +102,6 @@
   B.fast = fast;
   if (fast || now === "sw") B.font();
   if (now) B.full(now);
-  else if (fast) W.addEventListener("load", function () { (W.requestIdleCallback || setTimeout)(function () { B.full("idle"); }, { timeout: 2000 }); });
+  // 손대지 않아도: 첫 화면이 다 뜬 뒤 브라우저가 한가할 때 전체 앱(지도 포함)을 붙인다 — 느린 연결은 조금 더 기다렸다가
+  else W.addEventListener("load", function () { setTimeout(function () { (W.requestIdleCallback || setTimeout)(function () { B.full("idle"); }, { timeout: fast ? 2000 : 4000 }); }, fast ? 0 : 2500); });
 })();

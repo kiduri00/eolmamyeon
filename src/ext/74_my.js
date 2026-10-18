@@ -88,7 +88,7 @@ const MY = (() => {
     // 폰 알림을 받고 있었다면 서버의 구독도 지운다(조용히 · 2.5초 안)
     try { if (typeof INBOX !== "undefined" && INBOX.st().on) await Promise.race([INBOX.unsubscribe(), new Promise((r) => setTimeout(r, 2500))]); } catch (e) {}
     try { localStorage.clear(); } catch (e) {}
-    try { sessionStorage.clear(); } catch (e) {}
+    try { sessionStorage.clear(); sessionStorage.setItem("zp_wiped", "1"); } catch (e) {}   // 지운 직후 새로 연 화면은 방문 수 같은 기록도 새로 쓰지 않는다(정말 다 지워졌는지 보이게)
     try { if (navigator.clearAppBadge) navigator.clearAppBadge().catch(() => {}); } catch (e) {}
     // 첫 실행 상태로: 주소·조건 없이 새로 연다
     location.replace(location.pathname);

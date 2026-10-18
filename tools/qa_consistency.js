@@ -1656,6 +1656,163 @@ async function r4Lane(browser, api, errs) {
   for (const g of ["구로구", "강남구"]) { const r = await getPage("/gu/" + g); if (r.status === 200) termScan(htmlText(r.text.replace(/<head[\s\S]*?<\/head>/i, "")), `/gu/${g}`); }
 }
 // ================================================================ 17차 2부: 이름으로 답하기 · 고른 상태 남색 · 알림 하나 · 끄는 동안 숫자 · 용어(코드·메타·매니페스트·리포트)
+// ================================================================ 19차: 지도 자리 그림 = 실제 지도 · 붙일 때 긴 작업 · 홈 막대 슬라이더 · PC 구 화면 뒤로 · 돈 꼴 · 검색 배지
+async function r19Lane(browser, api, errs) {
+  const mob = (w, h) => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+  // --- map.staticMatch: 자리 그림(ghost)의 구 묶음 = 실제 지도의 구 묶음(숫자·자리 ±2px) · 보이는 합 + 칩 == 홈 곳 수 (2억 · 0.1억)
+  const TS = "지도 자리 그림(실제 지도 전)과 실제 지도의 구 묶음이 같다(곳 수·자리) · 묶음 합 + '+N곳' == 홈 곳 수";
+  for (const [w, h, c] of [[390, 844, 2], [360, 740, 2], [390, 844, 0.1]]) {
+    const { ctx, page } = await newPage(browser, mob(w, h), errs);
+    try {
+      page.__where = `/?cash=${c}`;
+      await page.goto(BASE + `/?cash=${c}&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.evaluate(() => { const m = document.getElementById("mapbox"); if (m) window.scrollTo(0, Math.max(0, m.getBoundingClientRect().top + scrollY - 120)); });
+      const g = await page.waitForFunction(() => {
+        const ghost = window.ZP_G && window.ZP_G.on(), L = window.ZP_lmx, m = L && L.map && L.map();
+        if (!ghost) return m && L.gus().length ? { gone: 1 } : null;
+        const lm = document.querySelectorAll("#lmap .zgu"), n = +((document.getElementById("sN") || {}).textContent || "").replace(/\D/g, "");
+        if (!(m && performance.getEntriesByName("zp-ov1").length && L.gus().length === lm.length && (lm.length || n === 0))) return null;
+        const R = (e) => { const r = e.getBoundingClientRect(); return [+e.dataset.n, Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2), Math.round(r.width)]; };
+        const A = {}, B = {}; document.querySelectorAll(".zp-ph .zg-mk .zgu").forEach((e) => (A[e.dataset.gu] = R(e))); lm.forEach((e) => (B[e.dataset.gu] = R(e)));
+        return { A, B, gm: window.ZP_G.more(), lm: L.gusMore(), n, cnt: typeof window.ZP_count === "function" ? window.ZP_count() : n };
+      }, null, { timeout: 60000, polling: 50 }).then((x) => x.jsonValue()).catch((e) => ({ err: String(e.message || e).slice(0, 80) }));
+      const where = `${w}px ${c}억`;
+      if (g.err || g.gone) { bad("map.staticMatch", TS, `${where}: ${g.err ? "자리 그림·실제 지도를 함께 볼 수 없음 " + g.err : "실제 지도가 붙기 전에 자리 그림이 사라짐"}`); continue; }
+      const diff = [];
+      for (const k of new Set([...Object.keys(g.A), ...Object.keys(g.B)])) { const a = g.A[k], b = g.B[k]; if (!a || !b || a[0] !== b[0] || Math.abs(a[1] - b[1]) > 2 || Math.abs(a[2] - b[2]) > 2 || Math.abs(a[3] - b[3]) > 2) diff.push(`${k} ${JSON.stringify(a)}/${JSON.stringify(b)}`); }
+      const sumA = Object.values(g.A).reduce((t, x) => t + x[0], 0) + g.gm, sumB = Object.values(g.B).reduce((t, x) => t + x[0], 0) + g.lm;
+      expect(!diff.length && g.gm === g.lm && sumA === g.cnt && sumB === g.cnt && g.n === g.cnt, "map.staticMatch", TS, `${where}: ghost ${sumA} (chip ${g.gm}) live ${sumB} (chip ${g.lm}) count ${g.cnt}/${g.n}${diff.length ? " · diff " + diff.join(" ") : ""}`);
+      if (c < 0.5) expect(!Object.keys(g.A).length, "map.staticMatch", TS, `${where}: 0곳인데 자리 그림에 숫자 묶음 ${Object.keys(g.A).length}개`);
+    } catch (e) { bad("runtime", "검사 실행", `staticMatch ${w} crashed: ` + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- map.attachJank: 붙이기(zp-att) ~ 자리 그림 걷힘(zp-fade) 사이 가장 긴 작업 ≤ 300ms (이 기계 · CPU 1배) · 붙는 동안 끈 막대 숫자 지연 중앙 ≤ 100 · 최대 ≤ 200
+  {
+    const TJ = "실제 지도를 붙이는 동안 가장 긴 작업 ≤ 300ms(이 기계 1배) · 붙는 중 막대 끌기 숫자 지연 중앙값 ≤ 100ms · 최대 ≤ 200ms";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      await ctx.addInitScript(() => { window.__lt19 = []; try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt19.push([Math.round(e.startTime), Math.round(e.duration)]))).observe({ type: "longtask", buffered: true }); } catch (e) {} });
+      page.__where = "/?cash=2 attach";
+      await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction(() => performance.getEntriesByName("zp-fade").length, null, { timeout: 60000, polling: 200 }).catch(() => {});
+      const r = await page.evaluate(() => { const a = (performance.getEntriesByName("zp-att")[0] || {}).startTime, f = (performance.getEntriesByName("zp-fade")[0] || {}).startTime; const L = (window.__lt19 || []).filter((x) => a != null && x[0] >= a - 5 && x[0] <= (f || 1e9) + 300); return { a, f, max: Math.max(0, ...L.map((x) => x[1])), n: L.length }; });
+      if (r.a == null || r.f == null) bad("map.attachJank", TJ, `붙이기 표시 없음 zp-att ${r.a} zp-fade ${r.f}`);
+      else expect(r.max <= 300, "map.attachJank", TJ, `attach ${Math.round(r.a)}→${Math.round(r.f)}ms · longest task ${r.max}ms (${r.n} long tasks)`);
+    } catch (e) { bad("runtime", "검사 실행", "attachJank crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+    // 붙는 동안(첫 화면 2.5초) 손가락으로 끌기
+    const { ctx: c2, page: p2 } = await newPage(browser, mob(390, 844), errs);
+    try {
+      p2.__where = "/?cash=2 first drag";
+      await p2.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await p2.waitForTimeout(2500);
+      await p2.waitForSelector("#sScrub .scr-bars", { timeout: 15000 }).catch(() => {});
+      const box = await p2.evaluate(() => { const e = document.querySelector("#sScrub .scr-bars") || document.getElementById("sScrub"); const r = e.getBoundingClientRect(); window.scrollTo(0, 0); return { l: r.left, w: r.width, y: r.top + r.height / 2 }; });
+      await p2.evaluate(() => { window.__mu = []; const sN = document.getElementById("sN"); new MutationObserver(() => window.__mu.push(performance.now())).observe(sN, { childList: true, characterData: true, subtree: true }); });
+      const cdp = await c2.newCDPSession(p2), tp = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
+      const sends = []; let x = box.l + box.w * 0.12; await tp("touchStart", x, box.y); await p2.waitForTimeout(150);
+      for (let i = 1; i <= 16; i++) { x = box.l + box.w * (0.12 + i * 0.03); sends.push(await p2.evaluate(() => performance.now())); await tp("touchMove", x, box.y); await p2.waitForTimeout(60); }
+      await tp("touchEnd"); await p2.waitForTimeout(1500);
+      const mu = await p2.evaluate(() => window.__mu);
+      const lat = sends.map((s0) => { const m = mu.find((t) => t >= s0); return m == null ? null : m - s0; }).filter((v) => v != null).sort((a, b) => a - b);
+      if (lat.length < 6) bad("map.attachJank", TJ, `첫 끌기: 숫자가 거의 바뀌지 않음(${lat.length}번)`);
+      else { const med = lat[lat.length >> 1], mx = lat[lat.length - 1]; expect(med <= 100 && mx <= 200, "map.attachJank", TJ, `first drag at 2.5s: median ${Math.round(med)}ms max ${Math.round(mx)}ms (n ${lat.length})`); }
+    } catch (e) { bad("runtime", "검사 실행", "firstDrag crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await c2.close().catch(() => {}); }
+  }
+  // --- ui.scrubA11y: 홈 금액 막대 = role=slider(값·글 · 키보드 ←→ PageUp/Down Home/End)
+  {
+    const TA = "홈 금액 막대: role=slider · aria-valuemin/max/now · aria-valuetext '2억, 54곳' · 초점 가능(aria-hidden 아님) · 화살표·PageUp/Down·Home/End";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      page.__where = "/?cash=2 scrub a11y";
+      await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction(() => typeof window.ZP_count === "function", null, { timeout: 30000, polling: 100 }).catch(() => {});
+      await settle(page, 600);
+      const a = await page.evaluate(() => { const e = document.getElementById("sScrub"); return e && { role: e.getAttribute("role"), min: e.getAttribute("aria-valuemin"), max: e.getAttribute("aria-valuemax"), now: e.getAttribute("aria-valuenow"), vt: e.getAttribute("aria-valuetext"), hid: e.closest("[aria-hidden=true]") ? 1 : 0, ti: e.tabIndex, n: window.ZP_count() }; });
+      expect(a && a.role === "slider" && a.min && a.max && +a.now === 2 && new RegExp("^2억, " + a.n + "곳$").test(a.vt || "") && !a.hid && a.ti === 0, "ui.scrubA11y", TA, `attrs ${JSON.stringify(a)}`);
+      const key = async (k) => { await page.focus("#sScrub"); await page.keyboard.press(k); await settle(page, 450); return page.evaluate(() => { const e = document.getElementById("sScrub"); return { now: +e.getAttribute("aria-valuenow"), vt: e.getAttribute("aria-valuetext"), sN: document.getElementById("sN").textContent, url: location.search }; }); };
+      const r1 = await key("ArrowRight"), r2 = await key("PageUp"), r3 = await key("Home"), r4 = await key("End");
+      expect(r1.now > 2 && r2.now > r1.now && r3.now === 0.5 && r4.now === 15 && /곳$/.test(r4.vt || ""), "ui.scrubA11y", TA, `→ ${r1.now} (${r1.vt}) · PageUp ${r2.now} · Home ${r3.now} · End ${r4.now} (${r4.vt})`);
+      expect(cntOf(r1.vt) === intOf(r1.sN), "ui.scrubA11y", TA, `valuetext ${r1.vt} vs 큰 숫자 ${r1.sN}`);
+    } catch (e) { bad("runtime", "검사 실행", "scrubA11y crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- ui.deskBackGu: PC 구 화면 → 목록 줄 → 상세 · 뒤로/Esc = 그 구 화면(같은 목록) · 상세 위 '←' 단추 하나('← 강북구 · 갈 수 있는 곳 N곳')
+  {
+    const TD = "PC: 구 화면에서 연 상세에서 뒤로·Esc = 그 구 화면(#map-구 · 같은 목록) · 상세 위 뒤로 단추 하나(구 이름·곳 수)";
+    const { ctx, page } = await newPage(browser, { viewport: { width: 1440, height: 900 } }, errs);
+    try {
+      page.__where = "/ desk gu back";
+      await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction(() => window.ZP_lmx && window.ZP_lmx.gus && window.ZP_lmx.gus().length > 0 && !(window.ZP_G && window.ZP_G.on()), null, { timeout: 45000, polling: 200 }).catch(() => {});
+      const st = () => page.evaluate(() => ({ hash: decodeURIComponent(location.hash), view: document.getElementById("mapbox").dataset.view, gu: document.getElementById("mapbox").dataset.gu, rep: document.documentElement.classList.contains("s-rep"), lt: document.getElementById("sLT").textContent, backs: [...document.querySelectorAll(".s-right button, #report button, #report a")].filter((e) => e.offsetWidth && /^\s*←/.test(e.textContent)).map((e) => e.textContent.trim()) }));
+      const gn = await page.evaluate(() => { const b = [...document.querySelectorAll("#lmap .zgu")].sort((a, b) => +b.dataset.n - +a.dataset.n)[0]; if (!b) return null; b.click(); return b.dataset.gu; });
+      if (!gn) { bad("ui.deskBackGu", TD, "구 묶음 없음"); }
+      else {
+        await page.waitForTimeout(1500);
+        const g0 = await st();
+        await page.evaluate(() => { const a = document.querySelector("#sList a[data-id]"); a && a.click(); }); await page.waitForTimeout(1200);
+        const d1 = await st();
+        expect(d1.rep && d1.backs.length === 1 && new RegExp("^← " + gn + " · 갈 수 있는 곳 [\\d,]+곳$").test(d1.backs[0] || ""), "ui.deskBackGu", TD, `detail: s-rep ${d1.rep} back links ${JSON.stringify(d1.backs)}`);
+        await page.goBack({ timeout: 5000 }).catch(() => {}); await page.waitForTimeout(1000);
+        const b1 = await st();
+        expect(!b1.rep && b1.view === "gu" && b1.gu === gn && b1.hash === "#map-" + gn && b1.lt === g0.lt, "ui.deskBackGu", TD, `back: rep ${b1.rep} view ${b1.view} gu ${b1.gu} hash ${b1.hash} list '${b1.lt}' (was '${g0.lt}')`);
+        await page.evaluate(() => { const a = document.querySelector("#sList a[data-id]"); a && a.click(); }); await page.waitForTimeout(1200);
+        await page.keyboard.press("Escape"); await page.waitForTimeout(1000);
+        const e1 = await st();
+        expect(!e1.rep && e1.view === "gu" && e1.gu === gn && e1.lt === g0.lt, "ui.deskBackGu", TD, `Esc: rep ${e1.rep} view ${e1.view} gu ${e1.gu} list '${e1.lt}'`);
+        await page.evaluate(() => { const a = document.querySelector("#sList a[data-id]"); a && a.click(); }); await page.waitForTimeout(1200);
+        await page.evaluate(() => { const b = document.getElementById("sToList"); b && b.click(); }); await page.waitForTimeout(1000);
+        const t1 = await st();
+        expect(!t1.rep && t1.view === "gu" && t1.lt === g0.lt, "ui.deskBackGu", TD, `back link: rep ${t1.rep} view ${t1.view} list '${t1.lt}'`);
+      }
+    } catch (e) { bad("runtime", "검사 실행", "deskBackGu crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- term.money: 화면 글자에 '476만원'·'1.44억'(만·억 뒤 '원' · 억 소수 둘째 자리) 없음 — 홈·상세 5탭·입주 계산·MY
+  {
+    const TM = "돈 꼴: 숫자 뒤 '만원'·'억원' 없음 · 1억 이상은 소수 한 자리('1.4억')";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    const BADM = /\d\s*(만원|억원)|(?:^|[^\d.])(?:[1-9]\d*)\.\d{2,}억/;
+    const scan = async (where) => { const t = await page.evaluate(() => document.body.innerText); const L = t.split("\n").filter((l) => BADM.test(l)).map((l) => l.trim().slice(0, 60)); expect(!L.length, "term.money", TM, `${where}: ${L.slice(0, 3).join(" | ")}`); };
+    try {
+      await loadHome(page); await settle(page, 400); await scan("home");
+      for (const id of ["o1070", "o916", "o786", "o337"]) {
+        await loadHome(page, "#" + id); await page.waitForTimeout(900);
+        for (const tab of ["돈", "일정", "거래", "입지", "규제"]) {
+          await page.evaluate((tab) => { const b = [...document.querySelectorAll("#report [role=tab]")].find((x) => x.textContent.trim() === tab); b && b.click(); }, tab); await page.waitForTimeout(450);
+          await scan(`#${id} ${tab}`);
+        }
+      }
+      await loadHome(page, "#planner"); await page.waitForTimeout(900); await scan("#planner");
+      await loadHome(page, "#my"); await page.waitForTimeout(700); await scan("#my");
+    } catch (e) { bad("runtime", "검사 실행", "term.money crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- search.badges: 금액이 있는 검색 결과 줄마다 '지금 X' + 내 돈 배지 · 빈 검색창 = 최근 검색·최근 본 구역
+  {
+    const TB = "검색: 금액이 보이는 줄마다 내 돈 배지 · 빈 검색창에 최근 검색어·최근 본 구역";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      await loadHome(page); await settle(page, 300);
+      for (const q of ["신길", "장위", "ㅎㄴ"]) {
+        await page.evaluate(() => { const q = document.getElementById("q"); if (!q.offsetWidth) document.getElementById("sSearch").click(); }); await page.waitForTimeout(300);
+        await page.fill("#q", q); await page.waitForTimeout(700);
+        const r = await page.evaluate(() => [...document.querySelectorAll("#sugg button[data-id]")].map((b) => ({ amt: !!b.querySelector(".sg-c b"), badge: !!b.querySelector(".sg-ok"), t: b.innerText.replace(/\s+/g, " ").slice(0, 40) })));
+        const miss = r.filter((x) => x.amt && !x.badge);
+        expect(r.length && !miss.length, "search.badges", TB, `'${q}': ${r.length} rows, ${r.filter((x) => x.amt).length} with 지금 X, missing badge: ${miss.map((x) => x.t).join(" | ")}`);
+        await page.evaluate(() => { const b = document.querySelector("#sugg button[data-id]"); b && b.click(); }); await page.waitForTimeout(900);
+        await page.goBack().catch(() => {}); await page.waitForTimeout(600);
+      }
+      await page.evaluate(() => { const q = document.getElementById("q"); if (!q.offsetWidth) document.getElementById("sSearch").click(); }); await page.waitForTimeout(300);
+      await page.fill("#q", ""); await page.focus("#q"); await page.waitForTimeout(500);
+      const e = await page.evaluate(() => { const t = document.getElementById("sugg").innerText; return { recQ: /최근 검색/.test(t), recZ: /최근 본 구역/.test(t) }; });
+      expect(e.recQ && e.recZ, "search.badges", TB, `빈 검색창: 최근 검색 ${e.recQ} · 최근 본 구역 ${e.recZ}`);
+    } catch (e) { bad("runtime", "검사 실행", "search.badges crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+}
 async function r17bLane(browser, api, errs) {
   // ---- term.glossary(정적): 메타 태그 · 매니페스트 · 월간 리포트 · 앱 코드(JS 묶음) 화면 글자 ----
   try {
@@ -1825,6 +1982,8 @@ async function r17bLane(browser, api, errs) {
   if (!ONLY || ONLY === "r17") await timed("r17", navLane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "navLane crashed: " + e.message)));
   // 17차 2부(이름으로 답하기 · 고른 상태 남색 · 알림 하나 · 끄는 동안 숫자 · 용어 코드·메타·리포트) — 혼자(끄는 시간 재기)
   if (!ONLY || ONLY === "r17b") await timed("r17b", r17bLane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r17bLane crashed: " + e.message)));
+  // 19차(지도 자리 그림 = 실제 지도 · 붙일 때 긴 작업 · 홈 막대 슬라이더 · PC 구 화면 뒤로 · 돈 꼴 · 검색 배지) — 혼자(긴 작업을 잰다)
+  if (!ONLY || ONLY === "r19") await timed("r19", r19Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r19Lane crashed: " + e.message)));
   await browser.close();
 
   // 콘솔 오류

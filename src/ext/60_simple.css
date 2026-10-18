@@ -179,8 +179,9 @@ html.simple #sTiles{padding-bottom:24px}
   html.simple.s-rep .s-right #sListW>:not(#sGauge){display:none!important}
   html.simple.s-rep .s-tolist{display:inline-flex;position:sticky;top:calc(var(--hdr-h,57px) + 10px);z-index:6;box-shadow:0 2px 8px rgba(15,23,42,.1)}
   /* 목록 칸 아래 끝 = 지도 아래 끝(지도 #mapbox.lm-on 높이와 같은 식) */
-  .s-right .s-list-w{margin:0;display:flex;flex-direction:column;min-height:0;height:calc(100vh - var(--hdr-h,60px) - 24px);min-height:460px;max-height:900px;position:sticky;top:calc(var(--hdr-h,60px) + 16px)}
-  .s-right .s-list{overflow:auto;min-height:0;flex:1 1 auto}
+  /* 19차: 왼쪽 칸은 페이지와 함께 한 번에 스크롤(목록 안 따로 스크롤하는 383px 칸 없음) · 지도는 오른쪽에 붙어 있다 */
+  .s-right .s-list-w{margin:0;display:flex;flex-direction:column}
+  .s-right .s-list{overflow:visible}
   .s-right .s-lh{flex-wrap:wrap}
 }
 
@@ -555,3 +556,5 @@ html.simple #sTT{margin-bottom:16px}
   .s-sum .s-sum-x button small{margin-left:4px}
 }
 @media (max-width:1179px){.s-sum-x{display:none}}
+/* 19차: 좁은 폰(380px 아래)은 목록 줄의 동 이름을 빼서 '역 N분'이 잘리지 않게 */
+@media (max-width:379px){.s-card .s-sub .s-dg:has(+ .s-wk){display:none}}

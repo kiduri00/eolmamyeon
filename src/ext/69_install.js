@@ -59,7 +59,8 @@
     state: () => ({ app: window.ZP_INSTALL.app(), ios, inApp, prompt: !!deferred, done: !!get().done }),
   };
   const boot = () => {
-    const s = get(), n = (s.v || 0) + 1; put({ v: n });   // 방문 수는 세기만(권유 때는 아님)
+    let wiped = false; try { wiped = sessionStorage.getItem("zp_wiped") === "1"; } catch (e) {}
+    const s = get(), n = (s.v || 0) + 1; if (!wiped) put({ v: n });   // 방문 수는 세기만(권유 때는 아님)
     // 핀을 꽂은 직후 안내는 72_inbox의 '알림 받을 준비' 시트가 함께 한다(ZP_INSTALL로 설치 창을 띄움)
   };
   document.readyState === "complete" ? setTimeout(boot, 0) : addEventListener("load", () => setTimeout(boot, 0), { once: true });

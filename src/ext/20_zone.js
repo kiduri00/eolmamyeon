@@ -146,7 +146,7 @@
     // 같은 땅(지번)의 사건끼리 붙여 번호를 매긴다 — 지도에는 그 땅 점 하나에 '1·2'(점이 겹쳐 쌓이던 것)
     const aucPk = (o) => String(o.addr || (o.ll ? o.ll.join(",") : o.cs)).replace(/\s+/g, "");
     const aucOrd = (xs) => { const m = new Map(); for (const g of aucGroups(xs)) { const k = aucPk(g[0]); if (!m.has(k)) m.set(k, []); m.get(k).push(g); } return [...m.values()].flat(); };
-    const aucWon = (v) => { if (v == null || !isFinite(v)) return "–"; const e = Math.floor(v / 1e8), m = Math.round((v % 1e8) / 1e4); return e ? `${e}억${m ? ` ${m.toLocaleString("ko-KR")}만` : ""}원` : `${m.toLocaleString("ko-KR")}만원`; };
+    const aucWon = (v) => { if (v == null || !isFinite(v)) return "–"; const e = Math.floor(v / 1e8), m = Math.round((v % 1e8) / 1e4); return e ? `${e}억${m ? ` ${m.toLocaleString("ko-KR")}만` : ""}원` : `${m.toLocaleString("ko-KR")}만`; };
     const aucEok = ZF.aucAmt;   // /z·알림함과 같은 반올림(05_facts.js)
     const aucDay = (d) => { if (!d) return "–"; const t = new Date(d + "T00:00:00+09:00"); return `${d.replaceAll("-", ".")} (${"일월화수목금토"[t.getDay()]})`; };
     const aucMd = (d) => (d ? `${+d.slice(5, 7)}.${+d.slice(8, 10)}` : "");
@@ -289,7 +289,11 @@
         };
         ["auc-s", "auc-o"].forEach((l) => { map.on("click", l, hit); map.on("mouseenter", l, () => (map.getCanvas().style.cursor = "pointer")); map.on("mouseleave", l, () => (map.getCanvas().style.cursor = "")); });
       }
-      loadAuc().then(() => { try { aucMapLayers(map); const s = map.getSource("auc"); if (s) s.setData({ type: "FeatureCollection", features: aucFeatures() }); aucLegend(map); } catch (e) {} });
+      // 경매 물건 표시는 지도가 바탕까지 다 그리고(자리 그림이 걷힌 뒤) 브라우저가 한가할 때 받는다(첫 화면·지도 붙이기와 겹치지 않게 · 19차)
+      const go = () => loadAuc().then(() => { try { aucMapLayers(map); const s = map.getSource("auc"); if (s) s.setData({ type: "FeatureCollection", features: aucFeatures() }); aucLegend(map); } catch (e) {} });
+      const idle = () => (window.requestIdleCallback ? requestIdleCallback(go, { timeout: 5000 }) : setTimeout(go, 1500));
+      const w = () => { if (window.ZP_G && ZP_G.on()) { setTimeout(w, 600); return; } idle(); };
+      if (AUC) go(); else if (map.loaded()) w(); else map.once("idle", w);
     }
     // 지도가 늦게 생기므로: 리포트를 그릴 때·처음 몇 초 동안 붙여 본다
     { let n = 0; const t = setInterval(() => { const L = window.__lmx; if ((L && L.map && L.map()) || ++n > 60) { clearInterval(t); aucMapSync(); } }, 1000); }

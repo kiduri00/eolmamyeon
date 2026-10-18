@@ -462,6 +462,23 @@ const OVX = (() => {
       p.querySelectorAll(".chk3, .lead-card, .leadc, [class*=lead]").forEach((x) => (x.hidden = true));
     }
     if (curTab === "money") try { fixGtl(p, r); } catch (e) {}
+    // 19차: 거래 탭의 '다른 기준 보기' 여러 개(3.3㎡당 · 구역 안 거래 · 연식별)를 하나로 접는다
+    if (curTab === "tx") try {
+      const DL = [...p.querySelectorAll("details.ov-alt")].filter((d) => !d.classList.contains("ov-alt1"));
+      if (DL.length > 1) {
+        const box = document.createElement("details"); box.className = "ov-alt ov-alt1";
+        box.innerHTML = `<summary>다른 기준 보기 <small>${DL.length}가지</small></summary>`;
+        DL[0].before(box);
+        DL.forEach((d) => {
+          const sm = d.querySelector(":scope>summary"), h3 = sm && sm.querySelector("h3"), sec = document.createElement("div");
+          sec.className = "ov-alt-s";
+          const head = h3 ? h3.innerHTML.replace(/^\s*다른 기준 보기\s*·\s*/, "") : "대지 3.3㎡당 다른 기준";
+          sec.innerHTML = `<h4>${head}</h4>`;
+          [...d.childNodes].forEach((c) => { if (c !== sm) sec.appendChild(c); });
+          box.appendChild(sec); d.remove();
+        });
+      }
+    } catch (e) {}
     // 입주 현금 탭이 짧아 아래가 비면 '계산 근거 · 숫자 바꿔 보기'를 펼쳐 둔다(한 번만 · 사용자가 접으면 그대로)
     if (curTab === "money") requestAnimationFrame(() => { const pp = document.getElementById("pane"), f = pp && pp.querySelector(".s-fold"); if (!f || f.dataset.auto || cur !== r) return; f.dataset.auto = "1"; if (pp.getBoundingClientRect().height < innerHeight * 0.9) f.open = true; });
     if (curTab === "money" && apt) p.querySelectorAll(".rvj").forEach((x) => (x.hidden = true));
@@ -469,7 +486,9 @@ const OVX = (() => {
     // 입주 현금 탭이 접힌 근거만 남아 비면, 위 카드의 결론을 한 번 더 크게
     if (curTab === "money") {
       const vis = [...p.children].filter((x) => !x.hidden && getComputedStyle(x).display !== "none" && !x.classList.contains("s-fold"));
-      if (!vis.length) { const cs = document.querySelector("#report .rep-head .cstrip"); p.insertAdjacentHTML("afterbegin", `<p class="ov-msg">${cs && cs.classList.contains("gblock") ? "전세 끼고는 살 수 없는 구역이에요. 위 '대출 끼고' 금액을 보세요." : (() => { let x = null; try { x = investC(r); } catch (e) {} return x && x.price != null ? `지금 사는 값(계산 매수가 ${ZF.manT(x.price)})까지만 계산했어요. ${ZF.noCalcTxt(r, x)}.` : "매수가로 쓸 거래가 없어 계산하지 않아요. 아는 매물가를 넣으면 계산해요."; })()}</p>`); }
+      let noIpju = false; try { noIpju = buyWindow(r).cls === "no"; } catch (e) {}
+      // 입주권이 안 나오는 구역은 위 '입주권 없음 · 계산 안 함'이 이유 하나·참고 시세 하나 — 여기서 다른 이유('자료 부족')·다른 값(계산 매수가)을 또 쓰지 않는다
+      if (!vis.length && !noIpju) { const cs = document.querySelector("#report .rep-head .cstrip"); p.insertAdjacentHTML("afterbegin", `<p class="ov-msg">${cs && cs.classList.contains("gblock") ? "전세 끼고는 살 수 없는 구역이에요. 위 '대출 끼고' 금액을 보세요." : (() => { let x = null; try { x = investC(r); } catch (e) {} return x && x.price != null ? `지금 사는 값(계산 매수가 ${ZF.manT(x.price)})까지만 계산했어요. ${ZF.noCalcTxt(r, x)}.` : "매수가로 쓸 거래가 없어 계산하지 않아요. 아는 매물가를 넣으면 계산해요."; })()}</p>`); }
     }
     p.querySelectorAll("dl.facts > div").forEach((d) => { const t = d.textContent; if (/자료 없음|미공개|계산 불가|일반분양 비율/.test(t)) d.hidden = true; });
   }
@@ -495,6 +514,8 @@ const OVX = (() => {
       const pp = document.getElementById("pane"); if (!pp || cur !== r || curTab !== "req") return;
       const h = `<div class="sect rq"><h3>사기 전 확인할 규제</h3><ul class="dg-l rq-l">${TOOLS.diagItems(r, draw).map(TOOLS.dgLi).join("")}</ul></div>`;
       const old = pp.querySelector(".rq"); if (old) old.outerHTML = h; else pp.insertAdjacentHTML("afterbegin", h);
+      // 위 목록에 '권리산정기준일' 줄이 있으므로 아래 따로 붙은 권리산정기준일 상자(.rdx)는 뺀다(같은 말 두 번 X · 일정 탭에는 그대로)
+      if ([...pp.querySelectorAll(".rq .dg-l li b")].some((b) => /권리산정기준일/.test(b.textContent))) pp.querySelectorAll(".rdx").forEach((x) => { const sc = x.closest(".sect"); (sc && !sc.classList.contains("rq") && sc.querySelectorAll(".rdx").length === sc.children.length - (sc.querySelector("h3") ? 1 : 0) ? sc : x).remove(); });
     };
     draw();
   }

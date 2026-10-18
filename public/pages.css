@@ -165,3 +165,8 @@ main a.zk-rb{display:inline-flex;align-items:center;min-height:44px;padding:0 16
 .zk-ad{user-select:all;-webkit-user-select:all;font-weight:600;color:var(--text-1)}
 .zk-cap{margin:6px 2px 0;font-size:12.5px;color:var(--text-3)}
 @media (min-width:760px){.zk-k{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.zk-i{border-top:0;border-left:1px solid var(--divider)}.zk-i:first-child{border-left:0}}
+/* 설치한 앱(standalone)으로 연 정적 페이지: 웹 푸터 링크 목록은 숨긴다(앱 아래 탭으로 오간다) */
+@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){footer.f,.site-foot{display:none!important}}
+/* 푸터 링크 사이 '·'는 숨기고 간격으로만 구분(줄 머리에 '·'가 오지 않게) */
+footer.f p:first-child{font-size:0}
+footer.f p:first-child a{font-size:13px}

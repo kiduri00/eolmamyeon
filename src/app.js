@@ -3147,6 +3147,7 @@
     if (e.key !== "Escape" || mapView !== "gu") return;
     if ($("report").classList.contains("sheet") || $("hdr").classList.contains("searching")) return;
     if (document.activeElement && document.activeElement.closest && document.activeElement.closest("input,select,textarea,.sugg")) return;
+    if (document.documentElement.classList.contains("s-rep") && !MQ_SHEET.matches) return;   // PC 상세가 열려 있으면 Esc는 상세만 닫는다(구 화면 그대로 · 60_simple)
     backToSeoul(true);
   });
   const coarse = () => matchMedia("(pointer:coarse)").matches || MQ_SHEET.matches;
@@ -3764,6 +3765,9 @@
     }
     const st = e.state || {};
     if (!st.sheet && $("report").classList.contains("sheet")) closeSheetNow();
+    // PC: 구 화면에서 연 상세에서 뒤로 → 상세를 닫고 그 구 화면(같은 목록) 그대로
+    if (!MQ_SHEET.matches && st.gu && !st.det && document.documentElement.classList.contains("s-rep")) document.documentElement.classList.remove("s-rep");
+    if (!MQ_SHEET.matches && st.det && byId[st.det] && (!cur || cur.id !== st.det)) { cur = byId[st.det]; try { renderReport(); } catch (er) {} document.documentElement.classList.add("s-rep"); }
     if (!st.search && $("hdr").classList.contains("searching")) closeSearchNow();
     if (st.sheet && byId[st.sheet] && MQ_SHEET.matches && !$("report").classList.contains("sheet")) {
       cur = byId[st.sheet];
@@ -3876,7 +3880,10 @@
     }
     if (MQ_SHEET.matches) openSheet(opts);
     else {
-      replSt(history.state && history.state.gu ? { gu: history.state.gu } : null, id);
+      // PC 구 화면(#map-구)에서 연 상세는 기록 한 칸 더(뒤로·Esc = 그 구 화면·같은 목록으로) · 이미 상세면 그 칸을 바꾼다
+      const hs = history.state || {};
+      if (hs.gu && mapView === "gu" && !hs.det && !popNav) pushSt({ gu: hs.gu, det: id }, id);
+      else replSt(hs.gu ? (hs.det ? { gu: hs.gu, det: id } : { gu: hs.gu }) : null, id);
       if (fromCard || opts.scroll) {
         const el = $("report"), tl = $("sToList"), tlh = tl && tl.offsetParent ? tl.offsetHeight + 10 : 0;   // PC 2칸: '← 목록' 단추까지 머리 아래에 보이게
         window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - HDR() - 16 - tlh, behavior: smooth() });
@@ -3946,7 +3953,7 @@
       const extra = (r.pg || []).map((p) => `<span class="pill">${esc(p)}</span>`);
       const open = zoneOpen(r.id);
       rp.classList.toggle("rep-locked", !open);
-      rp.innerHTML = `<div class="sheet-bar"><b aria-hidden="true">${esc(shortName(r.n))}</b><button type="button" class="btn ghost sm" id="sheetClose" aria-label="구역 리포트 닫기">${ICON.close}닫기</button></div>\n    ${backTo ? `<button type="button" class="back" id="backList">← 목록으로</button>` : mapView === "gu" && mapGu && !MQ_SHEET.matches ? `<button type="button" class="back" id="backGu" data-gu="${esc(mapGu)}">← ${esc(mapGu)} 구역 목록</button>` : ""}\n    <div class="rep-head">\n      <div class="rep-t"><div class="rep-tn"><h2 id="repTitle" tabindex="-1">${esc(shortName(r.n)).replace(/(\d)-(?=\d)/g, "$1\u2011")}</h2>${shortName(r.n) !== r.n ? `<div class="formal">${esc(r.n)}</div>` : ""}</div>${gradeBadge(r)}</div>\n      <div class="where" title="역까지 직선거리 기준 · 도보 분은 직선×1.3, 분당 67m 추정"><b>${esc(r.g)} ${esc(r.bj || r.j)}</b> · ${esc(r.k)}${r.st ? ` · ${esc(whereText(r))}` : ""}</div>\n      ${parent ? `<div class="where">소속 모아타운: <a href="#${parent.id}" data-go="${parent.id}">${esc(parent.n)}</a></div>` : ""}\n      <div class="kind">${main.join("")}${extra.length ? `<span class="kx" id="kindX" hidden>${extra.join("")}</span><button type="button" class="pill more-p" id="kindMore" aria-expanded="false" aria-controls="kindX" title="사업 방식 태그 더 보기">사업 방식 ${extra.length}개 더 보기</button>` : ""}</div>\n      ${cashStrip(r)}\n      ${open ? hjSummary(r) : ""}\n      <div class="rep-acts">${listBtn(r, "primary sm")}${favBtn(r, "sm")}<button type="button" class="btn secondary sm" id="zoneShare">공유</button><span class="share-fb" id="zoneShareFb" role="status"></span></div>\n    </div>\n    ${open ? `<div class="tabs" role="tablist" aria-label="구역 리포트">\n      ${TABS.map(([k, l]) => `<button type="button" role="tab" id="tab-${k}" data-tab="${k}" aria-label="${TABF[k] || l}" aria-selected="${curTab === k}" aria-controls="pane" tabindex="${curTab === k ? 0 : -1}">${l}</button>`).join("")}\n    </div>\n    <div class="tabpane" id="pane" role="tabpanel" aria-labelledby="tab-${curTab}" tabindex="0"></div>` : `<div class="rep-gate">${reportGate(r)}</div>`}\n    <div class="sheet-foot"><button type="button" class="btn secondary" id="sheetClose2">닫고 목록으로</button></div>`;
+      rp.innerHTML = `<div class="sheet-bar"><b aria-hidden="true">${esc(shortName(r.n))}</b><button type="button" class="btn ghost sm" id="sheetClose" aria-label="구역 리포트 닫기">${ICON.close}닫기</button></div>\n    ${backTo && MQ_SHEET.matches ? `<button type="button" class="back" id="backList">← 목록으로</button>` : ""}\n    <div class="rep-head">\n      <div class="rep-t"><div class="rep-tn"><h2 id="repTitle" tabindex="-1">${esc(shortName(r.n)).replace(/(\d)-(?=\d)/g, "$1\u2011")}</h2>${shortName(r.n) !== r.n ? `<div class="formal">${esc(r.n)}</div>` : ""}</div>${gradeBadge(r)}</div>\n      <div class="where" title="역까지 직선거리 기준 · 도보 분은 직선×1.3, 분당 67m 추정"><b>${esc(r.g)} ${esc(r.bj || r.j)}</b> · ${esc(r.k)}${r.st ? ` · ${esc(whereText(r))}` : ""}</div>\n      ${parent ? `<div class="where">소속 모아타운: <a href="#${parent.id}" data-go="${parent.id}">${esc(parent.n)}</a></div>` : ""}\n      <div class="kind">${main.join("")}${extra.length ? `<span class="kx" id="kindX" hidden>${extra.join("")}</span><button type="button" class="pill more-p" id="kindMore" aria-expanded="false" aria-controls="kindX" title="사업 방식 태그 더 보기">사업 방식 ${extra.length}개 더 보기</button>` : ""}</div>\n      ${cashStrip(r)}\n      ${open ? hjSummary(r) : ""}\n      <div class="rep-acts">${listBtn(r, "primary sm")}${favBtn(r, "sm")}<button type="button" class="btn secondary sm" id="zoneShare">공유</button><span class="share-fb" id="zoneShareFb" role="status"></span></div>\n    </div>\n    ${open ? `<div class="tabs" role="tablist" aria-label="구역 리포트">\n      ${TABS.map(([k, l]) => `<button type="button" role="tab" id="tab-${k}" data-tab="${k}" aria-label="${TABF[k] || l}" aria-selected="${curTab === k}" aria-controls="pane" tabindex="${curTab === k ? 0 : -1}">${l}</button>`).join("")}\n    </div>\n    <div class="tabpane" id="pane" role="tabpanel" aria-labelledby="tab-${curTab}" tabindex="0"></div>` : `<div class="rep-gate">${reportGate(r)}</div>`}\n    <div class="sheet-foot"><button type="button" class="btn secondary" id="sheetClose2">닫고 목록으로</button></div>`;
       if ($("kindMore"))
         $("kindMore").onclick = () => {
           $("kindX").hidden = false;
@@ -4135,7 +4142,7 @@
     p.innerHTML = `\n    <div class="locbox">\n      <div class="lb-top"><div class="lb-v"><b>${r.score}</b><span>/100 입지 점수</span></div><p class="lb-pos">${posTxt(Math.round(((scored.length - Math.max(1, rankAll)) / scored.length) * 100))} <small>위치 확인된 진행 중 ${fmt(scored.length)}곳 중 약 ${fmt(Math.max(1, rankAll))}위 · ${esc(r.g)} ${rankGu ? `${rankGu}위/${sameGu.length}곳` : ""}</small></p></div>\n      ${ptsBar(r, "pb-lg")}\n      <div class="lb-key">${locKeyHTML()}</div>\n      <table class="lb-t"><caption class="sr-only">입지 점수 항목별 점수</caption><thead><tr><th scope="col">항목</th><th scope="col" class="n">가중치</th><th scope="col" class="n">항목 점수</th><th scope="col" class="n">얻은 점수</th></tr></thead><tbody>\n        ${LOC_AX.map((a, i) => `<tr><th scope="row"><i class="${LOC_G[a.g]}"></i>${a.k}<small>${esc(a.why)}</small></th><td class="n">${Math.round(a.w * 100)}</td><td class="n">${r.ax[i] == null ? "–" : r.ax[i]}</td><td class="n"><b>${r.pts[i].toFixed(1)}</b></td></tr>`).join("")}\n      </tbody></table>\n      <p class="sc-why">가중치와 거리별 점수는 작성자 가정값이에요. 교통·일자리·생활 편의를 거리로만 본 값이라 학군 수준·병원 진료과·상권 질은 반영하지 않아요. 투자 등급이 아니에요.${r.comp != null && !r.dn ? ` 입지·진척 점수 ${r.comp} = 입지 ${r.compAx[0]}×50% + 사업 진척 ${r.compAx[1]}×30% + 추진력 ${r.compAx[2]}×20%.` : ""}</p>\n    </div>\n    <div class="sect infra"><h3>생활 인프라 <small>가장 가까운 곳 · 직선거리 기준 · 도보는 직선×1.3, 분당 67m 추정</small></h3>\n      ${inf ? `<ul class="iflist">${irow("e", "초등학교")}${irow("m", "중학교")}${irow("h", "고등학교")}${irow("hp", "대형병원")}${irow("mt", "대형마트")}</ul>\n      <p class="note">학교: OpenStreetMap 학교 이름 기준(배정 학교와 다를 수 있음) · 대형병원: 보건복지부 제5기 상급종합병원 서울 14곳 + OSM 병원 중 이름 규칙으로 고른 종합병원급(추정) · 대형마트: 영업 중 지점 목록(나무위키 지점 문서)과 OSM 좌표를 맞춘 이마트·홈플러스·롯데마트·코스트코·트레이더스 · ${INF.asOf.replaceAll("-", ".")} 기준 · © OpenStreetMap contributors (ODbL)</p>` : '<p class="note">대표 좌표가 없어 생활 인프라 거리를 계산하지 못했어요.</p>'}</div>\n    <dl class="facts">\n      <div><dt>가장 가까운 역</dt><dd>${(() => {
       const x = stnInfo(r);
       return x ? `${esc(x.n)}역 ${fmt(x.d)}m<small>도보 약 ${x.min}분 · 직선거리 기준</small>` : "–";
-    })()}</dd></div>\n      <div><dt>한강 중심선까지</dt><dd>${(r.h / 1e3).toFixed(2)}km</dd></div>\n      <div><dt>주변 호재 (1.5km)</dt><dd>${nearHojae(r).length}건<small>아래 '주변 호재'에서 목록</small></dd></div>\n      ${r.jg ? `<div><dt>주변 150m 대지 공시지가 가운데 값</dt><dd>㎡당 ${fmt(r.jg / 1e4)}만원<small>3.3㎡당 약 ${fmt((r.jg * 3.3058) / 1e4)}만원 · 진행 중 사업장 중 ${posTxt(jgPct(r.jg))}</small></dd></div>` : ""}\n    </dl>\n    <div class="sect"><h3>주변 역 <small>반경 1km 노선 ${r.ln.length ? r.ln.map(esc).join(", ") : "없음"}</small></h3>\n      <ul class="list">${r.s3.map(([n, d, l]) => `<li><span>${esc(n)} <small>${l.map(esc).join("·")}</small></span><span class="mono">${fmt(d)}m</span></li>`).join("")}</ul></div>\n    <div class="sect"><h3>업무지구까지 직선거리</h3>\n      <ul class="list">${Object.entries(
+    })()}</dd></div>\n      <div><dt>한강 중심선까지</dt><dd>${(r.h / 1e3).toFixed(2)}km</dd></div>\n      <div><dt>주변 호재 (1.5km)</dt><dd>${nearHojae(r).length}건<small>아래 '주변 호재'에서 목록</small></dd></div>\n      ${r.jg ? `<div><dt>주변 150m 대지 공시지가 가운데 값</dt><dd>㎡당 ${fmt(r.jg / 1e4)}만<small>3.3㎡당 약 ${fmt((r.jg * 3.3058) / 1e4)}만 · 진행 중 사업장 중 ${posTxt(jgPct(r.jg))}</small></dd></div>` : ""}\n    </dl>\n    <div class="sect"><h3>주변 역 <small>반경 1km 노선 ${r.ln.length ? r.ln.map(esc).join(", ") : "없음"}</small></h3>\n      <ul class="list">${r.s3.map(([n, d, l]) => `<li><span>${esc(n)} <small>${l.map(esc).join("·")}</small></span><span class="mono">${fmt(d)}m</span></li>`).join("")}</ul></div>\n    <div class="sect"><h3>업무지구까지 직선거리</h3>\n      <ul class="list">${Object.entries(
       r.hb,
     )
       .map(([k, v]) => `<li><span>${esc(k)}</span><span class="mono">${(v / 1e3).toFixed(1)}km</span></li>`)
@@ -4241,7 +4248,7 @@
       : Math.abs(x) < 1 && Math.round(Math.abs(x) * 1e4) < 1e4
         ? Math.round(Math.abs(x) * 1e4) === 0
           ? "0원"
-          : fmt(Math.round(x * 1e4)) + "만원"
+          : fmt(Math.round(x * 1e4)) + "만"
         : NF2.format(Math.round(x * 100) / 100) + "억";
   const NF2 = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
   function taxDesc(x) {
@@ -5598,7 +5605,7 @@
       if (L && L >= 5 && L <= 300 && r.jg) {
         x.land = L;
         appr = Math.min(price * 0.75, (L * r.jg * 1.35) / 1e8 + 0.2);
-        apprWhy = `세대당 대지지분 약 ${L}㎡(구역 면적 × 80% ÷ 소유자 수) × 공시지가 ㎡당 ${fmt(r.jg / 1e4)}만원 × 1.35 + 건물 0.2억 (시세의 75% 상한)`;
+        apprWhy = `세대당 대지지분 약 ${L}㎡(구역 면적 × 80% ÷ 소유자 수) × 공시지가 ㎡당 ${fmt(r.jg / 1e4)}만 × 1.35 + 건물 0.2억 (시세의 75% 상한)`;
       } else {
         appr = price * 0.65;
         apprWhy = "대지지분 자료 없음 · 시세의 65%";
@@ -5609,7 +5616,7 @@
       x.land = L;
       appr = Math.min(price * 0.95, (L * r.jg * 1.4) / 1e8 + 0.2);
       x.landDef = o.land == null;
-      apprWhy = `대지지분 ${L}㎡${o.land == null ? " (가정값 · 입력으로 수정)" : ""} × ${r.jgf ? "같은 동 사업장" : "주변"} 공시지가 ㎡당 ${fmt(r.jg / 1e4)}만원 × 1.4 + 건물 0.2억 (매수가의 95% 상한)`;
+      apprWhy = `대지지분 ${L}㎡${o.land == null ? " (가정값 · 입력으로 수정)" : ""} × ${r.jgf ? "같은 동 사업장" : "주변"} 공시지가 ㎡당 ${fmt(r.jg / 1e4)}만 × 1.4 + 건물 0.2억 (매수가의 95% 상한)`;
     } else {
       appr = price * 0.5;
       apprWhy = "공시지가 자료 없음 · 매수가의 50%";
@@ -5914,7 +5921,7 @@
     if (v >= 1e3) {
       const e = v / 1e4;
       $("pCash").value = String(Math.round(e * 100) / 100);
-      cashNote(`${fmt(v)}만원 → ${ZF.cash(e)}으로 바꿔 계산했어요. (억 단위로 입력: 예 3.5)`);
+      cashNote(`${fmt(v)}만 → ${ZF.cash(e)}으로 바꿔 계산했어요. (억 단위로 입력: 예 3.5)`);
       sizeCash();
       return;
     }
@@ -6192,7 +6199,7 @@
   }
   const incTxt = (loan) => {
     const y = incomeFor(loan);
-    return y >= 1 ? `${ZF.cash(y)}` : `${fmt(Math.round((y * 1e4) / 100) * 100)}만원`;
+    return y >= 1 ? `${ZF.cash(y)}` : `${fmt(Math.round((y * 1e4) / 100) * 100)}만`;
   };
   let ansOpen = false;
   let CHEAP = null;
@@ -7044,7 +7051,7 @@
       $("pGu").value || "서울 전체",
       P.kind || null,
       P.basis === "now" ? "지금 매수 기준" : null,
-      num("pIncome") != null ? (num("pIncome") > 0 ? `연소득 ${fmt(num("pIncome"))}만원` : "연소득 없음(대출 0)") : null,
+      num("pIncome") != null ? (num("pIncome") > 0 ? `연소득 ${fmt(num("pIncome"))}만` : "연소득 없음(대출 0)") : null,
       adv ? "고급 가정 변경" : null,
     ]
       .filter(Boolean)
@@ -7806,7 +7813,7 @@
     {
       const ig = $("inGap");
       if (ig) {
-        ig.innerHTML = `<span class="ig-h">현금만, 입주까지</span>${[5, 7, 10].map((c) => `<a href="#planner" data-cashgo="${c}"><b>${c}억</b> ${fmt(HOOK_CASH[c].size)}곳</a>`).join("")}<span class="ig-n">입주까지 현금 기준 · 매수 대출 포함 · ${num("pIncome") != null ? `연소득 ${fmt(num("pIncome"))}만원 반영` : "연소득 미입력(잔금대출 최대 가정)"}${HOOK_MIN != null ? `<br>전세 끼고 사도 입주까지는 가장 적은 곳이 약 <b>${ZF.cash(HOOK_MIN)}</b>이에요` : ""}</span>`;
+        ig.innerHTML = `<span class="ig-h">현금만, 입주까지</span>${[5, 7, 10].map((c) => `<a href="#planner" data-cashgo="${c}"><b>${c}억</b> ${fmt(HOOK_CASH[c].size)}곳</a>`).join("")}<span class="ig-n">입주까지 현금 기준 · 매수 대출 포함 · ${num("pIncome") != null ? `연소득 ${fmt(num("pIncome"))}만 반영` : "연소득 미입력(잔금대출 최대 가정)"}${HOOK_MIN != null ? `<br>전세 끼고 사도 입주까지는 가장 적은 곳이 약 <b>${ZF.cash(HOOK_MIN)}</b>이에요` : ""}</span>`;
         ig.hidden = false;
       }
     }
@@ -8084,7 +8091,7 @@
         const hs = xs.map((o, i) => f(o, i));
         return hs.every(blank) ? "" : `<tr><th scope="row">${lab}</th>${hs.map((h, i) => cell(i, b, h)).join("")}</tr>`;
       };
-      table = `<p class="fv-base">비교 기준: ${gapMode() ? "전세 끼고 " : "현금 "}${ZF.cash(CASH)}${num("pIncome") != null ? ` · 연소득 ${fmt(num("pIncome"))}만원` : " · 연소득 미입력"} (계산기에 넣은 조건)</p>${84 + xs.length * 120 > 340 ? '<p class="fv-hint" aria-hidden="true">옆으로 밀어서 더 보기 →</p>' : ""}<div class="fv-tw"><table class="fv-t" style="min-width:${84 + xs.length * 120}px"><caption class="sr-only">관심 구역 나란히 보기</caption><thead><tr><th scope="col"><span class="sr-only">항목</span></th>${xs.map((o) => `<th scope="col"><button type="button" class="fv-open" data-open="${o.r.id}">${esc(shortName(o.r.n))}</button><small>${esc(o.r.g)} ${esc((o.r.bj || o.r.j || "").split(" ")[0])}</small></th>`).join("")}</tr></thead><tbody>\n      ${row("입주까지 현금", (o, i) => (cash[i] != null ? `<b>${ZF.cash(cash[i])}</b><small>${cash[i] <= CASH ? `내 돈 ${ZF.cash(CASH)}으로 가능` : `${ZF.cash(cash[i] - CASH)} 부족`}</small>` : '<span class="mut">계산 불가</span>'), bc)}\n      ${
+      table = `<p class="fv-base">비교 기준: ${gapMode() ? "전세 끼고 " : "현금 "}${ZF.cash(CASH)}${num("pIncome") != null ? ` · 연소득 ${fmt(num("pIncome"))}만` : " · 연소득 미입력"} (계산기에 넣은 조건)</p>${84 + xs.length * 120 > 340 ? '<p class="fv-hint" aria-hidden="true">옆으로 밀어서 더 보기 →</p>' : ""}<div class="fv-tw"><table class="fv-t" style="min-width:${84 + xs.length * 120}px"><caption class="sr-only">관심 구역 나란히 보기</caption><thead><tr><th scope="col"><span class="sr-only">항목</span></th>${xs.map((o) => `<th scope="col"><button type="button" class="fv-open" data-open="${o.r.id}">${esc(shortName(o.r.n))}</button><small>${esc(o.r.g)} ${esc((o.r.bj || o.r.j || "").split(" ")[0])}</small></th>`).join("")}</tr></thead><tbody>\n      ${row("입주까지 현금", (o, i) => (cash[i] != null ? `<b>${ZF.cash(cash[i])}</b><small>${cash[i] <= CASH ? `내 돈 ${ZF.cash(CASH)}으로 가능` : `${ZF.cash(cash[i] - CASH)} 부족`}</small>` : '<span class="mut">계산 불가</span>'), bc)}\n      ${
         gapMode()
           ? row("전세 끼고 지금 ①", (o) => {
               const g = gapOf(o.r);
@@ -8837,7 +8844,7 @@
       .slice(0, 12)
       .map((g) => {
         const ok = at(Math.round(12 * g.tR)) >= g.now + g.reloc - 1e-9 && at(Math.round(12 * g.tM)) >= g.total - 1e-9;
-        return `<tr><td data-l="구역"><button type="button" class="linklike" data-open="${g.r.id}">${esc(shortName(g.r.n))}</button><small>${esc(g.r.g)}</small></td><td data-l="지금 ①">${ZF.cash(g.now)}</td><td data-l="이주 ②">${g.reloc < 0.05 ? "추가 현금 없음" : `+${ZF.cash(g.reloc)}`}<small>${yrTxt(g.tR)}</small></td><td data-l="${LBL.cashToMoveIn} ③">${ZF.cash(g.total)}<small>${yrTxt(g.tM)}</small></td><td data-l="월 필요">${fmt(Math.ceil(need(g) / 10) * 10)}만원</td><td data-l="매달 ${fmt(Math.round(m * 1e4))}만" class="${ok ? "ok" : "no"}">${ok ? "제때 가능" : "부족"}</td></tr>`;
+        return `<tr><td data-l="구역"><button type="button" class="linklike" data-open="${g.r.id}">${esc(shortName(g.r.n))}</button><small>${esc(g.r.g)}</small></td><td data-l="지금 ①">${ZF.cash(g.now)}</td><td data-l="이주 ②">${g.reloc < 0.05 ? "추가 현금 없음" : `+${ZF.cash(g.reloc)}`}<small>${yrTxt(g.tR)}</small></td><td data-l="${LBL.cashToMoveIn} ③">${ZF.cash(g.total)}<small>${yrTxt(g.tM)}</small></td><td data-l="월 필요">${fmt(Math.ceil(need(g) / 10) * 10)}만</td><td data-l="매달 ${fmt(Math.round(m * 1e4))}만" class="${ok ? "ok" : "no"}">${ok ? "제때 가능" : "부족"}</td></tr>`;
       })
       .join("");
     return `<div class="gsv"><h3>전세 끼고 지금 ${ZF.cash(cash0)}으로 사면, 매달 ${fmt(Math.round(m * 1e4))}만 원으로 제때 모을 수 있을까?</h3>\n    <p class="sv-hook sm">${(() => {
