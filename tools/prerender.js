@@ -157,7 +157,6 @@ async function css(cssFile, out) {
       const page = await ctx.newPage();
       await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "load", timeout: 60000 });
       await page.waitForFunction(() => window.ZP_island && window.ZP_island.ready, null, { timeout: 20000 });
-      await page.addStyleTag({ url: "/b/" + path.basename(cssFile) });
       await wait(150);
       const widths = mob ? [320, 360, 412, 600, 800, 980] : [981, 1100, 1180, 1280, 1440, 1920];
       for (const vw of widths) {
@@ -205,7 +204,7 @@ async function css(cssFile, out) {
   const emit = (list, pfx) => list.map((r, i) => {
     const k = pfx + i;
     if (r.t != null) return keep.has(k) ? r.t : "";
-    if (r.kf) return keep.has(k) || list ? "" : "";
+    if (r.kf) return "";   // @keyframes는 아래에서 쓰인 이름만
     const inner = emit(r.c, k + ".");
     return inner ? `${r.p}{${inner}}` : "";
   }).join("");

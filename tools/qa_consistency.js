@@ -624,10 +624,11 @@ async function uiLane(browser, api, errs, shared) {
       if (over()) { skip("ui.deeplink", "도구 딥링크", "time budget"); break; }
       await loadHome(page, "#" + id); await page.waitForTimeout(700);
       const s = await page.evaluate((id) => {
-        const al = (window.ZP_ALIAS || {})[id], pane = document.getElementById(id);
+        const al = (window.ZP_ALIAS || {})[id];
         const sec = document.getElementById(al ? al[0] : id); if (!sec) return { missing: 1 };
         if (al) {
-          const tab = sec.querySelector(`[role="tab"][data-tab="${al[1]}"]`);
+          // 그 탭이 가리키는 칸(aria-controls) — #newTop처럼 칸이 다른 이름이어도. 탭이 없는 #saveTop은 그 칸 자체
+          const tab = sec.querySelector(`[role="tab"][data-tab="${al[1]}"]`), pane = document.getElementById(tab ? tab.getAttribute("aria-controls") : id);
           const pr = pane && pane.getBoundingClientRect();
           return { alias: al, hash: location.hash, on: sec.classList.contains("s-on"), paneVis: !!(pane && pane.offsetParent && pr.height > 40 && pane.innerText.trim().length > 40), tabSel: tab ? tab.getAttribute("aria-selected") === "true" : al[1] === "save", inView: pr ? pr.top < innerHeight && pr.bottom > 0 : false, txt: pane ? pane.innerText : "" };
         }

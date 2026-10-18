@@ -126,25 +126,64 @@
         .join("")}</tbody></table></div></div>`;
     }
 
-    // ---------- 경매·공매 ----------
+    // ---------- 경매 물건(법원경매정보 · tools/auction.js → tools/auction_match.py → data/auction.json) ----------
+    // 리포트를 열 때 한 번 받아 둔다(작은 파일). 구역 경계 안 필지와 지번이 맞는 물건만.
+    let AUC = null, AUCP = null;
+    const loadAuc = () => AUCP || (AUCP = fetch(`data/auction.json?v=${dv("auction")}`).then((x) => (x.ok ? x.json() : null)).catch(() => null).then((d) => (AUC = d && typeof d === "object" ? d : { ok: false, byZone: {} })));
+    const aucOf = (r) => (AUC && AUC.ok && !(AUC.miss || []).includes(r.g) && AUC.byZone && AUC.byZone[r.id]) || [];
+    const aucWon = (v) => { if (v == null || !isFinite(v)) return "–"; const e = Math.floor(v / 1e8), m = Math.round((v % 1e8) / 1e4); return e ? `${e}억${m ? ` ${m.toLocaleString("ko-KR")}만` : ""}원` : `${m.toLocaleString("ko-KR")}만원`; };
+    const aucDay = (d) => { if (!d) return "–"; const t = new Date(d + "T00:00:00+09:00"); return `${d.replaceAll("-", ".")} (${"일월화수목금토"[t.getDay()]})`; };
+    const aucCourt = (c) => String(c || "").replace(/^서울(.+)지방법원$/, "서울$1지법");
+    function aucItem(o) {
+      const fail = o.fail == null ? "" : o.fail > 0 ? `<span class="auc-f n">유찰 ${o.fail}회</span>` : `<span class="auc-f">신건</span>`;
+      const row = (k, v) => (v ? `<div><dt>${k}</dt><dd>${v}</dd></div>` : "");
+      return `<li class="auc-i"><div class="auc-ih"><b class="mono">${esc(o.cs)}${o.no ? `<span class="auc-no">물건 ${o.no}</span>` : ""}</b><span class="auc-ct">${esc(aucCourt(o.court))}${o.dept ? ` ${esc(o.dept)}` : ""}</span>${fail}</div>
+        <div class="auc-pr"><div><span>최저 입찰가</span><b>${aucWon(o.min)}</b>${o.rate != null ? `<em>감정가의 ${o.rate}%</em>` : ""}</div><div><span>감정가</span><b>${aucWon(o.appr)}</b></div><div><span>매각기일</span><b>${aucDay(o.date)}</b>${o.time ? `<em>${esc(o.time)}</em>` : ""}</div></div>
+        <dl class="auc-dl">${row("용도", esc(o.use || ""))}${row("소재지", esc(o.addr || "") + (o.bld ? ` <span class="dim">${esc(o.bld)}</span>` : ""))}${row("면적", esc(o.area || ""))}${row("비고", esc(o.note || ""))}</dl></li>`;
+    }
+    function aucBody(r) {
+      const asOf = AUC && AUC.asOf ? String(AUC.asOf).replaceAll("-", ".") : "";
+      if (!AUC) return `<p class="auc-st">경매 물건 불러오는 중…</p>`;
+      if (!AUC.ok || (AUC.miss || []).includes(r.g)) return `<p class="auc-st na">경매 물건 정보를 아직 못 가져왔어요${asOf && AUC.ok ? ` (기준 ${asOf})` : ""}</p>`;
+      const xs = aucOf(r);
+      if (!xs.length) return `<p class="auc-st">지금 이 구역 안에 진행 중인 경매 물건이 없어요 (기준 ${asOf})</p>`;
+      return `<ul class="auc-l">${xs.map(aucItem).join("")}</ul>`;
+    }
     function auctionHTML(r) {
-      const dong = (r.bj || r.j || "").split(" ")[0];
-      const addr = `서울특별시 ${r.g} ${dong}`.trim();
-      return `<div class="sect auc"><h3>경매·공매 <small>법원경매·온비드에서 이 동네 물건 찾기</small></h3>
-        <div class="auc-addr"><span>검색할 주소</span><b id="aucAddr">${esc(addr)}</b><button type="button" class="btn secondary sm" id="aucCopy">복사</button><span class="share-fb" id="aucFb" role="status"></span></div>
-        <div class="auc-links"><a class="btn secondary sm" href="https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ151F00.xml" target="_blank" rel="noopener">법원경매정보 물건 검색 ↗</a><a class="btn secondary sm" href="https://www.onbid.co.kr/op/cta/cltrdtl/collateralRealEstateList.do" target="_blank" rel="noopener">온비드 부동산 공매 ↗</a></div>
-        <p class="note">두 사이트 모두 주소로 바로 이어지는 링크를 공개하지 않아, 위 주소를 복사해 '소재지'에 넣어 찾으세요. 경매로 산 물건도 권리산정기준일·조합원 지위 양도 제한이 똑같이 적용되고, 현금청산 대상이면 입주권이 없어요.</p></div>`;
+      loadAuc();
+      const asOf = AUC && AUC.asOf ? ` · ${String(AUC.asOf).replaceAll("-", ".")} 기준` : "";
+      const n = aucOf(r).length;
+      return `<div class="sect auc" id="aucSec" data-id="${esc(r.id)}"><h3>경매 물건 ${n ? `<span class="auc-n">${n}건</span>` : ""}<small>법원경매정보 · 구역 경계 안 필지${asOf}</small></h3>
+        <div class="auc-b" aria-live="polite">${aucBody(r)}</div>
+        <p class="note">경매로 사도 권리산정기준일·조합원 지위 양도 제한은 똑같이 적용되고, 현금청산 대상이면 입주권이 없어요.</p></div>`;
     }
     function bindAuction() {
-      const b = $("aucCopy");
-      if (!b) return;
-      b.onclick = () => {
-        const t = $("aucAddr").textContent, fb = $("aucFb");
-        const ok = () => { fb.textContent = "복사했어요"; setTimeout(() => (fb.textContent = ""), 1800); };
-        try { navigator.clipboard.writeText(t).then(ok, () => selectText()); } catch (e) { selectText(); }
-        function selectText() { const s = getSelection(), rg = document.createRange(); rg.selectNodeContents($("aucAddr")); s.removeAllRanges(); s.addRange(rg); fb.textContent = "선택했어요 · Ctrl+C로 복사"; }
-      };
+      const s = $("aucSec");
+      if (!s || AUC) return;
+      loadAuc().then(() => { const s2 = $("aucSec"), r = byId[s2 && s2.dataset.id]; if (s2 && r) s2.outerHTML = auctionHTML(r); });
     }
+    // 리포트 머리에 '경매 N건' 칩(물건이 있을 때만) → 누르면 호재·매물 탭의 경매 물건으로
+    try {
+      const _rrA = renderReport;
+      renderReport = function () {
+        const x = _rrA.apply(this, arguments);
+        const r0 = cur;
+        loadAuc().then(() => {
+          if (cur !== r0 || !r0) return;
+          const h = document.querySelector("#report .rep-head");
+          const n = aucOf(r0).length;
+          if (!h || !n || h.querySelector(".auc-chip")) return;
+          const t = h.querySelector(".rep-acts");
+          const b = `<button type="button" class="auc-chip" title="이 구역 안 진행 중인 법원경매 물건 ${n}건 보기">경매 ${n}건</button>`;
+          if (t) t.insertAdjacentHTML("beforebegin", `<div class="auc-cw">${b}</div>`); else h.insertAdjacentHTML("beforeend", `<div class="auc-cw">${b}</div>`);
+          h.querySelector(".auc-chip").onclick = () => {
+            const go = () => { const s = $("aucSec"); if (s) s.scrollIntoView({ behavior: smooth(), block: "start" }); };
+            if (curTab !== "near" && $("tab-near")) { setTab("near"); requestAnimationFrame(go); } else go();
+          };
+        });
+        return x;
+      };
+    } catch (e) {}
 
     // ---------- 주소로 물건 확인 ----------
     function addrHTML(r) {
