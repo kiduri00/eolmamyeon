@@ -74,7 +74,7 @@ const SIMPLE = (() => {
   // '입주 빠른순'일 때 줄마다 예상 입주(계산용 추정) — 정렬 기준이 눈에 보이게
   const etaTag = (r) => { try { const t = etaShow(r); return /\d/.test(t) ? ` · <em class="s-tag eta">입주 ${esc(t)}</em>` : ` · <em>입주 ${esc(t)}</em>`; } catch (e) { return ""; } };
   // '입주 때 시세 차이 큰 순'일 때 줄마다 그 값(정렬 기준이 보이게)
-  const gainTag = (r) => { const g = gainOf(r); return g == null ? " · <em>시세 차이 계산 못 함</em>" : ` · <em class="s-tag">입주 때 시세 차이 ${g > 0 ? "+" : ""}${esc(eokS(g))}</em>`; };
+  const gainTag = (r) => { const g = gainOf(r); return g == null ? " · <em>시세 차이 계산 못 함</em>" : ` · <em class="s-tag">시세 차이 ${g > 0 ? "+" : ""}${esc(eokS(g))}</em>`; };
   const NA_WHY = "입주 시점·신축 시세 자료가 부족해요";
   const NA_L = "입주 비용 자료 부족";
   function rows() {
