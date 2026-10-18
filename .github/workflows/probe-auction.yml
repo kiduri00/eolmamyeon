@@ -12,8 +12,8 @@ jobs:
         with:
           node-version: "20"
       - run: npm install --no-save playwright@1.56.0 && npx playwright install --with-deps chromium
-      - run: mkdir -p out && AUCTION_SHOTS=out AUCTION_TIMEOUT=2700 node tools/auction.js out/auction_raw.json
-      - run: node -e "const o=require('./out/auction_raw.json');console.log(JSON.stringify({ok:o.ok,courts:o.courts,n:o.items.length,first:o.items.slice(0,3)},null,1))"
+      - run: mkdir -p out && AUCTION_SHOTS=out AUCTION_TIMEOUT=2400 AUCTION_BUDGET=300 node tools/auction.js out/auction_raw.json
+      - run: node -e "const o=require('./out/auction_raw.json');console.log(JSON.stringify({ok:o.ok,err:o.err,used:o.used,courts:o.courts,n:o.items.length},null,1))"
       - uses: actions/upload-artifact@v4
         with:
           name: auction
