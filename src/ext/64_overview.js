@@ -127,7 +127,7 @@ const OVX = (() => {
     const pre = !done && (i < 0 || !nz(sn).startsWith(nz(T[i][0]))) ? `<span class="ov-tl-now">지금 ${esc(sn)}</span>` : "";
     // 앞 칸 날짜가 뒤 칸보다 늦으면 변경 지정·고시일로 본다(최초 날짜는 더 이름) → '(변경)' 표시
     const ds = T.map(([k]) => stepDate(r, k));
-    const li = T.map(([k], n) => { const d = ds[n], chg = d && ds.slice(n + 1).some((x, j) => x && x < d && !(k === "구역지정" && T[n + 1 + j][0] === "추진위")), st = n < i || (n === i && done) ? "dn" : n === i ? "on" : ""; return `<li class="${st}"${n === i && !done ? ' aria-current="step"' : ""}${chg ? ' title="변경 지정·고시일로 보여요(최초 날짜는 더 이름)"' : ""}><i></i><b>${k === "시행자지정" ? "시행자" : k}</b><small>${d ? esc(d.slice(2, 7).replace("-", ".")) + (chg ? '<br><em class="ov-chg">(변경)</em>' : "") : n === i && !done ? "지금" : n < i ? "–" : ""}</small></li>`; }).join("");
+    const li = T.map(([k], n) => { const d = ds[n], chg = d && ds.slice(n + 1).some((x, j) => x && x < d && !(k === "구역지정" && T[n + 1 + j][0] === "추진위")), st = n < i || (n === i && done) ? "dn" : n === i ? "on" : ""; return `<li class="${st}"${n === i && !done ? ' aria-current="step"' : ""}${chg ? ' title="변경 지정·고시일로 보여요(최초 날짜는 더 이름)"' : ""}><i></i><b>${k === "시행자지정" ? "시행자" : k}</b><small>${d ? esc(d.slice(2, 7).replace("-", ".")) + (chg ? '<br><em class="ov-chg">(변경)</em>' : "") : n === i && !done ? "지금" : n < i ? "날짜 미상" : ""}</small></li>`; }).join("");
     const stl = r.stale && !done ? `<span class="ov-tl-now ov-stl" title="오랫동안 새 인가·공고 기록이 없어요">진행 확인 필요</span>` : "";
     return `<div class="ov-c ov-tl"><h3>진행 단계 ${pre}${stl}<em class="ov-pv" hidden></em></h3><div class="ov-tl-sc" tabindex="0" role="group" aria-label="진행 단계 ${T.length}칸${i >= 0 ? ` · 지금 ${esc(sn)}` : ""}"><ol style="--n:${T.length}">${li}</ol></div></div>`;
   }

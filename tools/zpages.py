@@ -195,7 +195,7 @@ def page(r):
     stl = r.get('stale')
     if stl: lede += f" 다만 {esc(stl['why'])}. 준공됐는지 멈췄는지 자료로 확인되지 않아 준공 가능성과 입주 시점은 싣지 않았어요."
     elif c.get('p10') is not None: lede += f" 서울 사업장 기록으로 낸 10년 안 준공 가능성은 {'1% 미만이' if c['p10'] < 0.01 else f"약 {min(97, round(c['p10'] * 100))}%"}예요(예측이 아닌 통계)."
-    o.append(f'<p class="lede">{lede} 아래 숫자는 무주택·84㎡ 기본 가정이고, 첫 화면 계산기와 같은 <b>전세 끼고 사는</b> 기준이에요. 내 조건은 <a href="../#{rid}">계산기에서 이 구역 열기</a>로 바꿔 볼 수 있어요.</p>')
+    o.append(f'<p class="lede">{lede} 아래 숫자는 무주택·84㎡ 기본 가정이고, 첫 화면과 같은 <b>전세 끼고 사는</b> 기준이에요. 내 조건은 <a href="../#{rid}">입주 계산에서 열기</a>로 바꿔 볼 수 있어요.</p>')
     k = []
     k.append(('현재 단계', esc(stage), f'{sd} 인가·고시' if sd else ('진행 확인 필요' if stl else '아직 구역지정 전이라 인가일이 없어요' if r.get('s', 0) <= 1 else f'이 단계 인가일 기록 없음 · 직전 {prevd[0]} {prevd[1][:7].replace("-", ".")}' if prevd else '이 단계 인가일 기록 없음')))
     if c.get('gapOk') and c.get('gapTotal') is not None:   # 첫 화면 기본 모드(전세 끼고)와 같은 숫자
@@ -371,7 +371,7 @@ def hand_live(r, h):
     parts = [f"지금 <strong>{esc(c.get('stage') or r.get('sr') or '')}</strong> 단계"]
     if c.get('gapOk') and c.get('gapTotal') is not None: parts.append(f"{LBL['gap']} {LBL['cashToMoveIn']} <strong>{eok(c['gapTotal'])}</strong> (지금 {eok(c.get('gapNow'))})")
     elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk': parts.append(f"현금 매수 · {LBL['cashToMoveIn']} <strong>{eok(c['need'])}</strong>")
-    box = f'<div class="hbox" id="zp-live"><b>최신 숫자 · 데이터 기준 {UPD}</b>{" · ".join(parts)} · 기본 가정 · <a href="../#{rid}">계산기에서 내 조건으로</a></div>'
+    box = f'<div class="hbox" id="zp-live"><b>최신 숫자 · 데이터 기준 {UPD}</b>{" · ".join(parts)} · 기본 가정 · <a href="../#{rid}">입주 계산에서 열기</a></div>'
     # 앱 상세와 같은 3숫자 상자 + 신고 링크(표시 주석 사이 · 매일 다시 씀)
     kb = '<!--zk-->' + key3_html(r, c, (P.get(rid) or {}).get('dt') or {}, cap=True) + '<!--/zk-->'
     if '<!--zk-->' in h:
@@ -464,7 +464,7 @@ def guPage(g, L):
     ok = [x for x in L if c(x).get('gapOk') and c(x).get('gapNow') is not None and not x.get('lc') and x.get('tag') != 'mk']   # 참고값(lc)·시장 정비는 '가장 적은 돈' 예시에서 뺀다(사이트 목록과 같음)
     cheap = sorted(ok, key=lambda x: c(x)['gapNow'])[:3]
     st = collections.Counter(c(x).get('stage') or x.get('sr') or '' for x in L)
-    title = f'{g} 재개발·재건축 {len(L)}곳 · 진행 단계와 필요한 돈 | 집핀 - 서울 재개발 지도'
+    title = f'{g} 재개발·재건축 {len(L)}곳 · 진행 단계와 필요한 돈 | 집핀'
     desc = f'{g}에서 진행 중인 정비사업 {len(L)}곳. ' + (f'전세 끼고 가장 적은 돈으로 갈 수 있는 곳은 {short(cheap[0]["n"])}(지금 {eok(c(cheap[0])["gapNow"])}). ' if cheap else '') + f'데이터 기준 {UPD}.'
     gc = next((x.get('c') for x in (GEO.get('gu') or []) if x['n'] == g), None)
     area = {"@type": "AdministrativeArea", "name": f"서울특별시 {g}", "url": url, "address": {"@type": "PostalAddress", "addressCountry": "KR", "addressRegion": "서울특별시", "addressLocality": g}}
@@ -484,17 +484,38 @@ def guPage(g, L):
     def tot(x):   # '전세 끼고 지금' 칸과 같은 방식의 입주까지 현금(앱 5.8억 = 갭 총액) · 전세 못 끼면 현금 매수 총액임을 표시
         v = c(x)
         if v.get('gapOk') and v.get('gapTotal') is not None: return eok(v['gapTotal'])
-        if v.get('cashOk') and v.get('need') is not None: return f'{eok(v["need"])}<br><small>현금 매수 시</small>'
+        if v.get('cashOk') and v.get('need') is not None: return f'{eok(v["need"])} <small>현금 매수 시</small>'
         return '–'
-    rows = ''.join(f'<tr><td><a href="{x["id"]}"{(' title="' + esc(x["n"].strip()) + '"') if short(x["n"]) != x["n"].strip() else ''}>{esc(short(x["n"]))}</a><br><small>{esc(KIND.get(x["k"], x["k"]))} · {esc(c(x).get("stage") or x.get("sr") or "")}</small></td><td class="n">{eok(c(x).get("gapNow")) if c(x).get("gapOk") else ('<small>' + gapWhy(c(x))[0] + ('<sup>*</sup>' if gapWhy(c(x))[0] == '토허제' else '') + '</small>' if gapWhy(c(x)) else "–")}</td><td class="n">{tot(x)}</td></tr>' for x in sorted(L, key=rowkey))
-    o.append(f'<div class="tw"><table class="t" style="min-width:0;width:100%"><thead><tr><th>구역</th><th class="n">전세 끼고 지금</th><th class="n">입주까지 현금</th></tr></thead><tbody>{rows}</tbody></table></div>')
+    def nowT(x):
+        v = c(x)
+        if v.get('gapOk'): return eok(v.get('gapNow'))
+        w = gapWhy(v)
+        return None
+    def whyT(x):
+        w = gapWhy(c(x))
+        return (w[0] + ('<sup>*</sup>' if w[0] == '토허제' else '')) if w else '자료 부족'
+    # 앱 목록과 같은 줄(밑줄 없는 한 줄 버튼): 왼쪽 이름 16/700 · 단계 칩 / 오른쪽 '지금 X' 위 '입주까지 현금 Y'
+    def grow(x):
+        nm = short(x["n"]); tt = (' title="' + esc(x["n"].strip()) + '"') if nm != x["n"].strip() else ''
+        stg = esc(c(x).get("stage") or x.get("sr") or "")
+        return (f'<li class="gr"><a href="{x["id"]}"{tt}><span class="gr-l"><b>{esc(nm)}</b><span class="gr-s">{f"<em>{stg}</em>" if stg else ""}{esc(KIND.get(x["k"], x["k"]))}</span></span>'
+                f'<span class="gr-r">{f'<span class="gr-v"><i>지금</i> <b class="gr-now">{nowT(x)}</b></span>' if nowT(x) else f'<span class="gr-v gr-na"><i>전세 끼고</i> <b class="gr-now">{whyT(x)}</b></span>'}<small>입주까지 현금 <b class="gr-tot">{tot(x)}</b></small></span></a></li>')
+    rows = ''.join(grow(x) for x in sorted(L, key=rowkey))
+    GCSS = ('<style>.gl{list-style:none;margin:12px 0;padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden}'
+            '.gl li+li{border-top:1px solid var(--border)}.gl a{display:flex;align-items:center;gap:12px;min-height:72px;padding:10px 14px 10px 16px;color:var(--text-1);text-decoration:none!important}'
+            '.gl a:hover{background:var(--surface-2)}.gr-l{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:5px}.gr-l>b{font-size:16px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+            '.gr-s{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-3);white-space:nowrap;overflow:hidden}.gr-s em{font-style:normal;flex:none;padding:2px 7px;border-radius:6px;background:var(--surface-2);color:var(--text-2);font-weight:600;font-size:12px}'
+            '.gr-r{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}.gr-v i{font-style:normal;font-size:12px;color:var(--text-2)}.gr-v b{font-size:18px;font-weight:800;color:var(--brand,#1f3a87);font-variant-numeric:tabular-nums}'
+            '.gr-na b{font-size:13px!important;font-weight:600!important;color:var(--text-2)!important}main p a,.eyebrow a{text-decoration:none!important;color:var(--brand,#1f3a87);font-weight:600}'
+            '.gr-r small{font-size:12px;color:var(--text-2)}.gr-r small b{font-weight:700;color:var(--text-1)}.gr-r small small{font-size:11px;color:var(--text-3)}</style>')
+    o.append(f'{GCSS}<ol class="gl" aria-label="{esc(g)} 구역 목록 · 전세 끼고 지금 필요한 돈 적은 순">{rows}</ol>')
     o.append('<p class="meta">입주까지 현금(입주 잔금대출 제외): 전세 끼고 갈 수 있는 곳은 <b>전세 끼고 산 경우</b>(앱 첫 화면과 같은 값), 전세를 낄 수 없는 곳은 <b>현금 매수 시</b> 금액이에요.' + (' <sup>*</sup><b>토허제</b> = 토지거래허가구역. 사면 2년 동안 직접 살아야 해서 전세를 끼고 살 수 없어요.' if any((gapWhy(c(x)) or ('',))[0] == '토허제' for x in L) else '') + '</p>')
     why = collections.Counter(gapWhy(c(x))[0] for x in L if not c(x).get('gapOk') and gapWhy(c(x)))
     EXP = {'토허제': '토지거래허가구역이라 사면 2년 실거주해야 해서 전세를 끼고 살 수 없어요', '세입자 없음': '이주·철거가 시작돼 전세를 낄 세입자가 없어요(입주권으로 사야 해요)',
            '입주권 없음': '지금 사면 입주권이 안 나오는 시점이에요(조합설립인가 등 이후 매수분)', '판정 보류': '입주권이 나오는지 판단할 자료가 부족해요', '계산 안 함': '상가·업무 중심 사업 등 아파트 입주권 계산 대상이 아니에요'}
     if why: o.append('<p class="meta">전세 끼고 칸이 비어 있는 이유: ' + ' · '.join(f'<b>{k}</b>({v}곳) {EXP[k]}' for k, v in why.most_common()) + '. –는 매수가·전세 자료가 부족한 곳이에요.</p>')
     o.append(f'<p class="meta">새 소식 받기: <a href="../feed/gu/{esc(g)}.xml">{esc(g)} RSS</a></p>')
-    o.append('<p class="note">무주택·84㎡·시세 상승 0% 같은 기본 가정으로 계산한 추정이에요. 내 조건은 <a href="../">계산기</a>에서 바꿔 볼 수 있어요. 투자 권유가 아니에요.</p>')
+    o.append('<p class="note">무주택·84㎡·시세 상승 0% 같은 기본 가정으로 계산한 추정이에요. 내 조건은 <a href="../">찾기(첫 화면)</a>에서 바꿔 볼 수 있어요. 투자 권유가 아니에요.</p>')
     o.append(FOOT.format(upd=UPD))
     return ''.join(o)
 for g in sorted(byg): open(os.path.join(GD, g + '.html'), 'w', encoding='utf-8').write(guPage(g, byg[g]))
@@ -505,7 +526,7 @@ def guIndex():
     ld = json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": "서울 자치구별 정비사업", "url": url, "inLanguage": "ko",
                      "mainEntity": {"@type": "ItemList", "numberOfItems": len(byg), "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": g, "url": f"{SITE}/gu/{g}"} for i, g in enumerate(sorted(byg))]}},
                      crumbs(("집핀", SITE + "/"), ("자치구별", url))]}, ensure_ascii=False)
-    title = f'서울 자치구별 재개발·재건축 {len(byg)}개 구 | 집핀 - 서울 재개발 지도'
+    title = f'서울 자치구별 재개발·재건축 {len(byg)}개 구 | 집핀'
     desc = f'서울 {len(byg)}개 자치구의 진행 중 정비사업 {len(R)}곳을 구별로 모았어요. 구를 누르면 구역마다 진행 단계와 필요한 돈을 볼 수 있어요. 데이터 기준 {UPD}.'
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace('<meta name="emr-auto" content="1">\n', '').replace(' aria-current="page"', '').replace('<base href="/z/">', '<base href="/gu/">')]
     o.append(f'<p class="eyebrow">자치구별 페이지 · 데이터 기준 {UPD}</p><h1>서울 자치구별 재개발·재건축</h1><p class="lede">서울에서 진행 중인 정비사업 {len(R)}곳을 {len(byg)}개 구로 나눴어요. 구를 고르면 그 구의 구역을 전세 끼고 지금 필요한 돈 순으로 볼 수 있어요.</p>')
@@ -515,7 +536,7 @@ def guIndex():
         sub = f"{len(L)}곳" + (f" · 전세 끼고 최소 {eok(min(ok))}" if ok else '')
         return f'<a class="zl" href="{esc(g)}">{esc(g)}<small>{sub}</small></a>'
     o.append('<div class="grid2">' + ''.join(card(g) for g in sorted(byg)) + '</div>')
-    o.append('<p class="meta"><a href="../z/">구역별 페이지 전체</a> · <a href="../">계산기에서 내 돈으로 보기</a></p>')
+    o.append('<p class="meta"><a href="../z/">구역별 페이지 전체</a> · <a href="../">찾기에서 내 돈으로 보기</a></p>')
     o.append(FOOT.format(upd=UPD))
     return ''.join(o).replace('href="../gu/', 'href="')
 open(os.path.join(GD, 'index.html'), 'w', encoding='utf-8').write(guIndex())

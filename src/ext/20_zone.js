@@ -251,9 +251,9 @@
     let aucMapB = null;
     function aucMapLayers(map) {
       if (!map.isStyleLoaded || !map.getStyle()) return;
-      const dk = aucDark(), C = dk ? "#FF8A4C" : "#E8590C", W = dk ? "#11161D" : "#ffffff";
+      const dk = aucDark(), C = dk ? "#5b7fe6" : "#14275E", W = dk ? "#11161D" : "#ffffff";
       if (!map.getSource("auc")) map.addSource("auc", { type: "geojson", data: { type: "FeatureCollection", features: aucFeatures() } });
-      const L = (o) => { if (!map.getLayer(o.id)) map.addLayer(o); };
+      const L = (o) => { if (!map.getLayer(o.id)) map.addLayer(o, undefined, { validate: false }); };
       L({ id: "auc-o", type: "circle", source: "auc", minzoom: 14, filter: ["!=", ["get", "sel"], 1], paint: { "circle-radius": 4.5, "circle-color": C, "circle-stroke-color": W, "circle-stroke-width": 1.5, "circle-opacity": ["case", ["==", ["get", "c"], 1], 0.95, 0.45], "circle-stroke-opacity": ["case", ["==", ["get", "c"], 1], 1, 0.5] } });
       L({ id: "auc-s", type: "circle", source: "auc", filter: ["==", ["get", "sel"], 1], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, ["case", [">", ["length", ["get", "t"]], 2], 9, 6], 15, ["case", [">", ["length", ["get", "t"]], 2], 13, 9]], "circle-color": C, "circle-stroke-color": W, "circle-stroke-width": 2, "circle-opacity": ["case", ["==", ["get", "c"], 1], 1, 0.55] } });
       L({ id: "auc-sn", type: "symbol", source: "auc", filter: ["all", ["==", ["get", "sel"], 1], [">", ["get", "n"], 0]], layout: { "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 11], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#ffffff" } });
@@ -429,7 +429,10 @@
       const per = h ? `${HDB[h.b]} 3.3㎡당` : "";
       const big = [];
       // 표본을 이름에 박는다: 위 머리 큰 숫자(매수가 표본 · 주변 300m 등)와 다른 표본이라 같은 '대지 3.3㎡당'이 두 값으로 보이지 않게
-      if (h) big.push(`<div class="big hl"><span>${per} · ${h.n === 1 || h.w === 0 ? "구역 안 거래 1건" : `구역 안 ${fmt(h.n)}건 가운데 값`}</span><b>${eok(h.u)}</b><small>${hdWin(h)} · ${esc(ymd2(h.from))}${h.from !== h.to ? "~" + esc(ymd2(h.to)) : ""}${h.st ? ' · <em class="flag">오래된 거래</em>' : ""}${h.xo ? ` · 시세와 크게 다른 ${h.xo}건 제외` : ""}${h.xn ? ` · 2016년 이후 신축·대지 10㎡ 미만 ${h.xn}건 제외` : ""}</small></div>`);
+      // 18차: 위 '실거래' 머리(매수가 표본)가 큰 숫자 하나 — 구역 안 거래 기준 3.3㎡당은 '다른 기준 보기'에 접어 둔다(큰 숫자 둘 X)
+      let S0 = null; try { S0 = ZF.sample(r); } catch (e) {}
+      const mainS = !!(S0 && S0.n && S0.med > 0), hb = [];
+      if (h) (mainS && h.b === "v" ? hb : big).push(`<div class="big hl"><span>${per} · ${h.n === 1 || h.w === 0 ? "구역 안 거래 1건" : `구역 안 ${fmt(h.n)}건 가운데 값`}</span><b>${eok(h.u)}</b><small>${hdWin(h)} · ${esc(ymd2(h.from))}${h.from !== h.to ? "~" + esc(ymd2(h.to)) : ""}${h.st ? ' · <em class="flag">오래된 거래</em>' : ""}${h.xo ? ` · 시세와 크게 다른 ${h.xo}건 제외` : ""}${h.xn ? ` · 2016년 이후 신축·대지 10㎡ 미만 ${h.xn}건 제외` : ""}</small></div>`);
       if (h && h.b !== "v") big.push(`<div class="big"><span>${h.b === "i" ? "입주권" : "아파트"} 거래가 가운데 값</span><b>${eok(h.p)}</b><small>같은 ${fmt(h.n)}건 · 전용 ${h.pa}㎡ 가운데</small></div>`);
       else if (t.med) big.push(`<div class="big"><span>구축 빌라 매매 가운데 값</span><b>${eok(t.med)}</b><small>2015년 이전 준공 빌라 최근 ${t.nwin || 18}개월 ${fmt(t.no)}건 · 전용 ${t.ar}㎡ · 대지 ${t.ld}㎡</small></div>`);
       if (t.jm) big.push(`<div class="big"><span>빌라 전세 가운데 값</span><b>${eok(t.jm)}</b><small>${t.jy ? `${t.jy[0] === t.jy[1] ? t.jy[0] : t.jy[0] + "~" + t.jy[1]}년 준공(매매 표본과 같은 연식) ` : ""}전세 ${fmt(t.jn)}건 · 임대 ${t.ja}㎡${t.jr ? ` · 전세가율 ${Math.round(t.jr * 100)}%` : t.jr2 ? ` · 전세가율 약 ${Math.round(t.jr2 * 100)}%` : ""}${(() => {
@@ -499,6 +502,7 @@
       p.innerHTML = `
         ${h || S.length ? "" : noTxHTML(r, t, z) + secN}
         ${big.length ? `<div class="bigrow${big.length >= 2 ? " b3" : ""}">${big.join("")}</div>` : ""}
+        ${hb.length ? `<details class="sect ov-alt tx-alt"><summary><h3>다른 기준 보기 · 구역 안 거래 ${h.n === 1 || h.w === 0 ? "1건" : fmt(h.n) + "건"} 3.3㎡당 <small>위 큰 숫자(매수가 표본)와 기준이 달라요</small></h3></summary><div class="bigrow">${hb.join("")}</div></details>` : ""}
         ${h && h.st ? `<p class="note warnbox"><b>오래된 거래</b> 위 값은 ${esc(ymd(h.to))} 거래 1건이에요. 1년 넘게 같은 기준 거래가 없어 지금 시세와 다를 수 있어요.</p>` : ""}
         ${doneI ? `<p class="note"><b>준공한 단지예요</b> 입주는 끝났지만 이전고시·소유권 보존등기 전이라 실거래 신고상 '입주권'으로 올라와요.</p>` : ""}
         ${calcNote}
@@ -569,7 +573,9 @@
       _req(r);
       const p = $("pane");
       const first = p.querySelector("p.note");
-      const h = rightsHTML(r) + addrHTML(r);
+      // 규제 요약 목록(.dg-l)에 이미 '권리산정기준일' 줄이 있으면 같은 상자를 또 붙이지 않는다(일정 탭에는 그대로)
+      const dupRd = [...p.querySelectorAll(".dg-l li b")].some((b) => /권리산정기준일/.test(b.textContent));
+      const h = (dupRd ? "" : rightsHTML(r)) + addrHTML(r);
       if (first) first.insertAdjacentHTML("afterend", h); else p.insertAdjacentHTML("afterbegin", h);
       geoReady();
       bindAddr(r);

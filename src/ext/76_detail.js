@@ -219,10 +219,9 @@ const DTL = (() => {
       <h3 id="dtRepT">이 숫자가 틀렸어요</h3><p class="dt-rs-z">${esc(shortName(r.n))} · 구역 ID <b>${esc(r.id)}</b> · ${asOf()} 기준</p>
       <fieldset class="dt-rs-r"><legend>어디가 틀렸나요</legend>${REASONS.map(([k, t, d], i) => `<label><input type="radio" name="dtWhy" value="${k}"${i ? "" : " checked"}><span><b>${t}</b><small>${d}</small></span></label>`).join("")}</fieldset>
       <label class="dt-rs-t"><span>무엇이 다른지 적어 주세요 <small>(안 적어도 돼요)</small></span><textarea id="dtRepTx" rows="3" maxlength="600" placeholder="예: 최근 매물은 1.4억이에요"></textarea></label>
-      <a class="btn primary dt-rs-go" id="dtRepGo" href="#">메일로 보내기</a>
       <p class="dt-rs-ok" id="dtRepOk" role="status" hidden><b>고마워요. 확인 후 반영할게요</b><span>답은 보내 주신 메일 주소로 드려요.</span></p>
       <div class="dt-rs-ad"><label for="dtRepAd">메일 앱이 안 열리면 이 주소로 보내 주세요</label><div><input id="dtRepAd" readonly value="${MAIL}"><button type="button" class="btn secondary sm" id="dtRepCp">주소 복사</button></div></div>
-      <button type="button" class="btn ghost dt-rs-x" data-dtx>닫기</button></div>`;
+      <div class="dt-rs-ft"><button type="button" class="btn secondary dt-rs-x" data-dtx>닫기</button><a class="btn primary dt-rs-go" id="dtRepGo" href="#">메일로 보내기</a></div></div>`;
     document.body.appendChild(s);
     document.documentElement.classList.add("dt-rs-on");
     const go = $("dtRepGo"), tx = $("dtRepTx");

@@ -104,6 +104,11 @@
     -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo",
     "Noto Sans KR", "Malgun Gothic", sans-serif;
 }
+/* 웹글꼴 조각이 다 오기 전(boot.js가 html.fo를 붙이기 전)은 대체 글꼴만 — 조각이 올 때마다 화면을 다시 짜지 않게(18차 성능) */
+:root:not(.fo) {
+  --font: "Pretendard Fallback", -apple-system, BlinkMacSystemFont, system-ui,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+}
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;

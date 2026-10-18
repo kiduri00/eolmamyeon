@@ -116,9 +116,11 @@ const PINS = (() => {
     // 꽂을 때와 지금 방식이 다르면 '꽂을 때'는 그 방식 값끼리 비교(라벨에 방식 표시)
     // 방식이 다르면: '전세 3.2→2.4억'(꽂을 때 방식 값끼리)
     const then = salt ? `<span class="pn-alt">${sm === "gap" ? "전세" : "대출"}</span> ${sp.now != null ? ZF.cash(sp.now) : "–"}→<b class="pn-cmpv${d == null ? "" : d > 0 ? " up" : " dn"}">${n.cmp != null ? `${ZF.cash(n.cmp)}` : "–"}</b>` : `추가할 때 ${sp.now != null ? `${ZF.cash(sp.now)}` : "–"}`;
+    // 18차: 관심 카드도 목록과 같은 두 숫자(지금 필요한 돈 · 입주까지 현금) — 같은 함수(SIMPLE.zstate)
+    let tot = null; try { const z = SIMPLE.zstate(r); if (!alt && z && z.total != null && isFinite(z.total)) tot = z.total; } catch (e) {}
     const main = `<span class="pn-pin">${pinY(26)}${nw ? '<i class="pn-new" aria-hidden="true"></i>' : ""}</span>
       <span class="pn-nm"><b>${esc(shortName(r.n))}</b><small>${sub}${nw ? '<span class="sr-only"> · 새 소식</span>' : ""}</small>${riskH(r) ? `<small class="pn-rk">${riskH(r)}</small>` : ""}${ev}${sp.memo ? `<small class="pn-memo">${esc(sp.memo)}</small>` : ""}</span>
-      <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><b>${alt ? '<small class="pn-alt" title="전세 끼고는 살 수 없는 구역이라 대출 끼고 금액">대출</small> ' : ""}${now != null ? `${ZF.cash(now)}` : "–"}</b>${salt ? "" : chip}</span><small title="${salt ? `추가할 때와 같은 ${MODE_T[sm]} 기준 비교` : ""}">${then}</small></span>`;
+      <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><i class="pn-l" aria-hidden="true">지금</i><b>${alt ? '<small class="pn-alt" title="전세 끼고는 살 수 없는 구역이라 대출 끼고 금액">대출</small> ' : ""}${now != null ? `${ZF.cash(now)}` : "–"}</b>${salt ? "" : chip}</span>${tot != null ? `<small class="pn-tot">입주까지 현금 <b>${ZF.cash(tot)}</b></small>` : ""}<small title="${salt ? `추가할 때와 같은 ${MODE_T[sm]} 기준 비교` : ""}">${then}</small></span>`;
     const head = SEL
       ? `<button type="button" class="pn-main sel" data-cmp="${r.id}" aria-pressed="${CMP.includes(r.id)}"><span class="pn-ck" aria-hidden="true"></span>${main}</button>`
       : `<button type="button" class="pn-main" data-open="${r.id}" aria-label="${esc(shortName(r.n))} 리포트 열기">${main}</button><button type="button" class="pn-more" data-pedit="${r.id}" aria-expanded="${EDIT === r.id}" aria-controls="pnEd${i}" title="메모·목표·빼기" aria-label="${esc(shortName(r.n))} 메모·목표·빼기"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>`;
@@ -298,7 +300,7 @@ const PINS = (() => {
     try { offer = on && !localStorage.getItem("zp-watch-pin") && typeof INBOX !== "undefined" && !INBOX.st().on; } catch (e) {}
     if (offer) window.__zpOffer = Date.now();
     const undo = () => { if (isFav(id)) quiet(() => toggleFav(id)); toast("관심 구역에서 뺐어요", "", null, nm); };
-    if (on && offer) toast("관심 구역에 추가했어요", "되돌리기", undo, `소식 생기면 알려 드려요 · ${nm}`, ["알림 켜기", () => { try { INBOX.watch("pin", id); } catch (e) {} }], 7000, () => { try { localStorage.setItem("zp-watch-pin", "1"); } catch (e) {} });
+    if (on && offer) toast("관심 구역에 추가했어요", "되돌리기", undo, `소식 생기면 알려 드려요 · ${nm}`, ["알림 받기", () => { try { INBOX.watch("pin", id); } catch (e) {} }], 7000, () => { try { localStorage.setItem("zp-watch-pin", "1"); } catch (e) {} });
     else if (on) toast("관심 구역에 추가했어요", "되돌리기", undo, `소식 생기면 알려 드려요 · ${nm}`);
     else toast("관심 구역에서 뺐어요", "되돌리기", () => { if (!isFav(id) && room(id)) { quiet(() => toggleFav(id)); toast("다시 추가했어요", "", null, nm); } }, nm);
   }
@@ -796,7 +798,7 @@ const PINS = (() => {
     const b = w.firstElementChild, sc = sameCond();
     if (!sc) {
       b.classList.remove("on");
-      b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>갈 수 있는 곳 생기면 알려 드려요</b></span><span class="pc-al-go">받기</span>`;
+      b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>갈 수 있는 곳 생기면 알려 드려요</b></span><span class="pc-al-go">알림 받기</span>`;
       b.setAttribute("aria-label", "갈 수 있는 곳 생기면 알려 드려요 — 새 구역·가격 하락·경매 물건 등장 시 알림");
       return;
     }

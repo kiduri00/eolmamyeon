@@ -104,3 +104,5 @@ html.bs-on{overflow:hidden}
 .s-empty .s-es{display:block;margin-top:4px;font-size:13.5px;color:var(--text-2)}
 .s-empty .s-eact{flex-direction:column;align-items:center;gap:4px}
 .s-empty .s-eact .btn.text{min-height:44px;color:var(--text-2);text-decoration:underline;text-underline-offset:3px}
+/* 18차: 칩 줄 끝 여백 16px(가로 스크롤 끝 padding이 무시되는 브라우저도) */
+@media (max-width:640px){.bs-chips{padding-right:0}.bs-chips::after{content:"";flex:none;width:10px;height:1px}}

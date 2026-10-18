@@ -28,7 +28,7 @@
 .pn-toast .pn-tt{display:flex;flex-direction:column;min-width:0;line-height:1.3}
 .pn-toast{min-width:min(300px,calc(100vw - 32px))}.pn-toast>span{flex:1}.pn-toast .pn-tt{flex:1}
 .pn-toast small{font-weight:500;font-size:13px;color:rgba(255,255,255,.75);overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
-.pn-toast button{flex:none;min-height:36px;padding:0 12px;border:0;border-radius:10px;background:rgba(255,255,255,.12);color:#ffd45c;font:700 14px var(--font);cursor:pointer}
+.pn-toast button{flex:none;min-height:36px;padding:0 12px;border:0;border-radius:10px;background:rgba(255,255,255,.12);color:#9fb3ff;font:700 14px var(--font);cursor:pointer}
 /* 폰: 하단 탭 위에(내 핀 화면의 버튼을 가리지 않게). 시트에선 맨 아래(머리의 핀 버튼·제목을 가리지 않게) */
 @media (max-width:640px){html.simple .pn-toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}html.sheet-open .pn-toast{bottom:calc(16px + env(safe-area-inset-bottom,0px))}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pn-toast{background:#f1f3f5;color:#14171c}:root:not([data-theme="light"]) .pn-toast small{color:#474f5b}:root:not([data-theme="light"]) .pn-toast button{background:rgba(0,0,0,.08);color:#1f3a87}}
@@ -177,8 +177,7 @@ html.s-view .pc-save{display:none}
 /* 사업 확실성(10년 안 준공) */
 .pn-rk{display:block}
 .pn-risk,.pc-rk{font-weight:600;color:var(--text-2)}
-.pn-risk.lo,.pc-rk.lo{color:var(--pn-up)}
-.pn-risk.hi,.pc-rk.hi{color:var(--pn-dn)}
+.pn-risk.lo,.pc-rk.lo,.pn-risk.hi,.pc-rk.hi{color:var(--text-2)}
 .pn-gok{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:0 10px;border-radius:10px;background:var(--pn-y-soft);color:var(--text-1);font-size:13px;font-weight:700}
 /* 조건 핀: 새로 들어온 곳 줄(단계·준공 확률·이유) */
 ul.pc-z{list-style:none;margin:0;padding:0 8px 6px;display:flex;flex-direction:column;gap:2px}
@@ -331,3 +330,7 @@ html.s-full .pc-save,html.s-full .pc-act{display:none}
 :root[data-theme="dark"] .pn-toast .pn-ta2{background:#1f3a87;color:#fff}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pn-toast .pn-ta2{background:#1f3a87;color:#fff}}
 @media (max-width:400px){.pn-toast{flex-wrap:wrap}.pn-toast .pn-ta{width:100%;justify-content:flex-end}}
+/* 18차: 관심 카드 두 숫자 */
+.pn-now .pn-l{font-style:normal;font-size:12px;font-weight:600;color:var(--text-2)}
+.pn-r small.pn-tot{color:var(--text-2)}
+.pn-r small.pn-tot b{font-weight:700;color:var(--text-1);font-variant-numeric:tabular-nums}

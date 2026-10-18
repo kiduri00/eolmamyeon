@@ -168,6 +168,8 @@ const SIMPLE = (() => {
     const fitH = left == null ? "" : fit ? '<em class="s-fit">딱 맞아요</em>' : left >= 0.01 ? `<span class="s-left">남는 돈 ${esc(eokS(left))}</span>` : "";
     const word = ST_WORD[z.st], gapT = z.st === "near" && z.need != null ? `, ${shortTxt(z.need).slice(1)} 더 필요` : "";
     const lab = `${nm}, ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} ${mt}, ${word}${gapT}${z.total != null && nowK ? `, ${LBL.cashToMoveIn} ${eokS(z.total)}` : ""}, ${stg}${tk === "n" ? ", 입주권 안 나옴" : tk === "y" ? ", 입주권 나옴" : ""}${nw ? ", 이번 주 새로 가능" : ""}${left == null ? "" : fit ? ", 딱 맞아요" : left >= 0.01 ? `, 남는 돈 ${eokS(left)}` : ""}`;
+    // 지도 고른 카드(#lmPick): 두 칸 — 왼쪽 이름 한 줄 · 배지 · 남는 돈 / 오른쪽 '지금 X' 위 '입주까지 현금 Y' · 끝에 ›
+    if (o.peek) return `<li class="s-card s-peek st-${z.st}${fav ? " fav" : ""}" data-zid="${r.id}"><a href="#${r.id}" data-id="${r.id}" data-zid="${r.id}" class="pk-a" aria-label="${esc(lab)} · 눌러서 자세히"><span class="pk-l"><b class="pk-n">${esc(nm)}</b><span class="pk-b"><em class="s-b s-stg">${esc(stg)}</em>${bdg}${fit ? '<em class="s-fit">딱 맞아요</em>' : ""}</span>${!fit && left != null && left >= 0.01 ? `<small class="pk-left">남는 돈 ${esc(eokS(left))}</small>` : z.st === "near" && z.need != null ? `<small class="pk-left">${esc(shortTxt(z.need))} 더 필요</small>` : ""}</span><span class="pk-r"><span class="pk-v"><i>${nowK ? "지금" : "입주까지"}</i> <b>${mt}</b></span>${nowK ? `<small>${z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : NA_L}</small>` : ""}</span><span class="pk-go" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span></a></li>`;
     return `<li class="s-card st-${z.st}${fav ? " fav" : ""}${o.cls ? " " + o.cls : ""}" data-zid="${r.id}"${left != null ? ` data-need="${needR}"` : ""}><a href="#${r.id}" data-id="${r.id}" class="s-cm" aria-label="${esc(lab)}"><span class="s-nm"><b>${esc(nm)}</b></span><span class="s-l2"><em class="s-b s-stg">${esc(stg)}</em>${bdg}<span class="s-fx">${fitH}</span><small class="s-sub">${sub}</small></span></a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(nm)} ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} 추정 ${mt}${z.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · ${LBL.cashToMoveIn} ${eokS(z.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog"><span class="s-av"><i class="s-al" aria-hidden="true">${nowK ? "지금" : "입주까지"}</i><b>${mt}</b></span><small${z.total == null && nowK ? ' class="s-na"' : ""}>${z.st === "near" ? `<span class="s-gapt">${shortTxt(z.need)} 더 필요</span>` : line2}</small></button><button type="button" class="s-heart" data-heart="${r.id}" aria-pressed="${fav}" aria-label="${esc(heartLbl(r, fav))}">${HEART(fav)}</button></li>`;
   }
   // ♡ 누르면 관심 구역(핀과 같은 toggleFav → 되돌리기 토스트·관심 탭·지도 하트 모두 같은 길)
@@ -276,7 +278,7 @@ const SIMPLE = (() => {
     // 랜드마크 밖에 떠 있는 막대라 aside로(화면 읽기 '영역' 목록에 '내 돈 요약')
     const mini = document.createElement("aside");
     mini.className = "s-mini"; mini.id = "sMini"; mini.hidden = true; mini.setAttribute("aria-label", "내 돈 요약");
-    mini.innerHTML = `<b id="sMiniV">1억</b><input type="range" id="sMiniR" min="0" max="100" step="0.1" value="8.33" aria-label="가진 현금(억)"><span><i id="sMiniM">전세</i> <b id="sMiniN">0</b>곳</span><div class="s-mode s-mm" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">대출 끼고</button></div>`;
+    mini.innerHTML = `<b id="sMiniV">1억</b><input type="range" id="sMiniR" min="0" max="100" step="0.1" value="8.33" aria-label="내 돈(억)"><span><i id="sMiniM">전세</i> <b id="sMiniN">0</b>곳</span><div class="s-mode s-mm" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">대출 끼고</button></div>`;
     document.body.appendChild(mini);
     // 전체 지도 위 막대에서도 전세 끼고/대출 끼고 전환(본 버튼을 대신 누른다 → 상태·목록·지도 모두 같은 길)
     mini.querySelector(".s-mm").addEventListener("click", (e) => { const b = e.target.closest("button[data-f]"); if (!b) return; const o = map.querySelector(`.s-mode button[data-f="${b.dataset.f}"]`); if (o) o.click(); });
@@ -783,6 +785,7 @@ const SIMPLE = (() => {
     hist: () => (histData() || []).map(([c, n]) => ({ c, n })),
   };
   // ---------- 목록 ----------
+  let mapDragT = 0;
   function render() {
     if (!$("sList")) return;
     const gap = gapMode();
@@ -796,7 +799,9 @@ const SIMPLE = (() => {
     const ab = $("sAsm"); if (ab) { ab.hidden = gap; if (!gap) { const t = asmText(); ab.innerHTML = `${t}<i aria-hidden="true">?</i>`; ab.setAttribute("aria-label", `대출 가정: ${t} · 설명 보기`); } }
     const lite = liveNow && dragging;   // 손가락·마우스로 끄는 중: 숫자·제목·이름 줄만 · 목록 줄과 지도는 멈추거나 떼면
     // 손가락이 막대 위에 있는 동안(dragging)은 지도를 다시 그리지 않는다 — 손을 떼면(setCash) 한 번. 지도 한 장이 느린 기기에서 숫자가 늦게 바뀌던 것(17차)
-    if (!lite) { clearTimeout(heavyT); heavyT = 0; if (!dragging) try { LMX.states(false); } catch (e) {} }   // 지도 알약·점·구 묶음: 같은 판정(zstate)
+    if (!lite) { clearTimeout(heavyT); heavyT = 0; if (!dragging) try { LMX.states(false); } catch (e) {} }
+    // 끄는 동안에도 지도 구 묶음·알약 색을 150ms마다 한 번(숫자가 먼저 그려진 다음 프레임에 — 숫자 지연은 그대로)
+    else if (performance.now() - mapDragT > 150) { mapDragT = performance.now(); setTimeout(() => { try { LMX.dragLite(); } catch (e) {} }, 0); }   // 지도 알약·점·구 묶음: 같은 판정(zstate)
     // 한 줄 막대도 목록과 같은 거르기(구·지도 범위·유형)를 그대로: 숫자 = 목록 곳 수
     if ($("sMiniN")) {
       const area = gu || (bbF ? "지도 범위" : ""), kn = kind ? ({ redev: "재개발", rebuild: "재건축", small: area ? "가로" : "가로·소규모" })[kind] : "";
@@ -882,10 +887,20 @@ const SIMPLE = (() => {
     return true;
   }
   let tileY = null, h1El = null;
+  let subH = [], subMO = null;
   function lvl(id) {
     if (h1El) { h1El.removeAttribute("aria-level"); h1El = null; }
+    subH.forEach((e) => e.removeAttribute("aria-level")); subH = [];
+    if (subMO) { subMO.disconnect(); subMO = null; }
     const s = id && $(id); if (!s) return;
-    const h = s.querySelector("h1, h2"); if (h && h.tagName === "H2") { h.setAttribute("aria-level", "1"); h1El = h; }
+    const h = s.querySelector("h1, h2");
+    if (h && h.tagName === "H2") {
+      h.setAttribute("aria-level", "1"); h1El = h;
+      // 제목을 1단계로 올렸으면 그 화면 안 소제목도 한 단계씩(1 → 3으로 건너뛰지 않게 · axe heading-order) — 나중에 그려지는 소제목도
+      const down = () => s.querySelectorAll("h3, h4, h5, h6").forEach((x) => { if (x.hasAttribute("aria-level")) return; x.setAttribute("aria-level", String(+x.tagName[1] - 1)); subH.push(x); });
+      down();
+      try { subMO = new MutationObserver(down); subMO.observe(s, { childList: true, subtree: true }); } catch (e) {}
+    }
   }
   function close(scroll) {
     IDS.forEach((x) => { const s = $(x); if (s) s.classList.remove("s-on"); });

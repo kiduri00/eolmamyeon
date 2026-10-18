@@ -7,10 +7,36 @@
 (function () {
   var B = (window.ZP_boot = { a: "__A__", d: "__D__", c: "__C__", f: "__F__", st: 0, hyd: 0 });
   var H = document.documentElement, W = window;
+  // 설치 창 신호는 앱 코드(69_install)가 붙기 전에 올 수 있다 → 받아 두었다가 넘긴다
+  W.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); W.__bip = e; });
   var ls = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
   var add = function (t, o) { var e = document.createElement(t); for (var k in o) e[k] = o[k]; return e; };
   var css = function (u, cb, co) { var l = add("link", { rel: "stylesheet", href: u }); if (co) l.crossOrigin = "anonymous"; if (cb) l.onload = l.onerror = cb; document.head.appendChild(l); };
-  B.font = function () { if (B.fo) return; B.fo = 1; css(B.f, null, 1); };
+  // 글꼴: 받는 동안은 대체 글꼴 그대로 → 이 화면 글자에 필요한 조각이 다 오면 html.fo 한 번으로 바꾼다(조각마다 화면을 다시 짜던 4~5번의 긴 작업 → 1번).
+  // 바꾸는 순간은 브라우저가 한가할 때(첫 화면 긴 작업과 겹치지 않게)
+  // 조용해진 뒤에 할 일: 전체 앱이 붙은 다음 긴 작업 없이 5.5초가 지나거나(= 첫 화면이 반응할 수 있게 된 뒤), 사람이 처음 손댈 때(먼저 오는 쪽) 한 번.
+  // 첫 화면 숫자·목록이 다 뜬 뒤 무거운 일(지도 그리기 · 글꼴 바꿔 다시 짜기)이 첫 화면 반응을 막지 않게(18차 성능)
+  var QF = [], qOn = false, qT = 0;
+  var qFire = function () { if (qOn) return; qOn = true; clearTimeout(qT); QUI.forEach(function (t) { W.removeEventListener(t, qFire, true); }); var L = QF.splice(0); for (var i = 0; i < L.length; i++) try { L[i](); } catch (e) {} };
+  var QUI = ["pointerdown", "touchstart", "keydown", "wheel", "scroll", "input", "focusin"];
+  QUI.forEach(function (t) { W.addEventListener(t, qFire, { capture: true, passive: true }); });
+  var qArm = function () { clearTimeout(qT); qT = setTimeout(qFire, 5500); };
+  try { new PerformanceObserver(function () { if (B.hyd && !qOn) qArm(); }).observe({ type: "longtask" }); } catch (e) {}
+  B.quiet = function (fn) { if (qOn) { fn(); return; } QF.push(fn); };
+  B.quietNow = qFire;
+  W.addEventListener("zp:hydrated", function () { qArm(); setTimeout(qFire, 30000); });
+  B.font = function () {
+    if (B.fo) return; B.fo = 1;
+    var on = function () { if (on.d) return; on.d = 1; B.quiet(function () { (W.requestIdleCallback || setTimeout)(function () { H.classList.add("fo"); }, { timeout: 1500 }); }); };
+    css(B.f, function () {
+      try {
+        var t = ((document.body && document.body.innerText) || "").replace(/\s+/g, ""), u = {}, x = "";
+        for (var i = 0; i < t.length && x.length < 1500; i++) if (!u[t[i]]) { u[t[i]] = 1; x += t[i]; }
+        document.fonts.load('16px "Pretendard Variable"', x + "0123456789억만곳").then(on, on);
+      } catch (e) { on(); }
+      setTimeout(on, 10000);
+    }, 1);
+  };
   B.full = function (why) {
     if (B.st || ls("zp_nohyd") === "1") return;
     B.st = 1; B.why = why;

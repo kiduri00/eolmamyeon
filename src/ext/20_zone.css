@@ -97,7 +97,7 @@ table.nc td:nth-child(2),table.nc thead th:nth-child(2){background:var(--surface
 .auc-dl dd{margin:0;color:var(--text-1);overflow-wrap:anywhere}
 .auc-dl .dim{color:var(--text-3)}
 @media (max-width:520px){.auc-pr{grid-template-columns:1.25fr 1fr 1fr;gap:6px}}
-.auc-k{flex:none;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:var(--r-full);background:#E8590C;color:#fff;font:700 11.5px var(--font);font-variant-numeric:tabular-nums}
+.auc-k{flex:none;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:var(--r-full);background:#14275E;color:#fff;font:700 11.5px var(--font);font-variant-numeric:tabular-nums}
 :root[data-theme="dark"] .auc-k{background:#FF8A4C;color:#11161D}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .auc-k{background:#FF8A4C;color:#11161D}}
 .auc-sub{margin-top:4px;font-size:var(--fs-label);color:var(--text-2);overflow-wrap:anywhere}
@@ -105,9 +105,9 @@ table.nc td:nth-child(2),table.nc thead th:nth-child(2){background:var(--surface
 .auc-pr .auc-min em{color:var(--warn-ink);font-weight:700}
 .auc-pr em.auc-dd,.auc-sub .auc-dd{font-style:normal;font-weight:700;color:var(--warn-ink)}
 .auc-pr{margin:10px 0 0;border-bottom:0;padding-bottom:0}
-.auc-i.auc-hl,.auc-g.auc-hl{box-shadow:0 0 0 2px #E8590C}
+.auc-i.auc-hl,.auc-g.auc-hl{box-shadow:0 0 0 2px #14275E}
 .lm-auc-lg{display:flex;align-items:center;gap:6px;margin:4px 0 0;padding:3px 8px;border-radius:var(--r-full);background:var(--surface);box-shadow:var(--sh-1,0 1px 3px rgba(0,0,0,.12));font-size:11.5px;color:var(--text-2);width:max-content;pointer-events:none}
-.lm-auc-lg i{width:9px;height:9px;border-radius:50%;background:#E8590C;box-shadow:0 0 0 1.5px var(--surface)}
+.lm-auc-lg i{width:9px;height:9px;border-radius:50%;background:#14275E;box-shadow:0 0 0 1.5px var(--surface)}
 .lm-auc-lg[hidden]{display:none}
 .auc-cw{margin:8px 0 0}
 .where .auc-chip{margin-left:6px;vertical-align:middle}

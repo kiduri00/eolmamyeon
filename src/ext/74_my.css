@@ -104,3 +104,12 @@ a.my-r:focus-visible,button.my-r:focus-visible,.my-det>summary:focus-visible{out
 #myKinds.off .my-sw{cursor:not-allowed}
 #myKinds.off .my-sw .my-t b{color:var(--text-3)}
 #myKinds.off .my-tg{background:var(--surface-3,#e3e6eb);opacity:.7}
+/* 18차: 모두 지우기 확인 = 아래 시트 + 어두운 바탕 */
+.my-wipe-bg{position:fixed;inset:0;z-index:330;background:rgba(10,14,22,.45)}
+.my-wipe-bg[hidden]{display:none}
+.my-wipe:not([hidden]){position:fixed;left:0;right:0;bottom:0;z-index:331;margin:0 auto;max-width:520px;padding:20px 20px calc(16px + env(safe-area-inset-bottom,0px));border:0;border-radius:20px 20px 0 0;box-shadow:0 -8px 32px rgba(15,23,42,.25)}
+.my-wipe:not([hidden])::before{content:"";display:block;width:36px;height:4px;margin:-8px auto 14px;border-radius:2px;background:var(--border)}
+.my-wipe .my-wbtn{display:flex;gap:8px;margin-top:12px}
+.my-wipe .my-wbtn .btn{flex:1 1 0;min-height:50px;justify-content:center}
+html.my-wipe-on{overflow:hidden}
+@media (min-width:641px){.my-wipe:not([hidden]){bottom:50%;transform:translateY(50%);border-radius:20px}}

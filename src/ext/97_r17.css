@@ -149,7 +149,10 @@ html.simple #mapbox.s-none::after{content:"이 돈으론 아직 없어요";posit
 button.s-amt b{border-bottom:0!important}
 .s-list li.s-card>button.s-amt{gap:2px;padding:8px 4px 8px 6px}
 .s-card .s-av{display:flex;flex-direction:column;align-items:flex-end;gap:0}
-.s-card .s-av .s-al{font-size:12px;font-weight:500;color:#8b93a1;line-height:1.2}
+.s-card .s-av .s-al{font-size:12px;font-weight:500;color:#5c6573;line-height:1.2}
+:root:not([data-theme="light"]) .s-card .s-av .s-al{color:#5c6573}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-card .s-av .s-al{color:#aab2bf}}
+:root[data-theme="dark"] .s-card .s-av .s-al{color:#aab2bf}
 .s-card button.s-amt .s-av b{font-size:20px;font-weight:800;line-height:1.15}
 .s-card.st-ok button.s-amt .s-av b{color:var(--navy-num)!important}
 .s-card button.s-amt small{font-size:13px;font-weight:500;color:var(--text-3)}
@@ -238,7 +241,7 @@ html.simple #bSheet input.scr-in{position:static!important;display:block;width:1
 .s-card .s-fx{display:contents}
 .s-card .s-fit,.s-card .s-left{flex:none;white-space:nowrap}
 /* 금액 옆 작은 ⓘ(누르면 '왜 이 금액?') — 점선 밑줄 대신 */
-.s-card .s-av .s-al::after{content:"i";display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;margin-left:3px;border:1px solid #8b93a1;border-radius:50%;font:700 8px/1 var(--font);color:#8b93a1;vertical-align:1px;box-sizing:border-box}
+.s-card .s-av .s-al::after{content:"i";display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;margin-left:3px;border:1px solid currentColor;border-radius:50%;font:700 8px/1 var(--font);color:inherit;vertical-align:1px;box-sizing:border-box}
 /* 두 줄 알약(줌 15+) */
 #lmap .zpill.two{height:auto;min-height:44px}
 .zpill.two .zp-in{flex-direction:column;align-items:center;gap:1px;height:auto;max-width:120px;padding:5px 10px 6px;border-radius:10px;box-sizing:border-box}
@@ -275,3 +278,5 @@ html.simple #bSheet input.scr-in{position:static!important;display:block;width:1
 .bs-chips button,.pn-sort button,.pc-chip,#ntcF .ichip,.fchips .ichip{height:44px!important;min-height:44px!important;border:0!important;border-top:4px solid transparent!important;border-bottom:4px solid transparent!important;background-clip:padding-box!important;border-radius:22px!important;box-shadow:inset 0 0 0 1px var(--chip-bd)!important}
 .bs-chips button[aria-pressed="true"],.pn-sort button[aria-pressed="true"],.pc-chip[aria-pressed="true"],#ntcF .ichip[aria-pressed="true"],.fchips .ichip[aria-pressed="true"]{box-shadow:none!important}
 .bs-chips,.pn-sort,#ntcF,.fchips{row-gap:0!important}
+/* 18차: 좁은 폰(예산 카드 안쪽 여백 12px) — 이름 레일이 카드 테두리 밖으로 3px 나가지 않게 */
+@media (max-width:374px){html.simple .s-gauge.bc .s-sum{margin-left:-12px;margin-right:-12px}.s-rail3{padding:0 12px 2px;scroll-padding:0 12px}}

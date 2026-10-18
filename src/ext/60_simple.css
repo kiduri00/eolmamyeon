@@ -177,7 +177,7 @@ html.simple #sTiles{padding-bottom:24px}
   /* 구역 상세를 열어도 예산 카드(#sGauge)는 위에 남긴다 — 목록 칸에서 카드만 보이고 그 아래 상세가 열린다 */
   html.simple.s-rep .s-right #sListW{order:-1;height:auto;min-height:0;max-height:none;position:static}
   html.simple.s-rep .s-right #sListW>:not(#sGauge){display:none!important}
-  html.simple.s-rep .s-tolist{display:inline-flex}
+  html.simple.s-rep .s-tolist{display:inline-flex;position:sticky;top:calc(var(--hdr-h,57px) + 10px);z-index:6;box-shadow:0 2px 8px rgba(15,23,42,.1)}
   /* 목록 칸 아래 끝 = 지도 아래 끝(지도 #mapbox.lm-on 높이와 같은 식) */
   .s-right .s-list-w{margin:0;display:flex;flex-direction:column;min-height:0;height:calc(100vh - var(--hdr-h,60px) - 24px);min-height:460px;max-height:900px;position:sticky;top:calc(var(--hdr-h,60px) + 16px)}
   .s-right .s-list{overflow:auto;min-height:0;flex:1 1 auto}

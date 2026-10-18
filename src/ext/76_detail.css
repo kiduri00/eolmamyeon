@@ -47,9 +47,7 @@
 .dt-trust.na .dt-tc{border-color:transparent;background:var(--risk-soft);color:var(--risk-ink)}
 .dt-trust .dt-tt{flex:1 1 auto;min-width:0}
 .dt-trust .dt-tt b{color:var(--text-1)}
-.dt-trust.lo .dt-tt b{color:var(--risk-ink)}
-.dt-trust.md .dt-tt b{color:var(--warn-ink)}
-.dt-trust.hi .dt-tt b{color:var(--ok-ink)}
+.dt-trust.lo .dt-tt b,.dt-trust.md .dt-tt b,.dt-trust.hi .dt-tt b{color:var(--navy-num,#1f3a87)}
 .dt-trust i{flex:none;font-style:normal;font-size:20px;line-height:1;color:var(--text-3)}
 .dt-trust:hover{background:var(--surface-3,var(--surface-2))}
 @keyframes dtFlash{0%{box-shadow:0 0 0 3px var(--focus)}100%{box-shadow:0 0 0 3px transparent}}
@@ -119,3 +117,14 @@ html.dt-rs-on{overflow:hidden}
 html.simple #report #pane .sect.toh>p.note,html.simple #report #pane .sect.acheck>p.note{display:block!important;margin:8px 0 0;font-size:14px;line-height:1.55;color:var(--text-2)}
 html.simple #report #pane .sect.toh>h3 small,html.simple #report #pane .sect.acheck>h3 small{display:block!important;font-size:12.5px;font-weight:500;color:var(--text-3)}
 html.simple #report #pane .sect.toh>h3,html.simple #report #pane .sect.acheck>h3{flex-wrap:wrap}
+/* 18차: 고른 섹션 탭 = 남색(글자·밑줄) */
+#report.dt .tabs button[aria-selected="true"]{color:#1f3a87}
+#report.dt .tabs button[aria-selected="true"]::after{background:#1f3a87}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #report.dt .tabs button[aria-selected="true"]{color:#9fb3ff}:root:not([data-theme="light"]) #report.dt .tabs button[aria-selected="true"]::after{background:#9fb3ff}}
+:root[data-theme="dark"] #report.dt .tabs button[aria-selected="true"]{color:#9fb3ff}
+:root[data-theme="dark"] #report.dt .tabs button[aria-selected="true"]::after{background:#9fb3ff}
+/* 18차: 신고 시트 아래 고정 줄(닫기 · 메일로 보내기) — 내용이 길어도 늘 화면 안 */
+.dt-rs-in{padding-bottom:0}
+.dt-rs-ft{position:sticky;bottom:0;z-index:1;display:flex;gap:8px;margin:14px -20px 0;padding:10px 20px calc(12px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--divider,var(--border))}
+.dt-rs-ft .dt-rs-x{flex:1 1 0;width:auto;margin:0;min-height:50px}
+.dt-rs-ft .dt-rs-go{flex:2 1 0;width:auto;margin:0}

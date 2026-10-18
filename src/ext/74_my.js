@@ -29,7 +29,7 @@ const MY = (() => {
     if (s.perm === "denied") { txt = "막혀 있어요"; help = "푸는 법: 주소창 왼쪽 자물쇠(사이트 설정) → 알림 → 허용으로 바꾼 뒤 이 화면을 다시 열어 주세요. iPhone 홈 화면 앱은 설정 → 알림 → 집핀에서 켜요."; }
     else if (s.on) { txt = "켜져 있어요 · 매일 아침 새 소식이 있으면 알려 드려요"; btn = `<button type="button" class="btn secondary sm" id="myPushOff">끄기</button>`; help = "끄면 이 기기로 폰 알림을 보내지 않아요. 소식 탭은 그대로 볼 수 있어요."; }
     else if (!s.can) { txt = "이 브라우저에선 폰 알림을 켤 수 없어요"; help = "새 소식은 아래 소식 탭에 모아 드려요. iPhone은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요."; }
-    else { txt = "꺼져 있어요"; btn = `<button type="button" class="btn primary sm" id="myPushOn">켜기</button>`; help = "켜면 브라우저가 알림 권한을 물어요. 나중에 사이트 설정에서 언제든 끌 수 있어요."; }
+    else { txt = "꺼져 있어요"; btn = `<button type="button" class="btn primary sm" id="myPushOn">알림 받기</button>`; help = "켜면 브라우저가 알림 권한을 물어요. 나중에 사이트 설정에서 언제든 끌 수 있어요."; }
     if (s.msg && s.perm !== "denied" && !s.on) help = s.msg;
     S.textContent = txt;
     if (B.innerHTML !== btn) B.innerHTML = btn;
@@ -55,10 +55,13 @@ const MY = (() => {
   function inst() {
     const I = window.ZP_INSTALL, b = $("myInstB"), s = $("myInstS"); if (!b || !s) return;
     const st = I && I.state ? I.state() : { app: false };
+    // 18차: 설치 창을 띄울 수 있을 때(beforeinstallprompt)만 '설치' 버튼 줄 · iOS는 홈 화면에 추가 방법 · 그 밖(이미 설치·지원 안 함)은 줄을 숨긴다
+    const row = $("myInst");
+    if (row) row.hidden = !!(st.app || st.done || (!st.prompt && !st.ios));
     if (st.app || st.done) { s.textContent = "이 기기에 설치돼 있어요"; b.hidden = true; return; }
     b.hidden = false;
     s.textContent = st.prompt ? "홈 화면에 추가하면 앱처럼 바로 열려요" : st.ios ? "Safari 공유 버튼 → 홈 화면에 추가" : st.inApp ? "카카오톡·인스타그램 안에서는 안 돼요 · 기본 브라우저로 열어 주세요" : "브라우저 메뉴(⋮)에서 '앱 설치' 또는 '홈 화면에 추가'를 눌러요";
-    b.textContent = st.ios ? "방법 보기" : "홈 화면에 추가";
+    b.textContent = st.ios ? "방법 보기" : "설치";
     b.hidden = !st.prompt && !st.ios;
   }
   function paint() {
@@ -72,6 +75,11 @@ const MY = (() => {
     if (!v && box.hidden) return;
     if (v) ZL.open("wipe", () => wipeOpen(false, true)); else if (pop !== true) ZL.done("wipe");
     box.hidden = !v; b.setAttribute("aria-expanded", String(v));
+    // 18차: 확인은 아래에서 올라오는 시트 + 어두운 바탕(아래 탭 뒤에 숨지 않게) · 바탕을 누르면 닫기
+    let bg = $("myWipeBg");
+    if (v && !bg) { bg = document.createElement("div"); bg.id = "myWipeBg"; bg.className = "my-wipe-bg"; bg.addEventListener("click", () => wipeOpen(false)); document.body.appendChild(bg); }
+    if (bg) bg.hidden = !v;
+    document.documentElement.classList.toggle("my-wipe-on", !!v);
     if (v) { const n = $("myWipeN"); if (n) n.textContent = String(T(() => PINS.list().length) || 0); const g = $("myWipeNo"); g && g.focus({ preventScroll: true }); }
     else b.focus({ preventScroll: true });
   }
@@ -117,6 +125,8 @@ const MY = (() => {
     addEventListener("zp:view", (e) => { if (e.detail === "my") { wipeReset(); paint(); T(() => INBOX.pushKey().then(alerts)); } else wipeReset(); });
     T(() => new MutationObserver(() => { if (!s.classList.contains("s-on")) wipeReset(); }).observe(s, { attributes: true, attributeFilter: ["class"] }));
     addEventListener("zp:alerts", () => { if (on()) alerts(); });
+    addEventListener("zp:bip", () => inst()); addEventListener("appinstalled", () => setTimeout(inst, 0));
+    inst();
     T(() => PINS.on(() => { if (on()) move(); }));
     addEventListener("beforeinstallprompt", () => setTimeout(() => { if (on()) inst(); }, 0));
     if (on()) { paint(); T(() => INBOX.pushKey().then(alerts)); }

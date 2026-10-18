@@ -12,8 +12,10 @@
   const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const inApp = /KAKAOTALK|NAVER\(|Instagram|FBAN|FBAV|Line\//i.test(ua);
   const mobile = () => { try { return matchMedia("(max-width:980px)").matches && matchMedia("(pointer:coarse)").matches; } catch (e) { return false; } };
-  let deferred = null, shown = false;
-  addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; });
+  // 앱 코드가 붙기 전(첫 화면 섬)에 온 설치 창 신호는 boot.js가 window.__bip에 받아 둔다
+  let deferred = window.__bip || null, shown = false;
+  addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; try { dispatchEvent(new Event("zp:bip")); } catch (_) {} });
+  if (deferred) setTimeout(() => { try { dispatchEvent(new Event("zp:bip")); } catch (_) {} }, 0);
   addEventListener("appinstalled", () => { put({ done: 1 }); hide(); });
   const allowed = () => {
     if (H.classList.contains("is-app") || !mobile() || inApp) return false;

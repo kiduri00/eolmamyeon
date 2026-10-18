@@ -2,6 +2,8 @@
   "use strict";
   const D = window.__ZPD || JSON.parse(document.getElementById("data").textContent);
   const $ = (id) => document.getElementById(id);
+  // 첫 화면 섬(boot.js) 없이 전체 앱으로 바로 뜬 경우: 글꼴은 <link>로 이미 받으니 바로 웹글꼴(app.css :root:not(.fo))
+  if (!window.ZP_boot) document.documentElement.classList.add("fo");
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const MEMBER_CFG = { supabaseUrl: "", supabaseAnonKey: "", price: "", passPrice: "", joinUrl: "", passUrl: "", freeReportsPerDay: 3 };
   const MO = (() => {
@@ -558,7 +560,8 @@
   };
   const LN_FIX = { 경의중앙: "경의중앙선", "김포 골드라인": "김포골드라인", 신림역: "신림선" };
   const stName = (n) => ST_FIX[n] || n.replace(/(\S) (구청역|시청역)$/, "$1$2");
-  D.stations.forEach((s) => {
+  if (!D.stFix)   // 빌드(tools/build.py st_fix)가 이미 했으면 건너뜀
+    D.stations.forEach((s) => {
     s[0] = stName(s[0]);
     s[3] = [...new Set(s[3].map((l) => LN_FIX[l] || l))];
   });
@@ -582,12 +585,12 @@
     Math.round((2272.72439 * lng - 0.00834955 * lat - 288078.866) * 10) / 10,
     Math.round((-0.0013117628 * lng - 2866.9639 * lat + 108107.651) * 10) / 10,
   ];
-  NEW_ST.forEach((s) => {
+  if (!D.stFix) NEW_ST.forEach((s) => {
     const [x, y] = toXY(s[1], s[2]);
     D.stations.push([s[0], s[1], s[2], s[3], x, y]);
   });
   let ST_CHANGED = 0;
-  R.forEach((r) => {
+  if (!D.stFix) R.forEach((r) => {
     if (r.st) r.st.n = stName(r.st.n);
     (r.s3 || []).forEach((x) => {
       x[0] = stName(x[0]);
@@ -788,18 +791,27 @@
     },
   ];
   const PROG = [0, 10, 25, 35, 55, 70, 85, 92, 97, 100];
-  function scoreAll() {
-    R.forEach((r) => {
-      if (!r.st) return;
-      const v = LOC_AX.map((a) => {
-        const x = a.f(r);
-        return x == null ? null : Math.round(x);
-      });
-      const wsum = LOC_AX.reduce((s, a, i) => s + (v[i] == null ? 0 : a.w), 0);
-      r.ax = v;
-      r.pts = v.map((x, i) => (x == null ? 0 : (x * LOC_AX[i].w) / wsum));
-      r.score = Math.round(r.pts.reduce((s, x) => s + x, 0));
+  function scoreOne(r) {
+    if (!r.st) return;
+    const v = LOC_AX.map((a) => {
+      const x = a.f(r);
+      return x == null ? null : Math.round(x);
     });
+    const wsum = LOC_AX.reduce((s, a, i) => s + (v[i] == null ? 0 : a.w), 0);
+    r.ax = v;
+    r.pts = v.map((x, i) => (x == null ? 0 : (x * LOC_AX[i].w) / wsum));
+    r.score = Math.round(r.pts.reduce((s, x) => s + x, 0));
+  }
+  // 입지 점수: 앱 코드 실행 한 덩어리에서 빼서 boot()가 300곳씩 나눠 계산(18차 성능) · scoreAll()은 한 번에
+  async function scoreChunked() {
+    for (let i = 0; i < R.length; i += 300) { for (let j = i; j < Math.min(R.length, i + 300); j++) scoreOne(R[j]); await yieldT(); }
+    scoreFin();
+  }
+  function scoreAll() {
+    R.forEach(scoreOne);
+    scoreFin();
+  }
+  function scoreFin() {
     R.forEach((r) => {
       if (r.score == null || r.dn) return;
       const c = r.cs && (r.cs["조합설립"] || r.cs["추진위"]) ? (r.cs["조합설립"] || r.cs["추진위"]).v : null;
@@ -2141,7 +2153,7 @@
       return !!i && i.hp.d <= 2e3;
     },
   };
-  scoreAll();
+  // scoreAll() → boot()의 scoreChunked()
   const kmTxt = (d) => (d < 1e3 ? `${fmt(Math.round(d))}m` : `${(d / 1e3).toFixed(1)}km`);
   const hjBadge = (st) => `<span class="hjb ${HJ_BADGE[st] || "b-plan"}">${esc(st)}</span>`;
   function drawOk() {
@@ -3866,8 +3878,8 @@
     else {
       replSt(history.state && history.state.gu ? { gu: history.state.gu } : null, id);
       if (fromCard || opts.scroll) {
-        const el = $("report");
-        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - HDR() - 16, behavior: smooth() });
+        const el = $("report"), tl = $("sToList"), tlh = tl && tl.offsetParent ? tl.offsetHeight + 10 : 0;   // PC 2칸: '← 목록' 단추까지 머리 아래에 보이게
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - HDR() - 16 - tlh, behavior: smooth() });
         el.scrollTop = 0;
       }
       if (opts.focus)
@@ -4602,7 +4614,7 @@
     const row = (r, i, near) => {
       const n = needS(r), ok = okZ(r);
       const wt = near || moaIn.has(r.id) ? `${esc(stn[0].replace(/역$/, ""))}역 ${ZF.walkMin(stnW(r))}분${moaIn.has(r.id) ? " · 15분 안" : ""}` : r.st ? walkT(r) : "";
-      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b>${e1S(n.v)}</b><small>${n.l}</small>` : ""}${ok ? '<i class="sg-ok">갈 수 있음</i>' : ""}</em></button>`;
+      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b><i class="sg-l">${n.l === "입주까지" ? "입주까지" : "지금"}</i> ${e1S(n.v)}</b>${ok ? '<i class="sg-ok">내 돈으로 가능</i>' : `<i class="sg-ok sg-no">내 돈 ${esc(ZF.cash(Math.max(0.01, n.v - CASH)))} 부족</i>`}` : ""}</em></button>`;
     };
     const stnRow = stn
       ? `<button type="button" role="option" id="sgS" aria-selected="false" data-stn="${esc(stn[0])}" tabindex="-1" class="sg-stn"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="14" rx="3"/><path d="M6 10h12M8 21l2-4M16 21l-2-4"/></svg>${esc(stn[0])}<small>${esc((stn[3] || []).join(" · "))} · 지도에서 역 주변 보기</small></span><em>지도 →</em></button>`
@@ -5910,12 +5922,15 @@
   const NAME_TAIL =
     /\s*(주택)?(재정비촉진구역|정비구역)?\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?\s*(사업)?\s*(조합설립)?\s*(정비사업)?\s*(추진위원회|추진위|조합|준비위원회|주민협의체|주민대표회의|사업시행자|위원회)?\s*(재개발구역)?\s*$/;
   let SN_DIS = null;   // 짧은 이름이 겹치는 구역 → 동 붙인 이름(한 번만 계산)
+  // shortName0은 같은 이름을 수천 번 다시 계산하던 것 → 한 번만(18차 성능)
+  const SN0C = new Map();
+  const shortName0m = (n) => { let v = SN0C.get(n); if (v === undefined) { v = shortName0(n); SN0C.set(n, v); } return v; };
   function shortName(n) {
     if (!SN_DIS) {
       SN_DIS = new Map();
       const g = new Map();
       // 띄어쓰기만 다른 이름('여의대방역세권' · '여의대방 역세권')도 같은 이름으로 보고 가른다
-      R.forEach((r) => { if (!r.n) return; const k = shortName0(r.n).replace(/\s+/g, ""); if (!g.has(k)) g.set(k, new Map()); g.get(k).set(r.n, r); });
+      R.forEach((r) => { if (!r.n) return; const k = shortName0m(r.n).replace(/\s+/g, ""); if (!g.has(k)) g.set(k, new Map()); g.get(k).set(r.n, r); });
       g.forEach((m) => {
         if (m.size < 2) return;
         const dn = (r) => (r.bj || r.j || "").split(" ")[0];
@@ -5925,13 +5940,13 @@
         // 동이 다르면 동을, 같은 동끼리면 사업 유형을, 유형도 같으면 동+지번 본번을 붙인다(예: 홍제3구역(재건축) · 홍제3구역(도시정비형))
         const diffK = !diffD && new Set(V.map(kd)).size === V.length && V.every(kd);
         m.forEach((r, full) => {
-          const d = dn(r), k = shortName0(full);
+          const d = dn(r), k = shortName0m(full);
           const tag = diffD ? (d && !k.includes(d) ? d : "") : diffK ? kd(r) : d && jb(r) ? `${d} ${jb(r)}` : "";
           if (tag) SN_DIS.set(full, `${k}(${tag})`);
         });
       });
     }
-    return SN_DIS.get(n) || shortName0(n);
+    return SN_DIS.get(n) || shortName0m(n);
   }
   // 이름이 '…제'로 끝나는 동(홍제·인제 등) — 지번 주소 첫 낱말에서
   let JE0 = null;
@@ -6034,14 +6049,16 @@
       .replace("+ 환급 −", "− 환급 ");
     return f.sum >= f.now ? `${parts} − 잔금대출 ${ZF.cash(f.le)} = ${ZF.cash(f.sum)}` : `지금 ${ZF.cash(f.now)}이 최대 (입주 때는 잔금대출로 충당)`;
   }
-  const DUPN = (() => {
+  // 순위 카드에서만 쓰는 '이름이 겹치는 구역' — 처음 쓸 때 계산(첫 화면 긴 작업 줄이기)
+  let DUPN0 = null;
+  const DUPN = { has: (k) => (DUPN0 || (DUPN0 = (() => {
     const c = new Map();
     R.forEach((r) => {
       const k = shortName(r.n);
       c.set(k, (c.get(k) || 0) + 1);
     });
     return new Set([...c].filter(([, n]) => n > 1).map(([k]) => k));
-  })();
+  })())).has(k) };
   function cardHTML(x, rank, passRank) {
     const r = x.r,
       w = buyWindow(r),
@@ -6620,7 +6637,7 @@
       return g.block && g.block !== "계산 대상 아님"
         ? `<div class="gpane"><p class="note riskbox"><b>전세 끼고 사기 불가</b> ${esc(g.block)}</p></div>`
         : "";
-    return `<div class="gpane"><h3>전세 끼고 사면 <small>언제 얼마가 필요한지</small></h3>\n    ${/공공재개발/.test(r.n) ? '<p class="note riskbox"><b>먼저 확인</b> 공공재개발 후보지 상당수가 토지거래허가구역으로 지정돼 왔어요(2026년 1월까지 확인). 지금도 지정돼 있으면 실거주 의무 때문에 전세 끼고 사기가 어려워요. 계약 전 구청에 지정 여부를 물어보세요.</p>' : ""}\n    ${gapTL(g, false)}${g.x.ok ? cashBr(g.total, g.x.loanEnd, g).html : ""}${g.relocAlt != null && g.relocAlt - g.reloc >= 0.05 ? `<p class="t-note">${g.reloc < 0.05 ? "위 이주 칸은 이주비 대출로 전세금을 다 돌려준다고 본 값이에요." : `위 이주 때 +${ZF.cash(g.reloc)}는 이주비 대출을 넉넉히 잡은 값이에요.`} 이주비 대출을 감정가만 기준으로 잡으면 이주 때 +${ZF.cash(g.relocAlt)}(${ZF.cash(g.relocAlt - g.reloc)} 더)이 들어요 · 조합·은행마다 기준이 달라요.</p>` : ""}\n    <p class="gap-honest">${gapLine}</p>\n    <div class="gj-f"><label for="gJ">이 매물 전세금 <small>${g.userJ ? "직접 입력" : `기본 = 매수가 × ${fmt(g.jr, 1)}% (${esc(jrSrcTxt(r))})`}</small></label><div class="inp"><input id="gJ" inputmode="decimal" placeholder="${e2(g.D)}" value="${OV[r.id]?.jeonse ?? ""}"><span>억</span></div>${g.userJ ? '<button type="button" class="btn text sm" id="gJx">초기화</button>' : ""}</div>\n    <p class="t-note">이주비 대출·이주 시점은 추정(조합·은행에 따라 다름) · 입력값 기준 계산</p></div>`;
+    return `<div class="gpane"><h3>전세 끼고 사면 <small>언제 얼마가 필요한지</small></h3>\n    ${/공공재개발/.test(r.n) ? '<p class="note riskbox"><b>먼저 확인</b> 공공재개발 후보지 상당수가 토지거래허가구역으로 지정돼 왔어요(2026년 1월까지 확인). 지금도 지정돼 있으면 실거주 의무 때문에 전세 끼고 사기가 어려워요. 계약 전 구청에 지정 여부를 물어보세요.</p>' : ""}\n    ${gapTL(g, false)}${g.x.ok ? cashBr(g.total, g.x.loanEnd, g).html : ""}${g.relocAlt != null && g.relocAlt - g.reloc >= 0.05 ? `<p class="t-note">${g.reloc < 0.05 ? "위 이주 칸은 이주비 대출로 전세금을 다 돌려준다고 본 값이에요." : `위 이주 때 +${ZF.cash(g.reloc)}는 이주비 대출을 넉넉히 잡은 값이에요.`} 이주비 대출을 감정가만 기준으로 잡으면 이주 때 ${ZF.cash(g.reloc < 0.05 ? g.relocAlt : g.relocAlt - g.reloc)}이 더 들어요 · 조합·은행마다 기준이 달라요.</p>` : ""}\n    <p class="gap-honest">${gapLine}</p>\n    <div class="gj-f"><label for="gJ">이 매물 전세금 <small>${g.userJ ? "직접 입력" : `기본 = 매수가 × ${fmt(g.jr, 1)}% (${esc(jrSrcTxt(r))})`}</small></label><div class="inp"><input id="gJ" inputmode="decimal" placeholder="${e2(g.D)}" value="${OV[r.id]?.jeonse ?? ""}"><span>억</span></div>${g.userJ ? '<button type="button" class="btn text sm" id="gJx">초기화</button>' : ""}</div>\n    <p class="t-note">이주비 대출·이주 시점은 추정(조합·은행에 따라 다름) · 입력값 기준 계산</p></div>`;
   }
   function gapBigrow(r) {
     const g = gapOf(r),
@@ -7729,7 +7746,7 @@
     const art = $("introArt");
     HOOK_CASH = hookCounts();
     {
-      const save = { ...P };
+      const save = { ...P }, gc0 = GCACHE, gk0 = GKEY;   // 지금 조건의 계산 캐시는 남겨 둔다(첫 화면이 같은 계산을 다시 하지 않게)
       Object.assign(P, { homes: 0, first: 0, unit: 84, basis: "total", kind: "", jr: null });
       const base = R.filter((r) => !r.dn && r.s < 9 && !r.cx && r.src !== "moa" && !rewinBlocked(r));
       HOOK = {};
@@ -7754,7 +7771,7 @@
           }).length;
       });
       Object.assign(P, save);
-      GCACHE = new Map();
+      GCACHE = gc0; GKEY = gk0;
     }
     if (art) {
       const y0 = -26,
@@ -7895,8 +7912,11 @@
   restoreURL();
   readAV();
   sizeCash();
-  plan();
-  initIntro();
+  // plan()(입주 계산 화면 + 되는 구역 집합)·initIntro는 boot()에서 한 번 쉬고 — 앱 코드 실행 한 덩어리(1초+)를 나눈다(18차 성능)
+  // 내 돈(CASH)만은 지금 정해 둔다(확장 모듈의 첫 그리기가 plan()보다 먼저 돌아도 같은 금액)
+  readAV();
+  { const c0 = readCash(); if (!(c0.bad || c0.big)) { CASH = c0.cv; lastValidCash = CASH; } }
+  MAXP = maxBuy(CASH);
   const hash0 = location.hash.slice(1);
   const done = {};
   const SECT = {
@@ -8455,6 +8475,14 @@
   function runCommute() {
     const out = $("cmOut");
     if (!out) return;
+    // 출퇴근 화면이 안 보일 땐 셈을 미뤘다가 보이는 순간 한 번(renderSave와 같은 방식 · 첫 화면 긴 작업 줄이기)
+    const cmSec = $("commuteTop");
+    if (cmSec && !cmSec.getClientRects().length && window.ResizeObserver) {
+      CM.dirty = true;
+      if (!CM.ro) (CM.ro = new ResizeObserver(() => { if (CM.dirty && cmSec.getClientRects().length) { CM.dirty = false; runCommute(); } })).observe(cmSec);
+      return;
+    }
+    CM.dirty = false;
     const C = commuteFrom(CM.dest),
       res = [];
     baseList().forEach((r) => {
@@ -8888,15 +8916,25 @@
     T3.ready = true;
   }
   async function boot() {
+    await yieldT();
+    await scoreChunked();
+    // 전세 끼고 계산(gapOf)을 150곳씩 나눠 미리 — plan()·첫 목록이 한 번에 1,300곳을 계산하는 긴 작업(300ms+)을 잘게(결과는 같은 캐시)
+    // 예전 첫 화면 소개(#intro)는 간단 화면에서 숨겨져 있다 → 그 숫자(1·2·3억이면 N곳) 계산은 건너뛴다(18차 성능)
+    if (!document.documentElement.classList.contains("simple") || ($("intro") && $("intro").getClientRects().length)) { initIntro(); await yieldT(); }
+    if (gapMode()) { const L = baseList(); for (let i = 0; i < L.length; i += 150) { for (let j = i; j < Math.min(L.length, i + 150); j++) try { gapOf(L[j]); } catch (e) {} await yieldT(); } }
+    plan();
     if (!hash0) initReveal();
     mbInit();
     await yieldT();
     SECT.mapTop();
     await yieldT();
-    SECT.rankTop();
-    await yieldT();
-    SECT.statsTop();
-    SECT.rulesTop();
+    // 간단 화면(홈): 순위·통계·규제 화면은 MY의 도구로 열 때 그린다(SIMPLE.open → SECT) — 첫 화면 긴 작업 줄이기(18차)
+    if (!document.documentElement.classList.contains("simple")) {
+      SECT.rankTop();
+      await yieldT();
+      SECT.statsTop();
+      SECT.rulesTop();
+    }
     reportReady = true;
     await yieldT();
     initTools();
