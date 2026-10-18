@@ -208,20 +208,20 @@ def update(state, raw, idx, polys, day):
     # 끝까지 받은 검색 범위 안인데 오늘 안 보인 예정 물건 → gone(건너뛴 검색이면 그대로 있는 것으로)
     C = state.setdefault('courts', {})
     for sc in searches_of(raw):
-        if not sc.get('complete') or not sc.get('court'): continue
+        if not sc.get('complete') or not sc.get('court') or sc.get('kind') == 'diag': continue
         lo, hi = sc.get('from') or a, sc.get('to') or a
         for k, o in S.items():
             if k in seen or o.get('court') != sc['court'] or not (lo <= (o.get('date') or '') <= hi): continue
             if sc.get('skip') and o.get('status') == 'up': o['lastSeen'] = a; stat['skip'] += 1
             elif not sc.get('skip') and o.get('status') == 'up' and not sc.get('noreq'): o['status'] = 'gone'; stat['gone'] += 1
         c = C.setdefault(sc['court'], {})
-        if sc.get('how'): c['how'] = sc['how']
+        if sc.get('how') in ('label', 'ws', 'addr'): c['how'] = sc['how']
         end = (sc.get('cover') or [None, hi])[1]
         if sc.get('kind') in ('full', 'refresh') or sc.get('fallback') == 'full':
             c['lastFullDate'] = a; c['through'] = max(c.get('through') or '', end); stat['refresh'] += sc.get('kind') == 'refresh'
         elif sc.get('kind') == 'new' and (c.get('through') or '') >= add(lo, -1 - 7):
             c['through'] = max(c.get('through') or '', end)
-    if any(sc.get('complete') for sc in searches_of(raw)): state['asOf'] = max(state.get('asOf') or '', a)
+    if any(sc.get('complete') and sc.get('kind') != 'diag' for sc in searches_of(raw)): state['asOf'] = max(state.get('asOf') or '', a)
     # 기일이 지난 물건: 구역 안 → chk(45일까지), 구역 밖 → 뺀다
     for k in list(S):
         o = S[k]; d = o.get('date') or ''

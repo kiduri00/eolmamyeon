@@ -15,7 +15,8 @@ const STATE = path.resolve(process.argv[3] || 'pipeline/cache/auction_state.json
 const URL0 = 'https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ151F00.xml';
 const API = /\/pgj\/pgjsearch\/searchControllerMain\.on/;
 const COURTS = ['서울서부지방법원', '서울중앙지방법원', '서울동부지방법원', '서울남부지방법원', '서울북부지방법원'];
-const JUR = { 서울서부지방법원: ['마포구', '서대문구', '은평구', '용산구'] };   // 법원 고르기가 안 먹을 때 소재지 검색(관할 구)
+const JUR = { 서울서부지방법원: ['마포구', '서대문구', '은평구', '용산구'] };
+const SGG_CODE = { 마포구: '11440', 서대문구: '11410', 은평구: '11380', 용산구: '11170' };   // 법원 고르기가 안 먹을 때 소재지 검색(관할 구)
 const P = 'mf_wfm_mainFrame_';
 const SEL_COURT = `#${P}sbx_rletCortOfc`, BTN = `#${P}btn_gdsDtlSrch`, SEL_SD = `#${P}sbx_rletAdongSdS`, SEL_SGG = `#${P}sbx_rletAdongSggS`;
 const CAL_S = `${P}cal_rletPerdStr`, CAL_E = `${P}cal_rletPerdEnd`;
@@ -76,7 +77,7 @@ function plan(state, today, wEnd) {
   function finish(err) {
     if (done) return; done = true; clearTimeout(hard);
     const by = {};
-    for (const s of res.searches) (by[s.court] = by[s.court] || []).push(s);
+    for (const s of res.searches) if (s.kind !== 'diag') (by[s.court] = by[s.court] || []).push(s);
     res.courts = COURTS.map((court) => { const ss = by[court] || []; return { court, ok: ss.length > 0 && ss.every((s) => s.complete), got: ss.reduce((a, s) => a + (s.got || 0), 0), how: (ss.find((s) => s.how) || {}).how, err: (ss.find((s) => s.err) || {}).err }; });
     res.ok = res.courts.every((c) => c.ok);
     if (err || stop) res.err = err || stop;
@@ -182,10 +183,23 @@ function plan(state, today, wEnd) {
       await sleep(jitter(800, 1400));
       if (!(await selectByText(SEL_SD, '서울특별시'))) return { how: 'addr', err: 'no-sido', radio: r.id };
       let okGu = false;
-      for (let k = 0; k < 20 && !okGu; k++) { await sleep(500); okGu = await p.evaluate(([id, gu]) => { const s = document.querySelector('#' + id); return !!(s && [...s.options].some((o) => o.text.trim() === gu)); }, [SEL_SGG.slice(1), gu]); }
-      if (!okGu || !(await selectByText(SEL_SGG, gu))) {
-        const opts = await p.evaluate((id) => { const s = document.querySelector('#' + id); return s ? [...s.options].map((o) => o.text.trim()).slice(0, 30) : null; }, SEL_SGG.slice(1));
-        return { how: 'addr', err: 'no-sgg', radio: r.id, opts };
+      for (let k = 0; k < 30 && !okGu; k++) { await sleep(500); okGu = await p.evaluate(([id, gu]) => { const s = document.querySelector('#' + id); return !!(s && [...s.options].some((o) => o.text.trim() === gu)); }, [SEL_SGG.slice(1), gu]); }
+      if (okGu && (await selectByText(SEL_SGG, gu))) { /* 목록에 있는 구 */ }
+      else {
+        // 목록에 그 구가 없으면(사이트가 물건 있는 구만 보여 주는 듯) WebSquare 컴포넌트에 구 코드를 넣어 본다
+        const code = SGG_CODE[gu];
+        const f = await p.evaluate(([id, code]) => {
+          const s = document.querySelector('#' + id), c = window[id];
+          const vals = s ? [...s.options].map((o) => `${o.value}:${o.text.trim()}`) : [];
+          const v0 = (vals[1] || '').split(':')[0];
+          const v = v0.length === 5 ? code : v0.length === 3 ? code.slice(2) : code;
+          let got = null;
+          try { if (c && c.setValue) { c.setValue(v); got = c.getValue ? c.getValue() : null; } } catch (e) { got = 'err ' + e.message; }
+          if (got !== v && s) { const o = document.createElement('option'); o.value = v; o.text = ''; s.appendChild(o); s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); try { got = c && c.getValue ? c.getValue() : s.value; } catch (e) {} }
+          return { v, got, vals: vals.slice(0, 6) };
+        }, [SEL_SGG.slice(1), code]);
+        log('구 목록에 없음 →', gu, JSON.stringify(f));
+        if (!f.got || String(f.got) !== String(f.v)) return { how: 'addr', err: 'no-sgg', gu, f };
       }
       await sleep(jitter(600, 1100));
       return { how: 'addr', gu, radio: r.id };
@@ -226,11 +240,11 @@ function plan(state, today, wEnd) {
       if (t.cover) s.cover = t.cover;
       res.searches.push(s);
       if (t.noreq) { s.noreq = true; s.complete = true; return; }
-      const order = [...new Set([...(howOf[t.court] || []), 'label', 'ws', ...(JUR[t.court] ? ['addr'] : [])])];
+      const order = t.kind === 'diag' ? ['addr'] : [...new Set([...(howOf[t.court] || []), 'label', 'ws', ...(JUR[t.court] ? ['addr'] : [])])];
       for (const how of order) {
         if (stop) { s.err = stop; return; }
         const subs = how === 'addr' ? JUR[t.court] : [null];
-        let tot = 0, got = 0, pages = 0, okAll = true, bad = false, nskip = 0;
+        let tot = 0, got = 0, pages = 0, okAll = true, bad = false, nskip = 0; const names0 = {};
         for (const gu of subs) {
           if (!firstOpen) { await sleep(jitter(2500, 4000)); await open(); }
           firstOpen = false;
@@ -256,7 +270,8 @@ function plan(state, today, wEnd) {
           const pi = info(r.j), size = +pi.pageSize || 10, total = +pi.totalCnt || 0, nm = names(r.j);
           if (res.searches.length <= 2 || how !== 'label' || t.kind === 'new') log(t.court, t.kind, how, gu || '', `${t.from}~${t.to}`, JSON.stringify({ set: st, total, names: nm, body: String(r.body || '').slice(0, 500) }));
           // 법원 이름이 다르거나(법원 고르기가 안 먹음) 전체 2주인데 0건이면 다음 방법으로
-          if (how !== 'addr' && (Object.keys(nm).some((k) => k !== t.court) || (total === 0 && isFull && JUR[t.court]))) { s.err = `${how}:${total}건 ${JSON.stringify(nm)}`; bad = true; break; }
+          if (how !== 'addr' && (Object.keys(nm).some((k) => k !== t.court) || (total === 0 && isFull && JUR[t.court] && !/^B\d{6}$/.test(String((st && st.ws) || ''))))) { s.err = `${how}:${total}건 ${JSON.stringify(nm)}`; bad = true; break; }
+          for (const [k, v] of Object.entries(nm)) names0[k] = (names0[k] || 0) + v;
           const ids = rows(r.j).map((x) => x.docid);
           const exp = new Set(t.exp || []);
           const skip = how !== 'addr' && t.exp && total === exp.size && total > 0 && ids.every((x) => exp.has(x));
@@ -281,6 +296,7 @@ function plan(state, today, wEnd) {
         Object.assign(s, { how, total: tot, got, pages, complete: okAll });
         if (nskip) s.skip = true;
         if (okAll) delete s.err;
+        if (t.kind === 'diag') { const nm = s.names = names0; if (!(tot > 0 && nm[t.court])) s.how = how + '-diag'; else howOf[t.court] = [how]; return; }
         howOf[t.court] = [how];
         return;
       }
@@ -296,6 +312,8 @@ function plan(state, today, wEnd) {
       try { await runTask(t); } catch (e) { log('!!', t.court, t.kind, e.message); }
       if (t.kind === 'refresh') refreshed++;
     }
+    // 진단(AUCTION_DIAG_ADDR=1): 서부 관할 구를 소재지로 2주 전체 검색해 정말 0건인지 본다
+    if (process.env.AUCTION_DIAG_ADDR && !stop) for (const court of Object.keys(JUR)) { try { await runTask({ court, kind: 'diag', from: today, to: wEnd }); } catch (e) { log('!! diag', e.message); } }
   } catch (e) {
     res.err = String(e.message || e).slice(0, 160); log('!! 실패:', res.err);
     try { if (process.env.AUCTION_SHOTS) await b.contexts()[0].pages()[0].screenshot({ path: path.join(process.env.AUCTION_SHOTS, 'err.png') }); } catch (e2) {}
