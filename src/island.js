@@ -37,6 +37,7 @@
     cur.f = f; cur.i = i;
     var t = st[0], el;
     $("sN").textContent = S(t[0]);
+    el = $("sNB"); if (el) el.style.setProperty("--n", String(num(S(t[0]) + "곳")));
     $("sNL").textContent = S(t[1]);
     $("sLT").textContent = S(t[2]);
     $("sLS").textContent = S(t[3]);
@@ -68,11 +69,12 @@
     var go = function () {
       if (hyd()) return;
       try {
-        var keys = ["cash", "homes", "first", "unit", "inc", "basis", "kind", "fund", "jr"];
+        var keys = ["cash", "mode", "homes", "first", "unit", "inc", "basis", "kind", "fund", "jr"];
         var c = new URLSearchParams(P.conds[cur.f] || ""), q = new URLSearchParams(location.search);
         keys.forEach(function (k) { q.delete(k); });
-        if (STOPS[cur.i] === P.def.c) c.delete("cash"); else c.set("cash", String(STOPS[cur.i]));
-        if (cur.f === "gap") { c.delete("fund"); c.delete("basis"); }
+        // 주소 꼴 ?cash=1&mode=jeonse(앱 condQuery와 같음) — 금액·방식은 늘 적는다
+        c.delete("fund"); c.set("cash", String(STOPS[cur.i])); c.set("mode", cur.f === "cash" ? "loan" : "jeonse");
+        if (cur.f === "gap") c.delete("basis");
         c.forEach(function (v, k) { q.set(k, v); });
         var cq = new URLSearchParams(); c.forEach(function (v, k) { cq.set(k, v); });
         var s = cq.toString() ? "?" + cq.toString() : "", qs = q.toString();
@@ -86,11 +88,13 @@
   function initial() {
     try {
       var qs = location.search;
-      if (!/[?&](cash|fund|inc|income)=/.test(qs)) qs = localStorage.getItem("jg-cond") || "";
+      if (!/[?&](cash|mode|fund|inc|income)=/.test(qs)) qs = localStorage.getItem("jg-cond") || "";
       var q = new URLSearchParams(qs), f = "gap";
       if (["homes", "first", "unit", "inc", "income", "kind", "jr"].some(function (k) { return q.has(k); })) return;
-      if (q.get("fund") === "cash" && q.get("basis") === "now") f = "cash";
-      else if (q.has("basis") || (q.has("fund") && q.get("fund") !== "gap")) return;
+      // 대출 끼고(mode=loan · 예전 fund=cash)는 '지금 매수' 기준이 기본(basis 생략) — 그 밖의 기준은 앱을 기다린다
+      var loan = q.get("mode") === "loan" || q.get("fund") === "cash";
+      if (loan) { if (q.has("basis") && q.get("basis") !== "now") return; f = "cash"; }
+      else if ((q.has("basis") && q.get("basis") !== "total") || (q.has("fund") && q.get("fund") !== "gap")) return;
       var c = q.has("cash") ? parseFloat(q.get("cash")) : 1, i = STOPS.indexOf(c);
       if (i < 0) return;
       if (f !== cur.f || i !== cur.i) apply(f, i);

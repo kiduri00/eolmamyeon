@@ -744,7 +744,8 @@ const PINS = (() => {
   }
   function condBtn() {
     const hero = $("sHero"); if (!hero) return;
-    let w = $("pcSave"); const g0 = document.querySelector(".s-gauge");
+    // 자리: shell.html 첫 페인트 자리(.pc-ph) 바로 앞 — 예산 카드가 PC에서 목록 칸으로 옮겨 가도 알림 카드는 #mapTop에 남는다
+    let w = $("pcSave"); const g0 = document.querySelector(".s-gauge"), ph = document.querySelector("#mapTop > .pc-ph");
     if (!w) {
       w = document.createElement("div"); w.id = "pcSave"; w.className = "pc-save pc-alert";
       w.innerHTML = `<button type="button" class="pc-al"></button>`;
@@ -755,13 +756,13 @@ const PINS = (() => {
         if ((f || n.add.length) && typeof INBOX !== "undefined") return INBOX.open();
         openView(); setTimeout(() => { const h = $("pcT"); if (h) { h.scrollIntoView({ block: "start", behavior: "auto" }); h.tabIndex = -1; h.focus({ preventScroll: true }); } }, 120);
       };
-      g0 ? g0.after(w) : hero.appendChild(w);
-    } else if (g0 && w.previousElementSibling !== g0 && !(w.previousElementSibling && w.previousElementSibling.id === "pcAct")) g0.after(w);
+      ph ? ph.before(w) : g0 ? g0.after(w) : hero.appendChild(w);
+    } else if (ph ? w.nextElementSibling !== ph && !(w.nextElementSibling && w.nextElementSibling.id === "pcAct") : g0 && w.previousElementSibling !== g0 && !(w.previousElementSibling && w.previousElementSibling.id === "pcAct")) ph ? ph.before(w) : g0.after(w);
     const b = w.firstElementChild, sc = sameCond();
     if (!sc) {
       b.classList.remove("on");
-      b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>살 수 있는 곳 생기면 알려 드려요</b><small>새 구역·가격 하락·경매 물건 등장 시 알림</small></span><span class="pc-al-go">알림 받기</span>`;
-      b.setAttribute("aria-label", "살 수 있는 곳 생기면 알려 드려요 — 새 구역·가격 하락·경매 물건 등장 시 알림");
+      b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>갈 수 있는 곳 생기면 알려 드려요</b><small>새 구역·가격 하락·경매 물건 등장 시 알림</small></span><span class="pc-al-go">알림 받기</span>`;
+      b.setAttribute("aria-label", "갈 수 있는 곳 생기면 알려 드려요 — 새 구역·가격 하락·경매 물건 등장 시 알림");
       return;
     }
     const n = condNews(sc), sn = new Set(String(sc.seen || "").split("/")[0].split(",").filter(Boolean)), f = n.add.filter((id) => !sn.has(id)).length, N = f || n.add.length;

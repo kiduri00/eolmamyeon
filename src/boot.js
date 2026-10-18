@@ -42,7 +42,7 @@
     var q = location.search, fav = ls("jg-fav"), so = ls("emr.sort");
     if (ls("zp_full") === "1") now = "flag";
     else if (location.hash.length > 1) now = "hash";
-    else if (/[?&](cash|homes|first|unit|inc|income|basis|kind|fund|jr)=/.test(q) || ls("jg-cond")) now = "cond";
+    else if (/[?&](cash|mode|homes|first|unit|inc|income|basis|kind|fund|jr)=/.test(q) || ls("jg-cond")) now = "cond";
     else if (so && so !== "fit") now = "sort";
     else if (fav && fav !== "[]") now = "pins";
     else if (navigator.serviceWorker && navigator.serviceWorker.controller) now = "sw";

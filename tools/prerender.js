@@ -46,7 +46,7 @@ async function state(out) {
     // 1100px: 넓은 화면 목록 배치(목록 10줄까지) · '이 돈이면' 추가 힌트(1180px 이상에서만)는 끼지 않게
     const ctx = await br.newContext({ viewport: { width: 1100, height: 1000 }, serviceWorkers: "block" });
     await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
-    await ctx.addInitScript(() => { try { localStorage.clear(); localStorage.setItem("zp_full", "1"); localStorage.setItem("emr.coach1", "1"); localStorage.setItem("emr.map", "svg"); } catch (e) {} });
+    await ctx.addInitScript(() => { try { localStorage.clear(); localStorage.setItem("zp_full", "1"); localStorage.setItem("emr.coach1", "1"); localStorage.setItem("zp.onb", "1"); localStorage.setItem("emr.map", "svg"); } catch (e) {} });
     const page = await ctx.newPage();
     const errs = [];
     page.on("pageerror", (e) => errs.push(e.message));
@@ -155,7 +155,7 @@ async function css(cssFile, out) {
     for (const [w, h, mob] of [[412, 823, true], [1280, 900, false]]) {
       const ctx = await br.newContext({ viewport: { width: w, height: h }, isMobile: mob, hasTouch: mob, serviceWorkers: "block" });
       await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
-      await ctx.addInitScript(() => { try { localStorage.clear(); localStorage.setItem("zp_nohyd", "1"); } catch (e) {} });
+      await ctx.addInitScript(() => { try { localStorage.clear(); localStorage.setItem("zp_nohyd", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
       const page = await ctx.newPage();
       await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "load", timeout: 60000 });
       await page.waitForFunction(() => window.ZP_island && window.ZP_island.ready, null, { timeout: 20000 });

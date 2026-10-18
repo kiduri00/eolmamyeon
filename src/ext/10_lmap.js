@@ -635,7 +635,7 @@
           pins(true);
           // 토스트 숫자 = 홈 숫자 변화(좌표 없는 구역도 셈)
           const nowS = okIds(); let a = 0, b = 0; nowS.forEach((id) => { if (!snap.has(id)) a++; }); snap.forEach((id) => { if (!nowS.has(id)) b++; });
-          if (a || b) pinToast([a ? `새로 살 수 있는 곳 ${a}곳` : "", b ? `${b}곳 빠졌어요` : ""].filter(Boolean).join(" · "));
+          if (a || b) pinToast([a ? `새로 갈 수 있는 곳 ${a}곳` : "", b ? `${b}곳 빠졌어요` : ""].filter(Boolean).join(" · "));
         }, 380);
       }, true);
       // 내 핀(관심 구역) 토글 → 노란 핀 다시 그리기
@@ -836,7 +836,7 @@
       const PC = PIN_COL(dark());
       // 범례 핀 = 지도 핀과 같은 꼴(집 든 핀)
       const hp = (c, w) => `<svg class="lm-hp" width="12" height="15" viewBox="10 3 44 60" aria-hidden="true"><path d="M32 61C25.5 52.5 12.5 40.5 12.5 24.5a19.5 19.5 0 0 1 39 0C51.5 40.5 38.5 52.5 32 61z" fill="${c}"/><path d="M32 12.6 44.4 23.7h-3.9V35.2H23.5V23.7h-3.9z" fill="${w}"/><rect x="28.8" y="26.9" width="6.4" height="8.3" fill="${c}"/></svg>`;
-      el.innerHTML = `<span>${hp(PC.a, PC.wa)}핀 = 내 돈으로 살 수 있는 곳</span><span>${hp(PC.m, PC.wm)}관심 구역</span>${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
+      el.innerHTML = `<span>${hp(PC.a, PC.wa)}핀 = 내 돈으로 갈 수 있는 곳</span><span>${hp(PC.m, PC.wm)}관심 구역</span>${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
     }
     // 레이어 범례·'확대하면 보여요' 안내: 오른쪽 위 레일 바로 아래에 작은 글자로
     // 학교·병원(OpenFreeMap POI)은 타일 줌 14부터만 들어 있다 → 레이어도 14부터, 안내도 14 기준

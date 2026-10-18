@@ -1,0 +1,118 @@
+/* ===================== 예산 카드 · 예산 시트 (리뉴얼 2단계 '찾기 홈') =====================
+   카드 한 줄: 내 돈 [1억 ▾] → 갈 수 있는 곳 [9곳] + [전세 끼고 | 대출 끼고] (i)
+   폰: 검색 밑 → 카드 → 지도 → 알림 카드 → 목록 · PC: 왼쪽 목록 칸 맨 위에 카드, 오른쪽 지도 */
+
+/* ---- 카드 ---- */
+html.simple .s-gauge.bc{display:block;position:relative;padding:14px 16px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);box-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px -14px rgba(31,58,135,.22)}
+html.simple .s-gauge.bc .bc-line{display:flex;align-items:flex-end;gap:10px;margin:0;font-size:inherit;font-weight:inherit;letter-spacing:normal;white-space:normal;overflow:visible;color:var(--text-1)}
+.bc-cell{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.bc-k{font-size:13px;font-weight:600;line-height:1.2;color:var(--text-3);letter-spacing:-.01em}
+.bc-cash{display:inline-flex;align-items:center;gap:4px;min-height:48px;margin:0 0 0 -10px;padding:0 10px 0 10px;border:0;border-radius:14px;background:color-mix(in srgb,var(--brand) 8%,var(--surface));color:var(--text-1);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .15s}
+.bc-cash:hover{background:color-mix(in srgb,var(--brand) 14%,var(--surface))}
+.bc-cash:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.bc-cash b,.bc-num{font-size:34px;line-height:1;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.bc-cash b small,.bc-num i{margin-left:2px;font-size:.5em;font-style:normal;font-weight:700;letter-spacing:-.02em}
+.bc-chev{flex:none;color:var(--brand);margin-top:2px}
+.bc-cash[aria-expanded="true"] .bc-chev{transform:rotate(180deg)}
+html.simple .s-gauge.bc .s-arrow{width:28px;height:28px;margin:0 0 10px;flex:none}
+html.simple .s-gauge.bc .s-arrow svg{width:16px;height:16px}
+.bc-cnt{flex:1 1 auto}
+.bc-num{position:relative;display:inline-flex;align-items:baseline;padding:7px 0 7px;color:var(--brand)}
+/* 카운트업: 글자(#sN)는 늘 최종 값, 보이는 숫자는 등록한 정수 속성(--n)이 굴러가는 CSS 카운터 */
+@property --n{syntax:"<integer>";inherits:false;initial-value:0}
+@supports (content:"a" / ""){
+  .bc-num{counter-reset:zpn var(--n);transition:--n .45s cubic-bezier(.2,.7,.2,1)}
+  .bc-num::before{content:counter(zpn) / ""}
+  .bc-num>span{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+}
+@media (prefers-reduced-motion:reduce){.bc-num{transition:none}}
+.bc-sub{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin-top:10px}
+html.simple .s-gauge.bc .s-mode{padding:3px}
+html.simple .s-gauge.bc .s-mode button{min-height:40px;padding:0 13px;font-size:13.5px}
+.bc-i{display:inline-grid;place-items:center;width:40px;height:40px;margin:0 -6px;padding:0;border:0;border-radius:50%;background:none;color:var(--text-3);cursor:pointer}
+.bc-i i{display:grid;place-items:center;width:18px;height:18px;border:1.5px solid currentColor;border-radius:50%;font:700 11px/1 var(--font);font-style:normal}
+.bc-i[aria-expanded="true"]{color:var(--brand)}
+.bc-i:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+html.simple .s-gauge.bc .s-asm{margin-left:auto}
+.bc-it{margin:8px 0 0;padding:8px 10px;border-radius:10px;background:var(--surface-2);font-size:13px;line-height:1.45;color:var(--text-2)}
+.bc-it b{color:var(--text-1);font-weight:700}
+.bc-it[hidden]{display:none}
+html.simple .s-gauge.bc .s-sum{display:none!important}
+@media (max-width:374px){
+  html.simple .s-gauge.bc{padding:12px 12px 10px}
+  html.simple .s-gauge.bc .bc-line{gap:6px}
+  .bc-cash b,.bc-num{font-size:30px}
+  html.simple .s-gauge.bc .s-mode button{padding:0 10px;font-size:13px}
+}
+
+/* ---- 폰: 지도가 카드 바로 밑(알림 카드는 지도 뒤로) ---- */
+@media (max-width:980px){
+  html.simple #mapTop{display:flex;flex-direction:column}
+  html.simple #mapTop>*{min-width:0}
+  html.simple #mapTop>.s-gauge.bc{margin:0 0 10px}
+  html.simple #mapTop>.main{order:1}
+  html.simple #mapTop>.pc-save,html.simple #mapTop>.pc-act{order:2}
+  html.simple #mapTop>.s-list-w{order:3}
+  html.simple #mapTop>.pc-ph{order:2}
+}
+
+/* ---- PC: 왼쪽 목록 칸(맨 위 예산 카드) · 오른쪽 지도 ---- */
+@media (min-width:981px){
+  html.simple #mapTop .main{grid-template-columns:minmax(360px,420px) minmax(0,1fr)}
+  html.simple #mapTop .main>.s-right{order:-1}
+  html.simple .s-right .s-list-w>.s-gauge.bc{flex:none;margin:0 0 12px;padding:14px 16px 12px}
+  html.simple .s-right .s-list-w>.s-gauge.bc .bc-cash b,html.simple .s-right .s-list-w>.s-gauge.bc .bc-num{font-size:32px}
+  html.simple #mapTop>.pc-save,html.simple #mapTop>.pc-act{margin-top:0}
+}
+
+/* ---- 예산 시트 ---- */
+.bsheet{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center}
+.bsheet[hidden]{display:none}
+html.bs-on{overflow:hidden}
+.bs-scr{position:absolute;inset:0;background:rgba(10,14,22,.45)}
+.bs-card{position:relative;width:100%;max-width:560px;max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain;box-sizing:border-box;padding:8px 20px calc(16px + env(safe-area-inset-bottom,0px));border-radius:22px 22px 0 0;background:var(--surface);color:var(--text-1);box-shadow:0 -8px 32px rgba(15,23,42,.22);transform:translateY(12px);opacity:.6;transition:transform .2s cubic-bezier(.2,.7,.2,1),opacity .2s}
+.bsheet.in .bs-card{transform:none;opacity:1}
+.bs-grab{width:40px;height:5px;margin:2px auto 6px;border-radius:3px;background:var(--border)}
+.bs-h{display:flex;align-items:center;justify-content:space-between;gap:8px;touch-action:none}
+.bs-h h2{margin:0;font-size:17px;font-weight:800;letter-spacing:-.02em}
+.bs-x{min-height:44px;min-width:44px;padding:0 6px;margin-right:-6px;border:0;background:none;color:var(--text-2);font:600 15px var(--font);cursor:pointer}
+.bs-big{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:4px 0 12px}
+.bs-cash{font-size:44px;line-height:1;font-weight:800;letter-spacing:-.045em;font-variant-numeric:tabular-nums;color:var(--text-1)}
+.bs-cash small{margin-left:2px;font-size:.5em;font-weight:700}
+.bs-cnt{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:13px;font-weight:600;color:var(--text-3)}
+.bs-cnt .bc-num{padding:0;font-size:28px}
+.bs-chips{display:flex;gap:6px;margin:0 -20px 14px;padding:0 20px;overflow-x:auto;scrollbar-width:none}
+.bs-chips::-webkit-scrollbar{display:none}
+.bs-chips button{flex:none;min-height:40px;padding:0 14px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text-1);font:600 14px var(--font);font-variant-numeric:tabular-nums;cursor:pointer;touch-action:manipulation}
+.bs-chips button[aria-pressed="true"]{border-color:var(--text-1);background:var(--text-1);color:var(--surface)}
+.bs-chips button:focus-visible,.bs-more button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+/* 금액별 막대: 게이지 손잡이 이동 폭(양쪽 12px 안쪽)에 맞춘다 */
+.bs-hist{position:relative;height:64px;margin:0 12px -2px}
+.bs-hist i{position:absolute;bottom:0;box-sizing:border-box;border-left:1px solid var(--surface);border-right:1px solid var(--surface);border-radius:3px 3px 0 0;background:color-mix(in srgb,var(--text-3) 30%,var(--surface))}
+.bs-hist i.on{background:color-mix(in srgb,var(--brand) 55%,var(--surface))}
+.bs-hist i.cur{background:var(--brand)}
+html.simple #bSheet #sCash{display:block;width:100%;margin:0}
+html.simple #bSheet .bs-ticks{position:relative;display:block!important;height:16px;margin:2px 12px 0;padding:0;font-size:11.5px;color:var(--text-3)}
+html.simple #bSheet .bs-ticks span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+html.simple #bSheet .bs-ticks span:nth-child(1){left:0}
+html.simple #bSheet .bs-ticks span:nth-child(2){left:28%}
+html.simple #bSheet .bs-ticks span:nth-child(3){left:58%}
+html.simple #bSheet .bs-ticks span:nth-child(4){left:88%}
+html.simple #bSheet .bs-ticks span:nth-child(5){left:100%}
+.bs-more{min-height:44px;margin:12px 0 6px;font-size:14px;color:var(--text-2)}
+.bs-more button{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;margin-left:-2px;border:0;border-radius:12px;background:var(--surface-2);color:var(--text-1);font:500 14px var(--font);cursor:pointer}
+.bs-more button b{font-weight:800;color:var(--brand)}
+.bs-more:not(:has(button)){display:flex;align-items:center}
+.bs-go{display:flex;align-items:center;justify-content:center;width:100%;min-height:54px;border-radius:14px;font-size:16.5px;font-weight:800}
+@media (min-width:641px){
+  .bsheet{align-items:center;padding:24px}
+  .bs-card{border-radius:22px;max-width:460px;padding:12px 24px 20px;box-shadow:0 24px 64px rgba(15,23,42,.3)}
+  .bs-grab{display:none}
+  .bs-chips{margin:0 0 14px;padding:0;flex-wrap:wrap}
+}
+
+/* ---- 빈 화면: 원인 · 다음 행동 · 대안 ---- */
+.s-empty .s-et{display:block;font-size:16px;font-weight:800;color:var(--text-1)}
+.s-empty .s-es{display:block;margin-top:4px;font-size:13.5px;color:var(--text-2)}
+.s-empty .s-eact{flex-direction:column;align-items:center;gap:4px}
+.s-empty .s-eact .btn.text{min-height:44px;color:var(--text-2);text-decoration:underline;text-underline-offset:3px}

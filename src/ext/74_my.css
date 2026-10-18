@@ -44,6 +44,8 @@ html.s-full,html.s-full body{overscroll-behavior:none}
 .nw-oh{margin-top:28px}
 
 /* ===================== MY(#my) ===================== */
+/* MY는 아래 탭 화면 — 열렸을 때만(첫 화면 아래에 통째로 붙어 보이던 것) */
+html.simple #my:not(.s-on){display:none!important}
 .my .sec-h{margin-bottom:6px}
 .my-g{margin:0 0 22px}
 .my-gh{margin:0 4px 8px;font-size:13px;font-weight:700;color:var(--text-3);letter-spacing:-.01em}

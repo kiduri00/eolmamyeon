@@ -101,15 +101,13 @@ const SIMPLE = (() => {
       R.forEach((r) => { if ((kind && KIND(r) !== kind) || r.lc || (gu && r.g !== gu) || (!gu && !inBB(r)) || !okR(r)) return; const n = needOf(r), m = nowK ? n.now : n.total; if (m != null && isFinite(m) && m < lo) lo = m; });
     } catch (e) {} finally { CASH = save; }
     // 이름: 유형 > 구 > 지도 범위 순으로 무엇을 거르고 있는지
-    const nm0 = kind ? `${gu ? `${esc(gu)} ` : ""}${KNAME[kind] || "이 유형"}` : gu ? esc(gu) : bbF ? "이 지도 범위" : "서울";
-    const lc = nm0.charCodeAt(nm0.length - 1), nm = nm0 + (lc >= 0xac00 && lc <= 0xd7a3 && (lc - 0xac00) % 28 ? "은" : "는");
     const up = isFinite(lo) ? Math.max(0.1, Math.ceil(lo * 10) / 10) : null;
-    const msg = up != null ? `${nm} 최소 <b>${eokS(lo)}</b>부터 살 수 있어요` : `${nm} ${gapMode() ? "전세 끼고" : "지금 방식으로"} 살 수 있는 곳이 없어요`;
-    const wide = kind ? `<button type="button" class="btn secondary" id="sKindAll">전체 유형 보기</button>` : gu ? `<button type="button" class="btn secondary" id="sGuAll">서울 전체</button>` : bbF ? `<button type="button" class="btn secondary" id="sBbAll">서울 전체</button>` : "";
-    return `${msg}<span class="s-eact">${up != null ? `<button type="button" class="btn primary" id="sKindUp" data-v="${up}">${eokS(up)}으로 올려 보기</button>` : ""}${wide}</span>`;
+    const wide = kind ? `<button type="button" class="btn text" id="sKindAll">전체 유형 보기</button>` : gu ? `<button type="button" class="btn text" id="sGuAll">서울 전체 보기</button>` : bbF ? `<button type="button" class="btn text" id="sBbAll">서울 전체 보기</button>` : "";
+    return `<b class="s-et">이 범위엔 아직 없어요</b>${up != null ? `<small class="s-es">${gapMode() ? "전세 끼고" : "대출 끼고"} 가장 적게 드는 곳이 ${eokS(lo)}부터예요</small>` : ""}<span class="s-eact">${up != null ? `<button type="button" class="btn primary" id="sKindUp" data-v="${up}">${eokS(up)}으로 올려 보기</button>` : ""}${wide}</span>`;
   }
   // 아래 탭바(4개: 찾기·관심·소식·MY): 지금 보는 화면에서 탭을 정한다(인자는 예전 호출과 맞추려고 받기만 함)
   // 기능 화면이 열려 있으면 그 화면의 탭(관심 구역 = 관심 · 소식 = 소식 · 나머지 도구·가이드 = MY) · 아니면(첫 화면·전체 지도·검색) 찾기
+  const TAB_IDS = ["favTop", "news", "my"];
   const TAB_OF = (id) => (id === "favTop" ? "fav" : id === "news" ? "news" : id ? "my" : "home");
   function navMark() {
     const k = document.documentElement.classList.contains("s-view") ? TAB_OF(cur) : "home";
@@ -143,38 +141,25 @@ const SIMPLE = (() => {
     // shell.html에 뼈대(게이지·목록·오른쪽 칸)가 이미 있으면 그대로 이어 쓴다 — 첫 페인트와 같은 높이라 화면이 밀리지 않는다
     let hero = $("sHero"), list = $("sListW"), right = $("sRight");
     const main = map.querySelector(".main");
-    if (!hero) {
-      hero = document.createElement("div");
-      hero.className = "s-hero"; hero.id = "sHero";
-      hero.innerHTML = `
-      <button type="button" class="s-search" id="sSearch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>구역·동·지번·역 검색</button>
-      <div class="s-gauge">
-        <div class="s-ghead"><h1 class="s-h1">내 돈으로 살 수 있는 <em>서울 재개발</em></h1>
-          <div class="s-mode" role="group" aria-label="사는 방식"><button type="button" data-f="gap">${LBL.gap}</button><button type="button" data-f="cash">${LBL.loan}</button></div><button type="button" class="s-asm" id="sAsm" hidden aria-haspopup="dialog"></button></div>
-        <div class="s-gmain">
-          <label for="sCash" class="s-cash"><small>내 현금</small><b id="sCashV">1억</b></label>
-          <span class="s-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-          <p class="s-count" id="sCount" aria-live="polite"><small id="sNL">살 수 있는 곳</small><b><span id="sN">0</span><i>곳</i></b></p>
-        </div>
-        <input type="range" id="sCash" min="0" max="100" step="0.1" value="8.33" aria-describedby="sCount" aria-label="가진 현금(억)">
-        <div class="s-ticks" aria-hidden="true"><span>0.5억</span><span>2</span><span>5</span><span>10</span><span>15</span></div>
-      </div>`;
-      map.insertBefore(hero, map.firstChild);
-    }
     if (!list) {
       list = document.createElement("div");
       list.className = "s-list-w"; list.id = "sListW";
-      list.innerHTML = `<div class="s-lh"><div><h2 id="sLT">살 수 있는 곳</h2><p class="s-lsub"><span id="sLS"></span><label class="s-sort"><span class="sr-only">정렬</span><select id="sSort">${SORTS.map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select></label></p></div><div class="s-flt" role="group" aria-label="유형"><button type="button" data-k="" aria-pressed="true">전체</button><button type="button" data-k="redev" aria-pressed="false">재개발</button><button type="button" data-k="rebuild" aria-pressed="false">재건축</button><button type="button" data-k="small" aria-pressed="false">가로·소규모</button></div></div>
+      list.innerHTML = `<div class="s-lh"><div><h2 id="sLT">갈 수 있는 곳</h2><p class="s-lsub"><span id="sLS"></span><label class="s-sort"><span class="sr-only">정렬</span><select id="sSort">${SORTS.map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select></label></p></div><div class="s-flt" role="group" aria-label="유형"><button type="button" data-k="" aria-pressed="true">전체</button><button type="button" data-k="redev" aria-pressed="false">재개발</button><button type="button" data-k="rebuild" aria-pressed="false">재건축</button><button type="button" data-k="small" aria-pressed="false">가로·소규모</button></div></div>
       <p class="s-gu" id="sGu" hidden></p><ol class="s-list" id="sList"></ol><button type="button" class="btn secondary s-more" id="sMore" hidden></button>`;
     }
     try { $("sSort").value = sortK; } catch (e) {}
     if (!right) {
       right = document.createElement("div");
       right.className = "s-right"; right.id = "sRight";
-      right.innerHTML = `<button type="button" class="s-tolist" id="sToList">← 살 수 있는 곳 목록</button>`;
+      right.innerHTML = `<button type="button" class="s-tolist" id="sToList">← 갈 수 있는 곳 목록</button>`;
       main.appendChild(right); right.appendChild($("report"));
     }
-    const place = () => { if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); } else if (main.nextElementSibling !== list) main.after(list); };
+    // 예산 카드(#sGauge): PC는 왼쪽 목록 칸 맨 위, 폰은 검색 밑(지도 바로 위) — shell.html 첫 페인트 스크립트와 같은 규칙
+    const gg = $("sGauge");
+    const place = () => {
+      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); if (gg && list.firstElementChild !== gg) list.insertBefore(gg, list.firstElementChild); }
+      else { if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); }
+    };
     place(); matchMedia("(min-width:981px)").addEventListener("change", place);
     $("sToList").onclick = () => document.documentElement.classList.remove("s-rep");
     // 스크롤해 지도를 볼 때 게이지가 머리 아래에 작게 붙어 있도록(움직이면 지도가 바로 바뀌는 걸 보며 조절)
@@ -189,7 +174,7 @@ const SIMPLE = (() => {
     // 큰 게이지가 화면 위로 지나가면, 지도·목록을 보는 동안만 머리 아래에 한 줄짜리 게이지를 띄운다(흐름 높이는 그대로)
     // 랜드마크 밖에 떠 있는 막대라 aside로(화면 읽기 '영역' 목록에 '내 현금 요약')
     const mini = document.createElement("aside");
-    mini.className = "s-mini"; mini.id = "sMini"; mini.hidden = true; mini.setAttribute("aria-label", "내 현금 요약");
+    mini.className = "s-mini"; mini.id = "sMini"; mini.hidden = true; mini.setAttribute("aria-label", "내 돈 요약");
     mini.innerHTML = `<b id="sMiniV">1억</b><input type="range" id="sMiniR" min="0" max="100" step="0.1" value="8.33" aria-label="가진 현금(억)"><span><i id="sMiniM">전세</i> <b id="sMiniN">0</b>곳</span><div class="s-mode s-mm" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">대출 끼고</button></div>`;
     document.body.appendChild(mini);
     // 전체 지도 위 막대에서도 전세 끼고/대출 끼고 전환(본 버튼을 대신 누른다 → 상태·목록·지도 모두 같은 길)
@@ -204,12 +189,6 @@ const SIMPLE = (() => {
       new IntersectionObserver((es) => es.forEach((x) => { areaIn = x.isIntersecting; sync(); }), { rootMargin: `-${(HDR() || 56) + 60}px 0px -40% 0px` }).observe(list);
       new IntersectionObserver((es) => es.forEach((x) => { if (x.isIntersecting) { areaIn = true; sync(); } }), { rootMargin: `-${(HDR() || 56) + 60}px 0px 0px 0px` }).observe(map.querySelector(".main"));
     }
-    const tiles = document.createElement("section");
-    tiles.className = "sec s-tiles"; tiles.id = "sTiles"; tiles.setAttribute("aria-labelledby", "sTT");
-    const ic = (d, c) => `<i aria-hidden="true" style="--ic:${c}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg></i>`;
-    const LSUB = { "guide/rebuild-30y": "30년 넘은 아파트 1,077단지", "report/": "매달 단계 변경 정리" };
-    tiles.innerHTML = `<h2 id="sTT">더 알아보기</h2><div class="s-tg">${VIEWS.map(([id, t, d, c, sub]) => `<a href="#${id}" class="s-t" data-view="${id}">${ic(d, c)}<span class="s-tx"><b>${t}</b><small>${sub || ""}</small></span></a>`).join("")}${LINKS.map(([u, t, d, c]) => `<a href="${u}" class="s-t">${ic(d, c)}<span class="s-tx"><b>${t}</b><small>${LSUB[u] || ""}</small></span></a>`).join("")}</div>`;
-    map.after(tiles);
     hero.insertBefore(hero.querySelector('#sSearch'), hero.firstChild);
     // 모바일 아래 탭바(앱처럼)
     // shell.html이 첫 페인트부터 같은 탭바를 깔아 둔다(섬 단계에서 자리가 비지 않게) → 있으면 그것을 이어 쓴다
@@ -251,6 +230,7 @@ const SIMPLE = (() => {
     try { let was = false; new MutationObserver(() => { const on = $("hdr").classList.contains("searching"); if (on === was) return; was = on; if (on) navMark("search"); else if (nav.querySelector('[data-nav="search"][aria-current]')) navMark(document.documentElement.classList.contains("s-full") ? "map" : "home"); }).observe($("hdr"), { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
     // 각 기능 화면 위에 '지도로' 버튼
     IDS.forEach((id) => {
+      if (TAB_IDS.includes(id)) return;   // 관심·소식·MY는 아래 탭이 길잡이 → 돌아가기 없음
       const s = $(id); if (!s || s.querySelector(".s-back")) return;
       const b = document.createElement("button");
       b.type = "button"; b.className = "s-back"; b.innerHTML = "← 돌아가기";
@@ -291,7 +271,6 @@ const SIMPLE = (() => {
       const a = e.target.closest("[data-id]"); if (!a) return;
       e.preventDefault(); curTab = "money"; keepY = scrollY; select(a.dataset.id, false, false, { scroll: !MQ_SHEET.matches });
     });
-    tiles.addEventListener("click", (e) => { const a = e.target.closest("[data-view]"); if (!a) return; e.preventDefault(); open(a.dataset.view); });
   }
   // 상세 '입주 현금' 탭: 맨 위엔 지금·이주·입주 숫자만, 나머지(가정·근거·숫자 바꿔 보기)는 접어 둔다
   function foldMoney(r) {
@@ -314,16 +293,18 @@ const SIMPLE = (() => {
     if (b && box && getComputedStyle(box).display === "none") b.click();   // 폰: 헤더 검색 아이콘을 숨겨도 같은 전체 화면 검색을 연다
     else { window.scrollTo({ top: 0, behavior: "smooth" }); $("q").focus(); }
   }
+  // 금액 글자: ZF.cash와 같은 꼴(1억 아래는 '5,000만', 1억부터 '1.5억', 15억 넘으면 '15억+') — 카드 '내 돈 1억 ▾'·한 줄 막대·예산 시트가 같은 글
+  const cashTxt = (v, real) => (real != null && real > 15 ? "15억+" : ZF.cash(real != null ? Math.round(real * 100) / 100 : v));
+  const cashHTML = (t) => { const m = t.match(/^([\d,.]+)(만|억\+?)$/) || [, t, ""]; return `${m[1]}<small>${m[2]}</small>`; };
   function label(v, real) {
-    const t = real != null && real > 15 ? "15억+" : `${String(real != null ? Math.round(real * 100) / 100 : v).replace(/\.0$/, "")}억`;
-    const m = t.match(/^([\d.]+)(억\+?)$/) || [, t, ""];
-    $("sCashV").innerHTML = `${m[1]}<small>${m[2].replace("+", "")}${/\+/.test(t) ? "+" : ""}</small>`;
+    const t = cashTxt(v, real);
+    $("sCashV").innerHTML = cashHTML(t);
     const pct = toPos(v);
     if ($("sMiniV")) { $("sMiniV").textContent = t; if (!dragging || document.activeElement !== $("sMiniR")) $("sMiniR").value = pct; $("sMiniR").style.setProperty("--p", pct + "%"); }
     if (!dragging || document.activeElement !== $("sCash")) { if (Math.abs(+$("sCash").value - pct) > 0.6) $("sCash").value = pct; }
     $("sCash").style.setProperty("--p", pct + "%");
-    $("sCash").setAttribute("aria-valuetext", t);
     if ($("sMiniR")) $("sMiniR").setAttribute("aria-valuetext", t);
+    if ($("bCash")) $("bCash").innerHTML = cashHTML(t);
   }
   // 끄는 동안에도 지도·숫자가 따라오게(계산은 약 30ms라 프레임마다 한 번까지만)
   // 끄는 동안: 무거운 전체 계산 대신 '필요한 돈 ≤ 현금' 판정만 다시 해 숫자·목록·구별 말풍선을 매 프레임 갱신.
@@ -485,35 +466,95 @@ const SIMPLE = (() => {
     }
     whyShow(btn, `<div class="s-wh"><b id="sWhyT">왜 이 금액?</b><span>${esc(shortName(r.n))}</span><button type="button" data-x aria-label="닫기">×</button></div><ul>${rowsH}</ul><p>${tail ? `${tail} · ` : ""}공개 자료로 낸 추정치예요</p><button type="button" class="s-wgo" data-go="${r.id}">계산 근거 자세히 →</button>`);
   }
-  // ---------- 첫 방문 안내 한 번: 게이지를 끌어 보라고 ----------
-  function coach() {
-    try { if (localStorage.getItem("emr.coach1")) return; } catch (e) { return; }
-    const g = document.querySelector(".s-gauge"), sl = $("sCash"); if (!g || !sl || g.querySelector(".s-coach")) return;
-    // 앱이 붙기 전(섬)에 이미 게이지를 움직였으면(현금이 기본 1억이 아님) 안내는 필요 없다
-    try { if (typeof CASH !== "undefined" && Math.abs(CASH - 1) > 1e-9) { localStorage.setItem("emr.coach1", "1"); return; } } catch (e) {}
-    const t = document.createElement("div"); t.className = "s-coach"; t.setAttribute("role", "status"); t.textContent = "끌어서 내 현금을 맞춰 보세요";
-    // 손잡이 옆(트랙 높이)에 띄워 눈금·숫자를 가리지 않는다. 손잡이가 오른쪽 절반이면 왼쪽에
-    // 자리는 레이아웃이 끝난 뒤(rAF)에 잰다 — 도구 화면에서 돌아올 때처럼 막대가 아직 0폭이면 숨겨 두고 다음 크기 변화 때 다시
-    const place = () => {
-      const gr = g.getBoundingClientRect(), sr = sl.getBoundingClientRect();
-      t.classList.toggle("off", !sr.width || !gr.width);
-      if (!sr.width || !gr.width) return;
-      const w = t.offsetWidth, h = t.offsetHeight;
-      const x = sr.left - gr.left + 12 + ((sr.width - 24) * (parseFloat(sl.style.getPropertyValue("--p")) || 8)) / 100;
-      const right = x < gr.width / 2, L = right ? x + 22 : x - 22 - w;
-      t.classList.toggle("l", !right);
-      t.style.top = Math.round(sr.top - gr.top + sr.height / 2 - h / 2) + "px"; t.style.left = Math.round(Math.max(4, Math.min(gr.width - w - 4, L))) + "px";
-    };
-    let pf = 0; const later = () => { cancelAnimationFrame(pf); pf = requestAnimationFrame(() => requestAnimationFrame(place)); };
-    let ro = null; try { ro = new ResizeObserver(later); ro.observe(g); ro.observe(sl); } catch (e) {}
-    g.appendChild(t); later(); addEventListener("resize", later); addEventListener("hashchange", later); addEventListener("popstate", later);
-    const ev = ["pointerdown", "keydown", "wheel", "touchstart"];
-    const done = () => { t.remove(); cancelAnimationFrame(pf); try { ro && ro.disconnect(); } catch (e) {} removeEventListener("resize", later); removeEventListener("hashchange", later); removeEventListener("popstate", later); ev.forEach((k) => removeEventListener(k, done, true)); [sl, $("sMiniR")].forEach((x) => x && x.removeEventListener("input", done)); try { localStorage.setItem("emr.coach1", "1"); } catch (e) {} };
-    ev.forEach((k) => addEventListener(k, done, { capture: true, passive: true }));
-    [sl, $("sMiniR")].forEach((x) => x && x.addEventListener("input", done));
+  // ---------- 예산 카드 · 예산 시트(리뉴얼 2단계) ----------
+  // 카드: '내 돈 1억 ▾ → 갈 수 있는 곳 9곳' + [전세 끼고 | 대출 끼고] (i). '1억 ▾'를 누르면 시트: 큰 숫자 · 프리셋 칩 · 금액별 막대 · 막대 아래 같은 게이지(#sCash) · '+0.5억이면 N곳 더' · [N곳 보기]
+  // 곳 수는 모두 countAt(= ZP_count) 하나: 막대 높이도 그 금액에서의 countAt → 지금 금액 막대 == 카드 숫자 == 목록 제목
+  // 숫자 카운트업: 글자(#sN)는 늘 최종 값, 보이는 숫자는 CSS 카운터(--n)가 굴러간다(61_budget.css)
+  const countTo = (el, n) => { if (el && el.style.getPropertyValue("--n") !== String(n)) el.style.setProperty("--n", String(n)); };
+  const STOPS = (() => { const o = []; for (let i = 0; i <= 1000; i++) { const c = toCash(i / 10); if (!o.includes(c)) o.push(c); } return o; })();
+  let hist = null, histK = "", bsLast = null;
+  const condK = () => { try { return `${gapMode()}|${effBasis()}|${JSON.stringify(P)}|${$("pIncome").value}`; } catch (e) { return String(Math.random()); } };
+  const bsOpen = () => { const b = $("bSheet"); return !!b && !b.hidden; };
+  // 금액별 막대: 게이지 단계마다 한 칸(칸 폭 = 이웃 단계와의 가운데까지) — 손잡이 자리와 같은 곳에 그 금액의 곳 수
+  function histBuild() {
+    const k = condK(); if (hist && k === histK) return hist;
+    histK = k; hist = STOPS.map((c) => [c, countAt(c)]);
+    const mx = Math.max(1, ...hist.map((h) => h[1])), ps = STOPS.map(toPos);
+    $("bHist").innerHTML = hist.map(([c, n], i) => { const a = i ? (ps[i - 1] + ps[i]) / 2 : 0, b = i < ps.length - 1 ? (ps[i] + ps[i + 1]) / 2 : 100; return `<i data-c="${c}" data-n="${n}" style="left:${a.toFixed(2)}%;width:${(b - a).toFixed(2)}%;height:${n ? Math.max(4, Math.round((n / mx) * 100)) : 0}%"></i>`; }).join("");
+    return hist;
   }
+  // '+0.5억이면 N곳 더' — 0.5억 더 넣어도 그대로면 처음 늘어나는 금액까지(15억 안)
+  function moreTxt(c, n0) {
+    for (const d of [0.5, 1, 1.5, 2, 3, 5]) { const c2 = Math.round((c + d) * 10) / 10; if (c2 > 15) break; const n = countAt(c2); if (n > n0) return { d, c2, n: n - n0 }; }
+    return null;
+  }
+  function sheetSync(all) {
+    if (!bsOpen()) return;
+    const c = +$("pCash").value || 1;
+    countTo($("bNB"), all); $("bN").textContent = fmt(all);
+    $("bGo").textContent = all ? `${fmt(all)}곳 보기` : "지도에서 보기";
+    $$("#bSheet [data-bc]").forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(+b.dataset.bc - c) < 1e-9)));
+    histBuild();
+    $$("#bHist i").forEach((i) => { const v = +i.dataset.c; i.classList.toggle("on", v <= c + 1e-9); i.classList.toggle("cur", Math.abs(v - c) < 1e-9); });
+    if (dragging) return;   // 끄는 동안엔 '+0.5억이면'을 다시 세지 않는다(손을 떼면 한 번)
+    const m = moreTxt(c, all), el = $("bMore");
+    el.innerHTML = m ? `<button type="button" data-bc="${m.c2}"><span><b>+${m.d}억</b>이면 <b>${fmt(m.n)}곳</b> 더</span><span aria-hidden="true">→</span></button>` : c >= 15 ? "가장 큰 금액이에요" : "더 올려도 늘지 않아요";
+  }
+  function sheetOpen() {
+    const b = $("bSheet"); if (!b) return;
+    bsLast = document.activeElement;
+    b.hidden = false; document.documentElement.classList.add("bs-on");
+    $("sCashBtn").setAttribute("aria-expanded", "true");
+    histK = ""; sheetSync(R.filter(okR).length);
+    requestAnimationFrame(() => { b.classList.add("in"); try { $("sCash").focus({ preventScroll: true }); } catch (e) {} });
+  }
+  function sheetClose(go) {
+    const b = $("bSheet"); if (!b || b.hidden) return;
+    b.classList.remove("in"); b.hidden = true; document.documentElement.classList.remove("bs-on");
+    $("sCashBtn").setAttribute("aria-expanded", "false");
+    if (go) {
+      // 결과로: 폰은 지도·목록이 이어지는 자리(카드 바로 밑 지도), PC는 왼쪽 목록 맨 위
+      const l = matchMedia("(min-width:981px)").matches ? $("sList") : $("sListW");
+      if (l) window.scrollTo({ top: Math.max(0, l.getBoundingClientRect().top + scrollY - HDR() - (matchMedia("(max-width:980px)").matches ? 74 : 8)), behavior: "auto" });
+      const f = $("sList").querySelector("[data-id]"); if (f) f.focus({ preventScroll: true }); else $("sCashBtn").focus({ preventScroll: true });
+    } else if (bsLast && document.contains(bsLast)) bsLast.focus({ preventScroll: true });
+  }
+  function budgetInit() {
+    const b = $("bSheet"); if (!b) return;
+    $("sCashBtn").addEventListener("click", sheetOpen);
+    b.addEventListener("click", (e) => {
+      if (e.target.closest("[data-bx]")) return sheetClose(false);
+      const c = e.target.closest("[data-bc]"); if (c) { setCash(+c.dataset.bc, true); try { navigator.vibrate && navigator.vibrate(8); } catch (er) {} return; }
+      if (e.target.closest("#bGo")) sheetClose(true);
+    });
+    b.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); sheetClose(false); return; }
+      if (e.key !== "Tab") return;   // 시트 안에서만 돈다
+      const f = $$("button:not([hidden]),input", b.querySelector(".bs-card")).filter((x) => x.offsetParent);
+      if (!f.length) return;
+      if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+    });
+    // 폰: 손잡이·제목 줄을 아래로 끌어 닫기
+    let y0 = null, dy = 0; const card = b.querySelector(".bs-card");
+    card.addEventListener("pointerdown", (e) => { if (!e.target.closest(".bs-grab,.bs-h") || e.target.closest("button")) return; y0 = e.clientY; dy = 0; try { card.setPointerCapture(e.pointerId); } catch (er) {} });
+    card.addEventListener("pointermove", (e) => { if (y0 == null) return; dy = Math.max(0, e.clientY - y0); card.style.transform = dy ? `translateY(${dy}px)` : ""; });
+    const end = () => { if (y0 == null) return; y0 = null; card.style.transform = ""; if (dy > 70) sheetClose(false); };
+    card.addEventListener("pointerup", end); card.addEventListener("pointercancel", end);
+    // (i) 전세 끼고·대출 끼고 한 줄 설명
+    const ib = $("sModeI"), it = $("sModeT");
+    if (ib && it) ib.addEventListener("click", () => { const on = it.hidden; it.hidden = !on; ib.setAttribute("aria-expanded", String(on)); });
+    // 손을 뗀 뒤 '+0.5억이면'을 한 번 다시
+    addEventListener("pointerup", () => setTimeout(() => { if (bsOpen()) sheetSync(R.filter(okR).length); }, 60));
+  }
+  // 첫 실행 질문(shell.html #onb)·외부에서 쓰는 손잡이: 금액·보유 주택을 앱과 같은 길로 바꾼다
+  window.ZP_budget = {
+    ready: 1,
+    set: (c) => { c = +c; if (!isFinite(c) || c <= 0) return; if (Math.abs((+$("pCash").value || 0) - c) > 1e-9) setCash(c, true); else render(); },
+    homes: (h) => { const b = document.querySelector(`#pHomes button[data-v="${h}"]`); if (b && P.homes !== +h) b.click(); },
+    open: sheetOpen, close: sheetClose,
+    hist: () => (histBuild() || []).map(([c, n]) => ({ c, n })),
+  };
   // ---------- 목록 ----------
-  let capC = ["", 0];
   function render() {
     if (!$("sList")) return;
     const gap = gapMode();
@@ -523,7 +564,7 @@ const SIMPLE = (() => {
     gu = mapView === "gu" && mapGu && mapGu === listGu ? mapGu : "";   // 구역을 열며 자동으로 들어간 구는 목록을 거르지 않는다
     const L = rows();
     const all = R.filter(okR).length;
-    $("sN").textContent = fmt(all);   // 굴러가는 숫자 대신 바로(목록 곳 수와 어긋나 보이지 않게)
+    $("sN").textContent = fmt(all);   // 글자는 늘 최종 값(검사·화면 읽기) · 보이는 숫자만 CSS 카운터로 굴러간다(countTo)
     const ab = $("sAsm"); if (ab) { ab.hidden = gap; if (!gap) { const t = asmText(); ab.innerHTML = `${t}<i aria-hidden="true">?</i>`; ab.setAttribute("aria-label", `대출 가정: ${t} · 설명 보기`); } }
     try { if (!dragging) { const o = {}; R.forEach((r) => { if (okR(r)) o[r.g] = (o[r.g] || 0) + 1; }); LMX.counts(o); } } catch (e) {}
     // 한 줄 막대도 목록과 같은 거르기(구·지도 범위·유형)를 그대로: 숫자 = 목록 곳 수
@@ -532,13 +573,12 @@ const SIMPLE = (() => {
       $("sMiniN").textContent = fmt(area || kind ? L.length : all);
       $("sMiniM").textContent = area && kn ? `${bbF && !gu ? "범위" : area}·${kn}` : area || kn || (gap ? "전세 끼고" : "대출 끼고");
     }
-    // 전세 끼고는 전세 시세가 있는 구역만 셀 수 있어 금액을 올려도 상한이 있다 → 그 상한을 같이 보여 준다
-    // 대출 끼고도 분모를 같이(전세 끼고와 같은 꼴): 15억까지 올렸을 때 셀 수 있는 곳
-    const capK = `${gap}|${effBasis()}`;
-    if (!dragging || capK !== capC[0]) capC = [capK, countAt(999)];   // 금액과 무관 → 끄는 동안엔 다시 세지 않는다
-    const cap = capC[1];
-    $("sNL").textContent = gap ? (cap ? `전세 시세 있는 ${fmt(cap)}곳 중` : "전세 끼고 살 수 있는 곳") : cap ? `${effBasis() === "total" ? "입주까지 계산되는" : "매수가 계산되는"} ${fmt(cap)}곳 중` : effBasis() === "total" ? "입주까지 되는 곳" : "대출 끼고 살 수 있는 곳";
-    $("sLT").textContent = gu ? `${gu} · ${fmt(L.length)}곳` : `살 수 있는 곳 · ${fmt(L.length)}곳`;
+    // 분모('전세 시세 있는 N곳 중')는 쓰지 않는다(리뉴얼 2단계) — 카드 한 줄 '내 돈 1억 → 갈 수 있는 곳 9곳'
+    $("sNL").textContent = "갈 수 있는 곳";
+    countTo($("sNB"), all);
+    $("sCash").setAttribute("aria-valuetext", `${cashTxt(Math.min(15, Math.max(0.5, v)), v)}, ${fmt(all)}곳`);
+    $("sLT").textContent = gu ? `${gu} · ${fmt(L.length)}곳` : `갈 수 있는 곳 · ${fmt(L.length)}곳`;
+    sheetSync(all);
     $("sLS").textContent = (gap || effBasis() !== "total" ? "지금 필요한 돈 · 추정" : "입주까지 필요한 돈 · 추정");
     $("sLS").title = "작은 선 = 구역 대표 거래 최근 2년(분기별) 시세 흐름 · 최근 거래가 적은 구역은 선이 없어요";
     const sg = $("sGu");
@@ -564,34 +604,9 @@ const SIMPLE = (() => {
   }
   // 게이지 '이 돈이면' 칸: 넓은 PC는 오른쪽 칸(3곳 · 입주까지 현금 범위), 좁은 화면은 숫자 밑 한 줄 칩(첫 목록 줄이 화면 아래로 밀려도 바로 열 수 있게)
   // 입주까지 계산되는 곳을 먼저(계산 불가 곳만 3개 뜨지 않게), 그 안에서 적은 돈순
-  const MQ_SUM = matchMedia("(min-width:1180px)");
-  function sumR(L) {
-    const el = $("sSum"); if (!el) return;
-    const ok = L.filter((o) => o.m < 99);
-    const top = ok.slice().sort((a, b) => (a.n.total == null) - (b.n.total == null) || a.m - b.m).slice(0, 3);
-    const skip = top.length && ok.some((o) => o.n.total == null && o.m < top[top.length - 1].m - 1e-9);
-    const tt = L.map((o) => o.n.total).filter((v) => v != null && isFinite(v));
-    const lo = tt.length ? Math.min(...tt) : null, hi = tt.length ? Math.max(...tt) : null;
-    el.innerHTML = top.length
-      ? `<p class="s-sum-h"><b>이 돈이면</b><span>${skip ? "입주 계산되는 곳 중 " : "가장 싼 "}${top.length}곳</span></p><ol>${top.map(({ r, m, n }) => `<li><button type="button" data-id="${r.id}" aria-label="${esc(shortName(r.n))} ${esc(r.g)} · 지금 ${eokS(m)}${n.total != null ? ` · 입주까지 현금 ${eokS(n.total)}` : ""} · 리포트 열기"><span>${esc(shortName(r.n))}<small>${esc(r.g)}</small></span><b>${eokS(m)}</b></button></li>`).join("")}</ol>${lo != null ? `<p class="s-sum-f"><span>입주까지 현금 <b>${lo === hi ? eokS(lo) : `${eokS(lo)}~${eokS(hi)}`}</b><small> · 잔금대출 제외</small></span></p>` : ""}`
-      : `<p class="s-sum-h"><b>이 돈이면</b></p><p class="s-sum-e">아직 되는 곳이 없어요. <br>게이지를 올려 보세요.</p>`;
-    // 넓은 PC에서 1~2곳뿐이면 남는 자리에 '조금 더 있으면 몇 곳'을 한 줄로(끄는 중엔 계산하지 않고, 멈춘 뒤 한 번)
-    clearTimeout(sumT);
-    if (MQ_SUM.matches && top.length < 3) sumT = setTimeout(() => { try { sumMore(); } catch (e) {} }, 350);
+  function sumR() {
+    const el = $("sSum"); if (el && el.innerHTML) el.innerHTML = "";
   }
-  let sumT = 0, sumK = "";
-  function sumMore() {
-    const el = $("sSum"); if (!el || dragging || el.querySelector(".s-sum-x")) return;
-    const k = `${CASH}|${gapMode()}|${effBasis()}|${kind}|${gu}`; if (k === sumK && el.dataset.x) { const a = el.querySelector("ol") || el.querySelector(".s-sum-e"); if (a) a.insertAdjacentHTML("afterend", el.dataset.x); bindX(); return; }
-    let hit = null; const n0 = countAt(CASH);   // 곳 수는 첫 화면 큰 숫자와 같은 기준(ZP_count)
-    for (const d of [0.1, 0.2, 0.3, 0.5, 0.7, 1, 1.5, 2, 3, 5]) { const c = Math.round((CASH + d) * 10) / 10; if (c > 15) break; const n = countAt(c); if (n >= n0 + 2) { hit = [c, n]; break; } }
-    const h = hit ? `<p class="s-sum-x"><button type="button" data-sumup="${hit[0]}" aria-label="내 현금 ${eokS(hit[0])}으로 올려 ${fmt(hit[1])}곳 보기"><span>${eokS(hit[0])}이면 ${fmt(hit[1])}곳 <small>지금보다 ${fmt(hit[1] - n0)}곳 더</small></span><b>보기 →</b></button></p>` : "";
-    sumK = k; el.dataset.x = h;
-    if (h) { put(h); bindX(); }
-    function put(x) { const a = el.querySelector("ol") || el.querySelector(".s-sum-e"); if (a) a.insertAdjacentHTML("afterend", x); else el.insertAdjacentHTML("beforeend", x); }
-    function bindX() { const b = el.querySelector("[data-sumup]"); if (b) b.onclick = () => setCash(+b.dataset.sumup, true); }
-  }
-  MQ_SUM.addEventListener("change", () => { try { render(); } catch (e) {} });
   // 좁은 화면: 흐름선 때문에 이름·동네가 잘리거나 줄이 바뀌면 그 줄만 흐름선을 뺀다
   // 판정은 목록 폭마다 한 번(같은 폭이면 다시 그려도 같은 결과). 목록이 숨어 있으면(도구 화면) 재지 않고 다음에
   let fitT = 0, fitW = 0;
@@ -668,6 +683,7 @@ const SIMPLE = (() => {
     window.addEventListener("popstate", () => { const on = document.documentElement.classList.contains("s-full"), want = !!(history.state && history.state.sFull) || location.hash === "#map"; if (on && !want) fullMap(false); else if (!on && want && history.state && history.state.sFull) fullMap(true); });
     if (P.fund === "cash" && P.basis !== "now") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (e) {} }
     build();
+    try { budgetInit(); } catch (e) {}
     // 메뉴(⋯)는 shell.html에 도구·자료·사이트로 묶어 둔다
     try { SECT.mapTop(); } catch (e) {}
     try { LMX.seoul(); } catch (e) {}   // 첫 지도도 실제 지도(구역 경계·지하철)로
@@ -739,7 +755,6 @@ const SIMPLE = (() => {
     // 지도 레이어 기본값: 아무것도 켜지 않음(잔글씨 방지). 사용자가 켠 적이 있으면 그대로
     try { if (localStorage.getItem("emr.lyr") == null) localStorage.setItem("emr.lyr", "[]"); } catch (e) {}
     render();
-    try { coach(); } catch (e) {}
     // 키보드: '/' 검색, Esc 열린 화면 닫기(입력 중·대화상자·메뉴가 열려 있으면 그쪽에 맡긴다)
     document.addEventListener("keydown", (e) => {
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;

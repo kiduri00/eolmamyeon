@@ -97,6 +97,7 @@ async function setup(browser, name, opts) {
   const ctx = await browser.newContext({ ...opts, ignoreHTTPSErrors: !!proxyOpt(), serviceWorkers: "block" });
   await ctx.route(BLOCK, (r) => r.abort());
   await ctx.addInitScript(() => {
+    try { localStorage.setItem("zp.onb", "1"); } catch (e) {}   // 첫 실행 질문은 qa_consistency ui.onboard에서
     window.__lt = [];
     try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt.push([e.startTime, e.duration]))).observe({ type: "longtask", buffered: true }); } catch (e) {}
   });
@@ -161,7 +162,7 @@ async function gaugeCheck(page, where, api) {
   for (const p of GAUGE) {
     await page.evaluate((v) => { const s = document.getElementById("sCash"); s.value = String(v); s.dispatchEvent(new Event("input", { bubbles: true })); s.dispatchEvent(new Event("change", { bubbles: true })); }, p);
     await settle(page, 650);
-    const r = await page.evaluate(() => ({ sN: document.getElementById("sN").textContent, sLT: document.getElementById("sLT").textContent, mode: document.getElementById("sNL").textContent, cashV: document.getElementById("sCashV").textContent, pCash: (document.getElementById("pCash") || {}).value }));
+    const r = await page.evaluate(() => ({ sN: document.getElementById("sN").textContent, sLT: document.getElementById("sLT").textContent, mode: ((document.querySelector('.s-mode button[aria-pressed="true"]') || {}).dataset || {}).f === "cash" ? (document.querySelector("#pBasis [aria-pressed=true]") || {}).dataset?.v === "total" ? "입주" : "대출" : "전세", cashV: document.getElementById("sCashV").textContent, pCash: (document.getElementById("pCash") || {}).value }));
     const hero = num(r.sN), list = num(r.sLT);
     const row = { pos: p, cash: toCash(p), hero, list, mode: r.mode, label: r.cashV };
     if (hero !== list) fail("2.count", where, `gauge ${p} (${r.cashV}): hero #sN=${hero} ≠ list #sLT=${list} ("${r.sLT}")`);

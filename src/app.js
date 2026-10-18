@@ -7312,14 +7312,16 @@
       if (v == null || v === "" || String(v) === String(def)) q.delete(k);
       else q.set(k, v);
     };
-    set("cash", lastValidCash, 1);
+    // 주소 꼴 ?cash=1&mode=jeonse(리뉴얼 2단계): 금액·방식은 기본값이어도 늘 적는다 · 예전 fund=cash도 읽기는 한다(restoreURL)
+    set("cash", lastValidCash, null);
+    q.delete("fund");
+    q.set("mode", P.fund === "cash" ? "loan" : "jeonse");
     set("homes", P.homes, 0);
     set("first", P.first ? 1 : "", "");
     set("unit", P.unit, 84);
     set("inc", $("pIncome").value.trim(), "");
-    set("basis", P.basis, "total");
+    set("basis", P.basis, P.fund === "cash" ? "now" : "total");
     set("kind", P.kind, "");
-    set("fund", P.fund, "gap");
     set("jr", P.jr, null);
     const s = q.toString();
     return s ? "?" + s : "";
@@ -7330,6 +7332,8 @@
   function syncURL() {
     clearTimeout(urlT);
     urlT = setTimeout(() => {
+      // 첫 실행 질문(shell.html #onb)이 떠 있는 동안은 저장하지 않는다(답하기 전 기본값이 '저장된 조건'으로 남지 않게)
+      if (document.documentElement.classList.contains("onb-on")) return;
       try {
         history.replaceState(history.state, "", location.pathname + condQuery() + location.hash);
       } catch (e) {}
@@ -7340,7 +7344,7 @@
   }
   function restoreURL() {
     let qs = location.search;
-    if (!/[?&](cash|fund|inc|income)=/.test(qs)) {
+    if (!/[?&](cash|mode|fund|inc|income)=/.test(qs)) {
       try {
         const sv = localStorage.getItem("jg-cond");
         if (sv) qs = sv;
@@ -7361,7 +7365,8 @@
       setSeg("pUnit", unit);
     }
     if (q.get("inc")) $("pIncome").value = q.get("inc");
-    if (q.get("basis") === "now") {
+    const loanQ = q.get("mode") === "loan" || q.get("fund") === "cash";
+    if (q.get("basis") === "now" || (loanQ && !q.has("basis"))) {
       P.basis = "now";
       setSeg("pBasis", "now");
     }
@@ -7370,7 +7375,7 @@
       P.kind = kd;
       setSeg("pKind", kd);
     }
-    P.fund = q.get("fund") === "cash" ? "cash" : "gap";
+    P.fund = loanQ ? "cash" : "gap";
     const jr = parseFloat(q.get("jr"));
     if (isFinite(jr) && jr >= 10 && jr <= 95) P.jr = jr;
     syncFirst();

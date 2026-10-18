@@ -161,8 +161,10 @@ def island():
     rep('<script type="application/json" id="data">/*DATA*/</script>\n', '')
     rep('<script>/*APPJS*/</script>\n', '')
     E = H.escape
-    rep('<small id="sNL">살 수 있는 곳</small>', f'<small id="sNL">{E(T(t[1]))}</small>')
+    rep('<small id="sNL" class="bc-k">갈 수 있는 곳</small>', f'<small id="sNL" class="bc-k">{E(T(t[1]))}</small>')
     rep(r'<span id="sN">[^<]*</span>', f'<span id="sN">{E(T(t[0]))}</span>', rx=True)
+    # 카운트업 숫자(CSS 카운터 --n)도 첫 페인트부터 같은 값 — 섬·앱이 바꿀 때만 굴러간다
+    rep(r'id="sNB" style="--n:\d+"', f'id="sNB" style="--n:{int(re.sub(r"[^0-9]", "", T(t[0]) or "0") or 0)}"', rx=True)
     rep(r'<b id="sCashV">.*?</b>', f'<b id="sCashV">{T(t[4])}</b>', rx=True)
     rep(r'<input type="range" id="sCash" style="--p:[^"]*"', f'<input type="range" id="sCash" style="--p:{T(t[9])}" aria-valuetext="{E(T(t[10]) or "")}"', rx=True)
     mb = re.search(r'<div class="s-mode"[^>]*>(.*?)</div>', x, re.S)

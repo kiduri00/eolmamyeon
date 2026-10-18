@@ -169,6 +169,8 @@ function parseRep(t) {
 
 // ---------------------------------------------------------------- 브라우저 도우미
 const IN_PAGE = () => {
+  // 첫 실행 질문(#onb)은 ui.onboard 검사에서만 본다 — 나머지 검사는 질문을 이미 답한 사용자로
+  try { localStorage.setItem("zp.onb", "1"); } catch (e) {}
   const vis = (el) => { if (!el || !el.getBoundingClientRect) return false; const r = el.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return false; const cs = getComputedStyle(el); if (cs.visibility === "hidden" || +cs.opacity === 0) return false; return !el.closest("[hidden]"); };
   const sel = (el) => { const p = []; let e = el; for (let i = 0; e && e.nodeType === 1 && i < 4; i++, e = e.parentElement) { let s = e.tagName.toLowerCase(); if (e.id) { p.unshift(s + "#" + e.id); break; } const c = [...e.classList].slice(0, 2).join("."); if (c) s += "." + c; p.unshift(s); } return p.join(">"); };
   const inScroller = (el) => { for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) { const o = getComputedStyle(a).overflowX; if (o === "auto" || o === "scroll" || o === "hidden") return true; } return false; };
@@ -449,7 +451,7 @@ async function countsLane(browser, api, errs, shared) {
         const moreN = s.moreH ? 0 : intOf(s.more);
         expect(s.rows + (moreN || 0) === list || (list === 0 && s.rows === 0), "count.list", "목록 줄 수 + '더 보기 (N곳)' == 목록 제목 곳 수, 음수 없음", `${where}: rows ${s.rows} + more ${s.more} ≠ ${list}`);
         expect(!/-\d/.test(s.more || ""), "count.list", "목록 줄 수 + '더 보기 (N곳)' == 목록 제목 곳 수, 음수 없음", `${where}: "${s.more}"`);
-        expect(/\d+\s*곳\s*중/.test(s.sNL) || hero === 0, "count.denom", "첫 화면 곳 수에 분모('N곳 중')", `${where}: #sNL "${s.sNL}"`);
+        expect(!/곳\s*중|있는\s*[\d,]+\s*곳/.test(s.sNL) && s.sNL.trim() === "갈 수 있는 곳", "count.denom", "첫 화면 곳 수에 분모('전세 시세 있는 N곳 중') 없음 · 이름표 '갈 수 있는 곳'", `${where}: #sNL "${s.sNL}"`);
       }
     }
     // 유형 칩을 켠 채: 작은 막대 == 목록 제목 == 줄 수(+더 보기)
@@ -669,22 +671,26 @@ async function uiLane(browser, api, errs, shared) {
       shared.toolIds = m.ids.concat(EXTRA_VIEWS);
       shared.alias = await page.evaluate(() => window.ZP_ALIAS || {});
     }
-    // 홈 격자: 도구(ZP_TOOLS) 6개 이하 전부 · '더보기' 없음 · 격자와 메뉴가 같은 목록
+    // 홈 '더 알아보기' 격자는 없앴다(리뉴얼 2단계) — 도구는 MY '도구' 묶음에 전부(ZP_TOOLS 순서)
     {
-      const g = await page.evaluate(() => ({ tiles: [...document.querySelectorAll("#sTiles [data-view]")].map((a) => a.dataset.view), more: !!document.querySelector("#sTiles #sTAll, #sTiles .s-tall"), ids: (window.ZP_TOOLS || []).map((t) => t[0]) }));
-      expect(g.ids.length <= 6 && JSON.stringify(g.tiles) === JSON.stringify(g.ids) && !g.more, "ui.tiles", "홈 격자 = 도구 6개 전부(ZP_TOOLS 순서) · 더보기 없음", `tiles [${g.tiles.join(", ")}] vs tools [${g.ids.join(", ")}]${g.more ? " · 더보기 있음" : ""}`);
+      const g = await page.evaluate(() => ({ grid: !!document.getElementById("sTiles") || !!document.querySelector(".s-t[data-view]"), my: [...document.querySelectorAll("#myTools a")].map((a) => a.dataset.menu || (a.getAttribute("href") || "").replace(/^#/, "")), ids: (window.ZP_TOOLS || []).map((t) => t[0]) }));
+      const lack = g.ids.filter((id) => !g.my.includes(id) && id !== "favTop" && id !== "news");   // 관심·소식은 아래 탭
+      expect(!g.grid && g.ids.length && !lack.length, "ui.tiles", "홈 '더 알아보기' 격자 없음 · 도구(ZP_TOOLS)는 MY 도구 묶음(관심·소식은 아래 탭)에 전부", `grid ${g.grid} · not in MY: [${lack.join(", ")}]`);
     }
-    // 돌아가기: 타일 격자 자리로
+    // 돌아가기: MY에서 연 도구의 '← 돌아가기' → MY로(아래 탭 화면 관심·소식·MY에는 돌아가기 없음)
     {
+      await loadHome(page, "#my"); await page.waitForTimeout(700);
       const r = await page.evaluate(async () => {
-        const t = document.getElementById("sTiles"); if (!t) return null;
-        t.scrollIntoView({ block: "center" }); await new Promise((r) => setTimeout(r, 200));
-        const y0 = scrollY; const a = t.querySelector("a[href^='#'], button[data-v], [data-view], a"); if (!a) return null; a.click(); await new Promise((r) => setTimeout(r, 700));
-        const b = [...document.querySelectorAll(".s-back")].find((x) => window.__qc.vis(x)); if (!b) return { y0, nob: 1 }; b.click(); await new Promise((r) => setTimeout(r, 900));
-        return { y0, y1: scrollY };
+        const a = [...document.querySelectorAll("#myTools a")].find((x) => window.__qc.vis(x) && (x.dataset.menu || "") !== "favTop" && (x.dataset.menu || "") !== "news"); if (!a) return null;
+        const id = a.dataset.menu || (a.getAttribute("href") || "").slice(1);
+        a.click(); await new Promise((r) => setTimeout(r, 700));
+        const b = [...document.querySelectorAll(".s-back")].find((x) => window.__qc.vis(x)); if (!b) return { id, nob: 1 };
+        b.click(); await new Promise((r) => setTimeout(r, 900));
+        const my = document.getElementById("my");
+        return { id, on: my.classList.contains("s-on"), hash: location.hash, tabBack: ["favTop", "news", "my"].filter((t) => { const s = document.getElementById(t); return s && s.querySelector(".s-back"); }) };
       });
-      if (r && !r.nob) expect(Math.abs(r.y1 - r.y0) < 120, "ui.back", "도구 '돌아가기' 뒤 원래 보던 자리(타일 격자)로", `scrollY before ${Math.round(r.y0)} → after ${Math.round(r.y1)}`);
-      else if (r && r.nob) bad("ui.back", "도구 '돌아가기' 뒤 원래 보던 자리(타일 격자)로", "no visible .s-back after opening a tile");
+      if (r && !r.nob) expect(r.on && r.hash === "#my" && !r.tabBack.length, "ui.back", "MY에서 연 도구 '돌아가기' → MY · 관심·소식·MY 화면엔 돌아가기 없음", `#${r.id} back → my s-on ${r.on} hash ${r.hash} · tab screens with back [${r.tabBack.join(", ")}]`);
+      else bad("ui.back", "MY에서 연 도구 '돌아가기' → MY · 관심·소식·MY 화면엔 돌아가기 없음", r ? `#${r.id}: no visible .s-back` : "no tool link in MY");
     }
     // 도구 딥링크(새로 불러오기)마다: s-on · 돌아가기 버튼이 머리 아래 · 1단계 제목 · 가로 넘침 · 글자 결함
     const domTexts = [];
@@ -715,9 +721,10 @@ async function uiLane(browser, api, errs, shared) {
         const o = await page.evaluate(() => window.__qc.overflow()); expect(!o, "ui.overflow", "360px 가로 스크롤 없음(홈·도구 화면마다)", `${where}: ${o}`);
         continue;
       }
-      if (s.missing) { bad("ui.deeplink", "도구 딥링크: s-on · 돌아가기 버튼이 머리 밑에 다 보임 · 내용 있음", `${where}: section missing`); continue; }
-      expect(s.on && s.len > 40, "ui.deeplink", "도구 딥링크: s-on · 돌아가기 버튼이 머리 밑에 다 보임 · 내용 있음", `${where}: s-on=${s.on} text=${s.len}`);
-      expect(s.backTop != null && s.backTop >= s.hb - 1, "ui.deeplink", "도구 딥링크: s-on · 돌아가기 버튼이 머리 밑에 다 보임 · 내용 있음", `${where}: back button top ${s.backTop} vs header bottom ${s.hb}`);
+      if (s.missing) { bad("ui.deeplink", "도구 딥링크: s-on · 돌아가기 버튼이 머리 밑에 다 보임(아래 탭 화면 관심·소식·MY는 돌아가기 없음) · 내용 있음", `${where}: section missing`); continue; }
+      expect(s.on && s.len > 40, "ui.deeplink", "도구 딥링크: s-on · 돌아가기 버튼이 머리 밑에 다 보임(아래 탭 화면 관심·소식·MY는 돌아가기 없음) · 내용 있음", `${where}: s-on=${s.on} text=${s.len}`);
+      if (["favTop", "news", "my"].includes(id)) expect(s.backTop == null, "ui.deeplink", "도구 딥링크: s-on · 돌아가기 버튼이 머리 밑에 다 보임(아래 탭 화면 관심·소식·MY는 돌아가기 없음) · 내용 있음", `${where}: tab screen has a back button (top ${s.backTop})`);
+      else expect(s.backTop != null && s.backTop >= s.hb - 1, "ui.deeplink", "도구 딥링크: s-on · 돌아가기 버튼이 머리 밑에 다 보임(아래 탭 화면 관심·소식·MY는 돌아가기 없음) · 내용 있음", `${where}: back button top ${s.backTop} vs header bottom ${s.hb}`);
       expect(s.lv1.length >= 1 && s.lv1.length <= 2, "ui.h1", "첫 화면 h1 정확히 하나 · 도구 화면마다 1단계 제목", `${where}: level-1 headings visible: ${s.lv1.length} [${s.lv1.join(" | ")}]`);
       const o = await page.evaluate(() => window.__qc.overflow()); expect(!o, "ui.overflow", "360px 가로 스크롤 없음(홈·도구 화면마다)", `${where}: ${o}`);
       const bt = badText(s.txt); expect(!bt.length, "ui.toolText", "도구 화면 글자 결함 없음(NaN·곳를·–억·겹친 낱말…)", `${where}: ${bt.join(" ; ")}`);
@@ -946,7 +953,9 @@ async function deskLane(browser, errs) {
       expect(!((a.ov === "auto" || a.ov === "scroll") && a.sh > a.ch + 2), "ui.repFlow", T, `#report overflow-y ${a.ov} scrollHeight ${a.sh} > clientHeight ${a.ch}`);
       expect(a.top >= a.hb - 2 && a.top <= a.hb + 120, "ui.repFlow", T, `#o337 deep link: report top ${a.top} vs header bottom ${a.hb} (scrollY ${a.y})`);
       // 휠은 페이지를 내린다(딥링크 직후 지도 그리기로 바쁘면 늦게 반영될 수 있어 최대 8초 기다림)
-      await page2.mouse.move(1100, 600); await page2.mouse.wheel(0, 600);
+      // 상세 칸 위에서 휠(리뉴얼 2단계: PC 목록·상세 칸이 왼쪽, 지도가 오른쪽 — 칸 자리를 재서 그 위로)
+      const rp = await page2.evaluate(() => { const r = document.getElementById("report").getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(Math.min(innerHeight - 100, Math.max(r.top + 200, 300)))]; });
+      await page2.mouse.move(rp[0], rp[1]); await page2.mouse.wheel(0, 600);
       await page2.waitForFunction((y) => scrollY > y + 300, a.y, { timeout: 8000, polling: 100 }).catch(() => {});
       const y2 = await page2.evaluate(() => scrollY);
       expect(y2 > a.y + 300, "ui.repFlow", T, `wheel over report: page scrollY ${a.y} → ${Math.round(y2)}`);
@@ -1020,22 +1029,66 @@ async function r14Lane(browser, api, errs) {
     } catch (e) { bad("ui.push", T, "crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
-  // --- 코치: 앱이 붙기 전(섬)에 게이지를 끌었으면 붙은 뒤 '끌어서 맞춰 보세요'가 뜨지 않음
+  // --- ui.onboard: 첫 실행 질문(저장된 조건·딥링크 없을 때만) → 2억을 고르면 카드·곳 수가 2억 · 딥링크·두 번째 방문은 건너뜀
+  //     url.cash: ?cash=2 로 열면 2억 · ui.budgetSheet: 예산 시트 막대(고른 금액) 곳 수 == 카드 곳 수 == 시트 곳 수 == ZP_count
   {
-    const T = "섬에서 게이지를 끌었으면 앱이 붙은 뒤 코치 말풍선 없음";
-    const ctx = await browser.newContext({ ...M, serviceWorkers: "block" });
+    const T = "첫 실행 질문: 처음엔 '지금 바로 쓸 수 있는 현금' 질문 · 2억 고르면 카드 2억·곳 수 == ZP_count(2) · 딥링크(#구역)·두 번째 방문은 질문 없음";
+    const ctx = await browser.newContext({ ...M, serviceWorkers: "block" });   // IN_PAGE(질문 답한 사용자) 없이
     try {
       await ctx.route(BLOCK, (r) => r.abort());
-      await ctx.route(/\/a\.[^/]*\.js$/, async (r) => { await new Promise((ok) => setTimeout(ok, 2500)); r.continue().catch(() => {}); });
       const page = await ctx.newPage();
-      await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(300);
-      const bb = await (await page.$("#sCash")).boundingBox();
-      await page.mouse.move(bb.x + bb.width * 0.08, bb.y + bb.height / 2); await page.mouse.down(); await page.mouse.move(bb.x + bb.width * 0.35, bb.y + bb.height / 2, { steps: 5 }); await page.mouse.up();
-      await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd, null, { timeout: 20000 }).catch(() => {});
+      page.on("pageerror", (e) => errs.push({ where: "/ (onboard)", msg: "pageerror: " + (e.message || String(e)).split("\n")[0].slice(0, 200) }));
+      await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
+      const a = await page.evaluate(() => { const o = document.getElementById("onb"), r = o && o.getBoundingClientRect(); return { on: !!o && !o.hidden && r.width > 200 && r.height > 300, q: o ? o.innerText : "", chips: o ? [...o.querySelectorAll("[data-oc]")].map((b) => b.textContent.trim()) : [] }; });
+      expect(a.on && /지금 바로 쓸 수 있는 현금이 얼마예요\?/.test(a.q) && a.chips.join(",") === "5천만,1억,2억,3억,5억,7억,10억+,잘 모르겠어요 → 1억으로 둘러보기", "ui.onboard", T, `first run: shown ${a.on} · chips [${a.chips.join(", ")}]`);
+      await page.tap('#onb [data-oc="2"]').catch(() => page.click('#onb [data-oc="2"]'));
+      await page.waitForTimeout(250);
+      const st2 = await page.evaluate(() => { const s = document.querySelector('#onb [data-st="2"]'); return !!s && !s.hidden && /집 있어요\?/.test(s.innerText) && s.querySelectorAll("[data-oh]").length === 4; });
+      expect(st2, "ui.onboard", T, "second question '집 있어요?' with 4 choices not shown after picking cash");
+      await page.click("#onb [data-olater]");
+      await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.ZP_count === "function", null, { timeout: 20000 }).catch(() => {});
+      await settle(page, 900);
+      const b = await page.evaluate(() => ({ hidden: document.getElementById("onb").hidden, lock: document.documentElement.classList.contains("onb-on"), v: document.getElementById("sCashV").textContent.trim(), n: document.getElementById("sN").textContent, zc: window.ZP_count(2), zcNow: window.ZP_count(), pc: (document.getElementById("pCash") || {}).value, url: location.search, cond: localStorage.getItem("jg-cond"), vt: document.getElementById("sCash").getAttribute("aria-valuetext") }));
+      expect(b.hidden && !b.lock && b.v === "2억" && +b.pc === 2 && intOf(b.n) === b.zc && b.zcNow === b.zc, "ui.onboard", T, `after 2억: onb hidden ${b.hidden} lock ${b.lock} · card "${b.v}" · #sN ${b.n} vs ZP_count(2) ${b.zc} · pCash ${b.pc}`);
+      expect(/[?&]cash=2(&|$)/.test(b.url) && /[?&]mode=jeonse/.test(b.url) && /cash=2/.test(b.cond || ""), "url.cash", "조건이 주소(?cash=&mode=)·localStorage에 남고, ?cash=2로 열면 2억(카드·계산기·곳 수)", `after onboarding: url "${b.url}" · jg-cond "${b.cond}"`);
+      expect(b.vt === `2억, ${b.n}곳`, "ui.budgetSheet", "예산 시트: 고른 금액 막대 곳 수 == 카드 == 시트 숫자 == ZP_count · 슬라이더 aria-valuetext '2억, N곳'", `aria-valuetext "${b.vt}" vs "2억, ${b.n}곳"`);
+      // 두 번째 방문(주소 없이 /): 질문 없이 2억 그대로
+      await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(400);
+      const c = await page.evaluate(() => ({ on: !document.getElementById("onb").hidden, v: document.getElementById("sCashV").textContent.trim() }));
+      expect(!c.on && c.v === "2억", "ui.onboard", T, `second visit: onboarding shown ${c.on} · card "${c.v}"`);
+      // 예산 시트: 2억 막대 == 카드 곳 수 == 시트 큰 숫자 == [N곳 보기]
+      await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1, null, { timeout: 20000 }).catch(() => {});
+      await settle(page, 600);
+      await page.click("#sCashBtn"); await page.waitForTimeout(500);
+      const d = await page.evaluate(() => { const bar = document.querySelector('#bHist i[data-c="2"]'), all = [...document.querySelectorAll("#bHist i")]; return { open: !document.getElementById("bSheet").hidden, bar: bar ? +bar.dataset.n : null, cur: bar ? bar.classList.contains("cur") : false, n: document.getElementById("sN").textContent, bN: document.getElementById("bN").textContent, go: document.getElementById("bGo").textContent, zc: window.ZP_count(2), bars: all.length, mono: all.every((x, i) => !i || +x.dataset.n >= +all[i - 1].dataset.n), more: document.getElementById("bMore").textContent, z25: window.ZP_count(2.5) }; });
+      expect(d.open && d.bars >= 30 && d.bar === intOf(d.n) && d.bar === intOf(d.bN) && d.bar === d.zc && cntOf(d.go) === d.zc && d.cur, "ui.budgetSheet", "예산 시트: 고른 금액 막대 곳 수 == 카드 == 시트 숫자 == ZP_count · 슬라이더 aria-valuetext '2억, N곳'", `sheet open ${d.open} · bars ${d.bars} · bar@2억 ${d.bar} (cur ${d.cur}) · card ${d.n} · sheet ${d.bN} · go "${d.go}" · ZP_count(2) ${d.zc}`);
+      const m = /\+0\.5억이면\s*([\d,]+)곳 더/.exec(d.more);
+      if (d.z25 > d.zc) expect(m && intOf(m[1]) === d.z25 - d.zc, "ui.budgetSheet", "예산 시트: '+0.5억이면 N곳 더' == ZP_count(2.5) − ZP_count(2)", `"${d.more}" vs ${d.z25 - d.zc}`);
+      // 칩 3억 → 카드·막대 같이
+      await page.click('#bSheet [data-bc="3"]'); await settle(page, 700);
+      const e = await page.evaluate(() => { const bar = document.querySelector('#bHist i[data-c="3"]'); return { bar: bar ? +bar.dataset.n : null, cur: bar ? bar.classList.contains("cur") : false, n: document.getElementById("sN").textContent, zc: window.ZP_count(3), v: document.getElementById("sCashV").textContent.trim() }; });
+      expect(e.v === "3억" && e.cur && e.bar === intOf(e.n) && e.bar === e.zc, "ui.budgetSheet", "예산 시트: 고른 금액 막대 곳 수 == 카드 == 시트 숫자 == ZP_count · 슬라이더 aria-valuetext '2억, N곳'", `chip 3억: card "${e.v}" ${e.n} · bar ${e.bar} (cur ${e.cur}) · ZP_count(3) ${e.zc}`);
+      await page.keyboard.press("Escape"); await page.waitForTimeout(200);
+      expect(await page.evaluate(() => document.getElementById("bSheet").hidden), "ui.budgetSheet", "예산 시트: Esc로 닫힘", "sheet still open after Escape");
+      // 딥링크(새 기기 = 저장 없음)는 질문 없이 바로
+      await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+      await page.goto(BASE + "/?qac=onb#" + (api.zones[0] || {}).id, { waitUntil: "domcontentloaded" }); await page.waitForTimeout(300);
+      const f = await page.evaluate(() => !document.getElementById("onb").hidden);
+      expect(!f, "ui.onboard", T, "zone deep link (#id) showed onboarding");
+      // ?cash=2 (저장 없음): 질문 없이 2억 · 곳 수 == ZP_count(2)
+      await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+      await page.goto(BASE + "/?cash=2", { waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.ZP_count === "function", null, { timeout: 20000 }).catch(() => {});
+      await settle(page, 700);
+      const g = await page.evaluate(() => ({ onb: !document.getElementById("onb").hidden, v: document.getElementById("sCashV").textContent.trim(), pc: (document.getElementById("pCash") || {}).value, n: document.getElementById("sN").textContent, zc: window.ZP_count(2), url: location.search, hash: location.hash }));
+      expect(!g.onb && g.v === "2억" && +g.pc === 2 && intOf(g.n) === g.zc && /cash=2/.test(g.url), "url.cash", "조건이 주소(?cash=&mode=)·localStorage에 남고, ?cash=2로 열면 2억(카드·계산기·곳 수)", `?cash=2: onb ${g.onb} · card "${g.v}" · pCash ${g.pc} · #sN ${g.n} vs ZP_count(2) ${g.zc} · url "${g.url}"`);
+      // 해시 딥링크와 함께: ?cash=3&mode=loan#news → 소식 화면 + 대출 끼고 3억(replaceState가 #을 지우지 않음)
+      await page.goto(BASE + "/?cash=3&mode=loan#news", { waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1, null, { timeout: 20000 }).catch(() => {});
       await page.waitForTimeout(1200);
-      const c = await page.evaluate(() => !!document.querySelector(".s-coach"));
-      expect(!c, "ui.coach", T, "coach bubble shown after island drag");
-    } catch (e) { bad("ui.coach", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+      const h = await page.evaluate(() => ({ hash: location.hash, on: (document.getElementById("news") || {}).classList?.contains("s-on"), mode: (document.querySelector('.s-mode button[aria-pressed="true"]') || {}).dataset?.f, pc: (document.getElementById("pCash") || {}).value, url: location.search }));
+      expect(h.hash === "#news" && h.on && h.mode === "cash" && +h.pc === 3 && /mode=loan/.test(h.url), "url.cash", "조건이 주소(?cash=&mode=)·localStorage에 남고, ?cash=2로 열면 2억(카드·계산기·곳 수)", `?cash=3&mode=loan#news: hash ${h.hash} · news on ${h.on} · mode ${h.mode} · pCash ${h.pc} · url "${h.url}"`);
+    } catch (e) { bad("ui.onboard", T, "crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
   const { ctx, page } = await newPage(browser, M, errs);
@@ -1127,10 +1180,12 @@ async function r14Lane(browser, api, errs) {
       await page.waitForTimeout(600);
       const al = await page.evaluate(() => { const m = document.getElementById("mapbox").getBoundingClientRect(), l = document.getElementById("sListW").getBoundingClientRect(); return [Math.round(m.bottom), Math.round(l.bottom)]; });
       expect(Math.abs(al[0] - al[1]) <= 6, "ui.deskAlign", "PC 목록 칸 아래 끝 == 지도 아래 끝(±6px)", `map bottom ${al[0]} vs list bottom ${al[1]}`);
-      const cap = await page.evaluate(() => { const t = (document.getElementById("sNL") || {}).textContent || ""; const m = /전세 시세 있는 ([\d,]+)곳/.exec(t); return m ? +m[1].replace(/,/g, "") : null; });
+      // 홈 분모 글자는 없앴다 → 같은 판정(첫 화면 곳 수 함수 ZP_count, 전세 끼고, 금액 상한 없음)으로 모집단을 잰다
+      await setMode(page, "gap");
+      const cap = await page.evaluate(() => { try { return typeof window.ZP_count === "function" ? window.ZP_count(999) : null; } catch (e) { return null; } });
       await loadHome(page, "#gapTop"); await page.waitForTimeout(1200);
       const gn = await page.evaluate(() => { const e = document.querySelector("#gapTopOut [data-gapn]"); return e ? +e.dataset.gapn : null; });
-      if (cap != null && gn != null) expect(gn === cap, "count.gapRank", "갭 순위 모집단 == 홈 '전세 시세 있는 N곳 중'(같은 판정)", `gap rank ${gn} vs home ${cap}`); else skip("count.gapRank", "갭 순위 모집단 == 홈 '전세 시세 있는 N곳 중'(같은 판정)", `cap ${cap} gn ${gn}`);
+      if (cap != null && gn != null) expect(gn === cap, "count.gapRank", "갭 순위 모집단 == 홈 곳 수 판정(ZP_count, 전세 끼고, 금액 상한 없음)", `gap rank ${gn} vs home ${cap}`); else skip("count.gapRank", "갭 순위 모집단 == 홈 곳 수 판정(ZP_count, 전세 끼고, 금액 상한 없음)", `cap ${cap} gn ${gn}`);
       await page.emulateMedia({ colorScheme: "light" });
       await loadHome(page, "#news"); await page.waitForTimeout(1500);
       const c = await page.evaluate(CONTRAST_JS, "#ntcTop");
