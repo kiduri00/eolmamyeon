@@ -69,27 +69,129 @@ if ESB and not os.environ.get('NO_MINIFY'):
     print(f'minify js {js0}->{len(js)} css {css0}->{len(css)}')
 # 큰 데이터·앱 코드는 내용 해시가 박힌 파일로 따로(브라우저·서비스 워커가 오래 저장) → index.html은 작게
 B = os.path.join(R, 'public', 'b'); os.makedirs(B, exist_ok=True)
-def emit(prefix, body):
-    h = hashlib.md5(body.encode()).hexdigest()[:10]; fn = f'{prefix}.{h}.js'
+def emit(prefix, body, ext='js'):
+    h = hashlib.md5(body.encode()).hexdigest()[:10]; fn = f'{prefix}.{h}.{ext}'
     open(os.path.join(B, fn), 'w', encoding='utf-8').write(body)
     return '/b/' + fn
-d_url = emit('d', "window.__ZPD=JSON.parse('" + data.replace('\\', '\\\\').replace("'", "\\'") + "');")
+# 앱만 읽는 큰 JSON 덩어리(노선·생활 인프라·호재)는 HTML에서 빼서 데이터 파일로 → 첫 HTML이 ~80KB 가벼워진다.
+# 데이터 파일이 실행될 때 같은 id의 <script type="application/json">을 만들어 두므로 앱 코드($("transitData").textContent)는 그대로.
+MOVE = ('transitData', 'infraData', 'hojaeData')
+blobs = {}
+for k in MOVE:
+    m = re.search(r'<script type="application/json" id="' + k + r'">(.*?)</script>\n?', shell, re.S)
+    if m: blobs[k] = m.group(1); shell = shell[:m.start()] + shell[m.end():]
+pre_js = ''
+if blobs:
+    pre_js = '(function(){var J=' + json.dumps(blobs, ensure_ascii=False) + ';for(var k in J)if(!document.getElementById(k)){var s=document.createElement("script");s.type="application/json";s.id=k;s.textContent=J[k];(document.body||document.head).appendChild(s)}})();'
+d_url = emit('d', pre_js + "window.__ZPD=JSON.parse('" + data.replace('\\', '\\\\').replace("'", "\\'") + "');")
 a_url = emit('a', js)
+c_url = emit('c', css, 'css')
 # 지난 빌드 파일은 이번 것 + 바로 전 것만 남김(배포 직후 옛 화면이 잠깐 참조할 수 있게)
 KEEP = 2
-for pre in ('d', 'a'):
-    fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.js')], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
-    for f in fs[KEEP:]: os.remove(os.path.join(B, f))
-shell = shell.replace('<script type="application/json" id="data">/*DATA*/</script>', f'<script src="{d_url}"></script>', 1)
-shell = shell.replace('<script>/*APPJS*/</script>', f'<script src="{a_url}"></script>', 1)
-shell = shell.replace('</head>', f'<link rel="preload" href="{d_url}" as="script"><link rel="preload" href="{a_url}" as="script">\n</head>', 1)
-c_h = hashlib.md5(css.encode()).hexdigest()[:10]
-open(os.path.join(B, f'c.{c_h}.css'), 'w', encoding='utf-8').write(css)
-for f in sorted([f for f in os.listdir(B) if f.startswith('c.') and f.endswith('.css')], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)[KEEP:]: os.remove(os.path.join(B, f))
-out = shell.replace('<style>/*APPCSS*/</style>', f'<link rel="stylesheet" href="/b/c.{c_h}.css">', 1)
-for k in ('/*APPCSS*/', '/*APPJS*/', '/*DATA*/'): assert k not in out
+def prune():
+    for pre, ext in (('d', 'js'), ('a', 'js'), ('c', 'css'), ('h', 'js')):
+        fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.' + ext)], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
+        for f in fs[KEEP:]:
+            try: os.remove(os.path.join(B, f))
+            except OSError: pass
+# ---- 예전 방식(전체 앱을 바로) = 섬을 못 만들 때의 대비책이자, 섬 상태를 떠 오는 원본 ----
+full = shell.replace('<script type="application/json" id="data">/*DATA*/</script>', f'<script src="{d_url}"></script>', 1)
+full = full.replace('<script>/*APPJS*/</script>', f'<script src="{a_url}"></script>', 1)
+full = full.replace('</head>', f'<link rel="preload" href="{d_url}" as="script"><link rel="preload" href="{a_url}" as="script">\n</head>', 1)
+full = full.replace('<style>/*APPCSS*/</style>', f'<link rel="stylesheet" href="{c_url}">', 1)
+for k in ('/*APPCSS*/', '/*APPJS*/', '/*DATA*/'): assert k not in full
+out = full
+# ---- 섬(island) 첫 화면: 미리 그린 숫자·목록 + 첫 페인트 CSS + 작은 섬 코드, 전체 앱은 손댈 때(빠른 연결이면 유휴 때) ----
+PRE = os.path.join(R, 'pipeline', '.pre'); os.makedirs(PRE, exist_ok=True)
+def node_env():
+    e = dict(os.environ)
+    if not e.get('NODE_PATH'):
+        try: e['NODE_PATH'] = subprocess.run(['npm', 'root', '-g'], capture_output=True, text=True, timeout=20).stdout.strip()
+        except Exception: pass
+    return e
+def prerender(*args):
+    r = subprocess.run(['node', os.path.join(R, 'tools', 'prerender.js'), *args], capture_output=True, text=True, env=node_env(), timeout=300)
+    print((r.stdout + r.stderr).strip()[-600:])
+    return r.returncode == 0
+def island():
+    import html as H
+    open(os.path.join(PRE, 'full.html'), 'w', encoding='utf-8').write(full)
+    stp = os.path.join(PRE, 'state.json')
+    if not prerender('state', os.path.join(PRE, 'full.html'), stp): return None
+    P = json.load(open(stp, encoding='utf-8'))
+    T = lambda i: None if i is None or i < 0 else P['strs'][i]
+    f0, c0 = P['def']['f'], P['def']['c']; i0 = P['stops'].index(c0)
+    st = P['st'][f0][i0]; t = st[0]
+    isl = S('island.js'); boot = S('boot.js')
+    if ESB and not os.environ.get('NO_MINIFY'): isl = mini(isl, 'js'); boot = mini(boot, 'js')
+    h_url = emit('h', 'window.__ZPH=' + json.dumps(P, ensure_ascii=False, separators=(',', ':')) + ';\n' + isl)
+    font = re.search(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/[^"]*pretendard[^"]*)"', shell)
+    boot = boot.replace('__A__', a_url).replace('__D__', d_url).replace('__C__', c_url).replace('__F__', font.group(1) if font else '')
+    x = shell
+    def rep(old, new, cnt=1, rx=False):
+        nonlocal x
+        n = len(re.findall(old, x, re.S)) if rx else x.count(old)
+        if n != cnt: raise ValueError(f'island: "{old[:60]}" ×{n}')
+        x = re.sub(old, new, x, count=1, flags=re.S) if rx else x.replace(old, new, 1)
+    cls = ' '.join(P['cls'] + (['gapm'] if st[3] else []))
+    rep(r'<html lang="ko" class="([^"]*)">', lambda m: f'<html lang="ko" class="{m.group(1)} {cls}">', rx=True)
+    # 글꼴은 전체 앱과 함께(빠른 연결이면 바로) — 느린 연결의 첫 화면에서 400KB 남짓을 아낀다. 그 전엔 시스템 글꼴.
+    x = re.sub(r'<link rel="preconnect" href="https://cdn\.jsdelivr\.net"[^>]*>\n?', '', x)
+    x = re.sub(r'<link rel="preload" as="style" href="https://cdn\.jsdelivr\.net/[^"]*pretendard[^"]*"[^>]*>\n?', '', x)
+    x = re.sub(r'<link rel="stylesheet" href="https://cdn\.jsdelivr\.net/[^"]*pretendard[^"]*"[^>]*>\n?', '', x)
+    rep('<style>/*APPCSS*/</style>', f'<link rel="stylesheet" href="{c_url}">\n<script>{boot}</script>\n<script defer src="{h_url}"></script>')
+    rep('<script type="application/json" id="data">/*DATA*/</script>\n', '')
+    rep('<script>/*APPJS*/</script>\n', '')
+    E = H.escape
+    rep('<small id="sNL">살 수 있는 곳</small>', f'<small id="sNL">{E(T(t[1]))}</small>')
+    rep(r'<span id="sN">[^<]*</span>', f'<span id="sN">{E(T(t[0]))}</span>', rx=True)
+    rep(r'<b id="sCashV">.*?</b>', f'<b id="sCashV">{T(t[4])}</b>', rx=True)
+    rep(r'<input type="range" id="sCash" style="--p:[^"]*"', f'<input type="range" id="sCash" style="--p:{T(t[9])}" aria-valuetext="{E(T(t[10]) or "")}"', rx=True)
+    mb = re.search(r'<div class="s-mode"[^>]*>(.*?)</div>', x, re.S)
+    if not mb: raise ValueError('island: s-mode')
+    k = iter(st[2]); inner = re.sub(r'<button type="button"', lambda m: f'<button type="button" aria-pressed="{next(k, "false")}"', mb.group(1))
+    x = x[:mb.start(1)] + inner + x[mb.end(1):]
+    rep('<div class="s-sum" id="sSum"></div>', f'<div class="s-sum" id="sSum">{T(t[5])}</div>')
+    rep(r'<h2 id="sLT">[^<]*</h2>', f'<h2 id="sLT">{E(T(t[2]))}</h2>', rx=True)
+    rep(r'<span id="sLS">[^<]*</span>', f'<span id="sLS">{E(T(t[3]))}</span>', rx=True)
+    rep(r'<ol class="s-list" id="sList">.*?</ol>', lambda m: '<ol class="s-list" id="sList">' + ''.join(P['rows'][r] for r in st[1]) + '</ol>', rx=True)
+    tot = int(re.sub(r'\D', '', (re.search(r'([\d,]+)\s*곳\s*$', T(t[2]) or '') or [None, '0'])[1]) or 0)
+    more = next((T(s[0][6]) for f in ('gap', 'cash') for s in P['st'][f] if T(s[0][6]) and re.search(r'\d', T(s[0][6]))), '더 보기 ({n}곳)')
+    more = re.sub(r'[\d,]+(?=곳)', '{n}', more, count=1)
+    trim = ('<script>/* 미리 그린 목록: 화면 높이에 맞는 줄 수(60_simple.js SHOW0와 같은 식) · 흐름선 때문에 이름이 잘리는 줄은 흐름선 빼기(fitSp와 같은 판정) */(function(){'
+            'var l=document.getElementById("sList"),m=document.getElementById("sMore");if(!l)return;'
+            'var n=6;try{if(matchMedia("(min-width:981px)").matches)n=Math.max(6,Math.min(10,Math.floor((Math.min(innerHeight-79,902)-144)/75)))}catch(e){}'
+            'while(l.children.length>n)l.removeChild(l.lastElementChild);'
+            f'var t={tot};if(m&&t>n){{m.hidden=false;m.textContent={json.dumps(more, ensure_ascii=False)}.replace("{{n}}",(t-n).toLocaleString("ko-KR"))}}'
+            'window.ZP_fit=function(){var ls=document.querySelectorAll("#sList li");for(var i=0;i<ls.length;i++){var li=ls[i];if(!li.querySelector(".s-sp"))continue;li.classList.remove("s-nosp");'
+            'var b=li.querySelector(".s-nm b"),s=li.querySelector(".s-nm small");if((b&&b.scrollWidth>b.clientWidth+1)||(s&&s.getClientRects().length&&s.offsetHeight>parseFloat(getComputedStyle(s).lineHeight||"0")*1.5))li.classList.add("s-nosp")}};'
+            'window.ZP_fit()})()</script>')
+    mv = re.search(r'<script>/\* 넓은 화면: 목록을 지도 오른쪽 칸으로[^<]*</script>', x)
+    if not mv: raise ValueError('island: list mover script')
+    x = x[:mv.end()] + trim + x[mv.end():]
+    for k in ('/*APPCSS*/', '/*APPJS*/', '/*DATA*/'): assert k not in x
+    # 첫 페인트 CSS: 이 첫 화면에 실제로 그려지는 요소에 맞는 규칙만(tools/prerender.js css). 전체 CSS는 앱과 함께 붙는다.
+    ip = os.path.join(PRE, 'island.html'); open(ip, 'w', encoding='utf-8').write(x)
+    cp = os.path.join(PRE, 'crit.css')
+    PH = ('.zp-ph{position:absolute;inset:0;z-index:0;pointer-events:none}.zp-ph svg{display:block;width:100%;height:100%}'
+          '.zp-gu path{fill:var(--surface-2,#eef0f3);stroke:var(--surface,#fff);stroke-width:2}.zp-dot{fill:var(--brand,#2B59F0);opacity:.85}'
+          'html.zp-wait,html.zp-wait *{cursor:progress!important}')
+    if prerender('css', ip, os.path.join(B, c_url.split('/')[-1]), cp):
+        crit = open(cp, encoding='utf-8').read().replace('</style', '<\\/style')
+        x = x.replace(f'<link rel="stylesheet" href="{c_url}">', f'<style>{crit}{PH}</style>', 1)
+    else:
+        x = x.replace(f'<link rel="stylesheet" href="{c_url}">', f'<link rel="stylesheet" href="{c_url}"><style>{PH}</style>', 1)
+    return x
+if os.environ.get('ZP_ISLAND', '1') != '0':
+    try:
+        x = island()
+        if x: out = x
+        else: print('island 건너뜀(prerender 실패) — 전체 앱을 바로 싣는 예전 방식으로 냄')
+    except Exception as e:
+        print('island 건너뜀:', e)
+prune()
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)
-print('public/index.html', len(out.encode()), 'bytes')
+print('public/index.html', len(out.encode()), 'bytes', '(island)' if out is not full else '(full)')
 # 서비스 워커 캐시 이름 = 이번 빌드 내용 해시(배포마다 옛 캐시를 비운다)
 SW = os.path.join(R, 'public', 'sw.js')
 if os.path.exists(SW):

@@ -757,6 +757,15 @@ async function mapLane(browser, api, errs, shortSrc) {
     const r = await page2.evaluate(() => { const m = window.ZP_lmx && window.ZP_lmx.map && window.ZP_lmx.map(); const a = document.activeElement; return { z: m ? m.getZoom() : null, focus: a ? (a.getAttribute("aria-label") || a.textContent || "").trim().slice(0, 20) : "" }; });
     if (r.z != null) expect(r.z <= 16.01, "map.deepZoom", "구역 딥링크 줌 ≤ 16(대략 범위 구역 과확대 금지)", `desktop #o1059 zoom ${r.z.toFixed(2)}`);
     expect(!/^닫기$/.test(r.focus), "ui.focus", "구역 딥링크로 열면 초점이 '닫기'가 아닌 제목에", `desktop #o1059 focus on "${r.focus}"`);
+  } catch (e) { bad("runtime", "검사 실행", "desktop crashed: " + String(e.message || e).split("\n")[0]); }
+  finally { await D.ctx.close().catch(() => {}); }
+}
+
+// ================================================================ 5b) 데스크톱 상세·대비·소식 (1440) — 2번 줄이 길어 1번 줄 끝에서 돈다
+async function deskLane(browser, errs) {
+  const D = await newPage(browser, { viewport: { width: 1440, height: 900 } }, errs);
+  const page2 = D.page;
+  try {
     // PC 상세: 칸 안 스크롤 없이 페이지와 함께 흐름 · 딥링크로 열면 상세 머리가 머리줄 바로 밑 · 휠은 페이지를 내림
     {
       const T = "PC 상세는 칸 안에서 따로 스크롤하지 않음 · 딥링크 열면 상세 머리가 머리줄 밑 · 휠이 페이지를 내림";
@@ -764,7 +773,9 @@ async function mapLane(browser, api, errs, shortSrc) {
       const a = await page2.evaluate(() => { const e = document.getElementById("report"), cs = getComputedStyle(e), h = document.getElementById("hdr").getBoundingClientRect().bottom; return { ov: cs.overflowY, sh: e.scrollHeight, ch: e.clientHeight, top: Math.round(e.getBoundingClientRect().top), hb: Math.round(h), y: Math.round(scrollY) }; });
       expect(!((a.ov === "auto" || a.ov === "scroll") && a.sh > a.ch + 2), "ui.repFlow", T, `#report overflow-y ${a.ov} scrollHeight ${a.sh} > clientHeight ${a.ch}`);
       expect(a.top >= a.hb - 2 && a.top <= a.hb + 120, "ui.repFlow", T, `#o337 deep link: report top ${a.top} vs header bottom ${a.hb} (scrollY ${a.y})`);
-      await page2.mouse.move(1100, 600); await page2.mouse.wheel(0, 600); await page2.waitForTimeout(500);
+      // 휠은 페이지를 내린다(딥링크 직후 지도 그리기로 바쁘면 늦게 반영될 수 있어 최대 8초 기다림)
+      await page2.mouse.move(1100, 600); await page2.mouse.wheel(0, 600);
+      await page2.waitForFunction((y) => scrollY > y + 300, a.y, { timeout: 8000, polling: 100 }).catch(() => {});
       const y2 = await page2.evaluate(() => scrollY);
       expect(y2 > a.y + 300, "ui.repFlow", T, `wheel over report: page scrollY ${a.y} → ${Math.round(y2)}`);
       // 목록 → 상세 → Esc: 열기 전 보던 자리로
@@ -798,7 +809,7 @@ async function mapLane(browser, api, errs, shortSrc) {
         expect(t.includes(day) && /단계 변경/.test(t), "ui.newTop", "소식(#news, 예전 #newTop)에 고시·공고의 가장 새 인가가 그 날짜로 들어감 · '단계 변경' 표시", `newest notice ${it[0]} ${it[2]} (${it[1]}) — #ntcOut ${t ? `has no "${day}"` : "empty"}${/단계 변경/.test(t) ? "" : " · no '단계 변경' rows"}`);
       } else skip("ui.newTop", "소식(#news, 예전 #newTop)에 고시·공고의 가장 새 인가가 그 날짜로 들어감 · '단계 변경' 표시", "no notice item");
     }
-  } catch (e) { bad("runtime", "검사 실행", "desktop crashed: " + String(e.message || e).split("\n")[0]); }
+  } catch (e) { bad("runtime", "검사 실행", "deskLane crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await D.ctx.close().catch(() => {}); }
 }
 
@@ -830,7 +841,7 @@ async function mapLane(browser, api, errs, shortSrc) {
   // 정적 검사는 바로 시작, 브라우저는 두 줄로(코어 2개)
   const stat = timed("static", staticLane(api));
   const cut = Math.ceil(zoneIds.length * 0.6);
-  const lane1 = timed("counts+zones", (async () => { await countsLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(0, cut)); })());
+  const lane1 = timed("counts+zones", (async () => { await countsLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(0, cut)); await deskLane(browser, errs); })());
   const lane2 = timed("map+ui+zones", (async () => { await mapLane(browser, api, errs, shortSrc); const st = await stat.catch(() => ({})); shared.liveCounts = st.liveCounts; await uiLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(cut)); })());
   await Promise.all([stat.catch((e) => bad("runtime", "검사 실행", "static crashed: " + e.message)), lane1, lane2]);
   await browser.close();
