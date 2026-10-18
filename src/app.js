@@ -5923,8 +5923,8 @@
       g.forEach((m) => {
         if (m.size < 2) return;
         const dn = (r) => (r.bj || r.j || "").split(" ")[0];
-        const jb = (r) => ((r.bj || r.j || "").split(" ")[1] || "").split("-")[0];
-        const kd = (r) => (/재건축/.test(r.n) ? "재건축" : /도시환경|도시정비형/.test(r.n) ? "도시정비형" : /가로/.test(r.n) ? "가로주택" : /재개발/.test(r.n) ? "재개발" : "");
+        const jb = (r) => ((r.bj || r.j || "").split(" ")[1] || "").replace(/[^\d-]/g, "");   // 지번 그대로(4-5 · 1343) — 본번만 쓰면 '신길동 4'처럼 읽혔다
+        const kd = (r) => (r.src === "moa" ? "관리지역" : /재건축/.test(r.n) ? "재건축" : /도시환경|도시정비형/.test(r.n) ? "도시정비형" : /가로/.test(r.n) ? "가로주택" : /재개발/.test(r.n) ? "재개발" : "");
         const V = [...m.values()], diffD = new Set(V.map(dn)).size === V.length;
         // 동이 다르면 동을, 같은 동끼리면 사업 유형을, 유형도 같으면 동+지번 본번을 붙인다(예: 홍제3구역(재건축) · 홍제3구역(도시정비형))
         const diffK = !diffD && new Set(V.map(kd)).size === V.length && V.every(kd);

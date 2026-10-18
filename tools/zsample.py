@@ -17,6 +17,10 @@ def cash(v):   # → '6,900만' · '1.2억' · '0원' (화면 ZF.cash: 1억 아�
     if t in ('–', '0'): return t if t == '–' else '0원'
     if abs(v) < 0.995: return ('-' if v < 0 else '') + f"{math.floor(abs(v) * 100 + 0.5) * 100:,}만"
     return t + '억'
+def auc_amt(v):   # 경매 금액(원) → '3.3억'(첫째 자리 반올림 · 0.5는 올림) · 1억 아래 '9,500만' — 화면 ZF.aucAmt와 같은 규칙(파이썬 round의 짝수 반올림 3.25→3.2를 쓰지 않는다)
+    if not isinstance(v, (int, float)) or v <= 0: return '–'
+    if v >= 1e8: return f"{math.floor(v / 1e7 + 0.5) / 10:,.1f}".rstrip('0').rstrip('.') + '억'
+    return f"{math.floor(v / 1e4 + 0.5):,}만"
 AUSE = {'단독주택다가구': '단독·다가구', '연립주택,다세대,빌라': '연립·다세대', '상가,오피스텔,근린시설': '상가·근린시설', '대지,임야,전답': '대지·임야', '다가구주택': '다가구'}
 def auc_use(u):   # 경매 용도 원문 → 읽기 쉬운 말(화면 ZF.aucUse)
     t = str(u or '').strip(); return AUSE.get(re.sub(r'\s+', '', t)) or re.sub(r'\s*,\s*', '·', t)

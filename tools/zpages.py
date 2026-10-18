@@ -89,7 +89,7 @@ KIND = {'재개발': '재개발', '재건축': '재건축', '도시정비형 재
 DTK = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 승인'), ('조합설립', '조합설립인가'), ('시행자지정', '사업시행자 지정'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가'), ('착공', '착공'), ('준공', '준공')]
 SKEY = {2: ('구역지정',), 3: ('추진위',), 4: ('조합설립', '시행자지정'), 5: ('사업시행',), 6: ('관리처분',), 7: ('관리처분',), 8: ('착공',)}
 PSRC = {'villa': '빌라 실거래 가운데 값', 'complex': '단지 실거래 가운데 값', 'apt': '단지 실거래 가운데 값', 'est': '구 평균 시세로 추정'}
-from zsample import manT, smpTxt, trust, short, headline, noTicket, LBL, josa, auc_use, auc_uses, auc_jb   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
+from zsample import manT, smpTxt, trust, short, headline, noTicket, LBL, josa, auc_use, auc_uses, auc_jb, auc_amt   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
 def gapWhy(c):   # 전세 끼고 계산이 안 되는 이유(화면 gapBlock과 같은 문구에서) → (표 칸 짧은 말, 설명)
     b = str(c.get('gapBlock') or '')
     if b.startswith('전세 낀 매수 불가'): return ('토허제', '토지거래허가구역이라 불가(2년 실거주)')
@@ -213,11 +213,11 @@ def page(r):
         buy = ('계산 매수가', manT(c['price']), f"= {esc(smpTxt(r, c))}" + (f" · 전용 {en['area_med']:g}㎡ 안팎" if en.get('area_med') else '') + (f" · {esc(en['scope'])}" if en.get('scope') else '')) if trow else None
         if H and H['kind'] == 'u':   # 대지 3.3㎡당 = 매수가 표본 그대로
             rows.append(('대지 3.3㎡당', man(H['v']), esc(H['basis'])))
-            if hd and abs(hd['u'] - H['v']) >= 1: rows.append(zone_row('대표 거래', '대지 3.3㎡당 · '))
+            if hd and abs(hd['u'] - H['v']) >= 1: rows.append(zone_row('참고 · 구역 대표 거래', '매수가 표본과 다른 묶음 · 대지 3.3㎡당 · '))   # 화면 '다른 기준 보기'처럼 참고 줄로(큰 숫자와 헷갈리지 않게)
             rows += [buy, trow]
         elif H and H['kind'] == 'p':   # 매수가가 곧 큰 숫자 · 구역 안 3.3㎡당은 참고 줄
             rows += [buy, trow]   # 표 머리칸이 좁아 이름은 '계산 매수가' 그대로(설명 줄이 '주변 300m 빌라 n건' 등 표본을 말함)
-            z = zone_row('구역 안 거래', '대지 3.3㎡당 · ')
+            z = zone_row('참고 · 구역 안 거래', '매수가 표본과 다른 묶음 · 대지 3.3㎡당 · ')
             if z: rows.append(z)
         else:
             if hd: rows.append(zone_row(HDB[hd['b']][0]))
@@ -253,7 +253,7 @@ def page(r):
     if au:   # 법원경매(tools/auction_match.py): 입찰기일이 남은 물건만, 사건번호로 묶어 5건까지
         g = {}
         for x in sorted(au, key=lambda x: (x.get('date') or '9', x.get('cs'), x.get('no') or 1)): g.setdefault(x.get('cs'), []).append(x)
-        ek = lambda v: (f"{round(v / 1e8, 1):g}억" if v >= 1e8 else f"{round(v / 1e4):,}만") if isinstance(v, (int, float)) and v > 0 else '–'
+        ek = auc_amt   # 화면 ZF.aucAmt와 같은 반올림(3.25억 → 3.3억)
         def arow(cs, xs):
             x = xs[0]; mins = [y['min'] for y in xs if isinstance(y.get('min'), (int, float)) and y['min'] > 0]
             pr = (f"최저 {ek(min(mins))}" + (f"~{ek(max(mins))}" if len(set(mins)) > 1 else '') + (f" · 감정가 {ek(x['appr'])}" if len(xs) == 1 and x.get('appr') else '') + (f" · 감정가의 {x['rate']}%" if len(xs) == 1 and x.get('rate') is not None else '')) if mins else ''

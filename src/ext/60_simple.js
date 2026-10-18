@@ -375,7 +375,8 @@ const SIMPLE = (() => {
         let chg = null;
         if (P8.length >= 6) { const b = P8.filter((p) => p[0] <= last - 4).pop(); if (b) chg = (P8[P8.length - 1][1] / b[1] - 1) * 100; }
         // 작은 선만 있으면 무엇인지 몰라('√'처럼 보임) 아래에 늘 이름표: '1년▲64%'(1년 바뀜) 또는 '시세'
-        const tr = chg != null && Math.abs(chg) >= 3 ? `<i class="${chg > 0 ? "up" : "dn"}" aria-hidden="true">1년${chg > 0 ? "▲" : "▼"}${Math.round(Math.abs(chg))}%</i>` : `<i aria-hidden="true">2년 시세</i>`;
+        // 이름표는 모든 줄이 같은 꼴 '2년 시세'(1년 바뀜 %는 줄마다 꼴이 달라 보여 title·화면 읽기로만)
+        const tr = `<i aria-hidden="true">2년 시세</i>`;
         const lab = `최근 2년 시세 흐름${chg != null && Math.abs(chg) >= 3 ? ` · 1년 ${chg > 0 ? "+" : "−"}${Math.round(Math.abs(chg))}%` : ""}`;
         out = `<span class="s-sp" role="img" aria-label="${lab}" title="${lab}"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${xy.map((p) => p.join(",")).join(" ")}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${ex}" cy="${ey}" r="1.9" fill="currentColor"/></svg>${tr}</span>`;
       }

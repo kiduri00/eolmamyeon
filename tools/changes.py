@@ -11,7 +11,7 @@
 사용: python3 tools/changes.py   (tools/daily.sh에서 calc.js 다음에 돈다)"""
 import json, os, re, hashlib, datetime, collections, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from zsample import auc_use, auc_jb   # 경매 용도·지분 말(화면 ZF.aucUse·aucJb와 같은 규칙)
+from zsample import auc_use, auc_uses, auc_jb, auc_amt   # 경매 용도·지분 말(화면 ZF.aucUse·aucJb와 같은 규칙)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 P = lambda p: os.path.join(ROOT, p)
 def J(p, d=None):
@@ -101,12 +101,13 @@ def auc_head(items):
     res = [y for y in items if RES_RE.search(str(y.get('use') or ''))] or items
     return min(res, key=lambda y: (y.get('min') if isinstance(y.get('min'), (int, float)) and y['min'] > 0 else 9e18, str(y.get('date') or '9')))
 auc_jibun = lambda y: bool(y.get('jb'))   # 지분 매각(auction_match.py)
-def auc_text(items):
+def auc_text(items):   # 구역 리포트 경매 블록과 같은 말: '경매 1건 · 물건 15개 · 근린시설 외 · 최저 3.3억 · 입찰 11.4'
     x = auc_head(items)
     mn = x.get('min'); d = str(x.get('date') or '')
-    use = auc_use(x.get('use')) or '부동산'
-    t = f"경매 물건 등장{f' (물건 {len(items)}개)' if len(items) > 1 else ''} · {use}{' ' + auc_jb(x.get('jb')) if auc_jibun(x) else ''}"
-    if isinstance(mn, (int, float)) and mn > 0: t += f" · 최저 {won(mn / 1e4)}"
+    ncs = len({y.get('cs') for y in items}) or 1
+    use = auc_uses([y.get('use') for y in items]) if len(items) > 1 else (auc_use(x.get('use')) or '부동산')
+    t = f"경매 {ncs}건{f' · 물건 {len(items)}개' if len(items) > ncs else ''} · {use}{' ' + auc_jb(x.get('jb')) if auc_jibun(x) else ''}"
+    if isinstance(mn, (int, float)) and mn > 0: t += f" · 최저 {auc_amt(mn)}"
     if re.match(r'\d{4}-\d\d-\d\d', d): t += f" · 입찰 {int(d[5:7])}.{int(d[8:10])}"
     return t
 def auc_mn(items):   # 알림 조건(현금) 비교용: 대표 물건 최저가(억)
@@ -192,6 +193,11 @@ def auc_retext(e):
     지분 몫은 그 구역 경매 물건 중 대표 최저가(mn)가 같은 물건에서 찾는다."""
     if e.get('type') != 'auction': return e
     t = e.get('text') or ''
+    if t.startswith('경매 물건 등장'):   # 리포트와 다른 옛 말 → 같은 사건(대표 최저가 mn이 같은 물건의 사건번호) 물건들로 다시 쓴다
+        its = auc_items(e['id']); h = next((y for y in its if isinstance(y.get('min'), (int, float)) and abs(y['min'] / 1e8 - (e.get('mn') or -1)) < 0.006), None)
+        if h: return dict(e, text=auc_text([y for y in its if y.get('cs') == h.get('cs')]))
+        m = re.match(r'^경매 물건 등장(?: \(물건 (\d+)개\))?(.*)$', t)
+        if m: return dict(e, text=f"경매 1건{f' · 물건 {m.group(1)}개' if m.group(1) else ''}{m.group(2)}")
     if ' · 최저 ' in t: return e   # 이미 지금 꼴
     m = re.match(r'^경매 물건 등장(?: (\d+)건)? · (.+?)( 지분)? 최저 (.+)$', t)
     if not m: return e

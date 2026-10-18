@@ -144,7 +144,7 @@
     const aucUpX = (r) => aucOf(r).filter((o) => aucSt(o) === "up");
     const aucUp = (r) => aucGroups(aucUpX(r)).length;
     const aucWon = (v) => { if (v == null || !isFinite(v)) return "–"; const e = Math.floor(v / 1e8), m = Math.round((v % 1e8) / 1e4); return e ? `${e}억${m ? ` ${m.toLocaleString("ko-KR")}만` : ""}원` : `${m.toLocaleString("ko-KR")}만원`; };
-    const aucEok = (v) => (v >= 1e8 ? `${(Math.round(v / 1e7) / 10).toLocaleString("ko-KR")}억` : `${Math.round(v / 1e4).toLocaleString("ko-KR")}만`);
+    const aucEok = ZF.aucAmt;   // /z·알림함과 같은 반올림(05_facts.js)
     const aucDay = (d) => { if (!d) return "–"; const t = new Date(d + "T00:00:00+09:00"); return `${d.replaceAll("-", ".")} (${"일월화수목금토"[t.getDay()]})`; };
     const aucMd = (d) => (d ? `${+d.slice(5, 7)}.${+d.slice(8, 10)}` : "");
     const aucCourt = (c) => String(c || "").replace(/^서울(.+)지방법원$/, "서울$1지법");
@@ -253,7 +253,9 @@
       L({ id: "auc-o", type: "circle", source: "auc", minzoom: 14, filter: ["!=", ["get", "sel"], 1], paint: { "circle-radius": 4.5, "circle-color": C, "circle-stroke-color": W, "circle-stroke-width": 1.5, "circle-opacity": ["case", ["==", ["get", "c"], 1], 0.95, 0.45], "circle-stroke-opacity": ["case", ["==", ["get", "c"], 1], 1, 0.5] } });
       L({ id: "auc-s", type: "circle", source: "auc", filter: ["==", ["get", "sel"], 1], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 6, 15, 9], "circle-color": C, "circle-stroke-color": W, "circle-stroke-width": 2, "circle-opacity": ["case", ["==", ["get", "c"], 1], 1, 0.55] } });
       L({ id: "auc-sn", type: "symbol", source: "auc", filter: ["all", ["==", ["get", "sel"], 1], [">", ["get", "n"], 0]], layout: { "text-field": ["to-string", ["get", "n"]], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 11], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#ffffff" } });
-      for (const id of AUCL) if (map.getLayer(id)) try { map.moveLayer(id); } catch (e) {}
+      // 구역 이름표(zone-lab) 밑으로: 360px에서 경매 점이 '화곡동 1087' 같은 이름을 덮었다 — 이름표가 위, 점은 그 아래(이름표 밖으로 보임)
+      const bf = map.getLayer("zone-lab") ? "zone-lab" : undefined;
+      for (const id of AUCL) if (map.getLayer(id)) try { map.moveLayer(id, bf); } catch (e) {}
       try { map.setPaintProperty("auc-o", "circle-color", C); map.setPaintProperty("auc-s", "circle-color", C); map.setPaintProperty("auc-o", "circle-stroke-color", W); map.setPaintProperty("auc-s", "circle-stroke-color", W); } catch (e) {}
     }
     function aucLegend(map) {

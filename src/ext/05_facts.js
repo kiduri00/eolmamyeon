@@ -112,7 +112,9 @@
       if (r && r.src === "moa") return "모아타운 관리지역은 사업구역마다 분담금·입주 시점이 달라 입주까지는 안의 사업구역에서 계산해요";
       return miss || "입주까지 계산에 필요한 자료가 부족해요";
     }
-    return { noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
+    // 경매 금액(원) → '3.3억'(첫째 자리 반올림) · 1억 아래 '9,500만' — /z·알림함(tools/zsample.auc_amt)과 같은 규칙
+    const aucAmt = (v) => (v == null || !isFinite(v) || v <= 0 ? "–" : v >= 1e8 ? `${(Math.round(v / 1e7) / 10).toLocaleString("ko-KR")}억` : `${Math.round(v / 1e4).toLocaleString("ko-KR")}만`);
+    return { aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
   })();
   // 정적 HTML(shell.html)의 방식 버튼 글자도 LBL에서: data-lbl="gap|loan|cashToMoveIn"
   { const lbl = () => document.querySelectorAll("[data-lbl]").forEach((e) => { const t = LBL[e.dataset.lbl]; if (t && e.textContent !== t) e.textContent = t; }); document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", lbl) : lbl(); }
