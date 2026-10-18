@@ -174,7 +174,7 @@ def island():
     ip = os.path.join(PRE, 'island.html'); open(ip, 'w', encoding='utf-8').write(x)
     cp = os.path.join(PRE, 'crit.css')
     PH = ('.zp-ph{position:absolute;inset:0;z-index:0;pointer-events:none}.zp-ph svg{display:block;width:100%;height:100%}'
-          '.zp-gu path{fill:var(--surface-2,#eef0f3);stroke:var(--surface,#fff);stroke-width:2}.zp-dot{fill:var(--brand,#2B59F0);opacity:.85}'
+          '.zp-gu path{fill:var(--surface,#fff);stroke:var(--border,#e5e8eb);stroke-width:1.6}.zp-dot{fill:var(--brand,#2B59F0);opacity:.85}'
           'html.zp-wait,html.zp-wait *{cursor:progress!important}')
     if prerender('css', ip, os.path.join(B, c_url.split('/')[-1]), cp):
         crit = open(cp, encoding='utf-8').read().replace('</style', '<\\/style')

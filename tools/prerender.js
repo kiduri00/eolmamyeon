@@ -129,7 +129,7 @@ async function state(out) {
       thr[f] = t;
     }
     const cls = htmlCls.split(/\s+/).filter((c) => ["free", "is-member", "s-built"].includes(c));
-    const conds = res.conds; console.log('loop ms', res.tm);
+    const conds = res.conds;
     const pack = {
       v: 1, stops, KN, pos: stops.map((c) => +toPos(c).toFixed(4)), def: { f: "gap", c: 1 }, cls, conds,
       strs: res.strs, rows: res.rows,
@@ -167,7 +167,8 @@ async function css(cssFile, out) {
             const sheet = [...document.styleSheets].find((s) => s.href && s.href.includes(base));
             if (!sheet) return null;
             const vis = (el) => el === document.documentElement || el === document.body || el === document.head || el.getClientRects().length > 0 || (el.namespaceURI === "http://www.w3.org/2000/svg" && el.closest("svg") && el.closest("svg").getClientRects().length > 0);
-            const live = [...document.querySelectorAll("*")].filter((el) => !el.closest("head,script,style,template,noscript") && vis(el));
+            // 그려지는 요소 + '그려지는 부모 바로 밑의 숨은 요소'(그 요소를 숨기는 규칙도 첫 페인트에 있어야 하므로). 숨은 칸 속 깊은 내용은 뺀다
+            const live = [...document.querySelectorAll("*")].filter((el) => !el.closest("head,script,style,template,noscript") && (vis(el) || !el.parentElement || vis(el.parentElement)));
             const strip = (sel) => sel.replace(/::?(before|after|placeholder|marker|selection|first-letter|first-line|backdrop|-webkit-[a-z-]+|-moz-[a-z-]+)(\([^)]*\))?/gi, "").replace(/:(hover|focus|focus-visible|focus-within|active|visited|link|any-link|target|checked|indeterminate|disabled|enabled|placeholder-shown|invalid|valid|user-invalid|autofill)(?![\w-])/gi, "");
             const splitSel = (s) => { const o = []; let d = 0, cur = ""; for (const ch of s) { if (ch === "(") d++; if (ch === ")") d--; if (ch === "," && !d) { o.push(cur); cur = ""; } else cur += ch; } o.push(cur); return o.map((x) => x.trim()).filter(Boolean); };
             const used = [];
