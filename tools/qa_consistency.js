@@ -1235,8 +1235,10 @@ async function r14Lane(browser, api, errs) {
       await page.waitForTimeout(1500);
       const a = await page.evaluate(() => { const m = document.getElementById("mapbox"), l = document.getElementById("sListW"); if (!m || !l) return null; scrollTo(0, m.getBoundingClientRect().top + scrollY - 90); return null; });
       await page.waitForTimeout(600);
-      const al = await page.evaluate(() => { const m = document.getElementById("mapbox").getBoundingClientRect(), l = document.getElementById("sListW").getBoundingClientRect(); return [Math.round(m.bottom), Math.round(l.bottom)]; });
-      expect(Math.abs(al[0] - al[1]) <= 6, "ui.deskAlign", "PC 목록 칸 아래 끝 == 지도 아래 끝(±6px)", `map bottom ${al[0]} vs list bottom ${al[1]}`);
+      // 19차: 왼쪽 칸은 페이지와 함께 한 번에 스크롤(목록 안 따로 스크롤하는 칸 없음) · 지도는 화면 아래 끝까지 붙어 있다
+      await page.evaluate(() => scrollTo(0, scrollY + 600)); await page.waitForTimeout(500);
+      const al = await page.evaluate(() => { const m = document.getElementById("mapbox").getBoundingClientRect(), l = document.getElementById("sList"); const ov = getComputedStyle(l).overflowY; return [Math.round(m.bottom), innerHeight, ov, l.scrollHeight - l.clientHeight]; });
+      expect(Math.abs(al[0] - al[1]) <= 6 && !/auto|scroll/.test(al[2]), "ui.deskAlign", "PC: 목록 안 따로 스크롤 없음(왼쪽 칸이 페이지와 함께) · 지도 아래 끝 == 화면 아래 끝(±6px)", `map bottom ${al[0]} vs viewport ${al[1]} · list overflow ${al[2]} (inner overflow ${al[3]}px)`);
       // PC 두 칸: 왼쪽 420~440px · 지도 폭 ≥ 55% · 머리 바로 밑에 붙어(sticky) 화면 높이 · 확대 버튼·범례가 화면 안 · Tab 순서 예산 카드 → 지도 버튼
       for (const y of [0, 400, 2000]) {
         const L = await page.evaluate(async (y) => {

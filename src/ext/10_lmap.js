@@ -290,6 +290,8 @@
       focus(pendFocus); pendFocus = false;
       if (stnF && stnPend) stnGo();
       notes(); edgeSoon();
+      // 실제 지도가 준비되면(구 묶음이 같은 자리에 있음) 누르기·마우스는 실제 지도로 — 자리 그림은 바탕이 다 그려질 때까지 보이기만
+      try { const ge = window.ZP_G && ZP_G.el(); if (ge) ge.style.pointerEvents = "none"; } catch (e) {}
       if (STG.length) reveal(); else fadeSoon();
     }
     // 구 이름 자리: 가장 큰 고리의 면적 중심. 동 이름 자리: 그 동(지번 주소 첫 낱말) 구역들의 평균 위치
@@ -1232,7 +1234,7 @@
     const SWGL = () => { if (swgl != null) return swgl; swgl = false; try { const c = document.createElement("canvas"), g = c.getContext("webgl"), e = g && g.getExtension("WEBGL_debug_renderer_info"), r = e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL) || "") : ""; swgl = /SwiftShader|llvmpipe|softpipe|Software|Microsoft Basic Render/i.test(r); const lc = g && g.getExtension("WEBGL_lose_context"); if (lc) lc.loseContext(); } catch (e) {} return swgl; };
     function init() {
       if (map) return true;
-      STAGE = ghostOn();
+      STAGE = ghostOn() && MQ_SHEET.matches;   // 글자 레이어 나눠 켜기는 폰만(PC는 바로 · 마우스 연결이 늦지 않게)
       try {
         map = new maplibregl.Map({ validateStyle: false,
           container: "lmap", style: style(), ...((() => { const C = (window.ZP_G && ZP_G.on() && ZP_G.last()) || null; return C ? { center: C.c, zoom: C.z } : { bounds: SEOUL_BB }; })()), fadeDuration: 0, ...(SWGL() ? { pixelRatio: 1 } : {}), fitBoundsOptions: { padding: 12 },
