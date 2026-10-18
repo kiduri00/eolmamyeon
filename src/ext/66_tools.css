@@ -155,18 +155,16 @@ html.simple #rankHub:not(.s-on),html.simple #news:not(.s-on),html.simple .hub-pa
 :root[data-theme="dark"] .txr-l .tl-v b.up{color:#f87171}:root[data-theme="dark"] .txr-l .tl-v b.dn{color:#60a5fa}
 /* 소식 > 단계 소식 */
 .nt-sum{margin:0 0 6px;font-size:14px;color:var(--text-2)}.nt-sum b{color:var(--text-1)}
-.ntl li.c-up .nt-c{background:color-mix(in srgb,#16a34a 15%,transparent);color:#15803d}
+.ntl li.c-up .nt-c{background:var(--ok-soft);color:var(--ok-ink)}
 .c-chg .nt-c,.c-req .nt-c{background:var(--surface-3);color:var(--text-2)}
 .ntl .nt-m{display:block;margin-top:4px;font-size:13px;font-weight:600;color:var(--brand)}
 .ntl .nt-m.mut{font-weight:500;color:var(--text-3)}
-.ntl .nt-m.ok{color:#15803d}
+.ntl .nt-m.ok{color:var(--ok-ink)}
 .ntl .nt-pin{display:inline-flex;vertical-align:-3px;margin-right:4px;color:var(--brand);font-style:normal}
 .ntl .nt-pin svg{width:15px;height:15px}
 .ntl .nt-t a{font-weight:600;white-space:nowrap}
 .nt-e{padding:12px 0}
 @media (max-width:640px){.ntl li{grid-template-columns:62px 1fr}}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ntl li.c-up .nt-c,:root:not([data-theme="light"]) .ntl .nt-m.ok{color:#4ade80}}
-:root[data-theme="dark"] .ntl li.c-up .nt-c,:root[data-theme="dark"] .ntl .nt-m.ok{color:#4ade80}
 /* 입주 계산 아래 '모으면 언제?': 입주 계산 화면이 열리면 바로 밑에 붙는다(지금 현금은 위 계산기 값을 그대로 씀)
    계산기 안(격자)에 넣으면 오른쪽 답 카드(sticky)가 이 칸 위로 따라 내려와 겹쳐서, 형제 섹션으로 둔다 */
 html.simple #planner.s-on+#saveTop{display:block!important}

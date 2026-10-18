@@ -87,7 +87,7 @@ const INBOX = (() => {
     return `<section class="ib-sec" aria-labelledby="ibCT"><h4 id="ibCT">이 돈으로 살 수 있는 곳 알림</h4>${L.map((n) => {
       const f = n.add.filter((id) => F.has(id)).length;
       const au = n.au.slice(0, 3).map((e) => { const r = byId[e.id], nw = unreadC(e); return `<li><button type="button" class="ib-it${nw ? " new" : ""}" data-open="${e.id}"><span class="ib-tg au">경매</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(e.text)}</small></span>${nw ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("");
-      return `<div class="ib-cond"><p class="ib-ch"><b>${esc(n.c.name)}</b>${f ? `<em class="pc-nb">+${f} 새 구역</em>` : n.add.length ? `<small>새로 들어온 곳 ${n.add.length}곳</small>` : ""}</p><ul>${au}${n.add.slice(0, 5).map((id) => { const r = byId[id]; if (!r) return ""; let wy = ""; try { wy = PINS.whyNew(n.c, id); } catch (e) {} return `<li><button type="button" class="ib-it${F.has(id) ? " new" : ""}" data-open="${id}"><span class="ib-tg cd">조건</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(stageName(r))}${wy ? ` · ${esc(wy)}` : ""}</small></span>${F.has(id) ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("")}${n.add.length > 5 ? `<li class="ib-more">외 ${n.add.length - 5}곳 · 내 핀 화면에서 모두 보기</li>` : ""}</ul></div>`;
+      return `<div class="ib-cond"><p class="ib-ch"><b>${esc(n.c.name)}</b>${f ? `<em class="pc-nb">+${f} 새 구역</em>` : n.add.length ? `<small>새로 들어온 곳 ${n.add.length}곳</small>` : ""}</p><ul>${au}${n.add.slice(0, 5).map((id) => { const r = byId[id]; if (!r) return ""; let wy = ""; try { wy = PINS.whyNew(n.c, id); } catch (e) {} return `<li><button type="button" class="ib-it${F.has(id) ? " new" : ""}" data-open="${id}"><span class="ib-tg cd">조건</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(stageName(r))}${wy ? ` · ${esc(wy)}` : ""}</small></span>${F.has(id) ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("")}${n.add.length > 5 ? `<li class="ib-more">외 ${n.add.length - 5}곳 · 관심 구역 화면에서 모두 보기</li>` : ""}</ul></div>`;
     }).join("")}</section>`;
   }
   function pinHTML() {
@@ -153,38 +153,56 @@ const INBOX = (() => {
     if (!KEY || !canPush()) return "";
     const perm = Notification.permission;
     if (isOn() && perm === "granted") return `<div class="ib-push on" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림 켜짐</b><small>매일 아침 관심 구역·알림 조건에 새 소식이 있으면 알려 드려요</small></span><button type="button" class="btn text sm" data-iboff>끄기</button></div>`;
-    if (perm === "denied") return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>알림이 막혀 있어요</b><small>브라우저 사이트 설정에서 알림을 허용하면 켤 수 있어요</small></span></div>`;
+    if (perm === "denied") return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>알림이 막혀 있어요</b><small>주소창 왼쪽 자물쇠(사이트 설정) → 알림 허용 뒤 다시 열어 주세요</small></span></div>`;
+    if (PMSG === P_FAIL) return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림을 켤 수 없어요</b><small>이 브라우저에선 안 돼요 · 새 소식은 여기 알림함에 모아 드려요</small></span></div>`;
     return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>새 소식을 폰 알림으로 받기</b><small>${PMSG ? esc(PMSG) : "새 실거래·단계·경매, 살 수 있게 된 곳"}</small></span><button type="button" class="btn primary sm" data-ibon>알림 받기</button></div>`;
   }
   const u8 = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const swReady = (ms = 8000) => Promise.race([navigator.serviceWorker.getRegistration("/").then((r) => r || navigator.serviceWorker.register("/sw.js", { scope: "/" })).then(() => navigator.serviceWorker.ready), new Promise((_, no) => setTimeout(() => no(new Error("sw")), ms))]);
   const payload = (sub) => ({ sub: sub.toJSON(), zones: pinIds().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.slice(0, 150) })) });
-  const postSub = (sub) => fetch("/api/push/sub", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload(sub)) }).then((r) => { if (!r.ok) throw new Error("sub " + r.status); lsW(SYK, day()); return r; });
+  // 시간 제한: 구독·서버 저장이 멈춰도 '켜는 중…'에 갇히지 않게(8초)
+  const tmo = (p, ms, tag) => { let t; return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(new Error(tag || "timeout")), ms); })]).finally(() => clearTimeout(t)); };
+  const postSub = (sub) => {
+    const ac = "AbortController" in window ? new AbortController() : null, t = setTimeout(() => ac && ac.abort(), 8000);
+    return tmo(fetch("/api/push/sub", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload(sub)), signal: ac ? ac.signal : undefined }), 8000, "sub")
+      .then((r) => { if (!r.ok) throw new Error("sub " + r.status); lsW(SYK, day()); return r; }).finally(() => clearTimeout(t));
+  };
   // 구독 키가 서버 키와 다르면(서버 키를 바꾼 경우) 새로 구독
   const sameKey = (sub) => { try { const k = sub.options && sub.options.applicationServerKey; return !k || b64(k) === KEY; } catch (e) { return true; } };
   async function getSub(create) {
     const reg = await swReady();
-    let sub = await reg.pushManager.getSubscription();
+    let sub = await tmo(reg.pushManager.getSubscription(), 8000, "get");
     if (sub && !sameKey(sub)) { try { await sub.unsubscribe(); } catch (e) {} sub = null; }
-    if (!sub && create) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(KEY) });
+    if (!sub && create) sub = await tmo(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(KEY) }), 8000, "subscribe");
     return sub;
   }
+  const P_FAIL = "이 브라우저에선 폰 알림을 켤 수 없어요 · 알림함(🔔)에 모아 드려요";
+  const P_DENY = "알림이 막혀 있어요 · 주소창 왼쪽 자물쇠(사이트 설정)에서 알림을 허용해 주세요";
+  // 성공은 서버가 구독을 받았다고 답한 뒤에만. 실패하면 버튼을 되돌리고 이유를 보여 준다. 결과 { ok, msg, denied }
   async function subscribe(btn) {
-    if (btn) { btn.disabled = true; btn.textContent = "켜는 중…"; }
-    PMSG = "";
+    const lbl = btn ? btn.innerHTML : "";
+    if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); btn.textContent = "켜는 중…"; }
+    PMSG = ""; let res = { ok: false, msg: P_FAIL };
     try {
-      if (!(await pushKey())) throw new Error("key");
-      const perm = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
-      if (perm !== "granted") { PMSG = perm === "denied" ? "" : "알림을 허용해야 받을 수 있어요"; }
+      if (!(await tmo(pushKey(), 8000, "key"))) throw new Error("key");
+      // 권한 창은 사람이 고르는 시간이라 넉넉히(그래도 끝없이 기다리진 않음)
+      const perm = Notification.permission === "granted" ? "granted" : await tmo(Promise.resolve(Notification.requestPermission()), 60000, "perm");
+      if (perm === "denied") res = { ok: false, msg: P_DENY, denied: true };
+      else if (perm !== "granted") res = { ok: false, msg: "알림을 허용해야 받을 수 있어요" };
       else {
         const sub = await getSub(true);
+        if (!sub) throw new Error("nosub");
         await postSub(sub);
         lsW(PK, { on: 1, at: Date.now() });
-        tst("폰 알림 켰어요", "매일 아침 새 소식이 있으면 알려 드려요");
+        res = { ok: true, msg: "" };
       }
-    } catch (e) { PMSG = "지금은 켤 수 없어요. 잠시 뒤 다시 해 주세요"; }
+    } catch (e) { res = { ok: false, msg: P_FAIL }; }
+    PMSG = res.ok ? "" : res.msg;
+    if (btn && btn.isConnected && !res.ok) { btn.disabled = false; btn.removeAttribute("aria-busy"); btn.innerHTML = lbl; }
+    if (res.ok) tst("폰 알림 켰어요", "매일 아침 새 소식이 있으면 알려 드려요");
     if (OPEN) OPEN.rerender();
+    return res;
   }
   async function unsubscribe() {
     try { const sub = await getSub(false); if (sub) { const ep = sub.endpoint; await sub.unsubscribe(); await fetch("/api/push/unsub", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: ep }) }).catch(() => {}); } } catch (e) {}
@@ -248,7 +266,16 @@ const INBOX = (() => {
     ov.addEventListener("click", async (e) => {
       if (e.target === ov || e.target.closest("[data-wsx]")) return close();
       const on = e.target.closest("[data-wson]");
-      if (on) { await subscribe(on); if (isOn()) close(); return; }
+      if (on) {
+        const r = await subscribe(on);
+        if (r.ok) { close(); return; }
+        // 실패: 버튼은 되돌리고(막힘이면 숨김) 바로 아래에 이유
+        let m = ov.querySelector("[data-wsmsg]");
+        if (!m) { m = document.createElement("p"); m.className = "ws-msg"; m.dataset.wsmsg = "1"; m.setAttribute("role", "alert"); on.after(m); }
+        m.textContent = r.msg;
+        if (r.denied || r.msg === P_FAIL) on.hidden = true;
+        return;
+      }
       const ins = e.target.closest("[data-wsin]");
       if (ins) {
         if (ios) { const box = ov.querySelector("[data-wsios]"); box.hidden = !box.hidden; ins.setAttribute("aria-expanded", String(!box.hidden)); return; }

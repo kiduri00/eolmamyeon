@@ -273,6 +273,7 @@ html.s-full .pc-save,html.s-full .pc-act{display:none}
 .pi-nm li small{margin-left:2px;font-size:11.5px;font-weight:500;color:var(--text-3)}
 .pi-nm li.pi-more{padding-left:10px;color:var(--text-3);font-weight:500}
 .pi-nm.pi-c li{padding-left:10px;border-style:dashed;border-color:color-mix(in srgb,var(--brand) 45%,transparent);color:var(--brand)}
+.pi-dlg .pi-cnt{margin:-4px 0 8px;font-size:13.5px;font-weight:700;color:var(--text-2)}
 .pi-dlg .pi-how{font-size:13px;line-height:1.55}
 .pi-dlg .pi-how b{color:var(--text-1)}
 .pi-btns .btn{min-height:44px}

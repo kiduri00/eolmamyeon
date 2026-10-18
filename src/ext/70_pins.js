@@ -142,7 +142,7 @@ const PINS = (() => {
       ? `<div class="pn-selbar" role="group" aria-label="비교할 구역 고르기"><span><b>비교할 구역 2~3곳</b>을 골라 주세요</span><button type="button" class="btn text sm" id="pnSelX">취소</button><button type="button" class="btn primary sm" id="pnGo"${CMP.length >= 2 ? "" : " disabled"}>비교하기 (${CMP.length})</button></div>`
       : `${sumHTML(L)}<div class="pn-h"><p><b>관심 구역 ${L.length}곳</b>${nw ? `<span class="pn-nwn">새 소식 ${nw}곳</span>` : ""}</p><div class="pn-ha">${L.length >= 2 ? '<button type="button" class="btn secondary sm" id="pnCmp">비교</button>' : ""}<button type="button" class="btn secondary sm" id="pnShare">카드로 공유</button></div></div>
       <div class="pn-tools"><div class="pn-sort" role="group" aria-label="정렬">${srt}</div><label class="pn-money"><input type="checkbox" id="pnMoney"${MONEY ? " checked" : ""}>공유 이미지에 금액 넣기</label></div>`;
-    return `${top}${condHTML()}<p class="pn-base">오른쪽은 ${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 살 때 필요한 돈 · 내 현금 ${e2(CASH)}억 기준 · 꽂은 날과 비교</p><div class="pn-list" role="list" aria-label="내 핀 목록">${L.map(rowHTML).join("")}</div><span class="share-fb" id="pnShareFb" role="status"></span>${SEL ? "" : moveHTML(L.length)}`;
+    return `${top}${condHTML()}<p class="pn-base">오른쪽은 ${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 살 때 필요한 돈 · 내 현금 ${e2(CASH)}억 기준 · 꽂은 날과 비교</p><div class="pn-list" role="list" aria-label="관심 구역 목록">${L.map(rowHTML).join("")}</div><span class="share-fb" id="pnShareFb" role="status"></span>${SEL ? "" : moveHTML(L.length)}`;
   }
   // 관심 구역 요약 카드: 관심 구역 N곳 · 이번 주 소식 N건 · 살 수 있게 된 곳 N곳 + 이번 주 요약(구역별 소식 묶음)
   let DIG = false;
@@ -210,22 +210,25 @@ const PINS = (() => {
     if (!P.length && !C.length) return badLink();
     const old0 = $("pnImp"); if (old0) old0.remove();
     const back = document.activeElement, has = FAV.length || CONDS.length;
-    const parts = [P.length ? `핀 ${P.length}곳` : "", C.length ? `조건 ${C.length}개` : "", nm ? `메모 ${nm}개` : "", ng ? `목표 ${ng}개` : ""].filter(Boolean).join(" · ");
+    // 제목은 짧게(무엇을 가져오나), 바로 아래 줄에 알림 조건·메모 개수까지 늘 보여 준다(0개도)
+    const head = P.length ? `관심 구역 ${P.length}곳` : `알림 조건 ${C.length}개`;
+    const parts = [`관심 구역 ${P.length}곳`, `알림 조건 ${C.length}개`, `메모 ${nm}개`, ng ? `목표 ${ng}개` : ""].filter(Boolean).join(" · ");
     const nNew = P.filter((x) => !isFav(x.id)).length, over = FAV.length + nNew > MAX;
     const ov = document.createElement("div");
     ov.className = "pn-ov"; ov.id = "pnImp";
-    ov.innerHTML = `<div class="pn-dlg pi-dlg" role="dialog" aria-modal="true" aria-labelledby="piT" aria-describedby="piD"><h3 id="piT">${parts} 가져올까요?</h3>
-      <p id="piD">${d.old ? "받은 링크의 핀 목록이에요." : "다른 기기에서 보낸 내 핀이에요."}${has ? ` 이 기기에 있는 것: 핀 ${FAV.length}곳${CONDS.length ? ` · 조건 ${CONDS.length}개` : ""}` : ""}</p>
-      ${P.length ? `<ul class="pi-nm" aria-label="받은 핀">${P.slice(0, 6).map((x) => `<li>${pinY(14)}${esc(shortName(byId[x.id].n))}${isFav(x.id) ? "<small>이미 꽂음</small>" : ""}</li>`).join("")}${P.length > 6 ? `<li class="pi-more">외 ${P.length - 6}곳</li>` : ""}</ul>` : ""}
-      ${C.length ? `<ul class="pi-nm pi-c" aria-label="받은 조건 핀">${C.map((c) => `<li>${esc(c.name)}</li>`).join("")}</ul>` : ""}
-      ${has ? `<p class="pi-how"><b>합치기</b> 지금 핀은 두고 더해요${over ? ` (핀은 ${MAX}곳까지)` : ""} · <b>바꾸기</b> 받은 것으로 바꿔요</p>` : ""}
+    ov.innerHTML = `<div class="pn-dlg pi-dlg" role="dialog" aria-modal="true" aria-labelledby="piT" aria-describedby="piD"><h3 id="piT">${head} 가져올까요?</h3>
+      <p class="pi-cnt" data-picnt>${parts}</p>
+      <p id="piD">${d.old ? "받은 링크의 관심 구역이에요." : "다른 기기에서 보낸 관심 구역이에요."}${has ? ` 이 기기에 있는 것: 관심 구역 ${FAV.length}곳${CONDS.length ? ` · 알림 조건 ${CONDS.length}개` : ""}` : ""}</p>
+      ${P.length ? `<ul class="pi-nm" aria-label="받은 관심 구역">${P.slice(0, 6).map((x) => `<li>${pinY(14)}${esc(shortName(byId[x.id].n))}${isFav(x.id) ? "<small>이미 꽂음</small>" : ""}</li>`).join("")}${P.length > 6 ? `<li class="pi-more">외 ${P.length - 6}곳</li>` : ""}</ul>` : ""}
+      ${C.length ? `<ul class="pi-nm pi-c" aria-label="받은 알림 조건">${C.map((c) => `<li>${esc(c.name)}</li>`).join("")}</ul>` : ""}
+      ${has ? `<p class="pi-how"><b>합치기</b> 지금 것은 두고 더해요${over ? ` (관심 구역은 ${MAX}곳까지)` : ""} · <b>바꾸기</b> 받은 것으로 바꿔요</p>` : ""}
       <div class="pc-btns pi-btns"><button type="button" class="btn text sm" data-pix>취소</button>${has ? `<button type="button" class="btn secondary sm" data-pirep>바꾸기</button><button type="button" class="btn primary sm" data-pimrg>합치기</button>` : `<button type="button" class="btn primary sm" data-pimrg>가져오기</button>`}</div></div>`;
     document.body.appendChild(ov);
     const close = () => { ov.remove(); document.removeEventListener("keydown", kd); try { back && back.focus && back.focus(); } catch (e) {} };
-    const kd = (e) => { if (e.key === "Escape") { close(); toast("가져오지 않았어요", "", null, "지금 핀은 그대로예요"); } };
+    const kd = (e) => { if (e.key === "Escape") { close(); toast("가져오지 않았어요", "", null, "지금 관심 구역은 그대로예요"); } };
     document.addEventListener("keydown", kd);
     ov.addEventListener("click", (e) => {
-      if (e.target === ov || e.target.closest("[data-pix]")) { close(); toast("가져오지 않았어요", "", null, "지금 핀은 그대로예요"); return; }
+      if (e.target === ov || e.target.closest("[data-pix]")) { close(); toast("가져오지 않았어요", "", null, "지금 관심 구역은 그대로예요"); return; }
       const rep = !!e.target.closest("[data-pirep]");
       if (rep || e.target.closest("[data-pimrg]")) { close(); doImport(d, rep); }
     });
@@ -249,8 +252,8 @@ const PINS = (() => {
     FAV_NOTE = "";
     saveFav(); saveS(); saveC(); lsW(SEENK, SEEN);
     syncFav();
-    const sub = np || nc ? `핀 ${np}곳${nc ? ` · 조건 ${nc}개` : ""} 더함` : "새로 더할 핀이 없어요";
-    toast(rep ? "받은 핀으로 바꿨어요" : "받은 핀 합쳤어요", "되돌리기", () => { FAV = bk.fav; SNAP = bk.snap; CONDS = bk.conds; CMP = CMP.filter(isFav); saveFav(); saveS(); saveC(); syncFav(); toast("가져오기 되돌렸어요"); }, sub);
+    const sub = np || nc ? `관심 구역 ${np}곳${nc ? ` · 알림 조건 ${nc}개` : ""} 더함` : "새로 더할 관심 구역이 없어요";
+    toast(rep ? "받은 관심 구역으로 바꿨어요" : "받은 관심 구역 합쳤어요", "되돌리기", () => { FAV = bk.fav; SNAP = bk.snap; CONDS = bk.conds; CMP = CMP.filter(isFav); saveFav(); saveS(); saveC(); syncFav(); toast("가져오기 되돌렸어요"); }, sub);
   }
   function badLink() { const o = $("pnImp"); if (o) o.remove(); toast("링크가 손상됐어요", "", null, "보낸 기기에서 다시 복사해 주세요"); }
   const readPins = (v) => unpack(v).then((d) => setTimeout(() => importSheet(d), 250)).catch(() => setTimeout(badLink, 80));
@@ -639,7 +642,7 @@ const PINS = (() => {
         else CONDS.push(Object.assign({}, c, { id: "c" + Date.now().toString(36), name: nm, base: ids, sv, at: Date.now(), seen: "", asOf: D.upd || D.asOf }));
         saveC(); close(); renderFav(); badges(); emit();
         try { navigator.vibrate && navigator.vibrate(10); } catch (er) {}
-        toast(edit ? "알림 조건 바꿨어요" : "알림 켰어요", edit ? "" : "관심 구역에서 보기", edit ? null : openView, `${nm} · ${fmt(ids.length)}곳`);
+        toast(edit ? "알림 조건 바꿨어요" : "알림 조건 저장했어요", edit ? "" : "관심 구역에서 보기", edit ? null : openView, `${nm} · ${fmt(ids.length)}곳`);
       }
     });
     // 이름 칸에 바로 포커스를 주면 폰 키보드가 칩·저장 버튼을 가려서, 제목에 둔다
@@ -727,7 +730,7 @@ const PINS = (() => {
     const x = Object.assign({}, c, { id: "c" + Date.now().toString(36), name: nm, base: ids, sv: snapVals(c, ids), at: Date.now(), seen: "", asOf: D.upd || D.asOf });
     CONDS.push(x); saveC(); renderFav(); badges(); emit();
     try { navigator.vibrate && navigator.vibrate(10); } catch (e) {}
-    toast("알림 켰어요", "조건 바꾸기", () => condSheet(CONDS.find((y) => y.id === x.id)), `${nm} · 지금 ${fmt(ids.length)}곳`);
+    toast("알림 조건 저장했어요", "조건 바꾸기", () => condSheet(CONDS.find((y) => y.id === x.id)), `${nm} · 지금 ${fmt(ids.length)}곳`);
     try { if (typeof INBOX !== "undefined") setTimeout(() => INBOX.watch("cond"), 900); } catch (e) {}
   }
   function condBtn() {

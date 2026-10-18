@@ -157,12 +157,17 @@
   document.addEventListener("change", function (e) {
     if (hyd()) return;
     var t = e.target;
-    if (t.id === "sCash") { var i = STOPS.indexOf(toCash(+t.value)); if (i >= 0) apply(cur.f, i, true); save(true); return; }
+    if (t.id === "sCash") { coachOff(); var i = STOPS.indexOf(toCash(+t.value)); if (i >= 0) apply(cur.f, i, true); save(true); return; }
     if (t.tagName === "SELECT") { try { pendCh.push(keyOf(t)); } catch (er) {} wait(); }
   }, true);
   var rq = 0;
+  // 섬에서 게이지를 만졌으면 앱이 붙은 뒤 '끌어서 맞춰 보세요' 안내를 띄우지 않는다(60_simple.js coach와 같은 키)
+  var coachOff = function () { try { localStorage.setItem("emr.coach1", "1"); } catch (e) {} };
+  document.addEventListener("pointerdown", function (e) { if (!hyd() && e.target && e.target.id === "sCash") coachOff(); }, true);
+  document.addEventListener("keydown", function (e) { if (!hyd() && e.target && e.target.id === "sCash") coachOff(); }, true);
   document.addEventListener("input", function (e) {
     if (hyd() || e.target.id !== "sCash") return;
+    coachOff();
     var v = +e.target.value;
     cancelAnimationFrame(rq);
     rq = requestAnimationFrame(function () { var i = STOPS.indexOf(toCash(v)); if (i >= 0 && (i !== cur.i || true)) apply(cur.f, i, true); save(false); });

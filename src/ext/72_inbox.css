@@ -74,6 +74,7 @@ html.ib-lock{overflow:hidden}
 .ws-li.tr,.ws-li.dn{background:color-mix(in srgb,var(--pn-up) 11%,transparent);color:var(--pn-up)}
 .ws-dlg .btn.ws-go,.ws-dlg .btn.ws-in{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;margin:0 0 8px;font-size:15.5px;border-radius:14px}
 .ws-in img{border-radius:6px}
+.ws-msg{margin:0 0 10px!important;padding:10px 12px;border-radius:12px;background:var(--surface-2);color:var(--text-1);font-size:13.5px;line-height:1.5;text-align:left;text-wrap:pretty}
 .ws-note{display:flex;align-items:center;justify-content:center;gap:4px;margin:0 0 10px!important;font-size:13px}
 .ws-ios{margin:0 0 8px;padding:12px 14px;border-radius:12px;background:var(--surface-2);text-align:left;font-size:13.5px;color:var(--text-1)}
 .ws-ios ol{margin:6px 0 6px 18px;padding:0;line-height:1.7}

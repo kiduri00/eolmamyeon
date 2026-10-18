@@ -4579,8 +4579,10 @@
       );
     // 역 이름 검색: 역 줄 바로 아래에 그 역에서 걸어서 15분(직선 약 770m) 안 구역을 가까운 순으로(최대 8곳)
     // 그 역이 가장 가까운 역인 구역은 구역 자료의 역 거리(r.st.d)를, 아니면 구역 중심까지 직선거리를 쓴다
-    const stnW = (r) => { if (!stn) return Infinity; if (r.st && r.st.n && r.st.n.replace(/역$/, "") === stn[0].replace(/역$/, "")) return r.st.d; if (!r.ll) return Infinity; const dx = (r.ll[1] - stn[2]) * 88200, dy = (r.ll[0] - stn[1]) * 111000; return Math.hypot(dx, dy); };
-    const stnZ = stn ? R.filter((r) => !isDone(r) && r.src !== "moa" && stnW(r) <= 773).sort((a, b) => stnW(a) - stnW(b)).slice(0, 8) : [];
+    // 거리·15분 기준·문구는 ZF.walkNear·walkLbl 하나(지도 역 고리 안내와 같은 수)
+    const stnW = (r) => (stn ? ZF.walkD(r, [stn[2], stn[1]], stn[0]) : Infinity);
+    const stnAll = stn ? ZF.walkNear([stn[2], stn[1]], stn[0]).map((x) => x[0]) : [];
+    const stnZ = stnAll.slice(0, 8);
     const stnSet = new Set(stnZ.map((r) => r.id));
     // 같은 지번의 모아타운 관리지역은 따로 줄을 세우지 않고 사업 구역 줄에 '모아타운' 꼬리표로 합친다
     const pk = (r) => `${r.g}|${(r.j || "").replace(/\s+/g, "")}`;
@@ -4596,7 +4598,7 @@
     const okZ = (r) => { try { return !!(window.ZP_ok && window.ZP_ok(r)); } catch (e) { return false; } };
     const row = (r, i, near) => {
       const n = needS(r), ok = okZ(r);
-      const wt = near ? `${esc(stn[0].replace(/역$/, ""))}역 ${Math.max(1, Math.round((stnW(r) * 1.3) / 67))}분` : r.st ? walkT(r) : "";
+      const wt = near ? `${esc(stn[0].replace(/역$/, ""))}역 ${ZF.walkMin(stnW(r))}분` : r.st ? walkT(r) : "";
       return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b>${e1S(n.v)}</b><small>${n.l}</small>` : ""}${ok ? '<i class="sg-ok">살 수 있음</i>' : ""}</em></button>`;
     };
     const stnRow = stn
@@ -4619,7 +4621,7 @@
         ? hits.map((h, i) => {
             // 역 주변 목록 뒤: 이름이 실제로 맞는 곳만 "이름에 'q'", 주소·역 글자로 걸린 곳은 "주변 더 보기"
             let hd = "";
-            if (h.near && i === 0) hd = `<div class="x-h" role="presentation">${esc(stn[0].replace(/역$/, ""))}역 걸어서 15분 안 · ${fmt(stnZ.length)}곳${stnZ.length >= 8 ? " (가까운 순)" : ""}</div>`;
+            if (h.near && i === 0) hd = `<div class="x-h" role="presentation" data-walk="${stnAll.length}">${esc(ZF.walkLbl(stn[0], stnAll.length))}${stnAll.length > stnZ.length ? ` (가까운 ${stnZ.length}곳)` : ""}</div>`;
             else if (!h.near && stnZ.length) {
               const grp = (x) => (x && !x.near && x.nh <= 2 ? "n" : "m");
               if (i === stnZ.length || grp(hits[i - 1]) !== grp(h))
@@ -7076,7 +7078,7 @@
         ? `<table class="sm-t"><caption class="sr-only">${cap}</caption><thead><tr><th scope="col">구역</th><th scope="col">단계</th><th scope="col" class="n">① 지금</th><th scope="col" class="n">③ 입주까지</th><th scope="col" class="n">10년 준공</th><th scope="col">입주(추정)</th><th scope="col">가까운 역</th></tr></thead><tbody>${rows.map((x) => `<tr><th scope="row">${esc(shortName(x.r.n))}<small>${esc(x.r.g)}</small></th><td>${esc(x.stg)}</td><td class="n">${eok(x.now)}</td><td class="n"><b>${eok(x.tot)}</b></td><td class="n">${pc(x.p10)}</td><td>${yr(x.eta)}</td><td>${esc(x.stn)}</td></tr>`).join("")}</tbody></table>`
         : "";
     const nowLab = gap ? "전세 끼고 지금 드는 돈(매수가 − 전세금 + 취득세)" : "지금 드는 돈(매수가 + 취득세 − 매수 대출)";
-    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${e2(CASH)}억으로 ${gap ? "전세 끼고 지금 살 수 있는" : P.basis === "now" ? "지금 살 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>${LBL.cashToMoveIn}이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>내 핀 ${fav.length}곳</h3>${tbl(fav, "내 핀")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 필요한 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
+    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${e2(CASH)}억으로 ${gap ? "전세 끼고 지금 살 수 있는" : P.basis === "now" ? "지금 살 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>${LBL.cashToMoveIn}이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>관심 구역 ${fav.length}곳</h3>${tbl(fav, "관심 구역")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 필요한 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
   }
   function sumOpen() {
     if (!isMember()) {
@@ -8066,7 +8068,7 @@
         out,
         lockCard({
           kind: "table",
-          title: "내 핀",
+          title: "관심 구역",
           line: `핀 꽂은 구역의 단계·신고가·필요한 돈 변화를 모아 보고, 2~3곳을 나란히 비교해요.${FAV.length ? ` 지금까지 꽂은 핀 ${fmt(FAV.length)}곳은 그대로 남아 있어요.` : ""}`,
           ctx: "fav",
         }),

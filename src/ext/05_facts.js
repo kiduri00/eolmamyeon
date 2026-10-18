@@ -67,7 +67,22 @@
       if (b && a && b.replace(/\s/g, "") === a.replace(/\s/g, "")) b = "";
       return { txt: b ? (a ? `${a} · ${b}` : b) : a, chg };
     }
-    return { eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL };
+    // 역에서 걸어서 N분 안 구역 — 검색 '○○역 걸어서 15분 안'과 지도 역 고리·안내가 같은 함수·같은 문구
+    // 분속 67m, 길 돌아가는 몫 1.3배 → 직선 515m(10분)·773m(15분). 그 역이 가장 가까운 역인 구역은 구역 자료의 역 거리(r.st.d), 아니면 구역 중심까지 직선
+    const W10 = 515, W15 = 773, stN = (s) => String(s || "").replace(/역$/, "");
+    function walkD(r, ll, name) {
+      if (name && r.st && r.st.n && stN(r.st.n) === stN(name) && isFinite(r.st.d)) return r.st.d;
+      if (!r.ll || !ll) return Infinity;
+      return Math.hypot((r.ll[1] - ll[0]) * 88200, (r.ll[0] - ll[1]) * 111000);
+    }
+    // ll = [경도, 위도] · 결과 [[구역, 거리m], …] 가까운 순(진행 중·모아타운 관리지역 제외)
+    function walkNear(ll, name, max = W15) {
+      let done = () => false; try { done = isDone; } catch (e) {}
+      return R.filter((r) => !done(r) && r.src !== "moa").map((r) => [r, walkD(r, ll, name)]).filter((x) => x[1] <= max).sort((a, b) => a[1] - b[1]);
+    }
+    const walkMin = (d) => Math.max(1, Math.round((d * 1.3) / 67));
+    const walkLbl = (name, n) => `${name ? stN(name) + "역 " : ""}걸어서 15분 안 · ${Number(n).toLocaleString("ko-KR")}곳`;
+    return { eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl };
   })();
   // 정적 HTML(shell.html)의 방식 버튼 글자도 LBL에서: data-lbl="gap|loan|cashToMoveIn"
   { const lbl = () => document.querySelectorAll("[data-lbl]").forEach((e) => { const t = LBL[e.dataset.lbl]; if (t && e.textContent !== t) e.textContent = t; }); document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", lbl) : lbl(); }

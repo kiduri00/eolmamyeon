@@ -675,7 +675,7 @@
     // 사용자가 2km 넘게 밀거나 줌 12 아래로 빼면, 또는 clearStation()·확대 초기화(zoom(0))면 풀린다.
     let stnF = null, stnPend = false;
     // 걸어서 10분·15분 고리: 검색 '○○역 걸어서 15분 안'과 같은 기준(분속 67m, 길 돌아가는 몫 1.3배 → 직선 515m·773m)
-    const W10 = 515, W15 = 773;
+    const W10 = ZF.W10, W15 = ZF.W15;
     const circ = (ll, m, n) => { const [lo, la] = ll, dy = m / 111320, dx = m / (111320 * Math.cos((la * Math.PI) / 180)), P = []; for (let i = 0; i <= (n || 72); i++) { const a = (i / (n || 72)) * 2 * Math.PI; P.push([lo + dx * Math.sin(a), la + dy * Math.cos(a)]); } return P; };
     function stnDraw() {
       if (!map || !ready || !map.getSource("sdim")) return;
@@ -731,21 +731,21 @@
     }
     // 역 주변에 구역이 없으면 말없이 빈 지도만 보이지 않게: '500m 안 0곳 · 1km 안 3곳 [보기]'
     let snEl = null, snTm = 0, snGo = 0;
-    const mDist = (a, b) => Math.hypot((a[0] - b[0]) * 88200, (a[1] - b[1]) * 111000);
     function stnNote() {
       if (snEl) { snEl.hidden = true; clearTimeout(snTm); }
       if (!stnF || !map || !geo) return;
-      const ll = stnF.ll, D2 = R.filter((r) => r.ll && visible(r) && kindOk(r)).map((r) => { const z = geo.z[r.id]; let d = mDist(llOf(r), ll); if (z) z.g.forEach((rg) => rg.forEach((q) => { const e = mDist(q, ll); if (e < d) d = e; })); return [r, d]; }).sort((a, b) => a[1] - b[1]);
+      // 검색 '○○역 걸어서 15분 안 · N곳'과 같은 함수(ZF.walkNear)·같은 문구(ZF.walkLbl)
+      const ll = stnF.ll, D2 = ZF.walkNear(ll, stnF.n, Infinity);
       const n5 = D2.filter((x) => x[1] <= W10).length, n10 = D2.filter((x) => x[1] <= W15).length;
       if (n5 || !D2.length) return;
       const near = D2[0];
-      const msg = n10 ? `걸어서 10분 안 구역 없음 · 15분 안 ${n10}곳` : `걸어서 15분 안 구역 없음 · 가장 가까운 곳 ${(near[1] / 1000).toFixed(1)}km`;
+      const msg = n10 ? `${ZF.walkLbl(stnF.n, n10)} · 10분 안은 없어요` : `걸어서 15분 안 구역 없음 · 가장 가까운 곳 ${(near[1] / 1000).toFixed(1)}km`;
       if (!snEl) {
         snEl = document.createElement("div"); snEl.className = "lm-snote"; snEl.setAttribute("role", "status");
         snEl.innerHTML = `<span></span><button type="button"></button>`;
         $("lmap").appendChild(snEl);
       }
-      snEl.querySelector("span").textContent = msg;
+      snEl.querySelector("span").textContent = msg; snEl.dataset.walk = String(n10);
       const bt = snEl.querySelector("button");
       bt.textContent = "보기";
       bt.onclick = () => {
@@ -809,7 +809,7 @@
       const PC = PIN_COL(dark());
       // 범례 핀 = 지도 핀과 같은 꼴(집 든 핀)
       const hp = (c, w) => `<svg class="lm-hp" width="12" height="15" viewBox="10 3 44 60" aria-hidden="true"><path d="M32 61C25.5 52.5 12.5 40.5 12.5 24.5a19.5 19.5 0 0 1 39 0C51.5 40.5 38.5 52.5 32 61z" fill="${c}"/><path d="M32 12.6 44.4 23.7h-3.9V35.2H23.5V23.7h-3.9z" fill="${w}"/><rect x="28.8" y="26.9" width="6.4" height="8.3" fill="${c}"/></svg>`;
-      el.innerHTML = `<span>${hp(PC.a, PC.wa)}핀 = 내 돈으로 살 수 있는 곳</span><span>${hp(PC.m, PC.wm)}내 핀</span>${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
+      el.innerHTML = `<span>${hp(PC.a, PC.wa)}핀 = 내 돈으로 살 수 있는 곳</span><span>${hp(PC.m, PC.wm)}관심 구역</span>${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
     }
     // 레이어 범례·'확대하면 보여요' 안내: 오른쪽 위 레일 바로 아래에 작은 글자로
     // 학교·병원(OpenFreeMap POI)은 타일 줌 14부터만 들어 있다 → 레이어도 14부터, 안내도 14 기준
