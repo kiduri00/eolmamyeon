@@ -685,23 +685,24 @@ const SIMPLE = (() => {
     // PC 상세는 칸 안에서 따로 스크롤하지 않고 페이지와 함께 흐른다(지도는 옆에 붙어 따라옴) → 열 때 상세 머리가 머리 밑에 오게,
     // 닫을 때(Esc·목록 버튼) 열기 전 보던 자리로. 딥링크로 처음 열릴 때도 같은 규칙(아래 관찰자)
     const PCQ = () => matchMedia("(min-width:981px)").matches;
-    let repY = null, selBusy = false;
+    let repY = null, selBusy = false, repId = null;
     const repTop = () => { const H = document.documentElement; if (!PCQ() || H.classList.contains("s-full")) return; const w = document.querySelector("#mapTop .main") || $("report"); if (!w) return; const t = Math.max(0, Math.round(w.getBoundingClientRect().top + scrollY - HDR() - 8)); if (Math.abs(scrollY - t) > 2) window.scrollTo({ top: t, behavior: "auto" }); };
     select = function () {
       const H = document.documentElement, pc = PCQ(), was = H.classList.contains("s-rep"), y0 = keepY != null ? keepY : scrollY;
       selBusy = true;
       let x; try { x = _sel.apply(this, arguments); } finally { selBusy = false; }
-      if (pc) { if (!was) repY = y0; keepY = null; H.classList.add("s-rep"); repTop(); }
+      // 같은 구역을 다시 고르는 늦은 호출(딥링크 첫 그리기·자료 도착)은 사람이 내려 본 자리를 되돌리지 않는다
+      if (pc) { if (!was) repY = y0; keepY = null; H.classList.add("s-rep"); const id = cur && cur.id; if (!was || id !== repId) repTop(); repId = id; }
       return x;
     };
     {
       const H = document.documentElement; let on = H.classList.contains("s-rep");
-      if (on && PCQ()) { repY = 0; requestAnimationFrame(repTop); }
+      if (on && PCQ()) { repY = 0; repId = cur && cur.id; requestAnimationFrame(repTop); }
       try { new MutationObserver(() => {
         const v = H.classList.contains("s-rep"); if (v === on) return; on = v;
         if (!PCQ() || selBusy) return;
-        if (v) { if (repY == null) repY = scrollY; requestAnimationFrame(repTop); }
-        else if (repY != null) { const y = repY; repY = null; requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "auto" })); }
+        if (v) { if (repY == null) repY = scrollY; repId = cur && cur.id; requestAnimationFrame(repTop); }
+        else if ((repId = null), repY != null) { const y = repY; repY = null; requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "auto" })); }
       }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
     }
     // 서울 전체 화면에서도 실제 지도를 다시 칠한다(구 숫자·구역 색)

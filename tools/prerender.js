@@ -54,6 +54,8 @@ async function state(out) {
     await page.waitForFunction(() => typeof window.ZP_count === "function" && document.documentElement.classList.contains("s-built") && document.querySelector("#sList a[data-id]"), null, { timeout: 60000 });
     // 목록 흐름선(txs.json)이 들어올 때까지
     await page.waitForFunction(() => document.querySelector("#sList .s-sp") || performance.now() > 15000, null, { timeout: 20000 }).catch(() => {});
+    // 지도(SVG 간단 지도)는 뜨는 값과 무관 → 숨겨 두면 단계마다 다시 그리는 비용이 사라져 빌드가 빨라진다
+    await page.addStyleTag({ content: "#mapbox,#legend,.gu-list-box{display:none!important}" });
     await wait(400);
     const htmlCls = await page.evaluate(() => document.documentElement.className);
     const res = await page.evaluate(async ({ stops, pos }) => {
@@ -83,10 +85,10 @@ async function state(out) {
       const go = async (c, full) => {
         const sl = $("sCash"); sl.value = String(toPos(c));
         sl.dispatchEvent(new Event("input", { bubbles: true })); if (full) sl.dispatchEvent(new Event("change", { bubbles: true }));
-        let prev = "", same = 0;
-        for (let i = 0; i < 60 && same < 2; i++) { await raf(); const v = $("sN").textContent + "|" + $("sLT").textContent + "|" + $("sList").innerHTML + "|" + $("sSum").innerHTML + "|" + $("pCash").value; if (v === prev) same++; else { same = 0; prev = v; } }
+        let prev = "", same = 0, i = 0;
+        for (; i < 60 && same < 2; i++) { await raf(); const v = $("sN").textContent + "|" + $("sLT").textContent + "|" + $("sList").innerHTML + "|" + $("sSum").innerHTML + "|" + $("pCash").value; if (v === prev) same++; else { same = 0; prev = v; } }
         if (Math.abs(+$("pCash").value - c) > 1e-9) throw new Error(`pCash ${$("pCash").value} != ${c}`);
-        const s = snap(); s.c = c; s.pressed = [...document.querySelectorAll(".s-mode button")].map((x) => x.getAttribute("aria-pressed")); s.gapm = document.documentElement.classList.contains("gapm");
+        const tA = performance.now(); const s = snap(); window.__tq = (window.__tq || []).concat(i); s.c = c; s.pressed = [...document.querySelectorAll(".s-mode button")].map((x) => x.getAttribute("aria-pressed")); s.gapm = document.documentElement.classList.contains("gapm");
         return s;
       };
       for (const f of ["gap", "cash"]) {
@@ -110,7 +112,7 @@ async function state(out) {
       }
       const D = window.__ZPD || {};
       const gu = (D.map && D.map.gu || []).map((g) => [g[0], String(g[1]).replace(/(\d+)\.\d+/g, "$1")]);
-      return { tm: window.__tm, out, conds, rows, strs, zones, okF: !!okF, map: D.map ? { w: D.map.w, h: D.map.h, gu } : null };
+      return { tm: [window.__tm, window.__tq.join(',')], out, conds, rows, strs, zones, okF: !!okF, map: D.map ? { w: D.map.w, h: D.map.h, gu } : null };
     }, { stops, pos: stops.map(toPos) });
     if (errs.length) throw new Error("page errors: " + errs.slice(0, 3).join(" | "));
     // 검사: 큰 숫자 = 지도 점 수(같은 판정) · 기본 상태(1억·전세 끼고)가 들어 있나

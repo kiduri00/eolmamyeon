@@ -95,7 +95,7 @@ HEAD = '''<!doctype html>
 <script type="application/ld+json">{ld}</script>
 </head>
 <body>
-<header class="top"><div class="in"><a class="logo" href="../" aria-label="집핀 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/" aria-current="page">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav><form class="tsr" action="/" method="get" role="search"><label class="sr-only" for="tq">구역 검색</label><input id="tq" name="q" type="search" placeholder="구역·동·역 검색" autocomplete="off" enterkeyhint="search" maxlength="40"></form></div></header>
+<header class="top"><div class="in"><a class="logo" href="../" aria-label="집핀 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><span class="logo-en" lang="en">Zippin</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/" aria-current="page">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav><form class="tsr" action="/" method="get" role="search"><label class="sr-only" for="tq">구역 검색</label><input id="tq" name="q" type="search" placeholder="구역·동·역 검색" autocomplete="off" enterkeyhint="search" maxlength="40"></form></div></header>
 <main>
 '''
 FOOT = '''</main>

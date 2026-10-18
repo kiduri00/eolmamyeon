@@ -31,7 +31,7 @@ const EXTRA = (() => {
     const g = cv.getContext("2d"), F = (w, s) => `${w} ${s}px "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
     const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#1f3a87"); gr.addColorStop(1, "#142659");
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
-    g.fillStyle = "rgba(255,255,255,.6)"; g.font = F(600, 38); g.fillText("집핀 · 서울 재개발 지도", 88, 130);
+    g.fillStyle = "rgba(255,255,255,.6)"; g.font = F(600, 38); g.fillText("집핀 Zippin · 서울 재개발 지도", 88, 130);
     g.fillStyle = "#fff"; g.font = F(800, shortName(r.n).length > 10 ? 76 : 96);
     g.fillText(shortName(r.n), 88, 300, W - 176);
     g.fillStyle = "rgba(255,255,255,.75)"; g.font = F(500, 40); g.fillText(`${r.g} ${dongOfR(r)} · ${String(srLabel(r)).replace(/(회|합)(승인|인가)/, "$1 $2")}`, 88, 375, W - 176);
