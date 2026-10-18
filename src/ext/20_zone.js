@@ -143,6 +143,9 @@
     // 셈은 사건 단위(카드 하나 = 사건 하나) — 칩·머리·/z가 같은 셈 · 물건 수는 따로
     const aucUpX = (r) => aucOf(r).filter((o) => aucSt(o) === "up");
     const aucUp = (r) => aucGroups(aucUpX(r)).length;
+    // 같은 땅(지번)의 사건끼리 붙여 번호를 매긴다 — 지도에는 그 땅 점 하나에 '1·2'(점이 겹쳐 쌓이던 것)
+    const aucPk = (o) => String(o.addr || (o.ll ? o.ll.join(",") : o.cs)).replace(/\s+/g, "");
+    const aucOrd = (xs) => { const m = new Map(); for (const g of aucGroups(xs)) { const k = aucPk(g[0]); if (!m.has(k)) m.set(k, []); m.get(k).push(g); } return [...m.values()].flat(); };
     const aucWon = (v) => { if (v == null || !isFinite(v)) return "–"; const e = Math.floor(v / 1e8), m = Math.round((v % 1e8) / 1e4); return e ? `${e}억${m ? ` ${m.toLocaleString("ko-KR")}만` : ""}원` : `${m.toLocaleString("ko-KR")}만원`; };
     const aucEok = ZF.aucAmt;   // /z·알림함과 같은 반올림(05_facts.js)
     const aucDay = (d) => { if (!d) return "–"; const t = new Date(d + "T00:00:00+09:00"); return `${d.replaceAll("-", ".")} (${"일월화수목금토"[t.getDay()]})`; };
@@ -195,7 +198,9 @@
       const xs = aucOf(r), up = xs.filter((o) => aucSt(o) === "up").length;
       if (!xs.length) return `<p class="auc-st">지금 이 구역 안에 진행 중인 경매 물건이 없어요 (기준 ${asOf})</p>`;
       const none = up ? "" : `<p class="auc-st">입찰기일이 잡힌 물건은 지금 없어요 — 아래는 기일이 지나 다음 기일을 확인 중인 물건이에요</p>`;
-      return `${none}<ul class="auc-l">${aucGroups(xs).map((g, i) => aucCase(g, i + 1)).join("")}</ul><p class="auc-src">법원경매정보 기준(${asOf}) · 2주 안 기일은 매일 갱신, 그 밖은 마지막으로 확인한 정보 · 번호 = 지도의 경매 표시</p>`;
+      const G = aucOrd(xs), pc = new Map(); G.forEach((g, i) => { const k = aucPk(g[0]); if (!pc.has(k)) pc.set(k, []); pc.get(k).push(i + 1); });
+      const ph = (g, i) => { const L = pc.get(aucPk(g[0])); return L.length > 1 && L[0] === i + 1 ? `<li class="auc-pg">같은 땅${g[0].addr ? ` ${esc(String(g[0].addr).replace(/^\S+구\s+/, ""))}` : ""} · 사건 ${L.length}건(지도 ${L.join("·")})</li>` : ""; };
+      return `${none}<ul class="auc-l">${G.map((g, i) => ph(g, i) + aucCase(g, i + 1)).join("")}</ul><p class="auc-src">법원경매정보 기준(${asOf}) · 2주 안 기일은 매일 갱신, 그 밖은 마지막으로 확인한 정보 · 번호 = 지도의 경매 표시</p>`;
     }
     function auctionHTML(r) {
       loadAuc();
@@ -229,20 +234,19 @@
       const F = new Map(), sel = cur && cur.id;
       if (!AUC || !AUC.ok || !AUC.byZone) return [];
       const num = {};
-      if (sel && byId[sel]) aucGroups(aucOf(byId[sel])).forEach((g, i) => g.forEach((o) => (num[`${o.cs}#${o.no || 1}`] = i + 1)));
+      if (sel && byId[sel]) aucOrd(aucOf(byId[sel])).forEach((g, i) => g.forEach((o) => (num[`${o.cs}#${o.no || 1}`] = i + 1)));
       for (const [z, v] of Object.entries(AUC.byZone)) {
         if ((AUC.miss || []).includes((byId[z] || {}).g)) continue;
         for (const o of v) {
           if (!o.ll) continue;
-          const key = `${o.cs}#${o.no || 1}`, f = F.get(key);
-          if (f) { f.properties.zs += z + "|"; if (z === sel) Object.assign(f.properties, { sel: 1, n: num[key] || 0 }); continue; }
-          F.set(key, { type: "Feature", geometry: { type: "Point", coordinates: o.ll }, properties: { zs: `|${z}|`, z, sel: z === sel ? 1 : 0, n: z === sel ? num[key] || 0 : 0, c: aucSt(o) === "up" ? 1 : 0 } });
+          // 같은 땅(지번)은 점 하나: 고른 구역이면 그 땅 사건 번호들을 '1·2'로
+          const ik = `${o.cs}#${o.no || 1}`, key = aucPk(o), f = F.get(key), nn = z === sel ? num[ik] || 0 : 0;
+          if (f) { if (!f.properties.zs.includes(`|${z}|`)) f.properties.zs += z + "|"; if (nn) { f.properties.sel = 1; f._ns.add(nn); } if (aucSt(o) === "up") f.properties.c = 1; continue; }
+          const nf = { type: "Feature", geometry: { type: "Point", coordinates: o.ll }, properties: { zs: `|${z}|`, z, sel: z === sel ? 1 : 0, n: 0, t: "", c: aucSt(o) === "up" ? 1 : 0 }, _ns: new Set(nn ? [nn] : []) };
+          F.set(key, nf);
         }
       }
-      // 같은 사건·같은 자리는 점 하나만(번호 하나)
-      const seen = new Set(), out = [];
-      for (const f of F.values()) { const k = `${f.geometry.coordinates.join(",")}#${f.properties.n}#${f.properties.sel}`; if (seen.has(k)) continue; seen.add(k); out.push(f); }
-      return out;
+      return [...F.values()].map((f) => { const ns = [...f._ns].sort((a, b) => a - b); f.properties.n = ns[0] || 0; f.properties.t = ns.join("·"); delete f._ns; return f; });
     }
     let aucMapB = null;
     function aucMapLayers(map) {
@@ -251,8 +255,8 @@
       if (!map.getSource("auc")) map.addSource("auc", { type: "geojson", data: { type: "FeatureCollection", features: aucFeatures() } });
       const L = (o) => { if (!map.getLayer(o.id)) map.addLayer(o); };
       L({ id: "auc-o", type: "circle", source: "auc", minzoom: 14, filter: ["!=", ["get", "sel"], 1], paint: { "circle-radius": 4.5, "circle-color": C, "circle-stroke-color": W, "circle-stroke-width": 1.5, "circle-opacity": ["case", ["==", ["get", "c"], 1], 0.95, 0.45], "circle-stroke-opacity": ["case", ["==", ["get", "c"], 1], 1, 0.5] } });
-      L({ id: "auc-s", type: "circle", source: "auc", filter: ["==", ["get", "sel"], 1], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 6, 15, 9], "circle-color": C, "circle-stroke-color": W, "circle-stroke-width": 2, "circle-opacity": ["case", ["==", ["get", "c"], 1], 1, 0.55] } });
-      L({ id: "auc-sn", type: "symbol", source: "auc", filter: ["all", ["==", ["get", "sel"], 1], [">", ["get", "n"], 0]], layout: { "text-field": ["to-string", ["get", "n"]], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 11], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#ffffff" } });
+      L({ id: "auc-s", type: "circle", source: "auc", filter: ["==", ["get", "sel"], 1], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, ["case", [">", ["length", ["get", "t"]], 2], 9, 6], 15, ["case", [">", ["length", ["get", "t"]], 2], 13, 9]], "circle-color": C, "circle-stroke-color": W, "circle-stroke-width": 2, "circle-opacity": ["case", ["==", ["get", "c"], 1], 1, 0.55] } });
+      L({ id: "auc-sn", type: "symbol", source: "auc", filter: ["all", ["==", ["get", "sel"], 1], [">", ["get", "n"], 0]], layout: { "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 11], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#ffffff" } });
       // 구역 이름표(zone-lab) 밑으로: 360px에서 경매 점이 '화곡동 1087' 같은 이름을 덮었다 — 이름표가 위, 점은 그 아래(이름표 밖으로 보임)
       const bf = map.getLayer("zone-lab") ? "zone-lab" : undefined;
       for (const id of AUCL) if (map.getLayer(id)) try { map.moveLayer(id, bf); } catch (e) {}

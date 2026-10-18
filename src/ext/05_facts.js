@@ -10,9 +10,11 @@
     const manT = (v) => { const m = Math.round(v * 1e4), a = Math.floor(m / 1e4), b = m % 1e4; return a ? `${a}억${b ? ` ${b.toLocaleString("ko-KR")}만` : ""}` : `${b.toLocaleString("ko-KR")}만`; };
     // 억 단위 금액 한 꼴(지금 필요한 돈·입주까지 현금·핀·지도 이름표·리포트 시간표 모두): 1억 아래는 소수 둘째 자리(0.97), 1억부터 첫째 자리(1.2 · 1)
     // num → 단위 없는 숫자('0.97' · '1.2' · '0'), cash → '9,700만' · '1.2억' · '0원'
-    const num = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (a < 0.995) return sg + (Math.round(a * 100) / 100).toFixed(2).replace(/0$/, ""); return sg + (Math.round(a * 10) / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
+    // 올림(아주 작은 부동소수 오차는 무시): 화면 금액이 실제보다 작게 보이지 않게 — '1억'이라 써 놓고 1.001억이라 1억으로 못 사는 곳이 되던 것
+    const up = (x, k) => Math.ceil(x * k - 1e-6) / k;
+    const num = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (up(a, 100) < 1) return sg + up(a, 100).toFixed(2).replace(/0$/, ""); return sg + up(a, 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
     // cash → 단위까지 붙인 꼴: 1억 아래는 만 원(100만 단위 · '4,100만'), 1억부터 '1.2억', 0은 '0원' — 화면의 모든 'X억' 금액이 이것 하나(tools/zsample.py cash와 같은 규칙)
-    const cash = (v) => { const t = num(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (a < 0.995) return (v < 0 ? "-" : "") + (Math.round(a * 100) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };
+    const cash = (v) => { const t = num(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (Math.ceil(a * 100 - 1e-6) < 100) return (v < 0 ? "-" : "") + (Math.ceil(a * 100 - 1e-6) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };
     const entry = (r) => (r && r.mk && r.mk.entry) || null;
     const est = (r) => { try { return isEst(r); } catch (e) { return false; } };
     const calc = (r) => { try { return investC(r); } catch (e) { return null; } };

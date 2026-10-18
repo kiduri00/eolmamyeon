@@ -55,7 +55,8 @@ function money(s) {
   if (!m || (m[1] == null && m[2] == null)) return null;
   const e = m[1] != null ? +m[1] : 0, man = m[2] != null ? +m[2] : 0;
   const dec = m[1] && m[1].includes(".") ? m[1].split(".")[1].length : 0;
-  const tol = m[2] != null ? 0.00011 : dec ? 0.5 * Math.pow(10, -dec) + 1e-6 : 0.5 + 1e-6;
+  // 화면 금액은 올림(ZF.num) → 한 칸(0.1억 · 100만)까지 차이를 허용 · '1억 2,345만'처럼 만 원까지 쓴 값은 그대로
+  const tol = m[2] != null ? (m[1] == null && man % 100 === 0 ? 0.0101 : 0.00011) : dec ? Math.pow(10, -dec) + 1e-6 : 1 + 1e-6;
   return { v: e + man / 1e4, tol };
 }
 const eqMoney = (a, b) => a && b && Math.abs(a.v - b.v) <= Math.max(a.tol, b.tol) + 1e-6;
@@ -63,8 +64,9 @@ const eqApi = (disp, api) => disp && api != null && Math.abs(disp.v - api) <= di
 const fm = (m) => (!m ? "–" : m.v < 1 ? `${Math.round(m.v * 1e4).toLocaleString("en-US")}만` : `${+m.v.toFixed(4)}억`);
 
 // 억 금액 한 꼴(src/ext/05_facts.js ZF.num·ZF.cash와 같은 규칙): 1억 아래 소수 둘째 자리, 1억부터 첫째 자리
-const zfNum = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (a < 0.995) return sg + (Math.round(a * 100) / 100).toFixed(2).replace(/0$/, ""); return sg + (Math.round(a * 10) / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
-const zfCash = (v) => { const t = zfNum(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (a < 0.995) return (v < 0 ? "-" : "") + (Math.round(a * 100) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };   // 1억 아래는 만 원(4,100만)
+const zfUp = (x, k) => Math.ceil(x * k - 1e-6) / k;   // 화면 ZF.num과 같은 올림
+const zfNum = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (zfUp(a, 100) < 1) return sg + zfUp(a, 100).toFixed(2).replace(/0$/, ""); return sg + zfUp(a, 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
+const zfCash = (v) => { const t = zfNum(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (Math.ceil(a * 100 - 1e-6) < 100) return (v < 0 ? "-" : "") + (Math.ceil(a * 100 - 1e-6) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };   // 1억 아래는 만 원(4,100만)
 // WCAG 대비(페이지 안): 글자색(불투명도 곱) vs 조상 배경을 겹쳐 만든 실제 바탕
 const CONTRAST_JS = (rootSel) => {
   const P = (c) => { const m = String(c).match(/rgba?\(([^)]+)\)/); if (!m) return null; const a = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [a[0], a[1], a[2], a.length > 3 ? a[3] : 1]; };
@@ -301,7 +303,9 @@ async function staticLane(api) {
     const z = parseZ(r.text); zData.set(zid, z);
     // 제목·h1 겹친 유형어
     const dt = (s) => { const m = /(?:^|\s)([가-힣]{2,})\s+\1/.exec(s.replace(/\s*\|.*$/, "")); return m && /정비형|재개발|재건축|정비|주택|장기전세|가로|소규모|사업|구역/.test(m[1]) ? m[1] : null; };
-    const d1 = dt(z.title), d2 = dt(z.h1);
+    // 이름 속 유형어(괄호·붙은 말 포함)를 꼬리에서 또 말함: '미아3구역(재개발) 재개발' · '…주택재건축정비사업구역 재건축'
+    const dk = (s) => { const t = String(s || "").replace(/\s*\|.*$/, "").trim(), m = /\s(재개발|재건축)$/.exec(t); return m && t.slice(0, -m[0].length).includes(m[1]) ? `${m[1]} twice` : null; };
+    const d1 = dt(z.title) || dk(z.title), d2 = dt(z.h1) || dk(z.h1);
     expect(!d1 && !d2, "z.title", "/z 제목·h1에 같은 유형어 두 번 없음(도시정비형 도시정비형)", `${where}: title "${z.title}" h1 "${z.h1}"`);
     expect(!/얼마면/.test(z.title), "z.title", "/z 제목·h1에 같은 유형어 두 번 없음(도시정비형 도시정비형)", `${where}: old brand in title`);
     // 14회차: 제목 = '<짧은 이름> 재개발|재건축 | …' — 사업 방식 말(도시정비형·공공·신속통합기획·장기전세…)은 설명으로(이름이 겹쳐 괄호로 가른 것은 허용) · 목록 번호 '43. ' 없음
@@ -743,6 +747,18 @@ async function uiLane(browser, api, errs, shared) {
       await loadHome(page, "#news"); await page.waitForTimeout(600);
       await page.tap("a.logo", { timeout: 4000 }).catch(() => {}); await page.waitForTimeout(400);
       { const s = await st(); expect(ok(s), "ui.logoHome", T, `tool #news → logo tap: hash "${s.hash}" classes [${s.cls}] home visible ${s.home} scrollY ${s.y}`); }
+    }
+    // 아래 탭 '관심 구역': 전체 지도에서 · 구역 상세를 닫은 뒤에도 → #favTop 화면(주소 #favTop · s-on · 보임)
+    if (!over()) {
+      const T = "아래 탭 '관심 구역'이 어디서든 #favTop 화면을 연다(전체 지도·상세 닫은 뒤)";
+      const fav = () => page.evaluate(() => { const s = document.getElementById("favTop"), r = s && s.getBoundingClientRect(); return { hash: location.hash, on: !!(s && s.classList.contains("s-on")), vis: !!(r && r.height > 40 && r.top < innerHeight && r.bottom > 0), full: document.documentElement.classList.contains("s-full") }; });
+      const tapFav = async () => { await page.tap('#sNav [data-nav="fav"]', { timeout: 4000, force: true }).catch(() => {}); await page.waitForTimeout(1200); };
+      await loadHome(page, "#map"); await page.waitForTimeout(800);
+      await tapFav(); { const s = await fav(); expect(s.hash === "#favTop" && s.on && s.vis && !s.full, "ui.favTab", T, `from full map: hash "${s.hash}" s-on ${s.on} visible ${s.vis} s-full ${s.full}`); }
+      const zid = api.zones[1].id;
+      await loadHome(page, "#" + zid); await page.waitForFunction(() => !!document.querySelector("#report.sheet .rep-head"), null, { timeout: 8000 }).catch(() => {});
+      await page.evaluate(() => { const b = document.getElementById("sheetClose"); b && b.click(); }); await page.waitForTimeout(500);
+      await tapFav(); { const s = await fav(); expect(s.hash === "#favTop" && s.on && s.vis, "ui.favTab", T, `report #${zid} closed → tab: hash "${s.hash}" s-on ${s.on} visible ${s.vis}`); }
     }
   } catch (e) { bad("runtime", "검사 실행", "uiLane crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await ctx.close().catch(() => {}); }

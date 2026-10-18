@@ -237,7 +237,12 @@ const SIMPLE = (() => {
       if (k === "home") { close(); if ($("report").classList.contains("sheet")) closeSheetNow(); window.scrollTo({ top: 0, behavior: "smooth" }); }
       else if (k === "map") { const v = history.state && history.state.sView; close(); if (v) setTimeout(() => fullMap(true), 120); else fullMap(true); }
       else if (k === "search") search();
-      else if (k === "fav") open("favTop");
+      else if (k === "fav") {
+        // 관심 구역: 전체 지도에서 누르면 지도를 닫는 뒤로 가기(popstate)가 끝난 뒤에 연다(먼저 열면 popstate가 홈으로 되돌렸다) · 열린 시트는 닫고 · 주소는 늘 #favTop
+        const go = () => { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (er) {} if (cur === "favTop") { const s = $("favTop"); if (s) window.scrollTo({ top: s.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } else open("favTop"); if (location.hash !== "#favTop") try { history.replaceState(history.state, "", location.pathname + location.search + "#favTop"); } catch (er) {} };
+        if (wasFull) { let done = false; const g2 = () => { if (done) return; done = true; removeEventListener("popstate", pop); go(); }; const pop = () => setTimeout(g2, 30); addEventListener("popstate", pop); setTimeout(g2, 450); }
+        else go();
+      }
       else if (k === "more") setTimeout(() => $("menuBtn").click(), 0);
     });
     $("sSearch").onclick = search;

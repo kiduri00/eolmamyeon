@@ -27,7 +27,7 @@ HDB = {'i': ('입주권 전용 3.3㎡당', '아파트 입주권'), 'a': ('아파
 def nk(nm, kind):   # 이름에 이미 있는 사업 종류 말은 빼고 붙인다('○○ 소규모' + '소규모재건축' → '○○ 소규모재건축')
     ws = nm.split()
     if len(ws) > 1 and kind.replace(' ', '').startswith(ws[-1]): nm = ' '.join(ws[:-1])
-    w = set(re.split(r'\s+', nm)); k = ' '.join(x for x in kind.split() if x not in w)
+    w = set(re.split(r'\s+', nm)); k = ' '.join(x for x in kind.split() if x not in w and x not in nm)   # '미아3구역(재개발)'·'…재개발1구역'처럼 이름 안에 이미 있으면 다시 안 붙인다
     return f"{nm} {k}".strip()
 # /z 제목은 '<짧은 이름> 재개발|재건축 | …'만: 사업 방식·지원 말(도시정비형·공공·신속통합기획·장기전세…)은 설명(description)으로 옮긴다
 TQ = ('도심공공주택복합', '주택정비형', '신속통합기획', 'LH참여형', '장기전세', 'SHIFT', '공공임대', '공공시행', '공공', '민간', '후보지', '건립', '활성화', '통합')

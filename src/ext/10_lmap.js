@@ -435,7 +435,8 @@
       // 이름이 이미 '…(동)'으로 끝나면(검색 쪽 shortName이 붙인 구분) 그 괄호는 자르지 않는다
       const m = /^(.*\S)\s*\(([^()]{1,8})\)$/.exec(n);
       if (m) { n = m[1]; d = d || m[2]; }
-      if (!d) return n.length > 10 ? n.slice(0, 9) + "…" : n;
+      // 13자까지는 그대로('화곡동 1087 모아타운'), 더 길면 낱말 단위로 줄이고 '…'(낱말 가운데서 자르면 '화곡동 1087 …'처럼 잘렸다)
+      if (!d) { if (n.length <= 13) return n; const w = n.split(/\s+/); let t = ""; for (const x of w) { if ((t ? t.length + 1 : 0) + x.length > 12) break; t = t ? t + " " + x : x; } return (t || n.slice(0, 12)) + "…"; }
       const a = n.length + d.length + 2 <= 13 ? n : n.split(/\s+/)[0].slice(0, 9);
       return `${a}(${d})`;
     };

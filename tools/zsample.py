@@ -9,13 +9,13 @@ def num(v):   # 억 단위 금액 숫자 꼴 — 화면 ZF.num과 같은 규칙:
     if v is None or v != v or v in (float('inf'), float('-inf')): return '–'
     a = abs(v); sg = '-' if v < 0 else ''
     if a < 0.005: return '0'
-    if a < 0.995:
-        t = f"{math.floor(a * 100 + 0.5) / 100:.2f}"; return sg + (t[:-1] if t.endswith('0') else t)
-    t = f"{math.floor(a * 10 + 0.5) / 10:,.1f}"; return sg + (t[:-2] if t.endswith('.0') else t)
+    if math.ceil(a * 100 - 1e-6) < 100:   # 올림(화면 ZF.num과 같게 · 실제보다 작게 보이지 않게)
+        t = f"{math.ceil(a * 100 - 1e-6) / 100:.2f}"; return sg + (t[:-1] if t.endswith('0') else t)
+    t = f"{math.ceil(a * 10 - 1e-6) / 10:,.1f}"; return sg + (t[:-2] if t.endswith('.0') else t)
 def cash(v):   # → '6,900만' · '1.2억' · '0원' (화면 ZF.cash: 1억 아래는 만 원 100만 단위)
     t = num(v)
     if t in ('–', '0'): return t if t == '–' else '0원'
-    if abs(v) < 0.995: return ('-' if v < 0 else '') + f"{math.floor(abs(v) * 100 + 0.5) * 100:,}만"
+    if math.ceil(abs(v) * 100 - 1e-6) < 100: return ('-' if v < 0 else '') + f"{math.ceil(abs(v) * 100 - 1e-6) * 100:,}만"
     return t + '억'
 def auc_amt(v):   # 경매 금액(원) → '3.3억'(첫째 자리 반올림 · 0.5는 올림) · 1억 아래 '9,500만' — 화면 ZF.aucAmt와 같은 규칙(파이썬 round의 짝수 반올림 3.25→3.2를 쓰지 않는다)
     if not isinstance(v, (int, float)) or v <= 0: return '–'

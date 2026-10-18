@@ -236,6 +236,7 @@ const PINS = (() => {
   }
   function doImport(d, rep) {
     const bk = { fav: FAV.slice(), snap: JSON.parse(JSON.stringify(SNAP)), conds: JSON.parse(JSON.stringify(CONDS)) };
+    window.__zpImport = Date.now();   // 링크로 가져온 핀: '알림 받을 준비' 첫 핀 시트를 띄우지 않는다(72_inbox onPins)
     if (rep) { FAV = []; SNAP = {}; CONDS = []; }
     let np = 0, nc = 0;
     d.pins.forEach((x) => {
@@ -766,8 +767,10 @@ const PINS = (() => {
     const n = condNews(sc), sn = new Set(String(sc.seen || "").split("/")[0].split(",").filter(Boolean)), f = n.add.filter((id) => !sn.has(id)).length, N = f || n.add.length;
     b.classList.add("on");
     // 폰 알림 권한이 거절됐으면 '켜짐'이라 하지 않는다(알림함으로만 받음)
-    let denied = false; try { denied = typeof Notification !== "undefined" && Notification.permission === "denied"; } catch (e) {}
-    const onT = denied ? "알림함으로 받는 중 · 폰 알림 꺼짐" : "알림 켜짐";
+    // 권한이 바뀌면(거절·허용) 이 카드를 다시 그린다 — 거절 뒤에도 '알림 켜짐'이 남아 있었다
+    let perm = "default"; try { perm = typeof Notification !== "undefined" ? Notification.permission : "unsupported"; } catch (e) {}
+    if (!condBtn.pw) { condBtn.pw = 1; try { navigator.permissions && navigator.permissions.query({ name: "notifications" }).then((st) => { st.onchange = () => { try { condBtn(); } catch (e) {} }; }).catch(() => {}); } catch (e) {} addEventListener("focus", () => { try { condBtn(); } catch (e) {} }); addEventListener("push:perm", () => { try { condBtn(); } catch (e) {} }); }
+    const onT = perm === "granted" ? "알림 켜짐" : perm === "denied" ? "알림함으로 받는 중 · 폰 알림 꺼짐" : "알림함으로 받는 중";
     b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>${onT}${N ? ` · 새 구역 ${N}곳` : ""}</b><small>${N ? `${esc(sc.name)} · ${f ? "아직 안 본 곳" : "새로 살 수 있게 된 곳"}` : `지금 ${fmt(n.ids.length)}곳 · 새로 생기면 알려 드려요`}</small></span><span class="pc-al-go">${N ? "보기" : "알림 조건"} →</span>`;
     b.setAttribute("aria-label", `${onT}${N ? `, 새 구역 ${N}곳 보기` : ", 알림 조건 보기"}`);
   }

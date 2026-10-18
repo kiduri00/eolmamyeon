@@ -191,6 +191,7 @@ const INBOX = (() => {
       if (!(await tmo(pushKey(), 8000, "key"))) throw new Error("key");
       // 권한 창은 사람이 고르는 시간이라 넉넉히(그래도 끝없이 기다리진 않음)
       const perm = Notification.permission === "granted" ? "granted" : await tmo(Promise.resolve(Notification.requestPermission()), 60000, "perm");
+      try { window.dispatchEvent(new CustomEvent("push:perm", { detail: perm })); } catch (e) {}   // 홈 알림 카드가 '알림 켜짐'을 고쳐 쓰게(70_pins condBtn)
       if (perm === "denied") res = { ok: false, msg: P_DENY, denied: true };
       else if (perm !== "granted") res = { ok: false, msg: "알림을 허용해야 받을 수 있어요" };
       else {
@@ -294,7 +295,7 @@ const INBOX = (() => {
   }
   function onPins(ids) {
     const n = ids.length, was = prevN; prevN = n;
-    if (n > was && was >= 0 && !lsR("zp-watch-pin", 0)) setTimeout(() => { const cur = pinIds(); if (cur.length) watch("pin", cur[cur.length - 1]); }, 900);
+    if (n > was && was >= 0 && !lsR("zp-watch-pin", 0) && !(Date.now() - (window.__zpImport || 0) < 8000)) setTimeout(() => { const cur = pinIds(); if (cur.length) watch("pin", cur[cur.length - 1]); }, 900);
   }
 
   // 알림을 눌러 열린 창: 서비스 워커가 {t:"zp-open", url} → 구역 열기 또는 알림함

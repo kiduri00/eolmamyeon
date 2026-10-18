@@ -200,7 +200,7 @@ const OVX = (() => {
     const thin = U || P ? thinTag(H.n, H.to) : thinTag(h.n, h.to) || (h.st || h.w === 0 ? `오래된 거래${h.to ? ` · 최근 ${ym(h.to)}` : ""}` : "");
     // 계산 매수가가 주변 빌라 표본이면 아래 몇 건도 그 표본에서(머리 '마지막 거래'와 같은 거래가 맨 위) — 표본 목록이 없으면 구역 안 거래에 '표본 아님' 이름표
     const NZ = !noIpR(r) && ZX.near && ZX.near(r), nearB = !noIpR(r) && !!(r.mk && r.mk.entry && r.mk.entry.src === "villa" && (r.mk.entry.radius || 0) >= 100);
-    const S = NZ ? NZ.s.slice(0, matchMedia("(max-width:640px)").matches ? 2 : 3).map((v) => [v[0], 0, v[3], v[1], v[2], v[4], v[5]]) : txRows(dd, h.r);
+    const S = NZ ? NZ.s.slice(0, matchMedia("(max-width:640px)").matches ? 2 : 3).map((v) => [v[0], 0, v[3], v[1], 0, v[4], v[5]])   /* 주변 표본 줄은 거래 탭 '매수가 표본' 표처럼 전용 면적으로(대지 29㎡ vs 전용 59.4㎡로 갈리던 것) */ : txRows(dd, h.r);
     const lq = lastQ(h.q), ag = dd && dd.x && dd.x.age, agn = (dd && dd.x && dd.x.agn) || {};
     const alts = [
       P ? [h.b === "v" ? `구역 안 대표 거래 · 대지 3.3㎡` : `구역 안 ${per}`, eok(h.u), hdBasis] : null,
