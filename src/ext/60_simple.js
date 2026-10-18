@@ -38,7 +38,9 @@ const SIMPLE = (() => {
   };
   window.ZP_count = countAt;
   // 목록 정렬: 맞춤(내 돈에 가장 가까운 곳 먼저) · 적은 돈 · 입주 빠른
-  const SORTS = [["fit", "맞춤순"], ["low", "적은 돈순"], ["eta", "입주 빠른순"]];
+  const SORTS = [["fit", "맞춤순"], ["low", "적은 돈순"], ["move", `${LBL.cashToMoveIn} 적은 순`], ["gain", "입주 때 시세 차이 큰 순"], ["eta", "입주 빠른순"]];
+  // 입주 때 시세 차이(현금 매수 계산 · 리포트 '입주 때 시세 차이'와 같은 값). 계산 못 하면 null → 맨 아래
+  const gainOf = (r) => { try { const x = investC(r); return x && x.ok && x.gain != null && isFinite(x.gain) ? x.gain : null; } catch (e) { return null; } };
   let sortK = "fit";
   try { const s0 = localStorage.getItem("emr.sort"); if (SORTS.some((x) => x[0] === s0)) sortK = s0; } catch (e) {}
   // 처음 보이는 줄 수: PC는 옆 지도 높이(창 높이 − 79, 최대 902)를 채울 만큼(줄 75px · 제목·칩 두 줄·더보기 144px), 폰은 6줄
@@ -77,10 +79,14 @@ const SIMPLE = (() => {
     const nowK = gapMode() || effBasis() !== "total";
     const etaT = (r) => { try { const p = projection(r); return p && p.eMid && !p.past ? +p.eMid : Infinity; } catch (e) { return Infinity; } };
     const L = R.filter((r) => okR(r) && !r.lc && (!gu || r.g === gu) && (!kind || KIND(r) === kind) && (gu || inBB(r)))
-      .map((r) => { const n = needOf(r), m = (nowK ? n.now : n.total) ?? 99; return { r, n, m, early: r.s <= 1 || r.eta?.p10 == null, eta: sortK === "eta" ? etaT(r) : 0 }; });
+      .map((r) => { const n = needOf(r), m = (nowK ? n.now : n.total) ?? 99; return { r, n, m, early: r.s <= 1 || r.eta?.p10 == null, eta: sortK === "eta" ? etaT(r) : 0, gn: sortK === "gain" ? gainOf(r) : null }; });
     // '입주 계산 불가'(입주까지 금액 없음)는 어떤 정렬·유형 칩이든 맨 아래로
     return L.sort((a, b) => (a.n.total == null) - (b.n.total == null)
-      || (sortK === "fit" ? Math.abs(CASH - a.m) - Math.abs(CASH - b.m) : sortK === "eta" ? (a.eta === b.eta ? 0 : a.eta < b.eta ? -1 : 1) : Math.round(a.m * 10) - Math.round(b.m * 10))
+      || (sortK === "fit" ? Math.abs(CASH - a.m) - Math.abs(CASH - b.m)
+        : sortK === "eta" ? (a.eta === b.eta ? 0 : a.eta < b.eta ? -1 : 1)
+        : sortK === "move" ? (a.n.total ?? 99) - (b.n.total ?? 99)
+        : sortK === "gain" ? (a.gn == null) - (b.gn == null) || (b.gn ?? 0) - (a.gn ?? 0)
+        : Math.round(a.m * 10) - Math.round(b.m * 10))
       || a.m - b.m);
   }
   // 유형 칩으로 0곳일 때: 그 유형은 지금 방식으로 최소 얼마부터 되는지(목록과 같은 판정·금액)
@@ -96,7 +102,7 @@ const SIMPLE = (() => {
     const nm0 = kind ? `${gu ? `${esc(gu)} ` : ""}${KNAME[kind] || "이 유형"}` : gu ? esc(gu) : bbF ? "이 지도 범위" : "서울";
     const lc = nm0.charCodeAt(nm0.length - 1), nm = nm0 + (lc >= 0xac00 && lc <= 0xd7a3 && (lc - 0xac00) % 28 ? "은" : "는");
     const up = isFinite(lo) ? Math.max(0.1, Math.ceil(lo * 10) / 10) : null;
-    const msg = up != null ? `${nm} 최소 <b>${eokS(up)}</b>부터 살 수 있어요` : `${nm} ${gapMode() ? "전세 끼고" : "지금 방식으로"} 살 수 있는 곳이 없어요`;
+    const msg = up != null ? `${nm} 최소 <b>${eokS(lo)}</b>부터 살 수 있어요` : `${nm} ${gapMode() ? "전세 끼고" : "지금 방식으로"} 살 수 있는 곳이 없어요`;
     const wide = kind ? `<button type="button" class="btn secondary" id="sKindAll">전체 유형 보기</button>` : gu ? `<button type="button" class="btn secondary" id="sGuAll">서울 전체</button>` : bbF ? `<button type="button" class="btn secondary" id="sBbAll">서울 전체</button>` : "";
     return `${msg}<span class="s-eact">${up != null ? `<button type="button" class="btn primary" id="sKindUp" data-v="${up}">${eokS(up)}으로 올려 보기</button>` : ""}${wide}</span>`;
   }
@@ -201,11 +207,12 @@ const SIMPLE = (() => {
     map.after(tiles);
     hero.insertBefore(hero.querySelector('#sSearch'), hero.firstChild);
     // 모바일 아래 탭바(앱처럼)
-    const nav = document.createElement("nav");
+    // shell.html이 첫 페인트부터 같은 탭바를 깔아 둔다(섬 단계에서 자리가 비지 않게) → 있으면 그것을 이어 쓴다
+    const nav = $("sNav") || document.createElement("nav");
     nav.className = "s-nav"; nav.id = "sNav"; nav.setAttribute("aria-label", "주요 메뉴");
-    nav.innerHTML = [["home", "홈", "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"], ["map", "지도", "M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"], ["search", "검색", "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"], ["fav", "찜", "M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"], ["more", "더보기", "M4 6h16M4 12h16M4 18h16"]]
+    nav.innerHTML = [["home", "홈", "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"], ["map", "지도", "M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"], ["search", "검색", "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"], ["fav", "관심 구역", "M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6zM12 12a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z"], ["more", "더보기", "M4 6h16M4 12h16M4 18h16"]]
       .map(([k, t, d]) => `<button type="button" data-nav="${k}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg><span>${t}</span></button>`).join("");
-    document.body.appendChild(nav);
+    if (!nav.isConnected) document.body.appendChild(nav);
     const fx = document.createElement("button");
     fx.type = "button"; fx.className = "s-fullx"; fx.id = "sFullX"; fx.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>목록 보기`;
     // 목록 머리(유형 칩)가 위에 붙는 한 줄 게이지에 가리지 않게 그 높이만큼 더 띄운다. 뒤로가기 스크롤 복원 뒤에도 한 번 더
@@ -365,8 +372,10 @@ const SIMPLE = (() => {
         const [ex, ey] = xy[xy.length - 1];
         let chg = null;
         if (P8.length >= 6) { const b = P8.filter((p) => p[0] <= last - 4).pop(); if (b) chg = (P8[P8.length - 1][1] / b[1] - 1) * 100; }
-        const tr = chg != null && Math.abs(chg) >= 3 ? `<i class="${chg > 0 ? "up" : "dn"}">${chg > 0 ? "▲" : "▼"}${Math.round(Math.abs(chg))}%</i>` : "";
-        out = `<span class="s-sp" title="최근 2년 실거래 흐름${tr ? ` · 1년 ${chg > 0 ? "+" : "−"}${Math.round(Math.abs(chg))}%` : ""}"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${xy.map((p) => p.join(",")).join(" ")}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${ex}" cy="${ey}" r="1.9" fill="currentColor"/></svg>${tr}</span>`;
+        // 작은 선만 있으면 무엇인지 몰라('√'처럼 보임) 아래에 늘 이름표: '1년▲64%'(1년 바뀜) 또는 '시세'
+        const tr = chg != null && Math.abs(chg) >= 3 ? `<i class="${chg > 0 ? "up" : "dn"}" aria-hidden="true">1년${chg > 0 ? "▲" : "▼"}${Math.round(Math.abs(chg))}%</i>` : `<i aria-hidden="true">시세</i>`;
+        const lab = `최근 2년 시세 흐름${chg != null && Math.abs(chg) >= 3 ? ` · 1년 ${chg > 0 ? "+" : "−"}${Math.round(Math.abs(chg))}%` : ""}`;
+        out = `<span class="s-sp" role="img" aria-label="${lab}" title="${lab}"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${xy.map((p) => p.join(",")).join(" ")}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${ex}" cy="${ey}" r="1.9" fill="currentColor"/></svg>${tr}</span>`;
       }
     } catch (e) { out = ""; }
     SP.set(id, out);
@@ -472,7 +481,7 @@ const SIMPLE = (() => {
     try { if (localStorage.getItem("emr.coach1")) return; } catch (e) { return; }
     const g = document.querySelector(".s-gauge"), sl = $("sCash"); if (!g || !sl || g.querySelector(".s-coach")) return;
     // 앱이 붙기 전(섬)에 이미 게이지를 움직였으면(현금이 기본 1억이 아님) 안내는 필요 없다
-    try { if ((typeof CASH !== "undefined" && Math.abs(CASH - 1) > 1e-9) || (sl.defaultValue !== "" && sl.value !== sl.defaultValue)) { localStorage.setItem("emr.coach1", "1"); return; } } catch (e) {}
+    try { if (typeof CASH !== "undefined" && Math.abs(CASH - 1) > 1e-9) { localStorage.setItem("emr.coach1", "1"); return; } } catch (e) {}
     const t = document.createElement("div"); t.className = "s-coach"; t.setAttribute("role", "status"); t.textContent = "끌어서 내 현금을 맞춰 보세요";
     // 손잡이 옆(트랙 높이)에 띄워 눈금·숫자를 가리지 않는다. 손잡이가 오른쪽 절반이면 왼쪽에
     // 자리는 레이아웃이 끝난 뒤(rAF)에 잰다 — 도구 화면에서 돌아올 때처럼 막대가 아직 0폭이면 숨겨 두고 다음 크기 변화 때 다시
@@ -529,7 +538,7 @@ const SIMPLE = (() => {
     if (gu) sg.innerHTML = `지도에서 고른 <b>${esc(gu)}</b>만 보고 있어요 <button type="button" class="btn text sm" id="sGuX">서울 전체</button>`;
     if (gu) $("sGuX").onclick = () => { exitGu({}); if (/^#map-/.test(location.hash)) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
     $("sList").innerHTML = L.length
-      ? L.slice(0, shown).map(({ r, n, early }) => `<li${TX && NOSP.get(r.id) ? ' class="s-nosp"' : ""}><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${sortK === "eta" ? etaTag(r) : early ? ' · <em>초기 단계</em>' : ""}${r.nbp ? ' · <em class="s-tag nb">주변 시세 기준</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span>${spark(r.id)}</a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(shortName(r.n))} 필요한 돈 추정 ${eokS(gap || effBasis() !== "total" ? n.now : n.total)}${n.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · 입주까지 내 현금 ${eokS(n.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog" title="${n.total == null ? `${NA_L} · ${NA_WHY}` : `${LBL.cashToMoveIn}: 분담금·이자 포함, 입주 잔금대출은 뺀 금액`}"><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b><small${n.total == null ? ' class="s-na"' : ""}>${gap || effBasis() !== "total" ? (n.total != null ? `${LBL.cashToMoveIn} ${eokS(n.total)}` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(n.now)}`}</small></button></li>`).join("")
+      ? L.slice(0, shown).map(({ r, n, early }) => `<li${TX && NOSP.get(r.id) ? ' class="s-nosp"' : ""}><a href="#${r.id}" data-id="${r.id}"><span class="s-nm"><b>${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(dongOf(r))}${sortK === "eta" ? etaTag(r) : early ? ' · <em>초기 단계</em>' : ""}${r.nbp ? ' · <em class="s-tag nb">주변 시세 기준</em>' : ""}${r.tag === "lt" && !/장기전세/.test(shortName(r.n)) ? ' · <em class="s-tag">장기전세</em>' : r.tag === "mk" ? ' · <em class="s-tag">상가·시장</em>' : ""}</small></span>${spark(r.id)}</a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(shortName(r.n))} 필요한 돈 추정 ${eokS(gap || effBasis() !== "total" ? n.now : n.total)}${n.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · 입주까지 내 현금 ${eokS(n.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog" title="${n.total == null ? `${NA_L} · ${NA_WHY}` : `${LBL.cashToMoveIn}: 분담금·이자 포함, 입주 잔금대출은 뺀 금액`}"><span class="s-av"><i class="s-al" aria-hidden="true">${gap || effBasis() !== "total" ? "지금" : "입주까지"}</i><b>${eokS(gap || effBasis() !== "total" ? n.now : n.total)}</b></span><small${n.total == null ? ' class="s-na"' : ""}>${gap || effBasis() !== "total" ? (n.total != null ? `${LBL.cashToMoveIn} ${eokS(n.total)}` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(n.now)}`}</small></button></li>`).join("")
       : `<li class="s-empty">${kindEmpty()}</li>`;
     { const kx = $("sKindAll"); if (kx) kx.onclick = () => { const b = $$(".s-flt button", $("sListW")).find((x) => x.dataset.k === ""); if (b) b.click(); }; }
     { const gx = $("sGuAll"); if (gx) gx.onclick = () => { const x = $("sGuX"); if (x) x.click(); }; }

@@ -78,7 +78,10 @@
     // ll = [경도, 위도] · 결과 [[구역, 거리m], …] 가까운 순(진행 중·모아타운 관리지역 제외)
     function walkNear(ll, name, max = W15) {
       let done = () => false; try { done = isDone; } catch (e) {}
-      return R.filter((r) => !done(r) && r.src !== "moa").map((r) => [r, walkD(r, ll, name)]).filter((x) => x[1] <= max).sort((a, b) => a[1] - b[1]);
+      // 같은 곳이 두 자료에 따로 실린 것(이름·지번이 같음: 행당동 300-1)은 한 곳으로 센다 — 검색 목록과 같은 기준
+      const seen = new Set(), key = (r) => { let n = r.n; try { n = shortName(r.n); } catch (e) {} return `${n}|${String(r.j || "").replace(/\s+/g, "")}`; };
+      return R.filter((r) => !done(r) && r.src !== "moa").map((r) => [r, walkD(r, ll, name)]).filter((x) => x[1] <= max).sort((a, b) => a[1] - b[1])
+        .filter((x) => { const k = key(x[0]); if (seen.has(k)) return false; seen.add(k); return true; });
     }
     const walkMin = (d) => Math.max(1, Math.round((d * 1.3) / 67));
     const walkLbl = (name, n) => `${name ? stN(name) + "역 " : ""}걸어서 15분 안 · ${Number(n).toLocaleString("ko-KR")}곳`;

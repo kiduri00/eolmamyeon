@@ -12,6 +12,8 @@ ZD = os.path.join(ROOT, 'public/z'); SITE = 'https://jaegaebal.alwaysquestions.k
 esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 UPD = (D.get('upd') or datetime.date.today().isoformat()).replace('-', '.')
 TXD = (D.get('txAsOf') or {}).get('sale', '')
+AUC = J('public/data/auction.json', {}) or {}   # 법원경매 물건(구역별 · tools/auction_match.py)
+AUT = (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).strftime('%Y-%m-%d')
 TXX = J('public/data/tx.json', {}) or {}   # 구역별 실거래 상세: x.hd = 화면 머리글과 같은 기준(tools/tx.py)
 GEO = J('public/data/geo.json', {}) or {}   # 앱 지도와 같은 정비구역·구 경계(작은 지도 그림용)
 GUG = {x['n']: x['r'] for x in (GEO.get('gu') or [])}
@@ -28,7 +30,7 @@ def nk(nm, kind):   # 이름에 이미 있는 사업 종류 말은 빼고 붙인
     w = set(re.split(r'\s+', nm)); k = ' '.join(x for x in kind.split() if x not in w)
     return f"{nm} {k}".strip()
 # /z 제목은 '<짧은 이름> 재개발|재건축 | …'만: 사업 방식·지원 말(도시정비형·공공·신속통합기획·장기전세…)은 설명(description)으로 옮긴다
-TQ = ('도심공공주택복합', '주택정비형', '신속통합기획', 'LH참여형', '장기전세', 'SHIFT', '공공', '민간', '후보지', '건립', '활성화', '통합')
+TQ = ('도심공공주택복합', '주택정비형', '신속통합기획', 'LH참여형', '장기전세', 'SHIFT', '공공임대', '공공시행', '공공', '민간', '후보지', '건립', '활성화', '통합')
 _TQR = re.compile(r'^(' + '|'.join(TQ) + r')(\(.*\))?$')
 def ztitle(nm, kind):
     """→ (제목 이름, 옮긴 말 목록). '역촌역세권 장기전세(역촌동)' → '역촌역세권(역촌동)', ['장기전세']"""
@@ -45,7 +47,22 @@ def ztitle(nm, kind):
     if kind == '도시정비형 재개발': k = '재개발'; q.append('도시정비형')
     q = list(dict.fromkeys(q))
     return nk(' '.join(keep), k), q
-def ztitle_s(nm, kind): return f"{ztitle(nm, kind)[0]} | 단계·실거래·입주 현금 | 집핀"
+_TD = None
+def zt(r):
+    """구역 레코드 → (제목 이름, 옮긴 말). 말을 떼어 다른 구역과 제목이 같아지면 그 구역만 첫 말을 괄호로 남긴다(신길2구역 · 신길2구역(도심공공주택복합))."""
+    global _TD
+    nm = short(r['n']); kind = KIND.get(r['k'], r['k'])
+    if _TD is None:
+        _TD = collections.Counter(ztitle(short(x['n']), KIND.get(x['k'], x['k']))[0] for x in R)
+    t, q = ztitle(nm, kind)
+    if _TD.get(t, 0) > 1:
+        q2 = [x for x in q if x != '도시정비형']
+        if q2:
+            k = kind if kind != '도시정비형 재개발' else '재개발'
+            base = t[: -len(k)].rstrip() if t.endswith(k) else t
+            t = f"{base}({q2[0]}) {k}".strip(); q = [x for x in q if x != q2[0]]
+    return t, q
+def ztitle_s(r): return f"{zt(r)[0]} | 단계·실거래·입주 현금 | 집핀"
 EVK = {'조합설립인가': '조합설립', '사업시행인가': '사업시행', '관리처분인가': '관리처분', '정비구역지정': '구역지정', '조합설립추진위원회승인': '추진위', '사업시행자지정': '시행자지정', '준공인가': '준공'}
 def evtext(dt, d, sec, t):
     """정보몽땅 원문 '[(변경)인가] 동의율 : 89.85' → '변경인가 · 동의율 89.85%' (src/ext/20_zone.js evText와 같은 규칙)"""
@@ -141,8 +158,8 @@ def page(r):
     nm = short(r['n']); kind = KIND.get(r['k'], r['k']); stage = c.get('stage') or r.get('sr') or ''
     dt = pm.get('dt') or {}
     nmk = nk(nm, kind)
-    tnm, tq = ztitle(nm, kind)
-    title = ztitle_s(nm, kind)
+    tnm, tq = zt(r)
+    title = ztitle_s(r)
     desc = f"{r['g']} {tnm}{'(' + ' · '.join(tq) + ')' if tq else ''}: 지금 {stage} 단계. 구역 안 실거래, 노후도, 권리산정기준일, 정비사업 정보몽땅 추진경과, 기본 가정의 입주까지 필요한 현금 추정. 데이터 기준 {UPD}."
     url = f"{SITE}/z/{rid}"
     ld0 = {"@type": "Article", "headline": f"{nmk} 진행 단계와 입주까지 필요한 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
@@ -236,6 +253,23 @@ def page(r):
     th = (TH.get('z') or {}).get(rid)
     if th:
         o.append(f'<h2>토지거래허가 최근 내역 <small class="meta">서울부동산정보광장 · {esc(TH["since"].replace("-", "."))}~{esc(TH["asOf"].replace("-", "."))}</small></h2><p>구역 경계 안 필지로 <b>{th["n"]}건</b>이 허가됐어요(최근 30일 {th["n30"]}건, 주거용 {th["res"]}건). 주거용 허가는 2년 실거주 의무가 붙어 전세를 끼고 살 수 없어요.</p><ul class="steps tl">' + ''.join(f'<li><b>{esc(d.replace("-", "."))}</b><span>{esc(jb)} · {esc(jm)} · {esc(use)}{"" if res == "허가" else " · " + esc(res)}</span></li>' for d, jb, jm, use, res in th['r'][:5]) + '</ul>')
+    au = [x for x in ((AUC.get('byZone') or {}).get(rid) or []) if not x.get('st') and str(x.get('date') or '') >= AUT] if AUC.get('ok') else []
+    if au:   # 법원경매(tools/auction_match.py): 입찰기일이 남은 물건만, 사건번호로 묶어 5건까지
+        g = {}
+        for x in sorted(au, key=lambda x: (x.get('date') or '9', x.get('cs'), x.get('no') or 1)): g.setdefault(x.get('cs'), []).append(x)
+        ek = lambda v: (f"{round(v / 1e8, 1):g}억" if v >= 1e8 else f"{round(v / 1e4):,}만") if isinstance(v, (int, float)) and v > 0 else '–'
+        def arow(cs, xs):
+            x = xs[0]; mins = [y['min'] for y in xs if isinstance(y.get('min'), (int, float)) and y['min'] > 0]
+            pr = (f"최저 {ek(min(mins))}" + (f"~{ek(max(mins))}" if len(set(mins)) > 1 else '') + (f"(감정가의 {x['rate']}%)" if len(xs) == 1 and x.get('rate') is not None else '')) if mins else ''
+            fl = '신건' if x.get('fail') == 0 else f"유찰 {x['fail']}회" if x.get('fail') else ''
+            d = str(x.get('date') or '')
+            use = re.sub(r'\s*,\s*', ', ', str(x.get('use') or '부동산'))
+            if len({str(y.get('use') or '') for y in xs}) > 1: use += ' 외'
+            if any(y.get('jb') for y in xs): use += ' 지분'
+            when = f"입찰 {int(d[5:7])}.{int(d[8:10])}" if len(d) == 10 else ''
+            head = esc(cs) + (f' · 물건 {len(xs)}개' if len(xs) > 1 else '')
+            return f'<li><b>{head}</b><span>{esc(" · ".join(v for v in [use, pr, when, fl] if v))}</span></li>'
+        o.append(f'<h2>경매 진행 {len(au)}건 <small class="meta">법원경매정보 · {esc(str(AUC.get("asOf") or "").replace("-", "."))} 기준 · 구역 경계 안 필지</small></h2><ul class="steps tl">' + ''.join(arow(cs, xs) for cs, xs in list(g.items())[:5]) + '</ul>' + (f'<p class="meta">그 밖 {len(g) - 5}개 사건은 앱 구역 리포트 거래 탭에서 볼 수 있어요.</p>' if len(g) > 5 else ''))
     if S and r.get('ll'):
         a, b = r['ll']
         near = sorted(((dist(a, b, x[1], x[0]), x) for x in S['items']), key=lambda z: z[0])
@@ -309,7 +343,7 @@ def hand_og(r):
 def hand_seo(r, h):
     """손으로 쓴 구역 글: 본문은 두고 머리만 자동 페이지와 같게 — 제목 '<짧은 이름> 재개발 | 단계·실거래·입주 현금 | 집핀', 구조화 데이터(글 + 이동 경로 + 장소)."""
     rid = r['id']; nm = short(r['n']); kind = KIND.get(r['k'], r['k']); url = f"{SITE}/z/{rid}"
-    t = ztitle_s(nm, kind)
+    t = ztitle_s(r)
     h = re.sub(r'<title>.*?</title>', lambda m: f'<title>{esc(t)}</title>', h, count=1, flags=re.S)
     h = re.sub(r'<meta property="og:title" content="[^"]*">', lambda m: f'<meta property="og:title" content="{esc(t)}">', h, count=1)
     m = re.search(r'<script type="application/ld\+json">(.*?)</script>', h, re.S)

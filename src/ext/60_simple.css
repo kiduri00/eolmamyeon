@@ -57,6 +57,9 @@ html:not(.simple) .s-back{display:none}
 .s-amt{flex:none;text-align:right;display:flex;flex-direction:column;gap:2px}
 .s-amt b{font-size:20px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .s-amt small{font-size:12px;color:var(--text-3)}
+/* 큰 숫자 앞 작은 이름표: '지금 1.9억' · 아래 줄 '입주까지 현금 8.2억' — 두 금액을 헷갈리지 않게 */
+.s-av{display:inline-flex;align-items:baseline;gap:4px;justify-content:flex-end}
+.s-al{font-style:normal;font-size:11.5px;font-weight:700;color:var(--text-3);white-space:nowrap}
 .s-empty{padding:22px 16px;text-align:center;color:var(--text-2);font-size:15px}
 .s-eact{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:12px}.s-eact .btn{min-height:44px;font-size:14.5px}
 .s-more{display:block;margin:10px auto 0;min-width:160px}
@@ -173,8 +176,9 @@ html.simple #sTiles{padding-bottom:24px}
   html.simple:not(.s-rep) .s-right #report{display:none}
   html.simple.s-rep .s-right #sListW{display:none}
   html.simple.s-rep .s-tolist{display:inline-flex}
-  .s-right .s-list-w{margin:0;display:flex;flex-direction:column;min-height:0;max-height:calc(100vh - var(--hdr-h,60px) - 40px);position:sticky;top:calc(var(--hdr-h,60px) + 16px)}
-  .s-right .s-list{overflow:auto;min-height:0}
+  /* 목록 칸 아래 끝 = 지도 아래 끝(지도 #mapbox.lm-on 높이와 같은 식) */
+  .s-right .s-list-w{margin:0;display:flex;flex-direction:column;min-height:0;height:calc(100vh - var(--hdr-h,60px) - 24px);min-height:460px;max-height:900px;position:sticky;top:calc(var(--hdr-h,60px) + 16px)}
+  .s-right .s-list{overflow:auto;min-height:0;flex:1 1 auto}
   .s-right .s-lh{flex-wrap:wrap}
 }
 
@@ -364,7 +368,7 @@ html.simple:not(.s-full) #mapbox[data-view="seoul"] .lm-ctl{display:none}
 .s-list a:hover{background:none}
 .s-sp{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:1px;width:44px;color:var(--text-3);line-height:1}
 .s-sp svg{display:block;opacity:.85}
-.s-sp i{font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:-.02em;color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.s-sp i{font-style:normal;font-size:10px;font-weight:600;letter-spacing:-.02em;color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap}
 button.s-amt{margin:0;padding:6px 16px 6px 8px;border:0;background:none;color:inherit;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;justify-content:center;align-items:flex-end}
 button.s-amt b{border-bottom:1px dashed color-mix(in srgb,var(--brand) 40%,transparent);line-height:1.15}
 button.s-amt:hover b{border-bottom-style:solid}
@@ -465,7 +469,6 @@ html.simple .s-lh .s-lsub{display:flex!important;margin-top:2px}
 
 /* ===== 첫 페인트 뼈대(shell.html) — 최종 배치와 같은 높이로 자리를 잡아 레이아웃 밀림(CLS)을 없앤다 ===== */
 html.simple main.wrap{min-height:calc(100vh - 40px)}
-.pc-ph{visibility:hidden}
 #pcSave~.pc-ph,html.s-view .pc-ph,html.s-full .pc-ph{display:none}
 
 .s-list .s-sk{height:75px;position:relative}

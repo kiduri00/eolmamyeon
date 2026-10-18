@@ -61,12 +61,13 @@ const TOOLS = (() => {
   mk("diagTop", "매물진단");
   mk("supplyTop", "입주 물량");
   const e1 = ZF.cash;
-  const ok = (r) => !(r.s >= 9) && !r.dn && !r.cx && r.src !== "moa" && !r.lc && r.tag !== "mk";
   // ---------- 갭 순위: 전세 끼고 지금 필요한 돈이 적은 순 ----------
   let gapF = "all", gapN = 20;
   function gapRender() {
     const out = document.getElementById("gapTopOut"); if (!out) return;
-    const L = R.filter(ok).map((r) => ({ r, g: gapOf(r) })).filter((x) => !x.g.block && !x.g.na && x.g.now != null && isFinite(x.g.now));
+    // 홈 '전세 시세 있는 N곳 중'과 같은 모집단·같은 판정(진행 중 POP · 추정 숨김 · gapOk를 현금 무한대로) — 구 가운데 값 추정(eligible:false)은 빠진다
+    const pop = new Set(POP.map((x) => x.id));
+    const L = R.filter((r) => pop.has(r.id) && !r.lc && gapOk(r, 999)).map((r) => ({ r, g: gapOf(r) })).filter((x) => x.g.now != null && isFinite(x.g.now));
     const c = CASH;
     const F = gapF === "near" ? L.filter((x) => Math.abs(x.g.now - c) <= 1) : gapF === "redev" ? L.filter((x) => !/재건축/.test(x.r.k)) : L;
     // 입주까지 돈이 계산되는 곳을 위로, 신축 시세가 없어 계산 안 되는 곳은 맨 아래로
@@ -75,6 +76,7 @@ const TOOLS = (() => {
     { const seen = new Set(); for (let i = F.length - 1; i >= 0; i--) {} const U = []; F.forEach((x) => { const k = shortName(x.r.n) + x.r.g; if (!seen.has(k)) { seen.add(k); U.push(x); } }); F.length = 0; U.forEach((x) => F.push(x)); }
     const rate = (x) => { try { const p = investC(x.r).price; return p ? Math.round((x.g.D / p) * 100) : null; } catch (e) { return null; } };
     out.innerHTML = `<div class="fchips tl-f" role="group" aria-label="거르기">${[["all", "전체"], ["near", `내 현금 ${e1(c)} ±1억`], ["redev", "재개발만"]].map(([k, t]) => `<button type="button" class="ichip" data-gf="${k}" aria-pressed="${gapF === k}">${t}</button>`).join("")}</div>
+      <p class="tl-lead" data-gapn="${L.length}">전세 시세 있는 ${fmt(L.length)}곳 · 홈 '살 수 있는 곳'과 같은 기준</p>
       ${(() => { const na = F.filter((x) => !calc(x)).length; return na ? `<p class="tl-lead">${LBL.cashToMoveIn}이 계산 안 되는 ${na}곳(주변 신축 시세 없음)은 맨 아래에 있어요</p>` : ""; })()}
       <ol class="tl-l">${F.slice(0, gapN).map((x, i) => { const jr = rate(x); return `<li><a href="#${x.r.id}" data-id="${x.r.id}"><span class="tl-k">${i + 1}</span><span class="tl-n"><b>${esc(shortName(x.r.n))}</b><small>${esc(x.r.g)} · ${esc(stageName(x.r))}</small></span><span class="tl-v"><b>${e1(x.g.now)}</b><small>${x.g.x && x.g.x.ok && x.g.total != null ? `${LBL.cashToMoveIn} ${e1(x.g.total)}` : '<span class="tl-na" title="주변 신축 시세 자료가 없어 입주 때 돈을 계산하지 못했어요">입주까지 현금 계산 불가</span>'}</small></span></a></li>`; }).join("") || '<li class="tl-e">조건에 맞는 구역이 없어요</li>'}</ol>
       ${F.length > gapN ? `<button type="button" class="btn secondary s-more" id="gapMore">더 보기 (${F.length - gapN}곳)</button>` : ""}`;

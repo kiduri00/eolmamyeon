@@ -24,7 +24,7 @@
 /* 토스트 */
 .pn-toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:1200;display:flex;align-items:center;gap:12px;max-width:min(440px,calc(100vw - 32px));padding:10px 10px 10px 14px;border-radius:14px;background:#14171c;color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.28);font:600 14.5px var(--font);transform:translate(-50%,20px);opacity:0;pointer-events:none;transition:transform .2s,opacity .2s}
 .pn-toast.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
-.pn-toast>span{display:flex;align-items:center;gap:8px;min-width:0}.pn-toast b{white-space:nowrap}
+.pn-toast>span{display:flex;align-items:center;gap:8px;min-width:0}.pn-toast b{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;text-wrap:balance}
 .pn-toast .pn-tt{display:flex;flex-direction:column;min-width:0;line-height:1.3}
 .pn-toast{min-width:min(300px,calc(100vw - 32px))}.pn-toast>span{flex:1}.pn-toast .pn-tt{flex:1}
 .pn-toast small{font-weight:500;font-size:13px;color:rgba(255,255,255,.75);overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
@@ -266,9 +266,11 @@ html.s-full .pc-save,html.s-full .pc-act{display:none}
 @media (max-width:400px){.pc-al{gap:10px;padding:10px}.pc-al-t b{font-size:14.5px}.pc-al-go{padding:0 11px;font-size:13px}}
 @media (max-width:359px){.pc-al-go{display:none}}
 /* 첫 페인트 자리(shell.html .pc-ph) = 알림 버튼 높이 */
-.pc-ph{display:block;height:66px;margin:12px 0 16px!important}
-@media (max-width:640px){.pc-al{min-height:84px}.pc-ph{height:84px}}
-@media (max-width:400px){.pc-al{min-height:98px}.pc-ph{height:98px}}
+/* 섬 단계에는 같은 모양·같은 문구의 카드를 그대로 그려 둔다(빈 칸 없음) → 앱이 #pcSave를 만들면 숨김 */
+.pc-ph{display:block;margin:12px 0 16px!important}
+.pc-ph .pc-al{cursor:default}
+.pc-al-t b,.pc-al-t small{text-wrap:balance}
+@media (max-width:640px){.pc-al{min-height:72px}}
 .pc-dlg h3[tabindex="-1"]:focus{outline:none}
 /* 받은 핀 링크 미리보기(합치기·바꾸기) */
 .pi-nm{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;padding:0;list-style:none}

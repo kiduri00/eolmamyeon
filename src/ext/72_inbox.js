@@ -42,7 +42,7 @@ const INBOX = (() => {
   const freshN = () => { try { return PINS.freshIds().length; } catch (e) { return 0; } };
   const unreadC = (e) => { const s = seen(); return e.date > s.at || (e.date === s.at && !s.k.includes(e.k)); };
   // 알림 조건에 맞는 구역의 경매(핀 꽂은 구역은 핀 소식으로 이미 셈)
-  const condAuc = () => { if (!CH) return []; const P = new Set(pinIds()), out = new Map(); conds().forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0) out.set(e.k, e); }); }); return [...out.values()]; };
+  const condAuc = () => { if (!CH) return []; const P = new Set(pinIds()), out = new Map(); conds().forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0 && !(e.mn > n.c.cash * 1.1 + 1e-9)) out.set(e.k, e); }); /* 경매: 대표 물건 최저가가 조건 현금(+10%) 안일 때만 */ }); return [...out.values()]; };
   const count = () => pinEvents().filter(unread).length + freshN() + condAuc().filter(unreadC).length;
   function markSeen() {
     if (!CH) return;
@@ -56,12 +56,13 @@ const INBOX = (() => {
   // ---------- 종 버튼(머리) ----------
   function bell() {
     let b = $("huBell");
-    if (b) return b;
+    // shell.html이 첫 페인트부터 종 자리를 깔아 둔다 → 그 버튼에 여기서 동작만 붙인다
+    if (b) { if (!b.dataset.on) { b.dataset.on = "1"; b.addEventListener("click", () => open()); } return b; }
     const r = document.querySelector(".hdr-r"); if (!r) return null;
     b = document.createElement("button");
     b.type = "button"; b.id = "huBell"; b.className = "hu-bell"; b.setAttribute("aria-haspopup", "dialog");
     b.innerHTML = `${bellSvg(20)}<b class="ib-n" id="bellN" hidden></b>`;
-    b.addEventListener("click", () => open());
+    b.dataset.on = "1"; b.addEventListener("click", () => open());
     const at = $("huFav") || $("mbHdr") || $("menuBtn");
     at ? r.insertBefore(b, at) : r.appendChild(b);
     return b;
@@ -177,7 +178,7 @@ const INBOX = (() => {
     if (!sub && create) sub = await tmo(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(KEY) }), 8000, "subscribe");
     return sub;
   }
-  const P_FAIL = "이 브라우저에선 폰 알림을 켤 수 없어요 · 알림함(🔔)에 모아 드려요";
+  const P_FAIL = "이 브라우저에선 폰 알림을 켤 수 없어요 · 알림함(\u{1F514})에 모아 드려요";
   const P_DENY = "알림이 막혀 있어요 · 주소창 왼쪽 자물쇠(사이트 설정)에서 알림을 허용해 주세요";
   // 성공은 서버가 구독을 받았다고 답한 뒤에만. 실패하면 버튼을 되돌리고 이유를 보여 준다. 결과 { ok, msg, denied }
   async function subscribe(btn) {
@@ -254,7 +255,7 @@ const INBOX = (() => {
     const render = (push) => `<div class="pn-dlg ws-dlg" role="dialog" aria-modal="true" aria-labelledby="wsT" aria-describedby="wsD">
       <span class="ws-ic" aria-hidden="true">${bellSvg(26)}</span>
       <h3 id="wsT" tabindex="-1">${kind === "cond" ? "이 돈으로 살 수 있는 곳이 생기면 알려 드릴게요" : `${esc(r ? shortName(r.n) : "관심 구역")} 소식을 알려 드릴게요`}</h3>
-      <p id="wsD">이런 일이 생기면 바로 알려 드려요</p>
+      <p id="wsD">${push ? "이런 일이 생기면 폰 알림으로 알려 드려요" : "이런 일이 생기면 알림함에 모아 알려 드려요"}</p>
       <ul class="ws-l">${items.map(([k, t]) => `<li><span class="ws-li ${k}">${ic(k)}</span>${t}</li>`).join("")}</ul>
       ${push ? `<button type="button" class="btn primary ws-go" data-wson>${bellSvg(18)}알림 받기</button>` : ios && canI ? "" : `<p class="ws-note">새 소식은 위 ${bellSvg(14)} 알림함에 모아 드려요</p>`}
       ${canI ? `<button type="button" class="btn ${push ? "secondary" : "primary"} ws-in" data-wsin aria-expanded="false"><img src="/icon-192.png" alt="" width="22" height="22">앱으로 설치하면 놓치지 않아요</button>
@@ -273,7 +274,7 @@ const INBOX = (() => {
         let m = ov.querySelector("[data-wsmsg]");
         if (!m) { m = document.createElement("p"); m.className = "ws-msg"; m.dataset.wsmsg = "1"; m.setAttribute("role", "alert"); on.after(m); }
         m.textContent = r.msg;
-        if (r.denied || r.msg === P_FAIL) on.hidden = true;
+        if (r.denied || r.msg === P_FAIL) { on.hidden = true; const d = ov.querySelector("#wsD"); if (d) d.textContent = "이런 일이 생기면 알림함에 모아 알려 드려요"; const x = ov.querySelector("[data-wsx]"); if (x) x.textContent = "확인"; }
         return;
       }
       const ins = e.target.closest("[data-wsin]");

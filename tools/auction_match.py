@@ -50,13 +50,13 @@ def num(v):
     except (TypeError, ValueError): return None
 
 
-def area_of(it):
-    c = re.sub(r'<[^>]+>', ' ', str(it.get('convAddr') or '')).strip()
-    if c:
-        c = re.sub(r'\s+', ' ', c.replace('[', '').replace(']', ' · ')).strip(' ·')
-        return c[:120]
-    parts = [str(it.get(k) or '').strip() for k in ('areaList', 'pjbBuldList')]
-    return ' · '.join(p for p in parts if p)[:120]
+FRAC = re.compile(r'(\d+(?:\.\d+)?)\s*분의\s*(\d+(?:\.\d+)?)')
+def jibun_of(it):
+    """지분 매각이면 몫 문자열('13분의2') · 몫을 못 찾으면 '1' · 아니면 None (원문은 버린다)"""
+    t = ' '.join(str(it.get(k) or '') for k in ('mulBigo', 'convAddr', 'areaList', 'pjbBuldList', 'buldList'))
+    if '지분' not in t: return None
+    m = FRAC.search(t[t.find('지분') - 40 if t.find('지분') > 40 else 0:]) or FRAC.search(t)
+    return f"{m.group(1)}분의{m.group(2)}" if m else '1'
 
 
 def parse(it):
@@ -68,13 +68,14 @@ def parse(it):
     lot = str(it.get('srchHjguLotno') or it.get('daepyoLotno') or '').strip()
     addr = ' '.join(x for x in [str(it.get('hjguSigu') or '').strip(), str(it.get('hjguDong') or '').strip(), lot] if x)
     bld = ' '.join(x for x in [str(it.get('buldNm') or '').strip(), str(it.get('buldList') or '').strip()] if x)
+    # 화면에 쓰는 값만 남긴다. 면적·비고·건물 원문에는 공유자 이름이 들어 있을 수 있어 저장하지 않고, 지분 매각이면 몫(예: '13분의2')만 jb로
     o = {'cs': cs, 'no': int(ms) if ms.isdigit() and ms != '1' else None, 'court': str(it.get('jiwonNm') or it.get('_court') or '').strip(),
          'dept': str(it.get('jpDeptNm') or '').strip() or None,
          'date': f'{d[:4]}-{d[4:6]}-{d[6:8]}' if len(d) == 8 else None,
          'time': f'{hh[:2]}:{hh[2:4]}' if len(hh) == 4 and hh.isdigit() else None,
          'appr': num(it.get('gamevalAmt')), 'min': num(it.get('notifyMinmaePrice1') or it.get('minmaePrice')),
          'rate': num(it.get('notifyMinmaePriceRate1')), 'fail': fail_n(it), 'use': str(it.get('dspslUsgNm') or '').strip() or None,
-         'addr': addr, 'bld': bld or None, 'area': area_of(it) or None, 'note': str(it.get('mulBigo') or '').strip() or None}
+         'addr': addr, 'jb': jibun_of(it)}
     return {k: v for k, v in o.items() if v is not None}
 
 
@@ -162,6 +163,9 @@ def searches_of(raw):
     return out
 
 
+KEEP = ('cs', 'no', 'court', 'dept', 'date', 'time', 'appr', 'min', 'rate', 'fail', 'use', 'addr', 'jb', 'll')   # 저장하는 물건 값(이름 등 원문 없음)
+
+
 def bootstrap_state(prev):
     """상태 파일이 없을 때: 이전 auction.json의 구역 안 물건으로 시작(법원 정보는 비움 → 수집기가 법원마다 전체 검색)"""
     st = {'asOf': None, 'courts': {}, 'items': {}}
@@ -171,7 +175,7 @@ def bootstrap_state(prev):
         for o in v or []:
             if not isinstance(o, dict) or not o.get('cs'): continue
             k = akey(o)
-            x = st['items'].get(k) or {kk: vv for kk, vv in o.items() if kk not in ('st', 'est', 'fs', 'ls')}
+            x = st['items'].get(k) or {kk: vv for kk, vv in o.items() if kk in KEEP}
             x.setdefault('firstSeen', o.get('fs') or a); x.setdefault('lastSeen', o.get('ls') or a)
             x['status'] = {'chk': 'chk', 'gone': 'gone'}.get(o.get('st'), 'up')
             x['zones'] = sorted(set(x.get('zones') or []) | {z})
@@ -275,6 +279,8 @@ def main(raw_p=None, out_p=None, day=None, state_p=None):
         try: state = json.load(open(state_p, encoding='utf-8'))
         except Exception: state = None
     if not isinstance(state, dict) or not isinstance(state.get('items'), dict): state = bootstrap_state(prev); print('경매 상태 새로 시작(이전 auction.json 구역 물건', len(state['items']), '건)')
+    ok_k = set(KEEP) | {'zones', 'docid', 'firstSeen', 'lastSeen', 'status'}
+    for k, o in list(state['items'].items()): state['items'][k] = {kk: vv for kk, vv in o.items() if kk in ok_k}   # 예전 상태의 원문(면적·비고) 지우기
     raw = json.load(open(raw_p, encoding='utf-8')) if os.path.exists(raw_p) else {'ok': False, 'err': 'no-raw', 'items': []}
     if 'data' in raw and 'dlt_srchResult' in (raw.get('data') or {}):   # 사이트 응답 원형(fixture): 법원마다 2주 전체를 다 받은 것으로
         its = raw['data']['dlt_srchResult']

@@ -964,6 +964,15 @@
           fold();
         }
       }
+      // PC 첫 화면: 지도 아래쪽이 창 밖이면 보이는 부분에 서울을 맞춰 두었다 → 스크롤해 지도가 더 보이면(사용자가 지도를 직접 옮기기 전까지) 보이는 칸에 다시 맞춘다(위에 몰리고 아래가 비지 않게)
+      { let auto = true, lastK = null, scT = 0;
+        map.on("movestart", (e) => { if (e && e.originalEvent) auto = false; });
+        addEventListener("scroll", () => {
+          if (!auto || !map || !ready || MQ_SHEET.matches || mapView !== "seoul" || gu || stnF) return;
+          clearTimeout(scT);
+          scT = setTimeout(() => { try { const cv = map.getCanvas().getBoundingClientRect(), k = Math.round(Math.max(0, cv.bottom - innerHeight) / 60); if (k === lastK) return; lastK = k; fitAff(true); } catch (er) {} }, 140);
+        }, { passive: true });
+      }
       map.on("error", (e) => {
         const m = String((e && e.error && e.error.message) || "");
         if (/openfreemap|Failed to fetch|NetworkError/.test(m) && !$("lmap").querySelector(".lm-err")) {

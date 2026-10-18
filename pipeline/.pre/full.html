@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" media="print" onload="this.media='all'" crossorigin>
-<link rel="stylesheet" href="/b/c.4ed6a54221.css">
+<link rel="stylesheet" href="/b/c.f53cfa75a4.css">
 
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"집핀","alternateName":["ZIPPIN","얼마면 재개발"],"url":"https://jaegaebal.alwaysquestions.kr/","inLanguage":"ko"},{"@type":"Organization","name":"집핀","url":"https://jaegaebal.alwaysquestions.kr/","sameAs":["https://blog.naver.com/always_questions","https://www.instagram.com/jaegaebal.ok/"]}]}</script>
 <meta property="og:title" content="집핀 · 내 돈으로 살 수 있는 서울 재개발 지도"><meta property="og:site_name" content="집핀">
@@ -39,7 +39,7 @@
 <link rel="icon" href="/icon-small.svg" type="image/svg+xml"><link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png"><link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
 <meta name="google-adsense-account" content="ca-pub-9772652926977648">
 <script>/* 광고 스크립트는 페이지가 다 뜨고 사용자가 처음 손댄 뒤, 한가할 때 불러온다 */(function(){var L=0,T=0,D=0,ev=["pointerdown","keydown","scroll","touchstart"];function go(){if(D||!L||!T)return;D=1;var f=function(){var s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";s.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648";document.head.appendChild(s)};window.requestIdleCallback?requestIdleCallback(f,{timeout:4000}):setTimeout(f,1500)}function on(){T=1;ev.forEach(function(e){removeEventListener(e,on,true)});go()}ev.forEach(function(e){addEventListener(e,on,{capture:true,passive:true})});addEventListener("load",function(){L=1;go()})})();</script>
-<link rel="preload" href="/b/d.b9c64e1ec8.js" as="script"><link rel="preload" href="/b/a.87588071b2.js" as="script">
+<link rel="preload" href="/b/d.596c2d076e.js" as="script"><link rel="preload" href="/b/a.bf0d201d2f.js" as="script">
 </head>
 <body>
 <a class="skip" href="#mapTop">본문 바로가기</a>
@@ -56,6 +56,7 @@
     <div class="hdr-r">
       <span class="asof" id="asof">실거래 10.16 신고분까지 · 10.18 갱신</span>
       <button type="button" class="icon-btn s-open" id="sOpen" aria-label="검색 열기"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+      <button type="button" id="huBell" class="hu-bell" aria-haspopup="dialog" aria-label="알림함"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg><b class="ib-n" id="bellN" hidden></b></button>
       <a class="hu-fav" href="#favTop" id="huFav" data-menu="favTop" aria-label="관심 구역"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6z"/><circle cx="12" cy="9.4" r="2.6"/></svg><span class="hu-l">관심 구역</span><b class="tb-n" id="favN" hidden></b></a>
       <a class="hu-txt" href="z/">구역별 페이지</a><a class="hu-txt" href="guide/">가이드·분석</a>
       <a class="hu-lead" href="report/">월간 리포트</a>
@@ -244,7 +245,7 @@
       <div class="s-ticks" aria-hidden="true"><span>0.5억</span><span>2</span><span>5</span><span>10</span><span>15</span></div>
       <div class="s-sum" id="sSum"></div>
     </div>
-    <div class="pc-save pc-ph" aria-hidden="true"></div>
+    <div class="pc-save pc-ph" aria-hidden="true"><div class="pc-al"><span class="pc-al-i"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg></span><span class="pc-al-t"><b>살 수 있는 곳 생기면 알려 드려요</b><small>새 구역·가격 하락·경매 물건 등장 시 알림</small></span><span class="pc-al-go">알림 받기</span></div></div>
     <div class="sec-h"><div><h2>지도</h2><p id="mapSub">색이 <span class="w-l">진할수록</span><span class="w-d">밝을수록</span> 내 현금으로 되는 구역이 많은 구예요. 구를 누르면 확대되고, 확대한 지도에서 구역을 누르면 리포트가 열립니다</p></div></div>
     <div class="main">
       <div class="panel mapcard">
@@ -309,6 +310,7 @@
           <label class="fsel"><span>자치구</span><select id="rGu"></select></label>
           <label class="fsel"><span>유형</span><select id="rKind"></select></label>
           <label class="fsel"><span>단계</span><select id="rStage"></select></label>
+          <label class="fsel"><span>정렬</span><select id="rSort"><option value="score">입지 점수 높은 순</option><option value="comp">입지·진척 점수 높은 순</option><option value="move">입주까지 현금 적은 순</option><option value="gain">입주 때 시세 차이 큰 순</option></select></label>
         </div>
         <div class="fchips inf" id="rInf" role="group" aria-label="생활 인프라 거르기"><button type="button" class="ichip" data-inf="e300" aria-pressed="false">초등학교 300m 안</button><button type="button" class="ichip" data-inf="mt1k" aria-pressed="false">대형마트 1km 안</button><button type="button" class="ichip" data-inf="hp2k" aria-pressed="false">대형병원 2km 안</button></div>
         <div class="fmeta"><span id="rankSub" aria-live="polite"></span><button type="button" class="btn text sm" id="rReset" hidden>필터 초기화</button></div>
@@ -388,12 +390,13 @@
     <p class="f-bot"><b>집핀</b><span id="footAsof">실거래 10.16 신고분까지 · 10.18 갱신</span><a href="https://blog.naver.com/always_questions" target="_blank" rel="noopener" data-nw="1">블로그<span class="sr-only"> (새 창)</span></a><a href="report/">월간 리포트</a><a href="years">몇 년 걸리나</a><a href="z/">구역별 페이지</a><a href="guide/">가이드·분석</a><a href="about">소개</a><a href="method">출처·계산 방법</a><a href="contact">문의하기</a><a href="terms">이용약관</a><a href="privacy" class="f-priv">개인정보처리방침</a><span>© 2026 집핀</span></p>
   </div>
 </footer>
+<nav class="s-nav" id="sNav" aria-label="주요 메뉴"><button type="button" data-nav="home" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>홈</span></button><button type="button" data-nav="map"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"/></svg><span>지도</span></button><button type="button" data-nav="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5"/></svg><span>검색</span></button><button type="button" data-nav="fav"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6zM12 12a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z"/></svg><span>관심 구역</span></button><button type="button" data-nav="more"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>더보기</span></button></nav>
 <dialog class="mbs" id="mbSheet" aria-labelledby="mbsT"><div class="mbs-in" id="mbsBody"></div></dialog>
 
-<script src="/b/d.b9c64e1ec8.js"></script>
+<script src="/b/d.596c2d076e.js"></script>
 <script type="application/json" id="monthlyData">{"ym":"2026-09","no":3,"url":"report/2026-09.html","items":[{"id":"o843","step":"추진위","date":"2026-09-07","src":"https://www.housingherald.co.kr/news/articleView.html?idxno=62971"},{"id":"o681","step":"사업시행","date":"2026-09-07","src":"https://www.arunews.com/news/articleView.html?idxno=67137"},{"id":"o681","step":"관리처분","date":"2026-09-07","src":""},{"id":"o940","step":"조합설립","date":"2026-09-11","src":"https://www.nnewss.com/news/articleView.html?idxno=6652"},{"id":"o658","step":"조합설립","date":"2026-09-14","src":"https://www.hankyung.com/article/2026091691531"},{"id":"o67","step":"조합설립","date":"2026-09-14","src":"https://www.jungnangnews.kr/news/articleView.html?idxno=11686"},{"id":"o235","step":"조합설립","date":"2026-09-15","src":"https://www.housingwatch.co.kr/news/article.html?no=27314"},{"id":"o643","step":"사업시행","date":"2026-09-16","src":"https://view.asiae.co.kr/article/2026091709374799042"},{"id":"o1159","step":"구역지정","date":"2026-09-18","src":""}]}</script>
 <script type="application/json" id="freeMode">{"prem": "premium.json?v=09a5105d", "preview": false}</script>
 <script type="application/json" id="adsCfg">{"adsense":{"client":"ca-pub-9772652926977648","slots":{"mid":"","bottom":"","page":""}}}</script>
-<script src="/b/a.87588071b2.js"></script>
+<script src="/b/a.bf0d201d2f.js"></script>
 </body>
 </html>

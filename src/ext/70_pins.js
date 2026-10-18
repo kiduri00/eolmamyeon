@@ -290,7 +290,7 @@ const PINS = (() => {
   const quiet = (f) => { QUIET++; try { return f(); } finally { QUIET--; } };
   function notify(id, on) {
     const nm = byId[id] ? shortName(byId[id].n) : "";
-    if (on) toast("핀 꽂음 · 소식이 생기면 알려 드려요", "실행 취소", () => { if (isFav(id)) quiet(() => toggleFav(id)); toast("핀 뺐어요", "", null, nm); }, `${nm} · 관심 구역 ${FAV.length}곳`);
+    if (on) toast("핀 꽂았어요", "실행 취소", () => { if (isFav(id)) quiet(() => toggleFav(id)); toast("핀 뺐어요", "", null, nm); }, `소식 생기면 알려 드려요 · ${nm}`);
     else toast("핀 뺐어요", "되돌리기", () => { if (!isFav(id) && room(id)) { quiet(() => toggleFav(id)); toast("다시 꽂았어요", "", null, nm); } }, nm);
   }
   function toast(msg, act, fn, sub) {
@@ -751,8 +751,8 @@ const PINS = (() => {
     const b = w.firstElementChild, sc = sameCond();
     if (!sc) {
       b.classList.remove("on");
-      b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>이 돈으로 살 수 있는 곳 생기면 알려 줘</b><small>새 구역·가격 하락·경매 물건 등장 시 알림</small></span><span class="pc-al-go">알림 받기</span>`;
-      b.setAttribute("aria-label", "이 돈으로 살 수 있는 곳 생기면 알려 줘 — 새 구역·가격 하락·경매 물건 등장 시 알림");
+      b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>살 수 있는 곳 생기면 알려 드려요</b><small>새 구역·가격 하락·경매 물건 등장 시 알림</small></span><span class="pc-al-go">알림 받기</span>`;
+      b.setAttribute("aria-label", "살 수 있는 곳 생기면 알려 드려요 — 새 구역·가격 하락·경매 물건 등장 시 알림");
       return;
     }
     const n = condNews(sc), sn = new Set(String(sc.seen || "").split("/")[0].split(",").filter(Boolean)), f = n.add.filter((id) => !sn.has(id)).length, N = f || n.add.length;

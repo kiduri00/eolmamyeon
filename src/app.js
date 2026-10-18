@@ -4120,7 +4120,7 @@
     p.innerHTML = `\n    <div class="locbox">\n      <div class="lb-top"><div class="lb-v"><b>${r.score}</b><span>/100 입지 점수</span></div><p class="lb-pos">${posTxt(Math.round(((scored.length - Math.max(1, rankAll)) / scored.length) * 100))} <small>위치 확인된 진행 중 ${fmt(scored.length)}곳 중 약 ${fmt(Math.max(1, rankAll))}위 · ${esc(r.g)} ${rankGu ? `${rankGu}위/${sameGu.length}곳` : ""}</small></p></div>\n      ${ptsBar(r, "pb-lg")}\n      <div class="lb-key">${locKeyHTML()}</div>\n      <table class="lb-t"><caption class="sr-only">입지 점수 항목별 점수</caption><thead><tr><th scope="col">항목</th><th scope="col" class="n">가중치</th><th scope="col" class="n">항목 점수</th><th scope="col" class="n">얻은 점수</th></tr></thead><tbody>\n        ${LOC_AX.map((a, i) => `<tr><th scope="row"><i class="${LOC_G[a.g]}"></i>${a.k}<small>${esc(a.why)}</small></th><td class="n">${Math.round(a.w * 100)}</td><td class="n">${r.ax[i] == null ? "–" : r.ax[i]}</td><td class="n"><b>${r.pts[i].toFixed(1)}</b></td></tr>`).join("")}\n      </tbody></table>\n      <p class="sc-why">가중치와 거리별 점수는 작성자 가정값이에요. 교통·일자리·생활 편의를 거리로만 본 값이라 학군 수준·병원 진료과·상권 질은 반영하지 않아요. 투자 등급이 아니에요.${r.comp != null && !r.dn ? ` 입지·진척 점수 ${r.comp} = 입지 ${r.compAx[0]}×50% + 사업 진척 ${r.compAx[1]}×30% + 추진력 ${r.compAx[2]}×20%.` : ""}</p>\n    </div>\n    <div class="sect infra"><h3>생활 인프라 <small>가장 가까운 곳 · 직선거리 기준 · 도보는 직선×1.3, 분당 67m 추정</small></h3>\n      ${inf ? `<ul class="iflist">${irow("e", "초등학교")}${irow("m", "중학교")}${irow("h", "고등학교")}${irow("hp", "대형병원")}${irow("mt", "대형마트")}</ul>\n      <p class="note">학교: OpenStreetMap 학교 이름 기준(배정 학교와 다를 수 있음) · 대형병원: 보건복지부 제5기 상급종합병원 서울 14곳 + OSM 병원 중 이름 규칙으로 고른 종합병원급(추정) · 대형마트: 영업 중 지점 목록(나무위키 지점 문서)과 OSM 좌표를 맞춘 이마트·홈플러스·롯데마트·코스트코·트레이더스 · ${INF.asOf.replaceAll("-", ".")} 기준 · © OpenStreetMap contributors (ODbL)</p>` : '<p class="note">대표 좌표가 없어 생활 인프라 거리를 계산하지 못했어요.</p>'}</div>\n    <dl class="facts">\n      <div><dt>가장 가까운 역</dt><dd>${(() => {
       const x = stnInfo(r);
       return x ? `${esc(x.n)}역 ${fmt(x.d)}m<small>도보 약 ${x.min}분 · 직선거리 기준</small>` : "–";
-    })()}</dd></div>\n      <div><dt>한강 중심선까지</dt><dd>${(r.h / 1e3).toFixed(2)}km</dd></div>\n      <div><dt>주변 호재 (1.5km)</dt><dd>${nearHojae(r).length}건<small>'호재·매물' 탭에서 목록</small></dd></div>\n      ${r.jg ? `<div><dt>주변 150m 대지 공시지가 가운데 값</dt><dd>㎡당 ${fmt(r.jg / 1e4)}만원<small>3.3㎡당 약 ${fmt((r.jg * 3.3058) / 1e4)}만원 · 진행 중 사업장 중 ${posTxt(jgPct(r.jg))}</small></dd></div>` : ""}\n    </dl>\n    <div class="sect"><h3>주변 역 <small>반경 1km 노선 ${r.ln.length ? r.ln.map(esc).join(", ") : "없음"}</small></h3>\n      <ul class="list">${r.s3.map(([n, d, l]) => `<li><span>${esc(n)} <small>${l.map(esc).join("·")}</small></span><span class="mono">${fmt(d)}m</span></li>`).join("")}</ul></div>\n    <div class="sect"><h3>업무지구까지 직선거리</h3>\n      <ul class="list">${Object.entries(
+    })()}</dd></div>\n      <div><dt>한강 중심선까지</dt><dd>${(r.h / 1e3).toFixed(2)}km</dd></div>\n      <div><dt>주변 호재 (1.5km)</dt><dd>${nearHojae(r).length}건<small>'${TABS.find((t) => t[0] === "near")?.[1] || "주변"}' 탭에서 목록</small></dd></div>\n      ${r.jg ? `<div><dt>주변 150m 대지 공시지가 가운데 값</dt><dd>㎡당 ${fmt(r.jg / 1e4)}만원<small>3.3㎡당 약 ${fmt((r.jg * 3.3058) / 1e4)}만원 · 진행 중 사업장 중 ${posTxt(jgPct(r.jg))}</small></dd></div>` : ""}\n    </dl>\n    <div class="sect"><h3>주변 역 <small>반경 1km 노선 ${r.ln.length ? r.ln.map(esc).join(", ") : "없음"}</small></h3>\n      <ul class="list">${r.s3.map(([n, d, l]) => `<li><span>${esc(n)} <small>${l.map(esc).join("·")}</small></span><span class="mono">${fmt(d)}m</span></li>`).join("")}</ul></div>\n    <div class="sect"><h3>업무지구까지 직선거리</h3>\n      <ul class="list">${Object.entries(
       r.hb,
     )
       .map(([k, v]) => `<li><span>${esc(k)}</span><span class="mono">${(v / 1e3).toFixed(1)}km</span></li>`)
@@ -4736,6 +4736,8 @@
   let sortKey = "score",
     sortDir = -1,
     rankReady = false;
+  const rankGain = (r) => { try { const x = investC(r); return x && x.ok && x.gain != null && isFinite(x.gain) ? x.gain : null; } catch (e) { return null; } };
+  $("rSort").addEventListener("change", (e) => { sortKey = e.target.value; sortDir = sortKey === "move" ? 1 : -1; drawRank(true); });
   function emptyState(o) {
     return `<div class="es" role="status"><span class="es-ic" aria-hidden="true">${o.icon || ICON.filter}</span><p class="es-t">${o.title}</p>${o.desc ? `<p class="es-d">${o.desc}</p>` : ""}${(o.acts || []).length ? `<div class="es-acts">${o.acts.map((a) => `<button type="button" class="btn ${a.primary ? "primary" : "secondary"}" ${a.attr}>${a.label}${a.n != null ? ` <b>${fmt(a.n)}곳</b>` : ""}</button>`).join("")}</div>` : ""}</div>`;
   }
@@ -4793,6 +4795,9 @@
         consent: (r) => (r.cs?.["조합설립"] || r.cs?.["추진위"])?.v ?? -1,
         units: (r) => r.sm?.units ?? -1,
         name: (r) => r.n,
+        // 정렬 고르기(#rSort): 입주까지 현금 적은 순(지금 사는 방식 · 계산 못 하면 맨 아래) · 입주 때 시세 차이 큰 순
+        move: (r) => ZF.cashToMoveIn(r, gapMode()) ?? 1e9,
+        gain: (r) => { const g = rankGain(r); return g == null ? -1e9 : g; },
       };
       list.sort((a, b) => {
         const x = val[sortKey](a),
@@ -4814,7 +4819,7 @@
         body = list
           .map((r, i) => {
             const c = r.cs?.["조합설립"] || r.cs?.["추진위"];
-            return `<tr data-id="${r.id}" tabindex="0" aria-label="${esc(r.n)} 리포트 열기"><td class="rn">${i + 1}</td><td class="nm"><b title="${esc(r.n)}">${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(r.j)} · ${esc(r.k)}</small></td><td class="stc">${stagePill(r)}</td><td class="sc">${ptsBar(r)}<span class="mlab">입지</span><b>${r.score}</b></td><td class="n cm">${r.comp != null ? `<span class="mlab">입지·진척</span><span class="gb sm" title="투자 등급 아님"><b>${r.comp}</b></span>` : dash("자료 없음")}</td><td class="n stn">${esc(r.st.n)} ${fmt(r.st.d)}m</td><td class="n xo inf">${(() => {
+            return `<tr data-id="${r.id}" tabindex="0" aria-label="${esc(r.n)} 리포트 열기"><td class="rn">${i + 1}</td><td class="nm"><b title="${esc(r.n)}">${esc(shortName(r.n))}</b><small>${esc(r.g)} ${esc(r.j)} · ${esc(r.k)}${sortKey === "move" ? ` · <span class="rk-v">${LBL.cashToMoveIn} ${ZF.cashToMoveIn(r, gapMode()) != null ? ZF.cash(ZF.cashToMoveIn(r, gapMode())) : "계산 못 함"}</span>` : sortKey === "gain" ? ` · <span class="rk-v">입주 때 시세 차이 ${rankGain(r) != null ? (rankGain(r) > 0 ? "+" : "") + ZF.cash(rankGain(r)) : "계산 못 함"}</span>` : ""}</small></td><td class="stc">${stagePill(r)}</td><td class="sc">${ptsBar(r)}<span class="mlab">입지</span><b>${r.score}</b></td><td class="n cm">${r.comp != null ? `<span class="mlab">입지·진척</span><span class="gb sm" title="투자 등급 아님"><b>${r.comp}</b></span>` : dash("자료 없음")}</td><td class="n stn">${esc(r.st.n)} ${fmt(r.st.d)}m</td><td class="n xo inf">${(() => {
               const i = infraOf(r);
               return i
                 ? `<span${i.e.d <= 300 ? ' class="ok"' : ""}>초 ${kmTxt(i.e.d)}</span><span${i.mt.d <= 1e3 ? ' class="ok"' : ""}>마트 ${kmTxt(i.mt.d)}</span>`
@@ -4861,6 +4866,7 @@
                 sortKey = b.dataset.k;
                 sortDir = ["stn", "han", "name"].includes(sortKey) ? 1 : -1;
               }
+              try { const so = $("rSort"); if (so) so.value = [...so.options].some((o) => o.value === sortKey) ? sortKey : ""; } catch (e) {}
               drawRank();
             }),
         );
@@ -5930,6 +5936,7 @@
   const JE = () => JE0 || (JE0 = new Set(R.map((r) => ((r.bj || r.j || "").split(" ")[0] || "").replace(/\d*동$/, "")).filter((d) => /제$/.test(d)).flatMap((d) => [d, d.slice(-2), d.slice(-3)])));
   function shortName0(n) {
     let s = n
+      .replace(/^\s*\d{1,3}\.\s+(?=\S)/, "")   // 정보몽땅 목록 번호 '43. 문래동1·2가' → '문래동1·2가'
       .replace(/^\s*\[[^\]]*\]\s*/, "")
       .replace(/\([^)]*\)/g, "")
       .replace(/^[^(]*\)\s*/, (m) => (/\(/.test(m) ? m : ""))
@@ -6106,7 +6113,7 @@
       const hs = nearHojae(r);
       if (!hs.length) return "";
       const h = hs[0];
-      return `<span class="iv-hj" title="1.5km 안 주변 호재 ${hs.length}건 · 리포트 '호재·매물' 탭"><i style="background:${h.h.c}" aria-hidden="true"></i>호재 ${hs.length} · ${esc(h.h.n.replace(/\s*\(.*\)$/, ""))} ${kmTxt(h.d)}</span>`;
+      return `<span class="iv-hj" title="1.5km 안 주변 호재 ${hs.length}건 · 리포트 '${(typeof TABS !== "undefined" && TABS.find((t) => t[0] === "near")?.[1]) || "주변"}' 탭"><i style="background:${h.h.c}" aria-hidden="true"></i>호재 ${hs.length} · ${esc(h.h.n.replace(/\s*\(.*\)$/, ""))} ${kmTxt(h.d)}</span>`;
     })()}</div>\n      ${facts}\n    </div>\n    <div class="iv-b">${heroHTML(x)}${budget}</div>\n    <div class="foot">${why}<button type="button" class="go" data-open="${r.id}">분석 보기 <span aria-hidden="true">→</span><span class="sr-only">: ${esc(shortName(r.n))}</span></button></div>\n  </article>`;
   }
   function baseList(over) {

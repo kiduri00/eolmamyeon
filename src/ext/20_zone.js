@@ -148,35 +148,41 @@
     const aucCourt = (c) => String(c || "").replace(/^서울(.+)지방법원$/, "서울$1지법");
     const aucUse = (u) => String(u || "").replace(/\s*,\s*/g, ", ");
     const aucLot = (o) => { const m = String(o.addr || "").match(/(산\s*)?\d+(?:-\d+)?$/); return m ? m[0].replace(/\s/g, "") : ""; };
-    const AUC_BADGE = { up: ["예정", "매각기일이 앞에 있는 진행 중 물건"], gone: ["목록에서 빠짐 · 확인 중", "법원 목록에서 이번에 안 보였어요 — 기일 변경·취하·정지일 수 있어요"], chk: ["기일 지남 · 확인 중", "매각기일이 지났고 다음 기일이 아직 안 보여요(보통 유찰 뒤 4~5주 뒤)"] };
-    const aucBadge = (s) => `<span class="auc-s ${s}" title="${AUC_BADGE[s][1]}">${AUC_BADGE[s][0]}</span>`;
+    const aucDd = (d) => { if (!d) return ""; const n = Math.round((Date.parse(d + "T00:00:00Z") - Date.parse(aucToday() + "T00:00:00Z")) / 864e5); return n > 0 ? `D-${n}` : n === 0 ? "D-day" : ""; };
+    const AUC_BADGE = { gone: ["목록에서 빠짐 · 확인 중", "법원 목록에서 이번에 안 보였어요 — 기일 변경·취하·정지일 수 있어요"], chk: ["기일 지남 · 확인 중", "매각기일이 지났고 다음 기일이 아직 안 보여요(보통 유찰 뒤 4~5주 뒤)"] };
+    const aucBadge = (s) => (AUC_BADGE[s] ? `<span class="auc-s ${s}" title="${AUC_BADGE[s][1]}">${AUC_BADGE[s][0]}</span>` : "");
+    const aucJibun = (o) => !!o.jb;   // 지분 매각(auction_match.py가 몫만 남김: '13분의2' · 몫 모름 '1')
+    const aucJb = (o) => { if (!o.jb) return ""; const f = o.jb !== "1" ? esc(o.jb) : ""; return `<span class="auc-f j" title="${f ? `지분 ${f}만 매각` : "지분만 매각"} — 낙찰받아도 전체 소유가 아니에요">지분${f ? ` ${f}` : ""}</span>`; };
     const aucFail = (o) => (o.fail == null ? "" : o.fail > 0 ? `<span class="auc-f n">유찰 ${o.fail}회</span>` : `<span class="auc-f">신건</span>`);
-    // 물건 한 건(inG: 사건 묶음 안이면 사건번호·법원 줄 대신 물건번호 줄)
-    function aucItem(o, inG) {
-      const s = aucSt(o);
-      const row = (k, v) => (v ? `<div><dt>${k}</dt><dd>${v}</dd></div>` : "");
-      const ls = o.ls ? String(o.ls).replaceAll("-", ".") : "";
-      const est = s === "chk" && o.est ? `<p class="auc-es">유찰됐다면 다음 최저가 약 ${aucEok(o.est)}(지금의 80%) <b>추정</b> · 매각됐으면 목록에서 빠져요</p>` : "";
-      const seen = s !== "up" && ls ? `<p class="auc-ls">마지막으로 확인한 정보 · ${ls}</p>` : "";
-      const lot = aucLot(o);
-      const dg = lot ? `<p class="auc-dg"><button type="button" class="auc-dgb" data-lot="${esc(lot)}">이 지번 입주권 나오는지 확인 →</button></p>` : "";
-      const head = inG
-        ? `<div class="auc-ih"><b>${o.no ? `물건 ${o.no}` : "물건"}</b><span class="auc-cs">${aucBadge(s)}${aucFail(o)}</span></div>`
-        : `<div class="auc-ih"><b class="mono">${esc(o.cs)}${o.no ? `<span class="auc-no">물건 ${o.no}</span>` : ""}</b><span class="auc-cs">${aucBadge(s)}${aucFail(o)}</span></div><div class="auc-ct">${esc(aucCourt(o.court))}${o.dept ? ` ${esc(o.dept)}` : ""}</div>`;
-      return `<li class="auc-i ${s}">${head}
-        <div class="auc-pr"><div><span>최저 입찰가</span><b>${aucWon(o.min)}</b>${o.rate != null ? `<em>감정가의 ${o.rate}%</em>` : ""}</div><div><span>감정가</span><b>${aucWon(o.appr)}</b></div><div><span>${s === "chk" ? "지난 매각기일" : "매각기일"}</span><b>${aucDay(o.date)}</b>${o.time ? `<em>${esc(o.time)}</em>` : ""}</div></div>
-        ${est}<dl class="auc-dl">${row("용도", esc(aucUse(o.use)))}${row("소재지", esc(o.addr || "") + (o.bld ? ` <span class="dim">${esc(o.bld)}</span>` : ""))}${row("면적", esc(o.area || ""))}${row("비고", esc(o.note || ""))}</dl>${seen}${dg}</li>`;
+    const aucSub = (o) => [aucUse(o.use), String(o.addr || "").replace(/^\S+구\s+/, "")].filter(Boolean).join(" · ");
+    // 물건 한 건: 사건번호(·물건번호) · 유찰 / 용도 · 지번 / 최저가(감정가 %) · 감정가 · 입찰기일(D-day)
+    function aucItem(o, k, inG) {
+      const s = aucSt(o), dd = s === "up" ? aucDd(o.date) : "";
+      const num = k ? `<span class="auc-k" aria-label="지도 번호 ${k}">${k}</span>` : "";
+      const title = inG ? `<b>물건 ${o.no || 1}</b>` : `<b class="mono">${esc(o.cs)}${o.no ? `<span class="auc-no">· 물건 ${o.no}</span>` : ""}</b>`;
+      return `<li class="auc-i ${s}"${!inG && k ? ` id="aucC-${k}"` : ""}><div class="auc-ih">${num}${title}<span class="auc-cs">${aucBadge(s)}${aucJb(o)}${aucFail(o)}</span></div>
+        <div class="auc-sub">${esc(aucSub(o))}</div>
+        <div class="auc-pr"><div class="auc-min"><span>최저가</span><b>${aucEok(o.min)}</b>${o.rate != null ? `<em>감정가의 ${o.rate}%</em>` : ""}</div><div><span>감정가</span><b>${aucEok(o.appr)}</b></div><div><span>${s === "chk" ? "지난 입찰기일" : "입찰기일"}</span><b>${o.date ? `${aucMd(o.date)}(${"일월화수목금토"[new Date(o.date + "T00:00:00+09:00").getDay()]})` : "–"}</b>${dd ? `<em class="auc-dd">${dd}</em>` : ""}</div></div></li>`;
     }
-    // 사건 하나에 물건이 여럿이면 접는 카드 하나로
-    function aucCase(g) {
-      if (g.length === 1) return aucItem(g[0], false);
+    // 묶음 안 물건 한 줄: 물건 N · 용도·지번 · 최저가(감정가 %) · 유찰/지분 · 기일이 다르면 기일
+    function aucRow(o, d0) {
+      const s = aucSt(o), dd = o.date && o.date !== d0 ? ` · ${s === "chk" ? "지난 기일 " : "입찰 "}${aucMd(o.date)}` : "";
+      return `<li class="auc-r ${s}"><div class="auc-rt"><b>물건 ${o.no || 1}</b><span>${esc(aucSub(o))}${dd}</span></div><div class="auc-rv"><b>${aucEok(o.min)}</b>${o.rate != null ? `<em>${o.rate}%</em>` : ""}</div><div class="auc-rc">${aucBadge(s)}${aucJb(o)}${o.fail > 0 ? aucFail(o) : ""}</div></li>`;
+    }
+    // 사건 하나에 물건이 여럿이면 접는 카드 하나로("물건 N개 · 최저 X~Y")
+    function aucCase(g, k) {
+      if (g.length === 1) return aucItem(g[0], k, false);
       const o = g[0], s = aucSt(o), mins = g.map((x) => x.min).filter((v) => v > 0);
       const lo = mins.length ? Math.min(...mins) : null, hi = mins.length ? Math.max(...mins) : null;
       const rng = lo == null ? "" : lo === hi ? ` · 최저 ${aucEok(lo)}` : ` · 최저 ${aucEok(lo)}~${aucEok(hi)}`;
-      const ds = [...new Set(g.filter((x) => aucSt(x) !== "chk").map((x) => x.date).filter(Boolean))].sort();
-      const when = ds.length ? ` · 입찰 ${ds.slice(0, 2).map(aucMd).join("·")}${ds.length > 2 ? " 외" : ""}` : o.date ? ` · 지난 기일 ${aucMd(o.date)}` : "";
-      return `<li class="auc-g ${s}"><details><summary><div class="auc-ih"><b class="mono">${esc(o.cs)}</b><span class="auc-cs">${aucBadge(s)}</span></div><div class="auc-gs">물건 ${g.length}개${rng}${when}</div><div class="auc-ct">${esc(aucCourt(o.court))}${o.dept ? ` ${esc(o.dept)}` : ""} · ${esc(new Set(g.map((x) => aucUse(x.use))).size === 1 ? aucUse(o.use) || "부동산" : `${aucUse(o.use) || "부동산"} 외`)}</div></summary>
-        <ul class="auc-l in">${g.map((x) => aucItem(x, true)).join("")}</ul></details></li>`;
+      const ds = [...new Set(g.filter((x) => aucSt(x) === "up").map((x) => x.date).filter(Boolean))].sort();
+      const when = ds.length ? `입찰 ${aucMd(ds[0])}${ds.length > 1 ? " 외" : ""} <em class="auc-dd">${aucDd(ds[0])}</em>` : o.date ? `지난 입찰기일 ${aucMd(o.date)}` : "";
+      const fails = [...new Set(g.map((x) => x.fail).filter((v) => v != null))];
+      const fl = (g.some(aucJibun) ? aucJb(g.find(aucJibun)) : "") + (fails.length === 1 ? aucFail(o) : "");
+      const uses = new Set(g.map((x) => aucUse(x.use)));
+      return `<li class="auc-g ${s}" id="aucC-${k}"><details><summary><div class="auc-ih"><span class="auc-k" aria-label="지도 번호 ${k}">${k}</span><b class="mono">${esc(o.cs)}</b><span class="auc-cs">${aucBadge(s)}${fl}</span></div>
+        <div class="auc-gs">물건 ${g.length}개${rng}</div><div class="auc-sub">${esc(uses.size === 1 ? aucUse(o.use) || "부동산" : `${aucUse(o.use) || "부동산"} 외`)}${when ? ` · ${when}` : ""}</div></summary>
+        <ul class="auc-rl">${g.map((x) => aucRow(x, ds[0])).join("")}</ul></details></li>`;
     }
     function aucBody(r) {
       const asOf = AUC && AUC.asOf ? String(AUC.asOf).replaceAll("-", ".") : "";
@@ -184,37 +190,105 @@
       if (!AUC.ok || (AUC.miss || []).includes(r.g)) return `<p class="auc-st na">경매 물건 정보를 아직 못 가져왔어요${asOf && AUC.ok ? ` (기준 ${asOf})` : ""}</p>`;
       const xs = aucOf(r), up = xs.filter((o) => aucSt(o) === "up").length;
       if (!xs.length) return `<p class="auc-st">지금 이 구역 안에 진행 중인 경매 물건이 없어요 (기준 ${asOf})</p>`;
-      const none = up ? "" : `<p class="auc-st">매각기일이 잡힌 물건은 지금 없어요 — 아래는 기일이 지났거나 목록에서 빠져 다음 기일을 확인 중인 물건이에요</p>`;
-      return `${none}<ul class="auc-l">${aucGroups(xs).map(aucCase).join("")}</ul><p class="auc-src">법원경매정보 기준(${asOf}) · 2주 안 기일은 매일 갱신, 그 밖은 마지막으로 확인한 정보 · 구역 경계 안 필지와 지번이 맞는 물건</p>`;
+      const none = up ? "" : `<p class="auc-st">입찰기일이 잡힌 물건은 지금 없어요 — 아래는 기일이 지나 다음 기일을 확인 중인 물건이에요</p>`;
+      return `${none}<ul class="auc-l">${aucGroups(xs).map((g, i) => aucCase(g, i + 1)).join("")}</ul><p class="auc-src">법원경매정보 기준(${asOf}) · 2주 안 기일은 매일 갱신, 그 밖은 마지막으로 확인한 정보 · 번호 = 지도의 경매 표시</p>`;
     }
     function auctionHTML(r) {
       loadAuc();
-      const asOf = AUC && AUC.asOf ? ` · ${String(AUC.asOf).replaceAll("-", ".")} 기준` : "";
       const xs = aucOf(r), n = xs.filter((o) => aucSt(o) === "up").length, m = xs.length - n;
-      return `<div class="sect auc" id="aucSec" data-id="${esc(r.id)}"><h3>경매 물건 ${n ? `<span class="auc-n">예정 ${n}건</span>` : ""}${m ? `<span class="auc-n c">확인 중 ${m}건</span>` : ""}<small>법원경매정보 · 구역 경계 안 필지${asOf}</small></h3>
+      return `<div class="sect auc" id="aucSec" data-id="${esc(r.id)}"><h3>경매 물건 ${n ? `<span class="auc-n">예정 ${n}건</span>` : ""}${m ? `<span class="auc-n c">확인 중 ${m}건</span>` : ""}<small>구역 경계 안 필지</small></h3>
         <div class="auc-b" aria-live="polite">${aucBody(r)}</div>
         <p class="auc-nt">경매로 사도 권리산정기준일·조합원 지위 양도 제한은 똑같이 적용되고, 현금청산 대상이면 입주권이 없어요.</p></div>`;
     }
-    // '이 지번 입주권 나오는지 확인' → 요건 탭의 '매물 지번으로 확인'에 지번을 넣고 바로 확인(경계 판정이 안 되는 구역은 매물진단 도구로)
-    function aucDiag(r, lot) {
-      const run = () => { const i = $("acIn"), f = $("acForm"); if (!i || !f) return false; i.value = lot; f.requestSubmit ? f.requestSubmit() : f.dispatchEvent(new Event("submit", { cancelable: true })); const sec = f.closest(".sect"); if (sec) sec.scrollIntoView({ behavior: smooth(), block: "start" }); return true; };
-      if (r.pcl && r.src !== "moa" && $("tab-req")) { setTab("req"); requestAnimationFrame(() => { if (!run()) setTimeout(run, 120); }); }
-      else location.hash = "#diagTop";
-    }
     function bindAuction() {
       const s = $("aucSec");
-      if (!s) return;
-      const r0 = byId[s.dataset.id];
-      s.onclick = (e) => { const b = e.target.closest(".auc-dgb"); if (b && r0) aucDiag(r0, b.dataset.lot); };
-      if (AUC) return;
-      loadAuc().then(() => { const s2 = $("aucSec"), r = byId[s2 && s2.dataset.id]; if (s2 && r) { s2.outerHTML = auctionHTML(r); bindAuction(); } });
+      if (!s || AUC) return;
+      loadAuc().then(() => { const s2 = $("aucSec"), r = byId[s2 && s2.dataset.id]; if (s2 && r) s2.outerHTML = auctionHTML(r); aucMapSync(); });
     }
+    // 카드로 가기(지도 표시·칩): 거래 탭으로 바꾸고 그 카드(번호 k, 없으면 블록)로. 묶음 카드는 펼친다
+    function aucGo(k) {
+      let tries = 0;
+      const go = () => {
+        const c = k ? $("aucC-" + k) : null, s = c || $("aucSec");
+        if (!s) { if (tries++ < 25) setTimeout(go, 100); return; }
+        const d = c && c.querySelector("details"); if (d) d.open = true;
+        s.scrollIntoView({ behavior: smooth(), block: "start" });
+        if (c) { c.classList.add("auc-hl"); setTimeout(() => c.classList.remove("auc-hl"), 1600); }
+      };
+      if (curTab !== "tx" && $("tab-tx")) { setTab("tx"); requestAnimationFrame(go); } else go();
+    }
+    // ---------- 지도에 경매 물건 표시(10_lmap 지도에 소스·레이어만 얹는다: 고른 구역은 번호 점, 줌 14부터는 다른 구역도 작은 점) ----------
+    const AUCL = ["auc-o", "auc-s", "auc-sn"];
+    const aucDark = () => { const t = document.documentElement.dataset.theme; return t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches); };
+    function aucFeatures() {
+      const F = new Map(), sel = cur && cur.id;
+      if (!AUC || !AUC.ok || !AUC.byZone) return [];
+      const num = {};
+      if (sel && byId[sel]) aucGroups(aucOf(byId[sel])).forEach((g, i) => g.forEach((o) => (num[`${o.cs}#${o.no || 1}`] = i + 1)));
+      for (const [z, v] of Object.entries(AUC.byZone)) {
+        if ((AUC.miss || []).includes((byId[z] || {}).g)) continue;
+        for (const o of v) {
+          if (!o.ll) continue;
+          const key = `${o.cs}#${o.no || 1}`, f = F.get(key);
+          if (f) { f.properties.zs += z + "|"; if (z === sel) Object.assign(f.properties, { sel: 1, n: num[key] || 0 }); continue; }
+          F.set(key, { type: "Feature", geometry: { type: "Point", coordinates: o.ll }, properties: { zs: `|${z}|`, z, sel: z === sel ? 1 : 0, n: z === sel ? num[key] || 0 : 0, c: aucSt(o) === "up" ? 1 : 0 } });
+        }
+      }
+      // 같은 사건·같은 자리는 점 하나만(번호 하나)
+      const seen = new Set(), out = [];
+      for (const f of F.values()) { const k = `${f.geometry.coordinates.join(",")}#${f.properties.n}#${f.properties.sel}`; if (seen.has(k)) continue; seen.add(k); out.push(f); }
+      return out;
+    }
+    let aucMapB = null;
+    function aucMapLayers(map) {
+      if (!map.isStyleLoaded || !map.getStyle()) return;
+      const dk = aucDark(), C = dk ? "#FF8A4C" : "#E8590C", W = dk ? "#11161D" : "#ffffff";
+      if (!map.getSource("auc")) map.addSource("auc", { type: "geojson", data: { type: "FeatureCollection", features: aucFeatures() } });
+      const L = (o) => { if (!map.getLayer(o.id)) map.addLayer(o); };
+      L({ id: "auc-o", type: "circle", source: "auc", minzoom: 14, filter: ["!=", ["get", "sel"], 1], paint: { "circle-radius": 4.5, "circle-color": C, "circle-stroke-color": W, "circle-stroke-width": 1.5, "circle-opacity": ["case", ["==", ["get", "c"], 1], 0.95, 0.45], "circle-stroke-opacity": ["case", ["==", ["get", "c"], 1], 1, 0.5] } });
+      L({ id: "auc-s", type: "circle", source: "auc", filter: ["==", ["get", "sel"], 1], paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 6, 15, 9], "circle-color": C, "circle-stroke-color": W, "circle-stroke-width": 2, "circle-opacity": ["case", ["==", ["get", "c"], 1], 1, 0.55] } });
+      L({ id: "auc-sn", type: "symbol", source: "auc", filter: ["all", ["==", ["get", "sel"], 1], [">", ["get", "n"], 0]], layout: { "text-field": ["to-string", ["get", "n"]], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 11], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#ffffff" } });
+      for (const id of AUCL) if (map.getLayer(id)) try { map.moveLayer(id); } catch (e) {}
+      try { map.setPaintProperty("auc-o", "circle-color", C); map.setPaintProperty("auc-s", "circle-color", C); map.setPaintProperty("auc-o", "circle-stroke-color", W); map.setPaintProperty("auc-s", "circle-stroke-color", W); } catch (e) {}
+    }
+    function aucLegend(map) {
+      const on = map && !$("lmap").hidden && AUC && AUC.ok && (map.getZoom() >= 14 || (cur && aucOf(cur).some((o) => o.ll)));
+      let el = $("lmAucLg");
+      const host = ($("mapbox") && $("mapbox").querySelector(".s-rail-w")) || $("lmap");
+      if (!el && on && host) { el = document.createElement("p"); el.id = "lmAucLg"; el.className = "lm-auc-lg"; el.innerHTML = `<i aria-hidden="true"></i>경매 물건`; }
+      if (el && host && el.parentNode !== host) host.appendChild(el);
+      if (el) el.hidden = !on;
+    }
+    function aucMapSync() {
+      const L = window.__lmx, map = L && L.map && L.map();
+      if (!map) return;
+      if (aucMapB !== map) {
+        aucMapB = map;
+        const re = () => { try { aucMapLayers(map); aucLegend(map); } catch (e) {} };
+        map.on("styledata", () => { if (!map.getLayer("auc-s")) re(); });
+        map.on("zoomend", () => aucLegend(map));
+        // 표시를 누르면: 그 구역 리포트의 그 카드로(지도 구역 클릭이 먼저 구역을 고른다)
+        const hit = (e) => {
+          const f = e.features && e.features[0]; if (!f) return;
+          const zs = String(f.properties.zs || "").split("|").filter(Boolean), z = cur && zs.includes(cur.id) ? cur.id : zs[0];
+          setTimeout(() => {
+            if (!cur || cur.id !== z) { curTab = "tx"; select(z, false, false, { scroll: !MQ_SHEET.matches }); }
+            setTimeout(() => { const ff = aucFeatures().find((x) => x.properties.sel && String(x.geometry.coordinates) === String(f.geometry.coordinates)); aucGo(ff ? ff.properties.n : 0); }, 120);
+          }, 60);
+        };
+        ["auc-s", "auc-o"].forEach((l) => { map.on("click", l, hit); map.on("mouseenter", l, () => (map.getCanvas().style.cursor = "pointer")); map.on("mouseleave", l, () => (map.getCanvas().style.cursor = "")); });
+      }
+      loadAuc().then(() => { try { aucMapLayers(map); const s = map.getSource("auc"); if (s) s.setData({ type: "FeatureCollection", features: aucFeatures() }); aucLegend(map); } catch (e) {} });
+    }
+    // 지도가 늦게 생기므로: 리포트를 그릴 때·처음 몇 초 동안 붙여 본다
+    { let n = 0; const t = setInterval(() => { const L = window.__lmx; if ((L && L.map && L.map()) || ++n > 60) { clearInterval(t); aucMapSync(); } }, 1000); }
     // 리포트 머리에 '경매 N건' 칩(예정 물건이 있을 때만) → 누르면 거래 탭의 경매 물건 블록으로
     try {
       const _rrA = renderReport;
       renderReport = function () {
         const x = _rrA.apply(this, arguments);
         const r0 = cur;
+        try { aucMapSync(); } catch (e) {}
         loadAuc().then(() => {
           if (cur !== r0 || !r0) return;
           const h = document.querySelector("#report .rep-head");
@@ -224,11 +298,7 @@
           const w = h.querySelector(".where");
           const b = `<button type="button" class="auc-chip" title="이 구역 안 매각기일이 잡힌 법원경매 물건 ${n}건 보기">경매 ${n}건</button>`;
           if (w) w.insertAdjacentHTML("beforeend", b); else h.insertAdjacentHTML("beforeend", `<div class="auc-cw">${b}</div>`);
-          h.querySelector(".auc-chip").onclick = () => {
-            const go = () => { const s = $("aucSec"); if (s) s.scrollIntoView({ behavior: smooth(), block: "start" }); else if (tries++ < 20) setTimeout(go, 100); };
-            let tries = 0;
-            if (curTab !== "tx" && $("tab-tx")) { setTab("tx"); requestAnimationFrame(go); } else go();
-          };
+          h.querySelector(".auc-chip").onclick = () => aucGo(0);
         });
         return x;
       };

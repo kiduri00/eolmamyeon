@@ -93,13 +93,23 @@ def trade_text(rows, hi):
     t = f"새 실거래 {len(rows)}건 · {ty} {lab}{area:g}㎡ {won(x[5])}({dd} 계약)"
     return t + (' · 신고가' if hi else '')
 
+RES_RE = re.compile(r'아파트|다세대|연립|빌라|단독|다가구|주택|오피스텔|도시형')
+def auc_head(items):
+    """대표 물건: 주거용(다세대·아파트 등) 가운데 최저가가 가장 낮은 것 → 없으면 전체에서"""
+    res = [y for y in items if RES_RE.search(str(y.get('use') or ''))] or items
+    return min(res, key=lambda y: (y.get('min') if isinstance(y.get('min'), (int, float)) and y['min'] > 0 else 9e18, str(y.get('date') or '9')))
+auc_jibun = lambda y: bool(y.get('jb'))   # 지분 매각(auction_match.py)
 def auc_text(items):
-    x = min(items, key=lambda y: (str(y.get('date') or '9'), y.get('min') or 0))
+    x = auc_head(items)
     mn = x.get('min'); d = str(x.get('date') or '')
-    t = f"경매 물건 등장{f' {len(items)}건' if len(items) > 1 else ''} · {x.get('use') or '부동산'}"
+    use = re.sub(r'\s*,\s*', ', ', str(x.get('use') or '부동산'))
+    t = f"경매 물건 등장{f' {len(items)}건' if len(items) > 1 else ''} · {use}{' 지분' if auc_jibun(x) else ''}"
     if isinstance(mn, (int, float)) and mn > 0: t += f" 최저 {won(mn / 1e4)}"
     if re.match(r'\d{4}-\d\d-\d\d', d): t += f" · 입찰 {int(d[5:7])}.{int(d[8:10])}"
     return t
+def auc_mn(items):   # 알림 조건(현금) 비교용: 대표 물건 최저가(억)
+    v = auc_head(items).get('min')
+    return round(v / 1e8, 2) if isinstance(v, (int, float)) and v > 0 else None
 
 def diff(prev, cur, date):
     out = []
@@ -127,8 +137,7 @@ def diff(prev, cur, date):
             old_cs = {k.split('#')[0] for k in old_a}
             na = [x for x in auc_items(i) if auc_new(x) and akey(x) not in old_a and x.get('cs') not in old_cs]
             if na:
-                mn = min((x.get('min') for x in na if isinstance(x.get('min'), (int, float))), default=None)
-                out.append(ev(i, date, 'auction', auc_text(na), cnt=len(na), mn=round(mn / 1e8, 2) if mn else None))
+                out.append(ev(i, date, 'auction', auc_text(na), cnt=len(na), mn=auc_mn(na)))
         # 필요한 돈(기본 가정): 0.1억 이상이면서 3% 이상 바뀐 방식만
         if r.get('dn'): continue
         v = {}
@@ -157,8 +166,7 @@ def bootstrap(cur):
             out.append(ev(i, date, 'trade', trade_text(rs, h), hi=1 if h else None, cnt=len(rs)))
         na = [x for x in auc_items(i) if not x.get('st') and str(x.get('date') or '9') >= TODAY]
         if na:
-            mn = min((x.get('min') for x in na if isinstance(x.get('min'), (int, float))), default=None)
-            out.append(ev(i, TODAY, 'auction', auc_text(na), cnt=len(na), mn=round(mn / 1e8, 2) if mn else None))
+            out.append(ev(i, TODAY, 'auction', auc_text(na), cnt=len(na), mn=auc_mn(na)))
     return out
 
 def notices():

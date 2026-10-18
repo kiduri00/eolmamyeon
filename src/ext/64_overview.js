@@ -264,7 +264,12 @@ const OVX = (() => {
     if (t.hd && t.hd.u) return hdHTML(t.hd, t, r, d);
     const S = txRows(d, null);
     const has = t.pp || t.med || t.am || t.im;
-    if (!has) return `<div class="ov-c ov-tx"><h3>실거래</h3><p class="ov-none">최근 구역 안 거래 없음</p>${t.nb ? nearHTML(t.nb) : ""}</div>`;
+    if (!has) {
+      // 구역 안 거래가 없어도 계산 매수가 표본(주변 300m 빌라 등)이 있으면 그 표본 하나로 말한다 — '같은 동 빌라 1년 38건'을 따로 띄우면 매수가·신뢰 상자와 표본이 갈린다(o776)
+      const H0 = ZF.headline(r, null);
+      if (H0 && H0.kind === "p") { const th = thinTag(H0.n, H0.to); return `<div class="ov-c ov-tx${th ? " thin" : ""}"><h3>실거래</h3><div class="ov-big"><span>${H0.label}</span><b>${ZF.manT(H0.v / 1e4)}</b>${th ? `<em class="ov-thin">${th}</em>` : ""}</div><p class="ov-basis">기준 · ${esc(H0.basis)}</p>${calcRow(r, false, H0.v)}<p class="ov-none">구역 안 최근 거래 없음</p><button type="button" class="ov-more" data-tab="tx">거래 전체 보기 →</button></div>`; }
+      return `<div class="ov-c ov-tx"><h3>실거래</h3><p class="ov-none">최근 구역 안 거래 없음</p>${t.nb ? nearHTML(t.nb) : ""}</div>`;
+    }
     const yoy = r.tx && r.tx.yoy != null ? `<em class="${r.tx.yoy >= 0 ? "up" : "dn"}">1년 ${r.tx.yoy >= 0 ? "▲" : "▼"} ${Math.abs(r.tx.yoy)}%</em>` : "";
     const last = S[0] ? ym(S[0][0]) : "";
     const A = !!t.am && (/재건축/.test(r.k) || (!t.pp && !t.med));   // 재건축은 아파트 값이 기준
@@ -333,7 +338,7 @@ const OVX = (() => {
     locWhy(head, w, r);
     // 공식 이름(/z/ 페이지 제목과 같은 규칙 · tools/zpages.py short)이 화면 이름과 다르면 한 줄
     try {
-      let fn = String(r.n || "").replace(/^\s*(\(가칭\)|\[임시\]|\(임시\))\s*/, "").replace(/\s*(\(가칭\)|\[임시\]|\(임시\))\s*$/, "").replace(/\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?(사업)?\s*(조합|추진위원회|조합설립추진위원회|주민대표회의)?\s*$/, "").trim();
+      let fn = String(r.n || "").replace(/^\s*\d{1,3}\.\s+(?=\S)/, "").replace(/^\s*(\(가칭\)|\[임시\]|\(임시\))\s*/, "").replace(/\s*(\(가칭\)|\[임시\]|\(임시\))\s*$/, "").replace(/\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)?\s*(정비)?(사업)?\s*(조합|추진위원회|조합설립추진위원회|주민대표회의)?\s*$/, "").trim();
       for (let i = 0; i < 3; i++) fn = fn.replace(/\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)\s*(정비)?(사업|구역)?\s*$/, "").trim();   // '도시정비형 재개발사업' 같은 겹친 꼬리(tools/zpages.py short와 같은 규칙)
       const h2 = head.querySelector("#repTitle");
       const f0 = fn.replace(/\s/g, ""), s0 = shortName(r.n).replace(/\s/g, "");

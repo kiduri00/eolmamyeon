@@ -9144,13 +9144,16 @@ body {
   min-width: 0;
 }
 .cm-n {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: 16px;
   line-height: 21px;
   color: var(--text-1);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 .cm-top small {
   display: block;
@@ -13393,4 +13396,14 @@ html.free .sb-lk {
 }
 .ist .ist-t[hidden] {
   display: none;
+}
+/* 입주 계산 답 카드 ①②③: 폰에서 세 칸이 좁아 ③ 머리가 두 줄·②가 좁고 긴 글 덩어리가 되던 것 → 한 줄씩 쌓고(이름 | 금액, 아래 설명) 화살표는 아래로 */
+@media (max-width: 560px) {
+  .ptl { grid-template-columns: 1fr; gap: 8px; }
+  .pt { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "k v" "s s"; align-items: center; column-gap: 10px; row-gap: 3px; padding: 10px 12px; }
+  .pt-k { grid-area: k; font-size: 12.5px; white-space: nowrap; }
+  .pt-v { grid-area: v; text-align: right; font-size: 18px; line-height: 24px; white-space: nowrap; }
+  .pt.z .pt-v { font-size: 15px; }
+  .pt small { grid-area: s; font-size: 11.5px; line-height: 16px; text-wrap: pretty; }
+  .pt:not(:last-child)::after { right: auto; left: 22px; top: auto; bottom: -6px; transform: rotate(135deg); }
 }
