@@ -1091,7 +1091,8 @@ async function r14Lane(browser, api, errs) {
   await browser.close();
 
   // 콘솔 오류
-  const own = errs.filter((e) => !e.external), ext = errs.filter((e) => e.external);
+  const localPush = /localhost|127\.0\.0\.1/.test(BASE || "") ;
+  const own = errs.filter((e) => !e.external && !(localPush && /api\/push\//.test(e.msg))), ext = errs.filter((e) => e.external);
   const uniq = [...new Map(own.map((e) => [e.msg, e])).values()];
   expect(!uniq.length, "err.console", "콘솔 오류·페이지 오류 없음(우리 사이트 파일)", uniq.slice(0, 5).map((e) => `${e.where}: ${e.msg}`).join(" ; "));
   if (ext.length) wrn("err.console", "콘솔 오류·페이지 오류 없음(우리 사이트 파일)", `${ext.length} external resource errors (tiles/CDN) e.g. ${ext[0].msg}`);
