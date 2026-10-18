@@ -474,7 +474,7 @@ async function countsLane(browser, api, errs, shared) {
     const listMap = new Map();
     const misN = [], misT = [];
     for (const r of rowsG) {
-      const m1 = /([\d.,]+억|[\d,]+만|0원)/.exec(r.amt), m2 = /입주까지 현금\s*([\d.,]+억|[\d,]+만|0원)/.exec(r.amt);
+      const m1 = /([\d.,]+억|[\d,]+만|0원)/.exec(r.amt), m2 = /입주까지\s*(?:현금)?\s*([\d.,]+억|[\d,]+만|0원)/.exec(r.amt);
       const now = m1 && money(m1[1]), tot = m2 && money(m2[1]);
       listMap.set(r.id, { now, tot, raw: r.amt });
       const a = apiById.get(r.id); if (!a) continue;
@@ -486,13 +486,13 @@ async function countsLane(browser, api, errs, shared) {
     expect(!misN.length, "list.api", "15억 전세 끼고 목록 각 줄 '지금'·'입주까지 현금' == /api/v1/zones.json", `지금: ${misN.slice(0, 4).join(" ; ")}${misN.length > 4 ? ` … +${misN.length - 4}` : ""}`);
     expect(!misT.length, "list.api", "15억 전세 끼고 목록 각 줄 '지금'·'입주까지 현금' == /api/v1/zones.json", `입주까지: ${misT.slice(0, 4).join(" ; ")}${misT.length > 4 ? ` … +${misT.length - 4}` : ""}`);
     // 입주 계산 불가 줄은 아래로
-    { const firstNA = rowsG.findIndex((r) => !/입주까지 현금/.test(r.amt)), lastOK = rowsG.map((r) => /입주까지 현금/.test(r.amt)).lastIndexOf(true);
+    { const firstNA = rowsG.findIndex((r) => !/입주까지/.test(r.amt)), lastOK = rowsG.map((r) => /입주까지/.test(r.amt)).lastIndexOf(true);
       expect(firstNA < 0 || firstNA > lastOK, "list.order", "'입주 계산 불가' 줄은 계산되는 줄보다 아래", `first n/a row #${firstNA} (${rowsG[firstNA] && rowsG[firstNA].name}) above calculable row #${lastOK}`); }
     // 맞춤순(기본 정렬): 지금 필요한 돈이 내 현금(15억)에 가까운 줄부터 — |현금 − 금액| 오름차순(표시 반올림 허용), 계산 불가 줄은 아래(list.order)
     {
       const sk = await page.evaluate(() => { try { return localStorage.getItem("emr.sort") || "fit"; } catch (e) { return "fit"; } });
       if (sk === "fit") {
-        const ok = rowsG.filter((r) => /입주까지 현금/.test(r.amt)).map((r) => ({ r, m: money((/([\d.,]+억|[\d,]+만|0원)/.exec(r.amt) || [])[1]) })).filter((x) => x.m);
+        const ok = rowsG.filter((r) => /입주까지/.test(r.amt)).map((r) => ({ r, m: money((/([\d.,]+억|[\d,]+만|0원)/.exec(r.amt) || [])[1]) })).filter((x) => x.m);
         let at = -1; for (let i = 1; i < ok.length; i++) { const a = Math.abs(15 - ok[i - 1].m.v), b = Math.abs(15 - ok[i].m.v); if (b + ok[i].m.tol + ok[i - 1].m.tol + 1e-6 < a) { at = i; break; } }
         expect(ok.length > 5 && at < 0, "list.fitSort", "맞춤순: 내 현금에 가까운 금액부터(|현금−금액| 오름차순 · 계산 불가는 아래)", at < 0 ? `only ${ok.length} rows` : `15억: row ${at - 1} ${ok[at - 1].r.name} ${ok[at - 1].r.amt.split("\n")[0]} before row ${at} ${ok[at].r.name} ${ok[at].r.amt.split("\n")[0]}`);
       } else skip("list.fitSort", "맞춤순: 내 현금에 가까운 금액부터(|현금−금액| 오름차순 · 계산 불가는 아래)", `stored sort ${sk}`);
@@ -541,7 +541,7 @@ async function countsLane(browser, api, errs, shared) {
         expect(Math.max(0, acc) === total, "why.sum", "'왜 이 금액?' 줄을 만원으로 더하면 합계와 같음 · 목록 숫자와 같음", `${where}: ${r.lines.map((l) => `${l.op}${l.v}`).join(" ")} → 계산 ${acc}만 ≠ 합계 ${total}만`);
         const lm = /([\d.,]+억|[\d,]+만|0원)/.exec(r.amt), lv = lm && money(lm[1]);
         expect(lv && Math.abs(lv.v - total / 1e4) <= lv.tol + 1e-4, "why.sum", "'왜 이 금액?' 줄을 만원으로 더하면 합계와 같음 · 목록 숫자와 같음", `${where}: list ${lm && lm[1]} vs why 합계 ${total}만`);
-        const t1 = /입주까지 현금\s*([\d.,]+억|[\d,]+만|0원)/.exec(r.tail), t2 = /입주까지 현금\s*([\d.,]+억|[\d,]+만|0원)/.exec(r.amt);
+        const t1 = /입주까지 현금\s*([\d.,]+억|[\d,]+만|0원)/.exec(r.tail), t2 = /입주까지\s*(?:현금)?\s*([\d.,]+억|[\d,]+만|0원)/.exec(r.amt);
         if (t1 || t2) expect(t1 && t2 && eqMoney(money(t1[1]), money(t2[1])), "why.sum", "'왜 이 금액?' 줄을 만원으로 더하면 합계와 같음 · 목록 숫자와 같음", `${where}: why tail "${t1 && t1[1]}" vs list "${t2 && t2[1]}"`);
       }
     }
@@ -1303,6 +1303,8 @@ async function r3Lane(browser, errs) {
     {
       const T = "막대로 금액 끌기: 1억→3억 끌면 카드 3억 · 곳 수 == ZP_count(3) == 손잡이 막대 · 세로로 밀면 페이지 스크롤";
       await setCash(page, 1); await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(900);
+      await page.waitForFunction(() => document.querySelectorAll("#sScrub .scr-bars i").length > 20, null, { timeout: 5000, polling: 100 }).catch(() => {});
+      await mapIdle(); await page.waitForTimeout(300);
       const pos = await page.evaluate(() => { const b = document.querySelector("#sScrub .scr-bars").getBoundingClientRect(); const x = (c) => b.left + (window.ZP_simple.toPos(c) / 100) * b.width; return { y: b.top + b.height / 2, x1: x(1), x3: x(3), top: b.top }; });
       const cdp = await ctx.newCDPSession(page);
       const tp = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });

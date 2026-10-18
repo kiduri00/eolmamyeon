@@ -14870,13 +14870,13 @@ button.ov-chip[aria-expanded="true"]{box-shadow:inset 0 0 0 1px currentColor}
 .scrub .scr-t span:last-child{transform:translateX(-100%)}
 .scrub .scr-bub{position:absolute;bottom:calc(100% + 4px);left:clamp(70px,var(--p),calc(100% - 70px));transform:translateX(-50%);padding:6px 10px;border-radius:10px;background:var(--text-1);color:var(--surface);font:700 13px/1 var(--font);font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(15,23,42,.25);z-index:3}
 .scrub .scr-bub[hidden]{display:none}
-.scrub.lg{height:72px;margin:6px 0 22px}
-.scrub.lg .scr-bars{top:6px;height:58px}
-.scrub.lg .scr-h{top:0;bottom:6px}
-.scrub.lg .scr-t{top:72px}
+.scrub.scr-lg{height:72px;margin:6px 0 22px}
+.scrub.scr-lg .scr-bars{top:6px;height:58px}
+.scrub.scr-lg .scr-h{top:0;bottom:6px}
+.scrub.scr-lg .scr-t{top:72px}
 html.scrub-on .bc-num,html.scrub-on .scrub .scr-bars i{transition:none}
 html.scrub-on,html.scrub-on body{-webkit-user-select:none;user-select:none}
-html.simple #bSheet .bs-hist{height:auto;margin:6px 0 22px}
+html.simple #bSheet .bs-hist.scrub{margin:6px 0 24px}
 html.simple #bSheet input.scr-in{position:absolute!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;opacity:0}
 .bs-card:has(#sCash:focus-visible) #bHist{outline:2px solid var(--focus);outline-offset:4px;border-radius:8px}
 html.simple .s-gauge.bc .scrub{margin:8px 0 18px}

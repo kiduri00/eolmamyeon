@@ -218,7 +218,7 @@
       // 내 돈으로 되는 곳 = 남색 카드, 안 되는 곳 = 옅은 회청색 카드(면과 같은 규칙)
       const NM_C = ["case", ["==", ["get", "y"], 1], "#FFFFFF", dk ? "#C3CCD8" : "#2E3A55"];
       const HI = dk ? "#FF9C8A" : "#C0261B", two = ["any", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]];
-      const card = (id, f, maxz, src, top) => L({ id, type: "symbol", source: src || "zlab", minzoom: top ? 11 : 13, maxzoom: maxz || 24, filter: f, layout: { ...(top ? { "icon-allow-overlap": true, "text-allow-overlap": true } : {}), "icon-image": ["concat", ["case", ["==", ["get", "y"], 1], "zcard", "zcardL"], ["case", two, "", "1"]], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": NM_C }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": NM_C }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, ...(top ? { "text-anchor": "top", "text-offset": [0, 0.35] } : { "text-variable-anchor": ["top", "bottom", "right", "left"], "text-radial-offset": 0.35, "text-justify": "center" }), "symbol-sort-key": ["get", "k"] }, paint: {} });
+      const card = (id, f, maxz, src, top) => L({ id, type: "symbol", source: src || "zlab", minzoom: top ? 11 : 13.6, maxzoom: maxz || 24, filter: f, layout: { ...(top ? { "icon-allow-overlap": true, "text-allow-overlap": true } : {}), "icon-image": ["concat", ["case", ["==", ["get", "y"], 1], "zcard", "zcardL"], ["case", two, "", "1"]], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": NM_C }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": NM_C }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, ...(top ? { "text-anchor": "top", "text-offset": [0, 0.35] } : { "text-variable-anchor": ["top", "bottom", "right", "left"], "text-radial-offset": 0.35, "text-justify": "center" }), "symbol-sort-key": ["get", "k"] }, paint: {} });
       card("zone-lab", ["==", ["get", "p"], 0]);
       card("zone-lab-p", ["==", ["get", "p"], 1], 16);   // 핀 있는 곳은 16부터 핀 라벨('이름 · X억')로
       // 보이지 않는 역 자리표(줌 14+): 구역 카드가 역 점을 덮지 않고 아래·위·옆으로 비켜 가게(카드는 자리 4곳 중 빈 곳으로)
@@ -510,7 +510,7 @@
       const out = [];
       try {
         const cb = map.getCanvas().getBoundingClientRect();
-        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmap .lm-snote, #lmap .maplibregl-ctrl-attrib").forEach((e) => {
+        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmKey, #lmap .lm-snote, #lmap .maplibregl-ctrl-attrib").forEach((e) => {
           if (!e.offsetWidth || e.hidden || e.closest("[hidden]")) return;
           const b = e.getBoundingClientRect();
           if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;
@@ -524,15 +524,19 @@
     const pillText = (s) => (s.st === "near" ? SIMPLE.shortTxt(s.need) : ZF.cash(s.need));
     const pillLabel = (r, s, fav, nw) => `${fullName(r)}, 지금 필요한 돈 ${ZF.cash(s.need)}, ${SIMPLE.stWord[s.st]}${s.st === "near" ? `, ${SIMPLE.shortTxt(s.need).slice(1)} 더 필요` : ""}${fav ? ", 관심 구역" : ""}${nw ? ", 이번 주 새로 가능" : ""}`;
     const selId = () => pickId || (cur && cur.id) || null;
-    function states() {
-      if (!map || !ready || !geo || pillRaf) return;
-      pillRaf = requestAnimationFrame(() => { pillRaf = 0; if (!map || !ready) return; pinHooks(); computeStates(); stateFS(); layout(); });
+    // now = 바로(금액을 끄는 동안 목록과 같은 프레임에 — 한 프레임 늦지 않게) · 아니면 다음 프레임에 한 번
+    let stT = 0;
+    function states(now) {
+      if (!map || !ready || !geo) return;
+      const run = () => { pillRaf = 0; if (!map || !ready) return; pinHooks(); computeStates(); stateFS(); layout(); stT = performance.now(); };
+      if (now && performance.now() - stT > 30) { if (pillRaf) cancelAnimationFrame(pillRaf); run(); return; }
+      if (!pillRaf) pillRaf = requestAnimationFrame(run);
     }
     function layout() {
       if (!map || !ready || !geo) return;
       if ($("lmap").hidden) { pillsSet(new Map()); gusSet([]); return; }
       const city = map.getZoom() <= CITYZ + 1e-6;
-      lastCity = city;
+      lastCity = city; keyDraw(city);
       if (city) { pillsSet(new Map()); dotsSet([]); guLayout(); }
       else { gusSet([]); pillsLayout(); }
     }
@@ -566,6 +570,16 @@
         F.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { id: r.id, t: mine.has(r.id) ? "fav" : s.st, k: mine.has(r.id) ? 0 : ST_K[s.st] + 1 } });
       }
       dotsSet(F);
+    }
+    // 늘 보이는 작은 범례(지도 왼쪽 아래): 상태 4가지를 말로 · 서울 보기에서는 구 묶음 뜻
+    function keyDraw(city) {
+      let el = $("lmKey");
+      if (!el) { el = document.createElement("p"); el.id = "lmKey"; el.className = "lm-key"; $("lmap").appendChild(el); }
+      const k = city ? "c" : "z";
+      if (el.dataset.k === k) return;
+      el.dataset.k = k;
+      el.innerHTML = city ? `<span><i class="k-gu"></i>구 묶음 = 갈 수 있는 곳 수 · 눌러서 확대</span>` : `<span><i class="k-ok"></i>가능</span><span><i class="k-near"></i>조금 모자람</span><span><i class="k-far"></i>멀다</span><span><i class="k-na"></i>정보 부족</span>`;
+      el.setAttribute("aria-label", city ? "범례: 구 묶음 숫자는 그 구에서 갈 수 있는 곳 수" : "범례: 남색 알약 가능, 흰 알약 조금 모자람(모자란 돈 표시), 작은 점 멀다, 점선 점 정보 부족");
     }
     function dotsSet(F) { try { map.getSource("zdot").setData(FC(F)); } catch (e) {} }
     function pillsSet(P) {
@@ -1153,7 +1167,7 @@
       enter, exit, use, seoul,
       on: () => !!(map && $("lmap") && !$("lmap").hidden),
       paint: () => { if (map && ready) paint(); },
-      states: () => states(),   // 금액·방식·유형이 바뀌면(끄는 중에도) — 다음 프레임에 한 번: 상태 4가지·알약·점·구 묶음
+      states: (now) => states(now),   // 금액·방식·유형이 바뀌면(끄는 중에도) — 다음 프레임에 한 번: 상태 4가지·알약·점·구 묶음
       counts: () => states(),
       pins: () => states(),     // 관심 구역이 바뀌면 불러 주세요(하트·굵은 테두리)
       pills: () => [...PILLS.entries()].map(([id, p]) => ({ id, st: (ZS.get(id) || {}).st, need: (ZS.get(id) || {}).need, t: (p.el.querySelector(".zp-v") || {}).textContent || "", lab: p.el.getAttribute("aria-label") || "", fav: p.el.classList.contains("fav"), sel: p.el.classList.contains("sel") })),

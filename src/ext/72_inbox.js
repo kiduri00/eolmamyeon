@@ -69,7 +69,8 @@ const INBOX = (() => {
       let i = nb.querySelector(".pn-nb");
       if (!i) { i = document.createElement("b"); i.className = "pn-nb"; i.setAttribute("aria-hidden", "true"); nb.appendChild(i); }
       i.hidden = !n; i.textContent = n > 9 ? "9+" : String(n);
-      nb.setAttribute("aria-label", `관심${n ? `, 새 소식 ${n}건` : ""}`);
+      let fl = 0; try { fl = pinIds().length; } catch (e) {}
+      nb.setAttribute("aria-label", `관심${fl ? ` ${fl}곳` : ""}${n ? `, 새 소식 ${n}건` : ""}`);
     }
     // 홈 화면 앱 아이콘 숫자(설치한 앱에서만 보임) = 관심 탭 숫자. 소식을 보면 0으로 지워진다
     try { if (installed() && navigator.setAppBadge && CH) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
@@ -284,7 +285,8 @@ const INBOX = (() => {
     const n = ids.length, was = prevN; prevN = n;
     if (n > was && was >= 0 && !(Date.now() - (window.__zpImport || 0) < 8000)) {
       // 첫 관심 구역: '알림 받을 준비' 시트(설치 권유 포함) · 그 뒤로는 관심 구역을 더한 직후에만 설치 권유 카드(닫으면 30일 쉼, 69_install)
-      if (!lsR("zp-watch-pin", 0)) setTimeout(() => { const cur = pinIds(); if (cur.length) watch("pin", cur[cur.length - 1]); }, 900);
+      // 꽂기 토스트('실행 취소')가 떠 있는 동안은 기다렸다가(되돌릴 틈을 남김 · 되돌리면 시트 없음) — 예전엔 0.9초 만에 시트가 토스트를 걷어 냈다
+      if (!lsR("zp-watch-pin", 0)) { let k = 0; const go = () => { const t = $("pnToast"); if (t && t.classList.contains("on") && k++ < 20) return setTimeout(go, 300); const cur = pinIds(); if (cur.length) watch("pin", cur[cur.length - 1]); }; setTimeout(go, 900); }
       else setTimeout(() => { try { window.ZP_INSTALL && ZP_INSTALL.offer("pin"); } catch (e) {} }, 3600);
     }
   }

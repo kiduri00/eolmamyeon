@@ -141,14 +141,27 @@
 .scrub .scr-t span:last-child{transform:translateX(-100%)}
 .scrub .scr-bub{position:absolute;bottom:calc(100% + 4px);left:clamp(70px,var(--p),calc(100% - 70px));transform:translateX(-50%);padding:6px 10px;border-radius:10px;background:var(--text-1);color:var(--surface);font:700 13px/1 var(--font);font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(15,23,42,.25);z-index:3}
 .scrub .scr-bub[hidden]{display:none}
-.scrub.lg{height:72px;margin:6px 0 22px}
-.scrub.lg .scr-bars{top:6px;height:58px}
-.scrub.lg .scr-h{top:0;bottom:6px}
-.scrub.lg .scr-t{top:72px}
+.scrub.scr-lg{height:72px;margin:6px 0 22px}
+.scrub.scr-lg .scr-bars{top:6px;height:58px}
+.scrub.scr-lg .scr-h{top:0;bottom:6px}
+.scrub.scr-lg .scr-t{top:72px}
 html.scrub-on .bc-num,html.scrub-on .scrub .scr-bars i{transition:none}
 html.scrub-on,html.scrub-on body{-webkit-user-select:none;user-select:none}
-html.simple #bSheet .bs-hist{height:auto;margin:6px 0 22px}
+html.simple #bSheet .bs-hist.scrub{margin:6px 0 24px}
 html.simple #bSheet input.scr-in{position:absolute!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;opacity:0}
-.bs-card:has(#sCash:focus-visible) #bHist{outline:2px solid var(--focus);outline-offset:4px;border-radius:8px}
+.bs-card:has(#sCash:focus-visible) #bHist .scr-h,.bs-card:has(#sCash:focus-visible) #bHist .scr-h::before{background:var(--focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 30%,transparent)}
 html.simple .s-gauge.bc .scrub{margin:8px 0 18px}
 @media (max-width:374px){html.simple .s-gauge.bc .scrub{margin-bottom:16px}}
+
+/* ---------- 늘 보이는 작은 범례(지도 왼쪽 아래) ---------- */
+.lm-key{position:absolute;left:8px;bottom:8px;z-index:3;display:flex;flex-wrap:wrap;gap:2px 8px;max-width:calc(100% - 120px);margin:0;padding:4px 8px;border-radius:10px;background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--border);font:600 11px/1.35 var(--font);color:var(--text-2);pointer-events:none}
+.lm-key span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.lm-key i{flex:none;display:inline-block;box-sizing:border-box}
+.lm-key .k-ok{width:14px;height:9px;border-radius:5px;background:var(--zn)}
+.lm-key .k-near{width:14px;height:9px;border-radius:5px;background:var(--surface);border:1.5px solid var(--zn)}
+:root[data-theme="dark"] .lm-key .k-near{border-color:#7FA6FF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lm-key .k-near{border-color:#7FA6FF}}
+.lm-key .k-far{width:6px;height:6px;border-radius:50%;background:var(--zg)}
+.lm-key .k-na{width:8px;height:8px;border-radius:50%;border:1.4px dashed var(--zg)}
+.lm-key .k-gu{width:10px;height:10px;border-radius:50%;background:var(--zn)}
+#lmap:has(.lm-pick:not([hidden])) .lm-key{display:none}

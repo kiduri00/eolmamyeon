@@ -400,15 +400,15 @@ const SIMPLE = (() => {
   // 끄는 동안에도 지도·숫자가 따라오게(계산은 약 30ms라 프레임마다 한 번까지만)
   // 끄는 동안: 무거운 전체 계산 대신 '필요한 돈 ≤ 현금' 판정만 다시 해 숫자·목록·구별 말풍선을 매 프레임 갱신.
   // 손을 떼거나 잠깐 멈추면 전체 계산(지도 색·구 통계)을 한 번 돌린다.
-  let liveT = 0, liveV = null, idleT = 0, bubK = "", bubT = 0, dragging = false;
+  let liveT = 0, liveV = null, idleT = 0, dragging = false, liveNow = false;
   function live(v) {
     liveV = Math.round(v * 10) / 10;
     if (!liveT) liveT = requestAnimationFrame(() => {
       liveT = 0;
       try {
         $("pCash").value = String(liveV); CASH = liveV;
-        render();
-      } catch (e) {}
+        liveNow = true; render();
+      } catch (e) {} finally { liveNow = false; }
     });
     clearTimeout(idleT); if (!dragging) idleT = setTimeout(() => setCash(liveV, true), 220);
   }
@@ -581,7 +581,7 @@ const SIMPLE = (() => {
   const TICKS = [[0.5, "5,000만"], [2, "2억"], [5, "5억"], [15, "15억+"]];
   function scrubMount(el, big) {
     if (!el || el._scr) return; el._scr = 1;
-    el.classList.add("scrub"); if (big) el.classList.add("lg");
+    el.classList.add("scrub"); if (big) el.classList.add("scr-lg");
     el.setAttribute("aria-hidden", "true");
     el.innerHTML = `<div class="scr-bars"></div><i class="scr-h"></i><span class="scr-bub" hidden></span><div class="scr-t">${TICKS.map(([c, t]) => `<span style="left:${toPos(c)}%">${t}</span>`).join("")}</div>`;
     let S = null;
@@ -772,7 +772,7 @@ const SIMPLE = (() => {
     const all = R.filter(okR).length;
     $("sN").textContent = fmt(all);   // 글자는 늘 최종 값(검사·화면 읽기) · 보이는 숫자만 CSS 카운터로 굴러간다(countTo)
     const ab = $("sAsm"); if (ab) { ab.hidden = gap; if (!gap) { const t = asmText(); ab.innerHTML = `${t}<i aria-hidden="true">?</i>`; ab.setAttribute("aria-label", `대출 가정: ${t} · 설명 보기`); } }
-    try { LMX.states(); } catch (e) {}   // 지도 알약·점·구 묶음: 같은 판정(zstate)으로 바로(끄는 중에도 · 지도 쪽에서 프레임마다 한 번)
+    try { LMX.states(dragging || liveNow); } catch (e) {}   // 지도 알약·점·구 묶음: 같은 판정(zstate)으로 바로(끄는 중에도 · 지도 쪽에서 프레임마다 한 번)
     // 한 줄 막대도 목록과 같은 거르기(구·지도 범위·유형)를 그대로: 숫자 = 목록 곳 수
     if ($("sMiniN")) {
       const area = gu || (bbF ? "지도 범위" : ""), kn = kind ? ({ redev: "재개발", rebuild: "재건축", small: area ? "가로" : "가로·소규모" })[kind] : "";

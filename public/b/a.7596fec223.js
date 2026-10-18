@@ -881,7 +881,7 @@
       // 내 돈으로 되는 곳 = 남색 카드, 안 되는 곳 = 옅은 회청색 카드(면과 같은 규칙)
       const NM_C = ["case", ["==", ["get", "y"], 1], "#FFFFFF", dk ? "#C3CCD8" : "#2E3A55"];
       const HI = dk ? "#FF9C8A" : "#C0261B", two = ["any", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]];
-      const card = (id, f, maxz, src, top) => L({ id, type: "symbol", source: src || "zlab", minzoom: top ? 11 : 13, maxzoom: maxz || 24, filter: f, layout: { ...(top ? { "icon-allow-overlap": true, "text-allow-overlap": true } : {}), "icon-image": ["concat", ["case", ["==", ["get", "y"], 1], "zcard", "zcardL"], ["case", two, "", "1"]], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": NM_C }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": NM_C }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, ...(top ? { "text-anchor": "top", "text-offset": [0, 0.35] } : { "text-variable-anchor": ["top", "bottom", "right", "left"], "text-radial-offset": 0.35, "text-justify": "center" }), "symbol-sort-key": ["get", "k"] }, paint: {} });
+      const card = (id, f, maxz, src, top) => L({ id, type: "symbol", source: src || "zlab", minzoom: top ? 11 : 13.6, maxzoom: maxz || 24, filter: f, layout: { ...(top ? { "icon-allow-overlap": true, "text-allow-overlap": true } : {}), "icon-image": ["concat", ["case", ["==", ["get", "y"], 1], "zcard", "zcardL"], ["case", two, "", "1"]], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": NM_C }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": NM_C }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, ...(top ? { "text-anchor": "top", "text-offset": [0, 0.35] } : { "text-variable-anchor": ["top", "bottom", "right", "left"], "text-radial-offset": 0.35, "text-justify": "center" }), "symbol-sort-key": ["get", "k"] }, paint: {} });
       card("zone-lab", ["==", ["get", "p"], 0]);
       card("zone-lab-p", ["==", ["get", "p"], 1], 16);   // 핀 있는 곳은 16부터 핀 라벨('이름 · X억')로
       // 보이지 않는 역 자리표(줌 14+): 구역 카드가 역 점을 덮지 않고 아래·위·옆으로 비켜 가게(카드는 자리 4곳 중 빈 곳으로)
@@ -1173,7 +1173,7 @@
       const out = [];
       try {
         const cb = map.getCanvas().getBoundingClientRect();
-        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmap .lm-snote, #lmap .maplibregl-ctrl-attrib").forEach((e) => {
+        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmKey, #lmap .lm-snote, #lmap .maplibregl-ctrl-attrib").forEach((e) => {
           if (!e.offsetWidth || e.hidden || e.closest("[hidden]")) return;
           const b = e.getBoundingClientRect();
           if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;
@@ -1187,15 +1187,19 @@
     const pillText = (s) => (s.st === "near" ? SIMPLE.shortTxt(s.need) : ZF.cash(s.need));
     const pillLabel = (r, s, fav, nw) => `${fullName(r)}, 지금 필요한 돈 ${ZF.cash(s.need)}, ${SIMPLE.stWord[s.st]}${s.st === "near" ? `, ${SIMPLE.shortTxt(s.need).slice(1)} 더 필요` : ""}${fav ? ", 관심 구역" : ""}${nw ? ", 이번 주 새로 가능" : ""}`;
     const selId = () => pickId || (cur && cur.id) || null;
-    function states() {
-      if (!map || !ready || !geo || pillRaf) return;
-      pillRaf = requestAnimationFrame(() => { pillRaf = 0; if (!map || !ready) return; pinHooks(); computeStates(); stateFS(); layout(); });
+    // now = 바로(금액을 끄는 동안 목록과 같은 프레임에 — 한 프레임 늦지 않게) · 아니면 다음 프레임에 한 번
+    let stT = 0;
+    function states(now) {
+      if (!map || !ready || !geo) return;
+      const run = () => { pillRaf = 0; if (!map || !ready) return; pinHooks(); computeStates(); stateFS(); layout(); stT = performance.now(); };
+      if (now && performance.now() - stT > 30) { if (pillRaf) cancelAnimationFrame(pillRaf); run(); return; }
+      if (!pillRaf) pillRaf = requestAnimationFrame(run);
     }
     function layout() {
       if (!map || !ready || !geo) return;
       if ($("lmap").hidden) { pillsSet(new Map()); gusSet([]); return; }
       const city = map.getZoom() <= CITYZ + 1e-6;
-      lastCity = city;
+      lastCity = city; keyDraw(city);
       if (city) { pillsSet(new Map()); dotsSet([]); guLayout(); }
       else { gusSet([]); pillsLayout(); }
     }
@@ -1229,6 +1233,16 @@
         F.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { id: r.id, t: mine.has(r.id) ? "fav" : s.st, k: mine.has(r.id) ? 0 : ST_K[s.st] + 1 } });
       }
       dotsSet(F);
+    }
+    // 늘 보이는 작은 범례(지도 왼쪽 아래): 상태 4가지를 말로 · 서울 보기에서는 구 묶음 뜻
+    function keyDraw(city) {
+      let el = $("lmKey");
+      if (!el) { el = document.createElement("p"); el.id = "lmKey"; el.className = "lm-key"; $("lmap").appendChild(el); }
+      const k = city ? "c" : "z";
+      if (el.dataset.k === k) return;
+      el.dataset.k = k;
+      el.innerHTML = city ? `<span><i class="k-gu"></i>구 묶음 = 갈 수 있는 곳 수 · 눌러서 확대</span>` : `<span><i class="k-ok"></i>가능</span><span><i class="k-near"></i>조금 모자람</span><span><i class="k-far"></i>멀다</span><span><i class="k-na"></i>정보 부족</span>`;
+      el.setAttribute("aria-label", city ? "범례: 구 묶음 숫자는 그 구에서 갈 수 있는 곳 수" : "범례: 남색 알약 가능, 흰 알약 조금 모자람(모자란 돈 표시), 작은 점 멀다, 점선 점 정보 부족");
     }
     function dotsSet(F) { try { map.getSource("zdot").setData(FC(F)); } catch (e) {} }
     function pillsSet(P) {
@@ -1816,7 +1830,7 @@
       enter, exit, use, seoul,
       on: () => !!(map && $("lmap") && !$("lmap").hidden),
       paint: () => { if (map && ready) paint(); },
-      states: () => states(),   // 금액·방식·유형이 바뀌면(끄는 중에도) — 다음 프레임에 한 번: 상태 4가지·알약·점·구 묶음
+      states: (now) => states(now),   // 금액·방식·유형이 바뀌면(끄는 중에도) — 다음 프레임에 한 번: 상태 4가지·알약·점·구 묶음
       counts: () => states(),
       pins: () => states(),     // 관심 구역이 바뀌면 불러 주세요(하트·굵은 테두리)
       pills: () => [...PILLS.entries()].map(([id, p]) => ({ id, st: (ZS.get(id) || {}).st, need: (ZS.get(id) || {}).need, t: (p.el.querySelector(".zp-v") || {}).textContent || "", lab: p.el.getAttribute("aria-label") || "", fav: p.el.classList.contains("fav"), sel: p.el.classList.contains("sel") })),
@@ -3230,15 +3244,15 @@ const SIMPLE = (() => {
   // 끄는 동안에도 지도·숫자가 따라오게(계산은 약 30ms라 프레임마다 한 번까지만)
   // 끄는 동안: 무거운 전체 계산 대신 '필요한 돈 ≤ 현금' 판정만 다시 해 숫자·목록·구별 말풍선을 매 프레임 갱신.
   // 손을 떼거나 잠깐 멈추면 전체 계산(지도 색·구 통계)을 한 번 돌린다.
-  let liveT = 0, liveV = null, idleT = 0, bubK = "", bubT = 0, dragging = false;
+  let liveT = 0, liveV = null, idleT = 0, dragging = false, liveNow = false;
   function live(v) {
     liveV = Math.round(v * 10) / 10;
     if (!liveT) liveT = requestAnimationFrame(() => {
       liveT = 0;
       try {
         $("pCash").value = String(liveV); CASH = liveV;
-        render();
-      } catch (e) {}
+        liveNow = true; render();
+      } catch (e) {} finally { liveNow = false; }
     });
     clearTimeout(idleT); if (!dragging) idleT = setTimeout(() => setCash(liveV, true), 220);
   }
@@ -3411,7 +3425,7 @@ const SIMPLE = (() => {
   const TICKS = [[0.5, "5,000만"], [2, "2억"], [5, "5억"], [15, "15억+"]];
   function scrubMount(el, big) {
     if (!el || el._scr) return; el._scr = 1;
-    el.classList.add("scrub"); if (big) el.classList.add("lg");
+    el.classList.add("scrub"); if (big) el.classList.add("scr-lg");
     el.setAttribute("aria-hidden", "true");
     el.innerHTML = `<div class="scr-bars"></div><i class="scr-h"></i><span class="scr-bub" hidden></span><div class="scr-t">${TICKS.map(([c, t]) => `<span style="left:${toPos(c)}%">${t}</span>`).join("")}</div>`;
     let S = null;
@@ -3602,7 +3616,7 @@ const SIMPLE = (() => {
     const all = R.filter(okR).length;
     $("sN").textContent = fmt(all);   // 글자는 늘 최종 값(검사·화면 읽기) · 보이는 숫자만 CSS 카운터로 굴러간다(countTo)
     const ab = $("sAsm"); if (ab) { ab.hidden = gap; if (!gap) { const t = asmText(); ab.innerHTML = `${t}<i aria-hidden="true">?</i>`; ab.setAttribute("aria-label", `대출 가정: ${t} · 설명 보기`); } }
-    try { LMX.states(); } catch (e) {}   // 지도 알약·점·구 묶음: 같은 판정(zstate)으로 바로(끄는 중에도 · 지도 쪽에서 프레임마다 한 번)
+    try { LMX.states(dragging || liveNow); } catch (e) {}   // 지도 알약·점·구 묶음: 같은 판정(zstate)으로 바로(끄는 중에도 · 지도 쪽에서 프레임마다 한 번)
     // 한 줄 막대도 목록과 같은 거르기(구·지도 범위·유형)를 그대로: 숫자 = 목록 곳 수
     if ($("sMiniN")) {
       const area = gu || (bbF ? "지도 범위" : ""), kn = kind ? ({ redev: "재개발", rebuild: "재건축", small: area ? "가로" : "가로·소규모" })[kind] : "";
@@ -5738,7 +5752,8 @@ const INBOX = (() => {
       let i = nb.querySelector(".pn-nb");
       if (!i) { i = document.createElement("b"); i.className = "pn-nb"; i.setAttribute("aria-hidden", "true"); nb.appendChild(i); }
       i.hidden = !n; i.textContent = n > 9 ? "9+" : String(n);
-      nb.setAttribute("aria-label", `관심${n ? `, 새 소식 ${n}건` : ""}`);
+      let fl = 0; try { fl = pinIds().length; } catch (e) {}
+      nb.setAttribute("aria-label", `관심${fl ? ` ${fl}곳` : ""}${n ? `, 새 소식 ${n}건` : ""}`);
     }
     // 홈 화면 앱 아이콘 숫자(설치한 앱에서만 보임) = 관심 탭 숫자. 소식을 보면 0으로 지워진다
     try { if (installed() && navigator.setAppBadge && CH) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
@@ -5953,7 +5968,8 @@ const INBOX = (() => {
     const n = ids.length, was = prevN; prevN = n;
     if (n > was && was >= 0 && !(Date.now() - (window.__zpImport || 0) < 8000)) {
       // 첫 관심 구역: '알림 받을 준비' 시트(설치 권유 포함) · 그 뒤로는 관심 구역을 더한 직후에만 설치 권유 카드(닫으면 30일 쉼, 69_install)
-      if (!lsR("zp-watch-pin", 0)) setTimeout(() => { const cur = pinIds(); if (cur.length) watch("pin", cur[cur.length - 1]); }, 900);
+      // 꽂기 토스트('실행 취소')가 떠 있는 동안은 기다렸다가(되돌릴 틈을 남김 · 되돌리면 시트 없음) — 예전엔 0.9초 만에 시트가 토스트를 걷어 냈다
+      if (!lsR("zp-watch-pin", 0)) { let k = 0; const go = () => { const t = $("pnToast"); if (t && t.classList.contains("on") && k++ < 20) return setTimeout(go, 300); const cur = pinIds(); if (cur.length) watch("pin", cur[cur.length - 1]); }; setTimeout(go, 900); }
       else setTimeout(() => { try { window.ZP_INSTALL && ZP_INSTALL.offer("pin"); } catch (e) {} }, 3600);
     }
   }
