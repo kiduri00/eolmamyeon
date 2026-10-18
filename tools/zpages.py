@@ -27,6 +27,25 @@ def nk(nm, kind):   # 이름에 이미 있는 사업 종류 말은 빼고 붙인
     if len(ws) > 1 and kind.replace(' ', '').startswith(ws[-1]): nm = ' '.join(ws[:-1])
     w = set(re.split(r'\s+', nm)); k = ' '.join(x for x in kind.split() if x not in w)
     return f"{nm} {k}".strip()
+# /z 제목은 '<짧은 이름> 재개발|재건축 | …'만: 사업 방식·지원 말(도시정비형·공공·신속통합기획·장기전세…)은 설명(description)으로 옮긴다
+TQ = ('도심공공주택복합', '주택정비형', '신속통합기획', 'LH참여형', '장기전세', 'SHIFT', '공공', '민간', '후보지', '건립', '활성화', '통합')
+_TQR = re.compile(r'^(' + '|'.join(TQ) + r')(\(.*\))?$')
+def ztitle(nm, kind):
+    """→ (제목 이름, 옮긴 말 목록). '역촌역세권 장기전세(역촌동)' → '역촌역세권(역촌동)', ['장기전세']"""
+    keep, q = [], []
+    for w in nm.split():
+        m = _TQR.match(w)
+        if not m: keep.append(w); continue
+        q.append(m.group(1))
+        if m.group(2):
+            if keep: keep[-1] += m.group(2)
+            else: keep.append(m.group(2))
+    if not keep: keep, q = nm.split(), []
+    k = kind
+    if kind == '도시정비형 재개발': k = '재개발'; q.append('도시정비형')
+    q = list(dict.fromkeys(q))
+    return nk(' '.join(keep), k), q
+def ztitle_s(nm, kind): return f"{ztitle(nm, kind)[0]} | 단계·실거래·입주 현금 | 집핀"
 EVK = {'조합설립인가': '조합설립', '사업시행인가': '사업시행', '관리처분인가': '관리처분', '정비구역지정': '구역지정', '조합설립추진위원회승인': '추진위', '사업시행자지정': '시행자지정', '준공인가': '준공'}
 def evtext(dt, d, sec, t):
     """정보몽땅 원문 '[(변경)인가] 동의율 : 89.85' → '변경인가 · 동의율 89.85%' (src/ext/20_zone.js evText와 같은 규칙)"""
@@ -122,8 +141,9 @@ def page(r):
     nm = short(r['n']); kind = KIND.get(r['k'], r['k']); stage = c.get('stage') or r.get('sr') or ''
     dt = pm.get('dt') or {}
     nmk = nk(nm, kind)
-    title = f"{nmk} | 단계·실거래·입주 현금 | 집핀"
-    desc = f"{r['g']} {nmk}: 지금 {stage} 단계. 구역 안 실거래, 노후도, 권리산정기준일, 정비사업 정보몽땅 추진경과, 기본 가정의 입주까지 필요한 현금 추정. 데이터 기준 {UPD}."
+    tnm, tq = ztitle(nm, kind)
+    title = ztitle_s(nm, kind)
+    desc = f"{r['g']} {tnm}{'(' + ' · '.join(tq) + ')' if tq else ''}: 지금 {stage} 단계. 구역 안 실거래, 노후도, 권리산정기준일, 정비사업 정보몽땅 추진경과, 기본 가정의 입주까지 필요한 현금 추정. 데이터 기준 {UPD}."
     url = f"{SITE}/z/{rid}"
     ld0 = {"@type": "Article", "headline": f"{nmk} 진행 단계와 입주까지 필요한 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
            "mainEntityOfPage": url, "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "집핀", "url": SITE}}
@@ -289,7 +309,7 @@ def hand_og(r):
 def hand_seo(r, h):
     """손으로 쓴 구역 글: 본문은 두고 머리만 자동 페이지와 같게 — 제목 '<짧은 이름> 재개발 | 단계·실거래·입주 현금 | 집핀', 구조화 데이터(글 + 이동 경로 + 장소)."""
     rid = r['id']; nm = short(r['n']); kind = KIND.get(r['k'], r['k']); url = f"{SITE}/z/{rid}"
-    t = f"{nk(nm, kind)} | 단계·실거래·입주 현금 | 집핀"
+    t = ztitle_s(nm, kind)
     h = re.sub(r'<title>.*?</title>', lambda m: f'<title>{esc(t)}</title>', h, count=1, flags=re.S)
     h = re.sub(r'<meta property="og:title" content="[^"]*">', lambda m: f'<meta property="og:title" content="{esc(t)}">', h, count=1)
     m = re.search(r'<script type="application/ld\+json">(.*?)</script>', h, re.S)

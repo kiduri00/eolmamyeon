@@ -5,7 +5,7 @@
 사용: python3 tools/auction_match.py [raw=pipeline/raw/auction_raw.json] [out=public/data/auction.json] [오늘=YYYY-MM-DD] [상태=pipeline/cache/auction_state.json]
 수집기(tools/auction.js)는 날마다 새로 들어온 날·가까운 날만 검색한다 → 여기서 상태(auction_state.json)에 쌓고 auction.json은 상태에서 만든다.
 상태 물건: firstSeen·lastSeen·status(up=예정 / gone=끝까지 받은 검색 범위인데 빠짐 / chk=기일 지남·다음 기일 확인 중, 45일 뒤 뺌).
-auction.json 물건: fs·ls·st(없음=예정)·est(chk일 때 유찰 시 다음 최저가 80% 추정)."""
+auction.json 물건: fs·ls·st(없음=예정)·est(chk일 때 유찰 시 다음 최저가 80% 추정)·ll(경위도, 지도 표시)."""
 import json, math, os, re, sys, datetime
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 P = lambda *a: os.path.join(ROOT, *a)
@@ -198,7 +198,10 @@ def update(state, raw, idx, polys, day):
         if not (str(it.get('hjguSido') or '서울').find('서울') < 0 or NOT_RE.search(str(it.get('dspslUsgNm') or ''))):
             z, how = zones_of(it, idx, polys) if idx is not None else ([], 'none')
             if z: stat[how] += 1
-        if z: rec.update(o); rec['zones'] = sorted(z)
+        if z:
+            rec.update(o); rec['zones'] = sorted(z)
+            ll = katec_ll(num(it.get('xCordi')), num(it.get('yCordi'))) if num(it.get('xCordi')) and num(it.get('yCordi')) else None
+            if ll: rec['ll'] = [round(ll[0], 5), round(ll[1], 5)]   # 지도 표시용(법원 좌표 KATEC → 경위도)
         rec = {kk: vv for kk, vv in rec.items() if vv is not None}
         rec['firstSeen'] = (old or {}).get('firstSeen') or a
         rec['lastSeen'] = a; rec['status'] = 'up'

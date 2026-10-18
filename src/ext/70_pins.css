@@ -172,7 +172,7 @@ html.s-view .pc-save{display:none}
 .pc-cnt{margin:14px 0 2px!important;font-size:15px!important;color:var(--text-1)!important}
 .pc-why{margin:0 0 14px!important;font-size:12.5px!important}
 .pc-btns{display:flex;justify-content:flex-end;gap:6px}
-.pn-alt{margin-right:4px;padding:1px 5px;border-radius:5px;background:var(--surface-3,var(--brand-soft));color:var(--text-3);font-size:11px;font-weight:700;vertical-align:2px}
+.pn-alt{margin-right:1px;padding:1px 5px;border-radius:5px;background:var(--surface-3,var(--brand-soft));color:var(--text-3);font-size:11px;font-weight:700;vertical-align:2px}
 
 /* 사업 확실성(10년 안 준공) */
 .pn-rk{display:block}
@@ -197,8 +197,11 @@ li.pc-zm{padding:2px 8px 4px}
 .pc-act>span{flex:1;min-width:0}
 .pc-act b{color:var(--text-1)}
 /* 구역 시트 머리의 핀 버튼: 폰 시트는 위에 붙는 닫기 줄, PC는 제목 줄 */
-#report .rep-t{align-items:center}
-#report .rep-t>.pn-hpin{flex:none;margin-left:auto;margin-right:8px;height:40px;min-height:40px;padding:0 12px;border-radius:12px;gap:5px;font-size:14px}
+/* 리포트 제목: 한 줄 전체 폭(지번 '신길동96-24'가 '-'에서 끊기지 않게 낱말 단위 줄바꿈 + 숫자 사이 '-'는 U+2011) · 핀 버튼·입지 칩은 그 아래 줄 */
+#report .rep-t{flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px 8px}
+#report .rep-t>.rep-tn{flex:1 1 100%;min-width:0}
+#report .rep-t h2{word-break:keep-all;overflow-wrap:anywhere}
+#report .rep-t>.pn-hpin{flex:none;margin:0;height:40px;min-height:40px;padding:0 12px;border-radius:12px;gap:5px;font-size:14px}
 #report.sheet .rep-t>.pn-hpin{display:none}
 #report .sheet-bar>.pn-hpin{flex:none;margin-left:auto;height:40px;min-height:40px;padding:0 14px;border-radius:12px;gap:6px;font-size:14.5px}
 #report .pn-hpin .pin-ic{width:18px;height:18px}
