@@ -1,0 +1,12 @@
+name: probe-auction
+on:
+  push:
+    branches: [probe-auction]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -s -o /dev/null -w "courtauction GET %{http_code} %{time_total}s\n" --max-time 30 "https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ151F00.xml" || echo "courtauction GET failed"
+          curl -s -o /dev/null -w "onbid GET %{http_code}\n" --max-time 30 https://www.onbid.co.kr/ || echo "onbid failed"
+          curl -s https://ipinfo.io/country || true
