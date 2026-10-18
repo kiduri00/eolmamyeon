@@ -214,6 +214,8 @@ async function loadHome(page, hash = "") {
   await page.goto(BASE + "/" + (hash ? "?qac=" + (++LOADS) : "") + hash, { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.waitForFunction(() => { const e = document.getElementById("sN"); return e && /\d/.test(e.textContent) && typeof window.ZP_count === "function"; }, null, { timeout: 20000, polling: 100 }).catch(() => {});
   await page.waitForLoadState("load", { timeout: 15000 }).catch(() => {});
+  // 전체 앱을 붙이기 시작했으면(주소 # 등) 다 붙을 때까지 — 바쁜 기계에서 붙기 전 누름이 늦게 다시 눌려 검사가 앞서 가던 것
+  await page.waitForFunction(() => !window.ZP_boot || !window.ZP_boot.st || window.ZP_boot.hyd === 1, null, { timeout: 15000, polling: 100 }).catch(() => {});
 }
 async function settle(page, ms = 350) {
   await page.waitForTimeout(ms);
@@ -791,7 +793,8 @@ async function r1Lane(browser, api, errs) {
     const want = async (where, k) => { const t = await tabs(); expect(t.n === 4 && t.lab === "찾기,관심,소식,MY" && t.cur.length === 1 && t.cur[0] === k, "ui.tabs4", T, `${where}: ${t.n} tabs [${t.lab}] current [${t.cur}] want ${k}`); };
     for (const [h, k] of [["", "home"], ["#favTop", "fav"], ["#news", "news"], ["#my", "my"], ["#rankHub", "my"], ["#planner", "my"], ["#map", "home"]]) { await loadHome(page, h); await page.waitForTimeout(700); await want(h || "/", k); }
     // 탭을 차례로 누르기 → 뒤로 가기
-    await loadHome(page); await page.waitForFunction(() => !window.ZP_boot || window.ZP_boot.hyd === 1, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(600);
+    await loadHome(page); await page.mouse.move(10, 10).catch(() => {}); await page.evaluate(() => window.dispatchEvent(new Event("scroll")));   // 첫 손길 → 전체 앱 붙이기
+    await page.waitForFunction(() => !window.ZP_boot || window.ZP_boot.hyd === 1, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(600);
     const tap = async (k) => { await page.tap(`#sNav [data-nav="${k}"]`, { timeout: 4000, force: true }).catch(() => {}); await page.waitForTimeout(800); };
     await tap("news"); await want("tap 소식", "news");
     { const h = await page.evaluate(() => location.hash); expect(h === "#news", "ui.tabs4", T, `tap 소식 → hash ${h}`); }
