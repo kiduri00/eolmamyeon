@@ -5,14 +5,14 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
       - run: npm install --no-save playwright@1.56.0 && npx playwright install --with-deps chromium
-      - run: mkdir -p out && AUCTION_SHOTS=out AUCTION_MAX_PAGES=3 AUCTION_TIMEOUT=600 node tools/auction.js out/auction_raw.json
+      - run: mkdir -p out && AUCTION_SHOTS=out AUCTION_TIMEOUT=1500 node tools/auction.js out/auction_raw.json
       - run: node -e "const o=require('./out/auction_raw.json');console.log(JSON.stringify({ok:o.ok,courts:o.courts,n:o.items.length,first:o.items.slice(0,3)},null,1))"
       - uses: actions/upload-artifact@v4
         with:
