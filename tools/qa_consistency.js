@@ -1060,7 +1060,7 @@ async function r14Lane(browser, api, errs) {
       await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1, null, { timeout: 20000 }).catch(() => {});
       await settle(page, 600);
       await page.click("#sCashBtn"); await page.waitForTimeout(500);
-      const d = await page.evaluate(() => { const bar = document.querySelector('#bHist i[data-c="2"]'), all = [...document.querySelectorAll("#bHist i")]; return { open: !document.getElementById("bSheet").hidden, bar: bar ? +bar.dataset.n : null, cur: bar ? bar.classList.contains("cur") : false, n: document.getElementById("sN").textContent, bN: document.getElementById("bN").textContent, go: document.getElementById("bGo").textContent, zc: window.ZP_count(2), bars: all.length, mono: all.every((x, i) => !i || +x.dataset.n >= +all[i - 1].dataset.n), more: document.getElementById("bMore").textContent, z25: window.ZP_count(2.5) }; });
+      const d = await page.evaluate(() => { const bar = document.querySelector('#bHist i[data-c="2"]'), all = [...document.querySelectorAll("#bHist .scr-bars i")]; return { open: !document.getElementById("bSheet").hidden, bar: bar ? +bar.dataset.n : null, cur: bar ? bar.classList.contains("cur") : false, n: document.getElementById("sN").textContent, bN: document.getElementById("bN").textContent, go: document.getElementById("bGo").textContent, zc: window.ZP_count(2), bars: all.length, mono: all.every((x, i) => !i || +x.dataset.n >= +all[i - 1].dataset.n), more: document.getElementById("bMore").textContent, z25: window.ZP_count(2.5) }; });
       expect(d.open && d.bars >= 30 && d.bar === intOf(d.n) && d.bar === intOf(d.bN) && d.bar === d.zc && cntOf(d.go) === d.zc && d.cur, "ui.budgetSheet", "예산 시트: 고른 금액 막대 곳 수 == 카드 == 시트 숫자 == ZP_count · 슬라이더 aria-valuetext '2억, N곳'", `sheet open ${d.open} · bars ${d.bars} · bar@2억 ${d.bar} (cur ${d.cur}) · card ${d.n} · sheet ${d.bN} · go "${d.go}" · ZP_count(2) ${d.zc}`);
       const m = /\+0\.5억이면\s*([\d,]+)곳 더/.exec(d.more);
       if (d.z25 > d.zc) expect(m && intOf(m[1]) === d.z25 - d.zc, "ui.budgetSheet", "예산 시트: '+0.5억이면 N곳 더' == ZP_count(2.5) − ZP_count(2)", `"${d.more}" vs ${d.z25 - d.zc}`);
@@ -1104,9 +1104,15 @@ async function r14Lane(browser, api, errs) {
     }
     // 정렬: 홈 목록·입지 순위에 '입주까지 현금 적은 순'·'입주 때 시세 차이 큰 순' · 목록 시세 선에 이름(aria-label)
     {
-      const r = await page.evaluate(() => ({ s: [...document.querySelectorAll("#sSort option")].map((o) => o.value), rk: [...document.querySelectorAll("#rSort option")].map((o) => o.value), sp: [...document.querySelectorAll("#sList .s-sp")].filter((x) => !x.getAttribute("aria-label")).length }));
-      expect(r.s.includes("move") && r.s.includes("gain") && r.rk.includes("move") && r.rk.includes("gain"), "list.sorts", "정렬에 입주까지 현금 적은 순·입주 때 시세 차이 큰 순(홈 목록·입지 순위)", `sSort [${r.s}] rSort [${r.rk}]`);
-      expect(!r.sp, "list.spark", "목록 시세 선에 이름(aria-label·글자 '시세'/'1년▲N%')", `${r.sp} unlabeled sparklines`);
+      const r = await page.evaluate(() => ({ s: [...document.querySelectorAll("#sortSheet [data-sort]")].map((o) => o.dataset.sort), rk: [...document.querySelectorAll("#rSort option")].map((o) => o.value) }));
+      expect(["fit", "low", "move", "eta", "near", "gain"].every((k) => r.s.includes(k)) && r.rk.includes("move") && r.rk.includes("gain"), "list.sorts", "정렬 시트: 맞춤순·적은 돈·입주까지 현금·입주 빠른·역 가까운·시세 차이(홈 목록) · 입지 순위에 입주까지 현금·시세 차이", `sortSheet [${r.s}] rSort [${r.rk}]`);
+      // 정렬 시트: 버튼 → 시트 → '역 가까운 순' → 버튼 글자 · 첫 카드가 역 거리 가장 짧은 곳
+      await page.click("#sSortB").catch(() => {}); await page.waitForTimeout(300);
+      const o = await page.evaluate(() => { const sh = document.getElementById("sortSheet"); const open = sh && !sh.hidden; const b = sh && sh.querySelector('[data-sort="near"]'); if (b) b.click(); return open; });
+      await page.waitForTimeout(400);
+      const n = await page.evaluate(() => ({ t: document.getElementById("sSortT").textContent, open: !document.getElementById("sortSheet").hidden, sub: [...document.querySelectorAll("#sList .s-sub")].slice(0, 3).map((e) => e.textContent) }));
+      expect(o && !n.open && n.t === "역 가까운 순", "list.sorts", "정렬 시트: 맞춤순·적은 돈·입주까지 현금·입주 빠른·역 가까운·시세 차이(홈 목록) · 입지 순위에 입주까지 현금·시세 차이", `sheet open ${o} → "${n.t}" still open ${n.open} · ${n.sub.join(" / ")}`);
+      await page.evaluate(() => { try { localStorage.setItem("emr.sort", "fit"); } catch (e) {} });
     }
     // 입주 계산 ①②③: 360에서 한 줄씩(칸이 좁아 머리가 두 줄·좁고 긴 글 덩어리 없음)
     {
@@ -1126,7 +1132,10 @@ async function r14Lane(browser, api, errs) {
       await loadHome(page, "#o281"); await page.waitForTimeout(1800);
       const b = await page.$(".sheet-bar .pn-hpin, .rep-t .pn-hpin");
       if (b) {
-        await b.click().catch(() => {}); await page.waitForTimeout(500);
+        // 앱이 다 붙은 뒤 누른다(바쁜 기계에서 섬 단계에 누르면 토스트 없이 늦게 처리되던 것 — 이전 SKIP 원인) · 토스트는 2.5초까지 기다림
+        await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.PINS === "object", null, { timeout: 10000 }).catch(() => {});
+        await b.click().catch(() => {});
+        await page.waitForFunction(() => { const t = document.getElementById("pnToast"); return t && t.classList.contains("on"); }, null, { timeout: 2500, polling: 100 }).catch(() => {});
         const o = await page.evaluate(() => { const t = document.getElementById("pnToast"); if (!t || !t.classList.contains("on")) return null; return [...t.querySelectorAll("b,small,span")].filter((e) => e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflow !== "visible" || e.getBoundingClientRect().right > t.querySelector("button").getBoundingClientRect().left + 1 && e.closest(".pn-tt")).map((e) => e.className + ":" + e.textContent.slice(0, 20)); });
         if (o) expect(!o.length, "ui.pinToast", "핀 꽂기 토스트 글자가 '실행 취소' 단추 밑으로 넘치지 않음(360)", o.join(" ; ")); else skip("ui.pinToast", "핀 꽂기 토스트 글자가 '실행 취소' 단추 밑으로 넘치지 않음(360)", "no toast");
         await loadHome(page, "#favTop"); await page.waitForTimeout(1200);
@@ -1205,6 +1214,127 @@ async function r14Lane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
 }
+// ================================================================ 리뉴얼 3단계: 지도 알약·구 묶음·목록 ♡·막대 금액 끌기 (폰 390)
+async function r3Lane(browser, errs) {
+  const { ctx, page } = await newPage(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }, errs);
+  const mapIdle = () => page.waitForFunction(() => { const m = window.ZP_lmx && window.ZP_lmx.map && window.ZP_lmx.map(); return m && !m.isMoving() && m.loaded(); }, null, { timeout: 15000, polling: 150 }).catch(() => {});
+  // 지도 옮기기: 자동 맞춤(구 나가기·금액 바꾸기)이 끝난 뒤 옮기고, 그 자리에 머무는지 확인(최대 3번)
+  const goTo = async (z, ct) => { for (let i = 0; i < 3; i++) { await mapIdle(); await page.waitForTimeout(300); await page.evaluate(([z, ct]) => window.ZP_lmx.map().jumpTo({ zoom: z, center: ct }), [z, ct]); await page.waitForTimeout(400); await mapIdle(); const zz = await page.evaluate(() => window.ZP_lmx.map().getZoom()); if (Math.abs(zz - z) < 0.05) break; } await page.waitForTimeout(300); };
+  const firstLL = () => page.evaluate(() => { const id = (document.querySelector("#sList li.s-card") || {}).dataset?.zid; const f = (window.ZP_lmx.map().getSource("zlab").serialize().data.features || []).find((x) => x.properties.id === id); return f ? f.geometry.coordinates : [126.98, 37.55]; });
+  try {
+    await loadHome(page); await settle(page, 500);
+    await setMode(page, "gap"); await setCash(page, 3);
+    await page.evaluate(() => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 70); });
+    await mapIdle(); await page.waitForTimeout(600);
+    // --- map.guCluster: 줌 11 이하 구 묶음 숫자 == 그 구 목록 곳 수(window.ZP_simple.guCount) · 누르면 목록 제목 곳 수가 같음
+    {
+      const T = "줌 11 이하 구 묶음 '구로 · 가능 N' == 그 구 목록 곳 수(누르면 목록 제목도 N곳)";
+      await goTo(10.4, [126.98, 37.55]);
+      const g = await page.evaluate(() => (window.ZP_lmx.gus ? window.ZP_lmx.gus() : []).map((x) => ({ ...x, want: window.ZP_simple.guCount(x.n) })));
+      expect(g.length > 0, "map.guCluster", T, `no 구 clusters at zoom 10.4`);
+      for (const x of g) expect(x.c === x.want && x.c > 0 && new RegExp(`가능\\s*${x.c}`).test(x.t) && x.lab.includes(x.n), "map.guCluster", T, `${x.n}: cluster ${x.c} "${x.t}" vs list ${x.want}`);
+      if (g.length) {
+        const pk = g[0];
+        await page.evaluate((n) => { const b = document.querySelector(`.zgu[data-gu="${n}"]`); if (b) b.click(); }, pk.n); await page.waitForTimeout(1200); await settle(page, 300);
+        const s = await page.evaluate(() => ({ t: document.getElementById("sLT").textContent, z: window.ZP_lmx.map().getZoom() }));
+        expect(cntOf(s.t) === pk.c && s.t.includes(pk.n) && s.z > 11, "map.guCluster", T, `tap ${pk.n} (${pk.c}): list title "${s.t}" zoom ${s.z.toFixed(2)}`);
+        await page.evaluate(() => { const x = document.getElementById("sGuX"); if (x) x.click(); }); await page.waitForTimeout(800);
+      }
+    }
+    // --- map.pills: 알약 ≤ 40 · 가능 알약 글자 == 목록 '지금' 값 · 상태 == 필요한 돈 vs 내 돈 · 이름 있는 버튼
+    {
+      const T = "지도 알약 ≤ 40개 · 알약 금액 == 목록 '지금' · 상태(가능/조금 모자람)가 필요한 돈 vs 내 돈과 맞음 · 접근 이름";
+      for (const [mode, c, z] of [["gap", 3, 12.6], ["cash", 6, 12.2]]) {
+        await setMode(page, mode); await setCash(page, c);
+        // 목록을 끝까지 펼쳐 구역별 '지금' 값
+        for (let i = 0; i < 40; i++) { const more = await page.evaluate(() => { const m = document.getElementById("sMore"); if (!m || m.hidden) return false; m.click(); return true; }); if (!more) break; await page.waitForTimeout(80); }
+        const list = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll("#sList li.s-card")].map((li) => [li.dataset.zid, (li.querySelector(".s-amt .s-av b") || {}).textContent])));
+        const ids = Object.keys(list);
+        await goTo(z, await firstLL());
+        const P = await page.evaluate(() => window.ZP_lmx.pills());
+        const where = `${mode} ${c}억 z${z}`;
+        expect(P.length > 0 && P.length <= 40, "map.pills", T, `${where}: ${P.length} pills`);
+        for (const p of P) {
+          const lab = /지금 필요한 돈/.test(p.lab) && p.lab.length > 12;
+          if (p.st === "ok") expect(p.need <= c + 1e-9 && list[p.id] != null && p.t === list[p.id] && p.t === zfCash(p.need) && lab && /가능/.test(p.lab), "map.pills", T, `${where} ${p.id}: pill "${p.t}" list "${list[p.id]}" need ${p.need} label "${p.lab}"`);
+          else if (p.st === "near") { const want = "+" + zfCash(Math.max(0.01, Math.ceil(p.need * 100 - 1e-6) / 100 - c)); expect(p.need > c && p.need <= c * 1.2 + 1e-9 && p.t === want && list[p.id] == null && /조금 모자람/.test(p.lab), "map.pills", T, `${where} ${p.id}: near pill "${p.t}" want "${want}" need ${p.need} in list ${list[p.id] != null}`); }
+          else bad("map.pills", T, `${where} ${p.id}: pill with state ${p.st}`);
+        }
+        // 알약끼리 겹치지 않음(보이는 알약 상자)
+        const ov = await page.evaluate(() => { const B = [...document.querySelectorAll("#lmap .zpill .zp-in")].map((e) => e.getBoundingClientRect()); let n = 0; for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) { const a = B[i], b = B[j]; if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) n++; } return n; });
+        expect(!ov, "map.pills", T, `${where}: ${ov} overlapping pills`);
+      }
+      // 금액을 바꾸면 알약이 바로(다음 몇 프레임 안에) 따라옴
+      await setMode(page, "gap"); await setCash(page, 3);
+      await goTo(12.6, await firstLL());
+      const t0 = await page.evaluate(async () => { const s = document.getElementById("sCash"); const fits = (c) => { const P = window.ZP_lmx.pills(); return P.length > 0 && P.every((p) => (p.st === "ok" ? p.need <= c + 1e-9 : p.need > c && p.need <= c * 1.2 + 1e-9)); }; if (!fits(3)) return -2; s.value = String(window.ZP_simple.toPos(2)); s.dispatchEvent(new Event("input", { bubbles: true })); const t = performance.now(); for (let i = 0; i < 30; i++) { await new Promise((r) => requestAnimationFrame(r)); if (fits(2)) return Math.round(performance.now() - t); } return -1; });
+      expect(t0 >= 0 && t0 <= 150, "map.pills", T, `pills did not update within 150ms of a budget change (${t0}ms)`);
+      await setCash(page, 3);
+    }
+    // --- list.heart: 카드 ♡ → 관심 구역 · 관심 탭 이름에 곳 수 · 되돌리기 토스트 · 다시 누르면 빠짐
+    {
+      const T = "목록 카드 ♡(44px)가 관심 구역을 켜고 끔 · 관심 탭 곳 수 · 되돌리기 토스트";
+      await page.evaluate(() => { try { localStorage.removeItem("jg-fav"); } catch (e) {} });
+      await loadHome(page); await settle(page, 600);
+      const a = await page.evaluate(async () => {
+        const h = document.querySelector("#sList .s-heart"); if (!h) return null;
+        const id = h.dataset.heart, r = h.getBoundingClientRect(); h.click(); await new Promise((r) => setTimeout(r, 400));
+        const nav = document.querySelector('#sNav [data-nav="fav"]'), t = document.getElementById("pnToast");
+        return { id, w: Math.round(r.width), hh: Math.round(r.height), on: window.PINS.list().includes(id), pressed: document.querySelector(`#sList .s-heart[data-heart="${id}"]`).getAttribute("aria-pressed"), nav: nav ? nav.getAttribute("aria-label") : "", toast: t && t.classList.contains("on") ? t.textContent : "", undo: !!(t && t.querySelector("button")) };
+      });
+      if (!a) bad("list.heart", T, "no ♡ in list");
+      else {
+        expect(a.on && a.pressed === "true" && /관심\s*1곳/.test(a.nav) && a.toast && a.undo && a.w >= 44 && a.hh >= 44, "list.heart", T, JSON.stringify(a));
+        const b = await page.evaluate(async (id) => { document.querySelector(`#sList .s-heart[data-heart="${id}"]`).click(); await new Promise((r) => setTimeout(r, 400)); return { on: window.PINS.list().includes(id), pressed: document.querySelector(`#sList .s-heart[data-heart="${id}"]`).getAttribute("aria-pressed"), nav: document.querySelector('#sNav [data-nav="fav"]').getAttribute("aria-label") }; }, a.id);
+        expect(!b.on && b.pressed === "false" && !/곳/.test(b.nav), "list.heart", T, `second tap: ${JSON.stringify(b)}`);
+      }
+    }
+    // --- list.infinite: 목록 끝에 닿으면 20곳씩 더(누르지 않아도) · 줄 + 더 보기 == 제목
+    {
+      const T = "목록 무한 스크롤: 끝에 닿으면 더 불러옴 · 줄 수 + '더 보기 (N곳)' == 제목 곳 수";
+      await setCash(page, 6);
+      const r0 = await page.evaluate(() => document.querySelectorAll("#sList li.s-card").length);
+      for (let i = 0; i < 3; i++) { await page.evaluate(() => { const l = document.querySelector("#sList li.s-card:last-child"); if (l) l.scrollIntoView({ block: "end" }); }); await page.waitForTimeout(400); }
+      const s = await page.evaluate(() => ({ rows: document.querySelectorAll("#sList li.s-card").length, more: document.getElementById("sMore").hidden ? "" : document.getElementById("sMore").textContent, t: document.getElementById("sLT").textContent }));
+      expect(s.rows > r0 && s.rows + (intOf(s.more) || 0) === cntOf(s.t), "list.infinite", T, `rows ${r0} → ${s.rows} · more "${s.more}" · title "${s.t}"`);
+      await page.evaluate(() => window.scrollTo(0, 0));
+    }
+    // --- ui.scrub: 홈 카드 막대를 1억 → 3억으로 끌면 금액·곳 수 == ZP_count(3) · 막대 위 세로로 밀면 페이지가 스크롤
+    {
+      const T = "막대로 금액 끌기: 1억→3억 끌면 카드 3억 · 곳 수 == ZP_count(3) == 손잡이 막대 · 세로로 밀면 페이지 스크롤";
+      await setCash(page, 1); await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(900);
+      const pos = await page.evaluate(() => { const b = document.querySelector("#sScrub .scr-bars").getBoundingClientRect(); const x = (c) => b.left + (window.ZP_simple.toPos(c) / 100) * b.width; return { y: b.top + b.height / 2, x1: x(1), x3: x(3), top: b.top }; });
+      const cdp = await ctx.newCDPSession(page);
+      const tp = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
+      await tp("touchStart", pos.x1, pos.y);
+      for (let i = 1; i <= 10; i++) { await tp("touchMove", pos.x1 + ((pos.x3 - pos.x1) * i) / 10, pos.y + (i % 2)); await page.waitForTimeout(30); }
+      await tp("touchEnd"); await settle(page, 700);
+      const s = await page.evaluate(() => { const cur = document.querySelector("#sScrub .scr-bars i.cur"); return { v: document.getElementById("sCashV").textContent.trim(), n: document.getElementById("sN").textContent, zc: window.ZP_count(3), bar: cur ? +cur.dataset.n : null, vt: document.getElementById("sCash").getAttribute("aria-valuetext") }; });
+      expect(s.v === "3억" && intOf(s.n) === s.zc && s.bar === s.zc && /^3억, [\d,]+곳$/.test(s.vt || ""), "ui.scrub", T, JSON.stringify(s));
+      const y0 = await page.evaluate(() => scrollY);
+      await tp("touchStart", pos.x3, pos.y);
+      for (let i = 1; i <= 10; i++) { await tp("touchMove", pos.x3 + (i % 2), pos.y - 22 * i); await page.waitForTimeout(25); }
+      await tp("touchEnd"); await page.waitForTimeout(600);
+      const s2 = await page.evaluate(() => ({ y: scrollY, v: document.getElementById("sCashV").textContent.trim() }));
+      expect(s2.y > y0 + 40 && s2.v === "3억", "ui.scrub", T, `vertical swipe on bars: scrollY ${y0} → ${s2.y} · amount "${s2.v}"`);
+    }
+    // --- list.spark: 목록에는 흐름선 없음 · 구역 상세 실거래 칸에 이름 있는 흐름선
+    {
+      const T = "2년 시세 흐름선은 목록이 아니라 구역 상세(실거래 칸)에 · aria-label 있음";
+      const n = await page.evaluate(() => document.querySelectorAll("#sList .s-sp").length);
+      expect(n === 0, "list.spark", T, `${n} sparklines still in the list`);
+      let done = false;
+      for (const id of ["o281", "o916", "o337", "o586"]) {
+        await loadHome(page, "#" + id); await page.waitForTimeout(2500);
+        const r = await page.evaluate((id) => ({ sp: [...document.querySelectorAll("#report .s-sp")].map((e) => e.getAttribute("aria-label") || ""), has: !!window.ZP_simple.spark(id) }), id);
+        if (!r.has && !r.sp.length) continue;
+        expect(r.sp.length === 1 && r.sp[0].length > 4, "list.spark", T, `${id}: report sparklines ${JSON.stringify(r.sp)}`); done = true; break;
+      }
+      if (!done) skip("list.spark", T, "no zone with 2-year data among samples");
+    }
+  } catch (e) { bad("runtime", "검사 실행", "r3Lane crashed: " + String(e.message || e).split("\n")[0]); }
+  finally { await ctx.close().catch(() => {}); }
+}
 // ================================================================ main
 (async () => {
   // API
@@ -1236,7 +1366,7 @@ async function r14Lane(browser, api, errs) {
   const ONLY = process.env.QAC_ONLY || "";   // 'r14' = 14회차 줄만(개발용)
   const lane1 = ONLY ? Promise.resolve() : timed("counts+zones", (async () => { await countsLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(0, cut)); await deskLane(browser, errs); })());
   const lane2 = ONLY ? Promise.resolve() : timed("map+ui+zones", (async () => { await mapLane(browser, api, errs, shortSrc); const st = await stat.catch(() => ({})); shared.liveCounts = st.liveCounts; await uiLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(cut)); })());
-  const lane3 = timed("r14", (ONLY === "r1" ? Promise.resolve() : r14Lane(browser, api, errs)).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)));
+  const lane3 = timed("r14+r3", (ONLY === "r1" ? Promise.resolve() : ONLY === "r3" ? r3Lane(browser, errs) : r14Lane(browser, api, errs).then(() => (ONLY ? null : r3Lane(browser, errs)))).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)));
   await Promise.all([stat.catch((e) => bad("runtime", "검사 실행", "static crashed: " + e.message)), lane1, lane2, lane3]);
   // 리뉴얼 1단계 줄(탭 4개·MY)은 다른 줄이 끝난 뒤 혼자: 코어 2개 기계에서 세 번째 브라우저가 겹치면 손가락 누름이 길게 누름으로 바뀌어 다른 줄의 탭 검사가 흔들렸다
   if (!ONLY || ONLY === "r1") await timed("r1", r1Lane(browser, api, errs));

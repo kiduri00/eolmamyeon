@@ -131,7 +131,7 @@ const SIMPLE = (() => {
   const shortTxt = (need) => "+" + ZF.cash(Math.max(0.01, Math.ceil(need * 100 - 1e-6) / 100 - CASH));
   // 단계 칩: 짧은 이름
   const stgShort = (r) => { let t = ""; try { t = stageName(r) || ""; } catch (e) {} return /후보지|대상지/.test(t) ? "후보지" : /정비계획/.test(t) ? "정비계획" : /구역\s?지정/.test(t) ? "구역지정" : /추진위|주민대표/.test(t) ? "추진위" : /조합|시행자 지정/.test(t) ? "조합설립" : /사업시행/.test(t) ? "사업시행" : /관리처분/.test(t) ? "관리처분" : /이주|철거/.test(t) ? "이주·철거" : /착공|분양/.test(t) ? "착공" : /준공|입주/.test(t) ? "준공" : t.slice(0, 5); };
-  const walkTxt = (r) => { if (!r.st || !r.st.n || !isFinite(r.st.d)) return ""; const m = ZF.walkMin(r.st.d); return m > 30 ? "" : `${String(r.st.n).replace(/역$/, "")}역 도보 ${m}분`; };
+  const walkTxt = (r) => { if (!r.st || !r.st.n || !isFinite(r.st.d)) return ""; const m = ZF.walkMin(r.st.d); return m > 30 ? "" : `${String(r.st.n).replace(/역$/, "")}역 ${m}분`; };
   const tkOf = (r) => { try { const c = buyWindow(r).cls; return c === "ok" ? "y" : c === "no" ? "n" : ""; } catch (e) { return ""; } };
   // NEW: 이번 주(7일)에 '지금 필요한 돈'이 내려가 지금 내 돈으로 새로 갈 수 있게 된 곳(data/changes.json price 사건 · 없으면 표시 안 함)
   let NEWP = null, newAsk = false;
@@ -154,13 +154,15 @@ const SIMPLE = (() => {
     const z = o.z || zstate(r), nowK = gapMode() || effBasis() !== "total";
     const main = nowK ? z.need : z.total, nm = shortName(r.n), fav = isFav(r.id), stg = stgShort(r), wk = walkTxt(r), tk = tkOf(r), nw = isNew(r, z.need);
     const tag = sortK === "eta" ? etaTag(r) : sortK === "gain" ? gainTag(r) : "";   // 초기 단계는 단계 칩이 말한다
-    const sub = [esc(r.g) + " " + esc(dongOf(r)), wk ? esc(wk) : ""].filter(Boolean).join(" · ") + tag;
-    const bdg = `${tk === "y" ? <em class="s-b s-b-tk">입주권 ✓</em>' : tk === "n" ? '<em class="s-b s-b-no">입주권 ✕</em>' : ""}${nw ? '<em class="s-b s-b-new">NEW</em>' : ""}`;
+    // 2줄: 동 · 역 N분(구는 뺀다 — 짧게, 이름이 먼저) · 동을 못 찾으면 구
+    const sub = [esc(dongOf(r) || r.g), wk ? esc(wk) : ""].filter(Boolean).join(" · ") + tag;
+    // 입주권 ✓는 화면 읽기 이름에만(카드 2줄을 동·역에 양보) · ✕만 주황 배지
+    const bdg = `${tk === "n" ? '<em class="s-b s-b-no">입주권 ✕</em>' : ""}${nw ? '<em class="s-b s-b-new">NEW</em>' : ""}`;
     const mt = main != null ? eokS(main) : "–";
     const line2 = nowK ? (z.total != null ? `입주까지<span class="sr-only"> 현금</span> <b>${eokS(z.total)}</b>` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(z.need)}`;
     const word = ST_WORD[z.st], gapT = z.st === "near" && z.need != null ? `, ${shortTxt(z.need).slice(1)} 더 필요` : "";
-    const lab = `${nm}, ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} ${mt}, ${word}${gapT}${z.total != null && nowK ? `, ${LBL.cashToMoveIn} ${eokS(z.total)}` : ""}, ${stg}${tk === "n" ? ", 입주권 안 나옴" : ""}${nw ? ", 이번 주 새로 가능" : ""}`;
-    return `<li class="s-card st-${z.st}${fav ? " fav" : ""}${o.cls ? " " + o.cls : ""}" data-zid="${r.id}"><a href="#${r.id}" data-id="${r.id}" class="s-cm" aria-label="${esc(lab)}"><span class="s-nm"><b>${esc(nm)}</b><em class="s-stg">${esc(stg)}</em></span><span class="s-l2">${bdg}<small class="s-sub">${sub}</small></span></a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(nm)} ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} 추정 ${mt}${z.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · ${LBL.cashToMoveIn} ${eokS(z.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog"><span class="s-av"><i class="s-al" aria-hidden="true">${nowK ? "지금" : "입주까지"}</i><b>${mt}</b></span><small${z.total == null && nowK ? ' class="s-na"' : ""}>${z.st === "near" ? `<span class="s-gapt">${shortTxt(z.need)} 더 필요</span>` : line2}</small></button><button type="button" class="s-heart" data-heart="${r.id}" aria-pressed="${fav}" aria-label="${esc(heartLbl(r, fav))}">${HEART(fav)}</button></li>`;
+    const lab = `${nm}, ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} ${mt}, ${word}${gapT}${z.total != null && nowK ? `, ${LBL.cashToMoveIn} ${eokS(z.total)}` : ""}, ${stg}${tk === "n" ? ", 입주권 안 나옴" : tk === "y" ? ", 입주권 나옴" : ""}${nw ? ", 이번 주 새로 가능" : ""}`;
+    return `<li class="s-card st-${z.st}${fav ? " fav" : ""}${o.cls ? " " + o.cls : ""}" data-zid="${r.id}"><a href="#${r.id}" data-id="${r.id}" class="s-cm" aria-label="${esc(lab)}"><span class="s-nm"><b>${esc(nm)}</b></span><span class="s-l2"><em class="s-b s-stg">${esc(stg)}</em>${bdg}<small class="s-sub">${sub}</small></span></a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(nm)} ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} 추정 ${mt}${z.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · ${LBL.cashToMoveIn} ${eokS(z.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog"><span class="s-av"><i class="s-al" aria-hidden="true">${nowK ? "지금" : "입주까지"}</i><b>${mt}</b></span><small${z.total == null && nowK ? ' class="s-na"' : ""}>${z.st === "near" ? `<span class="s-gapt">${shortTxt(z.need)} 더 필요</span>` : line2}</small></button><button type="button" class="s-heart" data-heart="${r.id}" aria-pressed="${fav}" aria-label="${esc(heartLbl(r, fav))}">${HEART(fav)}</button></li>`;
   }
   // ♡ 누르면 관심 구역(핀과 같은 toggleFav → 되돌리기 토스트·관심 탭·지도 하트 모두 같은 길)
   function heartSync() {
@@ -576,7 +578,7 @@ const SIMPLE = (() => {
   const PRESET = [1, 2, 3, 5, 7, 10];
   const SCRS = [];
   let scr = null, histIdle = 0;
-  const TICKS = [[0.5, "5,000만"], [5, "5억"], [10, "10억"], [15, "15억+"]];
+  const TICKS = [[0.5, "5,000만"], [2, "2억"], [5, "5억"], [15, "15억+"]];
   function scrubMount(el, big) {
     if (!el || el._scr) return; el._scr = 1;
     el.classList.add("scrub"); if (big) el.classList.add("lg");
@@ -955,4 +957,5 @@ const SIMPLE = (() => {
   const mapTab = () => { const v = history.state && history.state.sView; close(); if (v) setTimeout(() => fullMap(true), 120); else fullMap(true); };
   return { init, open, close, render, fullMap: (on) => fullMap(on), mapTab, cur: () => cur, setCash: (v) => setCash(v, true), toCash, toPos, zstate, shortTxt, cardHTML, guCount, guCounts, pick, spark: (id) => spark(id), stWord: ST_WORD, isNew: (r, n) => isNew(r, n), list: () => rows().map((x) => x.r.id) };
 })();
+window.ZP_simple = SIMPLE;   // 점검(QA)·다른 화면에서 같은 판정을 읽을 때
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", SIMPLE.init) : setTimeout(SIMPLE.init, 0);

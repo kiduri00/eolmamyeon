@@ -510,7 +510,7 @@
       const out = [];
       try {
         const cb = map.getCanvas().getBoundingClientRect();
-        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmap .lm-snote, #lmap .maplibregl-ctrl-bottom-right").forEach((e) => {
+        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmap .lm-snote, #lmap .maplibregl-ctrl-attrib").forEach((e) => {
           if (!e.offsetWidth || e.hidden || e.closest("[hidden]")) return;
           const b = e.getBoundingClientRect();
           if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;

@@ -353,7 +353,8 @@ const PINS = (() => {
       let i = nb.querySelector(".pn-nb");
       if (!i) { i = document.createElement("b"); i.className = "pn-nb"; i.setAttribute("aria-hidden", "true"); nb.appendChild(i); }
       i.hidden = !n; i.textContent = nTxt(n);
-      nb.setAttribute("aria-label", `관심${n ? `, 새 소식 ${n}곳` : ""}`);
+      const fl = FAV.filter((x) => byId[x]).length;
+      nb.setAttribute("aria-label", `관심${fl ? ` ${fl}곳` : ""}${n ? `, 새 소식 ${n}곳` : ""}`);
     }
     condBtn();
     // 앱 아이콘 숫자는 알림함(72_inbox paint)이 종 숫자와 같게 맞춘다
