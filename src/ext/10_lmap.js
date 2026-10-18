@@ -393,6 +393,7 @@
       ui();
       if (!want || failed) return show(false);
       if (!map && !whenNear(() => { if (mapView === "seoul" && !gu) seoul(); })) return;
+      shortMark();   // 지도 칸 모양(레일 3×2 등)은 지도를 붙이기 전에 정해 둔다 — 붙는 순간 레일이 줄어 밀리지 않게(CLS)
       if (!map && !whenGate(() => { if (mapView === "seoul" && !gu) seoul(); })) return;
       show(true);
       Promise.all([loadLib(), loadGeo()])
