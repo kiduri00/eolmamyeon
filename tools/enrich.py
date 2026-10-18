@@ -15,9 +15,44 @@ D = json.loads(_s)
 from junk import is_junk   # 시험 등록(이름이 'test'·'테스트'·'임시'뿐) 제외 — 화면·정적 페이지·API 모두 이 파일을 쓴다
 _JUNK = {r['id'] for r in D['recs'] if is_junk(r)}
 D['recs'] = [r for r in D['recs'] if r['id'] not in _JUNK]; R = D['recs']
+# 같은 곳이 두 자료에 따로 실린 것(짧은 이름 + 지번이 같음: 행당동 300-1 s41/s42 · 문래국화 o288/o289) → 더 많이 아는 쪽 하나만.
+# 버린 id는 D['alias'](버린 id → 남긴 id)로 남겨 옛 링크·핀·/z 페이지가 남긴 구역으로 간다(zpages.py가 옮김 페이지를 만든다).
+from zsample import short0 as _short0
+_PM0 = J('pipeline/premium.base.json') if os.path.exists(os.path.join(ROOT, 'pipeline/premium.base.json')) else J('src/premium.json')
+_GZ = J('public/data/geo.json').get('z', {})
+_PC0 = J('pipeline/cache/parcels.json') if os.path.exists(os.path.join(ROOT, 'pipeline/cache/parcels.json')) else {}
+def _rich(r):   # 경계·인가일·실거래·필지 목록·단계·항목 수 순으로 '더 많이 아는 쪽'
+    i = r['id']; pm = _PM0.get(i) or {}
+    return (3 if i in _GZ else 0) + (2 if pm.get('dt') or r.get('sd') else 0) + (2 if (_PC0.get(i) or {}).get('p') else 0) + (1 if r.get('tx') else 0) + 0.5 * (r.get('s') or 0) + 0.05 * len(r)
+_dg = collections.defaultdict(list)
+for r in R:
+    j = re.sub(r'\s+', '', str(r.get('j') or ''))
+    if j and r.get('n') and r.get('src') != 'moa': _dg[(_short0(r['n']).replace(' ', ''), j)].append(r)
+ALIAS = {}
+for _k, _xs in _dg.items():
+    if len(_xs) < 2: continue
+    _xs.sort(key=_rich, reverse=True); keep = _xs[0]
+    for x in _xs[1:]:
+        ALIAS[x['id']] = keep['id']
+        for f, v in x.items():   # 남긴 쪽에 없는 항목만 채운다(단계·이름은 남긴 쪽 그대로)
+            if f not in keep and f not in ('id', 'pcl'): keep[f] = v
+        pk, px = _PM0.get(keep['id']), _PM0.get(x['id'])
+        if px:
+            if pk is None: _PM0[keep['id']] = pk = {}
+            for f, v in px.items(): pk.setdefault(f, v)
+            _PM0.pop(x['id'], None)
+        if not (_PC0.get(keep['id']) or {}).get('p') and (_PC0.get(x['id']) or {}).get('p'):   # 필지 목록(매물 지번 확인)은 버린 쪽 것을 남긴 id로
+            _PC0[keep['id']] = _PC0[x['id']]
+            _pf = os.path.join(ROOT, 'public/data/pcl')
+            if os.path.exists(os.path.join(_pf, x['id'] + '.json')):
+                import shutil as _sh; _sh.copyfile(os.path.join(_pf, x['id'] + '.json'), os.path.join(_pf, keep['id'] + '.json'))
+if ALIAS:
+    D['recs'] = [r for r in D['recs'] if r['id'] not in ALIAS]; R = D['recs']
+    D['alias'] = ALIAS
+    print('dedupe alias', ALIAS)
 GEO = J('public/data/geo.json')['z']
 TX = J('pipeline/txsum.json')
-PARC = J('pipeline/cache/parcels.json') if os.path.exists(os.path.join(ROOT, 'pipeline/cache/parcels.json')) else {}
+PARC = _PC0   # (위에서 읽고 같은 곳 합치기를 반영한 것)
 RT = J('pipeline/rights.json') if os.path.exists(os.path.join(ROOT, 'pipeline/rights.json')) else {}
 stat = collections.Counter()
 NEAR = (J('pipeline/near.json') or {}).get('z', {}) if os.path.exists(os.path.join(ROOT, 'pipeline/near.json')) else {}   # tools/near.py
@@ -25,7 +60,7 @@ SALES_OK = True
 act = lambda r: not (r['s'] >= 9 or (r.get('dn') and r['s'] < 7))
 
 # ---------- 0. 정보몽땅 최신 추진경과 반영(단계·인가일·최근 기록) ----------
-PREM = J('pipeline/premium.base.json') if os.path.exists(os.path.join(ROOT, 'pipeline/premium.base.json')) else J('src/premium.json')
+PREM = _PM0   # (위에서 읽고 같은 곳 합치기를 반영한 것)
 CL = J('pipeline/cache/cleanup.json') if os.path.exists(os.path.join(ROOT, 'pipeline/cache/cleanup.json')) else {}
 SR2S = {'정비계획 수립': 1, '안전진단': 1, '정비구역지정': 2, '추진위원회승인': 3, '조합설립인가': 4, '사업시행자 지정': 4, '사업시행인가': 5, '관리처분인가': 6, '철거': 7, '이주': 7, '착공': 8, '분양': 8,
         '준공인가': 9, '부분준공인가': 9, '이전고시': 9, '조합해산': 9, '조합청산': 9}

@@ -16,9 +16,10 @@ SITE = 'https://jaegaebal.alwaysquestions.kr'
 D = J('pipeline/data.enriched.json') or J('src/data.json'); R = D['recs']; byId = {r['id']: r for r in R}
 PREM = J('public/premium.json', {}); CL = J('pipeline/cache/cleanup.json', {}); CALC = J('pipeline/calc.json', {})
 CHK = {(c['id'], c['event']): c for c in (J(f'pipeline/report/checks/{YM}.json', {}) or {}).get('items', [])}
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from zsample import batchim   # 받침 규칙 한 곳(숫자 끝 '9구'는 받침 없음)
 def josa(w, a, b):
-    c = w[-1]
-    return w + (a if '가' <= c <= '힣' and (ord(c) - 0xAC00) % 28 else b)
+    return w + (a if batchim(w) else b)
 esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 EV5 = [('추진위', '추진위원회 승인'), ('구역지정', '정비구역 지정'), ('조합설립', '조합설립인가'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가')]
 EVX = [('착공', '착공'), ('준공', '준공'), ('시공자', '시공자 선정')]

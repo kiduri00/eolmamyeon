@@ -319,3 +319,9 @@ html.s-full .pc-save,html.s-full .pc-act{display:none}
 .pn-ev{display:flex!important;align-items:flex-start;gap:6px;margin-top:4px;min-width:0}
 .pn-ev .ib-tg{flex:none;min-width:0;height:20px;padding:0 6px;font-size:11px;font-style:normal}
 .pn-ev span{min-width:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:12.5px;line-height:1.45;color:var(--text-2);white-space:normal}
+#report .sheet-bar>.pn-hpin.ic{padding:0;width:40px;justify-content:center}
+#report .sheet-bar>.pn-hpin.ic span{display:none}
+/* 폰 시트 닫기 줄 제목: 두 줄까지(모아타운 'A1구역' 같은 끝이 잘리지 않게) */
+@media (max-width:980px){#report.sheet .sheet-bar>b{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.25;font-size:15px;word-break:keep-all;overflow-wrap:anywhere}}
+/* 넓은 화면: 관심 구역 줄이 1100px 넘게 늘어나 숫자가 이름에서 멀어지던 것 → 읽기 폭으로 */
+@media (min-width:981px){#favTop .pn-panel{max-width:840px}}

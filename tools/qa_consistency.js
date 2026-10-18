@@ -29,7 +29,7 @@ const BLOCK = /googlesyndication|googletagmanager|google-analytics|doubleclick|a
 const IGNORE_MSG = /GL Driver|WebGL|GPU stall|swiftshader|adsbygoogle|googlesyndication|pagead|\[Report Only\]|report-only|Content-Security-Policy-Report-Only/i;
 
 // 고정 표본 구역(보고서에서 문제가 났던 곳) + API에서 고르는 몇 곳
-const FIXED_ZONES = ["o916", "o337", "o586", "o1059", "s78", "o747", "o111", "o135", "o136", "o914", "s45"];
+const FIXED_ZONES = ["o916", "o337", "o586", "o1059", "s78", "o747", "o111", "o135", "o136", "o914", "s45", "m9", "o776", "o281"];
 const CASH_LEVELS = [1, 3, 6, 10, 15];
 const STATIONS = ["봉천역", "신림역"];
 const EXTRA_VIEWS = ["results", "rulesTop", "readsTop", "statsTop"];
@@ -276,6 +276,15 @@ async function staticLane(api) {
   try { if (fs.existsSync(path.join(PUBLIC_DIR, "z"))) { const f = fs.readdirSync(path.join(PUBLIC_DIR, "z")).filter((x) => /\.html$/.test(x) && x !== "index.html").map((x) => x.replace(/\.html$/, "")); zIds = [...new Set(zIds.concat(f))]; } } catch (e) {}
   const apiById = new Map(api.zones.map((z) => [z.id, z]));
   const zData = new Map();
+  // 같은 곳 합치기(tools/enrich.py D.alias) — 앱 데이터에서 읽는다
+  let aliasOf = {};
+  try { aliasOf = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, "..", "pipeline", "data.enriched.json"), "utf8")).alias || {}; } catch (e) {}
+  // 검색창 이름(aria-label) == 보이는 안내(placeholder)
+  try { const ih = fs.readFileSync(path.join(PUBLIC_DIR, "index.html"), "utf8"), m = /<input[^>]*id="q"[^>]*>/.exec(ih) || [""], al = (/aria-label="([^"]*)"/.exec(m[0]) || [])[1], ph = (/placeholder="([^"]*)"/.exec(m[0]) || [])[1];
+    expect(al && al === ph, "a11y.qLabel", "검색창 aria-label == placeholder", `aria-label "${al}" vs placeholder "${ph}"`); } catch (e) {}
+  // 지번+짧은 이름이 같은 진행 중 구역이 api에 두 줄 이상 있으면 안 된다
+  { const seen = new Map(), dup = []; for (const z of api.zones) { const k = `${z.name}|${String(z.jibun || "").replace(/\s+/g, "")}`; if (!z.jibun) continue; if (seen.has(k)) dup.push(`${seen.get(k)}/${z.id} ${z.name}`); else seen.set(k, z.id); }
+    expect(!dup.length, "data.dedupe", "같은 곳 두 줄(지번·이름 같음)은 하나로 · 옛 id /z는 남긴 구역으로 옮김(noindex)", dup.slice(0, 5).join(" ; ")); }
   const updDot = (api.updated || "").replace(/-/g, ".");
 
   const zRes = await pool(zIds, 12, async (zid) => { const r = await getPage("/z/" + zid); return { zid, r }; });
@@ -283,8 +292,13 @@ async function staticLane(api) {
   for (const { zid, r } of zRes) {
     if (!r || r.status !== 200) { bad("z.status", "/z/<id> 페이지 200", `/z/${zid} → ${r && r.status}`); continue; }
     ok("z.status", "/z/<id> 페이지 200");
-    const z = parseZ(r.text); zData.set(zid, z);
     const where = `/z/${zid}`;
+    // 같은 곳 합치기로 옮긴 옛 id(api의 alias): 남긴 구역으로 가는 noindex 옮김 페이지여야 한다
+    if (aliasOf[zid]) {
+      expect(/name="robots" content="noindex/.test(r.text) && r.text.includes(`url=./${aliasOf[zid]}`) && !apiById.has(zid), "data.dedupe", "같은 곳 두 줄(지번·이름 같음)은 하나로 · 옛 id /z는 남긴 구역으로 옮김(noindex)", `${where}: not a redirect to ${aliasOf[zid]}`);
+      continue;
+    }
+    const z = parseZ(r.text); zData.set(zid, z);
     // 제목·h1 겹친 유형어
     const dt = (s) => { const m = /(?:^|\s)([가-힣]{2,})\s+\1/.exec(s.replace(/\s*\|.*$/, "")); return m && /정비형|재개발|재건축|정비|주택|장기전세|가로|소규모|사업|구역/.test(m[1]) ? m[1] : null; };
     const d1 = dt(z.title), d2 = dt(z.h1);
@@ -296,6 +310,9 @@ async function staticLane(api) {
     // 글자 결함
     const bt = badText(z.text);
     expect(!bt.length, "z.text", "/z 본문에 NaN·undefined·–억·곳를·겹친 낱말·1건 가운데 값 없음", `${where}: ${bt.join(" ; ")}`);
+    // 받침 조사: 숫자 끝은 읽는 소리로(2이·4사·5오·9구 → 는/가 · 0영·1일·3삼·6육·7칠·8팔 → 은/이) — '개봉동 49은'·'창신9은'
+    { const m = /[가-힣\s]\d*[2459]은 /.exec(z.text) || /[가-힣\s]\d*[013678]는 /.exec(z.text);   // 이/가는 지명('종로1가')과 겹쳐 은/는만
+      expect(!m, "z.josa", "/z 숫자 뒤 조사(은/는·이/가)가 읽는 소리 받침에 맞음", `${where}: "${m && m[0].trim()}"`); }
     expect(!/입주까지 총/.test(z.text), "term.static", "정적 페이지에 '입주까지 총' 없음(→입주까지 현금)", `${where}`);
     // 표본 수: 큰 숫자 n == 계산 매수가 n == 믿어도 될까 n
     if (z.hdN || z.buyN || z.trustN) {
@@ -308,6 +325,12 @@ async function staticLane(api) {
       const g = a.need && a.need.gap, c = a.need && a.need.cash;
       if (/전세/.test(z.ipjuMode)) expect(eqApi(z.ipju, g && g.total), "z.api", "/z 입주까지 현금 == /api/v1 같은 방식 값", `${where}: 전세 끼고 ${fm(z.ipju)} vs api gap.total ${g && g.total}`);
       else expect(eqApi(z.ipju, c && c.total) || eqApi(z.ipju, g && g.total), "z.api", "/z 입주까지 현금 == /api/v1 같은 방식 값", `${where}: ${z.ipjuMode || "?"} ${fm(z.ipju)} vs api cash.total ${c && c.total}`);
+    }
+    // 금액 꼴(ZF.cash): /z '지금 X억' == api 값의 ZF 꼴(0.69억처럼 1억 아래 소수 둘째 자리)
+    if (a && a.need && a.need.gap && a.need.gap.now != null) {
+      const m = /(?:^|[\s(])지금 ([\d.,]+억|0원)(?= ·|\))/.exec(z.text);
+      // api는 소수 둘째 자리로 반올림돼 있어(2.65) 원래 값(2.648…)의 꼴과 한 자리 다를 수 있다 → ±0.005 안의 꼴이면 같은 꼴
+      if (m) expect([a.need.gap.now - 0.005, a.need.gap.now, a.need.gap.now + 0.0049].some((v) => m[1] === zfCash(v)), "term.cashFmt", "금액 꼴 하나(ZF.cash · 1억 아래 소수 둘째 자리): 목록 == /api 값 꼴 == 지도 이름표 == 리포트 시간표", `${where}: /z "지금 ${m[1]}" vs ZF꼴(api ${a.need.gap.now}) "${zfCash(a.need.gap.now)}"`);
     }
     if (a && z.cashTotal && a.need && a.need.cash && a.need.cash.total != null) expect(eqApi(z.cashTotal, a.need.cash.total), "z.api", "/z 입주까지 현금 == /api/v1 같은 방식 값", `${where}: 현금으로 사면 ${fm(z.cashTotal)} vs api cash.total ${a.need.cash.total}`);
     if (z.asof && updDot) expect(z.asof === updDot, "seo.dates", "정적 페이지 '데이터 기준' 날짜 == api updated", `${where}: ${z.asof} vs ${updDot}`);
@@ -524,10 +547,14 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
       await page.waitForFunction(() => /믿어도 될까|최근 구역 안 거래 없음|계산 안 함/.test((document.getElementById("report") || {}).innerText || ""), null, { timeout: 5000, polling: 150 }).catch(() => {});
       const ov = await stableText(page, "#report", 4000, 2);
       const tabs = await page.evaluate(() => [...document.querySelectorAll("#report [role=tab]")].map((b) => b.dataset.tab));
-      const pane = {};
+      const pane = {}; let aucI = null;
       for (const k of tabs) {
         await page.evaluate((k) => { const b = document.querySelector(`#report [role=tab][data-tab="${k}"]`); b && b.click(); }, k);
         pane[k] = await stableText(page, "#pane", 2500, 1);
+        if (k === "tx") {   // 경매: 머리 칩 'N건' == 예정 사건(카드) 수 == 블록 머리 '예정 N건'(물건 수는 '물건 M개'로 따로)
+          await page.waitForFunction(() => !/경매 물건 불러오는 중/.test((document.getElementById("aucSec") || {}).textContent || ""), null, { timeout: 4000, polling: 150 }).catch(() => {});
+          aucI = await page.evaluate(() => { const s = document.getElementById("aucSec"), c = document.querySelector("#report .auc-chip"); if (!s) return null; const h = s.querySelector(".auc-n:not(.c)"); return { cards: s.querySelectorAll(".auc-l > li.up").length, chip: c ? c.textContent.trim() : "", head: h ? h.textContent.trim() : "", raw: [...s.querySelectorAll(".auc-f.j, .auc-sub")].map((e) => e.textContent).join(" | ") }; });
+        }
       }
       await page.evaluate(() => { const b = document.querySelector('#report [role=tab][data-tab="money"]'); b && b.click(); });
       const all = [ov, ...Object.values(pane)].join("\n");
@@ -537,6 +564,15 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
       const bt = badText(all);
       expect(!bt.length, "zone.text", "리포트(모든 탭)에 NaN·undefined·–억·곳를·겹친 낱말·1건 가운데 값·m² 없음", `${where}: ${bt.join(" ; ")}`);
       expect(!/입주까지 총/.test(all), "term.app", "앱 화면에 '입주까지 총' 없음(같은 숫자는 '입주까지 현금')", `${where} report`);
+      expect(!/호재·매물/.test(all), "term.tabName", "탭 이름을 부르는 글자 == 실제 탭 이름('호재·매물' 탭 없음)", `${where}`);
+      // 일정 탭 '10년 안 준공 가능성' 값이 비지 않음('–' 대신 '1% 미만'·'자료 부족')
+      if (pane.biz) { const m = /10년 안 준공 가능성\n([^\n]*)/.exec(pane.biz); if (m) expect(m[1].trim() && m[1].trim() !== "–" && m[1].trim() !== "0%", "zone.p10", "일정 탭 10년 안 준공 가능성: '–'·'0%' 대신 '1% 미만'·'자료 부족'", `${where}: "${m[1]}"`); }
+      if (aucI && aucI.cards) {
+        const T = "경매 셈은 사건 단위: 칩 '경매 N건' == 예정 사건 카드 수 == 블록 머리 '예정 N건'";
+        expect(!aucI.chip || aucI.chip === `경매 ${aucI.cards}건`, "zone.aucCount", T, `${where}: chip "${aucI.chip}" vs ${aucI.cards} cards`);
+        expect(new RegExp(`^예정 ${aucI.cards}건( · 물건 \\d+개)?$`).test(aucI.head), "zone.aucCount", T, `${where}: head "${aucI.head}" vs ${aucI.cards} cards`);
+        expect(!/\d분의\d|단독주택다가구|연립주택,다세대/.test(aucI.raw), "zone.aucText", "경매 지분·용도는 읽는 말로('지분 약 9.8%' · '단독·다가구')", `${where}: ${aucI.raw.slice(0, 120)}`);
+      }
       expect(pinBtns <= 1, "zone.pin1", "리포트에 '핀 꽂기' 버튼 하나", `${where}: ${pinBtns} visible 핀 꽂기 buttons`);
       // 표본 n: 큰 숫자 == 매수가 == 신뢰 상자
       const ns = [R.hdN, R.buyN, R.trustN].filter((x) => x != null && !isNaN(x));

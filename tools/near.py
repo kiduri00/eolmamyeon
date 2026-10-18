@@ -119,6 +119,11 @@ for r, rad, ycap in Z:
     if len(S) >= 6:
         u = sorted(x[4] / x[1] for x in S); q = st.quantiles(u, n=4); lo, hi = q[0] - 1.5 * (q[2] - q[0]), q[2] + 1.5 * (q[2] - q[0])
         S = [x for x in S if lo <= x[4] / x[1] <= hi]
+    # 대지 3.3㎡당이 표본 가운데 값의 20% 아래인 거래(대지 지분이 잘못 적혔거나 큰 필지 공유 지분)는 뺀다 — 3.3㎡당 머리 숫자가 260만처럼 튀던 것(o1059)
+    L0 = [x[4] / x[2] for x in S if x[2] > 0]
+    if len(L0) >= 3:
+        m0 = st.median(L0); n0 = len(S)
+        S = [x for x in S if not (x[2] > 0 and x[4] / x[2] < m0 * 0.2)]; stat['land_outlier'] += n0 - len(S)
     if not S: stat['empty'] += 1; continue
     S.sort(key=lambda x: x[0], reverse=True)
     ps = [x[4] for x in S]; qs = st.quantiles(ps, n=4) if len(ps) >= 2 else [ps[0]] * 3
@@ -131,4 +136,4 @@ for r, rad, ycap in Z:
     stat['ok'] += 1
 json.dump({'asOf': asof, 'z': OUT}, open(P('pipeline/near.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 json.dump({'asOf': asof, 'z': PUB}, open(P('public/data/near.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-print(f"near: 구역 {len(Z)}곳 중 표본 {stat['ok']}곳 · 빈 곳 {stat['empty']} · 경계 없음 {stat['no_geo']} · 좌표 조회 {nreq}회 · 기준 {asof}")
+print(f"near: 대지 3.3㎡당 이상치 {stat['land_outlier']}건 뺌 · 구역 {len(Z)}곳 중 표본 {stat['ok']}곳 · 빈 곳 {stat['empty']} · 경계 없음 {stat['no_geo']} · 좌표 조회 {nreq}회 · 기준 {asof}")

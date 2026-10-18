@@ -375,7 +375,7 @@ const SIMPLE = (() => {
         let chg = null;
         if (P8.length >= 6) { const b = P8.filter((p) => p[0] <= last - 4).pop(); if (b) chg = (P8[P8.length - 1][1] / b[1] - 1) * 100; }
         // 작은 선만 있으면 무엇인지 몰라('√'처럼 보임) 아래에 늘 이름표: '1년▲64%'(1년 바뀜) 또는 '시세'
-        const tr = chg != null && Math.abs(chg) >= 3 ? `<i class="${chg > 0 ? "up" : "dn"}" aria-hidden="true">1년${chg > 0 ? "▲" : "▼"}${Math.round(Math.abs(chg))}%</i>` : `<i aria-hidden="true">시세</i>`;
+        const tr = chg != null && Math.abs(chg) >= 3 ? `<i class="${chg > 0 ? "up" : "dn"}" aria-hidden="true">1년${chg > 0 ? "▲" : "▼"}${Math.round(Math.abs(chg))}%</i>` : `<i aria-hidden="true">2년 시세</i>`;
         const lab = `최근 2년 시세 흐름${chg != null && Math.abs(chg) >= 3 ? ` · 1년 ${chg > 0 ? "+" : "−"}${Math.round(Math.abs(chg))}%` : ""}`;
         out = `<span class="s-sp" role="img" aria-label="${lab}" title="${lab}"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${xy.map((p) => p.join(",")).join(" ")}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${ex}" cy="${ey}" r="1.9" fill="currentColor"/></svg>${tr}</span>`;
       }
@@ -532,7 +532,8 @@ const SIMPLE = (() => {
     const cap = capC[1];
     $("sNL").textContent = gap ? (cap ? `전세 시세 있는 ${fmt(cap)}곳 중` : "전세 끼고 살 수 있는 곳") : cap ? `${effBasis() === "total" ? "입주까지 계산되는" : "매수가 계산되는"} ${fmt(cap)}곳 중` : effBasis() === "total" ? "입주까지 되는 곳" : "대출 끼고 살 수 있는 곳";
     $("sLT").textContent = gu ? `${gu} · ${fmt(L.length)}곳` : `살 수 있는 곳 · ${fmt(L.length)}곳`;
-    $("sLS").textContent = gap || effBasis() !== "total" ? "지금 필요한 돈 · 추정" : "입주까지 필요한 돈 · 추정";
+    $("sLS").textContent = (gap || effBasis() !== "total" ? "지금 필요한 돈 · 추정" : "입주까지 필요한 돈 · 추정");
+    $("sLS").title = "작은 선 = 구역 대표 거래 최근 2년(분기별) 시세 흐름 · 최근 거래가 적은 구역은 선이 없어요";
     const sg = $("sGu");
     sg.hidden = !gu && !bbF && !bbCan;
     if (!gu && bbF) { sg.innerHTML = `<button type="button" class="s-bbx" id="sBbX" aria-label="지도 범위만 보기 해제 · 지금 ${fmt(L.length)}곳">지도 범위만 · ${fmt(L.length)}곳<i aria-hidden="true">✕</i></button>`; $("sBbX").onclick = () => { bbF = null; render(); const f = $("sBbO") || $("sList").querySelector("[data-id]"); if (f) f.focus({ preventScroll: true }); }; }

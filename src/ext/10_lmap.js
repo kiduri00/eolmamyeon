@@ -229,7 +229,7 @@
       // 역 표시: 흰 점 + 남색 테두리 + '○○역'
       L({ id: "spt-c", type: "circle", source: "spt", filter: ["==", ["get", "k"], "s"], paint: { "circle-radius": 7, "circle-color": dk ? "#151B23" : "#FFFFFF", "circle-stroke-color": dk ? "#9DBBFF" : "#1F3A87", "circle-stroke-width": 3 } });
       // 고리 이름('걸어서 10분·15분')은 고리 위 끝에 고정
-      L({ id: "spt-rlab", type: "symbol", source: "spt", filter: ["==", ["get", "k"], "r"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": 10.5, "text-anchor": "bottom", "text-offset": [0, -0.2], "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": dk ? "#C7D6FF" : "#1F3A87", "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "spt-rlab", type: "symbol", source: "spt", filter: ["==", ["get", "k"], "r"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": 10.5, "text-anchor": "bottom", "text-offset": [0, -0.2], "text-allow-overlap": true, "text-ignore-placement": false }, paint: { "text-color": dk ? "#C7D6FF" : "#1F3A87", "text-halo-color": halo, "text-halo-width": 2 } });
       // 역 이름: 구역 카드가 먼저 자리 잡고(카드 레이어 아래에 둠), 역 이름은 아래·오른쪽·왼쪽·위 중 비어 있는 쪽에. 다 막히면 아래에 겹쳐서라도 보인다
       if (!map.getLayer("spt-lab")) map.addLayer({ id: "spt-lab", type: "symbol", source: "spt", filter: ["==", ["get", "k"], "s"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-variable-anchor": ["bottom", "left", "right", "top"], "text-radial-offset": 0.85, "text-padding": 2, "text-justify": "auto", "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": dk ? "#C7D6FF" : "#1F3A87", "text-halo-color": halo, "text-halo-width": 2 } }, "zone-lab");
       // 목록 줄에 마우스: 그 구역 이름표를 맨 위에(줌과 상관없이, 다른 카드에 안 가림)
@@ -683,13 +683,39 @@
       const ll = stnF.ll, outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
       map.getSource("sdim").setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [outer, circ(ll, W15).reverse()] }, properties: {} });
       map.getSource("sring").setData(FC([W10, W15].map((m) => ({ type: "Feature", geometry: { type: "LineString", coordinates: circ(ll, m) }, properties: { m } }))));
-      const top = (m) => [ll[0], ll[1] + m / 111320];
       map.getSource("spt").setData(FC([
         { type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { k: "s", n: stnF.n ? stnF.n.replace(/역$/, "") + "역" : "" } },
-        { type: "Feature", geometry: { type: "Point", coordinates: top(W10) }, properties: { k: "r", n: "걸어서 10분" } },
-        { type: "Feature", geometry: { type: "Point", coordinates: top(W15) }, properties: { k: "r", n: "걸어서 15분" } },
+        { type: "Feature", geometry: { type: "Point", coordinates: rlabAt(ll, W10, null) }, properties: { k: "r", n: "걸어서 10분" } },
+        { type: "Feature", geometry: { type: "Point", coordinates: rlabAt(ll, W15, null) }, properties: { k: "r", n: "걸어서 15분" } },
       ]));
     }
+    // 고리 이름 자리: 고리 위 끝부터 둘레를 돌며, 떠 있는 것(게이지·레일·경매 범례·확대 버튼)·구역 카드·역 이름·화면 밖과 겹치지 않는 첫 자리
+    const RL_OBS = "#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg";
+    function rlabAt(ll, m, used) {
+      const at = (deg) => { const a = (deg * Math.PI) / 180, dy = (m / 111320) * Math.cos(a), dx = (m / (111320 * Math.cos((ll[1] * Math.PI) / 180))) * Math.sin(a); return [ll[0] + dx, ll[1] + dy]; };
+      if (!map || !ready) return at(0);
+      try {
+        const cv = map.getCanvas(), cb = cv.getBoundingClientRect(), W = cv.clientWidth, H = cv.clientHeight;
+        const obs = [];
+        document.querySelectorAll(RL_OBS).forEach((e) => { if (!e.offsetWidth || e.hidden || e.closest("[hidden]")) return; const b = e.getBoundingClientRect(); obs.push([b.left - cb.left - 4, b.top - cb.top - 4, b.right - cb.left + 4, b.bottom - cb.top + 4]); });
+        const hit = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+        // 구역 카드·역 이름·바탕 지도 글자(역·동 이름 — 길 이름은 빼고)와 겹치는지
+        const lab = (bx) => map.queryRenderedFeatures([[bx[0], bx[1]], [bx[2], bx[3]]]).some((f) => f.layer && (f.layer.type === "symbol" || (f.layer.type === "circle" && !/^spt/.test(f.layer.id))) && f.layer.id !== "spt-rlab" && !/road|street|transportation_name|highway/.test(f.layer.id + "|" + (f.sourceLayer || "")));
+        const DEG = [0, -25, 25, -50, 50, -75, 75, 180, 155, -155, 130, -130, 105, -105];
+        for (const strict of [true, false])
+          for (const deg of DEG) {
+            const c = at(deg), p = map.project(c), bx = [p.x - 34, p.y - 18, p.x + 34, p.y + 1];
+            if (bx[0] < 6 || bx[1] < 6 || bx[2] > W - 6 || bx[3] > H - 6) continue;
+            if (obs.some((o) => hit(bx, o)) || (used && used.some((o) => hit(bx, o)))) continue;
+            if (strict && lab(bx)) continue;
+            if (used) used.push(bx);
+            return c;
+          }
+      } catch (e) {}
+      return at(0);
+    }
+    let rlT = 0;
+    const rlabSoon = () => { clearTimeout(rlT); rlT = setTimeout(() => { if (!stnF || !map || !map.getSource("spt")) return; const used = []; const f = (k) => ({ type: "Feature", geometry: { type: "Point", coordinates: rlabAt(stnF.ll, k === 10 ? W10 : W15, used) }, properties: { k: "r", n: `걸어서 ${k}분` } }); map.getSource("spt").setData(FC([{ type: "Feature", geometry: { type: "Point", coordinates: stnF.ll }, properties: { k: "s", n: stnF.n ? stnF.n.replace(/역$/, "") + "역" : "" } }, f(15), f(10)])); }, 120); };
     function stnGo() {
       if (!map || !stnF) return;
       stnPend = false;
@@ -848,7 +874,7 @@
         if (W < 50 || H < 50) return;
         let top = 4;
         const holes = [];
-        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, .s-mini, .s-fullx, #lmNotes").forEach((e) => {
+        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, .s-mini, .s-fullx, #lmNotes, #lmAucLg").forEach((e) => {
           if (!e.offsetWidth || e.hidden) return;
           const b = e.getBoundingClientRect();
           if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;
@@ -872,7 +898,7 @@
         if (map.getLayer("gu-lab")) map.setFilter("gu-lab", ["within", poly]);
         // 핀(₩·내 핀·클러스터)도 레일·확대 버튼·위 작은 게이지 밑에 깔리지 않게: 핀 끝(아래)이 그 칸 바로 아래 30px 안이면 머리가 칸에 가려서 같이 뺀다
         const PH = [], pinTop = top > 4 ? top + 26 : 0;
-        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, .s-fullx, #lmNotes").forEach((e) => {
+        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, .s-fullx, #lmNotes, #lmAucLg").forEach((e) => {
           if (!e.offsetWidth || e.hidden) return;
           const b = e.getBoundingClientRect();
           if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;
@@ -941,6 +967,7 @@
       map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '정비구역 경계 <a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a>' }), "bottom-right");
       map.on("style.load", () => { ready = false; loadGeo().then(overlays); });
       map.on("moveend", edgeSoon);
+      map.on("moveend", rlabSoon); map.on("resize", rlabSoon);
       // 목록 '이 지도 범위만'(60_simple.js)이 지도를 옮길 때마다 따라오게: 보이는 범위·줌을 알린다
       map.on("moveend", () => { try { if (!ready || $("lmap").hidden) return; const b = map.getBounds(); dispatchEvent(new CustomEvent("zp:mapmove", { detail: { bb: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], z: map.getZoom() } })); } catch (e) {} });
       // 사용자가 역에서 2km 넘게 밀거나 크게 빼면 역 표시(어둡게 덮기·고리)를 푼다

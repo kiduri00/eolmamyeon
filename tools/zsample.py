@@ -1,6 +1,32 @@
 """구역 사실 한 곳(정적 쪽): 계산 매수가 표본 한 문장 · 머리 큰 숫자 · '이 숫자 믿어도 될까' · 짧은 이름 · 용어.
 zpages.py(/z/ 페이지)·api.py가 같이 쓴다. 화면 쪽 같은 규칙: src/ext/05_facts.js (ZF.smpTxt · ZF.headline · LBL) — 둘을 같이 고친다."""
-import datetime, re
+import datetime, re, math
+def batchim(w):   # 마지막 글자 받침 유무 — 한글은 음절, 숫자는 읽는 소리(0영·1일·3삼·6육·7칠·8팔 받침 / 2이·4사·5오·9구 없음) · 화면 ZP_josa와 같은 규칙
+    s = re.sub(r'[\s)\]]+$', '', str(w or '')); c = s[-1:] 
+    if '가' <= c <= '힣': return (ord(c) - 0xAC00) % 28 != 0
+    return c in '013678'
+def num(v):   # 억 단위 금액 숫자 꼴 — 화면 ZF.num과 같은 규칙: 1억 아래 소수 둘째 자리(0.69), 1억부터 첫째 자리(1.2 · 1)
+    if v is None or v != v or v in (float('inf'), float('-inf')): return '–'
+    a = abs(v); sg = '-' if v < 0 else ''
+    if a < 0.005: return '0'
+    if a < 0.995:
+        t = f"{math.floor(a * 100 + 0.5) / 100:.2f}"; return sg + (t[:-1] if t.endswith('0') else t)
+    t = f"{math.floor(a * 10 + 0.5) / 10:,.1f}"; return sg + (t[:-2] if t.endswith('.0') else t)
+def cash(v):   # → '0.69억' · '1.2억' · '0원' (화면 ZF.cash)
+    t = num(v); return t if t == '–' else '0원' if t == '0' else t + '억'
+AUSE = {'단독주택다가구': '단독·다가구', '연립주택,다세대,빌라': '연립·다세대', '상가,오피스텔,근린시설': '상가·근린시설', '대지,임야,전답': '대지·임야', '다가구주택': '다가구'}
+def auc_use(u):   # 경매 용도 원문 → 읽기 쉬운 말(화면 ZF.aucUse)
+    t = str(u or '').strip(); return AUSE.get(re.sub(r'\s+', '', t)) or re.sub(r'\s*,\s*', '·', t)
+def auc_uses(us):   # 여러 물건 대표 용도('기타'보다 구체적인 것 먼저 · 화면 ZF.aucUses)
+    xs = list(dict.fromkeys(x for x in (auc_use(u) for u in us) if x)); top = [x for x in xs if x != '기타']
+    a = (top or xs or ['부동산'])[0]; return f'{a} 외' if len(xs) > 1 else a
+def auc_jb(jb):   # 지분 '333.4분의32.79' → '지분 약 9.8%'(화면 ZF.aucJb) · 몫 모르면 '지분'
+    m = re.match(r'^([\d.]+)분의([\d.]+)$', str(jb or ''))
+    if not m or not float(m.group(1)) > 0: return '지분' if jb else ''
+    p = float(m.group(2)) / float(m.group(1)) * 100; t = math.floor(p + 0.5) if p >= 10 else math.floor(p * 10 + 0.5) / 10
+    return f'지분 약 {t:g}%'
+def josa(w, a='은', b='는'):   # 조사만 돌려준다(받침 있으면 a)
+    return a if batchim(w) else b
 LBL = {'cashToMoveIn': '입주까지 현금', 'gap': '전세 끼고', 'loan': '대출 끼고'}   # 화면 LBL과 같은 말
 PSRC = {'villa': '빌라 실거래 가운데 값', 'complex': '단지 실거래 가운데 값', 'apt': '단지 실거래 가운데 값', 'est': '구 평균 시세로 추정'}
 def isEst(r, c):   # 매수가 표본이 없어 같은 구 빌라 시세로 채운 값(화면 isEst · calc.json에는 priceSrc 'user'로 남음)

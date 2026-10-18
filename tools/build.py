@@ -6,6 +6,10 @@ S = lambda p: open(os.path.join(R, 'src', p), encoding='utf-8').read()
 shell = S('shell.html')
 EN = os.path.join(R, 'pipeline', 'data.enriched.json')
 D = json.load(open(EN, encoding='utf-8')) if os.path.exists(EN) else json.loads(S('data.json'))
+# 첫 화면 정적 글자(눈썹·요약·읽을거리 소개)의 '진행 중 N곳'을 자료와 같게(앱이 그린 뒤의 숫자 · /api count와 같은 기준) — 같은 곳 합치기 등으로 수가 바뀌어도 어긋나지 않게
+_LIVE = sum(1 for r in D['recs'] if not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n'))
+shell = re.sub(r'(진행 중(?: 정비사업)? |<span class="eb-s">서울 정비사업 )[\d,]+(곳)', lambda m: f"{m.group(1)}{_LIVE:,}{m.group(2)}", shell)
+shell = re.sub(r'(<span class="dt">진행 중 정비사업</span><span class="dd"><b data-n=")\d+(">)[\d,]+(<)', lambda m: f"{m.group(1)}{_LIVE}{m.group(2)}{_LIVE:,}{m.group(3)}", shell)
 # 목록 줄의 작은 실거래 흐름선용 경량 파일(tx.json 1.8MB 대신 구역별 최근 8분기 값만) → 첫 화면에서 tx.json을 안 받는다
 TXF = os.path.join(R, 'public', 'data', 'tx.json')
 if os.path.exists(TXF):

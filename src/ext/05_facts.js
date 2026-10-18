@@ -85,7 +85,13 @@
     }
     const walkMin = (d) => Math.max(1, Math.round((d * 1.3) / 67));
     const walkLbl = (name, n) => `${name ? stN(name) + "역 " : ""}걸어서 15분 안 · ${Number(n).toLocaleString("ko-KR")}곳`;
-    return { eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl };
+    // 경매 물건 용도(법원경매정보 원문 → 읽기 쉬운 말) · 지분 몫('333.4분의32.79' → 약 9.8%) — /z(zsample.auc_use·auc_jb)와 같은 규칙
+    const AUSE = { 단독주택다가구: "단독·다가구", "연립주택,다세대,빌라": "연립·다세대", "상가,오피스텔,근린시설": "상가·근린시설", "대지,임야,전답": "대지·임야", 다가구주택: "다가구" };
+    const aucUse = (u) => { const t = String(u || "").trim(); return AUSE[t.replace(/\s+/g, "")] || t.replace(/\s*,\s*/g, "·"); };
+    // 여러 물건 대표 용도: '기타'보다 구체적인 용도를 먼저
+    const aucUses = (us) => { const xs = [...new Set(us.map(aucUse).filter(Boolean))], top = xs.filter((x) => x !== "기타"); const a = top[0] || xs[0] || "부동산"; return xs.length > 1 ? `${a} 외` : a; };
+    const aucJb = (jb) => { const m = String(jb || "").match(/^([\d.]+)분의([\d.]+)$/); if (!m || !(+m[1] > 0)) return null; const p = (+m[2] / +m[1]) * 100, t = p >= 10 ? Math.round(p) : Math.round(p * 10) / 10; return { pct: t, txt: `지분 약 ${t}%`, frac: `${m[1]}분의 ${m[2]}` }; };
+    return { aucUse, aucUses, aucJb, eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl };
   })();
   // 정적 HTML(shell.html)의 방식 버튼 글자도 LBL에서: data-lbl="gap|loan|cashToMoveIn"
   { const lbl = () => document.querySelectorAll("[data-lbl]").forEach((e) => { const t = LBL[e.dataset.lbl]; if (t && e.textContent !== t) e.textContent = t; }); document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", lbl) : lbl(); }

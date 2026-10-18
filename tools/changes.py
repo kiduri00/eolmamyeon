@@ -9,7 +9,9 @@
 스냅숏·누적 사건은 pipeline/cache/changes_state.json에 둔다(같은 날 다시 돌려도 결과가 같다).
 처음 돌릴 때(스냅숏 없음)는 실거래 계약일·고시 날짜로 지난 30일을 채운다.
 사용: python3 tools/changes.py   (tools/daily.sh에서 calc.js 다음에 돈다)"""
-import json, os, re, hashlib, datetime, collections
+import json, os, re, hashlib, datetime, collections, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from zsample import auc_use, auc_jb   # 경매 용도·지분 말(화면 ZF.aucUse·aucJb와 같은 규칙)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 P = lambda p: os.path.join(ROOT, p)
 def J(p, d=None):
@@ -102,9 +104,9 @@ auc_jibun = lambda y: bool(y.get('jb'))   # 지분 매각(auction_match.py)
 def auc_text(items):
     x = auc_head(items)
     mn = x.get('min'); d = str(x.get('date') or '')
-    use = re.sub(r'\s*,\s*', ', ', str(x.get('use') or '부동산'))
-    t = f"경매 물건 등장{f' {len(items)}건' if len(items) > 1 else ''} · {use}{' 지분' if auc_jibun(x) else ''}"
-    if isinstance(mn, (int, float)) and mn > 0: t += f" 최저 {won(mn / 1e4)}"
+    use = auc_use(x.get('use')) or '부동산'
+    t = f"경매 물건 등장{f' (물건 {len(items)}개)' if len(items) > 1 else ''} · {use}{' ' + auc_jb(x.get('jb')) if auc_jibun(x) else ''}"
+    if isinstance(mn, (int, float)) and mn > 0: t += f" · 최저 {won(mn / 1e4)}"
     if re.match(r'\d{4}-\d\d-\d\d', d): t += f" · 입찰 {int(d[5:7])}.{int(d[8:10])}"
     return t
 def auc_mn(items):   # 알림 조건(현금) 비교용: 대표 물건 최저가(억)
@@ -185,6 +187,19 @@ def notices():
         out.append(ev(i, d, 'notice', txt, cat=cat))
     return out
 
+def auc_retext(e):
+    """예전 꼴 경매 문구('… 2건 · 단독주택다가구 지분 최저 1.4억') → 지금 꼴('(물건 2개) · 단독·다가구 지분 약 15% · 최저 1.4억').
+    지분 몫은 그 구역 경매 물건 중 대표 최저가(mn)가 같은 물건에서 찾는다."""
+    if e.get('type') != 'auction': return e
+    t = e.get('text') or ''
+    if ' · 최저 ' in t: return e   # 이미 지금 꼴
+    m = re.match(r'^경매 물건 등장(?: (\d+)건)? · (.+?)( 지분)? 최저 (.+)$', t)
+    if not m: return e
+    n, use, jb, rest = m.groups()
+    x = next((y for y in auc_items(e['id']) if y.get('jb') and isinstance(y.get('min'), (int, float)) and abs(y['min'] / 1e8 - (e.get('mn') or 0)) < 0.006), None)
+    j = ' ' + auc_jb(x['jb']) if x else ' 지분' if jb else ''
+    return dict(e, text=f"경매 물건 등장{f' (물건 {n}개)' if n else ''} · {auc_use(use)}{j} · 최저 {rest}")
+
 def main():
     st = J(STATE, {}) or {}
     cur = snap_now()
@@ -205,6 +220,7 @@ def main():
     # 필요한 돈(price)은 푸시 조건 판정용이라 3일만 둔다(계산 엔진이 바뀐 날 수백 건이 30일 쌓이지 않게)
     PCUT = (T0 - datetime.timedelta(days=2)).isoformat()
     stored, sk = [], set()
+    new = [auc_retext(e) for e in new]; kept = [auc_retext(e) for e in kept]
     for e in new + kept:   # 같은 날 다시 돌려도 쌓이지 않게 키로 한 번만
         if e.get('k') in sk or e.get('date', '') < CUT or (e.get('type') == 'price' and e.get('date', '') < PCUT): continue
         sk.add(e.get('k')); stored.append(e)

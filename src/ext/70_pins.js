@@ -716,6 +716,14 @@ const PINS = (() => {
     const t = rep.querySelector(".rep-t");
     if (t && !t.querySelector(".pn-hpin")) { const gb = t.lastElementChild && t.lastElementChild !== t.firstElementChild ? t.lastElementChild : null; gb ? t.insertBefore(mk(), gb) : t.appendChild(mk()); }
   }
+  // 폰 시트 닫기 줄: 제목이 잘리면(360px '화곡6동 95…') 핀 버튼을 아이콘만으로(aria-label은 그대로 '… 핀 꽂고 알림 받기')
+  function pinFit() {
+    const bar = document.querySelector("#report .sheet-bar"), b = bar && bar.querySelector(".pn-hpin"), t = bar && bar.querySelector(":scope > b");
+    if (!b || !t) return;
+    b.classList.remove("ic");
+    if (t.offsetWidth && (t.scrollWidth > t.clientWidth + 1 || t.scrollHeight > t.clientHeight + 1)) b.classList.add("ic");
+  }
+  addEventListener("resize", () => requestAnimationFrame(pinFit));
 
   // 홈 게이지 아래 알림 버튼(예전 '이 조건으로 핀 꽂기'·'조건 핀 N개' 두 알약 대신 하나):
   //  지금 게이지(현금·방식·유형·출퇴근)와 같은 알림 조건이 없으면 '이 돈으로 살 수 있는 곳 생기면 알려 줘' → 누르면 바로 조건 저장
@@ -757,8 +765,11 @@ const PINS = (() => {
     }
     const n = condNews(sc), sn = new Set(String(sc.seen || "").split("/")[0].split(",").filter(Boolean)), f = n.add.filter((id) => !sn.has(id)).length, N = f || n.add.length;
     b.classList.add("on");
-    b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>알림 켜짐${N ? ` · 새 구역 ${N}곳` : ""}</b><small>${N ? `${esc(sc.name)} · ${f ? "아직 안 본 곳" : "새로 살 수 있게 된 곳"}` : `지금 ${fmt(n.ids.length)}곳 · 새로 생기면 알려 드려요`}</small></span><span class="pc-al-go">${N ? "보기" : "알림 조건"} →</span>`;
-    b.setAttribute("aria-label", `알림 켜짐${N ? `, 새 구역 ${N}곳 보기` : ", 알림 조건 보기"}`);
+    // 폰 알림 권한이 거절됐으면 '켜짐'이라 하지 않는다(알림함으로만 받음)
+    let denied = false; try { denied = typeof Notification !== "undefined" && Notification.permission === "denied"; } catch (e) {}
+    const onT = denied ? "알림함으로 받는 중 · 폰 알림 꺼짐" : "알림 켜짐";
+    b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>${onT}${N ? ` · 새 구역 ${N}곳` : ""}</b><small>${N ? `${esc(sc.name)} · ${f ? "아직 안 본 곳" : "새로 살 수 있게 된 곳"}` : `지금 ${fmt(n.ids.length)}곳 · 새로 생기면 알려 드려요`}</small></span><span class="pc-al-go">${N ? "보기" : "알림 조건"} →</span>`;
+    b.setAttribute("aria-label", `${onT}${N ? `, 새 구역 ${N}곳 보기` : ", 알림 조건 보기"}`);
   }
   const newIds = () => [...new Set(condsAll().flatMap((n) => n.add))];
   // 본 적 없는 새 구역만: seen(마지막으로 본 sig)의 '새로 들어온' id 목록을 빼고 센다
@@ -834,8 +845,8 @@ const PINS = (() => {
       if (b) { ACT.kind = b.dataset.k || ""; actBar(); }
     }, true);
     try { const _xg = exitGu; exitGu = function () { if (ACT && ACT.gu) { ACT.gu = ""; setTimeout(actBar, 0); } return _xg.apply(this, arguments); }; } catch (e) {}
-    try { const _rr = renderReport; renderReport = function () { const x = _rr.apply(this, arguments); try { headPin(); } catch (e) {} return x; }; } catch (e) {}
-    try { headPin(); } catch (e) {}
+    try { const _rr = renderReport; renderReport = function () { const x = _rr.apply(this, arguments); try { headPin(); pinFit(); requestAnimationFrame(pinFit); } catch (e) {} return x; }; } catch (e) {}
+    try { headPin(); pinFit(); } catch (e) {}
     toastWatch();
     // 현금·방식·유형을 바꾸면 홈 알림 버튼(켜짐/알려 줘)을 다시
     let cbT = 0; const cbLater = () => { clearTimeout(cbT); cbT = setTimeout(() => { try { condBtn(); } catch (e) {} }, 150); };

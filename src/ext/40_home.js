@@ -34,6 +34,8 @@ const HM = (() => {
   // 버튼은 상자마다 하나만 만들어 두고 글자·aria만 바꾼다(포커스 유지). 숨김은 속성 변경이라 관찰에 걸리지 않아 루프가 없다.
   function clamp(box, sel, n, nm) {
     const N = (MOB() ? nm : n) || 5;
+    // 자체 '더 보기'(출퇴근 #cmMore: 18곳씩 · 남은 N곳)가 있는 상자는 접지 않는다 — 더 보기 버튼이 둘(숫자가 다른) 되던 것
+    if (box.querySelector("#cmMore") || (box.id === "cmOut" && box.querySelector(".t-acts"))) { box.querySelectorAll(sel).forEach((x) => (x.hidden = false)); if (box.__hmBtn) box.__hmBtn.hidden = true; return; }
     const rows = [...box.querySelectorAll(sel)].filter((x) => !x.closest(".hm-more"));
     const open = !!box.__hmOpen;
     rows.forEach((x, i) => (x.hidden = !open && i >= N));

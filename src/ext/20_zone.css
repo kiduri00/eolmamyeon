@@ -60,9 +60,9 @@ table.nc td:nth-child(2),table.nc thead th:nth-child(2){background:var(--surface
 .auc-rt{grid-area:t;min-width:0;display:flex;flex-direction:column;gap:1px}
 .auc-rt b{font-size:13.5px;color:var(--text-1)}
 .auc-rt span{font-size:var(--fs-cap);color:var(--text-3);overflow-wrap:anywhere}
-.auc-rv{grid-area:v;text-align:right;white-space:nowrap}
+.auc-rv{grid-area:v;text-align:right;white-space:nowrap;display:flex;flex-direction:column;align-items:flex-end;gap:1px}
 .auc-rv b{font-size:15px;color:var(--brand);font-variant-numeric:tabular-nums}
-.auc-rv em{margin-left:4px;font-style:normal;font-size:var(--fs-cap);font-weight:700;color:var(--warn-ink)}
+.auc-rv em{font-style:normal;font-size:var(--fs-cap);font-weight:600;color:var(--text-3)}.auc-rv em i{font-style:normal;font-weight:700;color:var(--warn-ink)}
 .auc-rc{grid-area:c;display:flex;gap:4px;flex-wrap:wrap}
 .auc-rc:empty{display:none}
 .auc-r.chk .auc-rv b{color:var(--text-2)}

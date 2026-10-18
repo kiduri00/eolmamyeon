@@ -116,7 +116,7 @@
         // 이 구역 리포트 머리 큰 숫자와 같은 값(ZF.u33: 매수가 표본의 3.3㎡당 · 머리가 매수가인 곳은 구역 안 대표 거래 값)
         ["3.3㎡당 실거래(기준)", (q) => { const h = ZF.u33(q); return h ? `${eok(h.v)}<span class="dim" style="display:block;font-size:11px;font-weight:400;color:var(--text-3)">${h.zone ? `구역 안 ${h.n || ""}건(참고 · 매수가 표본 아님)` : HDB[h.b] || ""}${h.st ? " · 오래된 거래" : ""}</span>` : "–"; }],
         [lab, (q) => { const n = needOf(q); return n == null ? "–" : `${e2(n)}억`; }, (q) => needOf(q)],
-        ["10년 안 준공", (q) => (q.eta?.p10 != null ? prob(q.eta.p10) + "%" : "–"), (q) => (q.eta?.p10 != null ? -q.eta.p10 : null)],
+        ["10년 안 준공", (q) => (q.eta?.p10 != null ? probTxt(q.eta.p10) : "–"), (q) => (q.eta?.p10 != null ? -q.eta.p10 : null)],
       ];
       // 비교하는 곳 절반 넘게 '–'인 '계획 세대' 줄은 뺀다
       for (let i = rows.length - 1; i >= 0; i--) { if (rows[i][0] !== "계획 세대") continue; const v = cols.map(([q, d]) => String(rows[i][1](q, d))); if (v.filter((x) => x === "–").length > cols.length / 2) rows.splice(i, 1); }
@@ -140,19 +140,21 @@
     };
     // 사건번호(+법원)로 묶기 — 순서는 aucOf 순서(묶음 안 가장 앞 물건 기준)
     const aucGroups = (xs) => { const m = new Map(); for (const o of xs) { const k = `${o.court}|${o.cs}`; if (!m.has(k)) m.set(k, []); m.get(k).push(o); } return [...m.values()]; };
-    const aucUp = (r) => aucOf(r).filter((o) => aucSt(o) === "up").length;
+    // 셈은 사건 단위(카드 하나 = 사건 하나) — 칩·머리·/z가 같은 셈 · 물건 수는 따로
+    const aucUpX = (r) => aucOf(r).filter((o) => aucSt(o) === "up");
+    const aucUp = (r) => aucGroups(aucUpX(r)).length;
     const aucWon = (v) => { if (v == null || !isFinite(v)) return "–"; const e = Math.floor(v / 1e8), m = Math.round((v % 1e8) / 1e4); return e ? `${e}억${m ? ` ${m.toLocaleString("ko-KR")}만` : ""}원` : `${m.toLocaleString("ko-KR")}만원`; };
     const aucEok = (v) => (v >= 1e8 ? `${(Math.round(v / 1e7) / 10).toLocaleString("ko-KR")}억` : `${Math.round(v / 1e4).toLocaleString("ko-KR")}만`);
     const aucDay = (d) => { if (!d) return "–"; const t = new Date(d + "T00:00:00+09:00"); return `${d.replaceAll("-", ".")} (${"일월화수목금토"[t.getDay()]})`; };
     const aucMd = (d) => (d ? `${+d.slice(5, 7)}.${+d.slice(8, 10)}` : "");
     const aucCourt = (c) => String(c || "").replace(/^서울(.+)지방법원$/, "서울$1지법");
-    const aucUse = (u) => String(u || "").replace(/\s*,\s*/g, ", ");
+    const aucUse = (u) => ZF.aucUse(u);
     const aucLot = (o) => { const m = String(o.addr || "").match(/(산\s*)?\d+(?:-\d+)?$/); return m ? m[0].replace(/\s/g, "") : ""; };
     const aucDd = (d) => { if (!d) return ""; const n = Math.round((Date.parse(d + "T00:00:00Z") - Date.parse(aucToday() + "T00:00:00Z")) / 864e5); return n > 0 ? `D-${n}` : n === 0 ? "D-day" : ""; };
     const AUC_BADGE = { gone: ["목록에서 빠짐 · 확인 중", "법원 목록에서 이번에 안 보였어요 — 기일 변경·취하·정지일 수 있어요"], chk: ["기일 지남 · 확인 중", "매각기일이 지났고 다음 기일이 아직 안 보여요(보통 유찰 뒤 4~5주 뒤)"] };
     const aucBadge = (s) => (AUC_BADGE[s] ? `<span class="auc-s ${s}" title="${AUC_BADGE[s][1]}">${AUC_BADGE[s][0]}</span>` : "");
     const aucJibun = (o) => !!o.jb;   // 지분 매각(auction_match.py가 몫만 남김: '13분의2' · 몫 모름 '1')
-    const aucJb = (o) => { if (!o.jb) return ""; const f = o.jb !== "1" ? esc(o.jb) : ""; return `<span class="auc-f j" title="${f ? `지분 ${f}만 매각` : "지분만 매각"} — 낙찰받아도 전체 소유가 아니에요">지분${f ? ` ${f}` : ""}</span>`; };
+    const aucJb = (o) => { if (!o.jb) return ""; const f = o.jb !== "1" ? ZF.aucJb(o.jb) : null; return `<span class="auc-f j" title="${f ? `지분 ${esc(f.frac)}만 매각` : "지분만 매각"} — 낙찰받아도 전체 소유가 아니에요">${f ? esc(f.txt) : "지분"}</span>`; };
     const aucFail = (o) => (o.fail == null ? "" : o.fail > 0 ? `<span class="auc-f n">유찰 ${o.fail}회</span>` : `<span class="auc-f">신건</span>`);
     const aucSub = (o) => [aucUse(o.use), String(o.addr || "").replace(/^\S+구\s+/, "").replace(/\^/g, ", ")].filter(Boolean).join(" · ");
     // 물건 한 건: 사건번호(·물건번호) · 유찰 / 용도 · 지번 / 최저가(감정가 %) · 감정가 · 입찰기일(D-day)
@@ -165,9 +167,11 @@
         <div class="auc-pr"><div class="auc-min"><span>최저가</span><b>${aucEok(o.min)}</b>${o.rate != null ? `<em>감정가의 ${o.rate}%</em>` : ""}</div><div><span>감정가</span><b>${aucEok(o.appr)}</b></div><div><span>${s === "chk" ? "지난 입찰기일" : "입찰기일"}</span><b>${o.date ? `${aucMd(o.date)}(${"일월화수목금토"[new Date(o.date + "T00:00:00+09:00").getDay()]})` : "–"}</b>${dd ? `<em class="auc-dd">${dd}</em>` : ""}</div></div></li>`;
     }
     // 묶음 안 물건 한 줄: 물건 N · 용도·지번 · 최저가(감정가 %) · 유찰/지분 · 기일이 다르면 기일
-    function aucRow(o, d0) {
+    // 묶음 안 물건 한 줄: 최저가 · 감정가 · 감정가의 N% (사건 머리에 이미 쓴 유찰·지분은 줄마다 되풀이하지 않는다)
+    function aucRow(o, d0, gFail, gJb) {
       const s = aucSt(o), dd = o.date && o.date !== d0 ? ` · ${s === "chk" ? "지난 기일 " : "입찰 "}${aucMd(o.date)}` : "";
-      return `<li class="auc-r ${s}"><div class="auc-rt"><b>물건 ${o.no || 1}</b><span>${esc(aucSub(o))}${dd}</span></div><div class="auc-rv"><b>${aucEok(o.min)}</b>${o.rate != null ? `<em>${o.rate}%</em>` : ""}</div><div class="auc-rc">${aucBadge(s)}${aucJb(o)}${o.fail > 0 ? aucFail(o) : ""}</div></li>`;
+      const ap = o.appr > 0 ? `<em>감정가 ${aucEok(o.appr)}${o.rate != null ? ` · <i>감정가의 ${o.rate}%</i>` : ""}</em>` : o.rate != null ? `<em><i>감정가의 ${o.rate}%</i></em>` : "";
+      return `<li class="auc-r ${s}"><div class="auc-rt"><b>물건 ${o.no || 1}</b><span>${esc(aucSub(o))}${dd}</span></div><div class="auc-rv"><b>${aucEok(o.min)}</b>${ap}</div><div class="auc-rc">${aucBadge(s)}${gJb ? "" : aucJb(o)}${o.fail > 0 && !gFail ? aucFail(o) : ""}</div></li>`;
     }
     // 사건 하나에 물건이 여럿이면 접는 카드 하나로("물건 N개 · 최저 X~Y")
     function aucCase(g, k) {
@@ -178,11 +182,11 @@
       const ds = [...new Set(g.filter((x) => aucSt(x) === "up").map((x) => x.date).filter(Boolean))].sort();
       const when = ds.length ? `입찰 ${aucMd(ds[0])}${ds.length > 1 ? " 외" : ""} <em class="auc-dd">${aucDd(ds[0])}</em>` : o.date ? `지난 입찰기일 ${aucMd(o.date)}` : "";
       const fails = [...new Set(g.map((x) => x.fail).filter((v) => v != null))];
+      const jbs = [...new Set(g.map((x) => x.jb || ""))], gJb = jbs.length === 1 && !!jbs[0];
       const fl = (g.some(aucJibun) ? aucJb(g.find(aucJibun)) : "") + (fails.length === 1 ? aucFail(o) : "");
-      const uses = new Set(g.map((x) => aucUse(x.use)));
       return `<li class="auc-g ${s}" id="aucC-${k}"><details><summary><div class="auc-ih"><span class="auc-k" aria-label="지도 번호 ${k}">${k}</span><b class="mono">${esc(o.cs)}</b><span class="auc-cs">${aucBadge(s)}${fl}</span></div>
-        <div class="auc-gs">물건 ${g.length}개${rng}</div><div class="auc-sub">${esc(uses.size === 1 ? aucUse(o.use) || "부동산" : `${aucUse(o.use) || "부동산"} 외`)}${when ? ` · ${when}` : ""}</div></summary>
-        <ul class="auc-rl">${g.map((x) => aucRow(x, ds[0])).join("")}</ul></details></li>`;
+        <div class="auc-gs">물건 ${g.length}개${rng}</div><div class="auc-sub">${esc(ZF.aucUses(g.map((x) => x.use)))}${when ? ` · ${when}` : ""}</div></summary>
+        <ul class="auc-rl">${g.map((x) => aucRow(x, ds[0], fails.length === 1, gJb)).join("")}</ul></details></li>`;
     }
     function aucBody(r) {
       const asOf = AUC && AUC.asOf ? String(AUC.asOf).replaceAll("-", ".") : "";
@@ -195,8 +199,9 @@
     }
     function auctionHTML(r) {
       loadAuc();
-      const xs = aucOf(r), n = xs.filter((o) => aucSt(o) === "up").length, m = xs.length - n;
-      return `<div class="sect auc" id="aucSec" data-id="${esc(r.id)}"><h3>경매 물건 ${n ? `<span class="auc-n">예정 ${n}건</span>` : ""}${m ? `<span class="auc-n c">확인 중 ${m}건</span>` : ""}<small>구역 경계 안 필지</small></h3>
+      // 'N건' = 사건(카드) 수 · 물건이 더 많으면 '물건 M개'를 덧붙인다(칩 '경매 N건'과 같은 셈)
+      const xs = aucOf(r), up = xs.filter((o) => aucSt(o) === "up"), n = aucGroups(up).length, ni = up.length, m = aucGroups(xs.filter((o) => aucSt(o) !== "up")).length;
+      return `<div class="sect auc" id="aucSec" data-id="${esc(r.id)}"><h3>경매 물건 ${n ? `<span class="auc-n" data-cases="${n}">예정 ${n}건${ni > n ? ` · 물건 ${ni}개` : ""}</span>` : ""}${m ? `<span class="auc-n c">확인 중 ${m}건</span>` : ""}<small>구역 경계 안 필지</small></h3>
         <div class="auc-b" aria-live="polite">${aucBody(r)}</div>
         <p class="auc-nt">경매로 사도 권리산정기준일·조합원 지위 양도 제한은 똑같이 적용되고, 현금청산 대상이면 입주권이 없어요.</p></div>`;
     }
@@ -296,7 +301,8 @@
           if (!h || !n || h.querySelector(".auc-chip")) return;
           // 주소 줄(구 동 · 역 · 경사 칩) 끝에 붙인다 — 없으면 머리 끝
           const w = h.querySelector(".where");
-          const b = `<button type="button" class="auc-chip" title="이 구역 안 매각기일이 잡힌 법원경매 물건 ${n}건 보기">경매 ${n}건</button>`;
+          const ni = aucUpX(r0).length;
+          const b = `<button type="button" class="auc-chip" data-cases="${n}" title="이 구역 안 매각기일이 잡힌 법원경매 ${n}건${ni > n ? `(물건 ${ni}개)` : ""} 보기">경매 ${n}건</button>`;
           if (w) w.insertAdjacentHTML("beforeend", b); else h.insertAdjacentHTML("beforeend", `<div class="auc-cw">${b}</div>`);
           h.querySelector(".auc-chip").onclick = () => aucGo(0);
         });
@@ -381,10 +387,17 @@
     // 실거래 머리글 기준(tools/tx.py headline): v 빌라·단독 대지 · a 아파트 전용 · i 입주권 전용
     const HDB = { v: "빌라·단독 대지", a: "아파트 전용", i: "입주권 전용" };
     const hdWin = (h) => (h.w === 0 ? "가장 최근 1건" : `최근 ${h.w === 24 ? "2년" : "1년"} ${fmt(h.n)}건`);
+    // 머리 '거래 전체 보기 →'가 가리키는 매수가 표본(주변 300m 빌라 n건 등)을 거래 탭에서도 같은 값·같은 말로
+    function smpBig(r) {
+      let S = null; try { S = ZF.sample(r); } catch (e) {}
+      if (!S || !S.n || !(S.med > 0)) return "";
+      const en = r.mk.entry, iq = en.p25 && en.p75 && S.n >= 3 ? ` · 가운데 50% ${eok(en.p25)}~${eok(en.p75)}` : "";
+      return `<div class="bigrow"><div class="big"><span>매수가 표본 · ${esc(S.text.replace(/\(.*\)$/, ""))}</span><b>${ZF.manT(S.med / 1e4)}</b><small>${esc(S.text)}${en.area_med ? ` · 전용 ${en.area_med}㎡ 안팎` : ""}${iq}${S.last ? ` · 마지막 ${esc(S.last)}` : ""} · 머리 숫자·계산 매수가와 같은 표본</small></div></div>`;
+    }
     function noTxHTML(r, t, z) {
       const nb = r.tag === "mk" || r.nx === "mk" ? null : t.nb;   // 시장·상가 정비는 빌라 시세를 쓰지 않는다
       // 제목만 남지 않게: 안내 문장은 note 클래스가 아닌 문단(간단 보기에서도 보임)
-      return `<div class="sect tx-none"><p style="margin:4px 0 8px;color:var(--text-2)">${(z && !z.e) || r.pcl ? "최근 구역 안 매매·전세 신고가 없어요." : "공식 경계가 없는 구역(후보지·구역지정 전 등)이라 경계 안 거래만 따로 모을 수 없어요."} 주변 시세는 '호재·매물' 탭의 KB부동산에서 확인할 수 있어요.</p>${nb && nb.n ? `<div class="bigrow"><div class="big"><span>같은 동${nb.dong ? `(${esc(nb.dong)})` : ""} 빌라 매매 가운데 값 · 참고</span><b>${eok(nb.med)}</b><small>최근 1년 ${fmt(nb.n)}건 · 구역 밖 거래 포함</small></div></div>` : ""}</div>`;
+      return `<div class="sect tx-none"><p style="margin:4px 0 8px;color:var(--text-2)">${(z && !z.e) || r.pcl ? "최근 구역 안 매매·전세 신고가 없어요." : "공식 경계가 없는 구역(후보지·구역지정 전 등)이라 경계 안 거래만 따로 모을 수 없어요."} 주변 시세는 '호재' 탭의 KB부동산에서 확인할 수 있어요.</p>${nearOf(r) ? "" : smpBig(r)}${nb && nb.n ? `<div class="bigrow"><div class="big"><span>같은 동${nb.dong ? `(${esc(nb.dong)})` : ""} 빌라 매매 가운데 값 · 참고</span><b>${eok(nb.med)}</b><small>최근 1년 ${fmt(nb.n)}건 · 구역 밖 거래 포함</small></div></div>` : ""}</div>`;
     }
     // 거래 탭 = 실거래(paneTx0) + 맨 아래 경매 물건 블록
     function paneTx(r) {
@@ -400,7 +413,7 @@
       const z0 = TXD[r.id] || {}, S = Array.isArray(z0.s) ? z0.s : [], J = Array.isArray(z0.j) ? z0.j : [];
       const t = { ...(r.tx || {}), ...(z0.x || {}) }, h = t.hd && t.hd.u ? t.hd : null;
       const rdx = rights(r);
-      if (!h && !S.length && !J.length) {   // 거래가 없으면 짧게(필지·노후도만 따로)
+      if (!h && !S.length && !J.length && !nearOf(r)) {   // 거래가 없으면 짧게(필지·노후도만 따로) — 주변 매수가 표본이 있으면 아래에서 그 표를 보인다
         p.innerHTML = noTxHTML(r, t, z) + (rdx.k === "set" ? rightsHTML(r, true) : "");
         return;
       }
@@ -424,7 +437,11 @@
       const rdY = rdx.k === "set" ? +rdx.d.slice(0, 4) : null;
       // 아파트·입주권: 같은 유형·전용 ±10㎡·앞뒤 1년 거래 가운데 값의 0.75~1.35배 밖이면 표시(머리글 이상치 기준과 같음)
       const dd = (v) => Date.UTC(+v.slice(0, 4), +v.slice(4, 6) - 1, +v.slice(6, 8));
+      // 빌라·단독: 대지 3.3㎡당이 구역 빌라 거래 가운데 값의 20% 아래면(대지 지분 오기·큰 필지 공유 지분) 시세와 다른 거래로(tools/near.py 표본 기준과 같음)
+      const lu = S.filter((w) => w[1] <= 1 && w[4] > 0).map((w) => w[5] / w[4]).sort((a, b) => a - b);
+      const luM = lu.length >= 3 ? (lu.length % 2 ? lu[lu.length >> 1] : (lu[lu.length / 2 - 1] + lu[lu.length / 2]) / 2) : null;
       const odd = (v) => {
+        if (v[1] <= 1) return !!(luM && v[4] > 0 && v[5] / v[4] < luM * 0.2);
         if (v[1] < 2 || !(v[3] > 0)) return false;
         const u = (w) => w[5] / w[3], band = S.filter((w) => w[1] === v[1] && w[3] > 0 && Math.abs(w[3] - v[3]) <= 10 && Math.abs(dd(w[0]) - dd(v[0])) <= 365 * 864e5).map(u).sort((a, b) => a - b);
         if (band.length < 3) return false;
@@ -451,9 +468,9 @@
       const tblV = tbl(SV, true, "txListV"), tblA = tbl(SA, false, "txListA");
       const scope = t.m === "jibun" ? "대표지번과 같은 본번" : t.m === "name" ? `단지 이름으로 찾은 ${esc((t.cx && t.cx.nm) || "같은 단지")}` : "구역 경계 안";
       const nearB = !!(r.mk && r.mk.entry && r.mk.entry.src === "villa" && (r.mk.entry.radius || 0) >= 100);
-      const secV = tblV ? `<div class="sect"><h3>최근 매매 · 빌라·단독 <small>${scope} · 대지 3.3㎡당 · 국토부 신고 기준${nearB ? " · 계산 매수가 표본 아님(참고)" : h && h.b === "v" ? " · 위 큰 숫자 기준" : ""}</small></h3>${tblV}</div>` : "";
+      const secV = tblV ? `<div class="sect"><h3>최근 매매 · ${scope === "구역 경계 안" ? "구역 안 " : ""}빌라·단독 <small>${scope} · 대지 3.3㎡당 · 국토부 신고 기준${nearB ? " · 계산 매수가 표본 아님(참고)" : h && h.b === "v" ? " · 위 큰 숫자 기준" : ""}</small></h3>${tblV}</div>` : "";
       const aLab = SA.some((v) => v[1] === 2) && SA.some((v) => v[1] === 3) ? `아파트·${TY[3]}` : SA.some((v) => v[1] === 3) ? TY[3] : "아파트";
-      const secA = tblA ? `<div class="sect"><h3>최근 매매 · ${aLab} <small>${scope} · 전용 3.3㎡당 · 국토부 신고 기준${h && h.b !== "v" ? " · 위 큰 숫자 기준" : ""}</small></h3>${tblA}</div>` : "";
+      const secA = tblA ? `<div class="sect"><h3>최근 매매 · ${scope === "구역 경계 안" ? "구역 안 " : ""}${aLab} <small>${scope} · 전용 3.3㎡당 · 국토부 신고 기준${h && h.b !== "v" ? " · 위 큰 숫자 기준" : ""}</small></h3>${tblA}</div>` : "";
       const salesSecs = h && h.b !== "v" ? secA + secV : secV + secA;
       // 매수가 표본(주변 빌라): 머리 큰 숫자·'이 숫자 믿어도 될까'·계산 매수가가 쓰는 바로 그 거래들, 새 거래부터
       const nz = nearOf(r), nen = r.mk && r.mk.entry;
@@ -473,7 +490,7 @@
         return `${warn}<p class="note"><b>계산에 쓴 매수가 ${e2(x.price)}억</b> ${x.priceSrc === "user" ? "직접 입력한 값" : en?.scope ? esc(en.scope) + ` 실거래 가운데 값${en.n ? ` (${fmt(en.n)}건${en.area_med ? ` · 전용 ${en.area_med}㎡` : ""})` : ""}` : x.priceSrc === "complex" ? "같은 단지 아파트 실거래" : "구역 주변 구축 빌라 실거래"} · '입주 현금' 탭에서 바꿀 수 있어요${lc}</p>`;
       })();
       p.innerHTML = `
-        ${h || S.length ? "" : noTxHTML(r, t, z)}
+        ${h || S.length ? "" : noTxHTML(r, t, z) + secN}
         ${big.length ? `<div class="bigrow${big.length >= 2 ? " b3" : ""}">${big.join("")}</div>` : ""}
         ${h && h.st ? `<p class="note warnbox"><b>오래된 거래</b> 위 값은 ${esc(ymd(h.to))} 거래 1건이에요. 1년 넘게 같은 기준 거래가 없어 지금 시세와 다를 수 있어요.</p>` : ""}
         ${doneI ? `<p class="note"><b>준공한 단지예요</b> 입주는 끝났지만 이전고시·소유권 보존등기 전이라 실거래 신고상 '입주권'으로 올라와요.</p>` : ""}
@@ -487,7 +504,7 @@
           <div><dt>국공유지</dt><dd>${pc.pub}%<small>필지 수 기준 · 많으면 무상양도 협의가 사업성에 영향</small></dd></div>
           <div><dt>도로 필지</dt><dd>${pc.rd}%<small>필지 수 기준</small></dd></div>
           ${pc.jm ? `<div><dt>지목 구성</dt><dd class="tx">${pc.jm.map(([k, v]) => `${esc(k)} ${fmt(v)}`).join(" · ")}</dd></div>` : ""}</dl></div>` : ""}
-        ${secN}
+        ${h || S.length ? secN : ""}
         ${salesSecs}
         ${J.length ? `<div class="sect"><h3>최근 전세 <small>연립다세대</small></h3><div id="jList" class="txl"><table class="tx" style="min-width:0"><thead><tr><th scope="col">계약일</th><th scope="col" class="n">준공</th><th scope="col" class="n">임대 면적</th><th scope="col" class="n">보증금</th></tr></thead><tbody>${J.reduce((a, v) => { const k = v.join("|"), l = a[a.length - 1]; if (l && l.k === k) l.n++; else a.push({ k, v, n: 1 }); return a; }, []).slice(0, 20).map(({ v, n }) => `<tr><td>${ymd2(v[0])}${n > 1 ? ` <small class="mut">같은 조건 ${n}건</small>` : ""}</td><td class="n">${v[1] || "–"}</td><td class="n">${v[2]}㎡</td><td class="n"><b>${eok(v[3])}</b></td></tr>`).join("")}</tbody></table></div></div>` : ""}
         <p class="note src">자료: 서울시 부동산 실거래가·전월세가 정보(서울 열린데이터광장, 매매 ${esc(ymd(D.txAsOf?.sale))}·전세 ${esc(ymd(D.txAsOf?.rent))}까지), 정비구역 경계·필지 서울도시공간포털. 구역 경계 안 필지 번호와 맞춘 거래만 셉니다.</p>`;

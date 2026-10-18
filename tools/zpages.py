@@ -79,13 +79,9 @@ def evtext(dt, d, sec, t):
     b = re.sub(r'\s*:\s*', ' ', b).strip()
     if b and a and b.replace(' ', '') == a.replace(' ', ''): b = ''
     return f'{a} · {b}' if a and b else (a or b)
-def josa(w):
-    c = w[-1] if w else ''
-    if '가' <= c <= '힣': return '은' if (ord(c) - 0xAC00) % 28 else '는'
-    return '은' if c in '0136789' else '는'
-def eok(v, d=1):
-    if v is None: return '–'
-    return f"{v:.{d}f}억".replace('.0억', '억') if v < 100 else f"{v:,.0f}억"
+def eok(v, d=1):   # 억 금액 — 화면 ZF.cash와 같은 꼴(tools/zsample.cash)
+    from zsample import cash
+    return cash(v)
 def man(v):
     if v is None: return '–'
     return f"{v/10000:.1f}억".replace('.0억', '억') if v >= 10000 else f"{v:,.0f}만원"
@@ -93,7 +89,7 @@ KIND = {'재개발': '재개발', '재건축': '재건축', '도시정비형 재
 DTK = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 승인'), ('조합설립', '조합설립인가'), ('시행자지정', '사업시행자 지정'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가'), ('착공', '착공'), ('준공', '준공')]
 SKEY = {2: ('구역지정',), 3: ('추진위',), 4: ('조합설립', '시행자지정'), 5: ('사업시행',), 6: ('관리처분',), 7: ('관리처분',), 8: ('착공',)}
 PSRC = {'villa': '빌라 실거래 가운데 값', 'complex': '단지 실거래 가운데 값', 'apt': '단지 실거래 가운데 값', 'est': '구 평균 시세로 추정'}
-from zsample import manT, smpTxt, trust, short, headline, LBL   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
+from zsample import manT, smpTxt, trust, short, headline, LBL, josa, auc_use, auc_uses, auc_jb   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
 def gapWhy(c):   # 전세 끼고 계산이 안 되는 이유(화면 gapBlock과 같은 문구에서) → (표 칸 짧은 말, 설명)
     b = str(c.get('gapBlock') or '')
     if b.startswith('전세 낀 매수 불가'): return ('토허제', '토지거래허가구역이라 불가(2년 실거주)')
@@ -175,7 +171,7 @@ def page(r):
     lede = f"{esc(nm)}{josa(nm)} 지금 <b>{esc(stage)}</b> 단계예요" + (f" ({sd} 인가·고시)." if sd else ".")
     stl = r.get('stale')
     if stl: lede += f" 다만 {esc(stl['why'])}. 준공됐는지 멈췄는지 자료로 확인되지 않아 준공 가능성과 입주 시점은 싣지 않았어요."
-    elif c.get('p10') is not None: lede += f" 서울 사업장 기록으로 낸 10년 안 준공 가능성은 약 {min(97, round(c['p10'] * 100))}%예요(예측이 아닌 통계)."
+    elif c.get('p10') is not None: lede += f" 서울 사업장 기록으로 낸 10년 안 준공 가능성은 {'1% 미만이' if c['p10'] < 0.01 else f"약 {min(97, round(c['p10'] * 100))}%"}예요(예측이 아닌 통계)."
     o.append(f'<p class="lede">{lede} 아래 숫자는 무주택·84㎡ 기본 가정이고, 첫 화면 계산기와 같은 <b>전세 끼고 사는</b> 기준이에요. 내 조건은 <a href="../#{rid}">계산기에서 이 구역 열기</a>로 바꿔 볼 수 있어요.</p>')
     k = []
     k.append(('현재 단계', esc(stage), f'{sd} 인가·고시' if sd else ('진행 확인 필요' if stl else '아직 구역지정 전이라 인가일이 없어요' if r.get('s', 0) <= 1 else f'이 단계 인가일 기록 없음 · 직전 {prevd[0]} {prevd[1][:7].replace("-", ".")}' if prevd else '이 단계 인가일 기록 없음')))
@@ -260,16 +256,16 @@ def page(r):
         ek = lambda v: (f"{round(v / 1e8, 1):g}억" if v >= 1e8 else f"{round(v / 1e4):,}만") if isinstance(v, (int, float)) and v > 0 else '–'
         def arow(cs, xs):
             x = xs[0]; mins = [y['min'] for y in xs if isinstance(y.get('min'), (int, float)) and y['min'] > 0]
-            pr = (f"최저 {ek(min(mins))}" + (f"~{ek(max(mins))}" if len(set(mins)) > 1 else '') + (f"(감정가의 {x['rate']}%)" if len(xs) == 1 and x.get('rate') is not None else '')) if mins else ''
+            pr = (f"최저 {ek(min(mins))}" + (f"~{ek(max(mins))}" if len(set(mins)) > 1 else '') + (f" · 감정가 {ek(x['appr'])}" if len(xs) == 1 and x.get('appr') else '') + (f" · 감정가의 {x['rate']}%" if len(xs) == 1 and x.get('rate') is not None else '')) if mins else ''
             fl = '신건' if x.get('fail') == 0 else f"유찰 {x['fail']}회" if x.get('fail') else ''
             d = str(x.get('date') or '')
-            use = re.sub(r'\s*,\s*', ', ', str(x.get('use') or '부동산'))
-            if len({str(y.get('use') or '') for y in xs}) > 1: use += ' 외'
-            if any(y.get('jb') for y in xs): use += ' 지분'
+            use = auc_uses([y.get('use') for y in xs])
+            jb = next((y.get('jb') for y in xs if y.get('jb')), None)
+            if jb: use += ' · ' + auc_jb(jb)
             when = f"입찰 {int(d[5:7])}.{int(d[8:10])}" if len(d) == 10 else ''
             head = esc(cs) + (f' · 물건 {len(xs)}개' if len(xs) > 1 else '')
             return f'<li><b>{head}</b><span>{esc(" · ".join(v for v in [use, pr, when, fl] if v))}</span></li>'
-        o.append(f'<h2>경매 진행 {len(au)}건 <small class="meta">법원경매정보 · {esc(str(AUC.get("asOf") or "").replace("-", "."))} 기준 · 구역 경계 안 필지</small></h2><ul class="steps tl">' + ''.join(arow(cs, xs) for cs, xs in list(g.items())[:5]) + '</ul>' + (f'<p class="meta">그 밖 {len(g) - 5}개 사건은 앱 구역 리포트 거래 탭에서 볼 수 있어요.</p>' if len(g) > 5 else ''))
+        o.append(f'<h2>경매 예정 {len(g)}건' + (f' · 물건 {len(au)}개' if len(au) > len(g) else '') + f' <small class="meta">법원경매정보 · {esc(str(AUC.get("asOf") or "").replace("-", "."))} 기준 · 구역 경계 안 필지</small></h2><ul class="steps tl">' + ''.join(arow(cs, xs) for cs, xs in list(g.items())[:5]) + '</ul>' + (f'<p class="meta">그 밖 {len(g) - 5}개 사건은 앱 구역 리포트 거래 탭에서 볼 수 있어요.</p>' if len(g) > 5 else ''))
     if S and r.get('ll'):
         a, b = r['ll']
         near = sorted(((dist(a, b, x[1], x[0]), x) for x in S['items']), key=lambda z: z[0])
@@ -309,6 +305,16 @@ _ALL = {r['id'] for r in D['recs']}
 _LIVE = {r['id'] for r in R}
 for f in os.listdir(ZD):   # 진행 중이 아닌 구역(준공·해산·자료에서 빠진 곳)의 자동 페이지는 지운다 — 매일 다시 안 만들어져 날짜·숫자가 멈춰 있던 것(손으로 쓴 페이지는 둔다)
     if f.endswith('.html') and f != 'index.html' and f[:-5] not in _LIVE and not is_hand(f[:-5]): os.remove(os.path.join(ZD, f)); print('  removed stale page', f)
+# 같은 곳이 두 번 실렸던 옛 id(tools/enrich.py D.alias) → 남긴 구역 페이지로 옮기는 작은 페이지(색인 안 함 · 옛 링크·공유 유지)
+_BY = {r['id']: r for r in D['recs']}
+for _a, _k in (D.get('alias') or {}).items():
+    if _k not in _LIVE or is_hand(_a): continue
+    _u = f"{SITE}/z/{_k}"
+    open(os.path.join(ZD, _a + '.html'), 'w', encoding='utf-8').write(f'''<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="emr-auto" content="1"><meta name="robots" content="noindex,follow">
+<title>{esc(short(_BY[_k]['n']))} | 집핀</title><link rel="canonical" href="{_u}"><meta http-equiv="refresh" content="0; url=./{_k}"><script>location.replace("./{_k}"+location.search+location.hash)</script></head>
+<body style="font-family:system-ui,sans-serif;padding:24px"><p>같은 구역이 한 페이지로 합쳐졌어요. <a href="./{_k}">{esc(short(_BY[_k]['n']))} 페이지로 가기</a></p></body></html>
+''')
+    print('  alias page', _a, '->', _k)
 # 손으로 쓴 글(구역 정리 페이지·가이드·리포트·소개): 본문은 두고 용어만 정식 말로 · 푸터 '데이터 기준'은 오늘 자료 날짜로(매 실행, 같은 결과면 그대로)
 TERM_FIX = [(re.compile(r'입주까지 총액|입주까지 총(?=[\s ③<])'), LBL['cashToMoveIn']), (re.compile(r'(?<!정보)(?<!사업 )정비몽땅'), '정비사업 정보몽땅')]
 def term_fix(h):
