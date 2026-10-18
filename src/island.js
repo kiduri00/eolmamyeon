@@ -71,7 +71,7 @@
         var keys = ["cash", "homes", "first", "unit", "inc", "basis", "kind", "fund", "jr"];
         var c = new URLSearchParams(P.conds[cur.f] || ""), q = new URLSearchParams(location.search);
         keys.forEach(function (k) { q.delete(k); });
-        if (STOPS[cur.i] === 1) c.delete("cash"); else c.set("cash", String(STOPS[cur.i]));
+        if (STOPS[cur.i] === P.def.c) c.delete("cash"); else c.set("cash", String(STOPS[cur.i]));
         if (cur.f === "gap") { c.delete("fund"); c.delete("basis"); }
         c.forEach(function (v, k) { q.set(k, v); });
         var cq = new URLSearchParams(); c.forEach(function (v, k) { cq.set(k, v); });

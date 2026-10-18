@@ -122,46 +122,78 @@ function save(o) { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writ
     const rows = (j) => (j && j.data && Array.isArray(j.data.dlt_srchResult) ? j.data.dlt_srchResult : null);
     const info = (j) => (j && j.data && j.data.dma_pageInfo) || {};
 
+    // 기일 기간 칸 찾기·설정(WebSquare 달력 컴포넌트 API 우선). 화면 기본은 오늘~+14일이라, 2주씩 끊어 여러 번 검색한다
+    const WINS = +process.env.AUCTION_WINS || 4;   // 2주 × 4 = 8주 앞까지
+    const calIds = () => p.evaluate(() => [...document.querySelectorAll('[id^="mf_wfm_mainFrame_cal_rletPerd"]')].map((e) => e.id).filter((id) => !/_(input|img|button|div)/.test(id)));
+    const setPeriod = async (from, to) => p.evaluate(([from, to]) => {
+      const ids = [...document.querySelectorAll('[id^="mf_wfm_mainFrame_cal_rletPerd"]')].map((e) => e.id).filter((id) => !/_(input|img|button|div)/.test(id));
+      const comp = (id) => window[id] || (window.$p && $p.getComponentById && $p.getComponentById(id));
+      const st = ids.find((i) => /Bgn|Str|Start|Fr|Beg/i.test(i)), en = ids.find((i) => /End|To/i.test(i));
+      const out = {};
+      for (const [id, v] of [[st, from], [en, to]]) { const c = id && comp(id); if (c && c.setValue) { c.setValue(v); out[id] = c.getValue ? c.getValue() : v; } }
+      return { ids, out };
+    }, [from, to]);
+    const popupText = () => p.evaluate(() => [...document.querySelectorAll('[class*="w2popup"],[class*="w2window"],[role="dialog"],[class*="alert"]')].filter((e) => e.offsetParent).map((e) => e.innerText.replace(/\s+/g, ' ').slice(0, 160)).join(' | '));
+    const ymd = (d) => d.toISOString().slice(0, 10).replaceAll('-', '');
+    const today = new Date(Date.now() + 9 * 3600e3);
+
     let first = true;
     for (const court of COURTS) {
-      const c = { court, ok: false, total: null, got: 0, pages: 0 };
+      const c = { court, ok: true, total: 0, got: 0, pages: 0, wins: [] };
       res.courts.push(c);
-      try {
-        if (!first) { await p.goto(URL0, { waitUntil: 'domcontentloaded', timeout: 90000 }); await p.waitForSelector(SEL_COURT, { timeout: 60000 }).catch(() => null); await sleep(jitter(2000, 3500)); await bigPage(); }
-        if (!(await pickCourt(court))) throw new Error('court-select');
-        await sleep(jitter(800, 1500));
-        if (first) { if (process.env.AUCTION_WIDEN === '1') await widen(); await bigPage(); first = false; }
-        const pr = nextResp();
-        await p.evaluate((sel) => { const b = document.querySelector(sel); if (b) b.click(); }, BTN);
-        let r = await pr;
-        if (!r) throw new Error('no-response');
-        if (r.j && r.j.blocked) throw new Error('blocked');
-        if (r.st >= 400 || !rows(r.j)) throw new Error('bad-response ' + r.st + ' ' + JSON.stringify(r.j || '').slice(0, 120));
-        const seen = new Set();
-        const take = (j) => { let k = 0; for (const it of rows(j)) { const key = it.docid || `${it.srnSaNo}/${it.maemulSer}/${it.mokmulSer}`; if (seen.has(key)) continue; seen.add(key); res.items.push({ ...it, _court: court }); k++; } return k; };
-        take(r.j); c.pages = 1;
-        const pi = info(r.j), size = +pi.pageSize || 10; c.total = +pi.totalCnt || 0;
-        let pages = Math.min(MAX_PAGES, Math.ceil(c.total / size));
-        for (let n = 2; n <= pages; n++) {
-          await sleep(jitter(2500, 4000));
-          const pr2 = nextResp();
-          const how = await clickPage(n);
-          if (!how) { log(court, n, '쪽 버튼을 못 찾음'); break; }
-          r = await pr2;
-          if (!r || (r.j && r.j.blocked) || !rows(r.j)) { log(court, n, '쪽 응답 없음/막힘'); if (r && r.j && r.j.blocked) throw new Error('blocked'); break; }
-          if (+info(r.j).pageNo && +info(r.j).pageNo !== n) log(court, '요청', n, '받은', info(r.j).pageNo);
-          const k = take(r.j); c.pages++;
-          if (!k) break;
+      const seen = new Set();
+      const take = (j) => { let k = 0; for (const it of rows(j)) { const key = it.docid || `${it.srnSaNo}/${it.maemulSer}/${it.mokmulSer}`; if (seen.has(key)) continue; seen.add(key); res.items.push({ ...it, _court: court }); k++; } return k; };
+      for (let w = 0; w < WINS; w++) {
+        const wi = { w, ok: false, total: null, got: 0 };
+        c.wins.push(wi);
+        try {
+          if (!first) { await p.goto(URL0, { waitUntil: 'domcontentloaded', timeout: 90000 }); await p.waitForSelector(SEL_COURT, { timeout: 60000 }).catch(() => null); await sleep(jitter(2000, 3500)); }
+          first = false;
+          await bigPage();
+          if (!(await pickCourt(court))) throw new Error('court-select');
+          await sleep(jitter(800, 1500));
+          if (w > 0) {
+            const from = new Date(today.getTime() + (w * 14 + 1) * 864e5), to = new Date(today.getTime() + (w + 1) * 14 * 864e5);
+            const r0 = await setPeriod(ymd(from), ymd(to));
+            if (court === COURTS[0]) log('기간', w, JSON.stringify(r0).slice(0, 200));
+            await sleep(jitter(600, 1200));
+          } else if (court === COURTS[0]) log('달력 칸', JSON.stringify(await calIds()));
+          const pr = nextResp();
+          await p.evaluate((sel) => { const b = document.querySelector(sel); if (b) b.click(); }, BTN);
+          let r = await pr;
+          if (!r) throw new Error('no-response ' + (await popupText()));
+          if (r.j && r.j.blocked) throw new Error('blocked');
+          if (r.st >= 400 || !rows(r.j)) throw new Error('bad-response ' + r.st + ' ' + JSON.stringify(r.j || '').slice(0, 120));
+          const g0 = seen.size;
+          take(r.j); c.pages++;
+          const pi = info(r.j), size = +pi.pageSize || 10; wi.total = +pi.totalCnt || 0;
+          const pages = Math.min(MAX_PAGES, Math.ceil(wi.total / size));
+          for (let n = 2; n <= pages; n++) {
+            await sleep(jitter(2500, 4000));
+            const pr2 = nextResp();
+            const how = await clickPage(n);
+            if (!how) { log(court, w, n, '쪽 버튼을 못 찾음'); break; }
+            r = await pr2;
+            if (!r || (r.j && r.j.blocked) || !rows(r.j)) { log(court, w, n, '쪽 응답 없음/막힘'); if (r && r.j && r.j.blocked) throw new Error('blocked'); break; }
+            take(r.j); c.pages++;
+          }
+          wi.got = seen.size - g0;
+          wi.ok = seen.size - g0 >= Math.min(wi.total, MAX_PAGES * size) - 1 - (wi.total - (seen.size - g0) > 0 ? 0 : 0);
+          c.total += wi.total;
+          log(court, `기간${w}`, `${wi.got}/${wi.total}`);
+        } catch (e) {
+          wi.err = String(e.message || e).slice(0, 160); log('!!', court, `기간${w}`, wi.err);
+          try { if (process.env.AUCTION_SHOTS) await p.screenshot({ path: path.join(process.env.AUCTION_SHOTS, `err-${res.courts.length}-${w}.png`) }); } catch (e2) {}
+          if (/blocked/.test(wi.err) || (await blocked())) { log('!! 차단 안내 — 멈춤'); c.ok = false; break; }
         }
-        c.got = seen.size;
-        c.ok = c.got >= Math.min(c.total, MAX_PAGES * size) - 1;   // 다 받았을 때만 '없음'을 믿을 수 있다
-        if (!c.ok) c.err = 'partial';
-        log(court, `${c.got}/${c.total} · ${c.pages}쪽`);
-      } catch (e) {
-        c.err = String(e.message || e).slice(0, 120); log('!!', court, c.err);
-        try { if (process.env.AUCTION_SHOTS) await p.screenshot({ path: path.join(process.env.AUCTION_SHOTS, `err-${res.courts.length}.png`), fullPage: false }); log('화면 글:', (await p.evaluate(() => document.body.innerText.replace(/\s+/g, ' ').slice(0, 300)))); } catch (e2) {}
-        if (/blocked/.test(c.err) || (await blocked())) { log('!! 차단 안내 — 멈춤'); break; }
+        if (w === 0 && !wi.ok) { c.ok = false; }
+        await sleep(jitter(2500, 4000));
       }
+      c.got = seen.size;
+      if (!c.wins[0] || !c.wins[0].ok) c.ok = false;
+      c.days = c.wins.filter((x) => x.ok).length * 14;
+      log(court, `합계 ${c.got} · ${c.days}일치`);
+      if (res.courts.length && /blocked/.test((c.wins.slice(-1)[0] || {}).err || '')) break;
       await sleep(jitter(3000, 5000));
     }
   } catch (e) {

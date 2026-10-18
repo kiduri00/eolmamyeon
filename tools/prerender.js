@@ -82,13 +82,15 @@ async function state(out) {
         };
       };
       const out = {}, conds = {};
+      // 기본 상태 = 아무것도 저장 안 된 첫 방문에 앱이 고르는 금액·방식(바뀌면 따라간다)
+      const def = { f: document.documentElement.classList.contains("gapm") ? "gap" : "cash", c: +$("pCash").value };
       const go = async (c, full) => {
         const sl = $("sCash"); sl.value = String(toPos(c));
         sl.dispatchEvent(new Event("input", { bubbles: true })); if (full) sl.dispatchEvent(new Event("change", { bubbles: true }));
         let prev = "", same = 0, i = 0;
         for (; i < 60 && same < 2; i++) { await raf(); const v = $("sN").textContent + "|" + $("sLT").textContent + "|" + $("sList").innerHTML + "|" + $("sSum").innerHTML + "|" + $("pCash").value; if (v === prev) same++; else { same = 0; prev = v; } }
         if (Math.abs(+$("pCash").value - c) > 1e-9) throw new Error(`pCash ${$("pCash").value} != ${c}`);
-        const tA = performance.now(); const s = snap(); window.__tq = (window.__tq || []).concat(i); s.c = c; s.pressed = [...document.querySelectorAll(".s-mode button")].map((x) => x.getAttribute("aria-pressed")); s.gapm = document.documentElement.classList.contains("gapm");
+        const s = snap(); s.c = c; s.pressed = [...document.querySelectorAll(".s-mode button")].map((x) => x.getAttribute("aria-pressed")); s.gapm = document.documentElement.classList.contains("gapm");
         return s;
       };
       for (const f of ["gap", "cash"]) {
@@ -96,10 +98,9 @@ async function state(out) {
         if (b.getAttribute("aria-pressed") !== "true") b.click();
         await raf(); await new Promise((r) => setTimeout(r, 120));
         out[f] = [];
+        // 끄는 중(dragging)처럼: 단계마다 무거운 확정 계산(setCash) 없이 목록·숫자만 다시 그린다 — 아래에서 확정 경로와 대조
         $("sCash").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-        const T0 = performance.now();
         for (const c of stops) out[f].push(await go(c, false));
-        window.__tm = (window.__tm || []).concat(Math.round(performance.now() - T0));
         window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
         // 빠른 길(input만)로 뜬 값이 실제 확정 경로(change → setCash)와 같은지 몇 단계 대조
         for (const c of [1, 5, 15, stops[0]]) {
@@ -112,7 +113,7 @@ async function state(out) {
       }
       const D = window.__ZPD || {};
       const gu = (D.map && D.map.gu || []).map((g) => [g[0], String(g[1]).replace(/(\d+)\.\d+/g, "$1")]);
-      return { tm: [window.__tm, window.__tq.join(',')], out, conds, rows, strs, zones, okF: !!okF, map: D.map ? { w: D.map.w, h: D.map.h, gu } : null };
+      return { def, out, conds, rows, strs, zones, okF: !!okF, map: D.map ? { w: D.map.w, h: D.map.h, gu } : null };
     }, { stops, pos: stops.map(toPos) });
     if (errs.length) throw new Error("page errors: " + errs.slice(0, 3).join(" | "));
     // 검사: 큰 숫자 = 지도 점 수(같은 판정) · 기본 상태(1억·전세 끼고)가 들어 있나
@@ -130,8 +131,9 @@ async function state(out) {
     }
     const cls = htmlCls.split(/\s+/).filter((c) => ["free", "is-member", "s-built"].includes(c));
     const conds = res.conds;
+    if (!stops.includes(res.def.c)) throw new Error("default cash not on a gauge stop: " + res.def.c);
     const pack = {
-      v: 1, stops, KN, pos: stops.map((c) => +toPos(c).toFixed(4)), def: { f: "gap", c: 1 }, cls, conds,
+      v: 1, stops, KN, pos: stops.map((c) => +toPos(c).toFixed(4)), def: res.def, cls, conds,
       strs: res.strs, rows: res.rows,
       st: { gap: res.out.gap.map((s) => [s.t, s.l, s.pressed, s.gapm]), cash: res.out.cash.map((s) => [s.t, s.l, s.pressed, s.gapm]) },
       zones: mono ? res.zones.map((z) => [z[1], z[2]]) : [], thr: mono ? thr : null, map: res.map,
