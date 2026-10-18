@@ -67,6 +67,16 @@
     }
     const POIURL = {};
     const poiUrl = (k) => { const key = k + (dark() ? "d" : ""); if (!POIURL[key]) { try { POIURL[key] = poiIcon(k, dark(), 3).toDataURL(); } catch (e) { POIURL[key] = ""; } } return POIURL[key]; };
+    // 상태 점 그림(남색 한 가지 안에서): 멀다 = 6px 회남색 점 · 정보 부족 = 점선 동그라미 · 가능/모자람(알약 자리 없음) = 작은 남색 점/테두리 점 · 관심 구역 = 남색 하트
+    function dotImgs(dk) {
+      const k = 3, NV = dk ? "#7FA6FF" : "#1F3A87", GR = dk ? "#7C8AA6" : "#8792AE", HL = dk ? "#11161D" : "#FFFFFF";
+      const put = (id, S, draw) => { if (map.hasImage(id)) map.removeImage(id); const c = document.createElement("canvas"); c.width = c.height = S * k; const x = c.getContext("2d"); x.scale(k, k); draw(x, S / 2); map.addImage(id, x.getImageData(0, 0, S * k, S * k), { pixelRatio: k }); };
+      put("zd-far", 10, (x, c) => { x.beginPath(); x.arc(c, c, 3, 0, 7); x.fillStyle = GR; x.fill(); x.lineWidth = 1; x.strokeStyle = HL; x.stroke(); });
+      put("zd-na", 12, (x, c) => { x.beginPath(); x.arc(c, c, 3.9, 0, 7); x.fillStyle = HL; x.fill(); x.setLineDash([1.7, 1.5]); x.lineWidth = 1.4; x.strokeStyle = GR; x.stroke(); });
+      put("zd-ok", 12, (x, c) => { x.beginPath(); x.arc(c, c, 4, 0, 7); x.fillStyle = NV; x.fill(); x.lineWidth = 1.5; x.strokeStyle = HL; x.stroke(); });
+      put("zd-near", 12, (x, c) => { x.beginPath(); x.arc(c, c, 4, 0, 7); x.fillStyle = HL; x.fill(); x.lineWidth = 1.7; x.strokeStyle = NV; x.stroke(); });
+      put("zd-fav", 16, (x) => { x.save(); x.translate(2, 2.4); x.scale(0.5, 0.5); const p = new Path2D("M12 21s-8-4.9-9.7-10C1.2 7.4 3.5 4 7 4c2.1 0 3.8 1.2 5 3 1.2-1.8 2.9-3 5-3 3.5 0 5.8 3.4 4.7 7-1.7 5.1-9.7 10-9.7 10z"); x.lineWidth = 3.2; x.strokeStyle = HL; x.stroke(p); x.fillStyle = NV; x.fill(p); x.restore(); });
+    }
     function style() {
       const dk = dark();
       const C = dk
@@ -106,11 +116,9 @@
       if (!map || !geo) return;
       const dk = dark(), P = palette(), halo = dk ? "#11161D" : "#ffffff";
       const add = (id) => { if (!map.getSource(id)) map.addSource(id, Object.assign({ type: "geojson", data: FC([]) }, /^(zones|zest|zlab|pts)$/.test(id) ? { promoteId: "id" } : {})); };
-      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gun", "dong", "sdim", "sring", "spt", "hov", "sellab", "gudim", "gusel"].forEach(add);
+      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gun", "dong", "sdim", "sring", "spt", "hov", "sellab", "gudim", "gusel", "zdot", "pillb"].forEach(add);
       map.getSource("gun").setData(guLabels());
       map.getSource("dong").setData(dongLabels());
-      if (!map.getSource("zpa")) map.addSource("zpa", { type: "geojson", data: FC([]), cluster: true, clusterRadius: 8, clusterMaxZoom: 15 });
-      ["zpm", "zps", "zpsh"].forEach(add);
       map.getSource("subway").setData(subwayGeo());
       const outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
       map.getSource("mask").setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [outer, ...geo.seoul] }, properties: {} });
@@ -127,19 +135,22 @@
       const T1 = dk ? "#8A95A5" : "#6A7482", T2 = dk ? "#7A8696" : "#7C8693";
       L({ id: "gu-lab", type: "symbol", source: "gun", minzoom: 8.8, maxzoom: 13.4, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10.5, 12.5, 12.5], "text-padding": 4, "text-letter-spacing": 0.04, "text-variable-anchor": ["center", "top", "bottom", "right", "left"], "text-radial-offset": 0.7, "text-justify": "auto" }, paint: { "text-color": T1, "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.6, 0.95, 13.4, 0], "text-halo-color": halo, "text-halo-width": 1.6 } });
       L({ id: "dong-lab", type: "symbol", source: "dong", minzoom: 13.2, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 13.2, 10.5, 16, 12], "text-padding": 6, "text-variable-anchor": ["center", "top", "bottom"], "text-radial-offset": 0.9, "symbol-sort-key": ["get", "k"] }, paint: { "text-color": T2, "text-halo-color": halo, "text-halo-width": 1.6 } });
-      // 구역: 네이버 부동산처럼 한 가지 색(브랜드 남색) 반투명 면 + 같은 색 선. 공식 경계 없는 추정 범위는 점선.
-      // 내 돈으로 안 되는 곳은 같은 남색을 아주 옅게(feature-state a=false) → 되는 곳만 또렷하게
+      // 구역: 한 가지 색(브랜드 남색). 상태 4가지(feature-state k)는 남색 안에서 채움·테두리로만: 가능 = 면 20% + 진한 선 · 조금 모자람 = 면 없이 선만 · 멀다·정보 부족 = 아주 옅게
+      // 관심 구역(f) = 선을 굵게. 공식 경계 없는 추정 범위는 점선
       const ZC = dk ? "#5B8CFF" : "#1F3A87", ZL = dk ? "#7FA6FF" : "#1F3A87";
-      const A = ["boolean", ["feature-state", "a"], true];
-      const zo = (k) => (dk ? [10, 0.46, 12, 0.36, 14, 0.25, 16, 0.2] : [10, 0.42, 12, 0.32, 14, 0.2, 16, 0.16]).map((v, i) => (i % 2 ? ["case", A, v * k, (dk ? 0.11 : 0.085) * k] : v));
-      const zop = ["interpolate", ["linear"], ["zoom"], ...zo(1)];
-      const zlw = ["interpolate", ["linear"], ["zoom"], 10, ["case", A, 0.9, 0.5], 12, ["case", A, 1.3, 0.7], 14, ["case", A, 1.8, 0.9], 16, ["case", A, 2.1, 1]];
-      const zlo = ["case", A, 0.95, dk ? 0.42 : 0.38];
-      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ZC, "fill-opacity": ["interpolate", ["linear"], ["zoom"], ...zo(0.8)] } });
+      const K = ["coalesce", ["feature-state", "k"], 2], FV = ["boolean", ["feature-state", "f"], false];
+      const fo = (ok, far, na) => ["match", K, 0, ok, 1, 0, 2, far, na];
+      const zop = (m) => ["interpolate", ["linear"], ["zoom"], 10, fo((dk ? 0.34 : 0.26) * m, (dk ? 0.07 : 0.05) * m, (dk ? 0.05 : 0.04) * m), 13, fo((dk ? 0.28 : 0.21) * m, (dk ? 0.06 : 0.045) * m, (dk ? 0.05 : 0.035) * m), 16, fo((dk ? 0.22 : 0.16) * m, (dk ? 0.05 : 0.04) * m, (dk ? 0.04 : 0.03) * m)];
+      const lw = (a, b, c) => ["+", ["match", K, 0, a, 1, a * 1.05, b], ["case", FV, c, 0]];
+      const zlw = ["interpolate", ["linear"], ["zoom"], 10, lw(0.9, 0.45, 1), 12, lw(1.3, 0.6, 1.3), 14, lw(1.8, 0.8, 1.6), 16, lw(2.1, 0.9, 1.8)];
+      const zlo = ["case", FV, 1, ["match", K, 0, 0.95, 1, 0.9, dk ? 0.34 : 0.28]];
+      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ZC, "fill-opacity": zop(0.8) } });
       L({ id: "zest-line", type: "line", source: "zest", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-dasharray": [2.2, 1.6], "line-opacity": zlo } });
-      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ZC, "fill-opacity": zop, "fill-antialias": true } });
+      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ZC, "fill-opacity": zop(1), "fill-antialias": true } });
       L({ id: "zone-line", type: "line", source: "zones", layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-opacity": zlo } });
-      L({ id: "pts", type: "circle", source: "pts", minzoom: 13, paint: { "circle-color": ZC, "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 4, 16, 6], "circle-stroke-color": halo, "circle-stroke-width": 1.5, "circle-opacity": ["case", A, 0.85, 0.3] } });
+      // 알약이 없는 구역의 점(멀다 6px 회남색 · 정보 부족 점선 · 자리가 없는 가능·모자람 · 관심 구역 하트) — 구 묶음 줌(11 이하)에는 비운다
+      dotImgs(dk);
+      L({ id: "zdot", type: "symbol", source: "zdot", layout: { "icon-image": ["concat", "zd-", ["get", "t"]], "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.85, 15, 1.1], "symbol-sort-key": ["-", 10, ["get", "k"]] }, paint: {} });
       // 구를 고르면(검색·구 누르기): 다른 구는 옅게 덮고 그 구 경계를 굵게
       L({ id: "gu-dim", type: "fill", source: "gudim", paint: { "fill-color": dk ? "#0B0F14" : "#F3F4F6", "fill-opacity": dk ? 0.5 : 0.55 } });
       L({ id: "gu-sel-case", type: "line", source: "gusel", layout: { "line-join": "round" }, paint: { "line-color": halo, "line-width": 5, "line-opacity": 0.85 } });
@@ -210,19 +221,8 @@
       const card = (id, f, maxz, src, top) => L({ id, type: "symbol", source: src || "zlab", minzoom: top ? 11 : 13, maxzoom: maxz || 24, filter: f, layout: { ...(top ? { "icon-allow-overlap": true, "text-allow-overlap": true } : {}), "icon-image": ["concat", ["case", ["==", ["get", "y"], 1], "zcard", "zcardL"], ["case", two, "", "1"]], "icon-text-fit": "both", "icon-text-fit-padding": [2, 2, 2, 2], "text-field": ["case", two, ["format", ["get", "n"], { "text-color": NM_C }, "\n", {}, ["get", "s"], { "text-color": CARD_INK }, ["case", ["all", ["!=", ["get", "s"], ""], ["!=", ["get", "h"], ""]], " ", ""], {}, ["get", "h"], { "text-color": HI, "font-scale": 0.9 }], ["format", ["get", "n"], { "text-color": NM_C }]], "text-font": ["Noto Sans Bold"], "text-size": csz, "text-line-height": 1.55, "text-max-width": 20, "text-padding": 3, ...(top ? { "text-anchor": "top", "text-offset": [0, 0.35] } : { "text-variable-anchor": ["top", "bottom", "right", "left"], "text-radial-offset": 0.35, "text-justify": "center" }), "symbol-sort-key": ["get", "k"] }, paint: {} });
       card("zone-lab", ["==", ["get", "p"], 0]);
       card("zone-lab-p", ["==", ["get", "p"], 1], 16);   // 핀 있는 곳은 16부터 핀 라벨('이름 · X억')로
-      // ---- 핀: 핀 끝 = 구역 중심. 순서 선택 > 내 핀 > 살 수 있는 핀(위 레이어가 먼저 자리 잡음) ----
-      pinImgs(dk);
-      const pinL = (id, src, minz, extra) => L(Object.assign({ id, type: "symbol", source: src, minzoom: minz || 0, layout: { "icon-image": ["concat", "zpin-", ["get", "t"], ["get", "x"]], "icon-anchor": "bottom", "icon-size": ["get", "s"], "icon-offset": ["get", "off"], "icon-allow-overlap": false, "icon-ignore-placement": src === "zpa", "icon-padding": 0, "symbol-sort-key": ["get", "k"], "text-field": ["step", ["zoom"], "", 16, ["get", "lb"]], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-anchor": "left", "text-offset": [0.9, -1.25], "text-max-width": 16, "text-optional": true }, paint: { "icon-opacity": ["get", "o"], "text-opacity": ["get", "o"], "text-color": P.ink, "text-halo-color": halo, "text-halo-width": 1.8 } }, extra || {}));
-      L({ id: "pin-sh", type: "circle", source: "zpsh", minzoom: 12, paint: { "circle-radius": ["get", "r"], "circle-opacity": ["get", "o"], "circle-color": dk ? "#000000" : "#1F3A87", "circle-blur": 0.5, "circle-pitch-alignment": "map" } });
-      L({ id: "pin-clu", type: "symbol", source: "zpa", filter: ["has", "point_count"], layout: { "icon-image": ["step", ["zoom"], "zpin-a", 12, "zclu"], "icon-size": ["step", ["zoom"], 0.55, 12, 1], "icon-anchor": ["step", ["zoom"], "bottom", 12, "center"], "icon-allow-overlap": false, "icon-ignore-placement": true, "text-field": ["step", ["zoom"], "", 12, ["get", "point_count_abbreviated"]], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": "#FFFFFF" } });
-      pinL("pin-a", "zpa", 0, { filter: ["!", ["has", "point_count"]] });
-      pinL("pin-m", "zpm", 10);
-      pinL("pin-s", "zps", 0);
-      // 보이지 않는 핀 자리표: 서울·구 줌(13 아래)에서 구 이름·큰 역 이름이 ₩ 핀 밑에 깔리지 않고 옆으로 비켜 가게(핀 자체는 배치 계산에서 빠져 있음)
-      // 핀 레이어들 아래에 둬서 핀끼리의 배치(겹치면 숨김)에는 끼어들지 않는다
-      if (!map.getLayer("pin-blk")) map.addLayer({ id: "pin-blk", type: "symbol", source: "zpa", layout: { "icon-image": "zpin-a", "icon-anchor": "bottom", "icon-size": ["coalesce", ["get", "s"], 0.55], "icon-allow-overlap": true, "icon-padding": 1 }, paint: { "icon-opacity": 0 } }, "pin-sh");
       // 보이지 않는 역 자리표(줌 14+): 구역 카드가 역 점을 덮지 않고 아래·위·옆으로 비켜 가게(카드는 자리 4곳 중 빈 곳으로)
-      if (!map.getLayer("stn-blk")) map.addLayer({ id: "stn-blk", type: "symbol", source: "stn", minzoom: 14, layout: { "text-field": "●", "text-font": ["Noto Sans Regular"], "text-size": 14, "text-allow-overlap": true, "text-padding": 1 }, paint: { "text-opacity": 0 } }, "pin-sh");
+      if (!map.getLayer("stn-blk")) map.addLayer({ id: "stn-blk", type: "symbol", source: "stn", minzoom: 14, layout: { "text-field": "●", "text-font": ["Noto Sans Regular"], "text-size": 14, "text-allow-overlap": true, "text-padding": 1 }, paint: { "text-opacity": 0 } });
       // 고른 구역 카드: 다른 카드·핀에 밀려 숨지 않게 맨 위에 늘 그린다(값은 그 구역 id로 계산)
       card("sel-lab", ["==", ["get", "p"], 0], 24, "sellab", true);
       card("sel-lab-p", ["==", ["get", "p"], 1], 16, "sellab", true);
@@ -234,8 +234,10 @@
       if (!map.getLayer("spt-lab")) map.addLayer({ id: "spt-lab", type: "symbol", source: "spt", filter: ["==", ["get", "k"], "s"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-variable-anchor": ["bottom", "left", "right", "top"], "text-radial-offset": 0.85, "text-padding": 2, "text-justify": "auto", "text-allow-overlap": true, "text-ignore-placement": true }, paint: { "text-color": dk ? "#C7D6FF" : "#1F3A87", "text-halo-color": halo, "text-halo-width": 2 } }, "zone-lab");
       // 목록 줄에 마우스: 그 구역 이름표를 맨 위에(줌과 상관없이, 다른 카드에 안 가림)
       L({ id: "hov-lab", type: "symbol", source: "hov", filter: ["==", ["geometry-type"], "Point"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-anchor": "bottom", "text-offset": [0, -1.35], "text-allow-overlap": true, "text-ignore-placement": false }, paint: { "text-color": dk ? "#F5C33B" : "#7A5200", "text-halo-color": halo, "text-halo-width": 2.4 } });
+      // 알약·구 묶음 자리표(보이지 않는 글자, 맨 위 = 가장 먼저 자리 잡음): 구역·동·역·구 이름이 DOM 알약 밑에 깔리지 않게
+      L({ id: "pill-blk", type: "symbol", source: "pillb", layout: { "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-anchor": ["case", ["has", "c"], "center", "bottom"], "text-offset": ["case", ["has", "c"], ["literal", [0, 0]], ["literal", [0, -0.55]]], "text-line-height": 1.6, "text-allow-overlap": true, "text-padding": 7 }, paint: { "text-opacity": 0 } });
       stnDraw(); hovDraw(); guDraw();
-      PIN.clear(); pinAnim.clear(); pinK = null;
+      FSV.clear(); MW.clear();
       ready = true;
       layerData();
       layers();
@@ -447,14 +449,15 @@
       if (!map || !ready || !geo) return;
       const Z = geo.z;
       const vis = R.filter((r) => r.ll && visible(r) && kindOk(r));
-      const off = [], est = [], lab = [], pts = [], MS = mineSet(), okF = okSafe(), hiOn = lyr.has("hi"), selId = cur && cur.id;
+      const off = [], est = [], lab = [], pts = [], hiOn = lyr.has("hi"), selId = cur && cur.id;
       let selF = null;
+      VIS = vis;
       for (const r of vis) {
         const z = Z[r.id];
-        const s = cardVal(r), y = okF(r) ? 1 : 0, pp = y || MS.has(r.id) ? 1 : 0, h = hiOn && hiOf(r) ? "▲신고가" : "";
-        // 정렬 키: 살 수 있는 곳 → 신고가(켰을 때) → 금액 있는 곳 → 나머지 (작을수록 먼저 자리 잡음)
-        const k = (y ? 0 : s ? 2 : 3) - (h ? 1 : 0);
-        const lf = { type: "Feature", geometry: { type: "Point", coordinates: z ? z.l : [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: cardName(r), s, h, y, k: z ? k : k + 0.5, p: pp } };
+        // 이름표(줌 13부터): 금액은 알약이 말하므로 이름만(카드 값을 '내 현금' 말고 다른 기준으로 고르면 그 값) · 신고가를 켜면 아래 칸에 '▲신고가'
+        const s = colorBy === "cash" ? "" : cardVal(r), h = hiOn && hiOf(r) ? "▲신고가" : "";
+        const k = (s ? 2 : 3) - (h ? 1 : 0);
+        const lf = { type: "Feature", geometry: { type: "Point", coordinates: z ? z.l : [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: cardName(r), s, h, y: 0, k: z ? k : k + 0.5, p: 0 } };
         if (r.id === selId) selF = lf; else lab.push(lf);   // 고른 구역 카드는 따로(sel-lab) 늘 보이게
         if (z) (z.e ? est : off).push({ type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: { id: r.id } });
         else pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: { id: r.id } });
@@ -466,36 +469,31 @@
       map.getSource("sellab").setData(FC(selF ? [selF] : []));
       map.getSource("pts").setData(FC(pts));
       legend();
-      pins(true);
+      states();
     }
-    // ===================== 핀: 핀이 꽂힌 구역 = 내 돈으로 살 수 있는 곳 =====================
-    // 크기: 줌 12 아래 15px(머리 10.5px), 12~13 16px, 14~15 22px, 16 이상 28px(+'이름 · X억'). 핀 끝이 구역 중심.
-    // 살 수 있는 핀 = 남색 머리 + 흰 집, 내 핀 = 노란 머리 + 남색 집(줌 10부터 늘 보임), 선택 = 1.25배 + 후광. 집 모양 = 앱 아이콘(icon.svg)과 같은 꼴.
-    // 게이지를 움직이면 새로 되는 곳은 24px 위에서 떨어져 꽂히고(320ms, 살짝 튕김 + 그림자 펄스), 안 되는 곳은 줄며 사라진다.
-    const PIN = new Map();      // id → { ll, r } 지금 꽂혀 있어야 하는 '살 수 있는' 핀
-    const pinAnim = new Map();  // id → { kind: drop|fi|fo|out, t0, d, ll, r }
-    let pinK = null, pinRaf = 0, pinT = 0, pinTm = 0, pinSnap = null, pinHooked = false, toastEl = null, toastTm = 0;
-    const PIN_COL = (dk) => (dk ? { a: "#6C8CFF", m: "#FFD45C", b: "#0F1730", wa: "#FFFFFF", wm: "#0F1730", halo: "rgba(108,140,255,.30)" } : { a: "#1F3A87", m: "#F5C33B", b: "#FFFFFF", wa: "#FFFFFF", wm: "#1F3A87", halo: "rgba(31,58,135,.24)" });
-    function pinImgs(dk) {
-      const C = PIN_COL(dk), k = 3;
-      const put = (id, W, H, draw) => { if (map.hasImage(id)) map.removeImage(id); const c = document.createElement("canvas"); c.width = W * k; c.height = H * k; const x = c.getContext("2d"); x.scale(k, k); draw(x); map.addImage(id, x.getImageData(0, 0, W * k, H * k), { pixelRatio: k }); };
-      // 핀 28px(머리 r10) + 후광 자리 5px. 아래 끝이 앵커
-      const PAD = 5, R0 = 9.6, W = 2 * (R0 + PAD) + 2, H = 28 + PAD, cx = W / 2, cy = PAD + R0 + 1;
-      // 핀 머리 안 집(지붕 + 몸통 + 문): icon.svg 64칸 좌표(머리 반지름 19.5)를 머리 R0에 맞춰 줄인 것
-      const house = (x, hx, hy, fg, door) => {
-        const s = (R0 * 0.94) / 19.5, P = (a, b) => [hx + a * s, hy + b * s];
-        x.beginPath(); [[0, -11.9], [12.4, -0.8], [8.5, -0.8], [8.5, 10.7], [-8.5, 10.7], [-8.5, -0.8], [-12.4, -0.8]].forEach(([a, b], i) => x[i ? "lineTo" : "moveTo"](...P(a, b))); x.closePath();
-        x.fillStyle = fg; x.strokeStyle = fg; x.lineWidth = 1.8 * s; x.lineJoin = "round"; x.fill(); x.stroke();
-        x.fillStyle = door; x.fillRect(...P(-3.2, 2.4), 6.4 * s, 8.3 * s);
-      };
-      const tear = (x) => { x.beginPath(); x.moveTo(cx, H - 0.6); x.bezierCurveTo(cx - 2, H - 6, cx - R0, cy + 7.5, cx - R0, cy); x.arc(cx, cy, R0, Math.PI, 0); x.bezierCurveTo(cx + R0, cy + 7.5, cx + 2, H - 6, cx, H - 0.6); x.closePath(); };
-      ["a", "m"].forEach((t) => ["", "-s"].forEach((sx) => put(`zpin-${t}${sx}`, W, H, (x) => {
-        if (sx) { x.beginPath(); x.arc(cx, cy, R0 + 4, 0, Math.PI * 2); x.fillStyle = C.halo; x.fill(); }
-        tear(x); x.fillStyle = C[t]; x.fill(); x.lineWidth = 2; x.strokeStyle = C.b; x.stroke();
-        house(x, cx, cy, t === "a" ? C.wa : C.wm, C[t]);
-      })));
-      ["a", "m"].forEach((t) => put(`zdot-${t}`, 7, 7, (x) => { x.beginPath(); x.arc(3.5, 3.5, 3, 0, Math.PI * 2); x.fillStyle = C[t]; x.fill(); x.lineWidth = 1; x.strokeStyle = C.b; x.stroke(); }));
-      put("zclu", 22, 22, (x) => { x.beginPath(); x.arc(11, 11, 9.5, 0, Math.PI * 2); x.fillStyle = C.a; x.fill(); x.lineWidth = 2; x.strokeStyle = C.b; x.stroke(); });
+    // ===================== 지도 위 '지금 필요한 돈' 알약 · 상태 점 · 구 묶음(리뉴얼 3단계) =====================
+    // 상태 4가지는 남색 한 가지 안에서 모양으로만 가른다(새 색 없음): 가능 = 남색 알약·흰 글씨(면 20%) · 조금 모자람(내 돈×1.2 안) = 흰 알약·남색 테두리 '+2,000만'(면 없이 테두리만)
+    // 멀다 = 6px 회남색 점(면 아주 옅게) · 정보 부족 = 점선 점. 판정·금액은 목록과 같은 함수(SIMPLE.zstate · ZF.cash).
+    // 알약은 화면 안 구역 중 맞춤순(가능 먼저 내 돈에 가까운 순 → 조금 모자람은 모자란 돈 적은 순) 위에서 40개까지, 서로·떠 있는 버튼과 겹치면 점으로.
+    // 관심 구역 = 하트 + 굵은 테두리. 줌 11 이하(서울 보기) = 구 묶음 '구로 · 가능 3'(남색 농도 = 곳 수), 누르면 그 구로.
+    // 알약·구 묶음은 DOM 버튼(접근 가능한 이름 '정릉3구역, 지금 필요한 돈 7,300만, 가능')이라 지도 글자 배치에 안 끼므로, 같은 자리에 보이지 않는 글자(pill-blk)를 깔아 구역·동·역 이름이 그 밑에 깔리지 않게 한다.
+    const CITYZ = 11, PILL_MAX = 40;
+    const ST_K = { ok: 0, near: 1, far: 2, na: 3 };
+    let ZS = new Map(), pillRaf = 0, pickId = null, VIS = [], lastCity = null, toastEl = null, toastTm = 0, pinSnap = null, pinHooked = false;
+    const PILLS = new Map(), GUS = new Map(), FSV = new Map();
+    const zsOf = (r) => { try { return SIMPLE.zstate(r); } catch (e) { return { st: "na", need: null, total: null }; } };
+    function computeStates() { const M = new Map(); for (const r of R) if (r.ll) M.set(r.id, zsOf(r)); ZS = M; }
+    // 면·테두리 칠: feature-state k(0 가능 · 1 모자람 · 2 멀다 · 3 정보 부족) · f(관심 구역) — 바뀐 구역만 다시 넣는다
+    function stateFS() {
+      if (!map || !ready || !geo) return;
+      const mine = mineSet(), Z = geo.z;
+      for (const [id, s] of ZS) {
+        const z = Z[id]; if (!z) continue;
+        const k = ST_K[s.st], f = mine.has(id), c = k * 2 + (f ? 1 : 0);
+        if (FSV.get(id) === c) continue;
+        FSV.set(id, c);
+        try { map.setFeatureState({ source: z.e ? "zest" : "zones", id }, { k, f }); } catch (e) {}
+      }
     }
     function mineSet() {
       let L = null;
@@ -503,116 +501,172 @@
       if (!Array.isArray(L)) { try { L = FAV; } catch (e) { L = []; } }
       return new Set((L || []).map((x) => (x && typeof x === "object" ? x.id : x)).filter(Boolean));
     }
-    // cubic-bezier(.34,1.56,.64,1): 살짝 넘쳤다 돌아오는 낙하
-    const bez = (() => { const X1 = 0.34, Y1 = 1.56, X2 = 0.64, Y2 = 1; const f = (t, a, b) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t; return (x) => { let t = x; for (let i = 0; i < 6; i++) { const d = (f(t + 1e-4, X1, X2) - f(t, X1, X2)) / 1e-4; if (!d) break; t -= (f(t, X1, X2) - x) / d; t = Math.min(1, Math.max(0, t)); } return f(t, Y1, Y2); }; })();
     const llOf = (r) => { const z = geo && geo.z[r.id]; return z ? z.l : r.ll ? [r.ll[1], r.ll[0]] : null; };
-    const LB = new Map();
-    function pinLab(r) {
-      if (LB.has(r.id)) return LB.get(r.id);
-      const t = labelOf(r), m = /([\d.,]+(?:억|만|원))/.exec(t || "");
-      const v = `${fullName(r)} · ${m ? m[1] : cardVal(r) || ""}`.replace(/ · $/, "");
-      LB.set(r.id, v); return v;
+    // 글자 폭(알약 겹침 계산용): 알약과 같은 글꼴로 캔버스에서 잰다
+    const MW = new Map(); let mctx = null;
+    const measure = (t, px, w8) => { const k = px + "|" + (w8 || 700) + "|" + t; if (MW.has(k)) return MW.get(k); if (!mctx) mctx = document.createElement("canvas").getContext("2d"); mctx.font = `${w8 || 700} ${px}px 'Pretendard Variable',Pretendard,'Apple SD Gothic Neo','Noto Sans KR',sans-serif`; const v = Math.ceil(mctx.measureText(t).width); MW.set(k, v); return v; };
+    // 떠 있는 것(겹쳐 보기 레일·확대 버튼·위 작은 막대·목록 보기·안내·고른 구역 카드) 자리: 알약·구 묶음을 그 밑에 두지 않는다
+    function obstacles() {
+      const out = [];
+      try {
+        const cb = map.getCanvas().getBoundingClientRect();
+        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmap .lm-snote, #lmap .maplibregl-ctrl-bottom-right").forEach((e) => {
+          if (!e.offsetWidth || e.hidden || e.closest("[hidden]")) return;
+          const b = e.getBoundingClientRect();
+          if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;
+          out.push([b.left - cb.left - 4, b.top - cb.top - 4, b.right - cb.left + 4, b.bottom - cb.top + 4]);
+        });
+      } catch (e) {}
+      return out;
     }
-    // 줌 구간별 핀 배율(이미지 높이 28px 기준)
-    const pinBand = () => { const z = map.getZoom(); return z < 12 ? 0.55 : z < 14 ? 16 / 28 : z < 16 ? 22 / 28 : 1; };   // 서울 전체(12 아래)도 머리 약 10.5px 핀
-    let pinB = 0;
-    function pinDraw(now) {
-      if (!map || !ready || !map.getSource("zpa")) return;
-      now = now || performance.now();
-      const sz = pinBand();
-      const mine = mineSet(), sel = cur && cur.id, A = [], M = [], S = [], SH = [];
-      const F = (r, ll, t, o, dy, sc, k) => {
-        const s0 = (r.id === sel ? 1.25 : 1) * sc * sz;   // 크기는 줌 구간마다 JS에서 정한다(배치 계산이 타일 줌 기준이라 식으로는 어긋남)
-        return { type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { id: r.id, t, x: r.id === sel ? "-s" : "", s: s0, o, off: [0, dy / (s0 || 1)], k, lb: pinLab(r) } };
-      };
-      const st = (a, ll) => {
-        const e = now - a.t0;
-        if (e < 0) return { o: 0, dy: 0, sc: 1 };
-        if (a.kind === "drop") {
-          if (e >= 320 && e < 440) { const q = (e - 320) / 120; SH.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { r: (2 + 7 * q) * Math.max(sz, 0.6), o: 0.34 * (1 - q) } }); }
-          return { o: Math.min(1, e / 90), dy: -24 * (1 - bez(Math.min(1, e / 320))), sc: 1 };
+    const hitB = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+    const HEART_S = '<svg class="zp-h" width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-4.9-9.7-10C1.2 7.4 3.5 4 7 4c2.1 0 3.8 1.2 5 3 1.2-1.8 2.9-3 5-3 3.5 0 5.8 3.4 4.7 7-1.7 5.1-9.7 10-9.7 10z" fill="currentColor"/></svg>';
+    const pillText = (s) => (s.st === "near" ? SIMPLE.shortTxt(s.need) : ZF.cash(s.need));
+    const pillLabel = (r, s, fav, nw) => `${fullName(r)}, 지금 필요한 돈 ${ZF.cash(s.need)}, ${SIMPLE.stWord[s.st]}${s.st === "near" ? `, ${SIMPLE.shortTxt(s.need).slice(1)} 더 필요` : ""}${fav ? ", 관심 구역" : ""}${nw ? ", 이번 주 새로 가능" : ""}`;
+    const selId = () => pickId || (cur && cur.id) || null;
+    function states() {
+      if (!map || !ready || !geo || pillRaf) return;
+      pillRaf = requestAnimationFrame(() => { pillRaf = 0; if (!map || !ready) return; pinHooks(); computeStates(); stateFS(); layout(); });
+    }
+    function layout() {
+      if (!map || !ready || !geo) return;
+      if ($("lmap").hidden) { pillsSet(new Map()); gusSet([]); return; }
+      const city = map.getZoom() <= CITYZ + 1e-6;
+      lastCity = city;
+      if (city) { pillsSet(new Map()); dotsSet([]); guLayout(); }
+      else { gusSet([]); pillsLayout(); }
+    }
+    function pillsLayout() {
+      const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight;
+      if (W < 50 || H < 50) return;
+      const obs = obstacles(), mine = mineSet(), sel = selId(), named = map.getZoom() >= 15;
+      const C = [];
+      for (const r of VIS) { const s = ZS.get(r.id); if (s && (s.st === "ok" || s.st === "near") && s.need != null) C.push([r, s]); }
+      const rank = ([r, s]) => (r.id === sel ? -2e9 : 0) + (mine.has(r.id) ? -1e9 : 0) + (s.st === "ok" ? Math.abs(CASH - s.need) : 1e6 + s.need);
+      C.sort((a, b) => rank(a) - rank(b));
+      const placed = [], P = new Map();
+      for (const [r, s] of C) {
+        if (P.size >= PILL_MAX) break;
+        const ll = llOf(r); if (!ll) continue;
+        const q = map.project(ll);
+        if (q.x < 4 || q.x > W - 4 || q.y < 4 || q.y > H - 4) continue;
+        const t = pillText(s), fav = mine.has(r.id), nm = named ? cardName(r) : "", nw = SIMPLE.isNew(r, s.need);
+        const w = measure(t, 13) + 18 + (fav ? 14 : 0) + (nm ? measure(nm, 12, 600) + 6 : 0) + (nw ? 30 : 0), h = 28;
+        const bx = [q.x - w / 2 - 2, q.y - h - 2, q.x + w / 2 + 2, q.y + 1];
+        if (bx[0] < 2 || bx[2] > W - 2 || bx[1] < 2) continue;
+        if (r.id !== sel && (obs.some((o) => hitB(o, bx)) || placed.some((o) => hitB(o, bx)))) continue;
+        placed.push(bx); P.set(r.id, { r, s, t, fav, nm, nw, sel: r.id === sel });
+      }
+      pillsSet(P);
+      // 알약이 없는 구역은 점(멀다 6px 회남색 · 정보 부족 점선 · 가능·모자람인데 자리가 없으면 작은 남색 점 · 관심 구역은 하트)
+      const F = [];
+      for (const r of VIS) {
+        if (P.has(r.id)) continue;
+        const s = ZS.get(r.id), ll = llOf(r); if (!s || !ll) continue;
+        F.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { id: r.id, t: mine.has(r.id) ? "fav" : s.st, k: mine.has(r.id) ? 0 : ST_K[s.st] + 1 } });
+      }
+      dotsSet(F);
+    }
+    function dotsSet(F) { try { map.getSource("zdot").setData(FC(F)); } catch (e) {} }
+    function pillsSet(P) {
+      PILLS.forEach((p, id) => { if (!P.has(id)) { p.mk.remove(); PILLS.delete(id); } });
+      const B = [];
+      P.forEach((v, id) => {
+        let p = PILLS.get(id);
+        const ll = llOf(v.r);
+        if (!p) {
+          const el = document.createElement("button");
+          el.type = "button"; el.tabIndex = -1; el.dataset.zid = id;
+          el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); pillTap(id); });
+          p = { el, key: "", mk: new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(ll).addTo(map) };
+          PILLS.set(id, p);
         }
-        if (a.kind === "fi") return { o: Math.min(1, e / a.d), dy: 0, sc: 1 };
-        if (a.kind === "fo") return { o: Math.max(0, 1 - e / a.d), dy: 0, sc: 1 };
-        const t = Math.min(1, e / 180); return { o: 1 - t, dy: 0, sc: 1 - 0.55 * t };
-      };
-      PIN.forEach((p, id) => {
-        if (id === sel || mine.has(id)) return;
-        const a = pinAnim.get(id), v = a ? st(a, p.ll) : { o: 1, dy: 0, sc: 1 };
-        A.push(F(p.r, p.ll, "a", v.o, v.dy, v.sc, 2));
+        const key = [v.s.st, v.t, v.fav, v.sel, v.nm, v.nw].join("|");
+        if (p.key !== key) {
+          p.key = key;
+          p.el.className = `zpill st-${v.s.st}${v.fav ? " fav" : ""}${v.sel ? " sel" : ""}`;
+          p.el.style.zIndex = v.sel ? 4 : v.fav ? 3 : v.s.st === "ok" ? 2 : 1;
+          p.el.innerHTML = `<span class="zp-in">${v.fav ? HEART_S : ""}${v.nm ? `<i class="zp-n">${esc(v.nm)}</i>` : ""}<b class="zp-v">${esc(v.t)}</b>${v.nw ? '<em class="zp-new">NEW</em>' : ""}</span>`;
+          p.el.setAttribute("aria-label", pillLabel(v.r, v.s, v.fav, v.nw));
+          p.el.setAttribute("aria-pressed", String(!!v.sel));
+        }
+        B.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { t: (v.fav ? "♥ " : "") + (v.nm ? v.nm + " " : "") + v.t + (v.nw ? " NEW" : "") } });
       });
-      pinAnim.forEach((a, id) => { if (PIN.has(id) || id === sel || mine.has(id)) return; const v = st(a, a.ll); A.push(F(a.r, a.ll, "a", v.o, v.dy, v.sc, 2)); });
-      mine.forEach((id) => { const r = byId[id]; if (!r || id === sel) return; const ll = llOf(r); if (ll) M.push(F(r, ll, "m", 1, 0, 1, 1)); });
-      if (sel && (PIN.has(sel) || mine.has(sel))) { const r = byId[sel], ll = r && llOf(r); if (ll) S.push(F(r, ll, mine.has(sel) ? "m" : "a", 1, 0, 1, 0)); }
-      map.getSource("zpa").setData(FC(A));
-      map.getSource("zpm").setData(FC(M));
-      map.getSource("zps").setData(FC(S));
-      map.getSource("zpsh").setData(FC(SH));
+      try { map.getSource("pillb").setData(FC(B)); } catch (e) {}
     }
-    function pinTick() {
-      pinRaf = 0;
-      if (!map || !ready) return;
-      const now = performance.now();
-      pinDraw(now);
-      pinAnim.forEach((a, id) => { const end = a.kind === "drop" ? 440 : a.kind === "out" ? 180 : a.d; if (now - a.t0 >= end) pinAnim.delete(id); });
-      if (pinAnim.size) pinRaf = requestAnimationFrame(pinTick);
-      else pinDraw(now);
+    // 알약 누르기: 처음 = 고르기(진한 남색·1.15배) + 목록의 그 카드(PC는 목록에서 스크롤, 폰은 지도 아래 카드) · 같은 알약 한 번 더 = 상세
+    function pillTap(id) {
+      if (!byId[id]) return;
+      const pc = !MQ_SHEET.matches, H = document.documentElement;
+      if (pickId === id || (pc && H.classList.contains("s-rep"))) { pickClear(); curTab = "money"; select(id, false, false, { scroll: false }); return; }
+      pickId = id;
+      let inList = false; try { inList = SIMPLE.pick(id, pc); } catch (e) {}
+      pickCard(!pc || !inList ? id : null);
+      layout();
     }
-    function pins(force) {
-      if (!map || !ready || !geo || !map.getSource("zpa")) return;
-      pinHooks();
-      const now = performance.now();
-      if (!force && now - pinT < 120) { clearTimeout(pinTm); pinTm = setTimeout(() => pins(false), 124 - (now - pinT)); return; }
-      clearTimeout(pinTm); pinT = now;
-      const next = new Map(), okF = pinOkF(), okS = new Set();
-      for (const r of R) {
-        let y = false; try { y = okF(r); } catch (e) {}
-        if (!y) continue;
-        okS.add(r.id);
-        if (!kindOk(r)) continue;   // 목록 유형 칩(재개발·재건축·가로)과 같은 것만 핀
-        const ll = llOf(r);
-        if (ll) next.set(r.id, { ll, r });
+    function pickClear() { if (!pickId) return; pickId = null; try { SIMPLE.pick(null); } catch (e) {} pickCard(null); layout(); }
+    function pickCard(id) {
+      let el = $("lmPick");
+      if (!id) { if (el && !el.hidden) { el.hidden = true; edgeSoon(); } return; }
+      if (!el) {
+        el = document.createElement("div"); el.id = "lmPick"; el.className = "lm-pick"; el.setAttribute("role", "region"); el.setAttribute("aria-label", "지도에서 고른 구역");
+        el.addEventListener("click", (e) => {
+          if (e.target.closest("[data-heart]")) return;
+          if (e.target.closest(".lm-pick-x")) { pickClear(); return; }
+          const a = e.target.closest("[data-zid]"); if (!a) return;
+          e.preventDefault(); e.stopPropagation();
+          const z = a.dataset.zid; pickClear(); curTab = "money"; select(z, false, false, { scroll: false });
+        });
+        $("lmap").appendChild(el);
       }
-      affState(okS, force);
-      const key = [...next.keys()].join(",");
-      if (key === pinK) { if (force) { LB.clear(); pinDraw(); } return; }
-      LB.clear();
-      // 처음 로딩·지도 움직이는 중·움직임 줄이기 → 150ms 페이드만
-      const calm = pinK == null || reduceMotion() || map.isMoving();
-      pinK = key;
-      const add = [], rm = [];
-      next.forEach((p, id) => { if (!PIN.has(id) || (pinAnim.get(id) || {}).kind === "out" || (pinAnim.get(id) || {}).kind === "fo") add.push([id, p]); });
-      PIN.forEach((p, id) => { if (!next.has(id)) rm.push([id, p]); });
-      rm.forEach(([id, p]) => pinAnim.set(id, calm ? { kind: "fo", t0: now, d: 150, ll: p.ll, r: p.r } : { kind: "out", t0: now, ll: p.ll, r: p.r }));
-      if (calm) add.forEach(([id, p]) => pinAnim.set(id, { kind: "fi", t0: now, d: 150, ll: p.ll, r: p.r }));
-      else {
-        // 30개 넘게 바뀌면 화면 가운데 가까운 30개만 떨어뜨리고 나머지는 200ms 페이드. 30ms 간격이라 한 프레임에 6개를 넘지 않는다
-        const cv = map.getCanvas(), c = [cv.clientWidth / 2, cv.clientHeight / 2];
-        const d2 = (ll) => { try { const q = map.project(ll); return (q.x - c[0]) ** 2 + (q.y - c[1]) ** 2; } catch (e) { return 1e12; } };
-        add.map(([id, p]) => [id, p, d2(p.ll)]).sort((a, b) => a[2] - b[2]).forEach(([id, p], i) => pinAnim.set(id, i < 30 ? { kind: "drop", t0: now + i * 30, ll: p.ll, r: p.r } : { kind: "fi", t0: now, d: 200, ll: p.ll, r: p.r }));
-      }
-      PIN.clear(); next.forEach((p, id) => PIN.set(id, p));
-      if (pinAnim.size) { if (!pinRaf) pinRaf = requestAnimationFrame(pinTick); }
-      else pinDraw(now);
+      const r = byId[id];
+      el.innerHTML = `<ol class="s-list">${SIMPLE.cardHTML(r, { z: ZS.get(id) || zsOf(r) })}</ol><button type="button" class="lm-pick-x" aria-label="고른 구역 닫기"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`;
+      try { const cv = map.getCanvas().getBoundingClientRect(), fx = document.querySelector(".s-fullx"), fb = fx && fx.offsetWidth ? fx.getBoundingClientRect() : null; el.style.bottom = (fb && fb.top < cv.bottom && fb.bottom > cv.top ? Math.round(cv.bottom - fb.top + 8) : 10) + "px"; } catch (e) {}
+      el.hidden = false;
     }
-    // 게이지를 놓으면: 진동 한 번 + '핀 4개 새로 꽂혔어요 · 2개 빠졌어요'(바뀐 게 있을 때만, 2초)
-    // 핀 = 홈 '살 수 있는 곳' 숫자와 같은 판정(70_pins.js window.ZP_ok). 없으면 예전 점 상태
+    // 구 묶음(줌 11 이하): 구 이름 자리에 동그라미 '구로 / 가능 3' · 농도 4단계(0 · 적음 · 중간 · 많음) · 서로 겹치면 곳 수 적은 구부터 뺀다
+    let GUL = null;
+    function guLayout() {
+      if (!GUL) GUL = guLabels().features.map((f) => ({ n: f.properties.n, ll: f.geometry.coordinates }));
+      let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) {}
+      const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, obs = obstacles();
+      const L = GUL.map((g) => ({ n: g.n, ll: g.ll, c: cnt[g.n] || 0 })).sort((a, b) => b.c - a.c);
+      const mx = Math.max(1, ...L.map((x) => x.c)), placed = [], keep = [];
+      for (const g of L) {
+        if (!g.c) continue;   // 갈 수 있는 곳이 없는 구는 묶음을 그리지 않는다(구 이름은 바탕 지도에)
+        const q = map.project(g.ll), sn = g.n.length > 2 ? g.n.replace(/구$/, "") : g.n;
+        const d = Math.max(46, Math.max(measure(sn, 12), measure(`가능 ${g.c}`, 11)) + 14), bx = [q.x - d / 2, q.y - d / 2, q.x + d / 2, q.y + d / 2];
+        if (bx[0] < 2 || bx[2] > W - 2 || bx[1] < 2 || bx[3] > H - 2) continue;
+        if (obs.some((o) => hitB(o, bx)) || placed.some((o) => hitB(o, bx))) continue;
+        placed.push(bx); keep.push(Object.assign(g, { sn, d, t: g.c ? (g.c / mx > 0.6 ? 3 : g.c / mx > 0.25 ? 2 : 1) : 0 }));
+      }
+      gusSet(keep);
+      try { map.getSource("pillb").setData(FC(keep.map((g) => ({ type: "Feature", geometry: { type: "Point", coordinates: g.ll }, properties: { t: g.sn + "\n가능 " + g.c, c: 1 } })))); } catch (e) {}
+    }
+    function gusSet(keep) {
+      const K = new Map(keep.map((g) => [g.n, g]));
+      GUS.forEach((p, n) => { if (!K.has(n)) { p.mk.remove(); GUS.delete(n); } });
+      K.forEach((g, n) => {
+        let p = GUS.get(n);
+        if (!p) {
+          const el = document.createElement("button");
+          el.type = "button"; el.tabIndex = -1; el.dataset.gu = n;
+          el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); try { enterGu(n); } catch (er) {} });
+          p = { el, key: "", mk: new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(g.ll).addTo(map) };
+          GUS.set(n, p);
+        }
+        const key = g.c + "|" + g.t + "|" + g.d;
+        if (p.key === key) return;
+        p.key = key;
+        p.el.className = `zgu t${g.t}`; p.el.dataset.n = String(g.c);
+        p.el.style.setProperty("--d", g.d + "px");
+        p.el.innerHTML = `<b>${esc(g.sn)}</b><span>가능 ${fmt(g.c)}</span>`;
+        p.el.setAttribute("aria-label", `${n}, 갈 수 있는 곳 ${fmt(g.c)}곳, 눌러서 ${n} 보기`);
+      });
+    }
+    // 금액을 바꾸고 손을 떼면: 진동 한 번 + '새로 갈 수 있는 곳 4곳 · 2곳 빠졌어요'(바뀐 게 있을 때만, 2초) — 홈 숫자와 같은 판정(70_pins.js window.ZP_ok)
     const pinOkF = () => (typeof window.ZP_ok === "function" ? window.ZP_ok : (r) => r.ll && visible(r) && dotState(r) === "y");
     const okSafe = () => { const f = pinOkF(); return (r) => { try { return !!f(r); } catch (e) { return false; } }; };
-    // 예산 반영: 되는 구역만 진한 남색, 나머지는 옅게(feature-state a). 게이지를 끄는 중에도 바로 바뀐다
-    let affK = null;
-    function affState(okS, force) {
-      if (!map || !ready || !geo) return;
-      const key = okS.size + ":" + [...okS].join(",");
-      if (key === affK && !force) return;
-      affK = key;
-      const Z = geo.z;
-      for (const r of R) {
-        if (!r.ll) continue;
-        const z = Z[r.id], src = z ? (z.e ? "zest" : "zones") : "pts";
-        try { map.setFeatureState({ source: src, id: r.id }, { a: okS.has(r.id) }); } catch (e) {}
-      }
-    }
     // 내 돈으로 되는데 위치(좌표)가 없어 지도에 못 그리는 구역 → 홈 카드 등에서 '위치 미확인 n곳'
     function noLoc() { const f = okSafe(), ids = R.filter((r) => f(r) && !llOf(r)).map((r) => r.id); return { n: ids.length, ids }; }
     const okIds = () => { const f = pinOkF(), S = new Set(); R.forEach((r) => { try { if (f(r)) S.add(r.id); } catch (e) {} }); return S; };
@@ -623,24 +677,26 @@
     }
     function pinHooks() {
       if (pinHooked) return; pinHooked = true;
-      map.on("zoom", () => { const b = pinBand(); if (b !== pinB) { pinB = b; if (!pinRaf) pinDraw(); } });
-      const isG = (t) => t && (t.id === "sCash" || t.id === "sMiniR");
+      // 줌 11을 넘나들면 바로 구 묶음 ↔ 알약 · 움직임이 끝나면 화면 안 구역으로 다시 고른다
+      map.on("zoom", () => { const c = map.getZoom() <= CITYZ + 1e-6; if (c !== lastCity) layout(); });
+      let mT = 0; map.on("moveend", () => { clearTimeout(mT); mT = setTimeout(layout, 30); });
+      map.on("resize", () => { clearTimeout(mT); mT = setTimeout(layout, 60); });
+      const isG = (t) => t && (t.id === "sCash" || t.id === "sMiniR" || (t.closest && t.closest(".scrub")));
       document.addEventListener("pointerdown", (e) => { if (isG(e.target)) pinSnap = okIds(); }, true);
-      document.addEventListener("change", (e) => {
-        if (!isG(e.target) || !pinSnap) return;
+      const done = () => {
+        if (!pinSnap) return;
         const snap = pinSnap; pinSnap = null;
         try { if (navigator.vibrate) navigator.vibrate(10); } catch (er) {}
         setTimeout(() => {
           if (!map || !$("lmap") || $("lmap").hidden) return;
-          pins(true);
-          // 토스트 숫자 = 홈 숫자 변화(좌표 없는 구역도 셈)
           const nowS = okIds(); let a = 0, b = 0; nowS.forEach((id) => { if (!snap.has(id)) a++; }); snap.forEach((id) => { if (!nowS.has(id)) b++; });
           if (a || b) pinToast([a ? `새로 갈 수 있는 곳 ${a}곳` : "", b ? `${b}곳 빠졌어요` : ""].filter(Boolean).join(" · "));
         }, 380);
-      }, true);
-      // 내 핀(관심 구역) 토글 → 노란 핀 다시 그리기
-      document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("[data-fav]")) setTimeout(() => pinDraw(), 60); }, true);
-      addEventListener("storage", () => pinDraw());
+      };
+      document.addEventListener("change", (e) => { if (isG(e.target)) done(); }, true);
+      document.addEventListener("pointerup", (e) => { if (isG(e.target)) setTimeout(done, 40); }, true);
+      addEventListener("storage", () => states());
+      addEventListener("keydown", (e) => { if (e.key === "Escape" && pickId) pickClear(); });
     }
     // 오른쪽 위 겹쳐 보기 레일 폭만큼 오른쪽 여백(카드가 레일 밑에 깔리지 않게)
     function railPad() { try { const w = $("mapbox") && $("mapbox").querySelector(".s-rail"); const cv = map.getCanvas().getBoundingClientRect(); if (w && w.offsetWidth) return Math.max(16, Math.round(cv.right - w.getBoundingClientRect().left) + 8); } catch (e) {} return 16; }
@@ -650,9 +706,10 @@
       if (((cur && cur.id) || null) !== labSel) paint();
       const src = map.getSource("sel");
       const z = cur && geo && geo.z[cur.id];
-      if (!cur || !(z || cur.ll)) { src.setData(FC([])); pinDraw(); return; }
+      if (!cur || !(z || cur.ll)) { src.setData(FC([])); layout(); return; }
       src.setData(z ? { type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: {} } : FC([]));
-      pinDraw();
+      if (pickId && cur && pickId !== cur.id) { pickId = null; pickCard(null); }
+      layout();
       if (!zoom) return;
       const dur = reduceMotion() ? 0 : 650;
       if (zoom === "soft") {
@@ -829,14 +886,17 @@
     function legend() {
       const el = $("lmLegend");
       if (!el) return;
-      const P = palette();
-      // 구역 색은 한 가지. 고른 기준(내 현금·단계 등)은 카드 아래 칸 값으로 보여 준다
-      const items = [[dark() ? "#5B8CFF" : "#1F3A87", "정비구역 (카드 아래 칸 = " + (MODES.find(([k]) => k === colorBy) || ["", "내 현금"])[1] + ")"]];
+      // 상태 4가지를 말로(색만으로 가르지 않음): 지도와 같은 꼴의 작은 알약·점 + 이름
       const note = { old: "노후도 = 경계 안 건축물 중 사용승인 후 30년(철근콘크리트)·20년(그 외) 지난 비율 · 서울도시공간포털 건물 레이어(사용승인 2022년까지 반영)로 직접 계산 · 이주·철거 이후 구역과 연도 확인 건물이 적은 곳은 빼요", vol: "최근 12개월 구역 안 연립·다세대 매매 건수(단독·아파트 제외, 서울시 실거래)", yoy: "대지지분 3.3㎡당 매매가 가운데 값, 최근 12개월 vs 그 전 12개월 · 두 기간 5건 이상" }[colorBy];
-      const PC = PIN_COL(dark());
-      // 범례 핀 = 지도 핀과 같은 꼴(집 든 핀)
-      const hp = (c, w) => `<svg class="lm-hp" width="12" height="15" viewBox="10 3 44 60" aria-hidden="true"><path d="M32 61C25.5 52.5 12.5 40.5 12.5 24.5a19.5 19.5 0 0 1 39 0C51.5 40.5 38.5 52.5 32 61z" fill="${c}"/><path d="M32 12.6 44.4 23.7h-3.9V35.2H23.5V23.7h-3.9z" fill="${w}"/><rect x="28.8" y="26.9" width="6.4" height="8.3" fill="${c}"/></svg>`;
-      el.innerHTML = `<span>${hp(PC.a, PC.wa)}핀 = 내 돈으로 갈 수 있는 곳</span><span>${hp(PC.m, PC.wm)}관심 구역</span>${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
+      const ex = { ok: "7,300만", near: "+2,000만" };
+      el.innerHTML = `<b class="lm-lgt">지금 필요한 돈 · 내 돈 기준</b>`
+        + `<span><i class="lg-pill zpill st-ok"><span class="zp-in"><b class="zp-v">${ex.ok}</b></span></i>가능 · 내 돈으로 돼요</span>`
+        + `<span><i class="lg-pill zpill st-near"><span class="zp-in"><b class="zp-v">${ex.near}</b></span></i>조금 모자람 · 모자란 돈</span>`
+        + `<span><i class="lg-dot far"></i>멀다 · 20% 넘게 더 필요</span>`
+        + `<span><i class="lg-dot na"></i>정보 부족 · 계산할 자료 없음</span>`
+        + `<span><i class="lg-heart" aria-hidden="true">${HEART_S}</i>관심 구역 · 굵은 테두리</span>`
+        + `<span><i class="lg-gu"></i>서울 보기(줌 11 이하) · 구 묶음</span>`
+        + `<span class="lm-est"><i></i>점선 = 공식 경계 없음(면적 기준 추정 범위)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
     }
     // 레이어 범례·'확대하면 보여요' 안내: 오른쪽 위 레일 바로 아래에 작은 글자로
     // 학교·병원(OpenFreeMap POI)은 타일 줌 14부터만 들어 있다 → 레이어도 14부터, 안내도 14 기준
@@ -897,16 +957,6 @@
         map.setFilter("zone-lab-p", ["all", ["==", ["get", "p"], 1], ["within", poly]]);
         // 구 이름도 가장자리에서 반쯤 잘려 보이지 않게(예: 왼쪽 끝 '강서구'), 레일·확대 버튼 밑에서는 빼기
         if (map.getLayer("gu-lab")) map.setFilter("gu-lab", ["within", poly]);
-        // 핀(₩·내 핀·클러스터)도 레일·확대 버튼·위 작은 게이지 밑에 깔리지 않게: 핀 끝(아래)이 그 칸 바로 아래 30px 안이면 머리가 칸에 가려서 같이 뺀다
-        const PH = [], pinTop = top > 4 ? top + 26 : 0;
-        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, .s-fullx, #lmNotes, #lmAucLg").forEach((e) => {
-          if (!e.offsetWidth || e.hidden) return;
-          const b = e.getBoundingClientRect();
-          if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;
-          PH.push([Math.max(1, b.left - cb.left - 12), Math.max(pinTop + 1, b.top - cb.top - 2), Math.min(W - 1, b.right - cb.left + 12), Math.min(H - 1, b.bottom - cb.top + 30)]);
-        });
-        const pPoly = { type: "Polygon", coordinates: [ring(0, pinTop, W, H)].concat(PH.filter((h) => h[2] > h[0] && h[3] > h[1]).map((h) => ring(...h))) };
-        [["pin-a", ["!", ["has", "point_count"]]], ["pin-clu", ["has", "point_count"]], ["pin-m", null], ["pin-s", null]].forEach(([l, f]) => { if (map.getLayer(l)) map.setFilter(l, f ? ["all", f, ["within", pPoly]] : ["within", pPoly]); });
       } catch (e) {}
     }
     const edgeSoon = () => { clearTimeout(edgeT); edgeT = setTimeout(edgeFilter, 60); };
@@ -970,7 +1020,11 @@
       map.on("moveend", edgeSoon);
       map.on("moveend", rlabSoon); map.on("resize", rlabSoon);
       // 목록 '이 지도 범위만'(60_simple.js)이 지도를 옮길 때마다 따라오게: 보이는 범위·줌을 알린다
-      map.on("moveend", () => { try { if (!ready || $("lmap").hidden) return; const b = map.getBounds(); dispatchEvent(new CustomEvent("zp:mapmove", { detail: { bb: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], z: map.getZoom() } })); } catch (e) {} });
+      // user = 사람이 끌거나·휠·두 손가락·확대 버튼으로 옮긴 이동(자동 맞춤·역 비행은 아님) → 목록이 저절로 '지도 범위만'
+      let userMv = false;
+      map.on("movestart", (e) => { if (e && e.originalEvent) userMv = true; });
+      $("lmap").addEventListener("click", (e) => { if (e.target.closest && e.target.closest(".lm-zoom button[data-z]:not([data-z=full])")) userMv = true; }, true);
+      map.on("moveend", (e) => { const u = userMv || !!(e && e.originalEvent); if (!map.isMoving()) userMv = false; try { if (!ready || $("lmap").hidden) return; const b = map.getBounds(); dispatchEvent(new CustomEvent("zp:mapmove", { detail: { bb: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], z: map.getZoom(), user: u } })); } catch (er) {} });
       // 사용자가 역에서 2km 넘게 밀거나 크게 빼면 역 표시(어둡게 덮기·고리)를 푼다
       // 역 지킴이: 역을 고른 직후(stnF.until 전) 사람이 옮긴 게 아닌 이동(첫 맞춤·크기 바뀜 뒤 맞춤)이 역에서 벗어나 끝나면 제자리로
       map.on("moveend", (e) => {
@@ -1021,7 +1075,10 @@
       let lastPT = "touch";
       map.getCanvasContainer().addEventListener("pointerdown", (e) => { lastPT = e.pointerType || "mouse"; }, true);
       map.on("click", (e) => {
-        const ls = ["pin-s", "pin-m", "pin-a", "pin-clu", "zone-lab", "zone-lab-p"].concat(hit).filter((l) => map.getLayer(l));
+        // 알약·구 묶음·고른 구역 카드(DOM)를 누른 것은 그쪽이 처리한다
+        const ot = e.originalEvent && e.originalEvent.target;
+        if (ot && ot.closest && ot.closest(".zpill,.zgu,.lm-pick")) return;
+        const ls = ["zdot", "zone-lab", "zone-lab-p"].concat(hit).filter((l) => map.getLayer(l));
         let fs = map.queryRenderedFeatures(e.point, { layers: ls });
         // 손가락은 넓게: 정확히 안 맞으면 둘레 12px(마우스 5px) 안에서 가장 가까운 구역
         if (!fs.length) {
@@ -1032,14 +1089,13 @@
             fs = near.sort((a, b) => d(a) - d(b));
           }
         }
-        if (!fs.length) return;
-        if (fs[0].layer.id === "pin-clu") { const c = fs[0]; Promise.resolve(map.getSource("zpa").getClusterExpansionZoom(c.properties.cluster_id)).then((zm) => map.easeTo({ center: c.geometry.coordinates, zoom: zm + 0.2, duration: reduceMotion() ? 0 : 400 })).catch(() => {}); return; }
+        if (!fs.length) { pickClear(); return; }
         // 겹치면 작은(구체적인) 구역 우선
         const area = (f) => { const z = geo && geo.z[f.properties.id]; return z ? z.a || 1e9 : 1e9; };
-        const f = fs.find((x) => /^(pin-[sma]|zone-lab(-p)?)$/.test(x.layer.id)) || fs.slice().sort((a, b) => (a.layer.id === "zest-fill") - (b.layer.id === "zest-fill") || area(a) - area(b))[0];
+        const f = fs.find((x) => /^(zdot|zone-lab(-p)?)$/.test(x.layer.id)) || fs.slice().sort((a, b) => (a.layer.id === "zest-fill") - (b.layer.id === "zest-fill") || area(a) - area(b))[0];
         const id = f.properties.id;
         if (!byId[id]) return;
-        pop.remove();
+        pop.remove(); pickClear();
         curTab = "money";
         const rt = $("report").getBoundingClientRect().top;
         select(id, false, false, { scroll: !MQ_SHEET.matches && (rt < HDR() - 4 || rt > innerHeight * 0.5) });
@@ -1097,8 +1153,12 @@
       enter, exit, use, seoul,
       on: () => !!(map && $("lmap") && !$("lmap").hidden),
       paint: () => { if (map && ready) paint(); },
-      counts: () => { if (map && ready) pins(false); },
-      pins: () => { if (map && ready) pins(true); },   // 내 핀이 바뀌면 불러 주세요   // 구별 숫자 말풍선은 없앰. 끄는 동안 핀만 다시 꽂는다(120ms 간격)
+      states: () => states(),   // 금액·방식·유형이 바뀌면(끄는 중에도) — 다음 프레임에 한 번: 상태 4가지·알약·점·구 묶음
+      counts: () => states(),
+      pins: () => states(),     // 관심 구역이 바뀌면 불러 주세요(하트·굵은 테두리)
+      pills: () => [...PILLS.entries()].map(([id, p]) => ({ id, st: (ZS.get(id) || {}).st, need: (ZS.get(id) || {}).need, t: (p.el.querySelector(".zp-v") || {}).textContent || "", lab: p.el.getAttribute("aria-label") || "", fav: p.el.classList.contains("fav"), sel: p.el.classList.contains("sel") })),
+      gus: () => [...GUS.entries()].map(([n, p]) => ({ n, c: +p.el.dataset.n, t: p.el.textContent, lab: p.el.getAttribute("aria-label") || "" })),
+      pick: (id) => (id ? pillTap(id) : pickClear()),
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
       noLoc: () => noLoc(),
       zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else { clearStation(); if (gu) fitGu(gu); else fitAff(true, true); } },

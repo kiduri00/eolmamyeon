@@ -15,21 +15,12 @@
   var num = function (s) { var m = String(s || "").replace(/,/g, "").match(/(\d+)\s*곳\s*$/); return m ? +m[1] : 0; };
   var toCash = function (p) { for (var i = 1; i < KN.length; i++) if (p <= KN[i][0]) { var a = KN[i - 1][0], x = KN[i - 1][1], b = KN[i][0], y = KN[i][1], v = x + ((p - a) / (b - a)) * (y - x); return v < 2 ? Math.round(v * 10) / 10 : v < 10 ? Math.round(v * 2) / 2 : Math.round(v); } return KN[KN.length - 1][1]; };
   // 60_simple.js SHOW0와 같은 줄 수
-  var show0 = function () { try { return matchMedia("(min-width:981px)").matches ? Math.max(6, Math.min(10, Math.floor((Math.min(innerHeight - 79, 902) - 144) / 75))) : 6; } catch (e) { return 6; } };
+  var show0 = function () { try { return matchMedia("(min-width:981px)").matches ? Math.max(6, Math.min(12, Math.floor((Math.min(innerHeight - 79, 902) - 120) / 84) + 2)) : 8; } catch (e) { return 8; } };
   var moreT = null;
   ["gap", "cash"].forEach(function (f) { P.st[f].forEach(function (s) { var t = S(s[0][6]); if (!moreT && t && /\d/.test(t)) moreT = t.replace(/[\d,]+(?=곳)/, "{n}"); }); });
   var cur = { f: P.def.f, i: STOPS.indexOf(P.def.c) };
   var dotEl = null;
-  // 좁은 화면: 흐름선 때문에 이름·동네가 잘리거나 줄이 바뀌면 그 줄만 흐름선을 뺀다(60_simple.js fitSp와 같은 판정)
-  var fit = function () {
-    var ls = document.querySelectorAll("#sList li");
-    for (var i = 0; i < ls.length; i++) {
-      var li = ls[i]; if (!li.querySelector(".s-sp")) continue;
-      li.classList.remove("s-nosp");
-      var b = li.querySelector(".s-nm b"), sm = li.querySelector(".s-nm small");
-      if ((b && b.scrollWidth > b.clientWidth + 1) || (sm && sm.getClientRects().length && sm.offsetHeight > parseFloat(getComputedStyle(sm).lineHeight || "0") * 1.5)) li.classList.add("s-nosp");
-    }
-  };
+  var fit = function () {};   // 목록 카드에 흐름선이 없어 줄 맞춤이 필요 없다(리뉴얼 3단계)
 
   function apply(f, i, fromInput) {
     var st = P.st[f] && P.st[f][i];

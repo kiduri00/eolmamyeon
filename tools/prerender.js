@@ -52,8 +52,7 @@ async function state(out) {
     page.on("pageerror", (e) => errs.push(e.message));
     await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "load", timeout: 60000 });
     await page.waitForFunction(() => typeof window.ZP_count === "function" && document.documentElement.classList.contains("s-built") && document.querySelector("#sList a[data-id]"), null, { timeout: 60000 });
-    // 목록 흐름선(txs.json)이 들어올 때까지
-    await page.waitForFunction(() => document.querySelector("#sList .s-sp") || performance.now() > 15000, null, { timeout: 20000 }).catch(() => {});
+    // 목록 카드에는 흐름선이 없다(리뉴얼 3단계: 구역 상세로 옮김) — 기다릴 자료 없음
     // 지도(SVG 간단 지도)는 뜨는 값과 무관 → 숨겨 두면 단계마다 다시 그리는 비용이 사라져 빌드가 빨라진다
     await page.addStyleTag({ content: "#mapbox,#legend,.gu-list-box{display:none!important}" });
     await wait(400);
