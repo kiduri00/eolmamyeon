@@ -32,6 +32,9 @@ html.ib-lock{overflow:hidden}
 .ib-tg.hi{background:color-mix(in srgb,var(--pn-up) 12%,transparent);color:var(--pn-up)}
 .ib-tg.nt{background:var(--surface-3);color:var(--text-2)}
 .ib-tg.cd{background:var(--pin-y);color:#1f3a87}
+.ib-tg.au{background:color-mix(in srgb,#7c3aed 13%,transparent);color:#7c3aed}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ib-tg.au{color:#c4b5fd}}
+:root[data-theme="dark"] .ib-tg.au{color:#c4b5fd}
 .ib-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--pn-up)}
 .ib-cond{margin:0 0 10px}
 .ib-ch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 6px;font-size:14px}
@@ -52,13 +55,29 @@ html.ib-lock{overflow:hidden}
 .ib-push .btn{flex:none}
 .ib-push.on>svg{color:var(--pn-dn)}
 
-.ib-offer{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:1250;display:flex;gap:10px;width:min(420px,calc(100vw - 32px));padding:14px 14px 10px;border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text-1);box-shadow:0 12px 36px rgba(0,0,0,.22);transform:translateX(-50%)}
-@media (min-width:981px){.ib-offer{bottom:24px}}
-.ib-of-i{flex:none;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:var(--pin-y);color:#1f3a87}
-.ib-offer b{display:block;font-size:14.5px;line-height:1.4}
-.ib-offer small{display:block;margin-top:2px;font-size:12.5px;color:var(--text-3)}
-.ib-of-b{display:flex;justify-content:flex-end;gap:6px;margin-top:8px}
 .ib-toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:1400;display:flex;align-items:center;gap:10px;max-width:min(440px,calc(100vw - 32px));padding:10px 14px;border-radius:14px;background:#14171c;color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.28);transform:translate(-50%,20px);opacity:0;transition:transform .2s,opacity .2s;pointer-events:none}
 .ib-toast.on{transform:translate(-50%,0);opacity:1}
 .ib-toast span{display:flex;flex-direction:column}.ib-toast small{opacity:.75;font-size:12.5px}
 @media (prefers-reduced-motion:reduce){.ib-toast{transition:none}}
+
+/* '알림 받을 준비' 시트(첫 핀·첫 알림 조건 뒤 한 번) */
+.ws-dlg{text-align:center;padding:22px 18px 12px}
+@media (max-width:640px){.ws-ov{padding:0}.ws-dlg{width:100%;border-radius:20px 20px 0 0;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}}
+.ws-ic{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;margin:0 0 10px;border-radius:50%;background:var(--pin-y);color:#1f3a87}
+.ws-dlg h3{font-size:18px;line-height:1.4;margin:0 0 4px}
+.ws-dlg h3:focus{outline:none}
+.ws-l{list-style:none;margin:14px 0 16px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left}
+.ws-l li{display:flex;align-items:center;gap:8px;min-height:48px;padding:8px 10px;border-radius:12px;background:var(--surface-2);font-size:13.5px;font-weight:700;line-height:1.3;color:var(--text-1)}
+.ws-li{flex:none;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--brand-soft);color:var(--brand)}
+.ws-li.au{background:color-mix(in srgb,#7c3aed 13%,transparent);color:#7c3aed}
+.ws-li.ok{background:color-mix(in srgb,var(--pn-dn) 14%,transparent);color:var(--pn-dn)}
+.ws-li.tr,.ws-li.dn{background:color-mix(in srgb,var(--pn-up) 11%,transparent);color:var(--pn-up)}
+.ws-dlg .btn.ws-go,.ws-dlg .btn.ws-in{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;margin:0 0 8px;font-size:15.5px;border-radius:14px}
+.ws-in img{border-radius:6px}
+.ws-note{display:flex;align-items:center;justify-content:center;gap:4px;margin:0 0 10px!important;font-size:13px}
+.ws-ios{margin:0 0 8px;padding:12px 14px;border-radius:12px;background:var(--surface-2);text-align:left;font-size:13.5px;color:var(--text-1)}
+.ws-ios ol{margin:6px 0 6px 18px;padding:0;line-height:1.7}
+.ws-ios svg{vertical-align:-2px;color:var(--brand)}
+.ws-ios small{color:var(--text-3)}
+.ws-x{min-height:44px;width:100%}
+@media (max-width:359px){.ws-l{grid-template-columns:1fr}}

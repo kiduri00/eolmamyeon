@@ -353,10 +353,23 @@
       if (!force && typeof window.ZP_bbOn === "function" && window.ZP_bbOn()) return;   // 목록이 '지도 범위만'을 따르는 동안도(금액을 바꿔도 보던 곳 그대로)
       fitTo(affBB(), anim, 12);
     }
+    // 지도 라이브러리(~180KB)·경계(geo.json ~115KB)·타일은 지도 칸이 화면 근처에 올 때 처음 불러온다(도구 화면으로 바로 들어온 경우 등).
+    // 그 전엔 SVG 간단 지도(또는 첫 화면 섬의 자리 그림)가 그대로 보인다. 한 번 뜬 뒤 동작은 예전과 같다.
+    let nearIO = null;
+    const isNear = () => { const b = $("mapbox"); if (!b) return true; const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > -400 && r.top < innerHeight + 400; };
+    function whenNear(fn) {
+      if (isNear() || typeof IntersectionObserver !== "function") return true;
+      if (!nearIO) {
+        nearIO = new IntersectionObserver((es) => { if (!es.some((e) => e.isIntersecting)) return; nearIO.disconnect(); nearIO = null; fn(); }, { rootMargin: "400px 0px" });
+        nearIO.observe($("mapbox"));
+      }
+      return false;
+    }
     function seoul() {
       gu = null; guDraw();
       ui();
       if (!want || failed) return show(false);
+      if (!map && !whenNear(() => { if (mapView === "seoul" && !gu) seoul(); })) return;
       show(true);
       Promise.all([loadLib(), loadGeo()])
         .then(() => {
@@ -365,6 +378,7 @@
           // 처음엔 서울 전체가 아니라 '내 돈으로 되는 구역'이 모인 곳에 맞춘다(폰 지도는 작아서 전체는 답답함)
           const fitS = () => { if (stnF) { if (stnPend) stnGo(); return; } if (mapView === "seoul" && !gu) { map.resize(); if (ready) fitTo(affBB(), false, 12); else map.fitBounds(CORE, { padding: 12, duration: 0 }); } };
           fitS(); requestAnimationFrame(fitS); map.once("idle", fitS);
+          map.once("idle", () => { try { dispatchEvent(new Event("zp:mapready")); } catch (e) {} });
           if (ready) paint();
         })
         .catch(() => { failed = true; show(false); });

@@ -17,7 +17,7 @@ NOT_RE = re.compile(r'자동차|중기|선박|항공기|건설기계')
 
 
 def today():
-    return (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).strftime('%Y-%m-%d')
+    return (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=9)).strftime('%Y-%m-%d')
 
 
 def pnu_of(it):

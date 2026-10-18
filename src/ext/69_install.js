@@ -1,6 +1,6 @@
 /* ===================== 홈 화면에 추가 안내 =====================
    - 모바일 브라우저(앱으로 이미 열린 경우 제외)에서만
-   - 때: 첫 핀을 저장한 직후, 또는 세 번째 방문
+   - 때: 세 번째 방문(첫 핀 직후는 72_inbox 알림 시트가 ZP_INSTALL로 함께 권한다)
    - 안드로이드·크롬: 설치 창(beforeinstallprompt) / iOS 사파리: '공유 → 홈 화면에 추가' 안내
    - 닫으면 30일 동안 다시 안 띄움 */
 (() => {
@@ -41,10 +41,18 @@
       `</div>${ios ? "" : `<button type="button" class="zi-go" data-zio>추가</button>`}<button type="button" class="zi-x" data-zix aria-label="닫기">✕</button>`;
     el.hidden = false; requestAnimationFrame(() => el.classList.add("on"));
   }
+  // 다른 화면(알림 시트)에서 쓰는 설치 도우미: can() 설치를 권할 수 있나 · prompt() 안드로이드 설치 창(true=설치함) · ios
+  window.ZP_INSTALL = {
+    ios, inApp,
+    app: () => H.classList.contains("is-app") || (() => { try { return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; } catch (e) { return false; } })(),
+    can: () => !window.ZP_INSTALL.app() && !inApp && !get().done && (ios || !!deferred),
+    prompt: async () => { if (!deferred) return false; try { deferred.prompt(); const r = await deferred.userChoice; deferred = null; if (r && r.outcome === "accepted") { put({ done: 1 }); return true; } } catch (_) {} return false; },
+    seen: () => { shown = true; },
+  };
   const boot = () => {
     const s = get(), n = (s.v || 0) + 1; put({ v: n });
     if (n >= 3) setTimeout(() => show("visit"), 9000);
-    try { let base = window.PINS ? PINS.list().length : 0; PINS.on(() => { const c = PINS.list().length; if (c > base) setTimeout(() => show("pin"), 2600); base = c; }); } catch (e) {}
+    // 핀을 꽂은 직후 안내는 72_inbox의 '알림 받을 준비' 시트가 함께 한다(ZP_INSTALL로 설치 창을 띄움)
   };
   document.readyState === "complete" ? setTimeout(boot, 0) : addEventListener("load", () => setTimeout(boot, 0), { once: true });
 })();

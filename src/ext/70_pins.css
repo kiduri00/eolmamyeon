@@ -13,13 +13,13 @@
 
 /* 구역 시트: [핀 꽂기 1] [매물 보기 3] 한 줄 */
 #report .rep-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
-#report .rep-acts>.favb{order:-1;flex:0 0 calc(25% - 6px);min-width:0;height:48px;min-height:48px;padding:0 6px;justify-content:center;gap:6px;border-radius:12px;font-size:14px}
+#report .rep-acts>.favb{order:-1;flex:0 0 calc(50% - 4px);min-width:0;height:48px;min-height:48px;padding:0 6px;justify-content:center;gap:6px;border-radius:12px;font-size:14px;white-space:nowrap}
 #report .rep-acts>.favb .pin-ic{width:20px;height:20px}
-#report .rep-acts>.list-btn{flex:0 0 calc(75% - 2px);min-width:0;height:48px;min-height:48px;justify-content:center;border-radius:12px;font-size:15px}
+#report .rep-acts>.list-btn{flex:0 0 calc(50% - 4px);min-width:0;height:48px;min-height:48px;justify-content:center;border-radius:12px;font-size:15px}
 #report .rep-acts>.lb-risk{flex:0 0 100%}
-#report .rep-acts>.lb-risk+.list-btn{flex:0 0 calc(75% - 2px)}
+#report .rep-acts>.lb-risk+.list-btn{flex:0 0 calc(50% - 4px)}
 #report .rep-acts>.favb[aria-pressed="true"]{background:var(--pin-y);border-color:var(--pin-y);color:var(--pin-yi);--pin-dot:var(--pin-y)}
-@media (max-width:360px){#report .rep-acts>.favb{font-size:13px;gap:4px}}
+@media (max-width:380px){#report .rep-acts>.favb{font-size:13px;gap:4px}}
 
 /* 토스트 */
 .pn-toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:1200;display:flex;align-items:center;gap:12px;max-width:min(440px,calc(100vw - 32px));padding:10px 10px 10px 14px;border-radius:14px;background:#14171c;color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.28);font:600 14.5px var(--font);transform:translate(-50%,20px);opacity:0;pointer-events:none;transition:transform .2s,opacity .2s}
@@ -132,14 +132,6 @@
 .pn-hm-x{flex:none;width:44px;border:0;background:none;color:var(--text-3);cursor:pointer;border-radius:0 14px 14px 0}
 
 /* ===================== 조건 핀 ===================== */
-.pc-save{display:flex;align-items:stretch;width:100%;min-height:48px;border:1px dashed color-mix(in srgb,var(--brand) 45%,transparent);border-radius:14px;background:color-mix(in srgb,var(--brand) 5%,var(--surface));overflow:hidden}
-.pc-save>button{border:0;background:none;font:700 14.5px var(--font);cursor:pointer;text-align:left;min-height:48px}
-.pc-sv-m{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:0 14px;color:var(--brand)}
-.pc-sv-m span{flex:1;min-width:0}
-.pc-sv-n{flex:none;padding:0 14px;border-left:1px dashed color-mix(in srgb,var(--brand) 35%,transparent)!important;font-size:13px!important;font-weight:600!important;color:var(--text-2);white-space:nowrap}
-.pc-sv-n b{color:var(--brand)}
-.pc-save>button:hover{background:var(--brand-soft)}
-.pc-save>button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 html.s-view .pc-save{display:none}
 .pc-wrap{margin:0 0 18px}
 .pc-hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0 0 8px}
@@ -255,19 +247,25 @@ html.s-full .pc-save,html.s-full .pc-act{display:none}
 }
 
 /* 데스크톱: 핀 꽂기 띠와 목록 제목 사이 숨 쉴 틈 */
-/* 핀 꽂기: 자리 차지하는 점선 띠 대신 작은 알약 버튼. 폰은 게이지 아래 한 줄, PC는 게이지 카드 안 숫자 줄 오른쪽에 얹는다(띠 높이 0) */
-.pc-save{width:max-content;max-width:100%;min-height:0;border:0;background:none;overflow:visible;gap:6px;flex-wrap:wrap;margin:0 0 12px}
-.pc-save>button{min-height:40px;height:40px;border-radius:999px;border:1px solid color-mix(in srgb,var(--brand) 30%,transparent)!important;background:color-mix(in srgb,var(--brand) 6%,var(--surface));font-size:13.5px;padding:0 14px 0 11px}
-.pc-sv-m{flex:none;gap:6px}
-.pc-sv-m svg{width:16px;height:16px}
-.pc-sv-n{padding:0 12px!important;border-left:1px solid color-mix(in srgb,var(--brand) 30%,transparent)!important}
-.pc-save>button:focus-visible{outline-offset:2px}
-.pc-ph{height:36px}
-@media (min-width:981px){
-  html.simple .pc-save{height:0;margin:0 0 2px auto;width:100%;justify-content:flex-end;align-items:flex-end;flex-wrap:nowrap;padding-right:26px;box-sizing:border-box}
-  html.simple .pc-save>button{position:relative;top:-103px;height:40px;min-height:40px;box-shadow:0 1px 2px rgba(15,23,42,.06)}
-  html.simple .pc-ph{height:0}
-}
+/* 홈 게이지 아래 알림 버튼 하나(예전 알약 두 개 대신): 모든 폭에서 게이지 카드 바로 아래 제 줄 → 카드 안 글과 겹치지 않는다 */
+.pc-save.pc-alert{display:block;width:100%;max-width:none;height:auto;min-height:0;margin:12px 0 16px;padding:0;border:0;background:none;overflow:visible}
+.pc-al{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:10px 12px 10px 12px;border:1px solid color-mix(in srgb,var(--brand) 22%,var(--border))!important;border-radius:16px;background:linear-gradient(90deg,color-mix(in srgb,var(--pin-y) 16%,var(--surface)) 0%,var(--surface) 70%);color:var(--text-1);font:inherit;text-align:left;cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,.05);box-sizing:border-box}
+.pc-al:hover{border-color:var(--brand)!important}
+.pc-al:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.pc-al-i{flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:var(--pin-y);color:#1f3a87}
+.pc-al-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pc-al-t b{font-size:15.5px;font-weight:800;line-height:1.35;letter-spacing:-.01em}
+.pc-al-t small{font-size:12.5px;line-height:1.4;color:var(--text-3)}
+.pc-al-go{flex:none;display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border-radius:999px;background:var(--brand);color:var(--on-brand,#fff);font-size:13.5px;font-weight:800;white-space:nowrap}
+.pc-al.on{background:var(--surface);border-color:var(--border)!important}
+.pc-al.on .pc-al-i{background:color-mix(in srgb,var(--pn-dn) 14%,var(--surface));color:var(--pn-dn)}
+.pc-al.on .pc-al-go{background:var(--brand-soft);color:var(--brand)}
+@media (max-width:400px){.pc-al{gap:10px;padding:10px}.pc-al-t b{font-size:14.5px}.pc-al-go{padding:0 11px;font-size:13px}}
+@media (max-width:359px){.pc-al-go{display:none}}
+/* 첫 페인트 자리(shell.html .pc-ph) = 알림 버튼 높이 */
+.pc-ph{display:block;height:66px;margin:12px 0 16px!important}
+@media (max-width:640px){.pc-al{min-height:84px}.pc-ph{height:84px}}
+@media (max-width:400px){.pc-al{min-height:98px}.pc-ph{height:98px}}
 .pc-dlg h3[tabindex="-1"]:focus{outline:none}
 /* 받은 핀 링크 미리보기(합치기·바꾸기) */
 .pi-nm{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;padding:0;list-style:none}
@@ -294,3 +292,24 @@ html.s-full .pc-save,html.s-full .pc-act{display:none}
 .pn-sort button::after{content:none}
 .pn-money{min-height:40px;padding:0 4px 0 0;box-sizing:border-box}
 .pn-money input{width:20px;height:20px;margin:0}
+
+/* ===== 관심 구역 요약 카드 · 이번 주 요약 · 줄마다 최근 소식 ===== */
+.pn-sum{margin:0 0 14px;padding:14px 14px 6px;border:1px solid var(--border);border-radius:16px;background:linear-gradient(180deg,color-mix(in srgb,var(--pin-y) 12%,var(--surface)),var(--surface))}
+.pn-sum-n{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pn-sum-n>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pn-sum-n b{font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+.pn-sum-n b i{font-style:normal;font-size:14px;font-weight:700;margin-left:2px}
+.pn-sum-n small{font-size:12.5px;color:var(--text-3)}
+.pn-sum-n .ok b{color:var(--pn-dn)}
+.pn-sum-dg{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;min-height:40px;margin:8px 0 0;border:0;border-top:1px solid var(--divider,var(--border));background:none;color:var(--brand);font:700 13.5px var(--font);cursor:pointer}
+.pn-sum-dg:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.pn-dg{list-style:none;margin:2px 0 8px;padding:0;display:flex;flex-direction:column;gap:6px}
+.pn-dg button{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);column-gap:8px;width:100%;min-height:48px;padding:8px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:inherit;font:inherit;text-align:left;cursor:pointer}
+.pn-dg button:hover{border-color:var(--brand)}
+.pn-dg b{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pn-dgc{justify-self:end;font-size:12.5px;font-weight:700;color:var(--brand);white-space:nowrap}
+.pn-dg small{grid-column:1/-1;font-size:12.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pn-dg0{padding:10px 4px;font-size:13.5px;color:var(--text-3)}
+.pn-ev{display:flex!important;align-items:flex-start;gap:6px;margin-top:4px;min-width:0}
+.pn-ev .ib-tg{flex:none;min-width:0;height:20px;padding:0 6px;font-size:11px;font-style:normal}
+.pn-ev span{min-width:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:12.5px;line-height:1.45;color:var(--text-2);white-space:normal}

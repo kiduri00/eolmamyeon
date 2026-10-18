@@ -4,6 +4,7 @@
   stage  단계가 올라감(data.enriched.json의 s·sr을 어제 스냅숏과 비교)
   trade  새 실거래(public/data/tx.json 매매 행 중 어제 없던 것; 신고가면 hi=1)
   notice 고시·공고(public/data/notice.json 최근 30일, 인가·신청·시공자 선정만)
+  auction 경매 물건 등장(public/data/auction.json byZone, 사건번호 기준 새 물건; 파일이 없거나 ok:false면 건너뜀)
   price  기본 가정 '지금 필요한 돈'이 크게 바뀜(pipeline/calc.json gapNow·now) → 조건 핀 '이제 살 수 있어요' 판정용 v={g:[전,후], c:[전,후]}
 스냅숏·누적 사건은 pipeline/cache/changes_state.json에 둔다(같은 날 다시 돌려도 결과가 같다).
 처음 돌릴 때(스냅숏 없음)는 실거래 계약일·고시 날짜로 지난 30일을 채운다.
@@ -29,6 +30,12 @@ LAD = [re.sub(r' \(.*\)$', '', x) for x in D.get('ladder', [])]
 TX = J('public/data/tx.json', {}) or {}
 NT = J('public/data/notice.json', {}) or {}
 CALC = J('pipeline/calc.json', {}) or {}
+AUC = J('public/data/auction.json', {}) or {}
+AUC_OK = isinstance(AUC, dict) and AUC.get('ok') is True and isinstance(AUC.get('byZone'), dict)
+def auc_items(i):
+    v = (AUC.get('byZone') or {}).get(i) if AUC_OK else None
+    return [x for x in v if isinstance(x, dict) and x.get('cs')] if isinstance(v, list) else []
+akey = lambda x: f"{x.get('cs')}#{x.get('no') or 1}"
 
 def short(n):
     s = re.sub(r'^\s*\[[^\]]*\]\s*', '', n or '')
@@ -64,6 +71,7 @@ def snap_now():
         S[i] = {'s': r.get('s'), 'sr': r.get('sr') or '', 't': [tkey(x) for x in rows],
                 'hi': hi[1] if isinstance(hi, list) and len(hi) > 1 else None,
                 'g': rd(c.get('gapNow')), 'c': rd(c.get('now'))}
+        if AUC_OK: S[i]['a'] = sorted({akey(x) for x in auc_items(i)})
     return S
 
 def ev(i, date, typ, text, **kw):
@@ -81,6 +89,14 @@ def trade_text(rows, hi):
     d = str(x[0]); dd = f"{int(d[4:6])}.{int(d[6:8])}"
     t = f"새 실거래 {len(rows)}건 · {ty} {lab}{area:g}㎡ {won(x[5])}({dd} 계약)"
     return t + (' · 신고가' if hi else '')
+
+def auc_text(items):
+    x = min(items, key=lambda y: (str(y.get('date') or '9'), y.get('min') or 0))
+    mn = x.get('min'); d = str(x.get('date') or '')
+    t = f"경매 물건 등장{f' {len(items)}건' if len(items) > 1 else ''} · {x.get('use') or '부동산'}"
+    if isinstance(mn, (int, float)) and mn > 0: t += f" 최저 {won(mn / 1e4)}"
+    if re.match(r'\d{4}-\d\d-\d\d', d): t += f" · 입찰 {int(d[5:7])}.{int(d[8:10])}"
+    return t
 
 def diff(prev, cur, date):
     out = []
@@ -102,6 +118,13 @@ def diff(prev, cur, date):
         if new:
             hi = bool(c.get('hi') and c['hi'] != p.get('hi'))
             out.append(ev(i, date, 'trade', trade_text(new, hi), hi=1 if hi else None, cnt=len(new)))
+        # 경매: 어제 목록에 없던 사건(경매 자료를 처음 받은 날은 지금 물건 모두가 '등장')
+        if AUC_OK and 'a' in c:
+            old_a = set(p.get('a') or [])
+            na = [x for x in auc_items(i) if akey(x) not in old_a and str(x.get('date') or '9') >= TODAY]
+            if na:
+                mn = min((x.get('min') for x in na if isinstance(x.get('min'), (int, float))), default=None)
+                out.append(ev(i, date, 'auction', auc_text(na), cnt=len(na), mn=round(mn / 1e8, 2) if mn else None))
         # 필요한 돈(기본 가정): 0.1억 이상이면서 3% 이상 바뀐 방식만
         if r.get('dn'): continue
         v = {}
@@ -128,6 +151,10 @@ def bootstrap(cur):
             date = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
             h = isinstance(hi, list) and len(hi) > 1 and hi[1] == d
             out.append(ev(i, date, 'trade', trade_text(rs, h), hi=1 if h else None, cnt=len(rs)))
+        na = [x for x in auc_items(i) if str(x.get('date') or '9') >= TODAY]
+        if na:
+            mn = min((x.get('min') for x in na if isinstance(x.get('min'), (int, float))), default=None)
+            out.append(ev(i, TODAY, 'auction', auc_text(na), cnt=len(na), mn=round(mn / 1e8, 2) if mn else None))
     return out
 
 def notices():
@@ -155,17 +182,25 @@ def main():
     else:
         base, prev = st.get('snap'), st.get('snap')
         kept = list(st.get('ev') or [])
+    if not AUC_OK and base:
+        for i, v in cur.items():
+            if 'a' in (base.get(i) or {}): v['a'] = base[i]['a']
     if base:
         new = diff(base, cur, TODAY)
     else:
         new = [dict(e, boot=1) for e in bootstrap(cur)]
         prev = None
-    stored = [e for e in kept + new if e.get('date', '') >= CUT]
+    # 필요한 돈(price)은 푸시 조건 판정용이라 3일만 둔다(계산 엔진이 바뀐 날 수백 건이 30일 쌓이지 않게)
+    PCUT = (T0 - datetime.timedelta(days=2)).isoformat()
+    stored, sk = [], set()
+    for e in new + kept:   # 같은 날 다시 돌려도 쌓이지 않게 키로 한 번만
+        if e.get('k') in sk or e.get('date', '') < CUT or (e.get('type') == 'price' and e.get('date', '') < PCUT): continue
+        sk.add(e.get('k')); stored.append(e)
     seenk = set(); evs = []
     for e in stored + notices():
         if e['k'] in seenk: continue
         seenk.add(e['k']); evs.append(e)
-    evs.sort(key=lambda e: (e['date'], {'stage': 4, 'notice': 3, 'price': 2, 'trade': 1}.get(e['type'], 0), e['id']), reverse=True)
+    evs.sort(key=lambda e: (e['date'], {'stage': 5, 'auction': 4, 'notice': 3, 'price': 2, 'trade': 1}.get(e['type'], 0), e['id']), reverse=True)
     pub = [{k: v for k, v in e.items() if k != 'boot'} for e in evs]
     body = json.dumps({'asOf': TODAY, 'days': DAYS, 'items': pub}, ensure_ascii=False, separators=(',', ':'))
     if not os.path.exists(P(OUT)) or open(P(OUT), encoding='utf-8').read() != body:

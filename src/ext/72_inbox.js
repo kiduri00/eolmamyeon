@@ -13,7 +13,7 @@ const INBOX = (() => {
   const addDay = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
   const BELL = '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>';
   const bellSvg = (s = 20) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${BELL}</svg>`;
-  const TY = { stage: ["단계", "st"], trade: ["실거래", "tr"], notice: ["고시·공고", "nt"] };
+  const TY = { stage: ["단계", "st"], trade: ["실거래", "tr"], notice: ["고시·공고", "nt"], auction: ["경매", "au"] };
 
   // ---------- 데이터 ----------
   function load() {
@@ -40,7 +40,10 @@ const INBOX = (() => {
     return e.date > s.at || (e.date === s.at && !s.k.includes(e.k));
   }
   const freshN = () => { try { return PINS.freshIds().length; } catch (e) { return 0; } };
-  const count = () => pinEvents().filter(unread).length + freshN();
+  const unreadC = (e) => { const s = seen(); return e.date > s.at || (e.date === s.at && !s.k.includes(e.k)); };
+  // 알림 조건에 맞는 구역의 경매(핀 꽂은 구역은 핀 소식으로 이미 셈)
+  const condAuc = () => { if (!CH) return []; const P = new Set(pinIds()), out = new Map(); conds().forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0) out.set(e.k, e); }); }); return [...out.values()]; };
+  const count = () => pinEvents().filter(unread).length + freshN() + condAuc().filter(unreadC).length;
   function markSeen() {
     if (!CH) return;
     const at = CH.items.reduce((m, e) => (e.date > m ? e.date : m), seen().at);
@@ -69,27 +72,32 @@ const INBOX = (() => {
     const i = b.querySelector(".ib-n");
     i.hidden = !n; i.textContent = n > 9 ? "9+" : String(n);
     b.setAttribute("aria-label", `알림함${n ? `, 새 알림 ${n}개` : ""}`);
+    // 홈 화면 앱 아이콘 숫자(설치한 앱에서만 보임) = 종 숫자. 알림함을 열면 0으로 지워진다
+    try { if (installed() && navigator.setAppBadge && (!CH ? false : true)) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
   }
+  const installed = () => { try { return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; } catch (e) { return false; } };
 
   // ---------- 알림함 시트 ----------
   const dLabel = (d) => { const t = day(); if (d === t) return "오늘"; if (d === addDay(t, -1)) return "어제"; const x = new Date(d + "T00:00:00Z"); return `${x.getUTCMonth() + 1}.${x.getUTCDate()} (${"일월화수목금토"[x.getUTCDay()]})`; };
   function condHTML() {
-    const L = conds().filter((n) => n.add.length);
+    const A = CH ? CH.items.filter((e) => e.type === "auction" && byId[e.id]) : [], P = new Set(pinIds());
+    const L = conds().map((n) => { const I = new Set(n.ids); return Object.assign(n, { au: A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0)) }); }).filter((n) => n.add.length || n.au.length);
     if (!L.length) return "";
     const F = new Set(freshN() ? PINS.freshIds() : []);
-    return `<section class="ib-sec" aria-labelledby="ibCT"><h4 id="ibCT">조건 핀</h4>${L.map((n) => {
+    return `<section class="ib-sec" aria-labelledby="ibCT"><h4 id="ibCT">이 돈으로 살 수 있는 곳 알림</h4>${L.map((n) => {
       const f = n.add.filter((id) => F.has(id)).length;
-      return `<div class="ib-cond"><p class="ib-ch"><b>${esc(n.c.name)}</b>${f ? `<em class="pc-nb">+${f} 새 구역</em>` : `<small>새로 들어온 곳 ${n.add.length}곳</small>`}</p><ul>${n.add.slice(0, 5).map((id) => { const r = byId[id]; if (!r) return ""; let wy = ""; try { wy = PINS.whyNew(n.c, id); } catch (e) {} return `<li><button type="button" class="ib-it${F.has(id) ? " new" : ""}" data-open="${id}"><span class="ib-tg cd">조건</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(stageName(r))}${wy ? ` · ${esc(wy)}` : ""}</small></span>${F.has(id) ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("")}${n.add.length > 5 ? `<li class="ib-more">외 ${n.add.length - 5}곳 · 내 핀 화면에서 모두 보기</li>` : ""}</ul></div>`;
+      const au = n.au.slice(0, 3).map((e) => { const r = byId[e.id], nw = unreadC(e); return `<li><button type="button" class="ib-it${nw ? " new" : ""}" data-open="${e.id}"><span class="ib-tg au">경매</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(e.text)}</small></span>${nw ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("");
+      return `<div class="ib-cond"><p class="ib-ch"><b>${esc(n.c.name)}</b>${f ? `<em class="pc-nb">+${f} 새 구역</em>` : n.add.length ? `<small>새로 들어온 곳 ${n.add.length}곳</small>` : ""}</p><ul>${au}${n.add.slice(0, 5).map((id) => { const r = byId[id]; if (!r) return ""; let wy = ""; try { wy = PINS.whyNew(n.c, id); } catch (e) {} return `<li><button type="button" class="ib-it${F.has(id) ? " new" : ""}" data-open="${id}"><span class="ib-tg cd">조건</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(stageName(r))}${wy ? ` · ${esc(wy)}` : ""}</small></span>${F.has(id) ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("")}${n.add.length > 5 ? `<li class="ib-more">외 ${n.add.length - 5}곳 · 내 핀 화면에서 모두 보기</li>` : ""}</ul></div>`;
     }).join("")}</section>`;
   }
   function pinHTML() {
     const P = pinIds();
-    if (!P.length) return conds().length ? "" : `<div class="ib-empty">${bellSvg(30)}<p><b>핀 꽂은 구역 소식을 여기 모아 드려요</b><br>단계가 오르거나 새 실거래·고시가 나오면 알려 드려요</p><button type="button" class="btn primary sm" data-ibmap>지도에서 핀 꽂기</button></div>`;
+    if (!P.length) return conds().length ? "" : `<div class="ib-empty">${bellSvg(30)}<p><b>관심 구역 소식을 여기 모아 드려요</b><br>구역에서 '핀 꽂고 알림 받기'를 누르면 새 실거래·단계·경매 소식을 알려 드려요</p><button type="button" class="btn primary sm" data-ibmap>지도에서 구역 고르기</button></div>`;
     if (!CH) return `<p class="ib-note">소식을 불러오는 중이에요…</p>`;
     const E = pinEvents();
-    if (!E.length) return `<section class="ib-sec" aria-labelledby="ibPT"><h4 id="ibPT">내 핀 소식</h4><p class="ib-note">최근 30일 동안 핀 꽂은 ${P.length}곳에 새 소식이 없어요</p></section>`;
+    if (!E.length) return `<section class="ib-sec" aria-labelledby="ibPT"><h4 id="ibPT">관심 구역 소식</h4><p class="ib-note">최근 30일 동안 관심 구역 ${P.length}곳에 새 소식이 없어요</p></section>`;
     const by = new Map(); E.slice(0, 80).forEach((e) => { if (!by.has(e.date)) by.set(e.date, []); by.get(e.date).push(e); });
-    return `<section class="ib-sec" aria-labelledby="ibPT"><h4 id="ibPT">내 핀 소식</h4>${[...by].map(([d, L]) => `<h5 class="ib-d">${dLabel(d)}</h5><ul>${L.map((e) => { const r = byId[e.id], [tl, tc] = TY[e.type], nw = unread(e); return `<li><button type="button" class="ib-it${nw ? " new" : ""}" data-open="${e.id}"><span class="ib-tg ${e.hi ? "hi" : tc}">${e.hi ? "신고가" : tl}</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(e.text)}</small></span>${nw ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("")}</ul>`).join("")}</section>`;
+    return `<section class="ib-sec" aria-labelledby="ibPT"><h4 id="ibPT">관심 구역 소식</h4>${[...by].map(([d, L]) => `<h5 class="ib-d">${dLabel(d)}</h5><ul>${L.map((e) => { const r = byId[e.id], [tl, tc] = TY[e.type], nw = unread(e); return `<li><button type="button" class="ib-it${nw ? " new" : ""}" data-open="${e.id}"><span class="ib-tg ${e.hi ? "hi" : tc}">${e.hi ? "신고가" : tl}</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(e.text)}</small></span>${nw ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("")}</ul>`).join("")}</section>`;
   }
   const foot = () => (CH && CH.asOf ? `<p class="ib-foot">최근 ${CH.days || 30}일 · 매일 아침 갱신 · ${CH.asOf.slice(5).replace("-", ".")} 기준</p>` : "");
   function body() { return `${pushBox()}${condHTML()}${pinHTML()}${foot()}`; }
@@ -144,14 +152,14 @@ const INBOX = (() => {
   function pushBox() {
     if (!KEY || !canPush()) return "";
     const perm = Notification.permission;
-    if (isOn() && perm === "granted") return `<div class="ib-push on" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림 켜짐</b><small>매일 아침 핀·조건 핀에 새 소식이 있으면 알려 드려요</small></span><button type="button" class="btn text sm" data-iboff>끄기</button></div>`;
+    if (isOn() && perm === "granted") return `<div class="ib-push on" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림 켜짐</b><small>매일 아침 관심 구역·알림 조건에 새 소식이 있으면 알려 드려요</small></span><button type="button" class="btn text sm" data-iboff>끄기</button></div>`;
     if (perm === "denied") return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>알림이 막혀 있어요</b><small>브라우저 사이트 설정에서 알림을 허용하면 켤 수 있어요</small></span></div>`;
-    return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>새 소식을 폰 알림으로 받기</b><small>${PMSG ? esc(PMSG) : "단계·실거래·고시, 조건 핀에 새로 들어올 곳"}</small></span><button type="button" class="btn primary sm" data-ibon>알림 받기</button></div>`;
+    return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>새 소식을 폰 알림으로 받기</b><small>${PMSG ? esc(PMSG) : "새 실거래·단계·경매, 살 수 있게 된 곳"}</small></span><button type="button" class="btn primary sm" data-ibon>알림 받기</button></div>`;
   }
   const u8 = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const swReady = (ms = 8000) => Promise.race([navigator.serviceWorker.getRegistration("/").then((r) => r || navigator.serviceWorker.register("/sw.js", { scope: "/" })).then(() => navigator.serviceWorker.ready), new Promise((_, no) => setTimeout(() => no(new Error("sw")), ms))]);
-  const payload = (sub) => ({ sub: sub.toJSON(), zones: pinIds().slice(0, 20), conds: (PINS.conds() || []).map((c) => ({ n: c.name, cash: c.cash, mode: c.mode, gu: c.gu || "", kind: c.kind || "", minS: c.minS || 0 })) });
+  const payload = (sub) => ({ sub: sub.toJSON(), zones: pinIds().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.slice(0, 150) })) });
   const postSub = (sub) => fetch("/api/push/sub", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload(sub)) }).then((r) => { if (!r.ok) throw new Error("sub " + r.status); lsW(SYK, day()); return r; });
   // 구독 키가 서버 키와 다르면(서버 키를 바꾼 경우) 새로 구독
   const sameKey = (sub) => { try { const k = sub.options && sub.options.applicationServerKey; return !k || b64(k) === KEY; } catch (e) { return true; } };
@@ -177,7 +185,6 @@ const INBOX = (() => {
       }
     } catch (e) { PMSG = "지금은 켤 수 없어요. 잠시 뒤 다시 해 주세요"; }
     if (OPEN) OPEN.rerender();
-    hideOffer();
   }
   async function unsubscribe() {
     try { const sub = await getSub(false); if (sub) { const ep = sub.endpoint; await sub.unsubscribe(); await fetch("/api/push/unsub", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: ep }) }).catch(() => {}); } } catch (e) {}
@@ -202,25 +209,62 @@ const INBOX = (() => {
   }
   const tst = (a, b) => { try { const t = document.createElement("div"); t.className = "ib-toast"; t.setAttribute("role", "status"); t.innerHTML = `${bellSvg(18)}<span><b>${esc(a)}</b><small>${esc(b)}</small></span>`; document.body.appendChild(t); requestAnimationFrame(() => t.classList.add("on")); setTimeout(() => { t.classList.remove("on"); setTimeout(() => t.remove(), 300); }, 3200); } catch (e) {} };
 
-  // 첫 핀을 꽂은 뒤 한 번: '소식이 생기면 알려 드릴까요?'(핀 토스트가 지나간 뒤)
+  // ---------- '알림 받을 준비' 시트: 첫 핀·첫 알림 조건 뒤에 한 번 ----------
+  // 무엇을 알려 주는지 + 알림 받기(웹 푸시, 서버가 켜져 있을 때) + 앱 설치(안드로이드 설치 창 / iOS 홈 화면에 추가 안내)
   let prevN = -1;
-  function hideOffer() { const o = $("ibOffer"); if (o) o.remove(); }
-  function maybeOffer(ids) {
-    const n = ids.length, was = prevN; prevN = n;
-    if (!(was === 0 && n >= 1) || isOn() || lsR(AK, 0) || !canPush() || Notification.permission !== "default") return;
-    pushKey().then((k) => {
-      if (!k) return;
-      setTimeout(() => {
-        if (!pinIds().length || $("ibOffer") || lsR(AK, 0)) return;
-        lsW(AK, 1);
-        const o = document.createElement("div");
-        o.id = "ibOffer"; o.className = "ib-offer"; o.setAttribute("role", "dialog"); o.setAttribute("aria-labelledby", "ibOfT");
-        o.innerHTML = `<span class="ib-of-i">${bellSvg(20)}</span><div><b id="ibOfT">핀 꽂은 구역에 새 소식이 생기면 알려 드릴까요?</b><small>단계가 오르거나 새 실거래·고시가 나오면 폰 알림으로</small><div class="ib-of-b"><button type="button" class="btn text sm" data-ofx>괜찮아요</button><button type="button" class="btn primary sm" data-ofon>알림 받기</button></div></div>`;
-        o.addEventListener("click", (e) => { if (e.target.closest("[data-ofx]")) hideOffer(); else if (e.target.closest("[data-ofon]")) subscribe(e.target.closest("[data-ofon]")); });
-        document.body.appendChild(o);
-        setTimeout(hideOffer, 20000);
-      }, 4600);
+  const IC = {
+    tr: '<path d="M4 17l5-5 3 3 7-7"/><path d="M14 8h5v5"/>',
+    st: '<path d="M5 19h14M7 15h10M9 11h6M11 7h2"/>',
+    au: '<path d="M14 4l6 6M11 7l6 6M5 19l7-7M12.5 5.5l6 6"/><path d="M3 21h8"/>',
+    ok: '<path d="M4 12l5 5L20 6"/>',
+    dn: '<path d="M4 7l6 6 4-4 6 6"/><path d="M20 10v5h-5"/>',
+  };
+  const ic = (k) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>`;
+  function watch(kind, id) {
+    const K = kind === "cond" ? "zp-watch-cond" : "zp-watch-pin";
+    if (lsR(K, 0) || $("wsSheet") || OPEN) return;
+    lsW(K, 1);
+    if (isOn() && Notification.permission === "granted") return;   // 이미 폰 알림을 받는 기기
+    const r = byId[id];
+    const items = kind === "cond"
+      ? [["ok", "내 돈으로 살 수 있는 새 구역"], ["dn", "필요한 돈이 줄어든 곳"], ["au", "경매 물건 등장"], ["st", "단계 변경·인가"]]
+      : [["tr", "새 실거래·신고가"], ["st", "단계 변경·인가"], ["au", "경매 물건 등장"], ["ok", "내 돈으로 살 수 있게 됨"]];
+    const IN = window.ZP_INSTALL, canI = !!(IN && IN.can()), ios = !!(IN && IN.ios);
+    const back = document.activeElement;
+    const ov = document.createElement("div");
+    ov.className = "pn-ov ws-ov"; ov.id = "wsSheet";
+    const render = (push) => `<div class="pn-dlg ws-dlg" role="dialog" aria-modal="true" aria-labelledby="wsT" aria-describedby="wsD">
+      <span class="ws-ic" aria-hidden="true">${bellSvg(26)}</span>
+      <h3 id="wsT" tabindex="-1">${kind === "cond" ? "이 돈으로 살 수 있는 곳이 생기면 알려 드릴게요" : `${esc(r ? shortName(r.n) : "관심 구역")} 소식을 알려 드릴게요`}</h3>
+      <p id="wsD">이런 일이 생기면 바로 알려 드려요</p>
+      <ul class="ws-l">${items.map(([k, t]) => `<li><span class="ws-li ${k}">${ic(k)}</span>${t}</li>`).join("")}</ul>
+      ${push ? `<button type="button" class="btn primary ws-go" data-wson>${bellSvg(18)}알림 받기</button>` : ios && canI ? "" : `<p class="ws-note">새 소식은 위 ${bellSvg(14)} 알림함에 모아 드려요</p>`}
+      ${canI ? `<button type="button" class="btn ${push ? "secondary" : "primary"} ws-in" data-wsin aria-expanded="false"><img src="/icon-192.png" alt="" width="22" height="22">앱으로 설치하면 놓치지 않아요</button>
+        <div class="ws-ios" data-wsios hidden><b>홈 화면에 추가하는 법</b><ol><li>Safari 아래 <svg viewBox="0 0 24 24" width="15" height="15" aria-label="공유"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 공유 버튼</li><li><b>홈 화면에 추가</b></li><li>홈 화면의 집핀을 열고 알림함에서 <b>알림 받기</b></li></ol><small>iPhone은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요</small></div>` : ""}
+      <button type="button" class="btn text sm ws-x" data-wsx>${push || canI ? "나중에" : "확인"}</button></div>`;
+    const close = () => { ov.remove(); document.removeEventListener("keydown", kd); removeEventListener("hashchange", close); try { back && back.focus && back.focus(); } catch (e) {} };
+    const kd = (e) => { if (e.key === "Escape") close(); };
+    const draw = (push) => { ov.innerHTML = render(push); const h = ov.querySelector("#wsT"); h && h.focus({ preventScroll: true }); };
+    ov.addEventListener("click", async (e) => {
+      if (e.target === ov || e.target.closest("[data-wsx]")) return close();
+      const on = e.target.closest("[data-wson]");
+      if (on) { await subscribe(on); if (isOn()) close(); return; }
+      const ins = e.target.closest("[data-wsin]");
+      if (ins) {
+        if (ios) { const box = ov.querySelector("[data-wsios]"); box.hidden = !box.hidden; ins.setAttribute("aria-expanded", String(!box.hidden)); return; }
+        const ok = await IN.prompt(); if (ok) { tst("집핀을 설치했어요", "홈 화면에서 바로 열 수 있어요"); close(); }
+      }
     });
+    try { IN && IN.seen(); } catch (e) {}
+    try { const t = $("pnToast"); if (t) t.classList.remove("on"); } catch (e) {}
+    document.body.appendChild(ov);
+    draw(false);
+    document.addEventListener("keydown", kd); addEventListener("hashchange", close, { once: true });
+    pushKey().then((k) => { if (k && ov.isConnected && Notification.permission !== "denied") draw(true); });
+  }
+  function onPins(ids) {
+    const n = ids.length, was = prevN; prevN = n;
+    if (n > was && was >= 0 && !lsR("zp-watch-pin", 0)) setTimeout(() => { const cur = pinIds(); if (cur.length) watch("pin", cur[cur.length - 1]); }, 900);
   }
 
   // 알림을 눌러 열린 창: 서비스 워커가 {t:"zp-open", url} → 구역 열기 또는 알림함
@@ -237,10 +281,13 @@ const INBOX = (() => {
     const pre = () => { if (pinIds().length || conds().length) load().then(paint); };
     "requestIdleCallback" in window ? requestIdleCallback(pre, { timeout: 3000 }) : setTimeout(pre, 1500);
     prevN = pinIds().length;
-    try { PINS.on((ids) => { maybeOffer(ids); sync(true); paint(); if (OPEN) OPEN.rerender(); if (ids.length && !CH) load().then(paint); }); } catch (e) {}
+    try { PINS.on((ids) => { onPins(ids); sync(true); paint(); if (OPEN) OPEN.rerender(); if (ids.length && !CH) load().then(paint); }); } catch (e) {}
     try { navigator.serviceWorker && navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.t === "zp-open") go(e.data.url); }); } catch (e) {}
     setTimeout(() => sync(false), 5000);
   }
-  return { init, paint, open, count, load, pushKey };
+  // 관심 구역 화면(70_pins)에서 쓰는 것: 구역별 최근 소식·이번 주 소식
+  const evOf = (id) => (CH ? CH.items.filter((e) => e.id === id && TY[e.type]) : []);
+  const week = () => { const d0 = addDay(day(), -6); return pinEvents().filter((e) => e.date >= d0); };
+  return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d) };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", INBOX.init) : setTimeout(INBOX.init, 0);

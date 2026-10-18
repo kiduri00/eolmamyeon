@@ -110,9 +110,21 @@ def node_env():
         except Exception: pass
     return e
 def prerender(*args):
-    r = subprocess.run(['node', os.path.join(R, 'tools', 'prerender.js'), *args], capture_output=True, text=True, env=node_env(), timeout=300)
+    # 같은 입력(후보 HTML + 쓰는 번들 + 이 도구)이면 지난 결과를 그대로 → 코드·데이터가 그대로인 재빌드는 크롬을 띄우지 않는다
+    PJ = os.path.join(R, 'tools', 'prerender.js')
+    hh = hashlib.md5(open(PJ, 'rb').read() + args[0].encode())
+    for a in args[1:-1]: hh.update(open(a, 'rb').read() if os.path.exists(a) else a.encode())
+    CD = os.path.join(PRE, 'cache'); os.makedirs(CD, exist_ok=True)
+    cf = os.path.join(CD, f'{args[0]}.{hh.hexdigest()[:16]}')
+    if os.path.exists(cf):
+        shutil.copyfile(cf, args[-1]); os.utime(cf); print(f'prerender {args[0]}: cache'); return True
+    try: r = subprocess.run(['node', PJ, *args], capture_output=True, text=True, env=node_env(), timeout=300)
+    except Exception as e: print('prerender', args[0], e); return False
     print((r.stdout + r.stderr).strip()[-600:])
-    return r.returncode == 0
+    if r.returncode != 0: return False
+    shutil.copyfile(args[-1], cf)
+    for f in sorted([f for f in os.listdir(CD) if f.startswith(args[0] + '.')], key=lambda f: os.path.getmtime(os.path.join(CD, f)), reverse=True)[6:]: os.remove(os.path.join(CD, f))
+    return True
 def island():
     import html as H
     open(os.path.join(PRE, 'full.html'), 'w', encoding='utf-8').write(full)

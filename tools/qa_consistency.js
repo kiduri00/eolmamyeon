@@ -725,7 +725,7 @@ async function mapLane(browser, api, errs, shortSrc) {
     for (const stn of STATIONS) {
       await loadHome(page); await page.waitForTimeout(400);
       await page.evaluate(() => document.getElementById("sSearch").click()); await page.waitForTimeout(300);
-      await page.fill("#q", stn); await page.waitForTimeout(700);
+      await page.fill("#q", stn); await page.waitForFunction(() => document.querySelector("#sugg [data-stn]"), null, { timeout: 4000, polling: 100 }).catch(() => {});
       const clicked = await page.evaluate((stn) => { const b = [...document.querySelectorAll("#sugg [data-stn]")].find((x) => x.dataset.stn === stn) || document.querySelector("#sugg [data-stn]"); if (!b) return false; b.click(); return true; }, stn);
       const ST = "역 고르면 지도가 z≥14(걸어서 10분 원 전체)로 역 300m 안에 — 첫 맞춤과 겹쳐도";
       if (!clicked) { bad("map.station", ST, `${stn}: no station row in search`); continue; }

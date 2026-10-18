@@ -147,7 +147,7 @@
       if (!AUC.ok || (AUC.miss || []).includes(r.g)) return `<p class="auc-st na">경매 물건 정보를 아직 못 가져왔어요${asOf && AUC.ok ? ` (기준 ${asOf})` : ""}</p>`;
       const xs = aucOf(r);
       if (!xs.length) return `<p class="auc-st">지금 이 구역 안에 진행 중인 경매 물건이 없어요 (기준 ${asOf})</p>`;
-      return `<ul class="auc-l">${xs.map(aucItem).join("")}</ul>`;
+      return `<ul class="auc-l">${xs.map(aucItem).join("")}</ul><p class="auc-src">법원경매정보 ${asOf} 기준 · 구역 경계 안 필지와 지번이 맞는 진행 중 물건 · 최저 입찰가는 다음 매각기일 기준</p>`;
     }
     function auctionHTML(r) {
       loadAuc();
@@ -155,7 +155,7 @@
       const n = aucOf(r).length;
       return `<div class="sect auc" id="aucSec" data-id="${esc(r.id)}"><h3>경매 물건 ${n ? `<span class="auc-n">${n}건</span>` : ""}<small>법원경매정보 · 구역 경계 안 필지${asOf}</small></h3>
         <div class="auc-b" aria-live="polite">${aucBody(r)}</div>
-        <p class="note">경매로 사도 권리산정기준일·조합원 지위 양도 제한은 똑같이 적용되고, 현금청산 대상이면 입주권이 없어요.</p></div>`;
+        <p class="auc-nt">경매로 사도 권리산정기준일·조합원 지위 양도 제한은 똑같이 적용되고, 현금청산 대상이면 입주권이 없어요.</p></div>`;
     }
     function bindAuction() {
       const s = $("aucSec");
@@ -173,9 +173,10 @@
           const h = document.querySelector("#report .rep-head");
           const n = aucOf(r0).length;
           if (!h || !n || h.querySelector(".auc-chip")) return;
-          const t = h.querySelector(".rep-acts");
+          // 주소 줄(구 동 · 역 · 경사 칩) 끝에 붙인다 — 없으면 머리 끝
+          const w = h.querySelector(".where");
           const b = `<button type="button" class="auc-chip" title="이 구역 안 진행 중인 법원경매 물건 ${n}건 보기">경매 ${n}건</button>`;
-          if (t) t.insertAdjacentHTML("beforebegin", `<div class="auc-cw">${b}</div>`); else h.insertAdjacentHTML("beforeend", `<div class="auc-cw">${b}</div>`);
+          if (w) w.insertAdjacentHTML("beforeend", b); else h.insertAdjacentHTML("beforeend", `<div class="auc-cw">${b}</div>`);
           h.querySelector(".auc-chip").onclick = () => {
             const go = () => { const s = $("aucSec"); if (s) s.scrollIntoView({ behavior: smooth(), block: "start" }); };
             if (curTab !== "near" && $("tab-near")) { setTab("near"); requestAnimationFrame(go); } else go();

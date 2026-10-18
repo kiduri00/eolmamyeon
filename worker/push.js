@@ -2,7 +2,7 @@
 // KV(env.PUSH) 키: "vapid"(키쌍) · "state"({last, pend}) · "sub:<엔드포인트 해시>"({s, z, c, at})
 import { vapidKeys, sendPush, b64u } from "./webpush.js";
 
-const MAXZ = 20, MAXC = 3, MAXBODY = 8192;
+const MAXZ = 20, MAXC = 3, MAXCZ = 150, MAXBODY = 16384;
 const ID = /^[A-Za-z0-9_-]{1,24}$/;
 const KINDS = ["", "redev", "rebuild", "small"];
 // 푸시 서비스 주소만 받는다(아무 주소로나 POST를 보내게 되지 않도록)
@@ -34,6 +34,8 @@ export function cleanSub(b, env) {
     gu: typeof (x && x.gu) === "string" && /^[가-힣]{1,5}구$/.test(x.gu) ? x.gu : "",
     kind: KINDS.includes(x && x.kind) ? x.kind : "",
     minS: Math.max(0, Math.min(9, Math.floor(+(x && x.minS) || 0))),
+    // 지금 조건에 맞는 구역(앱 엔진 판정) — 그 구역에 경매 물건이 나오면 알린다
+    z: [...new Set((Array.isArray(x && x.z) ? x.z : []).filter((i) => typeof i === "string" && ID.test(i)))].slice(0, MAXCZ),
   })).filter((x) => x.cash > 0);
   return { s: { endpoint: s.endpoint, keys: { p256dh: k.p256dh, auth: k.auth } }, z, c, at: new Date().toISOString() };
 }
@@ -73,13 +75,17 @@ export async function handleFetch(req, env) {
 }
 
 // ---------- 발송 ----------
-const TYPE_T = { stage: "단계", trade: "실거래", notice: "고시·공고", price: "필요한 돈" };
+const TYPE_T = { stage: "단계", trade: "실거래", notice: "고시·공고", auction: "경매", price: "필요한 돈" };
 const cashT = (v) => (v >= 1 ? `${Math.round(v * 10) / 10}억` : `${Math.round(v * 10)}천`);
 /** 구독 하나와 맞는 사건: 핀 구역의 단계·실거래·고시 + 조건 핀 금액 안으로 들어온 구역(price) */
 export function match(sub, items) {
   const Z = new Set(sub.z || []), zone = [], cond = [];
   for (const e of items) {
     if (Z.has(e.id) && e.type !== "price") zone.push(e);
+    if (e.type === "auction" && !Z.has(e.id)) {
+      const c = (sub.c || []).find((x) => Array.isArray(x.z) && x.z.includes(e.id));
+      if (c) cond.push({ e, c });
+    }
     if (e.type === "price" && e.v) {
       for (const c of sub.c || []) {
         const m = c.mode === "gap" ? "g" : "c", v = e.v[m];
@@ -97,13 +103,13 @@ export function match(sub, items) {
 export function compose(m, date) {
   const L = [];
   m.zone.forEach((e) => L.push(`${e.n} · ${e.text}`));
-  m.cond.forEach(({ e, c }) => L.push(`${e.n} · ${c.mode === "gap" ? "전세" : "대출"} 끼고 ${cashT(e.v[c.mode === "gap" ? "g" : "c"][1])} → 조건 '${c.n || cashT(c.cash)}' 안으로`));
+  m.cond.forEach(({ e, c }) => L.push(e.type === "auction" ? `${e.n} · ${e.text}` : `${e.n} · ${c.mode === "gap" ? "전세" : "대출"} 끼고 ${cashT(e.v[c.mode === "gap" ? "g" : "c"][1])} → 내 돈으로 살 수 있게 됐어요`));
   if (!L.length) return null;
   const zIds = [...new Set(m.zone.map((e) => e.id))];
   let title, url;
   if (m.zone.length === 1 && !m.cond.length) { const e = m.zone[0]; title = `${e.n} · ${TYPE_T[e.type] || "새 소식"}`; url = "/#" + e.id; }
-  else if (!m.zone.length && m.cond.length === 1) { title = "조건 핀에 새로 들어올 수 있는 곳"; url = "/#" + m.cond[0].e.id; }
-  else { title = zIds.length ? `내 핀 ${zIds.length}곳에 새 소식${m.cond.length ? ` · 조건 핀 ${m.cond.length}곳` : ""}` : `조건 핀에 새로 들어올 수 있는 곳 ${m.cond.length}곳`; url = zIds.length === 1 && !m.cond.length ? "/#" + zIds[0] : "/#inbox"; }
+  else if (!m.zone.length && m.cond.length === 1) { const e = m.cond[0].e; title = e.type === "auction" ? `${e.n} · 경매 물건 등장` : "이 돈으로 살 수 있는 곳이 생겼어요"; url = "/#" + e.id; }
+  else { title = zIds.length ? `관심 구역 ${zIds.length}곳에 새 소식${m.cond.length ? ` · 알림 조건 ${m.cond.length}곳` : ""}` : `알림 조건에 맞는 새 소식 ${m.cond.length}곳`; url = zIds.length === 1 && !m.cond.length ? "/#" + zIds[0] : "/#inbox"; }
   const body = (m.zone.length === 1 && !m.cond.length ? [m.zone[0].text] : L.slice(0, 3)).join("\n") + (L.length > 3 ? `\n외 ${L.length - 3}건` : "");
   return { title, body: body.slice(0, 600), url, tag: "zippin-" + date };
 }

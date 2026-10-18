@@ -158,11 +158,11 @@ async function css(cssFile, out) {
       await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "load", timeout: 60000 });
       await page.waitForFunction(() => window.ZP_island && window.ZP_island.ready, null, { timeout: 20000 });
       await wait(150);
-      const widths = mob ? [320, 360, 412, 600, 800, 980] : [981, 1100, 1180, 1280, 1440, 1920];
+      const widths = mob ? [360, 412, 768, 980] : [981, 1180, 1280, 1920];
       for (const vw of widths) {
         await page.setViewportSize({ width: vw, height: h });
-        for (const st of [["gap", 1], ["cash", 1], ["gap", 0.5], ["cash", 15], ["gap", 15], ["gap", 1]]) {
-          const r = await page.evaluate(({ st, base }) => {
+        for (const st of [["cash", 1], ["gap", 0.5], ["gap", 15], ["gap", 1]]) {
+          const r = await page.evaluate(({ st, base, done }) => {
             window.ZP_island.set(st[0], st[1]);
             const sheet = [...document.styleSheets].find((s) => s.href && s.href.includes(base));
             if (!sheet) return null;
@@ -172,14 +172,18 @@ async function css(cssFile, out) {
             const strip = (sel) => sel.replace(/::?(before|after|placeholder|marker|selection|first-letter|first-line|backdrop|-webkit-[a-z-]+|-moz-[a-z-]+)(\([^)]*\))?/gi, "").replace(/:(hover|focus|focus-visible|focus-within|active|visited|link|any-link|target|checked|indeterminate|disabled|enabled|placeholder-shown|invalid|valid|user-invalid|autofill)(?![\w-])/gi, "");
             const splitSel = (s) => { const o = []; let d = 0, cur = ""; for (const ch of s) { if (ch === "(") d++; if (ch === ")") d--; if (ch === "," && !d) { o.push(cur); cur = ""; } else cur += ch; } o.push(cur); return o.map((x) => x.trim()).filter(Boolean); };
             const used = [];
+            const liveSet = new Set(live);
+            const qcache = new Map();
+            const hitQ = (q) => { if (qcache.has(q)) return qcache.get(q); let h = false; try { const ns = document.querySelectorAll(q); for (let i = 0; i < ns.length; i++) if (liveSet.has(ns[i])) { h = true; break; } } catch (e) { h = true; } qcache.set(q, h); return h; };
             const walk = (list, pfx) => { [...list].forEach((r, i) => {
               const k = pfx + i;
+              if (done[k]) return;
               if (r.type === 1) {
                 let hit = false;
                 for (const s of splitSel(r.selectorText)) {
                   let q = strip(s).trim(); if (!q || /^[>+~]/.test(q)) q = "*";
                   q = q.replace(/([>+~\s])\s*$/, "$1*");
-                  try { if (live.some((el) => el.matches(q))) { hit = true; break; } } catch (e) { hit = true; break; }
+                  if (hitQ(q)) { hit = true; break; }
                 }
                 if (hit) used.push(k);
               } else if (r.cssRules) walk(r.cssRules, k + ".");
@@ -187,7 +191,7 @@ async function css(cssFile, out) {
             }); };
             walk(sheet.cssRules, "");
             return used;
-          }, { st, base: path.basename(cssFile) });
+          }, { st, base: path.basename(cssFile), done: Object.fromEntries([...keep].map((k) => [k, 1])) });
           if (!r) throw new Error("full css sheet not found");
           r.forEach((k) => keep.add(k));
         }

@@ -109,10 +109,10 @@ const mkSub = (ua, ep) => ({ endpoint: ep, keys: { p256dh: ua.p256dh, auth: ua.a
   r = await worker.fetch(post("/api/push/sub", { sub: mkSub(ua, "https://fcm.googleapis.com/fcm/send/A") }, { Origin: "https://evil.example.com" }), E); assert.equal(r.status, 403, "다른 출처 거절");
   r = await worker.fetch(post("/api/push/sub", "{bad"), E); assert.equal(r.status, 400);
   r = await worker.fetch(post("/api/push/sub", { sub: { endpoint: "https://fcm.googleapis.com/fcm/send/A", keys: { p256dh: "x", auth: "y" } } }), E); assert.equal(r.status, 400, "키 형식");
-  r = await worker.fetch(post("/api/push/sub", { sub: mkSub(ua, "https://fcm.googleapis.com/fcm/send/A"), zones: ["o354", "o1", "<x>", "o354"], conds: [{ n: "3억 전세", cash: 3, mode: "gap", gu: "강동구", kind: "redev", minS: 0 }, { cash: "abc" }] }), E);
+  r = await worker.fetch(post("/api/push/sub", { sub: mkSub(ua, "https://fcm.googleapis.com/fcm/send/A"), zones: ["o354", "o1", "<x>", "o354"], conds: [{ n: "3억 전세", cash: 3, mode: "gap", gu: "강동구", kind: "redev", minS: 0, z: ["o1", "<bad>", "o1", "o2"] }, { cash: "abc" }] }), E);
   assert.deepEqual(await r.json(), { ok: true, zones: 2, conds: 1 });
   const saved = [...E.PUSH.m.entries()].find(([k]) => k.startsWith("sub:"));
-  assert.ok(saved); assert.deepEqual(JSON.parse(saved[1]).z, ["o354", "o1"]);
+  assert.ok(saved); assert.deepEqual(JSON.parse(saved[1]).z, ["o354", "o1"]); assert.deepEqual(JSON.parse(saved[1]).c[0].z, ["o1", "o2"]);
   r = await worker.fetch(post("/api/push/sub", { sub: mkSub(ua, "https://fcm.googleapis.com/fcm/send/A"), zones: ["o9"] }), E);
   assert.equal([...E.PUSH.m.keys()].filter((k) => k.startsWith("sub:")).length, 1, "같은 구독은 덮어쓴다");
   r = await worker.fetch(post("/api/push/unsub", { endpoint: "https://fcm.googleapis.com/fcm/send/A" }), E); assert.equal(r.status, 200);
@@ -144,7 +144,14 @@ const CH = {
   const one = compose(match({ z: ["o354"], c: [] }, CH.items), "2026-10-19");
   assert.deepEqual(one, { title: "목동4단지 · 단계", body: "조합설립인가 → 사업시행인가", url: "/#o354", tag: "zippin-2026-10-19" });
   const many = compose(m, "2026-10-19");
-  assert.match(many.title, /내 핀 1곳에 새 소식 · 조건 핀 1곳/); assert.equal(many.url, "/#inbox"); assert.match(many.body, /고덕강일1 · 전세 끼고 1\.7억 → 조건 '2억 전세' 안으로/);
+  assert.match(many.title, /관심 구역 1곳에 새 소식 · 알림 조건 1곳/); assert.equal(many.url, "/#inbox"); assert.match(many.body, /고덕강일1 · 전세 끼고 1\.7억 → 내 돈으로 살 수 있게 됐어요/);
+  // 경매: 핀 구역이면 zone, 조건에 맞는 구역(c.z)이면 cond
+  const AU = { id: "o337", date: "2026-10-19", type: "auction", text: "경매 물건 등장 · 다세대 최저 2.6억 · 입찰 10.28", n: "신정1-3", g: "양천구", k: "e" };
+  assert.deepEqual(match({ z: ["o337"], c: [] }, [AU]).zone.map((e) => e.id), ["o337"]);
+  const ca = match({ z: [], c: [{ n: "x", cash: 2, mode: "gap", z: ["o337"] }] }, [AU]);
+  assert.equal(ca.cond.length, 1); assert.deepEqual(compose(ca, "2026-10-19"), { title: "신정1-3 · 경매 물건 등장", body: "신정1-3 · 경매 물건 등장 · 다세대 최저 2.6억 · 입찰 10.28", url: "/#o337", tag: "zippin-2026-10-19" });
+  assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o1"] }] }, [AU]).cond.length, 0);
+  assert.equal(compose(match({ z: ["o337"], c: [] }, [AU]), "d").title, "신정1-3 · 경매");
   assert.equal(compose(match({ z: ["zzz"], c: [] }, CH.items), "x"), null);
   ok("match + compose");
 }
@@ -164,7 +171,7 @@ const CH = {
   assert.deepEqual([r.sent, r.gone, r.events, r.done], [2, 1, 3, 1 && true]);
   const byUrl = Object.fromEntries(sent.map((s) => [s.url.split("/").pop(), s.msg]));
   assert.equal(byUrl.A.title, "목동4단지 · 단계"); assert.equal(byUrl.A.url, "/#o354");
-  assert.equal(byUrl.D.title, "내 핀 2곳에 새 소식"); assert.ok(!byUrl.B, "핀이 안 맞으면 안 보냄"); assert.ok(!sent.some((s) => s.msg.body === "old"), "처음엔 가장 최근 날만");
+  assert.equal(byUrl.D.title, "관심 구역 2곳에 새 소식"); assert.ok(!byUrl.B, "핀이 안 맞으면 안 보냄"); assert.ok(!sent.some((s) => s.msg.body === "old"), "처음엔 가장 최근 날만");
   assert.equal([...E.PUSH.m.keys()].filter((k) => k.startsWith("sub:")).length, 3, "410이면 구독 지움");
   assert.equal(JSON.parse(E.PUSH.m.get("state")).last, "2026-10-19");
   sent.length = 0; r = await runCron(E, { fetch: fakeFetch });

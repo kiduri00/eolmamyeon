@@ -6191,7 +6191,7 @@
   const isFav = (id) => FAV.includes(id);
   const favBtn = (r, cls = "") =>
     r
-      ? `<button type="button" class="favb ${cls}" data-fav="${r.id}" aria-pressed="${isFav(r.id)}" aria-label="${esc(shortName(r.n))} ${isFav(r.id) ? "핀 빼기" : "핀 꽂기"}">${SVG_PIN(isFav(r.id))}<span>${isFav(r.id) ? "꽂음" : "핀 꽂기"}</span></button>`
+      ? `<button type="button" class="favb ${cls}" data-fav="${r.id}" aria-pressed="${isFav(r.id)}" aria-label="${esc(shortName(r.n))} ${isFav(r.id) ? "핀 빼기" : "핀 꽂고 알림 받기"}">${SVG_PIN(isFav(r.id))}<span>${isFav(r.id) ? "알림 받는 중" : "핀 꽂고 알림 받기"}</span></button>`
       : "";
   const BLOG_URL = "https://blog.naver.com/always_questions";
   const leadCard = (cls = "") =>
@@ -7955,8 +7955,8 @@
       const on = isFav(b.dataset.fav),
         r = byId[b.dataset.fav];
       b.setAttribute("aria-pressed", String(on));
-      b.setAttribute("aria-label", `${r ? shortName(r.n) : ""} ${on ? "핀 빼기" : "핀 꽂기"}`);
-      b.innerHTML = `${SVG_PIN(on)}<span>${on ? "꽂음" : "핀 꽂기"}</span>`;
+      b.setAttribute("aria-label", `${r ? shortName(r.n) : ""} ${on ? "핀 빼기" : "핀 꽂고 알림 받기"}`);
+      b.innerHTML = `${SVG_PIN(on)}<span>${on ? "알림 받는 중" : "핀 꽂고 알림 받기"}</span>`;
     });
     renderFav();
     PINS.badges();
