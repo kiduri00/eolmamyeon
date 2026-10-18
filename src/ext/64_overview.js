@@ -132,13 +132,15 @@ const OVX = (() => {
     const cafe = r.cafe ? `<a href="https://cleanup.seoul.go.kr/cafe/mainIndx.do?cafeUrl=${encodeURIComponent(r.cafe)}" target="_blank" rel="noopener">정비사업 정보몽땅 ↗</a>` : "정비사업 정보몽땅";
     return `<p class="ov-src"><span>자료 기준${d ? ` 실거래 ${d}` : ""}</span>${cafe.startsWith("<a") ? cafe : `<span>${cafe}</span>`}<a href="https://www.eum.go.kr/" target="_blank" rel="noopener">토지이음 ↗</a></p>`;
   }
+  // 상세 첫 화면 정리(76_detail.js)가 이 블록들을 탭 내용·맨 아래로 옮겨도 늦게 오는 자료가 제자리를 찾게: 먼저 w 안, 없으면 리포트 전체에서
+  const Q = (w, s) => w.querySelector(s) || document.querySelector("#report " + s);
   // 단계 날짜·사업장 주소는 따로 불러오는 자료라, 오면 타임라인·출처 줄을 다시 그린다
   function late(r, w) {
     if (cur !== r || !w.isConnected) return;
-    const tl = w.querySelector(".ov-tlw"); if (tl) tl.innerHTML = tlHTML(r);
-    const sr = w.querySelector(".ov-srcw"); if (sr) sr.innerHTML = srcHTML(r);
+    const tl = Q(w, ".ov-tlw"); if (tl) tl.innerHTML = tlHTML(r);
+    const sr = Q(w, ".ov-srcw"); if (sr) sr.innerHTML = srcHTML(r);
     paceVs(r).then((p) => {
-      const em = w.querySelector(".ov-pv"); if (!p || !em || cur !== r) return;
+      const em = Q(w, ".ov-pv"); if (!p || !em || cur !== r) return;
       const ad = Math.abs(p.diff), n = ad >= 2 ? Math.round(ad) : Math.round(ad * 10) / 10;
       em.textContent = ad < 0.5 ? "평균 수준" : `서울 평균보다 ${n}년 ${p.diff < 0 ? "빠름" : "늦음"}`;
       em.className = "ov-pv " + (ad < 0.5 ? "eq" : p.diff < 0 ? "fast" : "slow");
@@ -238,7 +240,7 @@ const OVX = (() => {
     let est = false; try { est = isEst(r); } catch (e) {}
     const en = (r.mk && r.mk.entry) || {};
     const smp = x.priceSrc === "user" && !est ? "직접 입력" : same ? (en.n === 1 ? "위와 같은 거래 1건의 매매가" : `위와 같은 ${en.n}건의 매매가 가운데 값`) : smpTxt(r, x);
-    return `<div class="ov-calc"><span>계산 매수가</span><b>${manT(x.price)}</b><small>${smp ? `= ${esc(smp)}` : "입주 현금 계산 기준"}</small></div>`;
+    return `<div class="ov-calc"><span>계산 매수가</span><b>${manT(x.price)}</b><small>${smp ? `= ${esc(smp)}` : "입주까지 현금 계산 기준"}</small></div>`;
   }
   // '이 숫자 믿어도 될까': 표본 수·마지막 거래·신뢰도(표본 수·최근성·참고값(lc)·주변 시세(nbp))
   function trustHTML(r) {
@@ -250,12 +252,12 @@ const OVX = (() => {
     const nearL = en.src === "villa" && (en.radius || 0) >= 100 ? `주변 ${en.radius}m 빌라 ` : en.fill === "dong" ? "같은 동 빌라 " : "";
     // 계산 안 한 까닭을 한 줄로(입주권 없음 · 모아타운 · 이주 뒤 · 재건축 단지 거래 없음 · 표본 없음)
     if (!x || x.price == null || !isFinite(x.price) || noIpR(r)) {
-      const TT = "입주 현금 계산";
+      const TT = "입주까지 현금 계산";
       if (r.src === "moa") return H("안 함", "na", [], "모아타운 관리지역은 사업구역마다 조건이 달라 한 숫자로 계산하지 않아요. 안의 사업구역을 열어 보세요.", TT);
-      if (noIpR(r)) return H("안 함", "na", [], "지금 사면 입주권이 안 나와서 입주 현금(새 아파트 받을 때까지 드는 돈)을 계산하지 않아요.", TT);
-      if (x && x.stale) return H("안 함", "na", n12, "이주·철거가 시작돼 옛 집 매매가로는 계산할 수 없어요. 아는 입주권 매물가를 입주 현금 탭에 넣으면 계산해요.", TT);
-      if (x && x.noApt) return H("안 함", "na", n12, "재건축 단지 아파트 거래가 없어 매수가를 못 잡았어요. 아는 매물가를 입주 현금 탭에 넣으면 계산해요.", TT);
-      return H("안 함", "na", n12, "매수가로 쓸 거래가 없어 계산하지 않아요. 아는 매물가를 입주 현금 탭에 넣으면 계산해요.", TT);
+      if (noIpR(r)) return H("안 함", "na", [], "지금 사면 입주권이 안 나와서 입주까지 현금(새 아파트 받을 때까지 드는 돈)을 계산하지 않아요.", TT);
+      if (x && x.stale) return H("안 함", "na", n12, "이주·철거가 시작돼 옛 집 매매가로는 계산할 수 없어요. 아는 입주권 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
+      if (x && x.noApt) return H("안 함", "na", n12, "재건축 단지 아파트 거래가 없어 매수가를 못 잡았어요. 아는 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
+      return H("안 함", "na", n12, "매수가로 쓸 거래가 없어 계산하지 않아요. 아는 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
     }
     let est = false; try { est = isEst(r); } catch (e) {}
     if (est) return H("낮음", "lo", n12, `구역 안 거래가 적어 같은 구(${esc(r.g)}) 빌라 시세로 추정한 값이에요 · 계약 전 매물 시세로 꼭 확인`);
@@ -350,14 +352,15 @@ const OVX = (() => {
       C.push({ c: "g", t: wm > 20 ? "역에서 멀어요" : `${sn} 걸어서 ${wm}분`, tip: `가까운 역 ${esc(sn)}까지 직선 ${Math.round(r.st.d).toLocaleString("ko-KR")}m · 걸어서 걸리는 시간은 직선×1.3을 분당 67m로 나눈 어림값이에요` });
     }
     let x = null; try { x = investC(r); } catch (e) {}
-    const has = x && x.price != null && isFinite(x.price) && x.priceSrc !== "user" && !noIpR(r);   // 입주권 없는 구역은 계산 안 함 → 매수가 칩도 없음
+    // 매수가 칩(추정·주변 시세)은 첫 화면 신뢰 한 줄(76_detail.js '추정 · 주변 빌라 n건 기준 · 믿을 만함')이 말한다 — 화면에 '추정' 칩은 하나만
+    const has = false && x && x.price != null && isFinite(x.price) && x.priceSrc !== "user" && !noIpR(r);
     let est = false; try { est = isEst(r); } catch (e) {}
     const en = (r.mk && r.mk.entry) || {}, smp = has ? smpTxt(r, x) : "";
     const more = ` <button type="button" class="ov-wl" data-ovtrust>근거 보기 ↓</button>`;
-    if (has && est) C.push({ c: "w", t: "매수가 추정 · 구 평균", tip: `구역 안 빌라 거래가 적어 입주 현금 계산의 매수가를 같은 구(${esc(r.g)}) 빌라 시세 가운데 값으로 잡았어요 · 실제 매물가와 다를 수 있어요.${more}` });
+    if (has && est) C.push({ c: "w", t: "매수가 추정 · 구 평균", tip: `구역 안 빌라 거래가 적어 입주까지 현금 계산의 매수가를 같은 구(${esc(r.g)}) 빌라 시세 가운데 값으로 잡았어요 · 실제 매물가와 다를 수 있어요.${more}` });
     else if (has && r.lc) {
       const n = en.n || 0, why = r.lcw === "old" || en.lcw === "old" ? "거래 오래됨" : n && n < 5 ? `거래 ${n}건뿐` : "거래 적음";
-      C.push({ c: "w", t: `매수가 추정 · ${why}`, tip: `입주 현금 계산에 쓴 매수가는 ${esc(smp || "적은 거래로 잡은 값")}이에요. 표본이 적거나 오래돼 실제 매물가와 다를 수 있어요.${more}` });
+      C.push({ c: "w", t: `매수가 추정 · ${why}`, tip: `입주까지 현금 계산에 쓴 매수가는 ${esc(smp || "적은 거래로 잡은 값")}이에요. 표본이 적거나 오래돼 실제 매물가와 다를 수 있어요.${more}` });
     } else if (has && (r.nbp || en.radius || en.fill === "dong")) C.push({ c: "g", t: "매수가 = 주변 시세", tip: `구역 안 거래가 드물어 매수가를 구역 밖 주변 거래로 잡았어요${smp ? ` · ${esc(smp)}` : ""}.${more}` });
     const sl = ZF.slope(r);
     if (sl) C.push({ c: "g", t: sl.txt, tip: `${esc(sl.tip)} · 지형 자료로 잰 어림값이에요` });
@@ -410,9 +413,9 @@ const OVX = (() => {
     Promise.all([ZX.loadTx(), ZX.loadNear ? ZX.loadNear() : null]).then(([d]) => {
       if (cur !== r || !document.getElementById("ovTop")) return;
       const t = { ...(r.tx || {}), ...((d && d[r.id] && d[r.id].x) || {}) };
-      const tw = w.querySelector(".ov-txw");
-      tw.innerHTML = apt(t, r) || txHTML(t, r, d && d[r.id]);
-      const ow = w.querySelector(".ov-oldw");
+      const tw = Q(w, ".ov-txw");
+      if (tw) tw.innerHTML = apt(t, r) || txHTML(t, r, d && d[r.id]);
+      const ow = Q(w, ".ov-oldw");
       if (ow && !ow.innerHTML.trim()) ow.innerHTML = oldHTML(t, r);
     }).catch(() => {});
   }
@@ -527,6 +530,6 @@ const OVX = (() => {
     try { tabAff(); } catch (e) {}
     try { if (cur && document.querySelector("#report .rep-head")) { render(cur); if (matchMedia("(min-width:981px)").matches) document.documentElement.classList.add("s-rep"); } } catch (e) {}
   }
-  return { init, render, gauge, smp: smpTxt, manT };
+  return { init, render, gauge, smp: smpTxt, manT, mini, verdicts };
 })();
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", OVX.init) : setTimeout(OVX.init, 0);

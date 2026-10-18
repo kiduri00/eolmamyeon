@@ -3,7 +3,7 @@ const BD = (() => {
   const ymd = (d) => `${d.slice(2, 4)}.${d.slice(4, 6)}.${d.slice(6, 8)}`;
   const eok = (man) => (man >= 10000 ? `${(man / 10000).toFixed(man >= 100000 ? 0 : 1)}억` : `${fmt(man)}만`);
   const go = (id) => `<button type="button" class="txr-go" data-txgo="${esc(id)}">${esc(shortName(byId[id].n))}</button>`;
-  const okC = (r) => { try { return dotState(r) === "y" ? `<em class="txr-ok">${gapMode() ? "전세 끼고 내 현금 가능" : "내 현금 가능"}</em>` : ""; } catch (e) { return ""; } };
+  const okC = (r) => { try { return dotState(r) === "y" ? `<em class="txr-ok">${gapMode() ? "전세 끼고 내 돈 가능" : "내 돈 가능"}</em>` : ""; } catch (e) { return ""; } };
   const live = () => R.filter((r) => !r.dn && r.s < 9 && r.tx);
   let K = "n3";
   // 순위 > 실거래 탭: 갭 탭과 같은 카드 목록(폰은 한 줄 카드, 넓은 PC는 2단) — 큰 숫자 = 그 기준 값, 작은 글씨 = 보조 값
@@ -63,7 +63,7 @@ const BD = (() => {
       if (buyWindow(r).cls === "no") return '<span class="nt-m mut">지금 사면 입주권 없음</span>';
       const v = ZF.cashToMoveIn(r, gapMode());
       if (v == null) return `<span class="nt-m mut">${LBL.cashToMoveIn} 계산 불가</span>`;
-      return `<span class="nt-m${v <= CASH + 1e-9 ? " ok" : ""}">${LBL.cashToMoveIn} ${ZF.cash(v)}${v <= CASH + 1e-9 ? " · 내 현금으로 됨" : ""}</span>`;
+      return `<span class="nt-m${v <= CASH + 1e-9 ? " ok" : ""}">${LBL.cashToMoveIn} ${ZF.cash(v)}${v <= CASH + 1e-9 ? " · 내 돈으로 됨" : ""}</span>`;
     } catch (e) { return ""; }
   }
   function notice() {
@@ -75,7 +75,7 @@ const BD = (() => {
     const sum = `<p class="nt-sum"><b>최근 90일 ${fmt(A.length)}건</b> · 단계 오른 곳 ${fmt(ups)}곳${FAV.length ? ` · 관심 구역 소식 ${fmt(pins)}건` : ""}</p>`;
     out.innerHTML = L.length
       ? `${sum}<ul class="ntl">${L.slice(0, 80).map((x) => { const r = byId[x.id], fav = isFav(x.id); return `<li class="c-${x.c}${fav ? " fav" : ""}"><span class="nt-d mono">${x.d.slice(2).replaceAll("-", ".")}</span><span class="nt-b">${fav ? `<i class="nt-pin" aria-label="관심 구역">${SVG_PIN(true)}</i>` : ""}${go(x.id)}<small>${esc(r.g)} · ${esc(stageName(r))}</small><span class="nt-t"><em class="nt-c">${CL[x.c]}</em><b>${esc(x.sec)}</b> ${esc(x.txt)}${x.src ? ` <a href="${esc(x.src)}" target="_blank" rel="noopener" data-nw="1">기사 ↗<span class="sr-only"> (새 창)</span></a>` : ""}</span>${x.c === "up" ? money(r) : ""}</span></li>`; }).join("")}</ul><p class="t-note">출처: 서울시 정비사업 정보몽땅 사업장별 추진경과·월간 리포트 · ${esc(String(NT.asOf).replaceAll("-", "."))} 기준 · '변경 인가'는 이미 받은 인가 내용을 고친 것이라 단계가 오른 게 아니에요${MO ? ` · 달마다 정리한 목록: <a href="${MO.url}">${moLabel()} 리포트</a>` : ""}</p>`
-      : `${sum}<p class="mut nt-e">${C === "fav" ? (FAV.length ? "핀 꽂은 구역의 최근 90일 소식이 없어요." : "구역을 열고 핀을 꽂으면 그 구역 소식만 모아 볼 수 있어요.") : "최근 90일 기록이 없어요."}</p>`;
+      : `${sum}<p class="mut nt-e">${C === "fav" ? (FAV.length ? "관심 구역의 최근 90일 소식이 없어요." : "구역을 열고 관심 구역에 추가하면 그 구역 소식만 모아 볼 수 있어요.") : "최근 90일 기록이 없어요."}</p>`;
   }
   function init() {
     const seg = document.getElementById("txrSeg");
@@ -100,7 +100,7 @@ const BD = (() => {
     };
     once("txrTop", rank);
     once("ntcTop", () => ntLoad().then((j) => { if (!j) throw 0; NT = j; notice(); }).catch(() => { const o = document.getElementById("ntcOut"); if (o) o.innerHTML = '<p class="mut">소식을 불러오지 못했어요.</p>'; }));
-    // 계산기 현금이 바뀌면 '내 현금 가능' 표시 갱신
+    // 계산기 현금이 바뀌면 '내 돈 가능' 표시 갱신
     {
       const _plan = plan;
       plan = function () { const r = _plan.apply(this, arguments); try { if (document.getElementById("txrOut").innerHTML) rank(); if (NT) notice(); } catch (e) {} return r; };

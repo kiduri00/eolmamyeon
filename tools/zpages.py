@@ -89,7 +89,7 @@ KIND = {'재개발': '재개발', '재건축': '재건축', '도시정비형 재
 DTK = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 승인'), ('조합설립', '조합설립인가'), ('시행자지정', '사업시행자 지정'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가'), ('착공', '착공'), ('준공', '준공')]
 SKEY = {2: ('구역지정',), 3: ('추진위',), 4: ('조합설립', '시행자지정'), 5: ('사업시행',), 6: ('관리처분',), 7: ('관리처분',), 8: ('착공',)}
 PSRC = {'villa': '빌라 실거래 가운데 값', 'complex': '단지 실거래 가운데 값', 'apt': '단지 실거래 가운데 값', 'est': '구 평균 시세로 추정'}
-from zsample import manT, smpTxt, trust, short, headline, noTicket, LBL, josa, auc_use, auc_uses, auc_jb, auc_amt   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
+from zsample import manT, smpTxt, trust, short, headline, noTicket, LBL, josa, auc_use, auc_uses, auc_jb, auc_amt, key3   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
 def gapWhy(c):   # 전세 끼고 계산이 안 되는 이유(화면 gapBlock과 같은 문구에서) → (표 칸 짧은 말, 설명)
     b = str(c.get('gapBlock') or '')
     if b.startswith('전세 낀 매수 불가'): return ('토허제', '토지거래허가구역이라 불가(2년 실거주)')
@@ -149,6 +149,28 @@ def place_ld(r, url):   # 구역 장소(Place): 위경도는 구역 대표점 �
     return o
 def crumbs(*xs):   # BreadcrumbList: (이름, 주소) 차례로
     return {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": u} for i, (n, u) in enumerate(xs)]}
+MAIL = 'choi3kim1@gmail.com'   # 문의 주소(문의하기 페이지와 같은 곳)
+def dong_of(r):   # 구 다음 동 이름(화면 64_overview 주소 줄과 같은 규칙)
+    m = re.match(r'^(?:서울(?:특별)?시\s*)?(?:[가-힣]+구\s+)?([가-힣]+?(?:\d+(?:·\d+)*)?(?:동\d+가|로\d+가|\d+가|동|로|가))(?=[\s\d(산]|$)', str(r.get('j') or r.get('bj') or ''))
+    return m.group(1) if m else (r.get('dg') or '')
+def report_href(r):
+    """'이 숫자가 틀렸어요' 메일(앱 76_detail.js mailto와 같은 제목) — 구역 ID·주소·데이터 기준을 자동으로 넣는다."""
+    from urllib.parse import quote
+    nm = short(r['n']); subj = f"[집핀 신고] {r['id']} {nm}"
+    body = '\n'.join([f"구역 ID: {r['id']}", f"구역: {nm} ({r['g']})", f"주소: {SITE}/z/{r['id']}", f"데이터 기준: {UPD}", '틀린 곳: (가격 · 단계 · 위치 · 이름 · 기타 중에서 적어 주세요)', '', '내용:', ''])
+    return f"mailto:{MAIL}?subject={quote(subj)}&body={quote(body)}"
+def key3_html(r, c, dt, cap=False):
+    """상세 첫 화면 3숫자 + 신뢰 한 줄(앱 구역 상세와 같은 이름·값 · 기본 가정 = 전세 끼고)."""
+    k = key3(r, c, dt, D.get('asOf'), D.get('upd')); rid = r['id']; stage = (c or {}).get('stage') or r.get('sr') or ''
+    ip = f'<span class="zk-ip {k["ip"][1]}">{esc(k["ip"][0])}</span>' if k.get('ip') else ''
+    tc, tt, lv, cls = k['trust']
+    thref = '#trust' if cls != 'na' else f'../#{rid}'
+    return (f'<section class="zk" aria-label="핵심 숫자"><p class="zk-nl"><b>{esc(short(r["n"]))}</b><span>{esc(r["g"])} {esc(dong_of(r))}</span><span class="zk-st">{esc(stage)}</span></p><div class="zk-k">'
+            f'<div class="zk-i"><span class="zk-l">지금 필요한 돈</span><b class="zk-v">{k["now"]}</b><span class="zk-s">{esc(k["basis"])}</span>' + (f'<span class="zk-s zk-alt">{esc(k["alt"])}</span>' if k['alt'] else '') + f'<a class="zk-my" href="../#{rid}">내 돈으로 되는지 보기 ›</a></div>'
+            f'<div class="zk-i"><span class="zk-l">{LBL["cashToMoveIn"]}</span><b class="zk-v">{k["tot"]}</b><span class="zk-s">{esc(k["tsub"] or "기본 가정 · 전세 끼고 · 입주 잔금대출 뺀 값")}</span></div>'
+            f'<div class="zk-i"><span class="zk-l">언제 입주</span><b class="zk-v zk-eta">{esc(k["eta"])}</b>{ip}</div></div>' +
+            (f'<p class="zk-cap">최신 숫자 · 기본 가정 · 데이터 기준 {UPD}</p>' if cap else '') + f'<a class="zk-tr {cls}" href="{thref}"><span class="zk-tc">{esc(tc)}</span><span class="zk-tt">{esc(tt)}{f"<b>{esc(lv)}</b>" if lv else ""}</span><i aria-hidden="true">›</i></a></section>')
+REPORT_P = lambda r: f'<p class="zk-rep"><a class="zk-rb" href="{report_href(r)}">이 숫자가 틀렸어요</a><span>구역 ID {esc(r["id"])}가 메일에 자동으로 들어가요 · 받는 주소 <span class="zk-ad">{MAIL}</span></span></p>'
 def page(r):
     rid = r['id']; pm = P.get(rid) or {}; c = C.get(rid) or {}; t = r.get('tx') or {}
     nm = short(r['n']); kind = KIND.get(r['k'], r['k']); stage = c.get('stage') or r.get('sr') or ''
@@ -156,14 +178,15 @@ def page(r):
     nmk = nk(nm, kind)
     tnm, tq = zt(r)
     title = ztitle_s(r)
-    desc = f"{r['g']} {tnm}{'(' + ' · '.join(tq) + ')' if tq else ''}: 지금 {stage} 단계. 구역 안 실거래, 노후도, 권리산정기준일, 정비사업 정보몽땅 추진경과, 기본 가정의 입주까지 필요한 현금 추정. 데이터 기준 {UPD}."
+    desc = f"{r['g']} {tnm}{'(' + ' · '.join(tq) + ')' if tq else ''}: 지금 {stage} 단계. 구역 안 실거래, 노후도, 권리산정기준일, 정비사업 정보몽땅 추진경과, 기본 가정의 지금 필요한 돈과 입주까지 현금 추정. 데이터 기준 {UPD}."
     url = f"{SITE}/z/{rid}"
-    ld0 = {"@type": "Article", "headline": f"{nmk} 진행 단계와 입주까지 필요한 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
+    ld0 = {"@type": "Article", "headline": f"{nmk} 진행 단계와 입주까지 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
            "mainEntityOfPage": url, "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "집핀", "url": SITE}}
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld='@@LD@@')]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or r.get("dg") or "")} · {esc(kind)} · 데이터 기준 {UPD}</p>')
-    o.append(f'<h1>{esc(nmk)} 진행 단계와 입주까지 필요한 현금</h1>')
+    o.append(f'<h1>{esc(nmk)} 진행 단계와 입주까지 현금</h1>')
     if r['n'].strip() != nm: o.append(f'<p class="formal">정식 이름 {esc(r["n"].strip())}</p>')   # 제목은 앱과 같은 짧은 이름, 정식 이름은 한 줄 아래
+    o.append(key3_html(r, c, dt))   # 첫 화면: 앱 상세와 같은 3숫자(지금 필요한 돈 · 입주까지 현금 · 언제 입주/입주권) + 신뢰 한 줄
     # 현재 단계의 인가·고시일만 쓴다(예전엔 기록 중 가장 늦은 날짜를 써서 '착공' 구역에 관리처분일이 붙었다 · o747)
     sk = SKEY.get(r.get('s', 0)) or ()
     sd = next((dt[k] for k in sk if dt.get(k)), '')[:7].replace('-', '.')
@@ -236,7 +259,7 @@ def page(r):
         if t.get('n12') is not None: rows.append(('구역 안 12개월 거래', f"{t['n12']}건", '빌라·단독·아파트 전부 · 계약일 기준(계산 매수가 표본과 다른 묶음)'))
         if t.get('yoy') is not None: rows.append(('1년 변화', f"{'+' if t['yoy'] > 0 else ''}{t['yoy']}%", f"표본 {t['yon'][0]}/{t['yon'][1]}건 · 한 건물 쏠림 제외"))
         if rows:
-            o.append(f'<h2>구역 안 실거래 <small class="meta">국토교통부·서울시 실거래 · {TXD[:4]}.{TXD[4:6]}.{TXD[6:]}까지</small></h2><table class="ov"><tbody>' + ''.join(f'<tr><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">{s}</small></td></tr>' for a, b, s in rows) + '</tbody></table>')
+            o.append(f'<h2>구역 안 실거래 <small class="meta">국토교통부·서울시 실거래 · {TXD[:4]}.{TXD[4:6]}.{TXD[6:]}까지</small></h2><table class="ov"><tbody>' + ''.join(f'<tr{" id=\"trust\"" if a == "이 숫자 믿어도 될까" else ""}><th scope="row">{a}</th><td><b>{b}</b><br><small class="meta">{s}</small></td></tr>' for a, b, s in rows) + '</tbody></table>')
     if t.get('old') and r.get('s', 0) < 7:
         x = t['old']
         o.append(f'<h2>노후도 <small class="meta">경계 안 건축물 {x["n"]:,}동 · 사용승인연도 확인 {x["k"]:,}동 · 서울도시공간포털 건물 레이어</small></h2><p>노후·불량 건축물 비율 <b>{x["pol"]}%</b>(철근콘크리트 30년·그 밖 20년 기준), 30년 넘은 건물 {x["p30"]}%, 평균 {x["avg"]}년이에요. 서울 재개발 구역지정 요건(노후도 60% 이상)과 비교해 보세요.</p>')
@@ -282,6 +305,7 @@ def page(r):
     src += ['<li>국토교통부·서울시 부동산 실거래가(연립·다세대 매매, 전월세)</li>', '<li>서울도시공간포털 정비구역 경계·건물 정보</li>', '<li>서울시 상권분석서비스</li>']
     o.append(f'<p class="meta">이 구역 인가·고시 소식 받아 보기: <a href="../feed/z/{rid}.xml">RSS</a> · <a href="../gu/{esc(r["g"])}">{esc(r["g"])} 전체 구역</a></p>')
     o.append(f'<details class="srcs"><summary>자료 출처</summary><ul>{"".join(src)}</ul></details>')
+    o.append(REPORT_P(r))
     o.append(f'<p class="note">이 페이지는 공개 자료로 매일 자동 갱신돼요. 계산은 시세 상승 0%·기본 비례율 같은 가정이 들어간 추정이고 투자 권유가 아니에요. 입주권 자격과 토지거래허가는 계약 전에 조합·구청에서 확인하세요. <a href="../method">계산 방법</a></p>')
     o.append(FOOT.format(upd=UPD))
     # 구조화 데이터: 글(Article) + 이동 경로(BreadcrumbList) + 장소(Place · 위경도·주소) · 공유 카드는 구역마다
@@ -294,7 +318,7 @@ def page(r):
     if og: ld0["image"] = SITE + og
     graph = [ld0, crumbs(("집핀", SITE + "/"), ("구역별 페이지", f"{SITE}/z/"), (r['g'], f"{SITE}/gu/{r['g']}"), (nm, url))]
     graph.append(place_ld(r, url))
-    h = ''.join(o).replace('@@LD@@', json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False).replace('</', '<\\/'), 1)
+    h = plain(''.join(o)).replace('@@LD@@', json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False).replace('</', '<\\/'), 1)
     if og: h = h.replace(f'<meta property="og:image" content="{SITE}/og.png">', f'<meta property="og:image" content="{SITE}{og}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:image" content="{SITE}{og}">', 1)
     return h
 R = [r for r in D['recs'] if not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n')]   # 화면의 '진행 중'과 같은 기준
@@ -316,9 +340,28 @@ for _a, _k in (D.get('alias') or {}).items():
 ''')
     print('  alias page', _a, '->', _k)
 # 손으로 쓴 글(구역 정리 페이지·가이드·리포트·소개): 본문은 두고 용어만 정식 말로 · 푸터 '데이터 기준'은 오늘 자료 날짜로(매 실행, 같은 결과면 그대로)
-TERM_FIX = [(re.compile(r'입주까지 총액|입주까지 총(?=[\s ③<])'), LBL['cashToMoveIn']), (re.compile(r'(?<!정보)(?<!사업 )정비몽땅'), '정비사업 정보몽땅')]
+TERM_FIX = [(re.compile(r'입주까지 총액|입주까지 총(?=[\s ③<])'), LBL['cashToMoveIn']), (re.compile(r'(?<!정보)(?<!사업 )정비몽땅'), '정비사업 정보몽땅'),
+            (re.compile(r'입주까지 필요한 현금'), LBL['cashToMoveIn']), (re.compile(r'지금 필요한 현금'), '지금 필요한 돈'), (re.compile(r'내 현금'), '내 돈'), (re.compile(r'살 수 있는 곳'), '갈 수 있는 곳')]   # 용어집(리뉴얼 5단계)
+JARGON = [(re.compile(r'내 지분 값\(권리가액\)|권리가액'), '내 지분 값(권리가액)', '내 지분 값'), (re.compile(r'웃돈\(프리미엄\)|프리미엄'), '웃돈(프리미엄)', '웃돈')]
+def plain(h):
+    """본문 글자(태그·스크립트 밖)에서 처음 나오는 '권리가액'·'프리미엄'은 '내 지분 값(권리가액)'·'웃돈(프리미엄)', 그 뒤는 쉬운 말만(앱 76_detail.js plain과 같은 규칙)."""
+    b = h.find('<body'); 
+    if b < 0: return h
+    head, body = h[:b], h[b:]
+    parts = re.split(r'(<script[\s\S]*?</script>|<style[\s\S]*?</style>|<[^>]+>)', body)
+    seen = [False] * len(JARGON)
+    for i, t in enumerate(parts):
+        if i % 2 or not t: continue
+        for k, (rx, full, easy) in enumerate(JARGON):
+            def f(m, k=k, full=full, easy=easy):
+                if not seen[k]: seen[k] = True; return full
+                return easy
+            t = rx.sub(f, t)
+        parts[i] = t
+    return head + ''.join(parts)
 def term_fix(h):
     for a, b in TERM_FIX: h = a.sub(b, h)
+    h = plain(h)
     return re.sub(r'(<p class="f-c">© \d{4} 집핀 · 데이터 기준 )[\d.]+', lambda m: m.group(1) + UPD, h)
 def hand_live(r, h):
     """손으로 쓴 구역 페이지: 글 속 숫자는 쓴 날 기준이라 머리 날짜를 '글 기준'으로 밝히고, 바로 밑에 오늘 숫자 상자(자동 페이지와 같은 값)를 끼운다."""
@@ -328,9 +371,19 @@ def hand_live(r, h):
     if c.get('gapOk') and c.get('gapTotal') is not None: parts.append(f"{LBL['gap']} {LBL['cashToMoveIn']} <strong>{eok(c['gapTotal'])}</strong> (지금 {eok(c.get('gapNow'))})")
     elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk': parts.append(f"현금 매수 · {LBL['cashToMoveIn']} <strong>{eok(c['need'])}</strong>")
     box = f'<div class="hbox" id="zp-live"><b>최신 숫자 · 데이터 기준 {UPD}</b>{" · ".join(parts)} · 기본 가정 · <a href="../#{rid}">계산기에서 내 조건으로</a></div>'
-    if 'id="zp-live"' in h: return re.sub(r'<div class="hbox" id="zp-live">.*?</div>', lambda m: box, h, count=1, flags=re.S)
+    # 앱 상세와 같은 3숫자 상자 + 신고 링크(표시 주석 사이 · 매일 다시 씀)
+    kb = '<!--zk-->' + key3_html(r, c, (P.get(rid) or {}).get('dt') or {}, cap=True) + '<!--/zk-->'
+    if '<!--zk-->' in h:
+        h = re.sub(r'<!--zk-->.*?<!--/zk-->', lambda m: kb, h, count=1, flags=re.S)
+        h = re.sub(r'<div class="hbox" id="zp-live">.*?</div>', '', h, count=1, flags=re.S)
+        rp = '<!--zr-->' + REPORT_P(r) + '<!--/zr-->'
+        h = re.sub(r'<!--zr-->.*?<!--/zr-->', lambda m: rp, h, count=1, flags=re.S) if '<!--zr-->' in h else h.replace('</main>', rp + '</main>', 1)
+        return h
+    if 'id="zp-live"' in h:
+        h = re.sub(r'<div class="hbox" id="zp-live">.*?</div>', lambda m: kb, h, count=1, flags=re.S)
+        return h.replace('</main>', '<!--zr-->' + REPORT_P(r) + '<!--/zr--></main>', 1)
     m = re.search(r'<p class="byline">.*?</p>', h, re.S) or re.search(r'</h1>', h)
-    return h[:m.end()] + box + h[m.end():] if m else h
+    return (h[:m.end()] + kb + h[m.end():]).replace('</main>', '<!--zr-->' + REPORT_P(r) + '<!--/zr--></main>', 1) if m else h
 PAGES = {r['id'] for r in R} | {f[:-5] for f in os.listdir(ZD) if f.endswith('.html') and f != 'index.html'}
 def hand_og(r):
     """손으로 쓴 페이지는 본문을 두고, 공유 카드(글자만)와 og:image 메타만 붙인다."""
@@ -390,9 +443,9 @@ hand = [r for r in D['recs'] if is_hand(r['id'])]
 byg = collections.defaultdict(list)
 for r in R: byg[r['g']].append(r)
 li = lambda x: f'<a class="zl" href="{x["id"]}">{esc(short(x["n"]))}<small>{esc(KIND.get(x["k"], x["k"]))} · {esc((C.get(x["id"]) or {}).get("stage") or x.get("sr") or "")}</small></a>'
-idx = [HEAD.format(title='서울 정비사업 구역별 페이지 | 집핀 - 서울 재개발 지도', desc=f'서울 진행 중 정비사업 {len(R)}곳의 구역별 진행 단계·실거래·노후도·입주까지 필요한 현금. 데이터 기준 {UPD}.', url=f'{SITE}/z/', site=SITE,
+idx = [HEAD.format(title='서울 정비사업 구역별 페이지 | 집핀 - 서울 재개발 지도', desc=f'서울 진행 중 정비사업 {len(R)}곳의 구역별 진행 단계·실거래·노후도·입주까지 현금. 데이터 기준 {UPD}.', url=f'{SITE}/z/', site=SITE,
                   ld=json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": "서울 정비사업 구역별 페이지", "url": f"{SITE}/z/", "inLanguage": "ko"}, crumbs(("집핀", SITE + "/"), ("구역별 페이지", f"{SITE}/z/"))]}, ensure_ascii=False)).replace('<meta name="emr-auto" content="1">\n', '')]
-idx.append(f'<p class="eyebrow">구역별 페이지 · 데이터 기준 {UPD}</p><h1>서울 정비사업 구역별 페이지</h1><p class="lede">서울에서 진행 중인 재개발·재건축·가로주택 {len(R)}곳을 구역마다 한 페이지로 정리했어요. 진행 단계와 인가 이력, 구역 안 실거래, 노후도, 권리산정기준일, 기본 가정의 입주까지 필요한 현금이 있어요. 매일 자동 갱신돼요.</p>')
+idx.append(f'<p class="eyebrow">구역별 페이지 · 데이터 기준 {UPD}</p><h1>서울 정비사업 구역별 페이지</h1><p class="lede">서울에서 진행 중인 재개발·재건축·가로주택 {len(R)}곳을 구역마다 한 페이지로 정리했어요. 진행 단계와 인가 이력, 구역 안 실거래, 노후도, 권리산정기준일, 기본 가정의 지금 필요한 돈과 입주까지 현금이 있어요. 매일 자동 갱신돼요.</p>')
 idx.append(CNT_NOTE)
 if hand: idx.append('<h2>기사·고시로 대조해 정리한 구역</h2><p>규모가 커서 확인할 거리가 많은 구역은 기사·고시와 정비사업 정보몽땅 등록값을 대조한 이야기를 붙였어요.</p><div class="grid2">' + ''.join(li(x) for x in hand if x['id'] in {y['id'] for y in R}) + '</div>')
 for g in sorted(byg): idx.append(f'<h2><a href="../gu/{esc(g)}">{esc(g)}</a> <small class="meta">{len(byg[g])}곳</small></h2><div class="grid2">' + ''.join(li(x) for x in sorted(byg[g], key=lambda x: -x.get('s', 0))) + '</div>')
@@ -411,7 +464,7 @@ def guPage(g, L):
     cheap = sorted(ok, key=lambda x: c(x)['gapNow'])[:3]
     st = collections.Counter(c(x).get('stage') or x.get('sr') or '' for x in L)
     title = f'{g} 재개발·재건축 {len(L)}곳 · 진행 단계와 필요한 돈 | 집핀 - 서울 재개발 지도'
-    desc = f'{g}에서 진행 중인 정비사업 {len(L)}곳. ' + (f'전세 끼고 가장 적은 돈으로 살 수 있는 곳은 {short(cheap[0]["n"])}(지금 {eok(c(cheap[0])["gapNow"])}). ' if cheap else '') + f'데이터 기준 {UPD}.'
+    desc = f'{g}에서 진행 중인 정비사업 {len(L)}곳. ' + (f'전세 끼고 가장 적은 돈으로 갈 수 있는 곳은 {short(cheap[0]["n"])}(지금 {eok(c(cheap[0])["gapNow"])}). ' if cheap else '') + f'데이터 기준 {UPD}.'
     gc = next((x.get('c') for x in (GEO.get('gu') or []) if x['n'] == g), None)
     area = {"@type": "AdministrativeArea", "name": f"서울특별시 {g}", "url": url, "address": {"@type": "PostalAddress", "addressCountry": "KR", "addressRegion": "서울특별시", "addressLocality": g}}
     if gc: area["geo"] = {"@type": "GeoCoordinates", "latitude": round(gc[1], 5), "longitude": round(gc[0], 5)}
@@ -434,7 +487,7 @@ def guPage(g, L):
         return '–'
     rows = ''.join(f'<tr><td><a href="{x["id"]}"{(' title="' + esc(x["n"].strip()) + '"') if short(x["n"]) != x["n"].strip() else ''}>{esc(short(x["n"]))}</a><br><small>{esc(KIND.get(x["k"], x["k"]))} · {esc(c(x).get("stage") or x.get("sr") or "")}</small></td><td class="n">{eok(c(x).get("gapNow")) if c(x).get("gapOk") else ('<small>' + gapWhy(c(x))[0] + ('<sup>*</sup>' if gapWhy(c(x))[0] == '토허제' else '') + '</small>' if gapWhy(c(x)) else "–")}</td><td class="n">{tot(x)}</td></tr>' for x in sorted(L, key=rowkey))
     o.append(f'<div class="tw"><table class="t" style="min-width:0;width:100%"><thead><tr><th>구역</th><th class="n">전세 끼고 지금</th><th class="n">입주까지 현금</th></tr></thead><tbody>{rows}</tbody></table></div>')
-    o.append('<p class="meta">입주까지 현금(입주 잔금대출 제외): 전세 끼고 살 수 있는 곳은 <b>전세 끼고 산 경우</b>(앱 첫 화면과 같은 값), 전세를 낄 수 없는 곳은 <b>현금 매수 시</b> 금액이에요.' + (' <sup>*</sup><b>토허제</b> = 토지거래허가구역. 사면 2년 동안 직접 살아야 해서 전세를 끼고 살 수 없어요.' if any((gapWhy(c(x)) or ('',))[0] == '토허제' for x in L) else '') + '</p>')
+    o.append('<p class="meta">입주까지 현금(입주 잔금대출 제외): 전세 끼고 갈 수 있는 곳은 <b>전세 끼고 산 경우</b>(앱 첫 화면과 같은 값), 전세를 낄 수 없는 곳은 <b>현금 매수 시</b> 금액이에요.' + (' <sup>*</sup><b>토허제</b> = 토지거래허가구역. 사면 2년 동안 직접 살아야 해서 전세를 끼고 살 수 없어요.' if any((gapWhy(c(x)) or ('',))[0] == '토허제' for x in L) else '') + '</p>')
     why = collections.Counter(gapWhy(c(x))[0] for x in L if not c(x).get('gapOk') and gapWhy(c(x)))
     EXP = {'토허제': '토지거래허가구역이라 사면 2년 실거주해야 해서 전세를 끼고 살 수 없어요', '세입자 없음': '이주·철거가 시작돼 전세를 낄 세입자가 없어요(입주권으로 사야 해요)',
            '입주권 없음': '지금 사면 입주권이 안 나오는 시점이에요(조합설립인가 등 이후 매수분)', '판정 보류': '입주권이 나오는지 판단할 자료가 부족해요', '계산 안 함': '상가·업무 중심 사업 등 아파트 입주권 계산 대상이 아니에요'}

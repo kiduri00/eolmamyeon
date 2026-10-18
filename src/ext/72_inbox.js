@@ -82,7 +82,7 @@ const INBOX = (() => {
   function condHTML() {
     const A = CH ? CH.items.filter((e) => e.type === "auction" && byId[e.id]) : [], P = new Set(pinIds());
     const noAu = isOff("auction"), noAdd = isOff("price");
-    const L = conds().map((n) => { const I = new Set(n.ids); if (noAdd) n = Object.assign({}, n, { add: [] }); return Object.assign(n, { au: noAu ? [] : A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0) && !(e.mn > n.c.cash * 1.1 + 1e-9)) })   /* 경매: 조건 현금(+10%)을 넘는 물건은 '살 수 있는 곳'에 넣지 않는다(condAuc·푸시와 같은 기준) */; }).filter((n) => n.add.length || n.au.length);
+    const L = conds().map((n) => { const I = new Set(n.ids); if (noAdd) n = Object.assign({}, n, { add: [] }); return Object.assign(n, { au: noAu ? [] : A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0) && !(e.mn > n.c.cash * 1.1 + 1e-9)) })   /* 경매: 조건 현금(+10%)을 넘는 물건은 '갈 수 있는 곳'에 넣지 않는다(condAuc·푸시와 같은 기준) */; }).filter((n) => n.add.length || n.au.length);
     if (!L.length) return "";
     const F = new Set(freshN() ? PINS.freshIds() : []);
     return `<section class="ib-sec" aria-labelledby="ibCT"><h4 id="ibCT">내 돈으로 갈 수 있는 곳 알림</h4>${L.map((n) => {
@@ -93,14 +93,14 @@ const INBOX = (() => {
   }
   function pinHTML() {
     const P = pinIds();
-    if (!P.length) return conds().length ? "" : `<div class="ib-empty">${bellSvg(30)}<p><b>관심 구역 소식을 여기 모아 드려요</b><br>구역에서 '핀 꽂고 알림 받기'를 누르면 새 실거래·단계·경매 소식을 알려 드려요</p><button type="button" class="btn primary sm" data-ibmap>지도에서 구역 고르기</button></div>`;
+    if (!P.length) return conds().length ? "" : `<div class="ib-empty">${bellSvg(30)}<p><b>관심 구역 소식을 여기 모아 드려요</b><br>구역에서 '♡ 관심 구역에 추가'를 누르면 새 실거래·단계·경매 소식을 알려 드려요</p><button type="button" class="btn primary sm" data-ibmap>지도에서 구역 고르기</button></div>`;
     if (!CH) return `<p class="ib-note">소식을 불러오는 중이에요…</p>`;
     const E = pinEvents();
     if (!E.length) return `<section class="ib-sec" aria-labelledby="ibPT"><h4 id="ibPT">관심 구역 소식</h4><p class="ib-note">최근 30일 동안 관심 구역 ${P.length}곳에 새 소식이 없어요</p></section>`;
     const by = new Map(); E.slice(0, 80).forEach((e) => { if (!by.has(e.date)) by.set(e.date, []); by.get(e.date).push(e); });
     return `<section class="ib-sec" aria-labelledby="ibPT"><h4 id="ibPT">관심 구역 소식</h4>${[...by].map(([d, L]) => `<h5 class="ib-d">${dLabel(d)}</h5><ul>${L.map((e) => { const r = byId[e.id], [tl, tc] = TY[e.type], nw = unread(e); return `<li><button type="button" class="ib-it${nw ? " new" : ""}" data-open="${e.id}"><span class="ib-tg ${e.hi ? "hi" : tc}">${e.hi ? "신고가" : tl}</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(e.text)}${e.type === "auction" && overCash(e) ? " · 참고 · 내 돈 초과" : ""}</small></span>${nw ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("")}</ul>`).join("")}</section>`;
   }
-  // 핀 구역 경매: 대표 최저가가 지금 내 현금(+10%)을 넘으면 '참고'로 표시
+  // 핀 구역 경매: 대표 최저가가 지금 내 돈(+10%)을 넘으면 '참고'로 표시
   const overCash = (e) => { let c = null; try { c = CASH; } catch (er) {} return c != null && e.mn > c * 1.1 + 1e-9; };
   const foot = () => (CH && CH.asOf ? `<p class="ib-foot">최근 ${CH.days || 30}일 · 매일 아침 갱신 · ${CH.asOf.slice(5).replace("-", ".")} 기준</p>` : "");
   function body() { return `${pushBox()}${condHTML()}${pinHTML()}${foot()}`; }
@@ -245,7 +245,7 @@ const INBOX = (() => {
     ov.className = "pn-ov ws-ov"; ov.id = "wsSheet";
     const render = (push) => `<div class="pn-dlg ws-dlg" role="dialog" aria-modal="true" aria-labelledby="wsT" aria-describedby="wsD">
       <span class="ws-ic" aria-hidden="true">${bellSvg(26)}</span>
-      <h3 id="wsT" tabindex="-1">${kind === "cond" ? "이 돈으로 살 수 있는 곳이 생기면 알려 드릴게요" : `${esc(r ? shortName(r.n) : "관심 구역")} 소식을 알려 드릴게요`}</h3>
+      <h3 id="wsT" tabindex="-1">${kind === "cond" ? "이 돈으로 갈 수 있는 곳이 생기면 알려 드릴게요" : `${esc(r ? shortName(r.n) : "관심 구역")} 소식을 알려 드릴게요`}</h3>
       <p id="wsD">${push ? "이런 일이 생기면 폰 알림으로 알려 드려요" : "이런 일이 생기면 소식 탭에 모아 알려 드려요"}</p>
       <ul class="ws-l">${items.map(([k, t]) => `<li><span class="ws-li ${k}">${ic(k)}</span>${t}</li>`).join("")}</ul>
       ${push ? `<button type="button" class="btn primary ws-go" data-wson>${bellSvg(18)}알림 받기</button>` : ios && canI ? "" : `<p class="ws-note">새 소식은 아래 ${bellSvg(14)} 소식 탭에 모아 드려요</p>`}

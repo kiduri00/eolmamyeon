@@ -148,7 +148,8 @@ function parseZ(html) {
   m = /계산 매수가\n([^\n]+)\n=\s*([^\n]+)/.exec(t);
   if (m) { o.buyV = money(m[1]); o.buyBasis = m[2]; o.buyN = intOf((/([\d,]+)건/.exec(m[2]) || [])[1]); }
   m = /매수가 표본 ([\d,]+)건/.exec(t); if (m) o.trustN = intOf(m[1]);
-  m = /(전세 끼고|현금으로 사면|대출 끼고)? ?입주까지 현금\n([\d.,]+억|[\d,]+만|0원)/.exec(t); if (m) { o.ipjuMode = m[1] || ""; o.ipju = money(m[2]); }
+  m = /(전세 끼고|현금으로 사면|대출 끼고) 입주까지 현금\n([\d.,]+억|[\d,]+만|0원)/.exec(t) || /()입주까지 현금\n([\d.,]+억|[\d,]+만|0원)/.exec(t); if (m) { o.ipjuMode = m[1] || ""; o.ipju = money(m[2]); }
+  { const k = /<section class="zk"[\s\S]*?<\/section>/.exec(html); if (k) { const kt = htmlText(k[0]); const g = (l) => { const x = new RegExp(l + "\\n([^\\n]+)").exec(kt); return x ? x[1].trim() : null; }; o.key = { now: g("지금 필요한 돈"), tot: g("입주까지 현금"), eta: g("언제 입주"), labs: ["지금 필요한 돈", "입주까지 현금", "언제 입주"].filter((l) => kt.includes(l + "\n")).join("|"), mail: (/href="(mailto:[^"]+)"[^>]*>이 숫자가 틀렸어요/.exec(html) || [])[1] || "" }; } }
   m = /현금으로 사면 ([\d.,]+억|[\d,]+만|0원)/.exec(t); if (m) o.cashTotal = money(m[1]);
   m = /데이터 기준 (\d{4}\.\d\d\.\d\d)/.exec(t); if (m) o.asof = m[1];
   return o;
@@ -581,8 +582,8 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
       }
       await page.evaluate(() => { const b = document.querySelector('#report [role=tab][data-tab="money"]'); b && b.click(); });
       const all = [ov, ...Object.values(pane)].join("\n");
-      const pinBtns = await page.evaluate(() => [...document.querySelectorAll("#report button, #report a")].filter((b) => window.__qc.vis(b) && /핀 꽂(기|고)/.test(b.textContent)).length);
-      const R = parseRep(ov);
+      const pinBtns = await page.evaluate(() => [...document.querySelectorAll("#report button, #report a")].filter((b) => window.__qc.vis(b) && /핀 꽂(기|고)|관심 구역에 (추가|있어요)/.test(b.textContent)).length);
+      const R = parseRep(ov); { const R2 = parseRep(all); for (const k of Object.keys(R2)) if (R[k] == null || (Array.isArray(R[k]) && !R[k].length)) R[k] = R2[k]; }   // 머리 블록이 섹션 탭 안으로 옮겨져(76_detail.js) 모든 탭 글자에서도 찾는다
       // 글자 결함
       const bt = badText(all);
       expect(!bt.length, "zone.text", "리포트(모든 탭)에 NaN·undefined·–억·곳를·겹친 낱말·1건 가운데 값·m² 없음", `${where}: ${bt.join(" ; ")}`);
@@ -596,14 +597,15 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
         expect(new RegExp(`^예정 ${aucI.cards}건( · 물건 \\d+개)?$`).test(aucI.head), "zone.aucCount", T, `${where}: head "${aucI.head}" vs ${aucI.cards} cards`);
         expect(!/\d분의\d|단독주택다가구|연립주택,다세대/.test(aucI.raw), "zone.aucText", "경매 지분·용도는 읽는 말로('지분 약 9.8%' · '단독·다가구')", `${where}: ${aucI.raw.slice(0, 120)}`);
       }
-      expect(pinBtns <= 1, "zone.pin1", "리포트에 '핀 꽂기' 버튼 하나", `${where}: ${pinBtns} visible 핀 꽂기 buttons`);
+      expect(pinBtns <= 1, "zone.pin1", "리포트에 '관심 구역에 추가' 버튼 하나", `${where}: ${pinBtns} visible 관심 구역 buttons`);
       // 표본 n: 큰 숫자 == 매수가 == 신뢰 상자
       const ns = [R.hdN, R.buyN, R.trustN].filter((x) => x != null && !isNaN(x));
       if (ns.length >= 2) expect(new Set(ns).size === 1, "zone.sample", "리포트 큰 숫자·계산 매수가·'믿어도 될까'가 같은 표본 n건", `${where}: 큰 숫자 ${R.hdN}건 ("${(R.hdBasis || "").slice(0, 50)}") · 매수가 ${R.buyN}건 · 신뢰 ${R.trustN}건`);
       if (R.excerpt1 && R.trustLast) expect(R.excerpt1 === R.trustLast, "zone.excerpt", "리포트 거래 발췌 첫 줄 == '마지막 거래'(최신 먼저)", `${where}: excerpt first ${R.excerpt1} vs 마지막 거래 ${R.trustLast}`);
       // 비교표(1km 안 다른 구역)의 이 구역 3.3㎡ 값 == 큰 숫자
-      if (pane.near && R.hdV && /3\.3㎡/.test(R.hdLabel || "")) {
-        const m = /3\.3㎡당 실거래[^\n\t]*\t([^\t\n]+)/.exec(pane.near);
+      const pNear = pane.near || pane.loc;   // '호재' 탭은 '입지' 탭 아래로 합쳐졌다
+      if (pNear && R.hdV && /3\.3㎡/.test(R.hdLabel || "")) {
+        const m = /3\.3㎡당 실거래[^\n\t]*\t([^\t\n]+)/.exec(pNear);
         if (m && money(m[1])) expect(eqMoney(money(m[1]), R.hdV), "zone.cmp", "'1km 안 비교' 표의 이 구역 3.3㎡ 값 == 리포트 큰 숫자", `${where}: 비교표 ${m[1]} vs 큰 숫자 ${fm(R.hdV)}`);
       }
       // 입주까지 현금: 리포트 안 모든 자리 같음 == 목록 == API == /z
@@ -640,6 +642,13 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
         if (Z.hdN && R.hdN) expect(Z.hdN === R.hdN, "zone.vsZ", "리포트 큰 숫자·표본 n·계산 매수가·입주까지 현금 == /z 페이지", `${where}: 큰 숫자 표본 app ${R.hdN}건 vs /z ${Z.hdN}건`);
         if (Z.buyV && R.buyV) expect(eqMoney(Z.buyV, R.buyV), "zone.vsZ", "리포트 큰 숫자·표본 n·계산 매수가·입주까지 현금 == /z 페이지", `${where}: 계산 매수가 app ${fm(R.buyV)} vs /z ${fm(Z.buyV)}`);
         if (Z.trustN && R.trustN) expect(Z.trustN === R.trustN, "zone.vsZ", "리포트 큰 숫자·표본 n·계산 매수가·입주까지 현금 == /z 페이지", `${where}: 신뢰 표본 app ${R.trustN} vs /z ${Z.trustN}`);
+        // 첫 화면 3숫자: 앱 상세 == /z (같은 이름 · 같은 값 · 전세 끼고 기본)
+        { const K = await page.evaluate(() => { const k = document.querySelector("#report .dt-k"); if (!k) return null; const g = (q) => { const e = k.querySelector(`[data-k="${q}"] .dt-v`); return e ? e.textContent.trim() : null; }; return { now: g("now"), tot: g("tot"), eta: g("eta"), labs: [...k.querySelectorAll(".dt-l")].map((e) => e.textContent.trim()) }; });
+          const T = "첫 화면 3숫자(지금 필요한 돈 · 입주까지 현금 · 언제 입주) 앱 == /z 페이지(이름·값)";
+          if (!K) bad("zone.key3", T, `${where}: no .dt-k in report head`);
+          else if (!Z.key) bad("zone.key3", T, `/z/${zid}: no key3 block`);
+          else { expect(K.now === Z.key.now && K.tot === Z.key.tot && K.eta === Z.key.eta, "zone.key3", T, `${where}: app ${K.now} / ${K.tot} / ${K.eta} vs /z ${Z.key.now} / ${Z.key.tot} / ${Z.key.eta}`);
+                 expect(K.labs.join("|") === "지금 필요한 돈|입주까지 현금|언제 입주" && Z.key.labs === "지금 필요한 돈|입주까지 현금|언제 입주", "zone.key3", T, `${where}: labels app ${K.labs.join("|")} vs /z ${Z.key.labs}`); } }
         if (Z.ipju && ip.length && /전세/.test(Z.ipjuMode)) expect(eqMoney(Z.ipju, money(ip[0])), "zone.vsZ", "리포트 큰 숫자·표본 n·계산 매수가·입주까지 현금 == /z 페이지", `${where}: 입주까지 현금 app ${ip[0]} vs /z ${fm(Z.ipju)}`);
       } else bad("zone.vsZ", "리포트 큰 숫자·표본 n·계산 매수가·입주까지 현금 == /z 페이지", `/z/${zid} → ${zr.status}`);
     }
@@ -949,9 +958,10 @@ async function deskLane(browser, errs) {
     {
       const T = "PC 상세는 칸 안에서 따로 스크롤하지 않음 · 딥링크 열면 상세 머리가 머리줄 밑 · 휠이 페이지를 내림";
       await loadHome(page2, "#o337"); await page2.waitForTimeout(2200);
-      const a = await page2.evaluate(() => { const e = document.getElementById("report"), cs = getComputedStyle(e), h = document.getElementById("hdr").getBoundingClientRect().bottom; return { ov: cs.overflowY, sh: e.scrollHeight, ch: e.clientHeight, top: Math.round(e.getBoundingClientRect().top), hb: Math.round(h), y: Math.round(scrollY) }; });
+      const a = await page2.evaluate(() => { const e = document.getElementById("report"), cs = getComputedStyle(e), h = document.getElementById("hdr").getBoundingClientRect().bottom; const g = document.getElementById("sGauge"), gb = g && g.offsetParent ? g.getBoundingClientRect() : null; return { ov: cs.overflowY, sh: e.scrollHeight, ch: e.clientHeight, top: Math.round(e.getBoundingClientRect().top), hb: Math.round(h), y: Math.round(scrollY), gt: gb ? Math.round(gb.top) : null, gbt: gb ? Math.round(gb.bottom) : null }; });
       expect(!((a.ov === "auto" || a.ov === "scroll") && a.sh > a.ch + 2), "ui.repFlow", T, `#report overflow-y ${a.ov} scrollHeight ${a.sh} > clientHeight ${a.ch}`);
-      expect(a.top >= a.hb - 2 && a.top <= a.hb + 120, "ui.repFlow", T, `#o337 deep link: report top ${a.top} vs header bottom ${a.hb} (scrollY ${a.y})`);
+      // 리뉴얼 4단계: 상세를 열어도 예산 카드가 위에 남는다 → 상세 머리는 머리줄 밑이거나, 머리줄 밑 예산 카드 바로 아래
+      expect(a.top >= a.hb - 2 && (a.top <= a.hb + 120 || (a.gt != null && a.gt >= a.hb - 2 && a.gt <= a.hb + 40 && a.top <= a.gbt + 90)), "ui.repFlow", T, `#o337 deep link: report top ${a.top} vs header bottom ${a.hb} · budget card ${a.gt}–${a.gbt} (scrollY ${a.y})`);
       // 휠은 페이지를 내린다(딥링크 직후 지도 그리기로 바쁘면 늦게 반영될 수 있어 최대 8초 기다림)
       // 상세 칸 위에서 휠(리뉴얼 2단계: PC 목록·상세 칸이 왼쪽, 지도가 오른쪽 — 칸 자리를 재서 그 위로)
       const rp = await page2.evaluate(() => { const r = document.getElementById("report").getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(Math.min(innerHeight - 100, Math.max(r.top + 200, 300)))]; });
@@ -1130,7 +1140,7 @@ async function r14Lane(browser, api, errs) {
     // 핀 꽂기 토스트가 '실행 취소' 밑으로 넘치지 않음 · 관심 구역 카드 '대출 1.8억'(붙여 쓰기 없음)
     {
       await loadHome(page, "#o281"); await page.waitForTimeout(1800);
-      const b = await page.$(".sheet-bar .pn-hpin, .rep-t .pn-hpin");
+      const b = await page.$("#report .dt-fav, .sheet-bar .pn-hpin, .rep-t .pn-hpin");
       if (b) {
         // 앱이 다 붙은 뒤 누른다(바쁜 기계에서 섬 단계에 누르면 토스트 없이 늦게 처리되던 것 — 이전 SKIP 원인) · 토스트는 2.5초까지 기다림
         await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.PINS === "object", null, { timeout: 10000 }).catch(() => {});
@@ -1338,6 +1348,127 @@ async function r3Lane(browser, errs) {
   } catch (e) { bad("runtime", "검사 실행", "r3Lane crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await ctx.close().catch(() => {}); }
 }
+// ================================================================ 리뉴얼 4·5단계: 상세 첫 화면 3숫자 · 숫자 신고 · 용어집 · 면책 한 번
+// 용어집(docs/benchmark_brief.md 1-8): 내 돈 / 지금 필요한 돈 / 입주까지 현금 / 입주 / 관심 구역 / 갈 수 있는 곳 — 같은 개념의 다른 이름은 실패
+const TERM_BAN = [
+  [/가능 금액/, "가능 금액 → 지금 필요한 돈·내 돈"], [/살 수 있는 곳/, "살 수 있는 곳 → 갈 수 있는 곳"], [/이 돈이면/, "이 돈이면 → 갈 수 있는 곳"],
+  [/필요 현금|필요한 현금|필요 돈/, "필요 현금 → 지금 필요한 돈·입주까지 현금"], [/(?<!집)핀(?!\s*Zippin)/, "핀(저장한 구역) → 관심 구역"], [/부족액|부족분/, "부족액 → 'N 더 필요해요'"],
+  [/내 현금/, "내 현금 → 내 돈"], [/찜|즐겨찾기/, "찜 → 관심 구역"], [/관심구역|관심 지역/, "관심구역 → 관심 구역"], [/입주까지 총/, "입주까지 총 → 입주까지 현금"],
+  [/(?<![가-힣])갭(?![가-힣]*투자)/, "갭 → 전세 끼고"], [/실행 취소/, "실행 취소 → 되돌리기"],
+];
+const TERM_FIRST = [[/권리가액/, /내 지분 값\(권리가액\)/, "권리가액 첫 언급 → '내 지분 값(권리가액)'"], [/프리미엄/, /웃돈\(프리미엄\)/, "프리미엄 첫 언급 → '웃돈(프리미엄)'"]];
+function termScan(txt, where) {
+  const T = "용어집만: 같은 개념을 다른 말로 부르지 않음(가능 금액·살 수 있는 곳·이 돈이면·필요 현금·핀·부족액·내 현금…) · 권리가액·프리미엄 첫 언급은 쉬운 말(원래 말)";
+  const hits = [];
+  for (const [re, nm] of TERM_BAN) { const m = new RegExp(".{0,18}" + re.source + ".{0,18}").exec(txt); if (m) hits.push(`[${nm}] "${m[0].replace(/\s+/g, " ")}"`); }
+  for (const [re, full, nm] of TERM_FIRST) { const i = txt.search(re); if (i >= 0) { const j = txt.search(full); if (j < 0 || j > i - 6) hits.push(`[${nm}] "${txt.slice(Math.max(0, i - 14), i + 14).replace(/\s+/g, " ")}"`); } }
+  expect(!hits.length, "term.glossary", T, `${where}: ${hits.slice(0, 3).join(" ; ")}`);
+  const dn = (txt.match(/투자 권유/g) || []).length;
+  expect(dn <= 1, "term.disclaimer", "면책 문구('투자 권유 아님')는 화면마다 한 번 이하 · 구역 상세는 맨 아래 한 번", `${where}: ${dn} times`);
+}
+async function r4Lane(browser, api, errs) {
+  const { ctx, page } = await newPage(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }, errs);
+  const ids = new Set(api.zones.map((z) => z.id));
+  try {
+    await loadHome(page);
+    await setMode(page, "gap");
+    termScan(await page.evaluate(() => document.body.innerText), "home(지도·예산 카드·갈 수 있는 곳 목록)");
+    // ---- zone.fold3: 390×844 첫 화면(스크롤 전)에 3숫자 + 신뢰 한 줄 · 입주권 안 나오는 구역 포함 5곳 ----
+    const cheap = api.zones.filter((z) => z.need.gap.now != null).sort((a, b) => a.need.gap.now - b.need.gap.now).map((z) => z.id);
+    const FOLD = [...new Set(["o916", "o337", "o586", "o281", "o419", ...cheap.slice(0, 2)])].filter((i) => ids.has(i)).slice(0, 6);
+    const T3 = "상세 첫 화면(390×844, 스크롤 전)에 3숫자(지금 필요한 돈 · 입주까지 현금 · 언제 입주/입주권) + 신뢰 한 줄 · 추정 칩 하나";
+    let noIp = 0;
+    for (const zid of FOLD) {
+      page.__where = "#" + zid;
+      await page.evaluate(() => { const t = document.getElementById("repTitle"); if (t) t.__qcOld = 1; });
+      await page.evaluate((i) => { location.hash = "#" + i; }, zid);
+      const opened = await page.waitForFunction(() => { const t = document.getElementById("repTitle"); return t && !t.__qcOld && document.querySelector("#report .dt-trust"); }, null, { timeout: 8000, polling: 80 }).then(() => true, () => false);
+      if (!opened) { bad("zone.fold3", T3, `#${zid}: report or trust line did not render`); continue; }
+      await page.waitForTimeout(500);
+      const f = await page.evaluate(() => {
+        const rp = document.getElementById("report"); rp.scrollTop = 0;
+        const H = innerHeight, bar = rp.querySelector(".dt-bar"), bh = bar ? bar.getBoundingClientRect().height : 0;
+        const its = [...rp.querySelectorAll(".dt-k .dt-i")].map((e) => { const b = e.getBoundingClientRect(), v = e.querySelector(".dt-v"); return { k: e.dataset.k, l: (e.querySelector(".dt-l") || {}).textContent, v: v ? v.textContent.trim() : "", fs: v ? parseFloat(getComputedStyle(v).fontSize) : 0, fw: v ? +getComputedStyle(v).fontWeight : 0, tab: v ? getComputedStyle(v).fontVariantNumeric : "", bot: Math.round(b.bottom), top: Math.round(b.top) }; });
+        const tr = rp.querySelector(".dt-trust"), tb = tr && tr.getBoundingClientRect();
+        const ip = rp.querySelector('.dt-k [data-k="eta"] .dt-ip');
+        const head = rp.querySelector(".rep-head"); const est = head ? (head.innerText.match(/추정/g) || []).length : 0;
+        return { H, bh: Math.round(bh), its, trBot: tb ? Math.round(tb.bottom) : null, trTxt: tr ? tr.innerText.replace(/\s+/g, " ") : "", ip: ip ? ip.innerText.replace(/\s+/g, " ") : "", est, noip: !!rp.querySelector(".dt-top .ov-noip") };
+      });
+      const lim = f.H - f.bh;
+      const labs = f.its.map((x) => x.l).join("|");
+      expect(f.its.length === 3 && labs === "지금 필요한 돈|입주까지 현금|언제 입주", "zone.fold3", T3, `#${zid}: items ${labs}`);
+      expect(f.its.every((x) => x.v && x.bot <= lim), "zone.fold3", T3, `#${zid}: item bottoms ${f.its.map((x) => x.bot).join("/")} > fold ${lim} (viewport ${f.H} − bar ${f.bh})`);
+      expect(f.trBot != null && f.trBot <= lim, "zone.fold3", T3, `#${zid}: trust line bottom ${f.trBot} > fold ${lim}`);
+      expect(f.its.every((x) => x.fs >= 24 && x.fw >= 700 && /tabular-nums/.test(x.tab)), "zone.fold3", T3, `#${zid}: number style ${f.its.map((x) => `${x.fs}/${x.fw}/${x.tab}`).join(" ")}`);
+      expect(f.est <= 1, "zone.fold3", T3, `#${zid}: '추정' ${f.est} times on first screen`);
+      expect(/^입주권 /.test(f.ip), "zone.fold3", T3, `#${zid}: 입주권 chip "${f.ip}"`);
+      if (/✕/.test(f.ip)) { noIp++; expect(f.noip && /계산 안 함/.test(f.trTxt), "zone.fold3", T3, `#${zid}: no-입주권 zone needs red note + '계산 안 함' trust line (note ${f.noip}, "${f.trTxt}")`); }
+      // ---- zone.report: '이 숫자가 틀렸어요' → 메일(구역 ID 자동) · 주소 복사 · 고마워요 ----
+      if (FOLD.indexOf(zid) < 3) {
+        const TR = "'이 숫자가 틀렸어요': 메일 제목 '[집핀 신고] <구역 ID> <이름>' · 본문에 구역 ID·주소·데이터 기준·고른 이유 · 주소 보이고 복사 · 누르면 '고마워요. 확인 후 반영할게요'";
+        const rr = await page.evaluate(async () => {
+          const b = document.querySelector("#report [data-dtrep]"); if (!b) return { none: 1 };
+          b.click(); await new Promise((r) => setTimeout(r, 250));
+          const s = document.getElementById("dtRep"); if (!s) return { nosheet: 1 };
+          const st = s.querySelector('input[value="stage"]'); if (st) { st.click(); st.dispatchEvent(new Event("change", { bubbles: true })); }
+          const tx = document.getElementById("dtRepTx"); tx.value = "QA 확인"; tx.dispatchEvent(new Event("input", { bubbles: true }));
+          const go = document.getElementById("dtRepGo"), href = go.getAttribute("href");
+          document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("#dtRepGo")) e.preventDefault(); }, { capture: true, once: true });
+          go.click(); await new Promise((r) => setTimeout(r, 450));
+          const ok = document.getElementById("dtRepOk"), ad = document.getElementById("dtRepAd");
+          const out = { href, ok: ok && !ok.hidden ? ok.innerText : "", ad: ad ? ad.value : "", cp: !!document.getElementById("dtRepCp"), radios: s.querySelectorAll("input[name=dtWhy]").length };
+          s.querySelector("[data-dtx].dt-rs-x").click(); await new Promise((r) => setTimeout(r, 100));
+          out.closed = !document.getElementById("dtRep");
+          return out;
+        });
+        if (rr.none || rr.nosheet) bad("zone.report", TR, `#${zid}: ${rr.none ? "no button" : "sheet did not open"}`);
+        else {
+          let subj = "", body = ""; try { const u = new URL(rr.href); subj = decodeURIComponent((/[?&]subject=([^&]*)/.exec(rr.href) || [])[1] || ""); body = decodeURIComponent((/[?&]body=([^&]*)/.exec(rr.href) || [])[1] || ""); } catch (e) {}
+          expect(/^mailto:[^?]+@[^?]+\?/.test(rr.href) && subj.startsWith(`[집핀 신고] ${zid} `), "zone.report", TR, `#${zid}: href ${String(rr.href).slice(0, 80)} subject "${subj}"`);
+          expect(body.includes(`구역 ID: ${zid}`) && /데이터 기준: \d{4}\.\d\d\.\d\d/.test(body) && body.includes(`/z/${zid}`) && /틀린 곳: 단계/.test(body) && body.includes("QA 확인"), "zone.report", TR, `#${zid}: body "${body.replace(/\n/g, " | ").slice(0, 160)}"`);
+          expect(rr.radios === 5 && /@/.test(rr.ad) && rr.cp, "zone.report", TR, `#${zid}: radios ${rr.radios} address "${rr.ad}" copy ${rr.cp}`);
+          expect(/고마워요\. 확인 후 반영할게요/.test(rr.ok) && rr.closed, "zone.report", TR, `#${zid}: confirmation "${rr.ok}" closed ${rr.closed}`);
+        }
+      }
+    }
+    if (FOLD.length && !noIp) bad("zone.fold3", T3, "no 입주권 ✕ zone among fold samples");
+    // ---- 상세 3곳 × 탭 5개 용어 · 면책(맨 아래 한 번) ----
+    for (const zid of ["o916", "o337", "o586"].filter((i) => ids.has(i))) {
+      await page.evaluate((i) => { location.hash = "#" + i; }, zid);
+      await page.waitForFunction((i) => window.__zpCur && window.__zpCur() === i && document.querySelector("#report .dt-end"), zid, { timeout: 8000, polling: 100 }).catch(() => {});
+      await page.waitForTimeout(400);
+      for (const k of ["money", "biz", "tx", "loc", "req"]) {
+        await page.evaluate((k) => { const t = document.querySelector(`#report [role=tab][data-tab="${k}"]`); t && t.click(); }, k);
+        await page.waitForTimeout(700);
+        const t = await page.evaluate(() => document.getElementById("report").innerText);
+        termScan(t, `detail #${zid}/${k}`);
+        if (k === "money") { const endT = await page.evaluate(() => (document.querySelector("#report .dt-end") || {}).innerText || ""); expect((t.match(/투자 권유/g) || []).length === 1 && /투자 권유/.test(endT), "term.disclaimer", "면책 문구('투자 권유 아님')는 화면마다 한 번 이하 · 구역 상세는 맨 아래 한 번", `detail #${zid}: ${(t.match(/투자 권유/g) || []).length} in report, bottom block has it: ${/투자 권유/.test(endT)}`); }
+      }
+      await page.evaluate(() => { const x = document.getElementById("sheetClose"); x && x.click(); });
+      await page.waitForTimeout(500);
+    }
+    // ---- 관심 · 소식 · MY (아래 탭) ----
+    await page.evaluate(() => { try { localStorage.setItem("jg-fav", JSON.stringify(["o916", "o337"])); } catch (e) {} });
+    await loadHome(page);
+    for (const n of ["fav", "news", "my"]) {
+      await page.evaluate((n) => { const e = [...document.querySelectorAll(`[data-nav="${n}"]`)].find((x) => x.offsetParent); e && e.click(); }, n);
+      await page.waitForTimeout(1300);
+      termScan(await page.evaluate(() => document.body.innerText), `tab ${n}`);
+    }
+    await page.evaluate(() => { try { localStorage.removeItem("jg-fav"); } catch (e) {} });
+  } catch (e) { bad("runtime", "검사 실행", "r4Lane crashed: " + String(e.message || e).split("\n")[0]); }
+  finally { await ctx.close().catch(() => {}); }
+  // ---- 정적 /z 5곳 · /gu 2곳: 용어 · 면책 · 첫 화면 3숫자 · 신고 메일 ----
+  const zs = ["o916", "o337", "o586", "o1048", "o1173"].filter((i) => ids.has(i) || i === "o1048");
+  for (const zid of zs) {
+    const r = await getPage("/z/" + zid); if (r.status !== 200) { bad("z.key3", "/z 첫 화면 3숫자 + 신뢰 한 줄 + '이 숫자가 틀렸어요' 메일(구역 ID)", `/z/${zid} → ${r.status}`); continue; }
+    const Z = parseZ(r.text), t = htmlText(r.text.replace(/<head[\s\S]*?<\/head>/i, ""));
+    termScan(t, `/z/${zid}`);
+    const subj = Z.key && Z.key.mail ? decodeURIComponent((/[?&]subject=([^&]*)/.exec(Z.key.mail) || [])[1] || "") : "";
+    expect(Z.key && Z.key.labs === "지금 필요한 돈|입주까지 현금|언제 입주" && /class="zk-tr/.test(r.text) && subj.startsWith(`[집핀 신고] ${zid} `), "z.key3", "/z 첫 화면 3숫자 + 신뢰 한 줄 + '이 숫자가 틀렸어요' 메일(구역 ID)", `/z/${zid}: labels ${Z.key && Z.key.labs} subject "${subj}"`);
+  }
+  for (const g of ["구로구", "강남구"]) { const r = await getPage("/gu/" + g); if (r.status === 200) termScan(htmlText(r.text.replace(/<head[\s\S]*?<\/head>/i, "")), `/gu/${g}`); }
+}
 // ================================================================ main
 (async () => {
   // API
@@ -1369,12 +1500,14 @@ async function r3Lane(browser, errs) {
   const ONLY = process.env.QAC_ONLY || "";   // 'r14' = 14회차 줄만(개발용)
   const lane1 = ONLY ? Promise.resolve() : timed("counts+zones", (async () => { await countsLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(0, cut)); await deskLane(browser, errs); })());
   const lane2 = ONLY ? Promise.resolve() : timed("map+ui+zones", (async () => { await mapLane(browser, api, errs, shortSrc); const st = await stat.catch(() => ({})); shared.liveCounts = st.liveCounts; await uiLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(cut)); })());
-  const lane3 = timed("r14", (ONLY === "r1" ? Promise.resolve() : ONLY === "r3" ? Promise.resolve() : r14Lane(browser, api, errs)).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)));
+  const lane3 = timed("r14", (ONLY === "r1" || ONLY === "r3" || ONLY === "r4" ? Promise.resolve() : r14Lane(browser, api, errs)).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)));
   await Promise.all([stat.catch((e) => bad("runtime", "검사 실행", "static crashed: " + e.message)), lane1, lane2, lane3]);
   // 리뉴얼 1단계 줄(탭 4개·MY)은 다른 줄이 끝난 뒤 혼자: 코어 2개 기계에서 세 번째 브라우저가 겹치면 손가락 누름이 길게 누름으로 바뀌어 다른 줄의 탭 검사가 흔들렸다
   if (!ONLY || ONLY === "r1") await timed("r1", r1Lane(browser, api, errs));
   // 리뉴얼 3단계(지도 알약·구 묶음·♡·막대 끌기)는 다른 줄이 다 끝난 뒤 혼자 — 지도 그리기가 무거워 같이 돌면 다른 줄의 누름 검사가 밀린다
   if (!ONLY || ONLY === "r3") await timed("r3", r3Lane(browser, errs).catch((e) => bad("runtime", "검사 실행", "r3Lane crashed: " + e.message)));
+  // 리뉴얼 4·5단계(상세 첫 화면 3숫자 · 숫자 신고 · 용어집 · 면책)
+  if (!ONLY || ONLY === "r4") await timed("r4", r4Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r4Lane crashed: " + e.message)));
   await browser.close();
 
   // 콘솔 오류

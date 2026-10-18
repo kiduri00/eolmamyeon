@@ -12,7 +12,7 @@
     let map = null, libP = null, geo = null, geoP = null, ready = false, active = false, gu = null, failed = false;
     let want = store.get("emr.map", "real") !== "svg";
     let colorBy = store.get("emr.mapc", "cash");
-    const MODES = [["cash", "내 현금"], ["stage", "단계"], ["kind", "사업 방식"], ["old", "노후도"], ["vol", "거래량"], ["yoy", "1년 가격 변화"]];
+    const MODES = [["cash", "내 돈"], ["stage", "단계"], ["kind", "사업 방식"], ["old", "노후도"], ["vol", "거래량"], ["yoy", "1년 가격 변화"]];
     if (!MODES.some(([k]) => k === colorBy)) colorBy = "cash";
     // 겹쳐 보는 레이어(호갱노노식): 지도 바탕 POI는 OpenFreeMap 벡터 타일, 나머지는 사이트 자료
     const LAYERS = [["hj", "개발 호재", "신설 노선 역·복합개발"], ["hi", "신고가", "최근 3개월, 2024년 이후 최고가"], ["edu", "학교", "초·중·고"], ["acad", "학원가", "학원 점포가 많은 상권"], ["biz", "상권", "점포 수·분기 매출"], ["med", "병원", "종합·대형병원"], ["mart", "대형마트", "이마트·홈플러스 등"]];
@@ -195,7 +195,7 @@
       L({ id: "ly-hj-lab", type: "symbol", source: "hj", minzoom: 13.5, layout: { visibility: "none", "text-field": ["get", "sn"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14, 10, 16, 11], "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true, "text-max-width": 8, "symbol-sort-key": 10 }, paint: { "text-color": dk ? "#AAB3C0" : "#5B6472", "text-halo-color": halo, "text-halo-width": 1 } });
       // 신고가: 줌 13 아래는 구역 가운데 작은 빨간 점, 13부터는 구역 카드 아래 칸에 '▲신고가' 배지(카드 데이터 h)
       L({ id: "ly-hi", type: "circle", source: "hi", maxzoom: 13, layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3, 13, 4.5], "circle-color": dk ? "#FF8A75" : "#D92D20", "circle-stroke-color": halo, "circle-stroke-width": 1.4 } });
-      // ---- 구역 카드(네이버·리치고식): 위 칸 남색에 이름, 아래 흰 칸에 핵심 숫자. 줌 13부터(그 아래는 면만, 살 수 있는 곳엔 핀) ----
+      // ---- 구역 카드(네이버·리치고식): 위 칸 남색에 이름, 아래 흰 칸에 핵심 숫자. 줌 13부터(그 아래는 면만, 갈 수 있는 곳엔 핀) ----
       // 9-patch 이미지 하나로 두 칸 배경을 만들고 icon-text-fit으로 글자에 맞춘다(위·아래 늘림 구간이 같아 두 줄 경계가 가운데에 온다)
       const CARD_TOP = dk ? "#3E6AE0" : "#1F3A87", CARD_BOT = dk ? "#1A2130" : "#FFFFFF", CARD_INK = dk ? "#E8EDF5" : "#191F28";
       const rr = (x, X, Y, w, h, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
@@ -454,7 +454,7 @@
       VIS = vis;
       for (const r of vis) {
         const z = Z[r.id];
-        // 이름표(줌 13부터): 금액은 알약이 말하므로 이름만(카드 값을 '내 현금' 말고 다른 기준으로 고르면 그 값) · 신고가를 켜면 아래 칸에 '▲신고가'
+        // 이름표(줌 13부터): 금액은 알약이 말하므로 이름만(카드 값을 '내 돈' 말고 다른 기준으로 고르면 그 값) · 신고가를 켜면 아래 칸에 '▲신고가'
         const s = colorBy === "cash" ? "" : cardVal(r), h = hiOn && hiOf(r) ? "▲신고가" : "";
         const k = (s ? 2 : 3) - (h ? 1 : 0);
         const lf = { type: "Feature", geometry: { type: "Point", coordinates: z ? z.l : [r.ll[1], r.ll[0]] }, properties: { id: r.id, n: cardName(r), s, h, y: 0, k: z ? k : k + 0.5, p: 0 } };
@@ -578,7 +578,7 @@
       const k = city ? "c" : "z";
       if (el.dataset.k === k) return;
       el.dataset.k = k;
-      el.innerHTML = city ? `<span><i class="k-gu"></i>구 묶음 = 갈 수 있는 곳 수 · 눌러서 확대</span>` : `<span><i class="k-ok"></i>가능</span><span><i class="k-near"></i>조금 모자람</span><span><i class="k-far"></i>멀다</span><span><i class="k-na"></i>정보 부족</span>`;
+      el.innerHTML = city ? `<span><i class="k-gu"></i>구 묶음 = 갈 수 있는 곳 수</span>` : `<span><i class="k-ok"></i>가능</span><span><i class="k-near"></i>조금 모자람</span><span><i class="k-far"></i>멀다</span><span><i class="k-na"></i>정보 부족</span>`;
       el.setAttribute("aria-label", city ? "범례: 구 묶음 숫자는 그 구에서 갈 수 있는 곳 수" : "범례: 남색 알약 가능, 흰 알약 조금 모자람(모자란 돈 표시), 작은 점 멀다, 점선 점 정보 부족");
     }
     // 같은 점이면 다시 넣지 않는다(지도 크기·위치만 바뀐 경우 — 1,300개 점을 일꾼에 다시 보내지 않게)

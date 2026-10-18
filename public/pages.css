@@ -136,3 +136,32 @@ main figure.mm{overflow:visible}main figure.mm svg{min-width:0}main figure.mm::b
 @media (min-width:860px){.top .in{flex-wrap:nowrap}.top nav{flex-wrap:nowrap;white-space:nowrap}.top .tsr{flex:0 1 200px;min-width:140px}.top .tsr input{height:36px;font-size:14px}}
 /* 구역 정식 이름(제목은 앱과 같은 짧은 이름) */
 .formal{margin:-4px 0 12px;font-size:13.5px;color:var(--text-3);line-height:1.5}
+/* 구역 페이지 첫 화면: 앱 구역 상세와 같은 3숫자(지금 필요한 돈 · 입주까지 현금 · 언제 입주/입주권) + 신뢰 한 줄 (tools/zpages.py key3_html) */
+.zk{margin:14px 0 18px}
+.zk-nl{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:0 0 10px;font-size:14px;color:var(--text-2)}
+.zk-nl b{font-size:16px;color:var(--text-1)}
+.zk-st{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:12.5px;font-weight:700}
+.zk-k{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+.zk-i{display:flex;flex-direction:column;align-items:flex-start;padding:11px 16px 12px;border-top:1px solid var(--divider)}
+.zk-i:first-child{border-top:0}
+.zk-l{font-size:13px;font-weight:600;color:var(--text-2)}
+.zk-v{margin-top:1px;font-size:28px;font-weight:700;line-height:1.15;letter-spacing:-.02em;color:var(--text-1);font-variant-numeric:tabular-nums}
+.zk-v.zk-eta{font-size:24px}
+.zk-s{margin-top:3px;font-size:13px;line-height:1.45;color:var(--text-2);word-break:keep-all;overflow-wrap:anywhere}
+.zk-s.zk-alt{color:var(--text-1);font-weight:600}
+main a.zk-my{display:inline-flex;align-items:center;min-height:40px;font-size:14px;font-weight:700;color:var(--brand);text-decoration:none}
+.zk-ip{display:inline-flex;align-items:center;height:30px;margin-top:6px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:700}
+.zk-ip.ok{background:var(--ok-soft);color:var(--ok-ink)}.zk-ip.no{background:var(--risk-soft);color:var(--risk-ink)}.zk-ip.warn{background:var(--warn-soft);color:var(--warn-ink)}
+main a.zk-tr{display:flex;align-items:center;gap:8px;min-height:44px;margin:8px 0 0;padding:8px 12px;border-radius:12px;background:var(--surface-2);color:var(--text-2);font-size:13px;line-height:1.4;text-decoration:none}
+.zk-tc{flex:none;padding:2px 8px;border-radius:999px;border:1px solid var(--text-3);font-size:12px;font-weight:700}
+.zk-tr.na .zk-tc{border-color:transparent;background:var(--risk-soft);color:var(--risk-ink)}
+.zk-tt{flex:1 1 auto;min-width:0}.zk-tt b{color:var(--text-1)}
+.zk-tr.lo .zk-tt b{color:var(--risk-ink)}.zk-tr.md .zk-tt b{color:var(--warn-ink)}
+.zk-tr i{font-style:normal;font-size:20px;color:var(--text-3)}
+tr#trust{scroll-margin-top:80px}
+tr#trust:target th,tr#trust:target td{background:var(--brand-soft)}
+.zk-rep{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:18px 0 0;font-size:13px;color:var(--text-2)}
+main a.zk-rb{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text-1);font-weight:700;text-decoration:none}
+.zk-ad{user-select:all;-webkit-user-select:all;font-weight:600;color:var(--text-1)}
+.zk-cap{margin:6px 2px 0;font-size:12.5px;color:var(--text-3)}
+@media (min-width:760px){.zk-k{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.zk-i{border-top:0;border-left:1px solid var(--divider)}.zk-i:first-child{border-left:0}}

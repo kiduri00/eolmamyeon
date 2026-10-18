@@ -117,3 +117,77 @@ def short0(n):   # 사업 종류 꼬리를 뗀다(옛 규칙 · 대체용)
         n = re.sub(r'\s*(주택)?(재개발|재건축|가로주택|소규모재건축|소규모재개발|도시환경|도시정비형)\s*(정비)?(사업|구역)?\s*$', '', n).strip()
         n = re.sub(r'\s+소규모(\s*주택)?(\s*정비)?$', '', n).strip()   # '○○ 소규모 재건축 사업'·'○○ 소규모주택정비사업' → 제목이 '소규모 소규모재건축'이 되던 것
     return n or n0
+# ---------- 상세 첫 화면 3숫자(화면 src/ext/76_detail.js keyHTML과 같은 이름·값) ----------
+def _ymd(s):
+    m = re.match(r'(\d{4})-?(\d\d)-?(\d\d)', str(s or ''))
+    return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+def eta_show(r, dt=None, as_of=None, upd=None):
+    """예상 입주 글자 — 화면 app.js etaShow(projection·etaSpan·stallYrs)와 같은 규칙.
+    dt = premium 단계 날짜(없으면 r.sd), as_of = D.asOf(TODAY), upd = D.upd(ETA_NOW)."""
+    s = r.get('s', 0) or 0
+    if r.get('dn') or s >= 9: return '완료'
+    if r.get('src') == 'moa': return '사업구역별'
+    e = r.get('eta') or {}
+    if r.get('stale') or e.get('stale'): return '진행 확인 필요'
+    today = _ymd(as_of) or datetime.date.today(); now = _ymd(upd) or today
+    pre = False
+    if not e or e.get('na'):
+        if s <= 2: pre = True
+        else: return '산정 불가'
+    if not pre and 2 <= s <= 6:   # stallYrs: 지금 단계 날짜가 8년 넘게 그대로면 산정 불가
+        dt = dt or {}
+        k = {2: '구역지정', 3: '추진위', 4: '시행자지정' if r.get('trust') else '조합설립', 5: '사업시행', 6: '관리처분'}.get(s)
+        d = dt.get(k) or ((dt.get('조합설립') or dt.get('시행자지정')) if s == 4 else None) or r.get('sd')
+        m = re.match(r'(\d{4})[.-](\d\d)', str(d or ''))
+        if m and today.year + (today.month - 1) / 12 - (int(m.group(1)) + (int(m.group(2)) - 1) / 12) >= 8: return '산정 불가'
+    if not pre and not e.get('eMid'): return '산정 불가'
+    if pre:
+        return '4~7년 뒤' if s >= 6 else '7~10년 뒤' if s == 5 else '10~15년 뒤' if s == 4 else '15년 넘게'
+    d15 = lambda x: datetime.date(int(x[:4]), int(x[5:7]), 15)
+    em = d15(e['eMid'])
+    if em < now: return '준공 여부 확인 필요'
+    yrs = (em - now).days / 365.25
+    if yrs <= 4 and e.get('eLo') and e.get('eHi'):
+        a = max(now.year, d15(e['eLo']).year); b = d15(e['eHi']).year
+        return f'{a}년' if a == b else f'{a}~{str(b)[2:]}년'
+    return '15년 넘게' if yrs > 15 else '10~15년 뒤' if yrs > 10 else '7~10년 뒤' if yrs > 7 else '4~7년 뒤'
+def eok_m(m):   # 만원 → '9,587만' · '9.5억'(화면 ZF.eok와 같은 반올림)
+    if m is None: return '–'
+    if m >= 10000: v = math.floor(m / 1000 + 0.5) / 10; return (f"{v:,.1f}".rstrip('0').rstrip('.')) + '억'
+    return f"{math.floor(m + 0.5):,}만"
+def ref_price(r):   # 지금 필요한 돈을 내지 않는 곳의 참고 시세 한 줄(화면 76_detail.js refPrice와 같은 규칙)
+    t = r.get('tx') or {}; s = r.get('s', 0) or 0
+    L = ('입주권 매매', t['im']) if s >= 8 and t.get('im') else ('아파트 매매', t['am']) if t.get('am') and ('재건축' in (r.get('k') or '') or (not t.get('pp') and not t.get('med'))) else ('빌라 매매', t['med']) if t.get('med') else ('대지 3.3㎡당', t['pp']) if t.get('pp') else None
+    return f'참고 시세 · {L[0]} 1년 가운데 값 {eok_m(L[1])}' if L else ''
+def key3(r, c, dt=None, as_of=None, upd=None):
+    """→ dict: now(값·근거·대안) · tot(값·설명) · eta · ip(칩 글자·cls) · trust(칩·글자·등급 cls). 기본 가정 = 전세 끼고(첫 화면 기본 모드)."""
+    c = c or {}; s = r.get('s', 0) or 0
+    done = s >= 9 or (bool(r.get('dn')) and s < 7)
+    nt = noTicket(r, c)
+    o = {'now': '–', 'basis': '', 'alt': '', 'tot': '–', 'tsub': '', 'eta': eta_show(r, dt, as_of, upd)}
+    if r.get('src') == 'moa': o['basis'] = o['tsub'] = '모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요'
+    elif done: o['basis'] = '사업이 끝난 곳이에요 · 일반 아파트 매매'; o['tsub'] = '새 아파트 입주까지 계산 대상이 아니에요'
+    elif nt: o['basis'] = '지금 사면 입주권이 안 나와 계산하지 않아요'; o['tsub'] = '새 아파트를 받지 못해 계산 안 해요'
+    elif c.get('gapBlock') and c['gapBlock'] != '계산 대상 아님':
+        o['basis'] = '전세 끼고는 못 사요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
+        if c.get('now') is not None and not r.get('lc') and r.get('tag') != 'mk': o['alt'] = f"대출 끼고 사면 지금 {cash(c['now'])}" + (f" · 입주까지 {cash(c['need'])}" if c.get('cashOk') and c.get('need') is not None else '')
+        o['tsub'] = '전세 끼고는 계산하지 않아요'
+    elif c.get('gapNow') is not None:
+        o['now'] = cash(c['gapNow'])
+        o['basis'] = f"전세 끼고 · 매수가 {manT(c['price'])} − 전세 {manT(c['jeonse'])} (+취득세)" if c.get('price') is not None and c.get('jeonse') is not None else '전세 끼고 · 기본 가정'
+        if c.get('gapTotal') is not None: o['tot'] = cash(c['gapTotal'])
+        else: o['tsub'] = '입주 시점·신축 시세 자료가 부족해요'
+    else: o['basis'] = '매수가로 쓸 거래가 없어 계산하지 않아요'; o['tsub'] = '매수가가 없어 계산하지 않아요'
+    if o['now'] == '–' and not o['alt'] and r.get('src') != 'moa' and not done: o['alt'] = ref_price(r)
+    w = c.get('win')
+    o['ip'] = ('입주권 ✓ 나와요', 'ok') if w == 'ok' else ('입주권 ✕ 안 나와요', 'no') if w == 'no' else ('입주권 ! 확인 필요', 'warn') if not done and r.get('src') != 'moa' else None
+    en = (r.get('mk') or {}).get('entry') or {}
+    if c.get('price') is not None and c.get('priceSrc') in PSRC and not nt and r.get('src') != 'moa' and not done:
+        lv, _ = trust(r, c)
+        est = isEst(r, c)
+        basis = f"같은 구({r.get('g', '')}) 빌라 시세 기준" if est else (f"{('구역 안 아파트' if en.get('fill') == 'zoneapt' else '단지') if en.get('src') == 'complex' else '같은 동 빌라' if en.get('fill') == 'dong' else '주변 빌라' if en.get('radius') else '같은 본번 빌라' if en.get('m') == 'jibun' else '구역 안 빌라'} {en['n']}건 기준" if en.get('n') else '실거래 기준')
+        o['trust'] = ('추정', f'{basis} · 믿을 만함: ', lv, {'높음': 'hi', '보통': 'md', '낮음': 'lo'}.get(lv, ''))
+    else:
+        why = '모아타운은 사업구역마다 달라요' if r.get('src') == 'moa' else '입주권이 안 나와요' if nt else '이주·철거가 시작됐어요' if 7 <= s < 9 else '매수가로 쓸 거래가 없어요'
+        o['trust'] = ('계산 안 함', f'{why} · 이유 보기', '', 'na')
+    return o

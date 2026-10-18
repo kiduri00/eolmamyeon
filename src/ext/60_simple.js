@@ -7,12 +7,12 @@ const SIMPLE = (() => {
   // 도구 목록은 여기 한 곳만: 홈 '더 알아보기' 격자와 ⋯ 메뉴 '도구' 묶음을 둘 다 이것으로 만든다("적게, 완벽하게" — 6개)
   // [화면 id, 이름, 아이콘 경로, 아이콘 색, 한 줄 설명]
   const TOOLS_ALL = window.ZP_TOOLS = [
-    ["rankHub", "순위", "M4 20h16M7 16V9M12 16V5M17 16v-4", "#1f3a87", "갭·실거래·입지"],
+    ["rankHub", "순위", "M4 20h16M7 16V9M12 16V5M17 16v-4", "#1f3a87", "전세 끼고·실거래·입지"],
     ["planner", "입주 계산", "M4 4h16v16H4zM8 8h8M8 12h2M12 12h2M16 12h0M8 16h2M12 16h4", "#4f46e5", "입주까지 현금·모으면 언제"],
     ["news", "소식", "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4", "#0e7490", "단계 변경·입주 물량"],
     ["commuteTop", "출퇴근", "M7 3h10a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM5 10h14M8 20l2-4M16 20l-2-4", "#2f6feb", "회사까지 몇 분 안"],
     ["diagTop", "매물진단", "M9 12l2 2 4-4M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z", "#16a34a", "이 매물 입주권 나오나"],
-    ["favTop", "관심 구역", "M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6zM12 12a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z", "#d97706", "핀 꽂은 구역 소식"],
+    ["favTop", "관심 구역", "M12 22c-3.4-4.1-7.2-8.4-7.2-12.6a7.2 7.2 0 0 1 14.4 0c0 4.2-3.8 8.5-7.2 12.6zM12 12a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z", "#d97706", "관심 구역 소식"],
   ];
   // 예전 도구 주소(#gapTop 등)는 합친 화면 + 그 탭으로 연다(정적 페이지·공유 링크가 그대로 동작) — [화면, 탭]
   const ALIAS = window.ZP_ALIAS = { gapTop: ["rankHub", "gap"], txrTop: ["rankHub", "txr"], rankTop: ["rankHub", "loc"], ntcTop: ["news", "feed"], newTop: ["news", "feed"], supplyTop: ["news", "supply"], saveTop: ["planner", "save"] };
@@ -31,7 +31,7 @@ const SIMPLE = (() => {
   let POPS = null;   // POP은 앱 본문에서 나중에 만들어지므로 처음 쓸 때 채운다
   // 지도 구별 숫자와 같은 기준(지도 색칠 기준이 '지금 매수'로 바뀌면 목록도 같이)
   const okR = (r) => (POPS || (POPS = new Set(POP.map((x) => x.id)))).has(r.id) && (effBasis() === "now" ? affOk(r, "now") : affOk(r));
-  // 홈 '살 수 있는 곳' 곳 수 — 다른 화면도 이 함수 하나로 센다(cash 생략 시 지금 게이지 금액)
+  // 홈 '갈 수 있는 곳' 곳 수 — 다른 화면도 이 함수 하나로 센다(cash 생략 시 지금 게이지 금액)
   const countAt = (cash) => {
     if (cash == null || !isFinite(cash)) return R.filter(okR).length;
     const save = CASH;
@@ -264,7 +264,7 @@ const SIMPLE = (() => {
     // 머리 높이가 바뀌면(화면 회전·검색 열기) 붙는 막대 위치도 같이
     try { new ResizeObserver(() => { const h = $("hdr").offsetHeight; if (h) { try { hdrH = h; } catch (e) {} document.documentElement.style.setProperty("--hdr-h", h + "px"); } }).observe($("hdr")); } catch (e) {}
     // 큰 게이지가 화면 위로 지나가면, 지도·목록을 보는 동안만 머리 아래에 한 줄짜리 게이지를 띄운다(흐름 높이는 그대로)
-    // 랜드마크 밖에 떠 있는 막대라 aside로(화면 읽기 '영역' 목록에 '내 현금 요약')
+    // 랜드마크 밖에 떠 있는 막대라 aside로(화면 읽기 '영역' 목록에 '내 돈 요약')
     const mini = document.createElement("aside");
     mini.className = "s-mini"; mini.id = "sMini"; mini.hidden = true; mini.setAttribute("aria-label", "내 돈 요약");
     mini.innerHTML = `<b id="sMiniV">1억</b><input type="range" id="sMiniR" min="0" max="100" step="0.1" value="8.33" aria-label="가진 현금(억)"><span><i id="sMiniM">전세</i> <b id="sMiniN">0</b>곳</span><div class="s-mode s-mm" role="group" aria-label="사는 방식"><button type="button" data-f="gap">전세 끼고</button><button type="button" data-f="cash">대출 끼고</button></div>`;

@@ -1346,8 +1346,8 @@
     return md === "prog"
       ? "진행 중 구역 수"
       : md === "now"
-        ? `<span class="lt-f">내 현금 ${ZF.cash(CASH)}으로 지금 매수 가능한 구역 수 (입주까지는 부족)</span><span class="lt-s">${ZF.cash(CASH)} · 지금 매수 가능 (입주까지 부족)</span>`
-        : `<span class="lt-f">내 현금 ${ZF.cash(CASH)}으로 ${P.basis === "total" ? "입주까지" : "지금 매수"} 가능한 구역 수</span><span class="lt-s">${ZF.cash(CASH)} · ${P.basis === "total" ? "입주까지" : "지금 매수"} 가능</span>`;
+        ? `<span class="lt-f">내 돈 ${ZF.cash(CASH)}으로 지금 매수 가능한 구역 수 (입주까지는 부족)</span><span class="lt-s">${ZF.cash(CASH)} · 지금 매수 가능 (입주까지 부족)</span>`
+        : `<span class="lt-f">내 돈 ${ZF.cash(CASH)}으로 ${P.basis === "total" ? "입주까지" : "지금 매수"} 가능한 구역 수</span><span class="lt-s">${ZF.cash(CASH)} · ${P.basis === "total" ? "입주까지" : "지금 매수"} 가능</span>`;
   }
   function refreshMap() {
     GU_STAT = guStats();
@@ -1363,7 +1363,7 @@
         v = guMetric(g);
       p.dataset.bin = binOf(v);
       p.setAttribute("style", fillVars(tOf(v)));
-      p.setAttribute("aria-label", `${g}, 내 현금으로 가능 ${o.aff}곳, 지도 ${o.prog}곳 · 누르면 확대`);
+      p.setAttribute("aria-label", `${g}, 내 돈으로 가능 ${o.aff}곳, 지도 ${o.prog}곳 · 누르면 확대`);
       p.setAttribute("tabindex", mapView === "seoul" ? "0" : "-1");
     });
     drawGuLabels();
@@ -1383,7 +1383,7 @@
       sub = $("mapSub");
     if (sub && mapView === "gu") sub.textContent = GU_SUB();
     else if (sub)
-      sub.innerHTML = `<span class="ms-c">${md === "prog" ? "색이 ${DK} 진행 중 구역이 많은 구예요" : md === "now" ? `색이 ${DK} 내 현금 ${ZF.cash(CASH)}으로 지금 매수 가능한 구역이 많은 구예요 (입주까지 가능한 구가 없어 기준을 바꿨어요)` : `색이 ${DK} 내 현금 ${ZF.cash(CASH)}으로 ${P.basis === "total" ? "입주까지" : "지금 매수"} 가능한 구역이 많은 구예요`}${md === "prog" && mapAff ? ` (내 현금 ${ZF.cash(CASH)}으로 가능한 구가 없어요)` : ""}. </span>구를 누르면 확대되고, 확대한 지도에서 구역을 누르면 리포트가 열립니다`;
+      sub.innerHTML = `<span class="ms-c">${md === "prog" ? "색이 ${DK} 진행 중 구역이 많은 구예요" : md === "now" ? `색이 ${DK} 내 돈 ${ZF.cash(CASH)}으로 지금 매수 가능한 구역이 많은 구예요 (입주까지 가능한 구가 없어 기준을 바꿨어요)` : `색이 ${DK} 내 돈 ${ZF.cash(CASH)}으로 ${P.basis === "total" ? "입주까지" : "지금 매수"} 가능한 구역이 많은 구예요`}${md === "prog" && mapAff ? ` (내 돈 ${ZF.cash(CASH)}으로 가능한 구가 없어요)` : ""}. </span>구를 누르면 확대되고, 확대한 지도에서 구역을 누르면 리포트가 열립니다`;
   }
   const GU_SHORT = (g) => (g === "중구" ? "중구" : g.replace(/구$/, ""));
   let GU_LBOX = [];
@@ -1538,10 +1538,10 @@
       .map((g) => {
         const o = GU_STAT.get(g),
           v = md === "now" ? o.now : o.aff;
-        return `<li><button type="button" class="gl-row" data-gu="${g}" title="지도 ${o.prog}곳 = 진행 중 ${o.prog - o.moa} + 모아타운 관리지역 ${o.moa}${o.done ? ` (완료 ${o.done}곳 별도)` : ""}" aria-label="${g}: 내 현금으로 ${lab} ${v}곳, 지도 ${o.prog}곳 (${[1, 2, 3, 4, 5, 6].map((i) => `${ST_LAB[i]} ${o.st[i]}`).join(", ")}) · 지도에서 확대"><span class="gl-n"><i class="gl-sw" style="${fillVars(tOf(md === "prog" ? o.prog : v))}" aria-hidden="true"></i>${g}</span><span class="gl-a">${lab} <b>${fmt(v)}</b>곳</span>${stBar(o.st, 120)}<span class="gl-p">지도 ${fmt(o.prog)}곳</span></button></li>`;
+        return `<li><button type="button" class="gl-row" data-gu="${g}" title="지도 ${o.prog}곳 = 진행 중 ${o.prog - o.moa} + 모아타운 관리지역 ${o.moa}${o.done ? ` (완료 ${o.done}곳 별도)` : ""}" aria-label="${g}: 내 돈으로 ${lab} ${v}곳, 지도 ${o.prog}곳 (${[1, 2, 3, 4, 5, 6].map((i) => `${ST_LAB[i]} ${o.st[i]}`).join(", ")}) · 지도에서 확대"><span class="gl-n"><i class="gl-sw" style="${fillVars(tOf(md === "prog" ? o.prog : v))}" aria-hidden="true"></i>${g}</span><span class="gl-a">${lab} <b>${fmt(v)}</b>곳</span>${stBar(o.st, 120)}<span class="gl-p">지도 ${fmt(o.prog)}곳</span></button></li>`;
       })
       .join("");
-    const head = `<p class="gl-cap">구를 누르면 지도가 그 구로 확대돼요 · ${lab} = 내 현금 ${ZF.cash(CASH)}으로 ${P.fund === "gap" ? "전세 끼고 지금 계약" : md === "now" || P.basis !== "total" ? "지금 매수" : "입주까지"}<br>지도 N곳 = 위치 확인된 진행 중 구역 + 모아타운 관리지역(완료 제외). 통계의 자치구 수는 모아타운 제외·위치 미확인 포함이라 다를 수 있어요</p>${STAGE_KEY()}`;
+    const head = `<p class="gl-cap">구를 누르면 지도가 그 구로 확대돼요 · ${lab} = 내 돈 ${ZF.cash(CASH)}으로 ${P.fund === "gap" ? "전세 끼고 지금 계약" : md === "now" || P.basis !== "total" ? "지금 매수" : "입주까지"}<br>지도 N곳 = 위치 확인된 진행 중 구역 + 모아타운 관리지역(완료 제외). 통계의 자치구 수는 모아타운 제외·위치 미확인 포함이라 다를 수 있어요</p>${STAGE_KEY()}`;
     [
       ["guList", "guListBox"],
       ["guListD", null],
@@ -1583,7 +1583,7 @@
     return affOk(r, b) ? "y" : "n";
   }
   const DOT_TXT = {
-    y: "내 현금으로 입주 가능",
+    y: "내 돈으로 입주 가능",
     n: "현금 부족",
     u: "거래 적어 계산 보류",
     e: "구 평균 시세로 추정 · 곳 수에서 제외",
@@ -1594,12 +1594,12 @@
       ? DOT_TXT[a]
       : P.fund === "gap"
         ? a === "y"
-          ? "전세 끼고 내 현금으로 살 수 있음"
+          ? "전세 끼고 내 돈으로 살 수 있음"
           : "전세 끼고도 현금 부족"
         : a === "y"
           ? effBasis() === "total"
             ? DOT_TXT.y
-            : "내 현금으로 지금 매수 가능"
+            : "내 돈으로 지금 매수 가능"
           : effBasis() === "total"
             ? DOT_TXT.n
             : "지금 매수하기엔 현금 부족";
@@ -2060,7 +2060,7 @@
     if (aptZone(r) && KBC[r.id]) return `https://kbland.kr/c/${KBC[r.id]}`;
     return `https://kbland.kr/map?xy=${r.ll[0].toFixed(6)},${r.ll[1].toFixed(6)},17`;
   }
-  const LIST_NOTE = "매물 가격이 계산기 기준 매수가보다 높으면 입주 현금도 늘어나요. 입주권 여부는 조합·중개사무소에서 꼭 확인하세요.";
+  const LIST_NOTE = "매물 가격이 계산기 기준 매수가보다 높으면 입주까지 현금도 늘어나요. 입주권 여부는 조합·중개사무소에서 꼭 확인하세요.";
   const noTicket = (r) => !isDone(r) && !r.dn && !r.cx && r.src !== "moa" && buyWindow(r).cls === "no";
   const listBtn = (r, cls = "") => {
     const u = listingURL(r);
@@ -2075,12 +2075,12 @@
     const x = investC(r),
       tot = P.basis === "total",
       need = tot ? (x.ok ? x.needTotal : null) : x.needBuy,
-      lab = tot ? "입주까지 필요한 현금" : "지금 매수에 필요한 현금";
+      lab = tot ? "입주까지 현금" : "지금 필요한 돈";
     if (need == null)
       return `<p class="cstrip na"><span>${lab}</span><b>–</b><small>${x.price == null ? noPriceTxt(r) : ZF.noCalcTxt(r, x) + " · 입주까지는 계산 보류"}</small></p>`;
     const estN = isEst(r) ? `<span class="zb est">구 평균 시세로 추정${P.est ? "" : " · 곳 수 제외"}</span>` : "";
     const left = CASH - need;
-    return `<p class="cstrip ${left >= 0 ? "ok" : "short"}"><span>${lab}${estN}</span><b>${ZF.cash(need)}</b><small>${left >= 0 ? `내 현금 ${ZF.cash(CASH)} 중 ${e2(left) === "0" ? "남는 돈 없음" : ZF.cash(left) + " 남음"}` : `내 현금 ${ZF.cash(CASH)}보다 ${ZF.cash(-left)} 더 필요`}</small></p>`;
+    return `<p class="cstrip ${left >= 0 ? "ok" : "short"}"><span>${lab}${estN}</span><b>${ZF.cash(need)}</b><small>${left >= 0 ? `내 돈 ${ZF.cash(CASH)} 중 ${e2(left) === "0" ? "남는 돈 없음" : ZF.cash(left) + " 남음"}` : `내 돈 ${ZF.cash(CASH)}보다 ${ZF.cash(-left)} 더 필요`}</small></p>`;
   }
   const HJ_R = 1500;
   const HJ_BADGE = { 개통: "b-ok", "공사 중": "b-go", 확정: "b-fix", "예타 통과": "b-fix", "기본계획 수립": "b-fix", 계획: "b-plan" };
@@ -3011,7 +3011,7 @@
       return b === "total" ? (x.ok ? x.needTotal : null) : x.needBuy;
     };
     const LAB = {
-      y: P.fund === "gap" ? `전세 끼고 지금 ${ZF.cash(CASH)}으로 가능` : `내 현금으로 ${b === "total" ? "입주" : "지금 매수"} 가능`,
+      y: P.fund === "gap" ? `전세 끼고 지금 ${ZF.cash(CASH)}으로 가능` : `내 돈으로 ${b === "total" ? "입주" : "지금 매수"} 가능`,
       n: "현금 부족",
       e: "구 평균 시세로 추정 (곳 수 제외)",
       u: "거래 적어 계산 보류",
@@ -3248,7 +3248,7 @@
       b = effBasis(),
       x = r.src === "moa" ? null : investC(r);
     const need = x ? (b === "total" ? (x.ok ? x.needTotal : null) : x.needBuy) : null,
-      lab = b === "total" ? "입주까지 필요한 현금" : "지금 매수에 필요한 현금";
+      lab = b === "total" ? "입주까지 현금" : "지금 필요한 돈";
     const l3 =
       r.src === "moa"
         ? "관리지역 · 블록별 조합에서 계산"
@@ -3283,8 +3283,8 @@
         : P.fund === "gap"
           ? `전세 끼고 ${ZF.cash(CASH)}으로 지금 계약`
           : md === "now"
-            ? `내 현금 ${ZF.cash(CASH)}으로 지금 매수`
-            : `내 현금 ${ZF.cash(CASH)}으로 ${P.basis === "total" ? "입주까지" : "지금 매수"}`;
+            ? `내 돈 ${ZF.cash(CASH)}으로 지금 매수`
+            : `내 돈 ${ZF.cash(CASH)}으로 ${P.basis === "total" ? "입주까지" : "지금 매수"}`;
     return `<b>${esc(g)}</b><span class="tt-v">${lab} <strong>${fmt(v)}곳</strong></span><small>지도 ${fmt(o.prog)}곳 · 단계 구성</small>${stBar(o.st, 180)}<small class="tt-go">누르면 확대</small>`;
   }
   let hovGu = null;
@@ -3404,7 +3404,7 @@
     keepFocus(() => {
       const el = $("legend");
       if (!el) return;
-      const sw = `<button type="button" class="mswitch" data-maff aria-pressed="${mapAff}"><span class="sw" aria-hidden="true"></span>내 현금</button>`;
+      const sw = `<button type="button" class="mswitch" data-maff aria-pressed="${mapAff}"><span class="sw" aria-hidden="true"></span>내 돈</button>`;
       el.classList.toggle("stk-open", stkOpen);
       const stkChip = showStn
         ? `<button type="button" class="stkchip" data-stk aria-expanded="${stkOpen}" aria-controls="mlStk">역 기호</button>`
@@ -3421,14 +3421,14 @@
               : P.fund === "gap"
                 ? `색이 ${dk} 전세 끼고 ${ZF.cash(CASH)}으로 살 수 있는 구역이 많은 구`
                 : md === "now"
-                  ? `색이 ${dk} 내 현금 ${ZF.cash(CASH)}으로 지금 매수 가능한 구역이 많은 구 (입주까지는 부족)`
-                  : `색이 ${dk} 내 현금 ${ZF.cash(CASH)}으로 ${P.basis === "total" ? "입주" : "지금 매수"} 가능한 구역이 많은 구`;
+                  ? `색이 ${dk} 내 돈 ${ZF.cash(CASH)}으로 지금 매수 가능한 구역이 많은 구 (입주까지는 부족)`
+                  : `색이 ${dk} 내 돈 ${ZF.cash(CASH)}으로 ${P.basis === "total" ? "입주" : "지금 매수"} 가능한 구역이 많은 구`;
         const shortS = `색이 ${dk} ${md === "prog" ? "진행 중 구역" : P.fund === "gap" ? `전세 끼고 ${ZF.cash(CASH)} 가능 구역` : md === "now" || P.basis !== "total" ? `${ZF.cash(CASH)} 지금 매수 가능 구역` : `${ZF.cash(CASH)} 입주 가능 구역`} 많음`;
         el.innerHTML = `<div class="ml-h"><b><span class="ml-lf">${sent}</span><span class="ml-ls">${shortS}</span></b><span class="ml-sw">${stnChip}${stkChip}${sw}</span></div>${note ? `<p class="ml-mode">${esc(note)}</p>` : ""}${
           md !== "prog"
             ? (() => {
                 const n = R.filter((r) => r.xy && !isDone(r) && dotState(r) === "y").length;
-                return `<p class="ml-glow"><i class="gd" aria-hidden="true"></i>반짝이는 점 = ${P.fund === "gap" ? "전세 끼고 지금 계약할 수 있는 구역" : P.basis === "total" ? "내 현금으로 입주까지 되는 구역" : "내 현금으로 지금 살 수 있는 구역"} <b>${fmt(n)}곳</b>${n ? " · 구를 누르면 하나씩 볼 수 있어요" : " · 금액을 바꿔 보세요"}</p>`;
+                return `<p class="ml-glow"><i class="gd" aria-hidden="true"></i>반짝이는 점 = ${P.fund === "gap" ? "전세 끼고 지금 계약할 수 있는 구역" : P.basis === "total" ? "내 돈으로 입주까지 되는 구역" : "내 돈으로 지금 살 수 있는 구역"} <b>${fmt(n)}곳</b>${n ? " · 구를 누르면 하나씩 볼 수 있어요" : " · 금액을 바꿔 보세요"}</p>`;
               })()
             : ""
         }<div class="ml-scale" role="img" aria-label="색 범례: 회색 0곳, 옅은 파랑 1곳부터 진한 파랑 ${SMAX}곳 이상까지"><span class="ml-zero"><i></i>0</span><div class="ml-bar"><div class="ml-grad"></div><span class="ml-cur" id="mlCur" hidden></span><div class="ml-ticks">${ticks.map((v) => `<span style="left:${(tOf(v) * 100).toFixed(1)}%">${v}</span>`).join("")}</div></div><span class="ml-unit">곳</span></div>${showStn ? `<p class="ml-stk" id="mlStk">${HUB_KEY}</p>` : ""}`;
@@ -3501,7 +3501,7 @@
             if (lv) {
               lv.textContent = "";
               setTimeout(() => {
-                lv.textContent = `내 현금 기준 ${mapAff ? "켜짐" : "꺼짐"} · ${
+                lv.textContent = `내 돈 기준 ${mapAff ? "켜짐" : "꺼짐"} · ${
                   mapView === "gu"
                     ? $("mapGuCnt").textContent
                     : modeTitle()
@@ -3809,7 +3809,7 @@
       return;
     }
     const z = zoneLines(cur);
-    el.innerHTML = `<button type="button" class="mp-x" id="mpX" aria-label="요약 닫기">${ICON.close}</button><b class="mp-n">${esc(shortName(cur.n))}</b><small>${esc(z.l2)}</small><p class="mp-3 ${z.a}">${esc(z.l3)}</p>${z.l4 ? `<p class="mp-4">${esc(z.l4)}</p>` : ""}${z.hj ? `<p class="mp-4">주변 호재 ${z.hj}건 · 리포트 '호재' 탭</p>` : ""}<div class="mp-acts">${listBtn(cur, "primary sm")}${favBtn(cur, "sm")}</div>`;
+    el.innerHTML = `<button type="button" class="mp-x" id="mpX" aria-label="요약 닫기">${ICON.close}</button><b class="mp-n">${esc(shortName(cur.n))}</b><small>${esc(z.l2)}</small><p class="mp-3 ${z.a}">${esc(z.l3)}</p>${z.l4 ? `<p class="mp-4">${esc(z.l4)}</p>` : ""}${z.hj ? `<p class="mp-4">주변 호재 ${z.hj}건 · 상세 '입지' 탭</p>` : ""}<div class="mp-acts">${listBtn(cur, "primary sm")}${favBtn(cur, "sm")}</div>`;
     el.hidden = false;
     markNewWin(el);
     $("mpX").onclick = () => {
@@ -3906,15 +3906,15 @@
     LOC_GS.map(
       (g) => `<span class="lk2"><i class="${LOC_G[g]}"></i>${g} ${LOC_AX.reduce((s, a) => s + (a.g === g ? a.w * 100 : 0), 0)}</span>`,
     ).join("");
+  // 상세 섹션 탭 5개(돈 · 일정 · 거래 · 입지 · 규제) — 예전 '호재' 탭 내용은 '입지' 탭 아래에 이어 붙인다(src/ext/76_detail.js)
   const TABS = [
-    ["money", "현금"],
+    ["money", "돈"],
+    ["biz", "일정"],
     ["tx", "거래"],
     ["loc", "입지"],
-    ["near", "호재"],
-    ["biz", "일정"],
     ["req", "규제"],
   ];
-  const TABF = { money: "입주 현금", tx: "실거래", loc: "입지·생활", near: "호재·주변 시세", biz: "사업·일정", req: "규제·요건" };
+  const TABF = { money: "돈 · 지금 필요한 돈과 입주까지 현금", tx: "거래 · 실거래", loc: "입지 · 역·생활·호재", near: "입지 · 호재·주변 시세", biz: "일정 · 진행 단계", req: "규제 · 사기 전 확인" };
   function renderReport() {
     keepFocus(() => {
       const r = cur;
@@ -4027,7 +4027,7 @@
           `<li class="hj"><div class="hj-t"><i class="hj-sw" style="background:${h.c}" aria-hidden="true"></i><b>${esc(h.n)}</b>${hjBadge(st)}<span class="hj-d mono">${at ? `${esc(at)}역까지 ` : ""}${kmTxt(d)}</span></div><p class="hj-s">${esc(h.s)}</p>${h.note ? `<p class="hj-n">${esc(h.note)}</p>` : ""}<p class="hj-src">출처 ${h.src.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join(" · ")}</p>${r.xy ? `<button type="button" class="btn text sm hj-map" data-hjmap="${h.id}">지도에서 보기</button>` : ""}</li>`,
       )
       .join("");
-    p.innerHTML = `\n    <div class="sect"><h3>주변 호재 <small>구역 대표 좌표에서 약 1.5km 안 · 직선거리 · ${HJD.asOf.replaceAll("-", ".")} 기준</small></h3>\n      ${hs.length ? `<ul class="hjl">${rows}</ul>` : `<p class="hj-none">1.5km 안 정리된 호재 없음 <span>(GTX·새 철도·대형 복합개발 ${HJD.items.length}건 중)</span></p>`}\n      <p class="hj-warn">계획은 변경·지연될 수 있어요. 공식 발표로 확인하세요.</p></div>\n    <div class="sect"><h3>매물 보기</h3>\n      ${ns ? `<p class="hj-st">${esc(nearTxt(r))}${ns.s && ns.s.ls.length ? ` · ${esc(stnLines(ns.s))}` : ""}</p>` : ""}\n      ${listBtn(r, "primary") || '<p class="note">대표 좌표가 없어 지도 매물 링크를 만들 수 없어요.</p>'}\n      ${listingURL(r) ? `<p class="list-note">${noTicket(r) ? "" : LIST_NOTE + " "}${aptZone(r) && KBC[r.id] ? "KB부동산 단지 화면이 새 창으로 열려요(매매·전세 매물)." : "KB부동산 지도가 구역 대표 좌표를 가운데에 두고 새 창으로 열려요(매물·시세)."}</p>` : ""}</div>\n    <div class="chk3"><h3>매물 볼 때 체크할 3가지</h3><ol>${CHK3.map(([t, d]) => `<li><b>${t}</b><span>${d}</span></li>`).join("")}</ol><p class="note">구역별 판정은 '규제·요건' 탭에서 볼 수 있어요.</p></div>\n    ${leadCard("in-rep")}`;
+    p.innerHTML = `\n    <div class="sect"><h3>주변 호재 <small>구역 대표 좌표에서 약 1.5km 안 · 직선거리 · ${HJD.asOf.replaceAll("-", ".")} 기준</small></h3>\n      ${hs.length ? `<ul class="hjl">${rows}</ul>` : `<p class="hj-none">1.5km 안 정리된 호재 없음 <span>(GTX·새 철도·대형 복합개발 ${HJD.items.length}건 중)</span></p>`}\n      <p class="hj-warn">계획은 변경·지연될 수 있어요. 공식 발표로 확인하세요.</p></div>\n    <div class="sect"><h3>매물 보기</h3>\n      ${ns ? `<p class="hj-st">${esc(nearTxt(r))}${ns.s && ns.s.ls.length ? ` · ${esc(stnLines(ns.s))}` : ""}</p>` : ""}\n      ${listBtn(r, "primary") || '<p class="note">대표 좌표가 없어 지도 매물 링크를 만들 수 없어요.</p>'}\n      ${listingURL(r) ? `<p class="list-note">${noTicket(r) ? "" : LIST_NOTE + " "}${aptZone(r) && KBC[r.id] ? "KB부동산 단지 화면이 새 창으로 열려요(매매·전세 매물)." : "KB부동산 지도가 구역 대표 좌표를 가운데에 두고 새 창으로 열려요(매물·시세)."}</p>` : ""}</div>\n    <div class="chk3"><h3>매물 볼 때 체크할 3가지</h3><ol>${CHK3.map(([t, d]) => `<li><b>${t}</b><span>${d}</span></li>`).join("")}</ol><p class="note">구역별 판정은 '규제' 탭에서 볼 수 있어요.</p></div>\n    ${leadCard("in-rep")}`;
     p.querySelectorAll("[data-hjmap]").forEach(
       (b) =>
         (b.onclick = () => {
@@ -4123,7 +4123,7 @@
     p.innerHTML = `\n    <div class="locbox">\n      <div class="lb-top"><div class="lb-v"><b>${r.score}</b><span>/100 입지 점수</span></div><p class="lb-pos">${posTxt(Math.round(((scored.length - Math.max(1, rankAll)) / scored.length) * 100))} <small>위치 확인된 진행 중 ${fmt(scored.length)}곳 중 약 ${fmt(Math.max(1, rankAll))}위 · ${esc(r.g)} ${rankGu ? `${rankGu}위/${sameGu.length}곳` : ""}</small></p></div>\n      ${ptsBar(r, "pb-lg")}\n      <div class="lb-key">${locKeyHTML()}</div>\n      <table class="lb-t"><caption class="sr-only">입지 점수 항목별 점수</caption><thead><tr><th scope="col">항목</th><th scope="col" class="n">가중치</th><th scope="col" class="n">항목 점수</th><th scope="col" class="n">얻은 점수</th></tr></thead><tbody>\n        ${LOC_AX.map((a, i) => `<tr><th scope="row"><i class="${LOC_G[a.g]}"></i>${a.k}<small>${esc(a.why)}</small></th><td class="n">${Math.round(a.w * 100)}</td><td class="n">${r.ax[i] == null ? "–" : r.ax[i]}</td><td class="n"><b>${r.pts[i].toFixed(1)}</b></td></tr>`).join("")}\n      </tbody></table>\n      <p class="sc-why">가중치와 거리별 점수는 작성자 가정값이에요. 교통·일자리·생활 편의를 거리로만 본 값이라 학군 수준·병원 진료과·상권 질은 반영하지 않아요. 투자 등급이 아니에요.${r.comp != null && !r.dn ? ` 입지·진척 점수 ${r.comp} = 입지 ${r.compAx[0]}×50% + 사업 진척 ${r.compAx[1]}×30% + 추진력 ${r.compAx[2]}×20%.` : ""}</p>\n    </div>\n    <div class="sect infra"><h3>생활 인프라 <small>가장 가까운 곳 · 직선거리 기준 · 도보는 직선×1.3, 분당 67m 추정</small></h3>\n      ${inf ? `<ul class="iflist">${irow("e", "초등학교")}${irow("m", "중학교")}${irow("h", "고등학교")}${irow("hp", "대형병원")}${irow("mt", "대형마트")}</ul>\n      <p class="note">학교: OpenStreetMap 학교 이름 기준(배정 학교와 다를 수 있음) · 대형병원: 보건복지부 제5기 상급종합병원 서울 14곳 + OSM 병원 중 이름 규칙으로 고른 종합병원급(추정) · 대형마트: 영업 중 지점 목록(나무위키 지점 문서)과 OSM 좌표를 맞춘 이마트·홈플러스·롯데마트·코스트코·트레이더스 · ${INF.asOf.replaceAll("-", ".")} 기준 · © OpenStreetMap contributors (ODbL)</p>` : '<p class="note">대표 좌표가 없어 생활 인프라 거리를 계산하지 못했어요.</p>'}</div>\n    <dl class="facts">\n      <div><dt>가장 가까운 역</dt><dd>${(() => {
       const x = stnInfo(r);
       return x ? `${esc(x.n)}역 ${fmt(x.d)}m<small>도보 약 ${x.min}분 · 직선거리 기준</small>` : "–";
-    })()}</dd></div>\n      <div><dt>한강 중심선까지</dt><dd>${(r.h / 1e3).toFixed(2)}km</dd></div>\n      <div><dt>주변 호재 (1.5km)</dt><dd>${nearHojae(r).length}건<small>'${TABS.find((t) => t[0] === "near")?.[1] || "주변"}' 탭에서 목록</small></dd></div>\n      ${r.jg ? `<div><dt>주변 150m 대지 공시지가 가운데 값</dt><dd>㎡당 ${fmt(r.jg / 1e4)}만원<small>3.3㎡당 약 ${fmt((r.jg * 3.3058) / 1e4)}만원 · 진행 중 사업장 중 ${posTxt(jgPct(r.jg))}</small></dd></div>` : ""}\n    </dl>\n    <div class="sect"><h3>주변 역 <small>반경 1km 노선 ${r.ln.length ? r.ln.map(esc).join(", ") : "없음"}</small></h3>\n      <ul class="list">${r.s3.map(([n, d, l]) => `<li><span>${esc(n)} <small>${l.map(esc).join("·")}</small></span><span class="mono">${fmt(d)}m</span></li>`).join("")}</ul></div>\n    <div class="sect"><h3>업무지구까지 직선거리</h3>\n      <ul class="list">${Object.entries(
+    })()}</dd></div>\n      <div><dt>한강 중심선까지</dt><dd>${(r.h / 1e3).toFixed(2)}km</dd></div>\n      <div><dt>주변 호재 (1.5km)</dt><dd>${nearHojae(r).length}건<small>아래 '주변 호재'에서 목록</small></dd></div>\n      ${r.jg ? `<div><dt>주변 150m 대지 공시지가 가운데 값</dt><dd>㎡당 ${fmt(r.jg / 1e4)}만원<small>3.3㎡당 약 ${fmt((r.jg * 3.3058) / 1e4)}만원 · 진행 중 사업장 중 ${posTxt(jgPct(r.jg))}</small></dd></div>` : ""}\n    </dl>\n    <div class="sect"><h3>주변 역 <small>반경 1km 노선 ${r.ln.length ? r.ln.map(esc).join(", ") : "없음"}</small></h3>\n      <ul class="list">${r.s3.map(([n, d, l]) => `<li><span>${esc(n)} <small>${l.map(esc).join("·")}</small></span><span class="mono">${fmt(d)}m</span></li>`).join("")}</ul></div>\n    <div class="sect"><h3>업무지구까지 직선거리</h3>\n      <ul class="list">${Object.entries(
       r.hb,
     )
       .map(([k, v]) => `<li><span>${esc(k)}</span><span class="mono">${(v / 1e3).toFixed(1)}km</span></li>`)
@@ -4285,8 +4285,8 @@
     const gainCls = !x.ok ? "off" : cons ? "ref" : x.gain >= 0.05 ? "up" : x.gain <= -0.05 ? "dn" : "";
     const left = CASH - x.needTotal;
     // 입주 때 시세를 못 정해 입주까지 계산이 안 되면 빈 '–' 카드 셋 대신 이유 한 장 + 넣을 칸으로 바로 가기
-    const noCalc = x.ok ? "" : `<div class="big cash nocalc"><span>입주까지 필요한 현금</span><b class="t">아직 계산 못 해요</b><small>${x.nvThin ? "주변 신축 거래가 적어" : "주변 신축 실거래가 없어"} 입주 때 시세를 못 정했어요.${x.needBuy != null && isFinite(x.needBuy) ? ` 지금 사는 데는 대출 끼고 <b>${ZF.cash(x.needBuy)}</b>(매수가 ${ZF.cash(x.price)} · ${o.est ? "구 평균 추정" : x.priceSrc === "user" ? "직접 입력" : "추정"})` : ""}</small><span class="nc-a"><button type="button" class="btn secondary sm" data-nc="mNv">입주 때 시세 넣기</button><button type="button" class="btn text sm" data-nc="mPrice">매수가 넣기</button></span></div>`;
-    p.innerHTML = `\n    ${noCalc}<div class="bigrow"${x.ok ? "" : " hidden"}>\n      <div class="big cash"><span>입주까지 필요한 현금</span><b>${x.ok ? ZF.cash(x.needTotal) + "" : "–"}</b><small>${x.ok ? (x.needTotal <= CASH ? `내 현금 ${ZF.cash(CASH)} · ${e2(left) === "0" ? "남는 돈 없음" : ZF.cash(left) + " 남음"}` : `내 현금 ${ZF.cash(CASH)} · ${ZF.cash(x.needTotal - CASH)} 부족`) : ""}</small></div>\n      <div class="big gain ${gainCls}"><span>입주 때 시세 차이</span><b>${x.ok ? sg(x.gain) : x.nvThin ? "표본 부족" : "–"}</b><small>${x.ok ? (x.gain <= 0 ? "손실 예상" : x.annual != null ? `연 ${pcIrr(x.annual)} (연 복리 수익률)${x.annual < DEP ? ' · <span class="lowp">예금 3.0% 미만</span>' : ""}${r.eta?.p10 != null && r.eta.p10 < 0.3 ? ` · <span class="lowp">10년 내 준공 ${probTxt(r.eta.p10)}</span>` : ""}` : `입주 시점 미정 · 참고값${x.loanNow ? ` (매수대출 이자 ${CONS_YRS}년 가정)` : ""}`) : x.nvThin ? "주변 신축 비교 거래가 부족해 차익을 계산하지 않아요" : ""}</small><small class="lbl2">추정 · 시세 상승 ${num("aGrowth") ? `연 ${num("aGrowth")}%` : "0%"} 가정${isMulti() ? " · " + MULTI_NOTE : ""}</small></div>\n      <div class="big"><span>${x.refund ? "환급 추정" : "추가 분담금"}</span><b>${x.ok ? ZF.cash(Math.abs(x.contrib)) + "" : "–"}</b><small>${x.ok ? `조합원 분양가 ${ZF.cash(x.unitPrice)} − 권리가액 ${ZF.cash(x.right)}` : ""}</small></div>\n    </div>\n    ${x.ok ? `<div class="cash-brw">${cashBr(x.needTotal, x.loanEnd).html}</div>` : ""}\n    ${x.ok ? `<details class="note flow"><summary><b>필요 현금 계산식</b></summary><p>${esc(flowLine(x))}</p></details>` : ""}\n    ${x.ok && r.s >= 5 && x.prem < x.right * 0.2 && x.priceSrc !== "user" ? `<p class="note warnbox"><b>매수가가 낮게 잡혔을 수 있음</b> 사업시행인가 이후인데 프리미엄 추정(${won(x.prem)})이 권리가액의 20% 미만이에요. 실제 매물가를 아래 '매수가'에 넣어 보세요.</p>` : ""}\n    ${o.appr != null && x.price != null && o.appr > x.price ? `<p class="note warnbox"><b>감정가가 매수가보다 높아요</b> 매수가(현재 시세)도 함께 바꿔야 결과가 과하게 좋게 나오지 않아요.</p>` : ""}\n    ${isEst(r) ? `<p class="note warnbox"><b>구 평균 시세로 추정</b> 주변 빌라 거래가 적어 매수가를 정할 수 없는 구역이라, 같은 구(${esc(r.g)}) 다른 구역 ${EST_N[r.g] || 0}곳의 주변 빌라 실거래 가운데 값 ${ZF.cash(o.price)}을 매수가로 넣었어요. 실제 매물가를 아래 '매수가'에 넣으면 그 값으로 계산해요.${P.est ? "" : " 기본 설정에서는 곳 수·목록에서 빠져 있어요(조건 더 보기 → 추정 구역 포함)."}</p>` : ""}\n    ${r.src === "moa" ? `<p class="note warnbox"><b>관리지역 평균값</b> 모아타운 관리지역 전체 기준의 참고값이에요. 실제 분담금·입주권은 사업구역(블록)별로 달라요.</p>` : ""}\n    <p class="note ${w.cls === "no" ? "riskbox" : ""}"><b>${esc(w.t)}</b> ${esc(w.d)}${lp ? ` · <b>${esc(lp.t)}</b> ${esc(lp.d)}` : ""}</p>\n    <div class="sect"><h3>숫자 바꿔 보기 <small>'추정'은 자동 계산값 · 바꾸면 목록 카드에도 반영</small></h3><div class="ff">\n      ${f("mPrice", "매수가", "프리미엄 포함 실제 매물가", o.price, e2(x.price), "억")}\n      ${f("mAppr", "종전자산 감정가", "관리처분 뒤에는 조합 공개값", o.appr, e2(x.appr), "억")}\n      ${f("mRatio", "비례율", "모든 구역 일괄 변경은 고급 가정에서", ratioChg ? Math.round(x.ratio * 100) : "", ratioChg ? "" : Math.round(x.ratio * 100), "%")}\n      ${f("mUnit", "조합원 분양가", `${P.unit}㎡ 기준`, o.unitPrice, x.ok ? e2(x.unitPrice) : "", "억")}\n      ${f("mNv", "입주 때 시세", x.ref ? `주변 신축 ${esc(x.ref.scope || "")} ${x.ref.n}건${x.ref.complexes ? " · " + x.ref.complexes.slice(0, 2).map(esc).join(", ") : ""}` : "주변 신축 실거래 기준", o.nv, x.ok ? e2(x.nv) : "", "억")}\n    </div></div>\n    ${x.ok ? `<dl class="facts">\n      <div><dt>권리가액</dt><dd>${won(x.right)}<small>감정가 ${won(x.appr)} × 비례율 ${Math.round(x.ratio * 100)}%</small></dd></div>\n      <div><dt>프리미엄 추정</dt><dd>${won(x.prem)}<small>매수가 − 권리가액 (표시값은 반올림)</small></dd></div>\n      <div><dt>취득세</dt><dd>${won(x.tax)}<small>${taxDesc(x)} · '지금 필요한 현금'에 포함</small></dd></div>\n      <div><dt>매수 대출</dt><dd>${loanWhy(x)}</dd></div>\n      <div class="fx-ti"><dt>세금·이자 (입주까지)</dt><dd>${ZF.cash(flowParts(x).ti)}<small>${tiParts(x)}</small></dd></div>\n      <div class="fx-tot"><dt>입주까지 들어가는 돈 합계(잔금대출 빼기 전)</dt><dd>${ZF.cash(cashBr(x.needTotal, x.loanEnd).s)}<small>매수가 + 취득세 + 분담금 + 세금·이자(입주까지)</small></dd></div>\n      <div><dt>입주 잔금대출</dt><dd>${ZF.cash(x.loanEnd)}<small>신축 시세 기준 LTV ${Math.round(ltvEnd() * 100)}%·가격구간 한도${P.first ? " (생애최초 70%는 매수 대출에만)" : ""}${r.s >= 6 ? " · 2025.10.15 이전 관리처분인가 구역은 종전 규정 적용 가능(은행 확인)" : ""} · 현행 규제(2025.10.16~) 기준 · 입주 시점 규제에 따라 달라짐</small></dd></div>\n    </dl>\n    <div class="sect"><h3>비례율에 따른 결과 <small>현금 매수 기준 · 나머지 조건 고정</small></h3><table class="sens"><caption class="sr-only">비례율별 입주 때 시세 차이와 분담금</caption><thead><tr><th scope="col">비례율</th><th scope="col">입주 때 시세 차이</th><th scope="col">분담금</th></tr></thead><tbody id="mSens"></tbody></table></div>` : ""}\n    <p class="note">감정가 추정: ${esc(x.apprWhy || "")}. ${r.k === "재건축" ? "재건축초과이익환수 부담금은 미반영. " : ""}실제 감정가·비례율·조합원 분양가는 관리처분계획에서 확정됩니다.</p>\n    <p class="note"><b>포함하지 않은 비용</b> ${MISSING_COSTS}</p>`;
+    const noCalc = x.ok ? "" : `<div class="big cash nocalc"><span>입주까지 현금</span><b class="t">아직 계산 못 해요</b><small>${x.nvThin ? "주변 신축 거래가 적어" : "주변 신축 실거래가 없어"} 입주 때 시세를 못 정했어요.${x.needBuy != null && isFinite(x.needBuy) ? ` 지금 사는 데는 대출 끼고 <b>${ZF.cash(x.needBuy)}</b>(매수가 ${ZF.cash(x.price)} · ${o.est ? "구 평균 추정" : x.priceSrc === "user" ? "직접 입력" : "추정"})` : ""}</small><span class="nc-a"><button type="button" class="btn secondary sm" data-nc="mNv">입주 때 시세 넣기</button><button type="button" class="btn text sm" data-nc="mPrice">매수가 넣기</button></span></div>`;
+    p.innerHTML = `\n    ${noCalc}<div class="bigrow"${x.ok ? "" : " hidden"}>\n      <div class="big cash"><span>입주까지 현금</span><b>${x.ok ? ZF.cash(x.needTotal) + "" : "–"}</b><small>${x.ok ? (x.needTotal <= CASH ? `내 돈 ${ZF.cash(CASH)} · ${e2(left) === "0" ? "남는 돈 없음" : ZF.cash(left) + " 남음"}` : `내 돈 ${ZF.cash(CASH)} · ${ZF.cash(x.needTotal - CASH)} 부족`) : ""}</small></div>\n      <div class="big gain ${gainCls}"><span>입주 때 시세 차이</span><b>${x.ok ? sg(x.gain) : x.nvThin ? "표본 부족" : "–"}</b><small>${x.ok ? (x.gain <= 0 ? "손실 예상" : x.annual != null ? `연 ${pcIrr(x.annual)} (연 복리 수익률)${x.annual < DEP ? ' · <span class="lowp">예금 3.0% 미만</span>' : ""}${r.eta?.p10 != null && r.eta.p10 < 0.3 ? ` · <span class="lowp">10년 내 준공 ${probTxt(r.eta.p10)}</span>` : ""}` : `입주 시점 미정 · 참고값${x.loanNow ? ` (매수대출 이자 ${CONS_YRS}년 가정)` : ""}`) : x.nvThin ? "주변 신축 비교 거래가 부족해 차익을 계산하지 않아요" : ""}</small><small class="lbl2">추정 · 시세 상승 ${num("aGrowth") ? `연 ${num("aGrowth")}%` : "0%"} 가정${isMulti() ? " · " + MULTI_NOTE : ""}</small></div>\n      <div class="big"><span>${x.refund ? "환급 추정" : "추가 분담금"}</span><b>${x.ok ? ZF.cash(Math.abs(x.contrib)) + "" : "–"}</b><small>${x.ok ? `조합원 분양가 ${ZF.cash(x.unitPrice)} − 권리가액 ${ZF.cash(x.right)}` : ""}</small></div>\n    </div>\n    ${x.ok ? `<div class="cash-brw">${cashBr(x.needTotal, x.loanEnd).html}</div>` : ""}\n    ${x.ok ? `<details class="note flow"><summary><b>계산식</b></summary><p>${esc(flowLine(x))}</p></details>` : ""}\n    ${x.ok && r.s >= 5 && x.prem < x.right * 0.2 && x.priceSrc !== "user" ? `<p class="note warnbox"><b>매수가가 낮게 잡혔을 수 있음</b> 사업시행인가 이후인데 프리미엄 추정(${won(x.prem)})이 권리가액의 20% 미만이에요. 실제 매물가를 아래 '매수가'에 넣어 보세요.</p>` : ""}\n    ${o.appr != null && x.price != null && o.appr > x.price ? `<p class="note warnbox"><b>감정가가 매수가보다 높아요</b> 매수가(현재 시세)도 함께 바꿔야 결과가 과하게 좋게 나오지 않아요.</p>` : ""}\n    ${isEst(r) ? `<p class="note warnbox"><b>구 평균 시세로 추정</b> 주변 빌라 거래가 적어 매수가를 정할 수 없는 구역이라, 같은 구(${esc(r.g)}) 다른 구역 ${EST_N[r.g] || 0}곳의 주변 빌라 실거래 가운데 값 ${ZF.cash(o.price)}을 매수가로 넣었어요. 실제 매물가를 아래 '매수가'에 넣으면 그 값으로 계산해요.${P.est ? "" : " 기본 설정에서는 곳 수·목록에서 빠져 있어요(조건 더 보기 → 추정 구역 포함)."}</p>` : ""}\n    ${r.src === "moa" ? `<p class="note warnbox"><b>관리지역 평균값</b> 모아타운 관리지역 전체 기준의 참고값이에요. 실제 분담금·입주권은 사업구역(블록)별로 달라요.</p>` : ""}\n    <p class="note ${w.cls === "no" ? "riskbox" : ""}"><b>${esc(w.t)}</b> ${esc(w.d)}${lp ? ` · <b>${esc(lp.t)}</b> ${esc(lp.d)}` : ""}</p>\n    <div class="sect"><h3>숫자 바꿔 보기 <small>'추정'은 자동 계산값 · 바꾸면 목록 카드에도 반영</small></h3><div class="ff">\n      ${f("mPrice", "매수가", "프리미엄 포함 실제 매물가", o.price, e2(x.price), "억")}\n      ${f("mAppr", "종전자산 감정가", "관리처분 뒤에는 조합 공개값", o.appr, e2(x.appr), "억")}\n      ${f("mRatio", "비례율", "모든 구역 일괄 변경은 고급 가정에서", ratioChg ? Math.round(x.ratio * 100) : "", ratioChg ? "" : Math.round(x.ratio * 100), "%")}\n      ${f("mUnit", "조합원 분양가", `${P.unit}㎡ 기준`, o.unitPrice, x.ok ? e2(x.unitPrice) : "", "억")}\n      ${f("mNv", "입주 때 시세", x.ref ? `주변 신축 ${esc(x.ref.scope || "")} ${x.ref.n}건${x.ref.complexes ? " · " + x.ref.complexes.slice(0, 2).map(esc).join(", ") : ""}` : "주변 신축 실거래 기준", o.nv, x.ok ? e2(x.nv) : "", "억")}\n    </div></div>\n    ${x.ok ? `<dl class="facts">\n      <div><dt>권리가액</dt><dd>${won(x.right)}<small>감정가 ${won(x.appr)} × 비례율 ${Math.round(x.ratio * 100)}%</small></dd></div>\n      <div><dt>프리미엄 추정</dt><dd>${won(x.prem)}<small>매수가 − 권리가액 (표시값은 반올림)</small></dd></div>\n      <div><dt>취득세</dt><dd>${won(x.tax)}<small>${taxDesc(x)} · '지금 필요한 돈'에 포함</small></dd></div>\n      <div><dt>매수 대출</dt><dd>${loanWhy(x)}</dd></div>\n      <div class="fx-ti"><dt>세금·이자 (입주까지)</dt><dd>${ZF.cash(flowParts(x).ti)}<small>${tiParts(x)}</small></dd></div>\n      <div class="fx-tot"><dt>입주까지 들어가는 돈 합계(잔금대출 빼기 전)</dt><dd>${ZF.cash(cashBr(x.needTotal, x.loanEnd).s)}<small>매수가 + 취득세 + 분담금 + 세금·이자(입주까지)</small></dd></div>\n      <div><dt>입주 잔금대출</dt><dd>${ZF.cash(x.loanEnd)}<small>신축 시세 기준 LTV ${Math.round(ltvEnd() * 100)}%·가격구간 한도${P.first ? " (생애최초 70%는 매수 대출에만)" : ""}${r.s >= 6 ? " · 2025.10.15 이전 관리처분인가 구역은 종전 규정 적용 가능(은행 확인)" : ""} · 현행 규제(2025.10.16~) 기준 · 입주 시점 규제에 따라 달라짐</small></dd></div>\n    </dl>\n    <div class="sect"><h3>비례율에 따른 결과 <small>현금 매수 기준 · 나머지 조건 고정</small></h3><table class="sens"><caption class="sr-only">비례율별 입주 때 시세 차이와 분담금</caption><thead><tr><th scope="col">비례율</th><th scope="col">입주 때 시세 차이</th><th scope="col">분담금</th></tr></thead><tbody id="mSens"></tbody></table></div>` : ""}\n    <p class="note">감정가 추정: ${esc(x.apprWhy || "")}. ${r.k === "재건축" ? "재건축초과이익환수 부담금은 미반영. " : ""}실제 감정가·비례율·조합원 분양가는 관리처분계획에서 확정됩니다.</p>\n    <p class="note"><b>포함하지 않은 비용</b> ${MISSING_COSTS}</p>`;
     p.querySelectorAll("[data-nc]").forEach((b) => b.addEventListener("click", () => { const i = $(b.dataset.nc); if (!i) return; i.scrollIntoView({ block: "center", behavior: "smooth" }); setTimeout(() => { try { i.focus({ preventScroll: true }); i.select(); } catch (e) {} }, 300); }));
     const map = { mPrice: "price", mAppr: "appr", mUnit: "unitPrice", mNv: "nv" };
     Object.entries(map).forEach(([id, k]) =>
@@ -4842,7 +4842,7 @@
         `<b>${total > 60 ? `상위 60곳` : `${fmt(total)}곳`}</b>${total > 60 ? ` · 전체 ${fmt(total)}곳` : ""}${f.af ? ` · 현금 ${ZF.cash(CASH)} 기준` : ""}${!total && nf ? ` · 조건 ${nf}개 적용` : ""}<span class="rs-note"> · ${[noLoc ? `위치 정보 없는 ${fmt(noLoc)}곳은 빼고 셌어요` : "", moaK ? "모아타운 관리지역만" : `모아타운 관리지역 ${fmt(MOA_ALL.length)}곳은 유형 '모아타운'에서`].filter(Boolean).join(" · ")}</span>`;
       $("rankPop").textContent =
         `모집단: 진행 중 사업장 ${fmt(POP.length)}곳 중 위치가 확인된 ${fmt(POP_LOC.length)}곳 (위치 미확인 ${fmt(POP.length - POP_LOC.length)}곳은 입지 점수가 없어 검색·계산기에서만 보여요)`;
-      $("rAffordLab").textContent = `내 현금 ${ZF.cash(CASH)}으로 되는 곳`;
+      $("rAffordLab").textContent = `내 돈 ${ZF.cash(CASH)}으로 되는 곳`;
       [
         ["rGu", "g"],
         ["rKind", "k"],
@@ -4915,7 +4915,7 @@
     const subj = `${f.s ? f.s + " 단계 " : ""}${f.k || "구역"}`;
     const title = f.af ? `${where}에서 ${cash} 되는 ${josa(subj, "이", "가")} 없어요` : `${where}에 ${josa(subj, "이", "가")} 없어요`;
     const LAB = {
-      af: "내 현금 조건 끄고 보기",
+      af: "내 돈 조건 끄고 보기",
       s: "모든 단계 보기",
       k: "모든 유형 보기",
       g: "서울 전체로 보기",
@@ -4929,10 +4929,10 @@
     if (f.af && f.k === "모아타운") {
       const n = rankFilter({ ...f, k: "가로·소규모" }).length;
       desc =
-        "모아타운 관리지역은 사업구역(블록)별로 계산이 달라 '내 현금' 조건에서 빠져요. 관리지역 안 개별 가로주택·소규모 조합으로 보세요.";
+        "모아타운 관리지역은 사업구역(블록)별로 계산이 달라 '내 돈' 조건에서 빠져요. 관리지역 안 개별 가로주택·소규모 조합으로 보세요.";
       return emptyState({
         icon: ICON.filter,
-        title: "모아타운은 '내 현금' 조건과 함께 볼 수 없어요",
+        title: "모아타운은 '내 돈' 조건과 함께 볼 수 없어요",
         desc,
         acts: [
           ...(n ? [{ label: "가로·소규모로 보기", n, attr: 'data-unset="moa"' }] : []),
@@ -4961,7 +4961,7 @@
       }
     }
     if (!desc)
-      desc = `적용한 조건: ${[f.g || "서울 전체", f.k || "모든 유형", f.s ? f.s + " 단계" : "진행 중 전체", f.af ? `내 현금 ${ZF.cash(CASH)}` : null].filter(Boolean).join(" · ")}`;
+      desc = `적용한 조건: ${[f.g || "서울 전체", f.k || "모든 유형", f.s ? f.s + " 단계" : "진행 중 전체", f.af ? `내 돈 ${ZF.cash(CASH)}` : null].filter(Boolean).join(" · ")}`;
     if (!acts.length) {
       const all = rankFilter({ af: false, inf: new Set() }).length;
       return emptyState({
@@ -5988,7 +5988,7 @@
     const part = x.loanNow < x.loanCap - 0.005;
     const coll = x.priceSrc === "complex" ? x.price : Math.min(x.price, x.appr * 1.2);
     const how = `한도 = min(${coll < x.price - 0.005 ? `감정가 추정 ${won(x.appr)} × 1.2` : `매수가 ${won(x.price)}`} × LTV ${Math.round(ltvBuy() * 100)}%, 가격구간 ${bandCap(x.price)}억${num("pIncome") != null ? ", DSR" : ""})`;
-    return `${won(x.loanNow)} <small>${how} · 한도 ${won(x.loanCap)}${part ? ` 중 입주까지 필요한 현금이 가장 적은 금액${x.loanNow ? "" : "(대출 안 받음)"} · 대출을 더 받으면 이자만큼 입주 때 현금이 더 들어요` : " 전액 · 지금 필요한 현금을 줄이려면 한도까지 필요"}</small>`;
+    return `${won(x.loanNow)} <small>${how} · 한도 ${won(x.loanCap)}${part ? ` 중 입주까지 현금이 가장 적은 금액${x.loanNow ? "" : "(대출 안 받음)"} · 대출을 더 받으면 이자만큼 입주 때 현금이 더 들어요` : " 전액 · 지금 필요한 돈을 줄이려면 한도까지 필요"}</small>`;
   }
   function heroHTML(x) {
     const r = x.r,
@@ -6076,7 +6076,7 @@
           : inc == null && total && le > 0.05
             ? `<p class="dsr-s">${x.ok && x.loanEnd >= x.loanNow ? "입주 잔금대출" : "대출"} ${ZF.cash(le)} → DSR상 연소득 약 ${incTxt(le)} 필요 (연소득 미입력 · 현행 규제 기준)</p>`
             : "";
-      budget = `<div class="bud ${over || short ? "over" : loss ? "neutral" : tight ? "tight" : ""}">\n      <div class="bl"><span>${total ? "입주까지 필요한 현금" : "지금 필요한 현금"}</span><b>${ZF.cash(need)} <small>/ ${ZF.cash(CASH)}</small></b></div>\n      <div class="bt" role="img" aria-label="필요 현금 ${ZF.cash(need)}, 내 현금 ${ZF.cash(CASH)}, ${st}"><i style="width:${Math.min(100, fill)}%"></i></div>\n      <div class="bs"><small>${esc(flowLine(x))}</small><span class="st">${st}</span></div>\n      ${dsrNote}${short ? `<p class="warnline">입주까지 ${ZF.cash(x.needTotal)} 필요 · ${ZF.cash(x.needTotal - CASH)} 부족 — 분담금을 못 내면 중간에 팔아야 할 수 있어요</p>` : ""}\n    </div>`;
+      budget = `<div class="bud ${over || short ? "over" : loss ? "neutral" : tight ? "tight" : ""}">\n      <div class="bl"><span>${total ? "입주까지 현금" : "지금 필요한 돈"}</span><b>${ZF.cash(need)} <small>/ ${ZF.cash(CASH)}</small></b></div>\n      <div class="bt" role="img" aria-label="필요한 돈 ${ZF.cash(need)}, 내 돈 ${ZF.cash(CASH)}, ${st}"><i style="width:${Math.min(100, fill)}%"></i></div>\n      <div class="bs"><small>${esc(flowLine(x))}</small><span class="st">${st}</span></div>\n      ${dsrNote}${short ? `<p class="warnline">입주까지 ${ZF.cash(x.needTotal)} 필요 · ${ZF.cash(x.needTotal - CASH)} 부족 — 분담금을 못 내면 중간에 팔아야 할 수 있어요</p>` : ""}\n    </div>`;
     }
     const earlyT = "구역지정·조합설립 전 초기 단계. 권리산정기준일 이후 신축·지분 쪼개기 매물은 입주권이 나오지 않습니다.";
     const second = lp
@@ -6095,7 +6095,7 @@
       lowPrem
         ? [
             "매수가가 낮게 잡혔을 수 있음",
-            `사업시행인가 이후인데 프리미엄 추정이 권리가액의 20% 미만이에요. 실제 매물가를 아래에 넣어 보세요.${x.passHeld ? " 수익·확률 기준은 넘지만 매수가 확인 전이라 기준 통과에서 뺐어요." : ""}`,
+            `사업시행인가 이후인데 웃돈(프리미엄) 추정이 내 지분 값(권리가액)의 20% 미만이에요. 실제 매물가를 아래에 넣어 보세요.${x.passHeld ? " 수익·확률 기준은 넘지만 매수가 확인 전이라 기준 통과에서 뺐어요." : ""}`,
           ]
         : null,
       x.nvFix ? ["신축 시세 보정", "주변 신축 시세가 이 단지 구축보다 낮아 구축 ㎡단가 × 1.15로 보정"] : null,
@@ -6105,14 +6105,14 @@
         : null,
     ].filter(Boolean);
     const ti = x.ok ? flowParts(x).ti : null;
-    const why = `<details class="why"><summary>계산 근거${notes.length ? ` · 참고 ${notes.length}` : ""}</summary><div class="why-in">\n      ${notes.length ? `<ul class="why-notes">${notes.map(([t, d]) => `<li><b>${esc(t)}</b>${esc(d)}</li>`).join("")}</ul>` : ""}\n      ${x.price != null ? `<dl>\n        <dt>매수가</dt><dd>${ZF.cash(x.price)} <small>${x.priceSrc === "user" ? "직접 입력" : x.priceSrc === "complex" ? `${esc(en.name)} 실거래 ${en.n}건 가운데 값 (전용 ${en.area_med}㎡ · 계약 2025.10~2026.9)` : x.priceSrc === "villa" ? `${en.scope ? esc(en.scope) : `반경 ${fmt(en.radius)}m 구축 빌라`} 실거래 ${en.n}건 가운데 값 (전용 ${en.area_med}㎡ · 계약 2025.10~2026.9)` : ""}</small></dd>\n        <dt>취득세</dt><dd>${won(x.tax)} <small>${taxDesc(x)} · '지금'에 포함</small></dd>\n        ${x.ok ? `<dt>매수 대출</dt><dd>${loanWhy(x)}</dd>` : ""}\n        <dt>감정가 추정</dt><dd>${ZF.cash(x.appr)} <small>${esc(x.apprWhy)}</small></dd>\n        <dt>권리가액 · 프리미엄</dt><dd>${won(x.right)} · ${won(x.prem)} <small>비례율 ${Math.round(x.ratio * 100)}% 가정</small></dd>\n        ${x.ok ? `<dt>조합원 분양가</dt><dd>${ZF.cash(x.unitPrice)} <small>${x.unitArea}㎡ · 신축 시세의 ${Math.round((x.unitPrice / x.nv) * 100)}% (${x.unitArea}㎡ 원가 하한 ${ZF.cash(x.floor)} · 비율은 작성자 가정값)</small></dd>\n        <dt>신축 시세</dt><dd>${ZF.cash(x.nv)} <small>${x.nvFix ? "구축 ㎡단가 × 1.15로 보정 · " : ""}${x.same ? `같은 평형(${x.unitArea}㎡) 환산 · ` : ""}${esc(x.ref?.scope || "")} 2016년 이후 준공 ${x.ref?.n || ""}건${x.ref?.complexes ? " · " + x.ref.complexes.slice(0, 2).map(esc).join(", ") : ""}</small></dd>\n        <dt>세금·이자 (입주까지)</dt><dd>${ZF.cash(ti)} <small>${tiParts(x)}</small></dd>\n        <dt>입주까지 들어가는 돈 합계(잔금대출 빼기 전)</dt><dd>${ZF.cash(x.total)} <small>매수가 + 취득세 + 분담금 + 세금·이자 (각 값은 반올림 전 합계)</small></dd>` : ""}\n      </dl>` : ""}\n      <div class="ov">\n        <label>매수가<span class="inp"><input inputmode="decimal" data-ov="price" data-id="${r.id}" value="${OV[r.id]?.price ?? ""}" placeholder="${x.price != null ? e2(x.price) : "예: 5"}"><span>억</span></span></label>\n        ${x.land != null ? `<label>대지지분${x.landDef ? ' <small class="lab-def">가정값 · 입력으로 수정</small>' : ""}<span class="inp"><input inputmode="decimal" data-ov="land" data-id="${r.id}" value="${OV[r.id]?.land ?? ""}" placeholder="${x.land}"><span>㎡</span></span></label>` : x.price != null ? `<label>감정가<span class="inp"><input inputmode="decimal" data-ov="appr" data-id="${r.id}" value="${OV[r.id]?.appr ?? ""}" placeholder="${e2(x.appr)}"><span>억</span></span></label>` : ""}\n      </div>\n    </div></details>`;
+    const why = `<details class="why"><summary>계산 근거${notes.length ? ` · 참고 ${notes.length}` : ""}</summary><div class="why-in">\n      ${notes.length ? `<ul class="why-notes">${notes.map(([t, d]) => `<li><b>${esc(t)}</b>${esc(d)}</li>`).join("")}</ul>` : ""}\n      ${x.price != null ? `<dl>\n        <dt>매수가</dt><dd>${ZF.cash(x.price)} <small>${x.priceSrc === "user" ? "직접 입력" : x.priceSrc === "complex" ? `${esc(en.name)} 실거래 ${en.n}건 가운데 값 (전용 ${en.area_med}㎡ · 계약 2025.10~2026.9)` : x.priceSrc === "villa" ? `${en.scope ? esc(en.scope) : `반경 ${fmt(en.radius)}m 구축 빌라`} 실거래 ${en.n}건 가운데 값 (전용 ${en.area_med}㎡ · 계약 2025.10~2026.9)` : ""}</small></dd>\n        <dt>취득세</dt><dd>${won(x.tax)} <small>${taxDesc(x)} · '지금'에 포함</small></dd>\n        ${x.ok ? `<dt>매수 대출</dt><dd>${loanWhy(x)}</dd>` : ""}\n        <dt>감정가 추정</dt><dd>${ZF.cash(x.appr)} <small>${esc(x.apprWhy)}</small></dd>\n        <dt>내 지분 값(권리가액) · 웃돈(프리미엄)</dt><dd>${won(x.right)} · ${won(x.prem)} <small>비례율 ${Math.round(x.ratio * 100)}% 가정</small></dd>\n        ${x.ok ? `<dt>조합원 분양가</dt><dd>${ZF.cash(x.unitPrice)} <small>${x.unitArea}㎡ · 신축 시세의 ${Math.round((x.unitPrice / x.nv) * 100)}% (${x.unitArea}㎡ 원가 하한 ${ZF.cash(x.floor)} · 비율은 작성자 가정값)</small></dd>\n        <dt>신축 시세</dt><dd>${ZF.cash(x.nv)} <small>${x.nvFix ? "구축 ㎡단가 × 1.15로 보정 · " : ""}${x.same ? `같은 평형(${x.unitArea}㎡) 환산 · ` : ""}${esc(x.ref?.scope || "")} 2016년 이후 준공 ${x.ref?.n || ""}건${x.ref?.complexes ? " · " + x.ref.complexes.slice(0, 2).map(esc).join(", ") : ""}</small></dd>\n        <dt>세금·이자 (입주까지)</dt><dd>${ZF.cash(ti)} <small>${tiParts(x)}</small></dd>\n        <dt>입주까지 들어가는 돈 합계(잔금대출 빼기 전)</dt><dd>${ZF.cash(x.total)} <small>매수가 + 취득세 + 분담금 + 세금·이자 (각 값은 반올림 전 합계)</small></dd>` : ""}\n      </dl>` : ""}\n      <div class="ov">\n        <label>매수가<span class="inp"><input inputmode="decimal" data-ov="price" data-id="${r.id}" value="${OV[r.id]?.price ?? ""}" placeholder="${x.price != null ? e2(x.price) : "예: 5"}"><span>억</span></span></label>\n        ${x.land != null ? `<label>대지지분${x.landDef ? ' <small class="lab-def">가정값 · 입력으로 수정</small>' : ""}<span class="inp"><input inputmode="decimal" data-ov="land" data-id="${r.id}" value="${OV[r.id]?.land ?? ""}" placeholder="${x.land}"><span>㎡</span></span></label>` : x.price != null ? `<label>감정가<span class="inp"><input inputmode="decimal" data-ov="appr" data-id="${r.id}" value="${OV[r.id]?.appr ?? ""}" placeholder="${e2(x.appr)}"><span>억</span></span></label>` : ""}\n      </div>\n    </div></details>`;
     const cap = `${esc(r.g)} ${esc(DUPN.has(shortName(r.n)) ? r.bj || r.j : (r.bj || r.j).split(" ")[0])} · ${esc(r.k.replace("(모아주택)", ""))}${(() => {
       const x = r.st ? stnInfo(r) : null;
       return !x ? "" : x.min > 20 ? ` · ${esc(x.n)}역 ${(x.d / 1e3).toFixed(1)}km` : ` · ${esc(x.n)}역 ${fmt(x.d)}m·도보 ${x.min}분`;
     })()}`;
     const keep =
       (lowPrem
-        ? `<span class="chip-s warn" title="사업시행인가 이후인데 프리미엄 추정이 권리가액의 20% 미만이에요. 실제 매물가를 넣어 보세요.">매수가 낮게 잡혔을 수 있음</span>`
+        ? `<span class="chip-s warn" title="사업시행인가 이후인데 웃돈(프리미엄) 추정이 내 지분 값(권리가액)의 20% 미만이에요. 실제 매물가를 넣어 보세요.">매수가 낮게 잡혔을 수 있음</span>`
         : "") +
       (r.chk ? `<span class="chip-s warn" title="${esc(chkText(r))} 기준 통과·순위에서 제외했어요.">단계 확인 중</span>` : "") +
       (x.passHeld ? '<span class="chip-s plain">기준 통과에서 제외</span>' : "") +
@@ -6213,12 +6213,12 @@
   const isFav = (id) => FAV.includes(id);
   const favBtn = (r, cls = "") =>
     r
-      ? `<button type="button" class="favb ${cls}" data-fav="${r.id}" aria-pressed="${isFav(r.id)}" aria-label="${esc(shortName(r.n))} ${isFav(r.id) ? "핀 빼기" : "핀 꽂고 알림 받기"}">${SVG_PIN(isFav(r.id))}<span>${isFav(r.id) ? "알림 받는 중" : "핀 꽂고 알림 받기"}</span></button>`
+      ? `<button type="button" class="favb ${cls}" data-fav="${r.id}" aria-pressed="${isFav(r.id)}" aria-label="${esc(shortName(r.n))} ${isFav(r.id) ? "관심 구역에서 빼기" : "관심 구역에 추가하기"}">${SVG_PIN(isFav(r.id))}<span>${isFav(r.id) ? "관심 구역에 있어요" : "관심 구역에 추가"}</span></button>`
       : "";
   const BLOG_URL = "https://blog.naver.com/always_questions";
   const leadCard = (cls = "") =>
     MO
-      ? `<aside class="lead ${cls}" aria-label="월간 단계 변경 리포트"><div class="ld-t"><b>${moLabel()}에 서울 정비사업 인가 ${MO.items.length}건(구역 ${new Set(MO.items.map((x) => x.id)).size}곳)</b><p>매달 추진위 승인·구역지정·조합설립·사업시행·관리처분 인가가 난 구역을 원문 링크, 입주까지 필요한 현금과 함께 정리해요.</p><ul class="ld-p"><li>매달 발행</li><li>기사·고시 원문 대조</li><li>가입 없이 열람</li></ul></div><div class="ld-a"><a class="btn secondary sm" href="${MO.url}">최신 리포트 보기</a><small><a href="years">우리 단계는 몇 년 걸리나</a> · <a href="z/">구역별 페이지</a></small></div></aside>`
+      ? `<aside class="lead ${cls}" aria-label="월간 단계 변경 리포트"><div class="ld-t"><b>${moLabel()}에 서울 정비사업 인가 ${MO.items.length}건(구역 ${new Set(MO.items.map((x) => x.id)).size}곳)</b><p>매달 추진위 승인·구역지정·조합설립·사업시행·관리처분 인가가 난 구역을 원문 링크, 입주까지 현금과 함께 정리해요.</p><ul class="ld-p"><li>매달 발행</li><li>기사·고시 원문 대조</li><li>가입 없이 열람</li></ul></div><div class="ld-a"><a class="btn secondary sm" href="${MO.url}">최신 리포트 보기</a><small><a href="years">우리 단계는 몇 년 걸리나</a> · <a href="z/">구역별 페이지</a></small></div></aside>`
       : "";
   const JR_SEOUL = 56.6;
   const JR_GU = { 도봉구: 83.7, 강서구: 76.6, 금천구: 70.3, 종로구: 65.6 };
@@ -6316,7 +6316,7 @@
     const g = gapOf(r);
     return !g.block && !g.na && g.now <= cash + 1e-9;
   };
-  // 곳 수는 홈 '살 수 있는 곳'(affOk)과 같은 기준: 참고값(lc · 매수가 표본 부족) 구역은 세지 않는다
+  // 곳 수는 홈 '갈 수 있는 곳'(affOk)과 같은 기준: 참고값(lc · 매수가 표본 부족) 구역은 세지 않는다
   const gapCount = (cash) => baseList().filter((r) => !r.lc && gapOk(r, cash)).length;
   const yrTxt = (t) => {
     if (t == null) return "시점 미정";
@@ -6460,7 +6460,7 @@
       p != null ? `10년 준공 ${probTxt(p)}` : "준공 확률 산정 전",
     ].join(" · ");
     const tot = o.tot != null ? `<b class="zc-big">${uI(ZF.cash(o.tot))}</b>` : `<b class="zc-big na">계산 전</b>`;
-    const over = o.tot != null && o.tot > CASH + 1e-9 ? `<span class="zc-more">입주까지 내 현금보다 ${ZF.cash(o.tot - CASH)} 더</span>` : "";
+    const over = o.tot != null && o.tot > CASH + 1e-9 ? `<span class="zc-more">입주까지 내 돈보다 ${ZF.cash(o.tot - CASH)} 더</span>` : "";
     return `<article class="zc" data-card="${r.id}">\n    <div class="zc-1"><h3 title="${esc(r.n)}">${esc(shortName(r.n))}</h3><span class="zc-loc">${loc}</span>${stagePill(r)}</div>\n    <div class="zc-2"><span class="zc-k">③ ${LBL.cashToMoveIn}</span>${tot}<span class="zc-now">① 지금 <b>${o.now != null ? ZF.cash(o.now) + "" : "–"}</b></span>${over}</div>\n    <div class="zc-3">${pub}${loss}${rent}${early ? early + " " : ""}${meta}</div>\n    <div class="zc-act">${favBtn(r, "sm ic")}${o.badge || ""}<button type="button" class="go" data-open="${r.id}">리포트<span class="sr-only">: ${esc(shortName(r.n))}</span> <span aria-hidden="true">→</span></button></div>\n  </article>`;
   }
   function ansHTML(o) {
@@ -6499,7 +6499,7 @@
         ansHTML({
           stale,
           n: ok.length,
-          lab: `전세 끼고 <b>${ZF.cash(CASH)}</b>으로 지금 살 수 있는 곳`,
+          lab: `전세 끼고 <b>${ZF.cash(CASH)}</b>으로 지금 갈 수 있는 곳`,
           side: estN ? `추정 구역 ${fmt(estN)}곳 포함` : "",
           t1: rng(ok.map((g) => g.now)),
           s1: "매수가 − 전세금 + 취득세",
@@ -6512,7 +6512,7 @@
           t3: rng(withTot.map((g) => g.total)),
           s3: cheap ? `가장 적은 곳 ${esc(shortName(cheap.r.n))} ${ZF.cash(cheap.total)}` : "입주까지 계산된 곳 없음",
           honest: `전세를 끼면 지금 드는 돈은 줄지만, 이주 때 전세금을 돌려줘야 해서 ${LBL.cashToMoveIn}은 현금으로 살 때와 비슷해요.${withTot.length < ok.length ? ` ${fmt(ok.length - withTot.length)}곳은 입주 시점·신축 시세 자료가 부족해 ③을 계산하지 않았어요.` : ""}`,
-          empty: `<div class="pa-empty"><p>전세 끼고 ${ZF.cash(CASH)}으로 지금 살 수 있는 곳이 아직 없어요.${nextLv ? ` ${nextLv[0]}억이면 ${fmt(nextLv[1])}곳이에요.` : ""}</p></div>`,
+          empty: `<div class="pa-empty"><p>전세 끼고 ${ZF.cash(CASH)}으로 지금 갈 수 있는 곳이 아직 없어요.${nextLv ? ` ${nextLv[0]}억이면 ${fmt(nextLv[1])}곳이에요.` : ""}</p></div>`,
           alt:
             !ok.length && nextLv
               ? `<button type="button" class="btn secondary" data-cash="${nextLv[0]}">${nextLv[0]}억으로 보기</button>`
@@ -6521,7 +6521,7 @@
       );
     });
     setMore(
-      `<div class="pm-lv"><p class="pm-h">금액별 전세 끼고 살 수 있는 곳</p><div class="gap-lv" role="group" aria-label="금액별 전세 끼고 살 수 있는 곳">${lv.map(([c, n]) => `<button type="button" data-cash="${c}" aria-pressed="${Math.abs(c - CASH) < 1e-9}"><span>${c}억</span><b>${fmt(n)}곳</b></button>`).join("")}</div></div>\n      ${blocked.length ? `<p class="pm-p">금액으로는 되지만 토지거래허가(실거주 2년)·입주권 문제로 전세를 끼고 살 수 없는 곳 <b>${fmt(blocked.length)}곳</b>은 목록 아래에 따로 모았어요.</p>` : ""}\n      <ul class="gap-as">\n        <li>전세가 = 매수가 × 전세가율 (${P.jr != null ? `직접 설정 ${fmt(P.jr, 1)}%` : `구역 경계 안 실거래로 전세가율을 구할 수 있는 곳은 그 값, 나머지는 서울 연립·다세대 평균 ${JR_SEOUL}%(도봉 83.7·강서 76.6·금천 70.3·종로 65.6%는 자치구 값, 2026.3)`}). 노후 빌라는 실제 전세가율이 더 낮은 경우가 많아요 → 리포트에서 실제 전세금을 넣어 보세요.</li>\n        <li>제외: 토지거래허가(실거주 2년)로 전세 낀 매수가 막힌 곳, 입주권이 안 나오는 곳, 이주·철거가 시작된 곳${P.est ? "" : ", 주변 빌라 거래가 적어 매수가를 못 정한 곳(조건 더 보기 → 추정 구역 포함)"}.</li>\n        <li>이주비 대출 = min(전세금, 6억, 40% × max(종전자산평가액, 조합원 분양가)) · 다주택은 0 · 조합·은행에 따라 다름 (추정).</li>\n        <li>이주 시점 = 예상 입주 − 착공→준공 가운데 값 ${CJ().toFixed(1)}년 (추정) · 이주비 대출 이자는 이주~입주 동안.</li>\n        <li>취득세는 보유 주택 수 기준 · 매수 대출 없음 · 시세 상승 0% 가정 · 투자 권유 아님.</li>\n      </ul>\n      <p class="gap-src">출처: ${GAP_SRC.map(([t, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(t)}</a>`).join(" · ")}</p>`,
+      `<div class="pm-lv"><p class="pm-h">금액별 전세 끼고 갈 수 있는 곳</p><div class="gap-lv" role="group" aria-label="금액별 전세 끼고 갈 수 있는 곳">${lv.map(([c, n]) => `<button type="button" data-cash="${c}" aria-pressed="${Math.abs(c - CASH) < 1e-9}"><span>${c}억</span><b>${fmt(n)}곳</b></button>`).join("")}</div></div>\n      ${blocked.length ? `<p class="pm-p">금액으로는 되지만 토지거래허가(실거주 2년)·입주권 문제로 전세를 끼고 살 수 없는 곳 <b>${fmt(blocked.length)}곳</b>은 목록 아래에 따로 모았어요.</p>` : ""}\n      <ul class="gap-as">\n        <li>전세가 = 매수가 × 전세가율 (${P.jr != null ? `직접 설정 ${fmt(P.jr, 1)}%` : `구역 경계 안 실거래로 전세가율을 구할 수 있는 곳은 그 값, 나머지는 서울 연립·다세대 평균 ${JR_SEOUL}%(도봉 83.7·강서 76.6·금천 70.3·종로 65.6%는 자치구 값, 2026.3)`}). 노후 빌라는 실제 전세가율이 더 낮은 경우가 많아요 → 리포트에서 실제 전세금을 넣어 보세요.</li>\n        <li>제외: 토지거래허가(실거주 2년)로 전세 낀 매수가 막힌 곳, 입주권이 안 나오는 곳, 이주·철거가 시작된 곳${P.est ? "" : ", 주변 빌라 거래가 적어 매수가를 못 정한 곳(조건 더 보기 → 추정 구역 포함)"}.</li>\n        <li>이주비 대출 = min(전세금, 6억, 40% × max(종전자산평가액, 조합원 분양가)) · 다주택은 0 · 조합·은행에 따라 다름 (추정).</li>\n        <li>이주 시점 = 예상 입주 − 착공→준공 가운데 값 ${CJ().toFixed(1)}년 (추정) · 이주비 대출 이자는 이주~입주 동안.</li>\n        <li>취득세는 보유 주택 수 기준 · 매수 대출 없음 · 시세 상승 0% 가정 · 투자 권유 아님.</li>\n      </ul>\n      <p class="gap-src">출처: ${GAP_SRC.map(([t, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(t)}</a>`).join(" · ")}</p>`,
       "금액별 곳 수·가정·출처",
     );
     $("qAns").innerHTML =
@@ -6567,7 +6567,7 @@
         listHTML(
           shown.map((g) => zoneCard(g.r, { tot: g.x.ok ? g.total : null, now: g.now, badge: badge(g) })),
           fl.length,
-          `${!shown.length ? `<div class="t-empty"><b>${LF ? `${LF_LAB[LF]} 중에는 없어요` : `전세 끼고 ${ZF.cash(CASH)}으로 살 수 있는 곳이 아직 없어요`}</b><p>${LF ? "유형 거르기를 풀어 보세요." : "금액을 올리거나 전세가율을 바꿔 보세요."}</p></div>` : ""}${fl.length > planN ? `<button type="button" class="btn-more" id="planMore">${fmt(Math.min(12, fl.length - planN))}곳 더 보기 · 남은 ${fmt(fl.length - planN)}곳</button>` : ""}\n    ${
+          `${!shown.length ? `<div class="t-empty"><b>${LF ? `${LF_LAB[LF]} 중에는 없어요` : `전세 끼고 ${ZF.cash(CASH)}으로 갈 수 있는 곳이 아직 없어요`}</b><p>${LF ? "유형 거르기를 풀어 보세요." : "금액을 올리거나 전세가율을 바꿔 보세요."}</p></div>` : ""}${fl.length > planN ? `<button type="button" class="btn-more" id="planMore">${fmt(Math.min(12, fl.length - planN))}곳 더 보기 · 남은 ${fmt(fl.length - planN)}곳</button>` : ""}\n    ${
             blocked.length
               ? `<details class="early gblk"><summary><b>전세 낀 매수 불가</b><span class="cnt">${fmt(blocked.length)}곳</span><small>금액으로는 되지만 토지거래허가(실거주 2년)·입주권 문제로 전세를 끼고 살 수 없는 구역</small></summary><ul class="gblk-l">${blocked
                   .slice(0, 40)
@@ -6608,8 +6608,8 @@
   function gapFrame(g) {
     const ok = g.now <= CASH + 1e-9;
     const a = ok
-      ? `지금 ${ZF.cash(g.now)}이면 계약 가능(내 현금 ${ZF.cash(CASH)} 안)`
-      : `지금 ${ZF.cash(g.now)} 필요 · 내 현금보다 ${ZF.cash(g.now - CASH)} 부족`;
+      ? `지금 ${ZF.cash(g.now)}이면 계약 가능(내 돈 ${ZF.cash(CASH)} 안)`
+      : `지금 ${ZF.cash(g.now)} 필요 · 내 돈보다 ${ZF.cash(g.now - CASH)} 부족`;
     if (!g.x.ok) return `${a} · 입주까지는 계산 전`;
     return `${a} · 입주까지 현금 ${ZF.cash(g.total)}${g.total > CASH ? ` → 입주 전까지 ${ZF.cash(g.total - CASH)} 더 필요` : ""}`;
   }
@@ -6619,7 +6619,7 @@
       return g.block && g.block !== "계산 대상 아님"
         ? `<div class="gpane"><p class="note riskbox"><b>전세 끼고 사기 불가</b> ${esc(g.block)}</p></div>`
         : "";
-    return `<div class="gpane"><h3>전세 끼고 사면 <small>언제 얼마가 필요한지</small></h3>\n    ${/공공재개발/.test(r.n) ? '<p class="note riskbox"><b>먼저 확인</b> 공공재개발 후보지 상당수가 토지거래허가구역으로 지정돼 왔어요(2026년 1월까지 확인). 지금도 지정돼 있으면 실거주 의무 때문에 전세 끼고 사기가 어려워요. 계약 전 구청에 지정 여부를 물어보세요.</p>' : ""}\n    ${gapTL(g, false)}${g.x.ok ? cashBr(g.total, g.x.loanEnd, g).html : ""}${g.relocAlt != null && g.relocAlt - g.reloc >= 0.05 ? `<p class="t-note">이주비 대출을 감정가만 기준으로 잡으면 이주 때 ${ZF.cash(g.relocAlt - g.reloc)}이 더 필요해요(조합·은행마다 기준이 달라요).</p>` : ""}\n    <p class="gap-honest">${gapLine}</p>\n    <div class="gj-f"><label for="gJ">이 매물 전세금 <small>${g.userJ ? "직접 입력" : `기본 = 매수가 × ${fmt(g.jr, 1)}% (${esc(jrSrcTxt(r))})`}</small></label><div class="inp"><input id="gJ" inputmode="decimal" placeholder="${e2(g.D)}" value="${OV[r.id]?.jeonse ?? ""}"><span>억</span></div>${g.userJ ? '<button type="button" class="btn text sm" id="gJx">초기화</button>' : ""}</div>\n    <p class="t-note">이주비 대출·이주 시점은 추정(조합·은행에 따라 다름) · 입력값 기준 계산 · 투자 권유 아님</p></div>`;
+    return `<div class="gpane"><h3>전세 끼고 사면 <small>언제 얼마가 필요한지</small></h3>\n    ${/공공재개발/.test(r.n) ? '<p class="note riskbox"><b>먼저 확인</b> 공공재개발 후보지 상당수가 토지거래허가구역으로 지정돼 왔어요(2026년 1월까지 확인). 지금도 지정돼 있으면 실거주 의무 때문에 전세 끼고 사기가 어려워요. 계약 전 구청에 지정 여부를 물어보세요.</p>' : ""}\n    ${gapTL(g, false)}${g.x.ok ? cashBr(g.total, g.x.loanEnd, g).html : ""}${g.relocAlt != null && g.relocAlt - g.reloc >= 0.05 ? `<p class="t-note">이주비 대출을 감정가만 기준으로 잡으면 이주 때 ${ZF.cash(g.relocAlt - g.reloc)}이 더 필요해요(조합·은행마다 기준이 달라요).</p>` : ""}\n    <p class="gap-honest">${gapLine}</p>\n    <div class="gj-f"><label for="gJ">이 매물 전세금 <small>${g.userJ ? "직접 입력" : `기본 = 매수가 × ${fmt(g.jr, 1)}% (${esc(jrSrcTxt(r))})`}</small></label><div class="inp"><input id="gJ" inputmode="decimal" placeholder="${e2(g.D)}" value="${OV[r.id]?.jeonse ?? ""}"><span>억</span></div>${g.userJ ? '<button type="button" class="btn text sm" id="gJx">초기화</button>' : ""}</div>\n    <p class="t-note">이주비 대출·이주 시점은 추정(조합·은행에 따라 다름) · 입력값 기준 계산</p></div>`;
   }
   function gapBigrow(r) {
     const g = gapOf(r),
@@ -6651,7 +6651,7 @@
     if (fti) fti.innerHTML = `${ZF.cash(g.x.origTax + g.x.midInt + g.intM)}<small>원시취득세 ${won(g.x.origTax)} · 중도금 이자 ${won(g.x.midInt)} · 이주비 대출 이자 ${won(g.intM)} (전세 끼고 산 경우)</small>`;
     const fl = p.querySelector("details.flow");
     if (fl)
-      fl.innerHTML = `<summary><b>필요 돈 계산식 (갭)</b></summary><p>① 지금 = 매수가 ${ZF.cash(g.x.price)} + 취득세 ${taxT(g.x.tax)} − 전세 ${ZF.cash(g.D)} = ${ZF.cash(g.now)} · ② 이주 = 전세 ${ZF.cash(g.D)} − 이주비 대출 ${ZF.cash(g.M)} = ${ZF.cash(g.reloc)} · ③ ${LBL.cashToMoveIn} = 매수가·취득세 + 분담금 ${ZF.cash(g.x.contrib)} + 원시취득세·중도금 이자·이주비 이자 ${ZF.cash(g.x.origTax + g.x.midInt + g.intM)} − 잔금대출 ${ZF.cash(g.x.loanEnd)} = ${ZF.cash(g.total)} (0.1억 단위 반올림)</p>`;
+      fl.innerHTML = `<summary><b>계산식 (전세 끼고)</b></summary><p>① 지금 = 매수가 ${ZF.cash(g.x.price)} + 취득세 ${taxT(g.x.tax)} − 전세 ${ZF.cash(g.D)} = ${ZF.cash(g.now)} · ② 이주 = 전세 ${ZF.cash(g.D)} − 이주비 대출 ${ZF.cash(g.M)} = ${ZF.cash(g.reloc)} · ③ ${LBL.cashToMoveIn} = 매수가·취득세 + 분담금 ${ZF.cash(g.x.contrib)} + 원시취득세·중도금 이자·이주비 이자 ${ZF.cash(g.x.origTax + g.x.midInt + g.intM)} − 잔금대출 ${ZF.cash(g.x.loanEnd)} = ${ZF.cash(g.total)} (0.1억 단위 반올림)</p>`;
   }
   function gapPaneBind(r) {
     const i = $("gJ");
@@ -6883,7 +6883,7 @@
         ansHTML({
           stale,
           n: ok.length,
-          lab: `현금 <b>${ZF.cash(CASH)}</b>으로 ${P.basis === "total" ? "입주까지 감당할 수 있는 곳" : "지금 살 수 있는 곳"}${revert}`,
+          lab: `현금 <b>${ZF.cash(CASH)}</b>으로 ${P.basis === "total" ? "입주까지 감당할 수 있는 곳" : "지금 갈 수 있는 곳"}${revert}`,
           side: estN ? `추정 구역 ${fmt(estN)}곳 포함` : "",
           t1: rng(ok.map((x) => x.needNow)),
           s1: "매수가 + 취득세 − 매수 대출",
@@ -6916,7 +6916,7 @@
     $("condSum").textContent = condText();
     const uTxt = num("aUnit") != null ? `신축 시세의 ${num("aUnit")}%` : "신축 시세에 따라 75%→42% (84㎡ 원가 하한 7억 · 59㎡ 5.2억)";
     $("resNoteList").innerHTML =
-      `\n      <li>매수가: 구역 반경 300~800m 구축 빌라 또는 해당 단지의 국토부 실거래(서울 부동산정보광장, 계약 2025.10.1~2026.9.26) 가운데 값. 관리처분·이주 이후 구역은 입주권 호가 입력 필요${P.est ? " · 추정 구역은 같은 구 빌라 시세 가운데 값(구 평균 시세로 추정 배지)" : ""}</li>\n      <li>신축 시세: 반경 1.5km 안 2016년 이후 준공 아파트 ${P.unit}㎡ 실거래 가운데 값. 비교 거래 10건 미만이거나 84㎡가 59㎡보다 싸면 '표본 부족'으로 차익을 내지 않음</li>\n      <li>감정가: 빌라는 대지지분 × 공시지가 × 1.4(매수가의 95% 상한), 아파트는 세대당 대지지분 × 공시지가 × 1.35(시세의 75% 상한) · 권리가액 = 감정가 × 비례율 · 계수는 작성자 가정값</li>\n      <li>조합원 분양가: ${esc(uTxt)} · 작성자 가정값</li>\n      <li>필요 현금: 지금(매수가 + 취득세 − 매수대출) + 대출상환 + 분담금 + 세금·이자 − 입주 잔금대출(LTV ${Math.round(ltvEnd() * 100)}%${ltvEnd() ? "·가격구간 한도" : ""}${num("pIncome") != null ? "·DSR" : ""}) · 현행 규제(2025.10.16~) 기준</li>\n      <li>입주 시점·준공 확률: 서울 사업장 실제 인가일 생존분석. 해제 구역이 빠져 있어 다소 낙관적</li>\n      <li>${MISSING_COSTS}${num("pIncome") != null ? "" : " 연소득을 넣으면 DSR 한도 반영"}</li>`;
+      `\n      <li>매수가: 구역 반경 300~800m 구축 빌라 또는 해당 단지의 국토부 실거래(서울 부동산정보광장, 계약 2025.10.1~2026.9.26) 가운데 값. 관리처분·이주 이후 구역은 입주권 호가 입력 필요${P.est ? " · 추정 구역은 같은 구 빌라 시세 가운데 값(구 평균 시세로 추정 배지)" : ""}</li>\n      <li>신축 시세: 반경 1.5km 안 2016년 이후 준공 아파트 ${P.unit}㎡ 실거래 가운데 값. 비교 거래 10건 미만이거나 84㎡가 59㎡보다 싸면 '표본 부족'으로 차익을 내지 않음</li>\n      <li>감정가: 빌라는 대지지분 × 공시지가 × 1.4(매수가의 95% 상한), 아파트는 세대당 대지지분 × 공시지가 × 1.35(시세의 75% 상한) · 내 지분 값(권리가액) = 감정가 × 비례율 · 계수는 작성자 가정값</li>\n      <li>조합원 분양가: ${esc(uTxt)} · 작성자 가정값</li>\n      <li>필요한 돈: 지금(매수가 + 취득세 − 매수대출) + 대출상환 + 분담금 + 세금·이자 − 입주 잔금대출(LTV ${Math.round(ltvEnd() * 100)}%${ltvEnd() ? "·가격구간 한도" : ""}${num("pIncome") != null ? "·DSR" : ""}) · 현행 규제(2025.10.16~) 기준</li>\n      <li>입주 시점·준공 확률: 서울 사업장 실제 인가일 생존분석. 해제 구역이 빠져 있어 다소 낙관적</li>\n      <li>${MISSING_COSTS}${num("pIncome") != null ? "" : " 연소득을 넣으면 DSR 한도 반영"}</li>`;
     drawRank();
     refreshMap();
     syncURL();
@@ -6948,7 +6948,7 @@
       !main.length && !early.length
         ? ""
         : (_mn != null && isFinite(_mn) ? `입주까지 가려면 가장 적은 곳도 약 ${ZF.cash(_mn)}이 들어요 · ` : "") +
-          "③ 총액 = 입주까지 필요한 현금(잔금대출 뺀 값) · ① = 지금 필요한 현금 · 추정치" +
+          "③ 총액 = 입주까지 현금(잔금대출 뺀 값) · ① = 지금 필요한 돈 · 추정치" +
           (num("pIncome") == null
             ? " · 연소득을 넣지 않아 잔금대출을 규정상 최대로 잡았어요(넣으면 총액이 늘 수 있어요)"
             : " · 연소득 기준 DSR 한도를 반영했어요");
@@ -6965,7 +6965,7 @@
       return isEst(r)
         ? estBadge(r)
         : x.held
-          ? `<span class="zb warn" title="${esc(x.lowPrem ? "사업시행인가 이후인데 프리미엄 추정이 권리가액의 20% 미만이에요. 실제 매물가를 리포트에 넣어 보세요." : chkText(r))}">${x.lowPrem ? "매수가 확인 필요" : "단계 확인 중"}</span>`
+          ? `<span class="zb warn" title="${esc(x.lowPrem ? "사업시행인가 이후인데 웃돈(프리미엄) 추정이 내 지분 값(권리가액)의 20% 미만이에요. 실제 매물가를 리포트에 넣어 보세요." : chkText(r))}">${x.lowPrem ? "매수가 확인 필요" : "단계 확인 중"}</span>`
           : lp
             ? `<span class="zb warn" title="${esc(lp.d)}">토지거래허가</span>`
             : x.ok && x.gain <= -0.3
@@ -7099,7 +7099,7 @@
         ? `<table class="sm-t"><caption class="sr-only">${cap}</caption><thead><tr><th scope="col">구역</th><th scope="col">단계</th><th scope="col" class="n">① 지금</th><th scope="col" class="n">③ 입주까지</th><th scope="col" class="n">10년 준공</th><th scope="col">입주(추정)</th><th scope="col">가까운 역</th></tr></thead><tbody>${rows.map((x) => `<tr><th scope="row">${esc(shortName(x.r.n))}<small>${esc(x.r.g)}</small></th><td>${esc(x.stg)}</td><td class="n">${eok(x.now)}</td><td class="n"><b>${eok(x.tot)}</b></td><td class="n">${pc(x.p10)}</td><td>${yr(x.eta)}</td><td>${esc(x.stn)}</td></tr>`).join("")}</tbody></table>`
         : "";
     const nowLab = gap ? "전세 끼고 지금 드는 돈(매수가 − 전세금 + 취득세)" : "지금 드는 돈(매수가 + 취득세 − 매수 대출)";
-    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${ZF.cash(CASH)}으로 ${gap ? "전세 끼고 지금 살 수 있는" : P.basis === "now" ? "지금 살 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>${LBL.cashToMoveIn}이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>관심 구역 ${fav.length}곳</h3>${tbl(fav, "관심 구역")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 필요한 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
+    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${ZF.cash(CASH)}으로 ${gap ? "전세 끼고 지금 살 수 있는" : P.basis === "now" ? "지금 살 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>${LBL.cashToMoveIn}이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>관심 구역 ${fav.length}곳</h3>${tbl(fav, "관심 구역")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
   }
   function sumOpen() {
     if (!isMember()) {
@@ -7788,7 +7788,7 @@
     {
       const ig = $("inGap");
       if (ig) {
-        ig.innerHTML = `<span class="ig-h">현금만, 입주까지</span>${[5, 7, 10].map((c) => `<a href="#planner" data-cashgo="${c}"><b>${c}억</b> ${fmt(HOOK_CASH[c].size)}곳</a>`).join("")}<span class="ig-n">입주까지 필요한 현금 기준 · 매수 대출 포함 · ${num("pIncome") != null ? `연소득 ${fmt(num("pIncome"))}만원 반영` : "연소득 미입력(잔금대출 최대 가정)"}${HOOK_MIN != null ? `<br>전세 끼고 사도 입주까지는 가장 적은 곳이 약 <b>${ZF.cash(HOOK_MIN)}</b>이에요` : ""}</span>`;
+        ig.innerHTML = `<span class="ig-h">현금만, 입주까지</span>${[5, 7, 10].map((c) => `<a href="#planner" data-cashgo="${c}"><b>${c}억</b> ${fmt(HOOK_CASH[c].size)}곳</a>`).join("")}<span class="ig-n">입주까지 현금 기준 · 매수 대출 포함 · ${num("pIncome") != null ? `연소득 ${fmt(num("pIncome"))}만원 반영` : "연소득 미입력(잔금대출 최대 가정)"}${HOOK_MIN != null ? `<br>전세 끼고 사도 입주까지는 가장 적은 곳이 약 <b>${ZF.cash(HOOK_MIN)}</b>이에요` : ""}</span>`;
         ig.hidden = false;
       }
     }
@@ -7987,8 +7987,8 @@
       const on = isFav(b.dataset.fav),
         r = byId[b.dataset.fav];
       b.setAttribute("aria-pressed", String(on));
-      b.setAttribute("aria-label", `${r ? shortName(r.n) : ""} ${on ? "핀 빼기" : "핀 꽂고 알림 받기"}`);
-      b.innerHTML = `${SVG_PIN(on)}<span>${on ? "알림 받는 중" : "핀 꽂고 알림 받기"}</span>`;
+      b.setAttribute("aria-label", `${r ? shortName(r.n) : ""} ${on ? "관심 구역에서 빼기" : "관심 구역에 추가하기"}`);
+      b.innerHTML = `${SVG_PIN(on)}<span>${on ? "관심 구역에 있어요" : "관심 구역에 추가"}</span>`;
     });
     renderFav();
     PINS.badges();
@@ -8063,7 +8063,7 @@
         const hs = xs.map((o, i) => f(o, i));
         return hs.every(blank) ? "" : `<tr><th scope="row">${lab}</th>${hs.map((h, i) => cell(i, b, h)).join("")}</tr>`;
       };
-      table = `<p class="fv-base">비교 기준: ${gapMode() ? "전세 끼고 " : "현금 "}${ZF.cash(CASH)}${num("pIncome") != null ? ` · 연소득 ${fmt(num("pIncome"))}만원` : " · 연소득 미입력"} (계산기에 넣은 조건)</p>${84 + xs.length * 120 > 340 ? '<p class="fv-hint" aria-hidden="true">옆으로 밀어서 더 보기 →</p>' : ""}<div class="fv-tw"><table class="fv-t" style="min-width:${84 + xs.length * 120}px"><caption class="sr-only">핀 꽂은 구역 나란히 보기</caption><thead><tr><th scope="col"><span class="sr-only">항목</span></th>${xs.map((o) => `<th scope="col"><button type="button" class="fv-open" data-open="${o.r.id}">${esc(shortName(o.r.n))}</button><small>${esc(o.r.g)} ${esc((o.r.bj || o.r.j || "").split(" ")[0])}</small></th>`).join("")}</tr></thead><tbody>\n      ${row("입주까지 현금", (o, i) => (cash[i] != null ? `<b>${ZF.cash(cash[i])}</b><small>${cash[i] <= CASH ? `내 현금 ${ZF.cash(CASH)}으로 가능` : `${ZF.cash(cash[i] - CASH)} 부족`}</small>` : '<span class="mut">계산 불가</span>'), bc)}\n      ${
+      table = `<p class="fv-base">비교 기준: ${gapMode() ? "전세 끼고 " : "현금 "}${ZF.cash(CASH)}${num("pIncome") != null ? ` · 연소득 ${fmt(num("pIncome"))}만원` : " · 연소득 미입력"} (계산기에 넣은 조건)</p>${84 + xs.length * 120 > 340 ? '<p class="fv-hint" aria-hidden="true">옆으로 밀어서 더 보기 →</p>' : ""}<div class="fv-tw"><table class="fv-t" style="min-width:${84 + xs.length * 120}px"><caption class="sr-only">관심 구역 나란히 보기</caption><thead><tr><th scope="col"><span class="sr-only">항목</span></th>${xs.map((o) => `<th scope="col"><button type="button" class="fv-open" data-open="${o.r.id}">${esc(shortName(o.r.n))}</button><small>${esc(o.r.g)} ${esc((o.r.bj || o.r.j || "").split(" ")[0])}</small></th>`).join("")}</tr></thead><tbody>\n      ${row("입주까지 현금", (o, i) => (cash[i] != null ? `<b>${ZF.cash(cash[i])}</b><small>${cash[i] <= CASH ? `내 돈 ${ZF.cash(CASH)}으로 가능` : `${ZF.cash(cash[i] - CASH)} 부족`}</small>` : '<span class="mut">계산 불가</span>'), bc)}\n      ${
         gapMode()
           ? row("전세 끼고 지금 ①", (o) => {
               const g = gapOf(o.r);
@@ -8099,7 +8099,7 @@
         lockCard({
           kind: "table",
           title: "관심 구역",
-          line: `핀 꽂은 구역의 단계·신고가·필요한 돈 변화를 모아 보고, 2~3곳을 나란히 비교해요.${FAV.length ? ` 지금까지 꽂은 핀 ${fmt(FAV.length)}곳은 그대로 남아 있어요.` : ""}`,
+          line: `관심 구역의 단계·신고가·지금 필요한 돈 변화를 모아 보고, 2~3곳을 나란히 비교해요.${FAV.length ? ` 지금까지 추가한 관심 구역 ${fmt(FAV.length)}곳은 그대로 남아 있어요.` : ""}`,
           ctx: "fav",
         }),
       );
@@ -8116,7 +8116,7 @@
     setHTML(
       out,
       `${note}${PINS.listHTML()}
-    <div class="t-acts pn-acts"><button type="button" class="btn text sm" id="fvClear">핀 모두 빼기</button></div>`,
+    <div class="t-acts pn-acts"><button type="button" class="btn text sm" id="fvClear">관심 구역 모두 빼기</button></div>`,
     );
     if (co && PINS.cmpShown() && CMP.length >= 2 && typeof TOH !== "undefined" && !TOH.loaded()) TOH.load().then((T) => { if (T && PINS.cmpShown()) renderFav(); });
     if (co) setHTML(co, PINS.cmpShown() && CMP.length >= 2 ? `<div class="pn-cmp"><div class="pn-cmp-h"><h3 id="pnCmpT" tabindex="-1">나란히 보기</h3><button type="button" class="btn text sm" id="pnCmpX">닫기</button></div>${favCmpTable(CMP.map((id) => byId[id]))}</div>` : "");
@@ -8487,7 +8487,7 @@
             ? '<span class="cm-m u">매수가 추정 불가 · 주변 빌라 거래가 적어요</span>'
             : `<span class="cm-m ${o.st}">전세 끼고 지금 <b>${ZF.cash(o.g.now)}</b>${o.g.x.ok ? ` · 입주까지 현금 ${ZF.cash(o.g.total)}` : ""}${o.st === "n" ? ` · ${ZF.cash(o.g.now - CASH)} 부족` : ""}</span>`
         : o.st === "y"
-          ? `<span class="cm-m y">입주까지 현금 <b>${ZF.cash(x.needTotal)}</b> · 내 현금으로 가능</span>`
+          ? `<span class="cm-m y">입주까지 현금 <b>${ZF.cash(x.needTotal)}</b> · 내 돈으로 가능</span>`
           : o.st === "n"
             ? `<span class="cm-m n">입주까지 현금 <b>${ZF.cash(x.needTotal)}</b> · ${ZF.cash(x.needTotal - CASH)} 부족</span>`
             : `<span class="cm-m u">${x.needBuy != null ? `지금 매수 ${ZF.cash(x.needBuy)} · 입주까지는 계산 전` : "시세 자료 부족 · 계산 불가"}</span>`;
@@ -8500,7 +8500,7 @@
     const shown = cmLock ? shown0.slice(0, 3) : shown0;
     setHTML(
       out,
-      `<div class="cm-sum"><p><b>${esc(CM.dest)}역</b>까지 <b>${CM.max}분</b> 안 <b class="cm-big">${fmt(res.length)}곳</b>${res.length ? ` · 그중 ${gapMode() ? `전세 끼고 ${ZF.cash(CASH)}으로 살 수 있는 곳` : `내 현금 ${ZF.cash(CASH)}으로 입주 가능`} <b class="y">${fmt(ny)}곳</b>` : ""}</p>${res.length ? `<button type="button" class="btn secondary sm" data-cmmap="*">지도에서 모두 보기</button>` : ""}</div>\n    ${res.length ? `${shown.length ? `<ol class="cm-list">${shown.map(card).join("")}</ol>` : `<div class="t-empty"><b>${CM.max}분 안에 ${gapMode() ? `전세 끼고 ${ZF.cash(CASH)}으로` : `내 현금 ${ZF.cash(CASH)}으로 입주까지`} 되는 곳은 아직 없어요</b><p>'내 조건에 맞는 곳만'을 끄면 ${fmt(res.length)}곳을 모두 볼 수 있어요.</p></div>`}${cmLock ? lockCard({ kind: "list", title: `여기까지 무료로 볼 수 있어요`, line: `나머지 ${fmt((only ? pool : res).length - 3)}곳 전체 목록은 멤버십에서 볼 수 있어요.`, ctx: "commute" }) : ""}${!cmLock && !only && res.length > shown.length ? `<div class="t-acts"><button type="button" class="btn secondary sm" id="cmMore">${fmt(Math.min(18, res.length - shown.length))}곳 더 보기 · 남은 ${fmt(res.length - shown.length)}곳</button></div>` : ""}${only && res.length > pool.length ? `<p class="t-note">그 밖에 ${fmt(res.length - pool.length)}곳은 현금이 부족하거나 계산 불가 · '내 조건에 맞는 곳만'을 끄면 보여요</p>` : ""}` : `<div class="t-empty"><b>${CM.max}분 안에 계산기 조건에 맞는 구역이 없어요</b><p>시간을 늘리거나 다른 역을 골라 보세요.</p></div>`}`,
+      `<div class="cm-sum"><p><b>${esc(CM.dest)}역</b>까지 <b>${CM.max}분</b> 안 <b class="cm-big">${fmt(res.length)}곳</b>${res.length ? ` · 그중 ${gapMode() ? `전세 끼고 ${ZF.cash(CASH)}으로 갈 수 있는 곳` : `내 돈 ${ZF.cash(CASH)}으로 입주 가능`} <b class="y">${fmt(ny)}곳</b>` : ""}</p>${res.length ? `<button type="button" class="btn secondary sm" data-cmmap="*">지도에서 모두 보기</button>` : ""}</div>\n    ${res.length ? `${shown.length ? `<ol class="cm-list">${shown.map(card).join("")}</ol>` : `<div class="t-empty"><b>${CM.max}분 안에 ${gapMode() ? `전세 끼고 ${ZF.cash(CASH)}으로` : `내 돈 ${ZF.cash(CASH)}으로 입주까지`} 되는 곳은 아직 없어요</b><p>'내 조건에 맞는 곳만'을 끄면 ${fmt(res.length)}곳을 모두 볼 수 있어요.</p></div>`}${cmLock ? lockCard({ kind: "list", title: `여기까지 무료로 볼 수 있어요`, line: `나머지 ${fmt((only ? pool : res).length - 3)}곳 전체 목록은 멤버십에서 볼 수 있어요.`, ctx: "commute" }) : ""}${!cmLock && !only && res.length > shown.length ? `<div class="t-acts"><button type="button" class="btn secondary sm" id="cmMore">${fmt(Math.min(18, res.length - shown.length))}곳 더 보기 · 남은 ${fmt(res.length - shown.length)}곳</button></div>` : ""}${only && res.length > pool.length ? `<p class="t-note">그 밖에 ${fmt(res.length - pool.length)}곳은 현금이 부족하거나 계산 불가 · '내 조건에 맞는 곳만'을 끄면 보여요</p>` : ""}` : `<div class="t-empty"><b>${CM.max}분 안에 계산기 조건에 맞는 구역이 없어요</b><p>시간을 늘리거나 다른 역을 골라 보세요.</p></div>`}`,
     );
     const m = $("cmMore");
     if (m)
@@ -8626,7 +8626,7 @@
       }
       return hi;
     };
-    // 곳 수는 홈 '살 수 있는 곳'과 같은 판정(window.ZP_ok)으로 센다
+    // 곳 수는 홈 '갈 수 있는 곳'과 같은 판정(window.ZP_ok)으로 센다
     const cnt = (c) => {
       if (typeof window.ZP_ok !== "function") return gapMode() ? gapCount(c) : computeOk({ cash: c });
       const sv = CASH;
@@ -8794,7 +8794,7 @@
       .filter((g) => !g.r.lc && !g.block && !g.na && g.now != null && g.now <= cash0 + 1e-9);
     const tot = buy.filter((g) => g.x.ok);
     const gs = tot.filter((g) => g.tR != null).sort((a, b) => a.total - b.total);
-    // 머리말: 살 수 있는 곳 → ③(입주까지 현금) 계산되는 곳 → 이주 시점까지 나온 곳, 빠지는 단계를 숫자로 밝힘
+    // 머리말: 갈 수 있는 곳 → ③(입주까지 현금) 계산되는 곳 → 이주 시점까지 나온 곳, 빠지는 단계를 숫자로 밝힘
     const sub =
       buy.length > gs.length
         ? `지금 전세 끼고 살 수 있는 ${fmt(buy.length)}곳 중 ③이 계산되는 ${tot.length > gs.length ? `${fmt(tot.length)}곳, 그중 이주 시점까지 나온 ` : ""}`
@@ -8847,7 +8847,7 @@
         );
       const nt = $("svOut").previousElementSibling;
       if (nt && nt.classList.contains("t-note"))
-        nt.textContent = "집값 오름 가정을 고르면 필요한 돈도 같은 비율로 오른다고 보고 셈 · 최대 20년까지 · 곳 수는 홈 '살 수 있는 곳'과 같은 기준 · 연 3%는 월복리·세전 가정 · 투자 권유 아님";
+        nt.textContent = "집값 오름 가정을 고르면 필요한 돈도 같은 비율로 오른다고 보고 셈 · 최대 20년까지 · 곳 수는 홈 '갈 수 있는 곳'과 같은 기준 · 연 3%는 월복리·세전 가정 · 투자 권유 아님";
     }
     $("svRate")
       .querySelectorAll("button")

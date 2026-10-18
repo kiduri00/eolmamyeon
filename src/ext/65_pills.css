@@ -141,6 +141,8 @@
 .scrub .scr-t span:last-child{transform:translateX(-100%)}
 .scrub .scr-bub{position:absolute;bottom:calc(100% + 4px);left:clamp(70px,var(--p),calc(100% - 70px));transform:translateX(-50%);padding:6px 10px;border-radius:10px;background:var(--text-1);color:var(--surface);font:700 13px/1 var(--font);font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(15,23,42,.25);z-index:3}
 .scrub .scr-bub[hidden]{display:none}
+/* 홈 예산 카드: 끄는 동안 말풍선이 큰 금액(1억 → 9곳)을 가리지 않게 막대 바로 위 얇은 띠에 작게 */
+.scrub:not(.scr-lg) .scr-bub{bottom:auto;top:-13px;padding:4px 8px;border-radius:8px;font-size:12px}
 .scrub.scr-lg{height:72px;margin:6px 0 22px}
 .scrub.scr-lg .scr-bars{top:6px;height:58px}
 .scrub.scr-lg .scr-h{top:0;bottom:6px}
@@ -154,7 +156,7 @@ html.simple .s-gauge.bc .scrub{margin:8px 0 18px}
 @media (max-width:374px){html.simple .s-gauge.bc .scrub{margin-bottom:16px}}
 
 /* ---------- 늘 보이는 작은 범례(지도 왼쪽 아래) ---------- */
-.lm-key{position:absolute;left:8px;bottom:8px;z-index:3;display:flex;flex-wrap:wrap;gap:2px 8px;max-width:calc(100% - 120px);margin:0;padding:4px 8px;border-radius:10px;background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--border);font:600 11px/1.35 var(--font);color:var(--text-2);pointer-events:none}
+.lm-key{position:absolute;left:8px;bottom:8px;z-index:3;display:flex;flex-wrap:wrap;gap:2px 8px;max-width:calc(100% - 52px);margin:0;padding:4px 8px;border-radius:10px;background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--border);font:600 11px/1.35 var(--font);color:var(--text-2);pointer-events:none}
 .lm-key span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .lm-key i{flex:none;display:inline-block;box-sizing:border-box}
 .lm-key .k-ok{width:14px;height:9px;border-radius:5px;background:var(--zn)}
