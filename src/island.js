@@ -104,34 +104,22 @@
       if (f !== cur.f || i !== cur.i) apply(f, i);
     } catch (e) {}
   }
-  // 지도 자리: 서울 구 윤곽 + 지금 금액으로 되는 구역 점(MapLibre가 뜨면 걷어 낸다)
+  // 지도 자리: 실제 지도와 같은 구 묶음·범례·'+N곳' 칩(src/ghost.js · 지금 금액의 구별 곳 수) — 앱이 붙으면 앱(10_lmap.js)이 이어받고, 실제 지도가 다 그려지면 걷힌다
+  function ghostSt() {
+    var t = P.thr && P.thr[cur.f], cnt = {}, ok = [];
+    if (t) for (var k = 0; k < P.zones.length; k++) if (t[k] >= 0 && t[k] <= cur.i) { var z = P.zones[k]; cnt[z[0]] = (cnt[z[0]] || 0) + 1; if (z[1] != null) ok.push([z[1], z[2]]); }
+    return { cnt: cnt, ok: ok };
+  }
   function ph() {
-    var box = $("mapbox"), m = P.map;
-    if (!box || !m || box.querySelector(".zp-ph")) return;
-    var d = document.createElement("div");
-    d.className = "zp-ph"; d.setAttribute("aria-hidden", "true");
-    d.innerHTML = '<svg viewBox="' + [-4, -26, m.w + 8, m.h + 34].join(" ") + '" preserveAspectRatio="xMidYMid meet"><g class="zp-gu">' + m.gu.map(function (g) { return '<path d="' + g[1] + '"/>'; }).join("") + '</g><path class="zp-dot" d=""/></svg>';
-    box.insertBefore(d, box.firstChild);
-    dotEl = d.querySelector(".zp-dot");
+    if (!W.ZP_G || !P.thr || !$("mapbox")) return;
+    W.ZP_G.mount($("mapbox"));
     dots();
   }
+  var dragI = false;
   function dots() {
-    if (!dotEl || !P.thr) return;
-    var t = P.thr[cur.f], p = "";
-    for (var k = 0; k < P.zones.length; k++) if (t[k] >= 0 && t[k] <= cur.i) p += "M" + (P.zones[k][0] - 6) + " " + P.zones[k][1] + "a6 6 0 1 0 12 0a6 6 0 1 0-12 0";
-    dotEl.setAttribute("d", p);
-  }
-  function phDone() {
-    var d = document.querySelector(".zp-ph");
-    if (!d) return;
-    var n = 0, tick = function () {
-      var L = W.ZP_lmx, m = L && L.map && L.map(), lm = $("lmap"), sv = $("map");
-      var real = m && lm && !lm.hidden && m.loaded && m.loaded() && m.areTilesLoaded && m.areTilesLoaded();
-      var svg = sv && sv.childElementCount > 0 && (!lm || lm.hidden);
-      if (real || svg || ++n > 400) { d.remove(); return; }
-      setTimeout(tick, 150);
-    };
-    tick();
+    if (!W.ZP_G || !W.ZP_G.on() || hyd()) return;
+    var g = ghostSt();
+    if (dragI) W.ZP_G.lite(g.cnt); else W.ZP_G.draw(g);
   }
   // 앱이 붙기 전에 누른 단추: 앱이 붙으면 마지막 것 한 번만 다시
   var pend = null, pendCh = [];
@@ -155,6 +143,7 @@
     if (hyd()) return;
     var t = e.target, b = t.closest && t.closest("button,[role=button],[role=tab]");
     if (!b) return;
+    if (b.closest(".zp-ph")) { wait(); return; }   // 지도 자리 그림의 누르기는 ghost.js가 받아 두었다가 앱에 넘긴다(ZP_G.onTap)
     var mo = b.closest(".s-mode");
     if (mo && b.dataset.f) { apply(b.dataset.f === "cash" ? "cash" : "gap", cur.i); save(true); return; }
     if (b.closest("#sSum") && b.dataset.id) { location.hash = "#" + b.dataset.id; wait(); return; }
@@ -171,7 +160,8 @@
   var rq = 0;
   // 섬에서 게이지를 만졌으면 앱이 붙은 뒤 '끌어서 맞춰 보세요' 안내를 띄우지 않는다(60_simple.js coach와 같은 키)
   var coachOff = function () { try { localStorage.setItem("emr.coach1", "1"); } catch (e) {} };
-  document.addEventListener("pointerdown", function (e) { if (!hyd() && e.target && e.target.id === "sCash") coachOff(); }, true);
+  document.addEventListener("pointerdown", function (e) { if (!hyd() && e.target && e.target.id === "sCash") { coachOff(); dragI = true; } }, true);
+  W.addEventListener("pointerup", function () { if (dragI) { dragI = false; if (!hyd()) dots(); } }, true);
   document.addEventListener("keydown", function (e) { if (!hyd() && e.target && e.target.id === "sCash") coachOff(); }, true);
   document.addEventListener("input", function (e) {
     if (hyd() || e.target.id !== "sCash") return;
@@ -181,7 +171,6 @@
     rq = requestAnimationFrame(function () { var i = STOPS.indexOf(toCash(v)); if (i >= 0 && (i !== cur.i || true)) apply(cur.f, i, true); save(false); });
   }, true);
   W.addEventListener("zp:hydrated", function () {
-    phDone();
     var q = $("q");
     try { if (q && q.value) q.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) {}
     pendCh.forEach(function (k) { try { var el = document.querySelector(k); if (el) el.dispatchEvent(new Event("change", { bubbles: true })); } catch (e) {} });
@@ -194,5 +183,4 @@
   fx($("sList"), STOPS[cur.i]);
   requestAnimationFrame(function () { setTimeout(function () { if (!hyd()) fit(); }, 0); });
   W.ZP_island = { ready: 1, set: function (f, c) { var i = STOPS.indexOf(c); if (i >= 0) apply(f, i); }, state: function () { return { f: cur.f, c: STOPS[cur.i] }; } };
-  if (B.hyd) phDone();
 })();

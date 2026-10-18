@@ -106,6 +106,11 @@ EXT = os.path.join(R, 'src', 'ext')
 ext_js = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))
 ext_css = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.css'))
 js = S('app.js'); assert js.count('/*EXT*/') == 1; js = js.replace('/*EXT*/', ext_js.strip() + '\n')
+# 지도 자리 그림(src/ghost.js): 섬(h)과 앱(a)이 같은 코드 · 서울 모양은 빌드가 넣는다(tools/ghost_geo.py)
+import ghost_geo
+GHOST_JS = S('ghost.js'); assert GHOST_JS.count('/*GHOST*/ null') == 1
+GHOST_JS = GHOST_JS.replace('/*GHOST*/ null', json.dumps(ghost_geo.build(D), ensure_ascii=False, separators=(',', ':')))
+js = GHOST_JS + js
 css = S('app.css') + ext_css
 # 배포본만 줄이기(원본 src는 그대로): esbuild가 있으면 JS·CSS를 압축. 없으면 그대로 둔다.
 import shutil, subprocess
@@ -187,7 +192,7 @@ def island():
     T = lambda i: None if i is None or i < 0 else P['strs'][i]
     f0, c0 = P['def']['f'], P['def']['c']; i0 = P['stops'].index(c0)
     st = P['st'][f0][i0]; t = st[0]
-    isl = S('island.js'); boot = S('boot.js')
+    isl = GHOST_JS + S('island.js'); boot = S('boot.js')
     if ESB and not os.environ.get('NO_MINIFY'): isl = mini(isl, 'js'); boot = mini(boot, 'js')
     h_url = emit('h', 'window.__ZPH=' + json.dumps(P, ensure_ascii=False, separators=(',', ':')) + ';\n' + isl)
     font = re.search(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/[^"]*pretendard[^"]*)"', shell)
@@ -238,9 +243,7 @@ def island():
     # 첫 페인트 CSS: 이 첫 화면에 실제로 그려지는 요소에 맞는 규칙만(tools/prerender.js css). 전체 CSS는 앱과 함께 붙는다.
     ip = os.path.join(PRE, 'island.html'); open(ip, 'w', encoding='utf-8').write(x)
     cp = os.path.join(PRE, 'crit.css')
-    PH = ('.zp-ph{position:absolute;inset:0;z-index:0;pointer-events:none}.zp-ph svg{display:block;width:100%;height:100%}'
-          '.zp-gu path{fill:var(--surface,#fff);stroke:var(--border,#e5e8eb);stroke-width:1.6}.zp-dot{fill:var(--brand,#2B59F0);opacity:.85}'
-          'html.zp-wait,html.zp-wait *{cursor:progress!important}')
+    PH = 'html.zp-wait,html.zp-wait *{cursor:progress!important}'
     if prerender('css', ip, os.path.join(B, c_url.split('/')[-1]), cp):
         crit = open(cp, encoding='utf-8').read().replace('</style', '<\\/style')
         x = x.replace(f'<link rel="stylesheet" href="{c_url}">', f'<style>{crit}{PH}</style>', 1)

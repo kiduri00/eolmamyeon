@@ -74,7 +74,7 @@ async function state(out) {
         });
         const ok = [];
         let nOk = 0;
-        if (okF) recs.forEach((r) => { let y = false; try { y = !!okF(r); } catch (e) {} if (y) nOk++; if (y && r.xy) { if (!zIx.has(r.id)) { zIx.set(r.id, zones.length); zones.push([r.id, Math.round(r.xy[0]), Math.round(r.xy[1])]); } ok.push(zIx.get(r.id)); } });
+        if (okF) recs.forEach((r) => { let y = false; try { y = !!okF(r); } catch (e) {} if (y) nOk++; if (y && !r.lc) { if (!zIx.has(r.id)) { zIx.set(r.id, zones.length); zones.push([r.id, r.g || "", r.ll ? +(+r.ll[0]).toFixed(5) : null, r.ll ? +(+r.ll[1]).toFixed(5) : null]); } ok.push(zIx.get(r.id)); } });
         const sl = $("sCash"), mo = $("sMore"), as = $("sAsm");
         return {
           t: [S($("sN").textContent), S($("sNL").textContent), S($("sLT").textContent), S($("sLS").textContent), S($("sCashV").innerHTML), S($("sSum").innerHTML), S(mo.hidden ? null : mo.textContent), S(as.hidden ? null : as.innerHTML), S(as.getAttribute("aria-label")), S(sl.style.getPropertyValue("--p")), S(sl.getAttribute("aria-valuetext"))],
@@ -138,7 +138,7 @@ async function state(out) {
       v: 1, stops, KN, pos: stops.map((c) => +toPos(c).toFixed(4)), def: res.def, cls, conds,
       strs: res.strs, rows: res.rows,
       st: { gap: res.out.gap.map((s) => [s.t, s.l, s.pressed, s.gapm]), cash: res.out.cash.map((s) => [s.t, s.l, s.pressed, s.gapm]) },
-      zones: mono ? res.zones.map((z) => [z[1], z[2]]) : [], thr: mono ? thr : null, map: res.map,
+      zones: mono ? res.zones.map((z) => [z[1], z[2], z[3]]) : [], thr: mono ? thr : null, map: res.map,
     };
     fs.writeFileSync(out, JSON.stringify(pack));
     console.log(`prerender state: ${stops.length} stops × 2 · rows ${res.rows.length} · strs ${res.strs.length} · zones ${pack.zones.length}${mono ? "" : " (no dots)"} · ${(JSON.stringify(pack).length / 1024).toFixed(0)}KB`);

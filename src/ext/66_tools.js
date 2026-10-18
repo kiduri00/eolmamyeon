@@ -230,6 +230,7 @@ document.readyState === "loading" ? document.addEventListener("DOMContentLoaded"
       
       const b = e.target.closest("button[data-l]"); if (!b) return;
       const c = chk(b.dataset.l); if (!c) return;
+      try { dispatchEvent(new Event("zp:mapgo")); } catch (er) {}   // 레이어를 켜면 실제 지도를 바로 붙인다(켠 레이어는 지도가 준비되면 반영)
       c.checked = !c.checked; c.dispatchEvent(new Event("change", { bubbles: true }));
       b.setAttribute("aria-pressed", String(c.checked)); dot();
       try { navigator.vibrate && navigator.vibrate(10); } catch (er) {}

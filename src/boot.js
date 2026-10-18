@@ -17,9 +17,18 @@
   // 조용해진 뒤에 할 일: 전체 앱이 붙은 다음 긴 작업 없이 5.5초가 지나거나(= 첫 화면이 반응할 수 있게 된 뒤), 사람이 처음 손댈 때(먼저 오는 쪽) 한 번.
   // 첫 화면 숫자·목록이 다 뜬 뒤 무거운 일(지도 그리기 · 글꼴 바꿔 다시 짜기)이 첫 화면 반응을 막지 않게(18차 성능)
   var QF = [], qOn = false, qT = 0;
-  var qFire = function () { if (qOn) return; qOn = true; clearTimeout(qT); QUI.forEach(function (t) { W.removeEventListener(t, qFire, true); }); var L = QF.splice(0); for (var i = 0; i < L.length; i++) try { L[i](); } catch (e) {} };
+  var qFire = function () { if (qOn) return; qOn = true; clearTimeout(qT); QUI.forEach(function (t) { W.removeEventListener(t, qEv, true); }); var L = QF.splice(0); for (var i = 0; i < L.length; i++) try { L[i](); } catch (e) {} };
+  // 금액 막대를 끄기 시작한 손길은 '조용해짐'으로 치지 않는다 — 글꼴 바꾸기(화면 다시 짜기)가 끄는 숫자를 늦추지 않게 손을 뗀 뒤로 미룬다(19차)
+  var qEv = function (e) {
+    var t = e.target;
+    if (e.type !== "keydown" && e.type !== "scroll" && t && t.closest && t.closest("#sScrub,#sCash,#sMiniR,.scrub")) {
+      if (!qEv.w) { qEv.w = 1; W.addEventListener("pointerup", function () { setTimeout(qFire, 700); }, { once: true, capture: true }); W.addEventListener("touchend", function () { setTimeout(qFire, 700); }, { once: true, capture: true }); }
+      return;
+    }
+    qFire();
+  };
   var QUI = ["pointerdown", "touchstart", "keydown", "wheel", "scroll", "input", "focusin"];
-  QUI.forEach(function (t) { W.addEventListener(t, qFire, { capture: true, passive: true }); });
+  QUI.forEach(function (t) { W.addEventListener(t, qEv, { capture: true, passive: true }); });
   var qArm = function () { clearTimeout(qT); qT = setTimeout(qFire, 5500); };
   try { new PerformanceObserver(function () { if (B.hyd && !qOn) qArm(); }).observe({ type: "longtask" }); } catch (e) {}
   B.quiet = function (fn) { if (qOn) { fn(); return; } QF.push(fn); };
@@ -45,11 +54,12 @@
       if (run.d) return;
       if (document.readyState === "loading") return document.addEventListener("DOMContentLoaded", run);
       run.d = 1;
+      try { performance.mark("zp-hyd0"); } catch (e) {}
       var d = add("script", { src: B.d }), a = add("script", { src: B.a });
       d.async = a.async = false;
       a.onload = function () {
         // 확장 모듈 init(setTimeout 0)들이 먼저 돌고 난 다음
-        setTimeout(function () { requestAnimationFrame(function () { B.hyd = 1; H.classList.remove("zp-wait"); try { W.dispatchEvent(new Event("zp:hydrated")); } catch (e) {} setTimeout(B.font, 300); }); }, 60);
+        setTimeout(function () { requestAnimationFrame(function () { try { performance.mark("zp-hyd"); } catch (e) {} B.hyd = 1; H.classList.remove("zp-wait"); try { W.dispatchEvent(new Event("zp:hydrated")); } catch (e) {} setTimeout(B.font, 300); }); }, 60);
       };
       a.onerror = function () { B.st = 0; H.classList.remove("zp-wait"); };
       document.body.appendChild(d); document.body.appendChild(a);

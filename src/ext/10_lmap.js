@@ -9,6 +9,16 @@
     const SEOUL_BB = [[126.76, 37.413], [127.185, 37.716]];
     const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
     let pendFocus = false;
+    // 금액 막대(홈 게이지·작은 막대·바꾸기 시트)를 손가락으로 끄는 중인지 — 지도 붙이기는 그동안 쉰다(끄는 숫자가 늦지 않게)
+    let DRAG = false, dragEnd = 0;
+    const isScrub = (t) => !!(t && t.closest && t.closest("#sScrub,#sCash,#sMiniR,.scrub,#bsCash,.bs-sl"));
+    document.addEventListener("pointerdown", (e) => { if (isScrub(e.target)) DRAG = true; }, true);
+    document.addEventListener("touchstart", (e) => { if (isScrub(e.target)) DRAG = true; }, { capture: true, passive: true });
+    ["pointerup", "pointercancel", "touchend", "touchcancel"].forEach((t) => addEventListener(t, () => { if (DRAG) { DRAG = false; dragEnd = performance.now(); } }, true));
+    const calm = () => !DRAG && performance.now() - dragEnd > 350;
+    // 다음 작업으로 넘기기(사이에 브라우저가 그리기·입력 처리) — 끄는 중이면 손을 뗄 때까지 기다린다
+    const yieldT = () => new Promise((ok) => { const go = () => (calm() ? setTimeout(ok, 0) : setTimeout(go, 120)); if (window.scheduler && scheduler.yield && calm()) scheduler.yield().then(ok); else go(); });
+    const idleT = (ms) => new Promise((ok) => { const go = () => { if (!calm()) return setTimeout(go, 150); (window.requestIdleCallback || ((f) => setTimeout(f, 1)))(() => (calm() ? ok() : setTimeout(go, 150)), { timeout: ms || 2000 }); }; go(); });
     let map = null, libP = null, geo = null, geoP = null, ready = false, active = false, gu = null, failed = false;
     let want = store.get("emr.map", "real") !== "svg";
     let colorBy = store.get("emr.mapc", "cash");
@@ -84,7 +94,7 @@
         : { bg: "#F3F4F6", park: "#E1EEDC", water: "#BFD9EC", wline: "#A3C6E0", res: "#EDEFF2", bld: "#ECEEF1", bldl: "#E2E5EA", mw: "#FBE3A6", mwc: "#E0BE6A", pr: "#FFFFFF", prc: "#D3D8E0", mn: "#FFFFFF", rail: "#A6AFBB", txt: "#2F3846", txt2: "#6A7482", halo: "#FFFFFF", wtxt: "#3F7DA6" };
       const name = ["coalesce", ["get", "name:ko"], ["get", "name"]];
       const road = (id, cls, color, w, minz) => ({ id, type: "line", source: "omt", "source-layer": "transportation", minzoom: minz || 0, filter: ["in", ["get", "class"], ["literal", cls]], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": color, "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 10, w[0], 14, w[1], 17, w[2]] } });
-      return {
+      const ST = {
         version: 8,
         glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
         sources: { omt: { type: "vector", url: "https://tiles.openfreemap.org/planet" } },
@@ -110,10 +120,37 @@
           { id: "place", type: "symbol", source: "omt", "source-layer": "place", minzoom: 12.5, filter: ["in", ["get", "class"], ["literal", ["suburb", "quarter", "neighbourhood"]]], layout: { "text-field": name, "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 12.5, 11, 16, 14] }, paint: { "text-color": C.txt2, "text-halo-color": C.halo, "text-halo-width": 1.6 } },
         ],
       };
+      // 첫 붙이기(자리 그림이 덮고 있는 동안): 글자 레이어(symbol)는 처음엔 숨겨 두고 몇 개씩 나눠 켠다(stage) — 한 프레임에 셰이더·타일 그리기가 몰려 긴 작업이 되던 것(19차)
+      if (STAGE) ST.layers.forEach((l) => { if (l.type !== "symbol") return; l.layout = Object.assign({}, l.layout, { visibility: "none" }); STG.push(l.id); });
+      return ST;
     }
     const FC = (f) => ({ type: "FeatureCollection", features: f });
-    function overlays() {
+    // 19차: 지도 붙이기를 여러 작업으로 나눈다(긴 작업 하나 대신 짧은 작업 여러 개 + 사이에 쉼) · 금액 막대를 끄는 동안은 쉰다
+    let ovTok = 0, STAGE = false, revealing = false;
+    const STG = [];
+    // 숨겨 둔 레이어를 3개씩 켜고, 지도가 그 프레임을 다 그릴 때(idle)까지 기다린 뒤 다음 묶음 — 긴 작업 하나 대신 짧은 작업 여러 개
+    async function reveal() {
+      if (revealing || !STG.length) { STAGE = false; return; }
+      revealing = true; STAGE = false;
+      try {
+        while (STG.length && map) {
+          const B = STG.splice(0, 5);
+          B.forEach((id) => { try { if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible"); } catch (e) {} });
+          await new Promise((ok) => { let d = 0; const f = () => { if (!d) { d = 1; ok(); } }; map.once("idle", f); setTimeout(f, 5000); });
+          await yieldT();
+        }
+      } finally { revealing = false; try { performance.mark("zp-rev"); } catch (e) {} }
+      layers(); edgeSoon(); fadeSoon();
+    }
+    const STOP = {};
+    async function overlays() {
       if (!map || !geo) return;
+      const tok = ++ovTok;
+      const Y = async () => { await yieldT(); if (tok !== ovTok || !map) throw STOP; };
+      try { performance.mark("zp-ov0"); } catch (e) {}
+      try { await overlays1(Y); try { performance.mark("zp-ov1"); } catch (e) {} } catch (e) { if (e !== STOP) throw e; }
+    }
+    async function overlays1(Y) {
       const dk = dark(), P = palette(), halo = dk ? "#11161D" : "#ffffff";
       const add = (id) => { if (!map.getSource(id)) map.addSource(id, Object.assign({ type: "geojson", data: FC([]) }, /^(zones|zest|zlab|pts)$/.test(id) ? { promoteId: "id" } : {}), { validate: false }); };
       ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gun", "dong", "sdim", "sring", "spt", "hov", "sellab", "gudim", "gusel", "zdot", "pillb"].forEach(add);
@@ -125,7 +162,8 @@
       map.getSource("seoul").setData({ type: "Feature", geometry: { type: "MultiLineString", coordinates: geo.seoul }, properties: {} });
       map.getSource("gul").setData(FC(geo.gu.map((g) => ({ type: "Feature", geometry: { type: "MultiLineString", coordinates: g.r }, properties: { n: g.n } }))));
       map.getSource("stn").setData(FC(D.stations.map((s) => ({ type: "Feature", geometry: { type: "Point", coordinates: [s[2], s[1]] }, properties: { n: s[0].replace(/역$/, ""), c: LINE_COL[(s[3] || [])[0]] || "#7A8594", t: (s[3] || []).length } }))));
-      const L = (o) => { if (!map.getLayer(o.id)) map.addLayer(o, undefined, { validate: false }); };   // 검증 생략(우리가 쓴 고정 레이어 · 지도 켜는 시간 줄이기)
+      await Y();
+      const L = (o) => { if (map.getLayer(o.id)) return; if (STAGE && o.type === "symbol" && !(o.layout && o.layout.visibility === "none")) { o = Object.assign({}, o, { layout: Object.assign({}, o.layout, { visibility: "none" }) }); STG.push(o.id); } map.addLayer(o, undefined, { validate: false }); };   // 검증 생략(우리가 쓴 고정 레이어 · 지도 켜는 시간 줄이기)
       L({ id: "mask", type: "fill", source: "mask", paint: { "fill-color": dk ? "#0B0F14" : "#ffffff", "fill-opacity": dk ? 0.7 : 0.75 } });
       L({ id: "gu-line", type: "line", source: "gul", paint: { "line-color": dk ? "#3B4656" : "#AEB7C4", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 1.3], "line-dasharray": [2, 2] } });
       L({ id: "seoul-line", type: "line", source: "seoul", paint: { "line-color": P.sub, "line-width": 1.6, "line-opacity": 0.7 } });
@@ -151,6 +189,7 @@
       // 알약이 없는 구역의 점(멀다 6px 회남색 · 정보 부족 점선 · 자리가 없는 가능·모자람 · 관심 구역 하트) — 구 묶음 줌(11 이하)에는 비운다
       dotImgs(dk);
       L({ id: "zdot", type: "symbol", source: "zdot", layout: { "icon-image": ["concat", "zd-", ["get", "t"]], "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.85, 15, 1.1], "symbol-sort-key": ["-", 10, ["get", "k"]] }, paint: {} });
+      await Y();
       // 구를 고르면(검색·구 누르기): 다른 구는 옅게 덮고 그 구 경계를 굵게
       L({ id: "gu-dim", type: "fill", source: "gudim", paint: { "fill-color": dk ? "#0B0F14" : "#F3F4F6", "fill-opacity": dk ? 0.5 : 0.55 } });
       L({ id: "gu-sel-case", type: "line", source: "gusel", layout: { "line-join": "round" }, paint: { "line-color": halo, "line-width": 5, "line-opacity": 0.85 } });
@@ -171,6 +210,7 @@
       L({ id: "stn-mj", type: "circle", source: "stn", minzoom: 12, maxzoom: 14, filter: [">=", ["get", "t"], 2], paint: { "circle-radius": 2.6, "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": dk ? "#8A95A5" : "#5F6B7A", "circle-stroke-width": 1.4 } });
       L({ id: "stn-mj-lab", type: "symbol", source: "stn", minzoom: 12, maxzoom: 14, filter: [">=", ["get", "t"], 2], layout: { "text-field": ["concat", ["get", "n"], "역"], "text-font": ["Noto Sans Regular"], "text-size": 10.5, "text-offset": [0, 0.75], "text-anchor": "top", "text-padding": 4, "text-optional": true }, paint: { "text-color": T1, "text-halo-color": halo, "text-halo-width": 1.6 } });
       L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 14, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": 11, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.sub, "text-halo-color": halo, "text-halo-width": 1.6 } });
+      await Y();
       // ---- 겹쳐 보기 레이어 ----
       const nm = ["coalesce", ["get", "name:ko"], ["get", "name"], ""];
       // 학교·병원·마트: 구역(남색)과 헷갈리지 않게 레이어마다 다른 색 + 그림 아이콘(동그라미 안 흰 그림)
@@ -195,6 +235,7 @@
       L({ id: "ly-hj-lab", type: "symbol", source: "hj", minzoom: 13.5, layout: { visibility: "none", "text-field": ["get", "sn"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14, 10, 16, 11], "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true, "text-max-width": 8, "symbol-sort-key": 10 }, paint: { "text-color": dk ? "#AAB3C0" : "#5B6472", "text-halo-color": halo, "text-halo-width": 1 } });
       // 신고가: 줌 13 아래는 구역 가운데 작은 빨간 점, 13부터는 구역 카드 아래 칸에 '▲신고가' 배지(카드 데이터 h)
       L({ id: "ly-hi", type: "circle", source: "hi", maxzoom: 13, layout: { visibility: "none" }, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3, 13, 4.5], "circle-color": dk ? "#FF8A75" : "#D92D20", "circle-stroke-color": halo, "circle-stroke-width": 1.4 } });
+      await Y();
       // ---- 구역 카드(네이버·리치고식): 위 칸 남색에 이름, 아래 흰 칸에 핵심 숫자. 줌 13부터(그 아래는 면만, 갈 수 있는 곳엔 핀) ----
       // 9-patch 이미지 하나로 두 칸 배경을 만들고 icon-text-fit으로 글자에 맞춘다(위·아래 늘림 구간이 같아 두 줄 경계가 가운데에 온다)
       const CARD_TOP = dk ? "#3E6AE0" : "#1F3A87", CARD_BOT = dk ? "#1A2130" : "#FFFFFF", CARD_INK = dk ? "#E8EDF5" : "#191F28";
@@ -236,18 +277,23 @@
       L({ id: "hov-lab", type: "symbol", source: "hov", filter: ["==", ["geometry-type"], "Point"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-anchor": "bottom", "text-offset": [0, -1.35], "text-allow-overlap": true, "text-ignore-placement": false }, paint: { "text-color": dk ? "#9fb3ff" : "#1f3a87", "text-halo-color": halo, "text-halo-width": 2.4 } });
       // 알약·구 묶음 자리표(보이지 않는 글자, 맨 위 = 가장 먼저 자리 잡음): 구역·동·역·구 이름이 DOM 알약 밑에 깔리지 않게
       L({ id: "pill-blk", type: "symbol", source: "pillb", layout: { "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-anchor": ["case", ["has", "c"], "center", "bottom"], "text-offset": ["case", ["has", "c"], ["literal", [0, 0]], ["literal", [0, -0.55]]], "text-line-height": 1.6, "text-allow-overlap": true, "text-padding": 7 }, paint: { "text-opacity": 0 } });
+      await Y();
       stnDraw(); hovDraw(); guDraw();
       FSV.clear(); MW.clear(); dotK = ""; pbK = "";
       ready = true;
       layerData();
       layers();
+      await Y();
       paint();
       focus(pendFocus); pendFocus = false;
       if (stnF && stnPend) stnGo();
       notes(); edgeSoon();
+      if (STG.length) reveal(); else fadeSoon();
     }
     // 구 이름 자리: 가장 큰 고리의 면적 중심. 동 이름 자리: 그 동(지번 주소 첫 낱말) 구역들의 평균 위치
     function guLabels() {
+      // 지도 자리 그림(ghost.js)과 같은 자리(빌드가 같은 식으로 미리 계산) — 경계 파일을 받기 전에도 쓸 수 있다
+      if (window.ZP_G && ZP_G.GD) return FC(ZP_G.GD.gu.map((g) => ({ type: "Feature", geometry: { type: "Point", coordinates: [g[1], g[2]] }, properties: { n: g[0] } })));
       const F = [];
       ((geo && geo.gu) || []).forEach((g) => {
         let best = null, ba = 0;
@@ -301,34 +347,23 @@
     }
     // 기본은 압구정을 가운데 둔 한강 W자 구간. 내 돈으로 되는 구역이 그 밖에 있으면 거기까지 넓힌다.
     const CORE = [[126.882, 37.494], [127.118, 37.562]];   // 망원~잠실, 가운데가 반포·압구정 사이(한강 W자가 좌우 대칭으로 들어오게)
+    const okLL = () => { const f = okSafe(); return R.filter((r) => r.ll && f(r)).map((r) => r.ll); };
     function affBB() {
-      let [[a, b], [c, d]] = CORE;
-      try {
-        const f = okSafe(), P = R.filter((r) => r.ll && f(r)).map((r) => r.ll);
-        if (P.length) {
-          const la = P.map((x) => x[0]).sort((x, y) => x - y), lo = P.map((x) => x[1]).sort((x, y) => x - y);
-          const q = (A, f) => A[Math.max(0, Math.min(A.length - 1, Math.round((A.length - 1) * f)))];
-          // 동떨어진 한두 곳 때문에 너무 멀어지지 않게(PC) · 폰은 구 묶음이 하나도 화면 밖으로 빠지지 않게 다 넣는다
-          const t = P.length >= 8 && !MQ_SHEET.matches ? 0.04 : 0;
-          a = Math.min(a, q(lo, t)); c = Math.max(c, q(lo, 1 - t)); b = Math.min(b, q(la, t)); d = Math.max(d, q(la, 1 - t));
-        }
-        // 폰: 구 묶음은 구 이름 자리(면적 중심)에 놓이므로 갈 수 있는 곳이 있는 구의 그 자리도 화면 안에
-        if (MQ_SHEET.matches && geo) { const cnt = SIMPLE.guCounts(); guLabels().features.forEach((f) => { if (!cnt[f.properties.n]) return; const [x, y] = f.geometry.coordinates; a = Math.min(a, x); c = Math.max(c, x); b = Math.min(b, y); d = Math.max(d, y); }); }
-      } catch (e) {}
-      // PC: 첫 화면에서 서울 전체가 보이게(보이는 부분 안에) — 폰은 작은 지도라 내 돈으로 되는 곳 둘레만
-      if (!MQ_SHEET.matches) { a = Math.min(a, SEOUL_BB[0][0]); b = Math.min(b, SEOUL_BB[0][1]); c = Math.max(c, SEOUL_BB[1][0]); d = Math.max(d, SEOUL_BB[1][1]); }
-      return [[a, b], [c, d]];
+      let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) {}
+      if (window.ZP_G) return ZP_G.bb(okLL(), cnt, MQ_SHEET.matches);
+      return [CORE[0].slice(), CORE[1].slice()];
     }
     // 지도 위에 떠 있는 것(위 게이지·아래 '목록 보기')을 피한 여백
     // settled = 곧 페이지가 지도 칸이 머리 밑에 붙는 자리까지 스크롤된다(구 고르기). 지금 자리가 아니라 그 자리 기준으로 보이는 부분을 잰다
-    function fitPad(settled) {
+    function fitPad(settled, rect) {
       const P = { top: 14, bottom: 14, left: 20, right: 20 };   // 양끝 핀·구 이름이 가장자리에 붙지 않게
       try {
-        const cv = map.getCanvas().getBoundingClientRect();
+        const cv = rect || map.getCanvas().getBoundingClientRect();
         // 데스크톱 끼워 둔 지도: 오른쪽 위 레일·가장자리 카드 자리를 비워 양끝 구역(강서·양천 등)이 잘리지 않게
         // 처음 화면에서 지도 아래쪽이 창 밖이면 보이는 부분 안에 맞춘다
         if (!MQ_SHEET.matches) {
           let bot = cv.bottom;
+          const railPad = () => { const w = $("mapbox") && $("mapbox").querySelector(".s-rail"); return w && w.offsetWidth ? Math.max(16, Math.round(cv.right - w.getBoundingClientRect().left) + 8) : 16; };
           if (settled && !document.documentElement.classList.contains("s-full")) { const mc = document.querySelector("#mapTop .main>.mapcard"); if (mc) { const top0 = (HDR() || 56) + 8 + (cv.top - mc.getBoundingClientRect().top); bot = Math.min(cv.bottom, top0 + cv.height); } }
           P.left = 40; P.right = Math.max(40, railPad()); P.top = 30; P.bottom = 24 + Math.round(Math.min(cv.height * 0.62, Math.max(0, bot - innerHeight)));
         }
@@ -338,18 +373,17 @@
       } catch (e) {}
       return P;
     }
+    // 카메라 = 지도 자리 그림과 같은 함수(ZP_G.cam: MapLibre cameraForBounds + 세로 폰 화면 당김) → 자리 그림 → 실제 지도로 바뀌어도 구 묶음이 그 자리 그대로
+    function camOf(bb, maxZ, pad) {
+      const cv = map ? map.getCanvas() : null, el = cv || (window.ZP_G && ZP_G.el());
+      if (!el || !window.ZP_G) return null;
+      return ZP_G.cam(bb, el.clientWidth, el.clientHeight, pad || fitPad(false, el.getBoundingClientRect()), MQ_SHEET.matches, maxZ);
+    }
     function fitTo(bb, anim, maxZ) {
-      const pad = fitPad(), cam = map.cameraForBounds(bb, { padding: pad, maxZoom: maxZ });
-      if (!cam) return;
-      let z = cam.zoom;
-      // 세로로 긴 폰 화면: 서울(가로로 넓음)이 위아래로 남으면 조금 더 당겨서 채운다(양옆은 살짝 잘려도 손가락으로 밀어 봄)
-      try {
-        const cv = map.getCanvas(), H = cv.clientHeight - pad.top - pad.bottom, W = cv.clientWidth;
-        const y0 = maplibregl.MercatorCoordinate.fromLngLat([bb[0][0], bb[1][1]]).y, y1 = maplibregl.MercatorCoordinate.fromLngLat([bb[0][0], bb[0][1]]).y;
-        const h = (y1 - y0) * 512 * Math.pow(2, z);
-        if (MQ_SHEET.matches && H > W * 1.15 && h > 0 && H / h > 1.3) z +=Math.min(0.45, Math.log2(H / h) * 0.5);
-      } catch (e) {}
-      map.easeTo({ center: cam.center, zoom: Math.min(z, maxZ + 0.75), duration: anim && !reduceMotion() ? 700 : 0 });
+      const C = camOf(bb, maxZ, fitPad());
+      if (C) { map.easeTo({ center: C.c, zoom: C.z, duration: anim && !reduceMotion() ? 700 : 0 }); return; }
+      const cam = map.cameraForBounds(bb, { padding: fitPad(), maxZoom: maxZ });
+      if (cam) map.easeTo({ center: cam.center, zoom: Math.min(cam.zoom, maxZ + 0.75), duration: anim && !reduceMotion() ? 700 : 0 });
     }
     function fitAff(anim, force) {
       if (!map || !ready || mapView !== "seoul" || gu) return;
@@ -381,34 +415,94 @@
       gateOn = true;
       gateQ.splice(0).forEach((f) => { try { f(); } catch (e) {} });
     }
+    // 19차: 폰은 ① 지도 칸이 화면에 보이고 ② 앱이 붙은 뒤 브라우저가 한가할 때(requestIdleCallback) ③ 금액 막대를 끄는 중이 아닐 때 붙인다.
+    // 사람이 지도 자리 그림을 누르면(구 묶음·칩·확대·레일) 바로. 금액 막대를 처음 만지는 것만으로는 붙이지 않는다(끄는 숫자가 먼저).
     function gateInit() {
       if (gateOn || gateInit.d) return; gateInit.d = 1;
-      const B = window.ZP_boot, why = (B && B.why) || "";
-      if (!MQ_SHEET.matches || !B || !B.quiet || /^(pointerdown|touchstart|keydown|wheel|mousemove|scroll|click|input|change|focusin|hashchange)$/.test(why)) { gateOpen(); return; }
-      B.quiet(gateOpen);   // boot.js: 앱이 붙은 뒤 5.5초 조용하거나 처음 손댈 때
+      if (!MQ_SHEET.matches || typeof IntersectionObserver !== "function") { gateOpen(); return; }
+      let seen = false, busy = false;
+      const go = () => { if (gateOn || !seen || busy) return; busy = true; idleT(2500).then(() => { busy = false; if (!gateOn && seen) gateOpen(); }); };
+      const io = new IntersectionObserver((es) => { const v = es.some((e) => e.isIntersecting && e.intersectionRatio >= 0.35); seen = v; if (v) go(); if (gateOn) io.disconnect(); }, { threshold: [0, 0.35, 0.7] });
+      io.observe($("mapbox"));
+      addEventListener("zp:mapgo", () => { io.disconnect(); gateOpen(); }, { once: true });
     }
     const whenGate = (fn) => { gateInit(); if (gateOn) return true; gateQ.push(fn); return false; };
+    // 지도 자리 그림(ghost.js): 실제 지도가 붙어 바탕까지 그려질 때까지 같은 구 묶음·칩·범례를 보여 준다
+    let gTapHooked = false, pendZ = 0;
+    function ghostOn() { return !!(window.ZP_G && ZP_G.on()); }
+    function ghostDraw(lite) {
+      if (!window.ZP_G) return;
+      if (map && ready && !ZP_G.on()) return;
+      if (!want || failed) { ZP_G.drop(); return; }
+      if (!ZP_G.on()) { if (map) return; ZP_G.mount($("mapbox")); }
+      if (!gTapHooked) {
+        gTapHooked = true;
+        ZP_G.onTap((a) => {
+          if (a.touch || a.bg || a.chip) { gateOpen(); return; }
+          if (a.gu) { try { enterGu(a.gu, { hist: true }); } catch (e) {} return; }
+          if (a.zoom === "full") { try { SIMPLE.fullMap(); } catch (e) {} return; }
+          if (a.zoom) { pendZ += +a.zoom; gateOpen(); }
+        });
+      }
+      let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) {}
+      if (lite) { ZP_G.lite(cnt); return; }
+      const el = ZP_G.el(); if (!el) return;
+      ZP_G.draw({ cnt, ok: okLL(), pad: fitPad(false, el.getBoundingClientRect()) });
+    }
+    // 실제 지도가 바탕 타일·구 묶음까지 다 그린 첫 '한가함(idle)' 뒤에 자리 그림을 200ms 동안 걷어 낸다(빈 회색 화면 없음)
+    let fadeT = 0;
+    function fadeSoon() {
+      if (!map || !ghostOn()) return;
+      clearTimeout(fadeT);
+      const chk = () => {
+        if (!map || !ghostOn()) return;
+        if (ready && !revealing && !STG.length && map.loaded() && map.areTilesLoaded() && !map.isMoving()) { requestAnimationFrame(() => requestAnimationFrame(() => { try { performance.mark("zp-fade"); } catch (e) {} ZP_G.fade(); if (pendZ) { const z = pendZ; pendZ = 0; if (z > 0) map.zoomIn(); else map.zoomOut(); } })); return; }
+        map.once("idle", () => { fadeT = setTimeout(chk, 30); });
+      };
+      fadeT = setTimeout(chk, 30);
+    }
     function seoul() {
       gu = null; guDraw();
       ui();
-      if (!want || failed) return show(false);
+      if (!want || failed) { if (window.ZP_G) ZP_G.drop(); return show(false); }
+      if (!map) ghostDraw();
       if (!map && !whenNear(() => { if (mapView === "seoul" && !gu) seoul(); })) return;
       shortMark();   // 지도 칸 모양(레일 3×2 등)은 지도를 붙이기 전에 정해 둔다 — 붙는 순간 레일이 줄어 밀리지 않게(CLS)
       if (!map && !whenGate(() => { if (mapView === "seoul" && !gu) seoul(); })) return;
+      attach("seoul");
+    }
+    // 붙이기: 라이브러리 → (쉼) → 경계 파일 → (쉼) → 지도 만들기 → 스타일이 오면 레이어를 몇 번에 나눠(overlays) → 첫 맞춤
+    let attP = null;
+    function attach(why) {
       show(true);
-      Promise.all([loadLib(), loadGeo()])
-        .then(() => {
+      if (!attP) attP = (async () => {
+        try { performance.mark("zp-att"); } catch (e) {}
+        await loadLib(); try { performance.mark("zp-lib"); } catch (e) {} await yieldT();
+        await loadGeo(); try { performance.mark("zp-geo"); } catch (e) {} await yieldT();
+        if (!init()) throw new Error("init");
+        try { performance.mark("zp-init"); } catch (e) {}
+      })();
+      attP.then(() => {
+        if (why === "seoul") {
           if (mapView !== "seoul") return;
-          if (!init()) { show(false); return; }
-          // 처음엔 서울 전체가 아니라 '내 돈으로 되는 구역'이 모인 곳에 맞춘다(폰 지도는 작아서 전체는 답답함)
-          const fitS = () => { if (stnF) { if (stnPend) stnGo(); return; } if (mapView === "seoul" && !gu) { map.resize(); if (ready) fitTo(affBB(), false, 12); else map.fitBounds(CORE, { padding: 12, duration: 0 }); } };
-          fitS(); requestAnimationFrame(fitS); map.once("idle", fitS);
+          // 처음엔 서울 전체가 아니라 '내 돈으로 되는 구역'이 모인 곳에 맞춘다(폰 지도는 작아서 전체는 답답함) — 자리 그림과 같은 카메라
+          const fitS = () => { if (stnF) { if (stnPend) stnGo(); return; } if (mapView === "seoul" && !gu) { map.resize(); fitTo(affBB(), false, 12); } };
+          fitS(); map.once("idle", fitS);
           map.once("idle", () => { try { dispatchEvent(new Event("zp:mapready")); } catch (e) {} });
           if (ready) paint();
-        })
-        .catch(() => { failed = true; show(false); });
+        } else if (why && why.gu) {
+          const n = why.gu;
+          if (mapView !== "gu" || !want) return;
+          map.resize();
+          if (cur && cur.g === n && geo && (geo.z[cur.id] || cur.ll)) { if (ready) focus(true); else pendFocus = true; }
+          else fitGu(n);
+          if (ready) paint();
+        }
+        fadeSoon();
+      }).catch((e) => { attP = null; failed = true; if (window.ZP_G) ZP_G.drop(); show(false); });
     }
     function layerData() {
+      if (!map || !ready || !map.getSource("hj")) return;   // 지도가 아직 없거나 스타일을 받는 중(레이어 단추는 그 뒤 overlays가 다시 반영)
       const F = [];
       (HJD.items || []).forEach((h) => {
         if (/개통/.test(h.st || "") && !(h.stn || []).some(([, s]) => !/개통/.test(s))) return;
@@ -548,8 +642,9 @@
     const pillLabel = (r, s, fav, nw) => `${fullName(r)}, 지금 필요한 돈 ${ZF.cash(s.need)}, ${SIMPLE.stWord[s.st]}${s.st === "near" ? `, ${SIMPLE.shortTxt(s.need).slice(1)} 더 필요` : ""}${fav ? ", 관심 구역" : ""}${nw ? ", 이번 주 새로 가능" : ""}`;
     const selId = () => pickId || (cur && cur.id) || null;
     // now = 바로(금액을 끄는 동안 목록과 같은 프레임에 — 한 프레임 늦지 않게) · 아니면 다음 프레임에 한 번
-    let stT = 0;
+    let stT = 0, ghRaf = 0;
     function states(now) {
+      if (ghostOn() && !(map && ready)) { if (now) ghostDraw(); else { cancelAnimationFrame(ghRaf); ghRaf = requestAnimationFrame(() => ghostDraw()); } }
       if (!map || !ready || !geo) return;
       const run = () => { pillRaf = 0; if (!map || !ready) return; pinHooks(); computeStates(); stateFS(); layout(); stT = performance.now(); };
       if (now && performance.now() - stT > 30) { if (pillRaf) cancelAnimationFrame(pillRaf); run(); return; }
@@ -605,8 +700,8 @@
       const k = city ? "c" : "z";
       if (el.dataset.k === k) return;
       el.dataset.k = k;
-      el.innerHTML = city ? `<span><i class="k-gu"></i>많음</span><span><i class="k-gu k-gu2"></i>적음</span><span>숫자 = 갈 수 있는 곳</span>` : `<span><i class="k-ok"></i>가능</span><span><i class="k-near"></i>조금 모자람</span><span><i class="k-far"></i>멀다</span><span><i class="k-na"></i>정보 부족</span>`;
-      el.setAttribute("aria-label", city ? "범례: 구 묶음 숫자는 그 구에서 갈 수 있는 곳 수, 진한 원은 많은 구, 옅은 원은 적은 구" : "범례: 남색 알약 가능, 흰 알약 조금 모자람(모자란 돈 표시), 작은 점 멀다, 점선 점 정보 부족");
+      el.innerHTML = city ? ZP_G.KEY : `<span><i class="k-ok"></i>가능</span><span><i class="k-near"></i>조금 모자람</span><span><i class="k-far"></i>멀다</span><span><i class="k-na"></i>정보 부족</span>`;
+      el.setAttribute("aria-label", city ? ZP_G.KEY_L : "범례: 남색 알약 가능, 흰 알약 조금 모자람(모자란 돈 표시), 작은 점 멀다, 점선 점 정보 부족");
     }
     // 같은 점이면 다시 넣지 않는다(지도 크기·위치만 바뀐 경우 — 1,300개 점을 일꾼에 다시 보내지 않게)
     let dotK = "";
@@ -693,38 +788,10 @@
       if (!GUL) GUL = guLabels().features.map((f) => ({ n: f.properties.n, ll: f.geometry.coordinates }));
       let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) {}
       const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, obs = obstacles(), phone = MQ_SHEET.matches;
-      const L = GUL.map((g) => ({ n: g.n, ll: g.ll, c: cnt[g.n] || 0 })).sort((a, b) => b.c - a.c);
-      const mx = Math.max(1, ...L.map((x) => x.c));
-      const ANG = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => (k * Math.PI) / 4 + Math.PI / 2);
       // 칩 자리(범례 바로 위 왼쪽): 칩이 필요할 때만 비워 두고 다시 놓는다
       const chipBox = () => { const k = $("lmKey"), cb = cv.getBoundingClientRect(); let y = H - 40; try { if (k && k.offsetWidth) y = k.getBoundingClientRect().top - cb.top - 6; } catch (e) {} return [4, y - 36, 120, y]; };
-      const place = (extra) => {
-        const placed = extra ? [extra] : [], keep = [], left = [];
-        const free = (bx) => bx[0] >= 2 && bx[2] <= W - 2 && bx[1] >= 2 && bx[3] <= H - 2 && !obs.some((o) => hitB(o, bx)) && !placed.some((o) => hitB(o, bx));
-        for (const g0 of L) {
-          if (!g0.c) continue;   // 갈 수 있는 곳이 없는 구는 묶음을 그리지 않는다(구 이름은 바탕 지도에)
-          const g = Object.assign({}, g0), q = map.project(g.ll), sn = g.n.length > 2 ? g.n.replace(/구$/, "") : g.n;
-          // 화면 밖인 구는 칩으로(지도를 밀면 다시 묶음으로)
-          if (q.x < -8 || q.x > W + 8 || q.y < -8 || q.y > H + 8) { left.push(g); continue; }
-          let got = null;
-          for (const sm of [false, true]) {
-            const d = sm ? Math.max(32, Math.max(measure(sn, 10, 800), measure(`가능 ${g.c}`, 10, 600)) + 6) : Math.max(phone ? 42 : 46, Math.max(measure(sn, 12, 800), measure(`가능 ${g.c}`, 11, 600)) + 14);
-            for (const rr of sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05]) {
-              for (const an of rr ? ANG : [0]) {
-                const x = q.x + rr * Math.cos(an), y = q.y + rr * Math.sin(an), bx = [x - d / 2, y - d / 2, x + d / 2, y + d / 2];
-                if (free(bx)) { got = { bx, d, sm, dx: x - q.x, dy: y - q.y }; break; }
-              }
-              if (got) break;
-            }
-            if (got) break;
-          }
-          if (!got) { left.push(g); continue; }
-          placed.push(got.bx); keep.push(Object.assign(g, { sn, d: got.d, sm: got.sm, dx: Math.round(got.dx), dy: Math.round(got.dy), t: g.c / mx > 0.6 ? 3 : g.c / mx > 0.25 ? 2 : 1 }));
-        }
-        return { keep, left };
-      };
-      let { keep, left } = place(null);
-      if (left.length) ({ keep, left } = place(chipBox()));
+      // 자리 잡기는 지도 자리 그림(ghost.js)과 같은 함수 — 같은 카메라면 같은 자리
+      const { keep, left } = ZP_G.place({ W, H, obs, phone, gus: GUL.map((g) => ({ n: g.n, ll: g.ll, c: cnt[g.n] || 0 })), proj: (ll) => map.project(ll), chip: chipBox() });
       gusSet(keep);
       GUMORE = { c: left.reduce((a, g) => a + g.c, 0), L: left, y: chipBox()[1] };
       guMoreDraw();
@@ -750,7 +817,7 @@
       const k = M.L.map((g) => g.n + g.c).join(",");
       if (el.dataset.k !== k) {
         el.dataset.k = k;
-        el.innerHTML = `<button type="button" class="lm-gumore-b" aria-expanded="false" aria-label="지도에 다 못 보인 ${M.L.length}개 구, 갈 수 있는 곳 ${fmt(M.c)}곳 더 보기">+${fmt(M.c)}곳 <small>${M.L.length}개 구</small></button><ul class="lm-gumore-l">${M.L.map((g) => `<li><button type="button" data-gu="${esc(g.n)}">${esc(g.n)} <b>가능 ${fmt(g.c)}</b></button></li>`).join("")}</ul>`;
+        el.innerHTML = ZP_G.chipHTML(M.L, M.c);
         el.classList.remove("open");
       }
       el.dataset.n = String(M.c);
@@ -776,7 +843,7 @@
         p.el.className = `zgu t${g.t}${g.sm ? " sm" : ""}`; p.el.dataset.n = String(g.c);
         p.el.style.setProperty("--d", g.d + "px");
         p.el.innerHTML = `<b>${esc(g.sn)}</b><span>가능 ${fmt(g.c)}</span>`;
-        p.el.setAttribute("aria-label", `${n}, 갈 수 있는 곳 ${fmt(g.c)}곳, 눌러서 ${n} 보기`);
+        p.el.setAttribute("aria-label", ZP_G.GU_LBL(n, g.c));
       });
     }
     // 금액을 바꾸고 손을 떼면: 진동 한 번 + '새로 갈 수 있는 곳 4곳 · 2곳 빠졌어요'(바뀐 게 있을 때만, 2초) — 홈 숫자와 같은 판정(70_pins.js window.ZP_ok)
@@ -1097,7 +1164,7 @@
       const zm = document.createElement("div");
       zm.className = "lm-zoom"; zm.setAttribute("role", "group"); zm.setAttribute("aria-label", "지도 확대·축소");
       // ⤢ 크게 보기(PC): 지도를 화면 가득. 폰은 아래 탭 '지도'가 같은 일을 한다
-      zm.innerHTML = `<button type="button" data-z="full" class="lm-fs" aria-label="지도 크게 보기" aria-pressed="false" title="지도 크게 보기"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" data-z="1" aria-label="확대"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button><button type="button" data-z="-1" aria-label="축소"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>`;
+      zm.innerHTML = ZP_G.ZOOM;
       zm.addEventListener("click", (e) => { const b = e.target.closest("button[data-z]"); if (!b) return; if (b.dataset.z === "full") { try { SIMPLE.fullMap(); } catch (er) {} return; } if (!map) return; const o = { duration: reduceMotion() ? 0 : 250 }; if (+b.dataset.z > 0) map.zoomIn(o); else map.zoomOut(o); });
       d.appendChild(zm);
       box.appendChild(d);
@@ -1135,9 +1202,10 @@
     const SWGL = () => { if (swgl != null) return swgl; swgl = false; try { const c = document.createElement("canvas"), g = c.getContext("webgl"), e = g && g.getExtension("WEBGL_debug_renderer_info"), r = e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL) || "") : ""; swgl = /SwiftShader|llvmpipe|softpipe|Software|Microsoft Basic Render/i.test(r); const lc = g && g.getExtension("WEBGL_lose_context"); if (lc) lc.loseContext(); } catch (e) {} return swgl; };
     function init() {
       if (map) return true;
+      STAGE = ghostOn();
       try {
         map = new maplibregl.Map({ validateStyle: false,
-          container: "lmap", style: style(), bounds: SEOUL_BB, fadeDuration: 0, ...(SWGL() ? { pixelRatio: 1 } : {}), fitBoundsOptions: { padding: 12 },
+          container: "lmap", style: style(), ...((() => { const C = (window.ZP_G && ZP_G.on() && ZP_G.last()) || null; return C ? { center: C.c, zoom: C.z } : { bounds: SEOUL_BB }; })()), fadeDuration: 0, ...(SWGL() ? { pixelRatio: 1 } : {}), fitBoundsOptions: { padding: 12 },
           minZoom: 8.8, maxZoom: 17.6, maxBounds: [[126.2, 37.05], [127.75, 38.05]], attributionControl: false,
           localIdeographFontFamily: "'Pretendard Variable','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif",
           cooperativeGestures: false, dragRotate: false, pitchWithRotate: false, touchPitch: false,
@@ -1145,6 +1213,14 @@
         });
       } catch (e) { map = null; failed = true; return false; }
       map.touchZoomRotate.disableRotation();
+      // 금액 막대를 끄는 동안은 지도 프레임을 그리지 않는다(소프트웨어 WebGL에서 한 장 150ms+ → 끄는 숫자가 밀리던 것). 손을 떼면 한 번에 그린다
+      try {
+        const r0 = map._render;
+        if (typeof r0 === "function") {
+          let held = false;
+          map._render = function (t) { if (DRAG) { if (!held) { held = true; const w = () => (DRAG ? setTimeout(w, 80) : (held = false, map && map.triggerRepaint())); setTimeout(w, 80); } return this; } return r0.call(this, t); };
+        }
+      } catch (e) {}
       map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '정비구역 경계 <a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a>' }), "bottom-right");
       map.on("style.load", () => { ready = false; loadGeo().then(overlays); });
       map.on("moveend", edgeSoon);
@@ -1260,18 +1336,8 @@
       gateOpen();
       gu = n;
       ui();
-      if (!want || failed) return show(false);
-      show(true);
-      Promise.all([loadLib(), loadGeo()])
-        .then(() => {
-          if (mapView !== "gu" || !want) return;
-          if (!init()) { show(false); return; }
-          map.resize();
-          if (cur && cur.g === n && geo && (geo.z[cur.id] || cur.ll)) { if (ready) focus(true); else pendFocus = true; }
-          else fitGu(n);
-          if (ready) paint();
-        })
-        .catch(() => { failed = true; show(false); });
+      if (!want || failed) { if (window.ZP_G) ZP_G.drop(); return show(false); }
+      attach({ gu: n });
     }
     function exit() { gu = null; guDraw(); if (document.documentElement.classList.contains("simple")) seoul(); else show(false); }
     function use(on, user) {
@@ -1286,6 +1352,7 @@
       paint: () => { if (map && ready) paint(); },
       // 끄는 중 가벼운 다시 칠하기(18차): 서울 보기의 구 묶음 숫자·농도와 '+N곳' 칩 숫자만 바꾼다(자리 다시 잡기·알약은 손을 뗄 때) — 숫자 지연 없이 지도가 따라오게
       dragLite: () => {
+        if (ghostOn()) ghostDraw(true);
         if (!map || !ready || !lastCity) return;
         let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) { return; }
         const mx = Math.max(1, ...Object.values(cnt));
@@ -1293,7 +1360,7 @@
           const c = cnt[n] || 0; if (+p.el.dataset.n === c) return;
           p.el.dataset.n = String(c); p.key = "";
           const sp = p.el.querySelector("span"); if (sp) sp.textContent = `가능 ${fmt(c)}`;
-          p.el.classList.remove("t1", "t2", "t3"); p.el.classList.add(c / mx > 0.6 ? "t3" : c / mx > 0.25 ? "t2" : "t1");
+          p.el.classList.remove("t1", "t2", "t3"); p.el.classList.add("t" + ZP_G.tier(c, mx));
           p.el.classList.toggle("z0", !c);
         });
         const el = $("lmGuMore");
@@ -1305,6 +1372,8 @@
       pills: () => [...PILLS.entries()].map(([id, p]) => ({ id, more: +((p.el.querySelector(".zp-more") || {}).textContent || 0), st: (ZS.get(id) || {}).st, need: (ZS.get(id) || {}).need, t: (p.el.querySelector(".zp-v") || {}).textContent || "", lab: p.el.getAttribute("aria-label") || "", fav: p.el.classList.contains("fav"), sel: p.el.classList.contains("sel") })),
       gus: () => [...GUS.entries()].map(([n, p]) => ({ n, c: +p.el.dataset.n, t: p.el.textContent, lab: p.el.getAttribute("aria-label") || "" })),
       // 자리를 못 잡은 구 묶음이 모인 '+N곳' 칩의 곳 수(없으면 0) · 화면 묶음 합 + 이 값 == 홈 숫자
+      ghost: () => (window.ZP_G && ZP_G.on() ? { gus: ZP_G.gus(), more: ZP_G.more(), cam: ZP_G.last() } : null),
+      attach: () => { gateOpen(); if (mapView === "seoul" && !gu) seoul(); },
       gusMore: () => { const e = $("lmGuMore"); return e && !e.hidden ? +e.dataset.n || 0 : 0; },
       pick: (id) => (id ? pillTap(id) : pickClear()),
       focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
