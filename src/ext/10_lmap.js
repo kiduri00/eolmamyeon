@@ -1,6 +1,18 @@
   // ===================== 실제 지도 (MapLibre · OpenFreeMap 벡터 타일) =====================
   // 서울 전체 = 기존 구 단위 지도(SVG). 구를 누르면 실제 지도로 바뀌고 정비구역 경계를 그린다.
   // 경계: 서울도시공간포털 정비구역(UQ181) + 서울시 정비사업 현황(UQ120). 공식 경계가 없으면 면적 기준 추정 범위(점선).
+  // 20차 D10: 지도 가까이 보기 회색 이름·홈 레일 카드는 'N구역'까지만('신길4구역 도심공공주택복합' → '신길4구역') — 그렇게 줄인 이름이 다른 구역과 겹치면 줄이지 않는다
+  const LABN = (() => {
+    let C = null;
+    const cut = (n) => { const m = /^(.*?\d+(?:-\d+)?구역)\s+\S/.exec(n || ""); return m ? m[1] : n || ""; };
+    return (r) => {
+      const n = shortName(r.n) || "";
+      if (!C) { C = new Map(); R.forEach((x) => { if (!x.n) return; const k = cut(shortName(x.n) || ""); C.set(k, (C.get(k) || 0) + 1); }); }
+      const k = cut(n);
+      return k !== n && C.get(k) === 1 ? k : n;
+    };
+  })();
+  window.ZP_labName = LABN;
   const LMX = (() => {
     const MLV = "4.7.1";
     const ML_JS = { src: `https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/${MLV}/maplibre-gl.min.js`, sri: "sha512-dXgoFR02YHJ9Fa29P3D/1umNaZ0EXS2N0w29Lm3b/1BK8UDLMdLWDFwuujIyJJdU27/PLuk3dmS1V9NO8ABX1A==" };
@@ -15,7 +27,10 @@
     document.addEventListener("pointerdown", (e) => { if (isScrub(e.target)) DRAG = true; }, true);
     document.addEventListener("touchstart", (e) => { if (isScrub(e.target)) DRAG = true; }, { capture: true, passive: true });
     ["pointerup", "pointercancel", "touchend", "touchcancel"].forEach((t) => addEventListener(t, () => { if (DRAG) { DRAG = false; dragEnd = performance.now(); } }, true));
-    const calm = () => !DRAG && performance.now() - dragEnd > 350;
+    // 막대를 키보드로 움직여도 같은 쉼(20차 A2: 끄거나 키를 누른 뒤 1초 안에는 지도 붙이기·무거운 일을 시작하지 않는다)
+    document.addEventListener("keydown", (e) => { if (isScrub(e.target)) dragEnd = performance.now(); }, true);
+    document.addEventListener("input", (e) => { if (isScrub(e.target)) dragEnd = performance.now(); }, true);
+    const calm = () => !DRAG && performance.now() - dragEnd > 1000;
     // 다음 작업으로 넘기기(사이에 브라우저가 그리기·입력 처리) — 끄는 중이면 손을 뗄 때까지 기다린다
     const yieldT = () => new Promise((ok) => { const go = () => (calm() ? setTimeout(ok, 0) : setTimeout(go, 120)); if (window.scheduler && scheduler.yield && calm()) scheduler.yield().then(ok); else go(); });
     const idleT = (ms) => new Promise((ok) => { const go = () => { if (!calm()) return setTimeout(go, 150); (window.requestIdleCallback || ((f) => setTimeout(f, 1)))(() => (calm() ? ok() : setTimeout(go, 150)), { timeout: ms || 2000 }); }; go(); });
@@ -467,6 +482,7 @@
     }
     function seoul() {
       gu = null; guDraw();
+      if (ghostOn() && ZP_G.zoomGu) ZP_G.zoomGu(null);
       ui();
       if (!want || failed) { if (window.ZP_G) ZP_G.drop(); return show(false); }
       if (!map) ghostDraw();
@@ -481,8 +497,10 @@
       show(true);
       if (!attP) attP = (async () => {
         try { performance.mark("zp-att"); } catch (e) {}
-        await loadLib(); try { performance.mark("zp-lib"); } catch (e) {} await yieldT();
-        await loadGeo(); try { performance.mark("zp-geo"); } catch (e) {} await yieldT();
+        // 단계마다 브라우저가 한가할 때까지 쉰다(라이브러리 실행 · 경계 파일 읽기 · 지도 만들기가 한 덩어리로 이어지지 않게 · 20차 A2)
+        await idleT(1500);
+        await loadLib(); try { performance.mark("zp-lib"); } catch (e) {} await idleT(1500);
+        await loadGeo(); try { performance.mark("zp-geo"); } catch (e) {} await idleT(1500);
         if (!init()) throw new Error("init");
         try { performance.mark("zp-init"); } catch (e) {}
       })();
@@ -557,6 +575,7 @@
     const TAIL = /\s*(주택정비형|도시정비형|재정비촉진(구역|지구)?|주택재개발|주택재건축|재개발|재건축|정비사업|정비구역|정비계획|사업|조합|일대)$/;
     const mapName = (r) => {
       let { n, d } = nmOf(r);
+      if (!d) n = LABN(r);
       const m = /^(.*\S)\s*\(([^()]{1,8})\)$/.exec(n);
       if (m) { n = m[1]; d = d || m[2]; }
       for (let i = 0; i < 3 && TAIL.test(n) && n.replace(TAIL, "").length >= 3; i++) n = n.replace(TAIL, "");
@@ -564,6 +583,7 @@
     };
     const cardName = (r) => {
       let { n, d } = nmOf(r);
+      if (!d) n = LABN(r);
       // 이름이 이미 '…(동)'으로 끝나면(검색 쪽 shortName이 붙인 구분) 그 괄호는 자르지 않는다
       const m = /^(.*\S)\s*\(([^()]{1,8})\)$/.exec(n);
       if (m) { n = m[1]; d = d || m[2]; }
@@ -659,7 +679,8 @@
     // now = 바로(금액을 끄는 동안 목록과 같은 프레임에 — 한 프레임 늦지 않게) · 아니면 다음 프레임에 한 번
     let stT = 0, ghRaf = 0;
     function states(now) {
-      if (ghostOn() && !(map && ready)) { if (now) ghostDraw(); else { cancelAnimationFrame(ghRaf); ghRaf = requestAnimationFrame(() => ghostDraw()); } }
+      // 자리 그림이 떠 있는 동안은(실제 지도가 밑에서 준비됐어도) 금액이 바뀔 때마다 같은 자리 잡기로 다시 그린다(20차 G1 — 머리 숫자 == 묶음 합 + 칩)
+      if (ghostOn()) { if (now) ghostDraw(); else { cancelAnimationFrame(ghRaf); ghRaf = requestAnimationFrame(() => ghostDraw()); } }
       if (!map || !ready || !geo) return;
       const run = () => { pillRaf = 0; if (!map || !ready) return; pinHooks(); computeStates(); stateFS(); layout(); stT = performance.now(); };
       if (now && performance.now() - stT > 30) { if (pillRaf) cancelAnimationFrame(pillRaf); run(); return; }
@@ -692,7 +713,8 @@
         const t = pillText(s), fav = mine.has(r.id), nm = named ? mapName(r) : "", nw = SIMPLE.isNew(r, s.need);
         // 가까이(줌 15+)는 두 줄 알약: 이름 11/600 위 · 금액 13/800 아래 · 폭 최대 120(17차)
         const w = nm ? Math.min(150, Math.max(measure(t, 13, 800) + (fav ? 14 : 0) + (nw ? 30 : 0), measure(nm, 12, 600)) + 22) : measure(t, 13) + 18 + (fav ? 14 : 0) + (nw ? 30 : 0), h = nm ? 44 : 28;
-        const bx = [q.x - w / 2 - 2, q.y - h - 2, q.x + w / 2 + 2 + (s.st === "ok" ? 14 : 0), q.y + 1];   // 오른쪽 '+N' 꼬리 자리까지(확대 버튼 밑에 반쯤 깔리지 않게)
+        const ins = gu ? 3 : 0;   // 구 안(경계 전체를 보이게 맞춘 화면): 알약끼리 살짝 더 붙어도 따로 보이게(+N 묶음을 줄임 · 20차 G4)
+        const bx = [q.x - w / 2 - 2 + ins, q.y - h - 2 + ins, q.x + w / 2 + 2 + (s.st === "ok" ? 14 : 0) - ins, q.y + 1 - ins];   // 오른쪽 '+N' 꼬리 자리까지(확대 버튼 밑에 반쯤 깔리지 않게)
         if (bx[0] < 2 || bx[2] > W - 2 || bx[1] < 2 || (r.id !== sel && (obs.some((o) => hitB(o, bx)) || placed.some((o) => hitB(o, bx))))) { if (s.st === "ok") hid.push(q); continue; }
         placed.push(bx); P.set(r.id, { r, s, t, fav, nm, nw, sel: r.id === sel, q, more: 0 });
       }
@@ -821,7 +843,7 @@
       let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) {}
       const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, obs = obstacles(), phone = MQ_SHEET.matches;
       // 칩 자리(범례 바로 위 왼쪽): 칩이 필요할 때만 비워 두고 다시 놓는다
-      const chipBox = () => { const k = $("lmKey"), nt = $("lmNotes"), cb = cv.getBoundingClientRect(); let y = H - 40; try { if (k && k.offsetWidth) y = k.getBoundingClientRect().top - cb.top - 6; if (nt && !nt.hidden && nt.offsetWidth && nt.parentNode === $("lmap")) { const b = nt.getBoundingClientRect(); if (b.left - cb.left < 130) y = Math.min(y, b.top - cb.top - 6); } } catch (e) {} return [4, y - 36, 120, y]; };   // 레이어 범례가 왼쪽 아래에 있으면 그 위로
+      const chipBox = () => { const k = $("lmKey"), nt = $("lmNotes"), cb = cv.getBoundingClientRect(); let y = H - 40; try { if (k && k.offsetWidth) y = k.getBoundingClientRect().top - cb.top - 6; if (nt && !nt.hidden && nt.offsetWidth && nt.parentNode === $("lmap")) { const b = nt.getBoundingClientRect(); if (b.left - cb.left < 130) y = Math.min(y, b.top - cb.top - 6); } } catch (e) {} return [4, y - 40, 120, y]; };   // 레이어 범례가 왼쪽 아래에 있으면 그 위로
       // 자리 잡기는 지도 자리 그림(ghost.js)과 같은 함수 — 같은 카메라면 같은 자리
       const { keep, left } = ZP_G.place({ W, H, obs, phone, gus: GUL.map((g) => ({ n: g.n, ll: g.ll, c: cnt[g.n] || 0 })), proj: (ll) => map.project(ll), chip: chipBox() });
       gusSet(keep);
@@ -1099,13 +1121,11 @@
       const pad = { top: P.top + (mob ? 6 : 18), bottom: P.bottom + (mob ? 52 : 18), left: mob ? 16 : 30, right: mob ? 16 : Math.max(30, railPad()) };   // 폰: 아래 범례·확대 버튼 자리만큼 더
       // 키 작은 폰 지도에 맞추면 줌 10.7 남짓 → 알약이 붙어 겹침. 구 안은 적어도 11.5(구 가장자리는 손가락으로 밀어 봄)
       // 그 구의 '가능·조금 모자람' 구역이 모인 곳에 맞춘다(구 경계 전체에 맞추면 구역이 한데 몰려 알약 하나 +N이 되던 것)
-      let bb = bboxOf(g.r);
-      try {
-        const pts = []; R.forEach((r) => { if (r.g !== n) return; const st = (ZS.get(r.id) || {}).st; if (st !== "ok" && st !== "near") return; const ll = llOf(r); if (ll) pts.push(ll); });
-        if (pts.length) { const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), ex = 0.006; bb = [[Math.min(...xs) - ex, Math.min(...ys) - ex], [Math.max(...xs) + ex, Math.max(...ys) + ex]]; }
-      } catch (e) {}
-      const cam = map.cameraForBounds(bb, { padding: pad, maxZoom: 14 });
-      if (cam) map.easeTo({ center: cam.center, zoom: Math.max(GU_MINZ, cam.zoom), duration: reduceMotion() ? 0 : 500 });
+      // 20차 G4: 자리 그림에서 누른 구·실제 지도에서 누른 구가 같은 카메라 — 구 경계 상자 전체가 보이게(ZP_G.guCam, 같은 여백 규칙 guPad)
+      const cv = map.getCanvas(), C = window.ZP_G && ZP_G.guCam ? ZP_G.guCam(n, cv.clientWidth, cv.clientHeight, ZP_G.guPad(P, mob)) : null;
+      const cam = C ? null : map.cameraForBounds(bboxOf(g.r), { padding: pad, maxZoom: 14 });
+      if (C) map.easeTo({ center: C.c, zoom: C.z, duration: reduceMotion() || ghostOn() ? 0 : 500 });
+      else if (cam) map.easeTo({ center: cam.center, zoom: cam.zoom, duration: reduceMotion() ? 0 : 500 });
       else map.fitBounds(bboxOf(g.r), { padding: pad, maxZoom: 14.5, duration: reduceMotion() ? 0 : 500 });
       layout();
     }
@@ -1367,6 +1387,7 @@
     function enter(n) {
       gateOpen();
       gu = n;
+      if (ghostOn() && ZP_G.zoomGu) ZP_G.zoomGu(n);   // 자리 그림도 바로 그 구로(같은 카메라 guCam)
       ui();
       if (!want || failed) { if (window.ZP_G) ZP_G.drop(); return show(false); }
       attach({ gu: n });

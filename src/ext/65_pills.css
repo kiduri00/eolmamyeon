@@ -204,7 +204,7 @@ html.simple .s-gauge.bc .scrub{margin:8px 0 18px}
 .zgu.sm.t2::before{background:var(--zn-mid)}
 .zgu.sm.t1::before{background:var(--zn-soft);border-color:color-mix(in srgb,var(--zn) 60%,transparent)}
 .lm-gumore{position:absolute;left:8px;z-index:3}
-.lm-gumore-b{display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 12px;border-radius:18px;border:1.5px solid var(--zn);background:var(--surface);color:var(--zn);font:800 13px/1 var(--font);cursor:pointer;box-shadow:0 1px 3px rgba(15,23,42,.18);-webkit-tap-highlight-color:transparent}
+.lm-gumore-b{display:inline-flex;align-items:center;gap:4px;height:40px;padding:0 12px;border-radius:20px;border:1.5px solid var(--zn);background:var(--surface);color:var(--zn);font:800 13px/1 var(--font);cursor:pointer;box-shadow:0 1px 3px rgba(15,23,42,.18);-webkit-tap-highlight-color:transparent}
 .lm-gumore-b small{font:600 11px/1 var(--font);color:var(--text-2)}
 .lm-gumore-l{display:none;position:absolute;left:0;bottom:calc(100% + 6px);min-width:150px;max-height:220px;overflow:auto;margin:0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 20px rgba(15,23,42,.18)}
 .lm-gumore.open .lm-gumore-l{display:block}
@@ -216,3 +216,5 @@ html.simple .s-gauge.bc .scrub{margin:8px 0 18px}
 .zpill .zp-more{position:absolute;top:-10px;right:-9px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--surface);color:var(--zn);border:1.5px solid var(--zn);font:800 10px/15px var(--font);font-style:normal;text-align:center;box-sizing:border-box;pointer-events:none}
 :root[data-theme="dark"] .zpill .zp-more{color:#DCE5FF;border-color:#9fb3ff}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .zpill .zp-more{color:#DCE5FF;border-color:#9fb3ff}}
+/* 20차: 움직임 줄이기 — 지도 묶음·알약·칩·자리 그림 걷기 애니메이션 없이 */
+@media (prefers-reduced-motion:reduce){.zgu,.zpill,.zpill .zp-in,.lm-gumore,.lm-gumore-b,.zp-ph,#lmap .maplibregl-marker{transition:none!important;animation:none!important}}

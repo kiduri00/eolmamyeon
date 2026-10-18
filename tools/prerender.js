@@ -173,7 +173,8 @@ async function css(cssFile, out) {
             const vis = (el) => el === document.documentElement || el === document.body || el === document.head || el.getClientRects().length > 0 || (el.namespaceURI === "http://www.w3.org/2000/svg" && el.closest("svg") && el.closest("svg").getClientRects().length > 0);
             // 그려지는 요소 + '그려지는 부모 바로 밑의 숨은 요소'(그 요소를 숨기는 규칙도 첫 페인트에 있어야 하므로). 숨은 칸 속 깊은 내용은 뺀다
             const live = [...document.querySelectorAll("*")].filter((el) => !el.closest("head,script,style,template,noscript") && (vis(el) || !el.parentElement || vis(el.parentElement)));
-            const strip = (sel) => sel.replace(/::?(before|after|placeholder|marker|selection|first-letter|first-line|backdrop|-webkit-[a-z-]+|-moz-[a-z-]+)(\([^)]*\))?/gi, "").replace(/:(hover|focus|focus-visible|focus-within|active|visited|link|any-link|target|checked|indeterminate|disabled|enabled|placeholder-shown|invalid|valid|user-invalid|autofill)(?![\w-])/gi, "");
+            // 다크 테마를 직접 고른 사람(:root[data-theme="dark"])의 규칙도 첫 페인트에(20차 G6 — 다크 첫 화면이 1초 뒤 바뀌던 것)
+            const strip = (sel) => sel.replace(/\[data-theme=(["']?)dark\1\]/g, "").replace(/::?(before|after|placeholder|marker|selection|first-letter|first-line|backdrop|-webkit-[a-z-]+|-moz-[a-z-]+)(\([^)]*\))?/gi, "").replace(/:(hover|focus|focus-visible|focus-within|active|visited|link|any-link|target|checked|indeterminate|disabled|enabled|placeholder-shown|invalid|valid|user-invalid|autofill)(?![\w-])/gi, "");
             const splitSel = (s) => { const o = []; let d = 0, cur = ""; for (const ch of s) { if (ch === "(") d++; if (ch === ")") d--; if (ch === "," && !d) { o.push(cur); cur = ""; } else cur += ch; } o.push(cur); return o.map((x) => x.trim()).filter(Boolean); };
             const used = [];
             const liveSet = new Set(live);

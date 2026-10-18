@@ -34,13 +34,29 @@
   var dotEl = null;
   var fit = function () {};   // 목록 카드에 흐름선이 없어 줄 맞춤이 필요 없다(리뉴얼 3단계)
 
-  function apply(f, i, fromInput) {
+  // 금액 막대(#sScrub) 막대그림: 앱 scrubMount·scrubPaint와 같은 마크업 — 첫 페인트부터 막대가 보이게(20차 G6 · 앱이 붙으면 같은 값으로 다시 그린다)
+  var TICKS = [[0.5, "5,000만"], [2, "2억"], [5, "5억"], [15, "15억+"]];
+  function bars(f, i) {
+    var el = $("sScrub"); if (!el || el._scr) return;
+    var B = el.querySelector(".scr-bars"); if (!B) return;
+    var ps = P.pos, c = STOPS[i], N = STOPS.map(function (v, k) { var s0 = P.st[f] && P.st[f][k]; return s0 ? num(S(s0[0][0]) + "곳") : 0; }), mx = Math.max.apply(null, [1].concat(N));
+    if (B.dataset.f !== f) {
+      B.dataset.f = f;
+      B.innerHTML = STOPS.map(function (v, k) { var a = k ? (ps[k - 1] + ps[k]) / 2 : 0, b = k < ps.length - 1 ? (ps[k] + ps[k + 1]) / 2 : 100, n = N[k]; return '<i data-c="' + v + '" data-n="' + n + '" style="left:' + a.toFixed(2) + "%;width:" + (b - a).toFixed(2) + "%;height:" + (n ? Math.max(8, Math.round((n / mx) * 100)) : 4) + '%"></i>'; }).join("");
+      if (!el.querySelector(".scr-h")) el.insertAdjacentHTML("beforeend", '<i class="scr-h" aria-hidden="true"></i><div class="scr-t" aria-hidden="true">' + TICKS.map(function (x) { var k = STOPS.indexOf(x[0]); return '<span style="left:' + (k >= 0 ? ps[k] : 0) + '%">' + x[1] + "</span>"; }).join("") + "</div>");
+    }
+    for (var k = 0; k < B.children.length; k++) { var v = +B.children[k].getAttribute("data-c"); B.children[k].classList.toggle("on", v <= c + 1e-9); B.children[k].classList.toggle("cur", Math.abs(v - c) < 1e-9); }
+    el.style.setProperty("--p", ps[i] + "%");
+  }
+  function apply(f, i, fromInput, still) {
     var st = P.st[f] && P.st[f][i];
     if (!st || hyd()) return;
     cur.f = f; cur.i = i;
     var t = st[0], el;
     $("sN").textContent = S(t[0]);
-    el = $("sNB"); if (el) el.style.setProperty("--n", String(num(S(t[0]) + "곳")));
+    // 주소의 금액으로 처음 맞출 때는 숫자를 굴리지 않는다(9 → 54로 올라가던 것 · 20차 G6)
+    el = $("sNB"); if (el) { if (still) { el.style.transition = "none"; } el.style.setProperty("--n", String(num(S(t[0]) + "곳"))); if (still) { void el.offsetWidth; requestAnimationFrame(function () { requestAnimationFrame(function () { el.style.transition = ""; }); }); } }
+    try { bars(f, i); } catch (e) {}
     $("sNL").textContent = S(t[1]);
     $("sLT").textContent = S(t[2]);
     $("sLS").textContent = S(t[3]);
@@ -103,7 +119,7 @@
       else if ((q.has("basis") && q.get("basis") !== "total") || (q.has("fund") && q.get("fund") !== "gap")) return;
       var c = q.has("cash") ? parseFloat(q.get("cash")) : 1, i = STOPS.indexOf(c);
       if (i < 0) return;
-      if (f !== cur.f || i !== cur.i) apply(f, i);
+      if (f !== cur.f || i !== cur.i) apply(f, i, false, true); else try { bars(f, i); } catch (e) {}
     } catch (e) {}
   }
   // 지도 자리: 실제 지도와 같은 구 묶음·범례·'+N곳' 칩(src/ghost.js · 지금 금액의 구별 곳 수) — 앱이 붙으면 앱(10_lmap.js)이 이어받고, 실제 지도가 다 그려지면 걷힌다

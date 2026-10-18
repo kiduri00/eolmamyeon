@@ -61,8 +61,11 @@ def build(D):
     gu = []
     for x in g['gu']:
         lb = label(x['r'])
-        gu.append([x['n'], round(lb[0], 6), round(lb[1], 6)])
-    gp = path([rg for x in g['gu'] for rg in x['r']], o, 2.2)
+        xs = [q[0] for rg in x['r'] for q in rg]; ys = [q[1] for rg in x['r'] for q in rg]
+        # [이름, 이름 자리 경도, 위도, 경계 상자 서·남·동·북] — 상자는 구를 누를 때 자리 그림·실제 지도가 같은 카메라로 확대하는 데(20차)
+        gu.append([x['n'], round(lb[0], 6), round(lb[1], 6), round(min(xs), 4), round(min(ys), 4), round(max(xs), 4), round(max(ys), 4)])
+    # 구 경계는 구마다 따로(누른 구만 밝게 남기고 나머지를 어둡게) — ghost.js가 이어 붙여 전체 경계(gp)로도 쓴다
+    gpl = [path(x['r'], o, 2.2) for x in g['gu']]
     sp = path(g['seoul'], o, 1.6)
     # 한강: 사이트 SVG 지도(D.map.river, 지도 칸 좌표)를 역 좌표로 맞춘 1차 변환으로 경위도로
     rv = ''
@@ -85,10 +88,10 @@ def build(D):
         rv = path([pts], o, 1.2, close=False)
     except Exception as e:
         print('ghost river 건너뜀:', e)
-    return {'S': S, 'o': list(o), 'gu': gu, 'gp': gp, 'sp': sp, 'rv': rv}
+    return {'S': S, 'o': list(o), 'gu': gu, 'gpl': gpl, 'sp': sp, 'rv': rv}
 
 
 if __name__ == '__main__':
     D = json.load(open(os.path.join(R, 'pipeline', 'data.enriched.json'), encoding='utf-8'))
     x = build(D)
-    print(len(json.dumps(x, ensure_ascii=False)), x['gu'][:3], len(x['gp']), len(x['sp']), len(x['rv']))
+    print(len(json.dumps(x, ensure_ascii=False)), x['gu'][:3], sum(map(len, x['gpl'])), len(x['sp']), len(x['rv']))

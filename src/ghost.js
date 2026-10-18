@@ -5,6 +5,7 @@
 (function () {
   if (window.ZP_G) return;
   var GD = /*GHOST*/ null;
+  if (GD && !GD.gp && GD.gpl) GD.gp = GD.gpl.join("");
   var W = window, Dc = document;
   var CORE = [[126.882, 37.494], [127.118, 37.562]], SEOUL_BB = [[126.76, 37.413], [127.185, 37.716]];
   var MINZ = 8.8, MAXZ = 17.6;
@@ -42,6 +43,15 @@
     return { c: [lx(cx), ly(cy)], z: z };
   }
   function proj(C, w, h) { var ws = 512 * Math.pow(2, C.z), cx = mx(C.c[0]), cy = my(C.c[1]); return function (ll) { return { x: (mx(ll[0]) - cx) * ws + w / 2, y: (my(ll[1]) - cy) * ws + h / 2 }; }; }
+  // 구 하나에 맞춘 카메라(경계 상자 전체가 보이게 · 폰 당김 없음) — 자리 그림에서 구를 누를 때와 실제 지도 fitGu가 같은 함수(20차 G4)
+  function guIdx(n) { if (!GD) return -1; for (var i = 0; i < GD.gu.length; i++) if (GD.gu[i][0] === n) return i; return -1; }
+  function guCam(n, w, h, pad) { var i = guIdx(n), g = i >= 0 ? GD.gu[i] : null; if (!g || g.length < 7) return null; var C = cam([[g[3], g[4]], [g[5], g[6]]], w, h, pad, false, 14); if (C && phoneQ() && C.z < 11) C.z = 11; return C; }   // 폰의 작은 지도칸: 적어도 줌 11(구 안 알약이 한데 뭉치지 않게 · 가운데는 구 경계 상자 가운데)
+  function guPad(P, phone) {
+    var top = P.top + (phone ? 6 : 18);
+    // 지도 위에 떠 있는 '← 서울 전체 | 구 이름' 막대 밑으로 경계 윗부분이 숨지 않게
+    try { var mb = Dc.getElementById("mapBar"); if (mb && !mb.hidden && mb.offsetHeight && getComputedStyle(mb).position === "absolute") top = Math.max(top, mb.offsetTop + mb.offsetHeight + 8); } catch (e) {}
+    return { top: top, bottom: P.bottom + (phone ? 52 : 18), left: phone ? 16 : 30, right: phone ? 16 : Math.max(30, P.right) };
+  }
   var hit = function (a, b) { return a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]; };
   var tier = function (c, m) { return c / m > 0.6 ? 3 : c / m > 0.25 ? 2 : 1; };
   // 구 묶음 자리 잡기(실제 지도 guLayout과 같은 함수): 겹치면 ① 둘레로 비켜 ② 작게 ③ 안 되면(또는 화면 밖) '+N곳' 칩으로
@@ -50,11 +60,16 @@
     var L = o.gus.slice().sort(function (a, b) { return b.c - a.c; });
     var m = 1; L.forEach(function (x) { if (x.c > m) m = x.c; });
     var ANG = [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return (k * Math.PI) / 4 + Math.PI / 2; });
-    var run = function (extra) {
-      var placed = extra ? [extra] : [], keep = [], left = [];
-      var free = function (bx) { return bx[0] >= 2 && bx[2] <= w - 2 && bx[1] >= 2 && bx[3] <= h - 2 && !obs.some(function (q) { return hit(q, bx); }) && !placed.some(function (q) { return hit(q, bx); }); };
+    // 폰: 맨 아래 20px 띠에는 묶음을 두지 않는다(범례·ⓘ는 따로 피함 · 20차)
+    var bot = phone ? 20 : 2;
+    var boxOf = function (g) { var x = g.q.x + g.dx, y = g.q.y + g.dy; return [x - g.d / 2, y - g.d / 2, x + g.d / 2, y + g.d / 2]; };
+    // pre = 이미 자리 잡은 묶음(그대로 둔다) · only = 이번에 자리 잡을 구 이름(없으면 전부)
+    var run = function (extra, pre, only) {
+      var placed = (extra ? [extra] : []).concat((pre || []).map(boxOf)), keep = (pre || []).slice(), left = [];
+      var free = function (bx) { return bx[0] >= 2 && bx[2] <= w - 2 && bx[1] >= 2 && bx[3] <= h - bot && !obs.some(function (q) { return hit(q, bx); }) && !placed.some(function (q) { return hit(q, bx); }); };
       L.forEach(function (g0) {
         if (!g0.c) return;
+        if (only && !only[g0.n]) return;
         var g = { n: g0.n, ll: g0.ll, c: g0.c }, q = o.proj(g.ll), sn = g.n.length > 2 ? g.n.replace(/구$/, "") : g.n;
         if (q.x < -8 || q.x > w + 8 || q.y < -8 || q.y > h + 8) { left.push(g); return; }
         var got = null;
@@ -77,7 +92,13 @@
       return { keep: keep, left: left };
     };
     var r = run(null);
-    if (r.left.length) r = run(o.chip);
+    if (r.left.length) {
+      // 칩이 필요해도 이미 놓인 묶음은 그대로 — 칩 자리에 걸린 것만 다시 자리 잡는다(성북·동작처럼 화면 안 묶음이 칩으로 밀려 들어가지 않게 · 20차)
+      var ch = o.chip, stay = [], redo = {}, n0 = r.left.slice();
+      r.keep.forEach(function (g) { if (ch && hit(ch, boxOf(g))) redo[g.n] = 1; else stay.push(g); });
+      var r2 = Object.keys(redo).length ? run(ch, stay, redo) : { keep: stay, left: [] };
+      r = { keep: r2.keep, left: n0.concat(r2.left) };
+    }
     return r;
   }
   var KEY = '<span><i class="k-gu"></i>많음</span><span><i class="k-gu k-gu2"></i>적음</span><span>숫자 = 갈 수 있는 곳</span>';
@@ -98,7 +119,7 @@
     el.setAttribute("aria-label", GU_LBL(g.n, g.c));
   }
   // ---------------------------------------------------------------- 자리 그림 DOM
-  var S = { el: null, box: null, st: null, tap: null, ro: null, last: null, out: false };
+  var S = { el: null, box: null, st: null, tap: null, ro: null, last: null, out: false, dim: null };
   var phoneQ = function () { try { return matchMedia("(max-width:980px)").matches; } catch (e) { return true; } };
   function short(box) { var fs = Dc.documentElement.classList.contains("s-full"), sh = !fs && box.clientHeight > 0 && box.clientHeight < 400; if (sh !== box.classList.contains("lm-short")) box.classList.toggle("lm-short", sh); }
   function mount(box) {
@@ -110,12 +131,14 @@
     d.innerHTML = '<svg class="zg-bg" aria-hidden="true" width="100%" height="100%"></svg><div class="zg-mk"></div><div class="lm-gumore" hidden></div><p class="lm-key" aria-label="' + KEY_L + '">' + KEY + '</p><div class="lm-zoom" role="group" aria-label="지도 확대·축소">' + ZOOM + '</div><span class="zg-attr" aria-hidden="true"></span>';
     box.insertBefore(d, box.firstChild);
     S.el = d; S.out = false;
+    // 옛 SVG 구 지도(#map · 구 25개 누르기 자리)는 자리 그림 밑에서 보이지도 눌리지도 않게(20차 A4 · 실제 지도가 붙으면 lm-on이 숨김)
+    var om = Dc.getElementById("map"); if (om) { om.style.visibility = "hidden"; om.setAttribute("aria-hidden", "true"); }
     d.addEventListener("click", function (e) {
       var t = e.target, b = t.closest && t.closest("button");
       if (b && b.closest(".lm-gumore") && b.classList.contains("lm-gumore-b")) { var ch = b.parentNode, on = ch.classList.toggle("open"); b.setAttribute("aria-expanded", String(on)); go({ chip: 1 }); return; }
       var a = b && (b.dataset.gu ? { gu: b.dataset.gu } : b.dataset.z ? { zoom: b.dataset.z } : null);
       if (b && b.dataset.gu && b.closest(".lm-gumore")) b.closest(".lm-gumore").classList.remove("open");
-      if (b && a) { b.classList.add("zg-busy"); go(a); return; }
+      if (b && a) { if (a.gu) { zoomGu(a.gu); var nb = d.querySelector('.zg-mk .zgu[data-gu="' + a.gu + '"]'); if (nb) nb.classList.add("zg-busy"); } else b.classList.add("zg-busy"); go(a); return; }
       go({ bg: 1 });
     });
     d.addEventListener("pointerdown", function () { go({ touch: 1 }); }, { passive: true });
@@ -150,24 +173,27 @@
     return P;
   }
   // st = { cnt: {구: 곳 수}, ok: [[lat,lng]…] (갈 수 있는 곳 좌표), pad?: 실제 지도 여백, cam?: 정해진 카메라 }
-  function draw(st) {
-    S.st = st;
+  // keep = 끄는 중(카메라는 그대로 · 같은 자리 잡기로 숫자·묶음·칩만 다시) — 화면 숫자 합 + 칩 == 큰 숫자가 끄는 동안에도 맞게(20차 G1)
+  function draw(st, keep) {
+    if (!keep) S.st = st; else if (S.st) S.st = { cnt: st.cnt, ok: S.st.ok, pad: S.st.pad };
     var el = mount(S.box || Dc.getElementById("mapbox"));
     if (!el || S.out) return null;
     var box = S.box; short(box);
     var w = el.clientWidth, h = el.clientHeight;
     if (w < 50 || h < 50) return null;
     var phone = phoneQ(), pad = st.pad || padOf(el, box);
-    var C = st.cam || cam(bb(st.ok, st.cnt, phone), w, h, pad, phone, 12);
+    var C = st.cam || (S.dim ? guCam(S.dim, w, h, guPad(padOf(el, box), phone)) : null) || cam(bb(st.ok, st.cnt, phone), w, h, pad, phone, 12);
     if (!C) return null;
     S.last = C;
     var P = proj(C, w, h), ws = 512 * Math.pow(2, C.z), k = ws / GD.S, tx = (GD.o[0] / GD.S - mx(C.c[0])) * ws + w / 2, ty = (GD.o[1] / GD.S - my(C.c[1])) * ws + h / 2;
     var mpp = (40075016.7 * Math.cos((C.c[1] * Math.PI) / 180)) / ws;
     // 구 묶음
     var gus = GD.gu.map(function (g) { return { n: g[0], ll: [g[1], g[2]], c: (st.cnt && st.cnt[g[0]]) || 0 }; });
+    // 구를 눌러 확대한 동안: 그 구 묶음 하나만(실제 지도가 알약을 그릴 때까지 '불러오는 중' 반짝임) · 칩 없음
+    if (S.dim) gus = gus.filter(function (g) { return g.n === S.dim; }).map(function (g) { g.c = g.c || 0; return g; });
     var key = el.querySelector(".lm-key"), cb = el.getBoundingClientRect(), ky = h - 40;
     try { if (key.offsetWidth) ky = key.getBoundingClientRect().top - cb.top - 6; } catch (e) {}
-    var R = place({ W: w, H: h, obs: obsOf(el, box), gus: gus, proj: P, phone: phone, chip: [4, ky - 36, 120, ky] });
+    var R = place({ W: w, H: h, obs: obsOf(el, box), gus: gus, proj: P, phone: phone, chip: [4, ky - 40, 120, ky] });
     var mk = el.querySelector(".zg-mk"), have = {};
     [].forEach.call(mk.children, function (b) { have[b.dataset.gu] = b; });
     R.keep.forEach(function (g) {
@@ -178,9 +204,10 @@
     });
     for (var n in have) have[n].remove();
     // '+N곳 N개 구' 칩
-    var ch = el.querySelector(".lm-gumore"), c = R.left.reduce(function (a, g) { return a + g.c; }, 0);
+    var ch = el.querySelector(".lm-gumore"), c = S.dim ? 0 : R.left.reduce(function (a, g) { return a + g.c; }, 0);
     ch.hidden = !c;
-    if (c) { var kk = R.left.map(function (g) { return g.n + g.c; }).join(","); if (ch.dataset.k !== kk) { ch.dataset.k = kk; ch.innerHTML = chipHTML(R.left, c); ch.classList.remove("open"); } ch.dataset.n = String(c); ch.style.top = Math.max(6, Math.round(ky - 36)) + "px"; }
+    if (S.dim) [].forEach.call(mk.children, function (b) { b.classList.add("zg-busy"); });
+    if (c) { var kk = R.left.map(function (g) { return g.n + g.c; }).join(","); if (ch.dataset.k !== kk) { ch.dataset.k = kk; ch.innerHTML = chipHTML(R.left, c); ch.classList.remove("open"); } ch.dataset.n = String(c); ch.style.top = Math.max(6, Math.round(ky - 40)) + "px"; }
     // 바탕: 땅 · 한강 · 구 경계(점선) · 서울 밖 옅게 · 서울 경계 · 묶음 없는 구 이름
     var txt = "", used = R.keep.map(function (g) { var x = g.q.x + g.dx, y = g.q.y + g.dy; return [x - g.d / 2, y - g.d / 2, x + g.d / 2, y + g.d / 2]; }).concat(obsOf(el, box));
     var fs = C.z <= 10 ? 10.5 : C.z >= 12.5 ? 12.5 : 10.5 + (C.z - 10) * 0.8;
@@ -191,17 +218,32 @@
       used.push(bx);
       txt += '<text x="' + q.x.toFixed(1) + '" y="' + (q.y + fs * 0.35).toFixed(1) + '" font-size="' + fs.toFixed(1) + '">' + g[0] + "</text>";
     });
-    var M = "M-9e5 -9e5H9e5V9e5H-9e5Z";
-    el.querySelector(".zg-bg").innerHTML = '<rect class="zg-land" width="100%" height="100%"/><g transform="matrix(' + [k, 0, 0, k, tx, ty].map(function (v) { return +v.toFixed(5); }).join(" ") + ')">'
-      + (GD.rv ? '<path class="zg-river" d="' + GD.rv + '" vector-effect="non-scaling-stroke" style="stroke-width:' + Math.max(6, Math.min(80, 950 / mpp)).toFixed(1) + 'px"/>' : "")
-      + '<path class="zg-gu" d="' + GD.gp + '" vector-effect="non-scaling-stroke"/>'
-      + '<path class="zg-mask" fill-rule="evenodd" d="' + M + GD.sp + '"/>'
-      + '<path class="zg-seoul" d="' + GD.sp + '" vector-effect="non-scaling-stroke"/></g><g class="zg-t">' + txt + "</g>";
+    var M = "M-9e5 -9e5H9e5V9e5H-9e5Z", svg = el.querySelector(".zg-bg"), mtx = [k, 0, 0, k, tx, ty].map(function (v) { return +v.toFixed(5); }).join(" ");
+    // 경계 그림(큰 path)은 카메라·크기가 바뀔 때만 새로 — 금액만 바뀌면 구 이름 글자만(끄는 동안 가볍게)
+    var gi = S.dim ? guIdx(S.dim) : -1, bk = mtx + "|" + w + "x" + h + "|" + gi;
+    if (svg.dataset.k !== bk || !svg.querySelector(".zg-t")) {
+      svg.dataset.k = bk;
+      svg.innerHTML = '<rect class="zg-land" width="100%" height="100%"/><g transform="matrix(' + mtx + ')">'
+        + (GD.rv ? '<path class="zg-river" d="' + GD.rv + '" vector-effect="non-scaling-stroke" style="stroke-width:' + Math.max(6, Math.min(80, 950 / mpp)).toFixed(1) + 'px"/>' : "")
+        + '<path class="zg-gu" d="' + GD.gp + '" vector-effect="non-scaling-stroke"/>'
+        + '<path class="zg-mask" fill-rule="evenodd" d="' + M + GD.sp + '"/>'
+        + '<path class="zg-seoul" d="' + GD.sp + '" vector-effect="non-scaling-stroke"/>'
+        + (gi >= 0 && GD.gpl ? '<path class="zg-dim" fill="#0B1530" fill-opacity=".3" fill-rule="evenodd" d="' + M + GD.gpl[gi] + '"/><path class="zg-sel" fill="none" stroke="#1F3A87" stroke-width="2.2" d="' + GD.gpl[gi] + '" vector-effect="non-scaling-stroke"/>' : "")
+        + '</g><g class="zg-t">' + txt + "</g>";
+    } else { var tg = svg.querySelector(".zg-t"); if (tg.innerHTML !== txt) tg.innerHTML = txt; }
     return { cam: C, keep: R.keep, left: R.left, more: c };
+  }
+  // 구를 누르면 바로: 같은 투영으로 그 구에 맞춰 확대하고 다른 구는 어둡게(실제 지도가 붙기 전에도 누른 반응이 즉시 · 20차 A1)
+  function zoomGu(n) {
+    if (!S.el || S.out || !GD) return;
+    if ((n || null) === S.dim) return;
+    S.dim = n || null;
+    if (S.st) draw(S.st);
   }
   // 끄는 동안: 자리는 그대로 숫자·농도만(실제 지도 dragLite와 같음)
   function lite(cnt) {
     if (!S.el || S.out) return;
+    if (S.last && !S.dim) { draw({ cnt: cnt, ok: (S.st && S.st.ok) || [], cam: S.last }, 1); return; }
     var m = 1; for (var k in cnt) if (cnt[k] > m) m = cnt[k];
     [].forEach.call(S.el.querySelectorAll(".zg-mk .zgu"), function (b) {
       var c = cnt[b.dataset.gu] || 0; if (+b.dataset.n === c) return;
@@ -216,15 +258,18 @@
     var el = S.el; if (!el || S.out) return;
     S.out = true;
     if (S.ro) { S.ro.disconnect(); S.ro = null; }
-    var rm = function () { if (el.isConnected) el.remove(); };
+    var rm = function () { if (el.isConnected) el.remove(); unhide(); };
     var rd = false; try { rd = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
     if (rd) return rm();
+    // 걷히는 동안 범례·칩이 실제 지도 것과 겹쳐 두 번 보이지 않게 먼저 숨긴다(20차 G7)
+    [].forEach.call(el.querySelectorAll(".lm-key, .lm-gumore, .lm-zoom, .zg-attr"), function (x) { x.style.visibility = "hidden"; });
     el.classList.add("zg-out"); setTimeout(rm, 260);
   }
-  function drop() { if (S.el) { S.out = true; if (S.ro) { S.ro.disconnect(); S.ro = null; } S.el.remove(); } }
+  function unhide() { var om = Dc.getElementById("map"); if (om) { om.style.visibility = ""; om.removeAttribute("aria-hidden"); } }
+  function drop() { if (S.el) { S.out = true; if (S.ro) { S.ro.disconnect(); S.ro = null; } S.el.remove(); unhide(); } }
   W.ZP_G = {
     GD: GD, tw: tw, bb: bb, cam: cam, proj: proj, place: place, tier: tier, KEY: KEY, KEY_L: KEY_L, ZOOM: ZOOM, chipHTML: chipHTML, GU_LBL: GU_LBL,
-    mount: mount, draw: draw, lite: lite, fade: fade, drop: drop,
+    mount: mount, draw: draw, lite: lite, fade: fade, drop: drop, guCam: guCam, guPad: guPad, zoomGu: zoomGu, dimGu: function () { return S.dim; },
     on: function () { return !!(S.el && S.el.isConnected && !S.out); },
     el: function () { return S.el && S.el.isConnected ? S.el : null; },
     last: function () { return S.last; },

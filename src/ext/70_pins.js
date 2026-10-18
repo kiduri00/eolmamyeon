@@ -300,7 +300,7 @@ const PINS = (() => {
     try { offer = on && !localStorage.getItem("zp-watch-pin") && typeof INBOX !== "undefined" && !INBOX.st().on; } catch (e) {}
     if (offer) window.__zpOffer = Date.now();
     const undo = () => { if (isFav(id)) quiet(() => toggleFav(id)); toast("관심 구역에서 뺐어요", "", null, nm); };
-    if (on && offer) toast("관심 구역에 추가했어요", "되돌리기", undo, `소식 생기면 알려 드려요 · ${nm}`, ["알림 받기", () => { try { INBOX.watch("pin", id); } catch (e) {} }], 7000, () => { try { localStorage.setItem("zp-watch-pin", "1"); } catch (e) {} });
+    if (on && offer) toast("관심 구역에 추가했어요", "되돌리기", undo, `소식 생기면 알려 드려요 · ${nm}`, ["알림 받기", () => { try { INBOX.watch("pin", id); } catch (e) {} }], 4000, () => { try { localStorage.setItem("zp-watch-pin", "1"); } catch (e) {} });
     else if (on) toast("관심 구역에 추가했어요", "되돌리기", undo, `소식 생기면 알려 드려요 · ${nm}`);
     else toast("관심 구역에서 뺐어요", "되돌리기", () => { if (!isFav(id) && room(id)) { quiet(() => toggleFav(id)); toast("다시 추가했어요", "", null, nm); } }, nm);
   }
@@ -325,8 +325,8 @@ const PINS = (() => {
     let prev = document.documentElement.className;
     const key = (c) => ["s-view", "s-full"].map((k) => (` ${c} `).includes(` ${k} `)).join();
     if ("MutationObserver" in window) new MutationObserver(() => { const c = document.documentElement.className; if (key(c) !== key(prev)) hideToast(); prev = c; }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("#sNav button,#sTiles a,[data-menu]")) hideToast(); }, true);
-    addEventListener("hashchange", hideToast);
+    document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("#sNav button,#sNav a,[data-nav],#sTiles a,[data-menu]")) hideToast(); }, true);
+    addEventListener("hashchange", hideToast); addEventListener("popstate", hideToast);   // 20차 G11: 아래 탭·뒤로 가기로 화면이 바뀌면 바로 걷는다
   }
   // 21번째 핀: 오래된 핀 하나를 빼고 꽂기
   function full(id) {

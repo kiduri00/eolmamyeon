@@ -7,11 +7,8 @@
     const nt = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0] || {}).type;
     if (nt === "reload" || nt === "back_forward") {
       // 새로고침은 보던 자리 그대로(#my·#구역 상세·#관심 등) — 구 확대(#map-○○구)만 첫 화면으로
-      if (h && matchMedia("(max-width:980px)").matches && /^map-/.test(h)) {
-        history.replaceState(null, "", location.pathname + location.search);
-        if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-        window.scrollTo(0, 0);
-      }
+      // 20차 G2: 구 화면(#map-○○구)도 새로고침하면 그 구 그대로(목록 '강북구 · 6곳' · 지도는 그 구에 맞춤) — 지우지 않는다
+      void h;
     }
   } catch (e) {}
 })();

@@ -120,8 +120,13 @@
       ];
       // 비교하는 곳 절반 넘게 '–'인 '계획 세대' 줄은 뺀다
       for (let i = rows.length - 1; i >= 0; i--) { if (rows[i][0] !== "계획 세대") continue; const v = cols.map(([q, d]) => String(rows[i][1](q, d))); if (v.filter((x) => x === "–").length > cols.length / 2) rows.splice(i, 1); }
+      // 20차: 비교가 안 되는 줄(값이 있는 곳이 둘 미만)과 숫자 칸이 모두 '–'인 구역 열은 빼서 '– 2.4억 – – –' 같은 줄이 없게
+      const DATA = (t) => !/^(거리|사업|단계)$/.test(t), dash = (x) => String(x).replace(/<[^>]*>/g, "").trim() === "–";
+      for (let i = rows.length - 1; i >= 0; i--) { if (!DATA(rows[i][0])) continue; const v = cols.map(([q, d]) => rows[i][1](q, d)); if (v.filter((x) => !dash(x)).length < 2) rows.splice(i, 1); }
+      for (let j = cols.length - 1; j >= 1; j--) { const [q, d] = cols[j]; const dr = rows.filter((x) => DATA(x[0])); if (dr.length && dr.every((x) => dash(x[1](q, d)))) cols.splice(j, 1); }
+      if (cols.length < 2 || !rows.some((x) => DATA(x[0]))) return "";
       const best = rows.map(([, , k]) => { if (!k) return null; const v = cols.map(([q]) => k(q)).filter((x) => x != null); return v.length ? Math.min(...v) : null; });
-      return `<div class="sect nearcmp"><h3>1km 안 다른 구역과 비교 <small>${near.length}곳 · 같은 내 조건으로 계산 · 굵은 값이 가장 유리 · 3.3㎡당 값은 각 구역 실거래 탭 맨 위와 같은 기준</small></h3><div class="nc-wrap"><table class="nc"><thead><tr><th scope="col"></th>${cols.map(([q], i) => `<th scope="col">${i ? `<button type="button" class="nc-go" data-go="${q.id}">${esc(shortName(q.n))}</button>` : `<b>${esc(shortName(q.n))}</b>`}</th>`).join("")}</tr></thead><tbody>${rows
+      return `<div class="sect nearcmp"><h3>1km 안 다른 구역과 비교 <small>${cols.length - 1}곳 · 같은 내 조건으로 계산 · 굵은 값이 가장 유리 · 3.3㎡당 값은 각 구역 실거래 탭 맨 위와 같은 기준</small></h3><div class="nc-wrap"><table class="nc"><thead><tr><th scope="col"></th>${cols.map(([q], i) => `<th scope="col">${i ? `<button type="button" class="nc-go" data-go="${q.id}">${esc(shortName(q.n))}</button>` : `<b>${esc(shortName(q.n))}</b>`}</th>`).join("")}</tr></thead><tbody>${rows
         .map(([t, f, k], ri) => `<tr><th scope="row">${t}</th>${cols.map(([q, d]) => { const v = k ? k(q) : null; return `<td${v != null && v === best[ri] ? ' class="b"' : ""}>${f(q, d)}</td>`; }).join("")}</tr>`)
         .join("")}</tbody></table></div></div>`;
     }

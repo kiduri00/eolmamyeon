@@ -164,10 +164,15 @@ def key3(r, c, dt=None, as_of=None, upd=None):
     c = c or {}; s = r.get('s', 0) or 0
     done = s >= 9 or (bool(r.get('dn')) and s < 7)
     nt = noTicket(r, c)
-    o = {'now': '–', 'basis': '', 'alt': '', 'tot': '–', 'tsub': '', 'eta': eta_show(r, dt, as_of, upd)}
+    # 계산하지 않는 칸: 맨 '–' 대신 말로(20차) — 지금 필요한 돈 '계산 안 함' · 입주까지 현금 '계산 보류'(목록·/gu·/z·상세 같은 이름 '입주까지 현금 계산 보류')
+    o = {'now': '계산 안 함', 'basis': '', 'alt': '', 'tot': '계산 보류', 'tsub': '', 'eta': eta_show(r, dt, as_of, upd), 'elab': '언제 입주'}
     if r.get('src') == 'moa': o['basis'] = o['tsub'] = '모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요'
     elif done: o['basis'] = '사업이 끝난 곳이에요 · 일반 아파트 매매'; o['tsub'] = '새 아파트 입주까지 계산 대상이 아니에요'
-    elif nt: o['basis'] = ''; o['tsub'] = '계산하지 않아요'; o['eta'] = '입주권 없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 노려야 해요'   # 입주권 이야기는 '언제 입주' 칸에서 한 번(앱 76_detail.js와 같은 글)
+    elif nt:
+        # 입주권 이야기는 셋째 칸('입주권')에서 한 번(앱 76_detail.js와 같은 글) · 착공 뒤처럼 입주권 거래가 있는 곳은 '조합원 입주권을 사야 해요'(참고 시세)
+        t = r.get('tx') or {}; o['basis'] = ''; o['tsub'] = ''; o['elab'] = '입주권'
+        if s >= 8 and t.get('im'): o['eta'] = '조합원 입주권을 사야 해요'; o['esub'] = f"참고 입주권 시세 {eok_m(t['im'])}"; o['im'] = 1
+        else: o['eta'] = '없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 노려야 해요'
     elif c.get('gapBlock') and c['gapBlock'] != '계산 대상 아님':
         o['basis'] = '전세 끼고는 못 사요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
         if c.get('now') is not None and not r.get('lc') and r.get('tag') != 'mk': o['alt'] = f"대출 끼고 사면 지금 {cash(c['now'])}" + (f" · 입주까지 {cash(c['need'])}" if c.get('cashOk') and c.get('need') is not None else '')
@@ -178,7 +183,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         if c.get('gapTotal') is not None: o['tot'] = cash(c['gapTotal'])
         else: o['tsub'] = '입주 시점·신축 시세 자료가 부족해요'
     else: o['basis'] = '매수가로 쓸 거래가 없어 계산하지 않아요'; o['tsub'] = '매수가가 없어 계산하지 않아요'
-    if o['now'] == '–' and not o['alt'] and r.get('src') != 'moa' and not done: o['alt'] = ref_price(r)
+    if o['now'] == '계산 안 함' and not o['alt'] and r.get('src') != 'moa' and not done and not o.get('im'): o['alt'] = ref_price(r)
     w = c.get('win')
     o['ip'] = None if nt else ('입주권 ✓ 나와요', 'ok') if w == 'ok' else ('입주권 ✕ 안 나와요', 'no') if w == 'no' else ('입주권 ! 확인 필요', 'warn') if not done and r.get('src') != 'moa' else None
     en = (r.get('mk') or {}).get('entry') or {}
@@ -189,5 +194,5 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         o['trust'] = ('추정', f'{basis} · 믿을 만함: ', lv, {'높음': 'hi', '보통': 'md', '낮음': 'lo'}.get(lv, ''))
     else:
         why = '모아타운은 사업구역마다 달라요' if r.get('src') == 'moa' else '새 아파트 계산 대상이 아니에요' if nt else '이주·철거가 시작됐어요' if 7 <= s < 9 else '매수가로 쓸 거래가 없어요'
-        o['trust'] = ('계산 안 함', f'{why} · 이유 보기', '', 'na')
+        o['trust'] = None if nt else ('계산 안 함', f'{why} · 이유 보기', '', 'na')   # 입주권 없는 곳은 이유를 셋째 칸에서 한 번만(20차 G3)
     return o

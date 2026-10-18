@@ -3766,7 +3766,16 @@
     const st = e.state || {};
     if (!st.sheet && $("report").classList.contains("sheet")) closeSheetNow();
     // PC: 구 화면에서 연 상세에서 뒤로 → 상세를 닫고 그 구 화면(같은 목록) 그대로
-    if (!MQ_SHEET.matches && st.gu && !st.det && document.documentElement.classList.contains("s-rep")) document.documentElement.classList.remove("s-rep");
+    if (!MQ_SHEET.matches && st.gu && !st.det && document.documentElement.classList.contains("s-rep")) {
+      document.documentElement.classList.remove("s-rep");
+      // 20차: 그 구 경계에 다시 맞추고(상세가 당겨 둔 줌 대신) 초점은 방금 연 목록 줄로
+      const oid = cur && cur.id;
+      setTimeout(() => {
+        try { if (mapView === "gu") LMX.zoom(0); } catch (er) {}
+        const a = oid && document.querySelector(`#sList a[data-id="${oid}"]`);
+        if (a) { a.focus({ preventScroll: true }); try { a.scrollIntoView({ block: "nearest" }); } catch (er) {} }
+      }, 80);
+    }
     if (!MQ_SHEET.matches && st.det && byId[st.det] && (!cur || cur.id !== st.det)) { cur = byId[st.det]; try { renderReport(); } catch (er) {} document.documentElement.classList.add("s-rep"); }
     if (!st.search && $("hdr").classList.contains("searching")) closeSearchNow();
     if (st.sheet && byId[st.sheet] && MQ_SHEET.matches && !$("report").classList.contains("sheet")) {
@@ -4193,8 +4202,9 @@
     const dOf = (i) => dt[dMap[i]] || (i === 4 ? dt["조합설립"] || dt["시행자지정"] : null);
     const dates = L.map((_, i) => dOf(i));
     const etaRow =
-      hasEta(pr) && !pr.past
-        ? `<li class="eta"><span class="d" aria-hidden="true">◷</span><div><b>예상 준공·입주</b><p>준공되는 경우의 가운데 값 · 빠르면 ${pr.eLo < ETA_NOW ? "곧" : ym(pr.eLo)}, 늦으면 ${(pr.eHi - ETA_NOW) / (365.25 * 864e5) > 15 ? "15년 넘게" : ym(pr.eHi)}</p></div><span class="t">${etaSpan(r, pr)}</span></li>`
+      // 20차 G9: 예상 입주 값은 위 큰 칸에 한 번 — 여기서는 범위만(값이 '15년 넘게'면 줄 자체를 빼서 같은 말을 두 번 하지 않게)
+      hasEta(pr) && !pr.past && !/15년 넘게/.test(String(etaSpan(r, pr)))
+        ? `<li class="eta"><span class="d" aria-hidden="true">◷</span><div><b>예상 준공·입주 범위</b><p>준공되는 경우의 가운데 값 · 빠르면 ${pr.eLo < ETA_NOW ? "곧" : ym(pr.eLo)}, 늦으면 ${(pr.eHi - ETA_NOW) / (365.25 * 864e5) > 15 ? "15년 넘게" : ym(pr.eHi)}</p></div></li>`
         : "";
     const kidDist = kids.length
       ? Object.entries(
@@ -4278,7 +4288,8 @@
     const w0 = buyWindow(r);
     if (w0.cls === "no") {
       const rb = isRebuild(r) || isSmall(r);
-      p.innerHTML = `<div class="bigrow"><div class="big hl off"><span>입주 때 시세 차이</span><b>입주권 없음</b><small>지금 사면 ${rb ? "매도청구 대상" : "현금청산 대상"}</small></div></div>\n      <p class="note riskbox"><b>${esc(w0.t)} · ${esc(w0.due)}</b> ${esc(w0.d)}</p>\n      ${rb ? `<p class="note"><b>보상 방식</b> ${isSmall(r) ? "가로·소규모는 협의 → 매도청구(시가 기준, 소규모주택정비법 §35·36)로" : "재건축은 매도청구(시가 기준)로"} 보상액이 달라집니다 · 법률 검토 권장</p>` : x.price != null && x.appr != null ? `<p class="note"><b>현금청산 시 예상 손실</b> 약 ${won(x.price - x.appr + x.tax)} (매수가 ${won(x.price)} − 감정가 추정 ${won(x.appr)} + 취득세 ${won(x.tax)}) · 재개발 수용 보상 기준의 참고값</p>` : ""}\n      <p class="note">${rb ? "" : "현금청산은 감정평가액 기준 보상이라 매수가에 붙은 프리미엄은 돌려받지 못합니다. "}예외 매물(매도인이 10년 보유·5년 거주 1세대1주택 등)을 사는 경우에만 조합원 지위가 승계되며, 이때는 조합에 승계 가능 여부를 먼저 확인하십시오.</p>`;
+      // 입주권이 안 나오는 이유는 첫 화면 셋째 칸('입주권')에서 한 번 — 여기서 '입주권 없음' 큰 칸·주황 상자로 다시 말하지 않는다(20차 G3)
+      p.innerHTML = `<p class="note"><b>지금 사면 ${rb ? "매도청구 대상" : "현금청산 대상"}</b></p>\n      ${rb ? `<p class="note"><b>보상 방식</b> ${isSmall(r) ? "가로·소규모는 협의 → 매도청구(시가 기준, 소규모주택정비법 §35·36)로" : "재건축은 매도청구(시가 기준)로"} 보상액이 달라집니다 · 법률 검토 권장</p>` : x.price != null && x.appr != null ? `<p class="note"><b>현금청산 시 예상 손실</b> 약 ${won(x.price - x.appr + x.tax)} (매수가 ${won(x.price)} − 감정가 추정 ${won(x.appr)} + 취득세 ${won(x.tax)}) · 재개발 수용 보상 기준의 참고값</p>` : ""}\n      <p class="note">${rb ? "" : "현금청산은 감정평가액 기준 보상이라 매수가에 붙은 프리미엄은 돌려받지 못합니다. "}예외 매물(매도인이 10년 보유·5년 거주 1세대1주택 등)을 사는 경우에만 조합원 지위가 승계되며, 이때는 조합에 승계 가능 여부를 먼저 확인하십시오.</p>`;
       return;
     }
     if (x.price == null && !o.price) {
@@ -4621,7 +4632,7 @@
     const row = (r, i, near) => {
       const n = needS(r), ok = okZ(r);
       const wt = near || moaIn.has(r.id) ? `${esc(stn[0].replace(/역$/, ""))}역 ${ZF.walkMin(stnW(r))}분${moaIn.has(r.id) ? " · 15분 안" : ""}` : r.st ? walkT(r) : "";
-      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b><i class="sg-l">${n.l === "입주까지" ? "입주까지" : "지금"}</i> ${e1S(n.v)}</b>${ok ? '<i class="sg-ok">내 돈으로 가능</i>' : `<i class="sg-ok sg-no">내 돈 ${esc(ZF.cash(Math.max(0.01, n.v - CASH)))} 부족</i>`}` : ""}</em></button>`;
+      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b><i class="sg-l">${n.l === "입주까지" ? "입주까지" : "지금"}</i> ${e1S(n.v)}</b>${ok ? '<i class="sg-ok">내 돈으로 가능</i>' : `<i class="sg-ok sg-no">내 돈 ${esc(ZF.cash(Math.max(0.01, n.v - CASH)))} 부족</i>`}` : r.s >= 9 ? "" : '<i class="sg-ok sg-no sg-na">계산 보류</i>'}</em></button>`;   // 20차: 금액이 없는 줄도 빈칸 대신 '계산 보류'
     };
     const stnRow = stn
       ? `<button type="button" role="option" id="sgS" aria-selected="false" data-stn="${esc(stn[0])}" tabindex="-1" class="sg-stn"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="14" rx="3"/><path d="M6 10h12M8 21l2-4M16 21l-2-4"/></svg>${esc(stn[0])}<small>${esc((stn[3] || []).join(" · "))} · 지도에서 역 주변 보기</small></span><em>지도 →</em></button>`

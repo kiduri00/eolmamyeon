@@ -558,3 +558,7 @@ html.simple #sTT{margin-bottom:16px}
 @media (max-width:1179px){.s-sum-x{display:none}}
 /* 19차: 좁은 폰(380px 아래)은 목록 줄의 동 이름을 빼서 '역 N분'이 잘리지 않게 */
 @media (max-width:379px){.s-card .s-sub .s-dg:has(+ .s-wk){display:none}}
+
+/* 20차: 400px 아래 목록 줄은 역·도보만('미아사거리역 9분') — '미아동 · 미…'처럼 둘 다 잘리지 않게 */
+@media (max-width:399px){.s-sub .s-dg.s-dgw{display:none}}
+@media (max-width:399px){.s-card .s-l2{flex-wrap:wrap;row-gap:2px}.s-card .s-l2 .s-sub{flex:1 1 100%}}
