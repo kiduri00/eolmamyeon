@@ -2,8 +2,10 @@
 """법원경매 물건(tools/auction.js 결과) → 구역별 목록 public/data/auction.json
 매칭: ① 법정동 코드 + 지번(산·본번·부번)이 구역 경계 안 필지 목록(pipeline/cache/parcels.json)에 있으면 그 구역
       ② 필지 목록이 없는 공식 경계 구역(추정 원 경계 제외)만, 물건 좌표(KATEC)를 경위도로 바꿔 경계 안에 드는지
-사용: python3 tools/auction_match.py [raw=pipeline/raw/auction_raw.json] [out=public/data/auction.json]
-수집이 실패하면(ok:false) 이전 auction.json을 지키고, 지난 기일만 걷어 낸다."""
+사용: python3 tools/auction_match.py [raw=pipeline/raw/auction_raw.json] [out=public/data/auction.json] [오늘=YYYY-MM-DD] [상태=pipeline/cache/auction_state.json]
+수집기(tools/auction.js)는 날마다 새로 들어온 날·가까운 날만 검색한다 → 여기서 상태(auction_state.json)에 쌓고 auction.json은 상태에서 만든다.
+상태 물건: firstSeen·lastSeen·status(up=예정 / gone=끝까지 받은 검색 범위인데 빠짐 / chk=기일 지남·다음 기일 확인 중, 45일 뒤 뺌).
+auction.json 물건: fs·ls·st(없음=예정)·est(chk일 때 유찰 시 다음 최저가 80% 추정)."""
 import json, math, os, re, sys, datetime
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 P = lambda *a: os.path.join(ROOT, *a)
@@ -129,34 +131,163 @@ def match(items, idx, polys, day=None):
     return by, stat
 
 
-def main(raw_p=None, out_p=None):
+KEEP_DAYS = 45   # 기일이 지난 뒤 다시 안 보이는 물건을 '확인 중'으로 두는 날 수
+STATE_P = P('pipeline/cache/auction_state.json')
+akey = lambda o: f"{o.get('cs')}#{o.get('no') or 1}"
+dd = lambda s: datetime.date.fromisoformat(s)
+add = lambda s, n: (dd(s) + datetime.timedelta(days=n)).isoformat()
+
+
+def zones_of(it, idx, polys):
+    z = idx.get(pnu_of(it) or '', [])
+    if z: return list(z), 'pnu'
+    if polys and num(it.get('xCordi')) and num(it.get('yCordi')):
+        ll = katec_ll(num(it['xCordi']), num(it['yCordi']))
+        if ll:
+            from shapely.geometry import Point
+            pt = Point(*ll); z = [rid for rid, g in polys if g.contains(pt)]
+            if z: return z, 'pt'
+    return [], 'none'
+
+
+def searches_of(raw):
+    """수집 결과의 검색 목록(v2) · 예전 꼴(법원별 2주 전체 한 번)은 검색 하나로 친다"""
+    if raw.get('searches') is not None: return raw['searches']
+    a = raw.get('asOf') or today()
+    out = []
+    for c in raw.get('courts') or []:
+        tot, got = c.get('total') or 0, c.get('got') or 0
+        out.append({'court': c.get('court'), 'kind': 'full', 'from': a, 'to': add(a, 13), 'total': tot, 'got': got,
+                    'complete': bool(c.get('ok') and tot > 0 and got >= tot * 0.99)})
+    return out
+
+
+def bootstrap_state(prev):
+    """상태 파일이 없을 때: 이전 auction.json의 구역 안 물건으로 시작(법원 정보는 비움 → 수집기가 법원마다 전체 검색)"""
+    st = {'asOf': None, 'courts': {}, 'items': {}}
+    if not prev or not prev.get('ok'): return st
+    a = prev.get('asOf')
+    for z, v in (prev.get('byZone') or {}).items():
+        for o in v or []:
+            if not isinstance(o, dict) or not o.get('cs'): continue
+            k = akey(o)
+            x = st['items'].get(k) or {kk: vv for kk, vv in o.items() if kk not in ('st', 'est', 'fs', 'ls')}
+            x.setdefault('firstSeen', o.get('fs') or a); x.setdefault('lastSeen', o.get('ls') or a)
+            x['status'] = {'chk': 'chk', 'gone': 'gone'}.get(o.get('st'), 'up')
+            x['zones'] = sorted(set(x.get('zones') or []) | {z})
+            st['items'][k] = x
+    return st
+
+
+def update(state, raw, idx, polys, day):
+    """오늘 수집(raw)을 상태에 반영. 돌려주는 것: 통계"""
+    items, S = raw.get('items') or [], state['items']
+    a = raw.get('asOf') or day
+    stat = {'raw': len(items), 'new': 0, 'seen': 0, 'pnu': 0, 'pt': 0, 'zone_new': 0, 'skip': 0, 'gone': 0, 'refresh': 0, 'chk': 0, 'drop': 0}
+    seen = set()
+    for it in items:
+        o = parse(it)
+        if not o.get('cs') or not o.get('date'): continue
+        k = it.get('docid') or akey(o)   # 상태 열쇠: docid(검색 건수와 맞춰 보려고) · 없으면 사건번호#물건번호
+        if k in seen: continue
+        seen.add(k)
+        old = S.get(k)
+        if old is None and akey(o) in S and not S[akey(o)].get('docid'): old = S.pop(akey(o))   # 이전 auction.json에서 시작한 기록
+        rec = {'cs': o['cs'], 'no': o.get('no'), 'court': o.get('court') or it.get('_court'), 'date': o['date'], 'docid': it.get('docid')}
+        z = []
+        if not (str(it.get('hjguSido') or '서울').find('서울') < 0 or NOT_RE.search(str(it.get('dspslUsgNm') or ''))):
+            z, how = zones_of(it, idx, polys) if idx is not None else ([], 'none')
+            if z: stat[how] += 1
+        if z: rec.update(o); rec['zones'] = sorted(z)
+        rec = {kk: vv for kk, vv in rec.items() if vv is not None}
+        rec['firstSeen'] = (old or {}).get('firstSeen') or a
+        rec['lastSeen'] = a; rec['status'] = 'up'
+        if z and not (old and old.get('zones')): stat['zone_new'] += 1
+        stat['seen' if old else 'new'] += 1
+        S[k] = rec
+    # 끝까지 받은 검색 범위 안인데 오늘 안 보인 예정 물건 → gone(건너뛴 검색이면 그대로 있는 것으로)
+    C = state.setdefault('courts', {})
+    for sc in searches_of(raw):
+        if not sc.get('complete') or not sc.get('court'): continue
+        lo, hi = sc.get('from') or a, sc.get('to') or a
+        for k, o in S.items():
+            if k in seen or o.get('court') != sc['court'] or not (lo <= (o.get('date') or '') <= hi): continue
+            if sc.get('skip') and o.get('status') == 'up': o['lastSeen'] = a; stat['skip'] += 1
+            elif not sc.get('skip') and o.get('status') == 'up' and not sc.get('noreq'): o['status'] = 'gone'; stat['gone'] += 1
+        c = C.setdefault(sc['court'], {})
+        if sc.get('how'): c['how'] = sc['how']
+        end = (sc.get('cover') or [None, hi])[1]
+        if sc.get('kind') in ('full', 'refresh') or sc.get('fallback') == 'full':
+            c['lastFullDate'] = a; c['through'] = max(c.get('through') or '', end); stat['refresh'] += sc.get('kind') == 'refresh'
+        elif sc.get('kind') == 'new' and (c.get('through') or '') >= add(lo, -1 - 7):
+            c['through'] = max(c.get('through') or '', end)
+    if any(sc.get('complete') for sc in searches_of(raw)): state['asOf'] = max(state.get('asOf') or '', a)
+    # 기일이 지난 물건: 구역 안 → chk(45일까지), 구역 밖 → 뺀다
+    for k in list(S):
+        o = S[k]; d = o.get('date') or ''
+        if d and d < day and k not in seen:
+            if not o.get('zones') or (dd(day) - dd(d)).days > KEEP_DAYS: del S[k]; stat['drop'] += 1; continue
+            if o.get('status') != 'chk': o['status'] = 'chk'; stat['chk'] += 1
+    return stat
+
+
+def derive(state, day):
+    """상태 → 화면용 auction.json(구역 안 물건: 예정 · 목록에서 빠짐 · 기일 지남 45일까지)"""
+    by = {}
+    for o in state['items'].values():
+        if not o.get('zones'): continue
+        x = {kk: vv for kk, vv in o.items() if kk not in ('zones', 'docid', 'firstSeen', 'lastSeen', 'status')}
+        x['fs'], x['ls'] = o.get('firstSeen'), o.get('lastSeen')
+        st = o.get('status') or 'up'
+        if st != 'up': x['st'] = st
+        if st == 'chk' and isinstance(o.get('min'), (int, float)) and o['min'] > 0: x['est'] = int(round(o['min'] * 0.8, -5))
+        for z in o['zones']:
+            m = by.setdefault(z, {}); k = akey(x)   # 같은 사건·물건번호(목록 여러 줄)는 한 번만: 예정 · 최근 확인 우선
+            if k not in m or ((not x.get('st'), x.get('ls') or '') > (not m[k].get('st'), m[k].get('ls') or '')): m[k] = x
+    by = {z: list(m.values()) for z, m in by.items()}
+    for z, v in by.items():
+        k0 = lambda o: (o.get('date') or '9', o['cs'], o.get('no') or 1)
+        by[z] = sorted([o for o in v if not o.get('st')], key=k0) + sorted([o for o in v if o.get('st') == 'gone'], key=k0) \
+            + sorted([o for o in v if o.get('st') == 'chk'], key=lambda o: o.get('date') or '', reverse=True)
+    recs = {akey(o): o for v in by.values() for o in v}
+    cts = {c: v.get('lastFullDate') for c, v in (state.get('courts') or {}).items() if c in JUR and v.get('lastFullDate')}
+    out = {'asOf': state.get('asOf') or day, 'chkd': day, 'ok': True, 'src': '법원경매정보', 'up': sum(1 for o in recs.values() if not o.get('st')),
+           'all': len(recs), 'cts': cts, 'byZone': dict(sorted(by.items()))}
+    have = {o.get('court') for o in state['items'].values()}
+    miss = sorted({g for c in JUR if c not in cts and c not in have for g in JUR[c].split()})   # 한 번도 못 받은 법원의 구
+    if miss: out['miss'] = miss
+    return out
+
+
+def main(raw_p=None, out_p=None, day=None, state_p=None):
     raw_p = raw_p or P('pipeline/raw/auction_raw.json'); out_p = out_p or P('public/data/auction.json')
+    state_p = state_p or os.environ.get('AUCTION_STATE') or STATE_P
+    day = day or os.environ.get('AUCTION_TODAY') or today()
     prev = None
     if os.path.exists(out_p):
         try: prev = json.load(open(out_p, encoding='utf-8'))
         except Exception: prev = None
-    raw = json.load(open(raw_p, encoding='utf-8')) if os.path.exists(raw_p) else {'ok': False, 'err': 'no-raw'}
-    if 'data' in raw and 'dlt_srchResult' in (raw.get('data') or {}):   # 사이트 응답 원형(fixture)
-        raw = {'ok': True, 'asOf': today(), 'items': raw['data']['dlt_srchResult'], 'courts': []}
-    items = raw.get('items') or []
-    miss = sorted({g for c in raw.get('courts') or [] if not c.get('ok') for g in JUR.get(c.get('court'), '').split()})
-    if not raw.get('ok') and not (items and len(miss) < 25):
-        # 이번 수집 실패 → 이전 결과 유지(지난 기일만 정리)
-        print('!! 경매 수집 실패:', raw.get('err') or [c.get('err') for c in raw.get('courts') or []])
-        if prev and prev.get('ok'):
-            d = today()
-            prev['byZone'] = {k: [o for o in v if (o.get('date') or '9') >= d] for k, v in (prev.get('byZone') or {}).items()}
-            prev['byZone'] = {k: v for k, v in prev['byZone'].items() if v}
-            prev['stale'] = 1
-            out = prev
-        else:
-            out = {'asOf': today(), 'ok': False, 'src': '법원경매정보', 'byZone': {}}
-    else:
-        idx, polys = load_zones()
-        by, stat = match(items, idx, polys)
-        out = {'asOf': raw.get('asOf') or today(), 'ok': True, 'src': '법원경매정보', 'n': len(items), 'byZone': by}
-        if miss: out['miss'] = miss
-        print('경매 물건', len(items), '건 · 구역 안', sum(len(v) for v in by.values()), '건 /', len(by), '구역', stat, ('· 못 가져온 구 ' + ','.join(miss)) if miss else '')
+    state = None
+    if os.path.exists(state_p):
+        try: state = json.load(open(state_p, encoding='utf-8'))
+        except Exception: state = None
+    if not isinstance(state, dict) or not isinstance(state.get('items'), dict): state = bootstrap_state(prev); print('경매 상태 새로 시작(이전 auction.json 구역 물건', len(state['items']), '건)')
+    raw = json.load(open(raw_p, encoding='utf-8')) if os.path.exists(raw_p) else {'ok': False, 'err': 'no-raw', 'items': []}
+    if 'data' in raw and 'dlt_srchResult' in (raw.get('data') or {}):   # 사이트 응답 원형(fixture): 법원마다 2주 전체를 다 받은 것으로
+        its = raw['data']['dlt_srchResult']
+        raw = {'ok': True, 'asOf': day, 'items': its, 'searches': [{'court': c, 'kind': 'full', 'from': day, 'to': add(day, 13), 'complete': True} for c in JUR]}
+    if not raw.get('ok'):
+        print('!! 경매 수집 일부/전부 실패:', raw.get('err') or '', [(c.get('court'), c.get('err')) for c in raw.get('courts') or [] if not c.get('ok')])
+    idx, polys = load_zones() if raw.get('items') else (None, None)
+    stat = update(state, raw, idx, polys, day)
+    state['v'] = 1
+    out = derive(state, day) if state['items'] or state.get('asOf') else {'asOf': day, 'ok': False, 'src': '법원경매정보', 'byZone': {}}
+    out['n'] = len(raw.get('items') or [])
+    if not any(sc.get('complete') for sc in searches_of(raw)): out['stale'] = 1
+    print('경매 오늘 받은', stat['raw'], '건', stat, '· 상태', len(state['items']), '건 · 구역 안', out.get('all', 0), '건(예정', out.get('up', 0), ') /', len(out['byZone']), '구역',
+          '· 법원', {c[2:4]: (v.get('lastFullDate'), v.get('through'), v.get('how')) for c, v in state.get('courts', {}).items()}, ('· 못 가져온 구 ' + ','.join(out['miss'])) if out.get('miss') else '')
+    os.makedirs(os.path.dirname(state_p), exist_ok=True)
+    json.dump(state, open(state_p + '.tmp', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'), sort_keys=True); os.replace(state_p + '.tmp', state_p)
     body = json.dumps(out, ensure_ascii=False, separators=(',', ':'))
     if not os.path.exists(out_p) or open(out_p, encoding='utf-8').read() != body:
         open(out_p, 'w', encoding='utf-8').write(body)
@@ -164,4 +295,4 @@ def main(raw_p=None, out_p=None):
 
 
 if __name__ == '__main__':
-    main(*(sys.argv[1:3]))
+    main(*(sys.argv[1:5]))

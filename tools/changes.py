@@ -4,7 +4,7 @@
   stage  단계가 올라감(data.enriched.json의 s·sr을 어제 스냅숏과 비교)
   trade  새 실거래(public/data/tx.json 매매 행 중 어제 없던 것; 신고가면 hi=1)
   notice 고시·공고(public/data/notice.json 최근 30일, 인가·신청·시공자 선정만)
-  auction 경매 물건 등장(public/data/auction.json byZone, 사건번호 기준 새 물건; 파일이 없거나 ok:false면 건너뜀)
+  auction 경매 물건 등장(public/data/auction.json byZone, 어제 목록에 없던 사건번호이면서 fs가 최근 3일 안인 예정 물건; 파일이 없거나 ok:false면 건너뜀)
   price  기본 가정 '지금 필요한 돈'이 크게 바뀜(pipeline/calc.json gapNow·now) → 조건 핀 '이제 살 수 있어요' 판정용 v={g:[전,후], c:[전,후]}
 스냅숏·누적 사건은 pipeline/cache/changes_state.json에 둔다(같은 날 다시 돌려도 결과가 같다).
 처음 돌릴 때(스냅숏 없음)는 실거래 계약일·고시 날짜로 지난 30일을 채운다.
@@ -36,6 +36,9 @@ def auc_items(i):
     v = (AUC.get('byZone') or {}).get(i) if AUC_OK else None
     return [x for x in v if isinstance(x, dict) and x.get('cs')] if isinstance(v, list) else []
 akey = lambda x: f"{x.get('cs')}#{x.get('no') or 1}"
+# 경매 '등장'은 정말 처음 보는 사건만: 예정 물건(st 없음)·기일이 오늘 이후·처음 본 날(fs, auction_match.py)이 최근 3일 안
+AFS = (T0 - datetime.timedelta(days=3)).isoformat()
+auc_new = lambda x: not x.get('st') and str(x.get('date') or '9') >= TODAY and str(x.get('fs') or TODAY) >= AFS
 
 def short(n):
     s = re.sub(r'^\s*\[[^\]]*\]\s*', '', n or '')
@@ -121,7 +124,8 @@ def diff(prev, cur, date):
         # 경매: 어제 목록에 없던 사건(경매 자료를 처음 받은 날은 지금 물건 모두가 '등장')
         if AUC_OK and 'a' in c:
             old_a = set(p.get('a') or [])
-            na = [x for x in auc_items(i) if akey(x) not in old_a and str(x.get('date') or '9') >= TODAY]
+            old_cs = {k.split('#')[0] for k in old_a}
+            na = [x for x in auc_items(i) if auc_new(x) and akey(x) not in old_a and x.get('cs') not in old_cs]
             if na:
                 mn = min((x.get('min') for x in na if isinstance(x.get('min'), (int, float))), default=None)
                 out.append(ev(i, date, 'auction', auc_text(na), cnt=len(na), mn=round(mn / 1e8, 2) if mn else None))
@@ -151,7 +155,7 @@ def bootstrap(cur):
             date = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
             h = isinstance(hi, list) and len(hi) > 1 and hi[1] == d
             out.append(ev(i, date, 'trade', trade_text(rs, h), hi=1 if h else None, cnt=len(rs)))
-        na = [x for x in auc_items(i) if str(x.get('date') or '9') >= TODAY]
+        na = [x for x in auc_items(i) if not x.get('st') and str(x.get('date') or '9') >= TODAY]
         if na:
             mn = min((x.get('min') for x in na if isinstance(x.get('min'), (int, float))), default=None)
             out.append(ev(i, TODAY, 'auction', auc_text(na), cnt=len(na), mn=round(mn / 1e8, 2) if mn else None))

@@ -130,30 +130,45 @@
     // 리포트를 열 때 한 번 받아 둔다(작은 파일). 구역 경계 안 필지와 지번이 맞는 물건만.
     let AUC = null, AUCP = null;
     const loadAuc = () => AUCP || (AUCP = fetch(`data/auction.json?v=${dv("auction")}`).then((x) => (x.ok ? x.json() : null)).catch(() => null).then((d) => (AUC = d && typeof d === "object" ? d : { ok: false, byZone: {} })));
-    const aucOf = (r) => (AUC && AUC.ok && !(AUC.miss || []).includes(r.g) && AUC.byZone && AUC.byZone[r.id]) || [];
+    // 물건 상태: 예정(up) / 목록에서 빠짐(gone) / 기일 지남·확인 중(chk). 날짜는 보는 날 기준으로 다시 따진다(파일이 며칠 묵어도)
+    const aucToday = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    const aucSt = (o) => (o.st === "chk" || (o.date && o.date < aucToday()) ? "chk" : o.st === "gone" ? "gone" : "up");
+    const aucOf = (r) => {
+      const xs = (AUC && AUC.ok && !(AUC.miss || []).includes(r.g) && AUC.byZone && AUC.byZone[r.id]) || [];
+      const k = { up: 0, gone: 1, chk: 2 };
+      return xs.slice().sort((a, b) => k[aucSt(a)] - k[aucSt(b)] || (aucSt(a) === "chk" ? String(b.date || "").localeCompare(String(a.date || "")) : String(a.date || "9").localeCompare(String(b.date || "9"))));
+    };
+    const aucUp = (r) => aucOf(r).filter((o) => aucSt(o) === "up").length;
     const aucWon = (v) => { if (v == null || !isFinite(v)) return "–"; const e = Math.floor(v / 1e8), m = Math.round((v % 1e8) / 1e4); return e ? `${e}억${m ? ` ${m.toLocaleString("ko-KR")}만` : ""}원` : `${m.toLocaleString("ko-KR")}만원`; };
+    const aucEok = (v) => (v >= 1e8 ? `${(Math.round(v / 1e7) / 10).toLocaleString("ko-KR")}억` : `${Math.round(v / 1e4).toLocaleString("ko-KR")}만`);
     const aucDay = (d) => { if (!d) return "–"; const t = new Date(d + "T00:00:00+09:00"); return `${d.replaceAll("-", ".")} (${"일월화수목금토"[t.getDay()]})`; };
     const aucCourt = (c) => String(c || "").replace(/^서울(.+)지방법원$/, "서울$1지법");
+    const AUC_BADGE = { up: ["예정", "매각기일이 앞에 있는 진행 중 물건"], gone: ["목록에서 빠짐 · 확인 중", "법원 목록에서 이번에 안 보였어요 — 기일 변경·취하·정지일 수 있어요"], chk: ["기일 지남 · 확인 중", "매각기일이 지났고 다음 기일이 아직 안 보여요(보통 유찰 뒤 4~5주 뒤)"] };
     function aucItem(o) {
+      const s = aucSt(o), [bl, bt] = AUC_BADGE[s];
       const fail = o.fail == null ? "" : o.fail > 0 ? `<span class="auc-f n">유찰 ${o.fail}회</span>` : `<span class="auc-f">신건</span>`;
       const row = (k, v) => (v ? `<div><dt>${k}</dt><dd>${v}</dd></div>` : "");
-      return `<li class="auc-i"><div class="auc-ih"><b class="mono">${esc(o.cs)}${o.no ? `<span class="auc-no">물건 ${o.no}</span>` : ""}</b><span class="auc-ct">${esc(aucCourt(o.court))}${o.dept ? ` ${esc(o.dept)}` : ""}</span>${fail}</div>
-        <div class="auc-pr"><div><span>최저 입찰가</span><b>${aucWon(o.min)}</b>${o.rate != null ? `<em>감정가의 ${o.rate}%</em>` : ""}</div><div><span>감정가</span><b>${aucWon(o.appr)}</b></div><div><span>매각기일</span><b>${aucDay(o.date)}</b>${o.time ? `<em>${esc(o.time)}</em>` : ""}</div></div>
-        <dl class="auc-dl">${row("용도", esc(o.use || ""))}${row("소재지", esc(o.addr || "") + (o.bld ? ` <span class="dim">${esc(o.bld)}</span>` : ""))}${row("면적", esc(o.area || ""))}${row("비고", esc(o.note || ""))}</dl></li>`;
+      const ls = o.ls ? String(o.ls).replaceAll("-", ".") : "";
+      const est = s === "chk" && o.est ? `<p class="auc-es">유찰됐다면 다음 최저가 약 ${aucEok(o.est)}(지금의 80%) <b>추정</b> · 매각됐으면 목록에서 빠져요</p>` : "";
+      const seen = s !== "up" && ls ? `<p class="auc-ls">마지막으로 확인한 정보 · ${ls}</p>` : "";
+      return `<li class="auc-i ${s}"><div class="auc-ih"><span class="auc-s ${s}" title="${bt}">${bl}</span><b class="mono">${esc(o.cs)}${o.no ? `<span class="auc-no">물건 ${o.no}</span>` : ""}</b><span class="auc-ct">${esc(aucCourt(o.court))}${o.dept ? ` ${esc(o.dept)}` : ""}</span>${fail}</div>
+        <div class="auc-pr"><div><span>최저 입찰가</span><b>${aucWon(o.min)}</b>${o.rate != null ? `<em>감정가의 ${o.rate}%</em>` : ""}</div><div><span>감정가</span><b>${aucWon(o.appr)}</b></div><div><span>${s === "chk" ? "지난 매각기일" : "매각기일"}</span><b>${aucDay(o.date)}</b>${o.time ? `<em>${esc(o.time)}</em>` : ""}</div></div>
+        ${est}<dl class="auc-dl">${row("용도", esc(o.use || ""))}${row("소재지", esc(o.addr || "") + (o.bld ? ` <span class="dim">${esc(o.bld)}</span>` : ""))}${row("면적", esc(o.area || ""))}${row("비고", esc(o.note || ""))}</dl>${seen}</li>`;
     }
     function aucBody(r) {
       const asOf = AUC && AUC.asOf ? String(AUC.asOf).replaceAll("-", ".") : "";
       if (!AUC) return `<p class="auc-st">경매 물건 불러오는 중…</p>`;
       if (!AUC.ok || (AUC.miss || []).includes(r.g)) return `<p class="auc-st na">경매 물건 정보를 아직 못 가져왔어요${asOf && AUC.ok ? ` (기준 ${asOf})` : ""}</p>`;
-      const xs = aucOf(r);
+      const xs = aucOf(r), up = xs.filter((o) => aucSt(o) === "up").length;
       if (!xs.length) return `<p class="auc-st">지금 이 구역 안에 진행 중인 경매 물건이 없어요 (기준 ${asOf})</p>`;
-      return `<ul class="auc-l">${xs.map(aucItem).join("")}</ul><p class="auc-src">법원경매정보 ${asOf} 기준 · 구역 경계 안 필지와 지번이 맞는 진행 중 물건 · 최저 입찰가는 다음 매각기일 기준</p>`;
+      const none = up ? "" : `<p class="auc-st">매각기일이 잡힌 물건은 지금 없어요 — 아래는 기일이 지났거나 목록에서 빠져 다음 기일을 확인 중인 물건이에요</p>`;
+      return `${none}<ul class="auc-l">${xs.map(aucItem).join("")}</ul><p class="auc-src">법원경매정보 기준(${asOf}) · 2주 안 기일은 매일 갱신, 그 밖은 마지막으로 확인한 정보 · 구역 경계 안 필지와 지번이 맞는 물건</p>`;
     }
     function auctionHTML(r) {
       loadAuc();
       const asOf = AUC && AUC.asOf ? ` · ${String(AUC.asOf).replaceAll("-", ".")} 기준` : "";
-      const n = aucOf(r).length;
-      return `<div class="sect auc" id="aucSec" data-id="${esc(r.id)}"><h3>경매 물건 ${n ? `<span class="auc-n">${n}건</span>` : ""}<small>법원경매정보 · 구역 경계 안 필지${asOf}</small></h3>
+      const xs = aucOf(r), n = xs.filter((o) => aucSt(o) === "up").length, m = xs.length - n;
+      return `<div class="sect auc" id="aucSec" data-id="${esc(r.id)}"><h3>경매 물건 ${n ? `<span class="auc-n">예정 ${n}건</span>` : ""}${m ? `<span class="auc-n c">확인 중 ${m}건</span>` : ""}<small>법원경매정보 · 구역 경계 안 필지${asOf}</small></h3>
         <div class="auc-b" aria-live="polite">${aucBody(r)}</div>
         <p class="auc-nt">경매로 사도 권리산정기준일·조합원 지위 양도 제한은 똑같이 적용되고, 현금청산 대상이면 입주권이 없어요.</p></div>`;
     }
@@ -171,11 +186,11 @@
         loadAuc().then(() => {
           if (cur !== r0 || !r0) return;
           const h = document.querySelector("#report .rep-head");
-          const n = aucOf(r0).length;
+          const n = aucUp(r0);   // 칩은 매각기일이 앞에 있는 물건만 센다
           if (!h || !n || h.querySelector(".auc-chip")) return;
           // 주소 줄(구 동 · 역 · 경사 칩) 끝에 붙인다 — 없으면 머리 끝
           const w = h.querySelector(".where");
-          const b = `<button type="button" class="auc-chip" title="이 구역 안 진행 중인 법원경매 물건 ${n}건 보기">경매 ${n}건</button>`;
+          const b = `<button type="button" class="auc-chip" title="이 구역 안 매각기일이 잡힌 법원경매 물건 ${n}건 보기">경매 ${n}건</button>`;
           if (w) w.insertAdjacentHTML("beforeend", b); else h.insertAdjacentHTML("beforeend", `<div class="auc-cw">${b}</div>`);
           h.querySelector(".auc-chip").onclick = () => {
             const go = () => { const s = $("aucSec"); if (s) s.scrollIntoView({ behavior: smooth(), block: "start" }); };

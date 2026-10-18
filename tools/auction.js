@@ -1,36 +1,88 @@
-// 법원경매정보(courtauction.go.kr) 서울 5개 지방법원 부동산 기일입찰 물건 목록 모으기
-// 사이트 화면을 그대로 조작한다(법원 고르기 → 검색 → 쪽 넘김) · 응답(searchControllerMain.on)만 읽는다.
-// 사용: node tools/auction.js [출력 파일=pipeline/raw/auction_raw.json]
-// 막히거나(차단·시간 초과·해외 IP 안내) 실패해도 exit 0 — 이전 public/data/auction.json은 tools/auction_match.py가 지킨다.
+// 법원경매정보(courtauction.go.kr) 서울 5개 지방법원 부동산 기일입찰 물건 모으기 — 날마다 조금씩(증분)
+// 사이트 화면을 그대로 조작한다(법원 고르기 → 기간 → 검색 → 쪽 넘김) · 응답(searchControllerMain.on)만 읽는다.
+// 사이트는 매각기일을 '오늘부터 2주 안'으로만 찾게 해 주고, 많이 부르면 IP를 막는다. 그래서
+//   · 처음(상태 없음·상태가 3일 넘게 묵음·그 법원을 끝까지 받은 적 없음): 법원마다 2주 전체 한 번(full)
+//   · 그 뒤 날마다: 지난번 받은 끝 날 다음부터 2주 끝까지(새로 들어온 1~2일, new) + 가까운 평일 2일 다시 보기(re: 변경·취하·정지 찾기)
+//   · 남은 요청이 넉넉하면 7일 넘게 전체를 안 받은 법원 하나를 다시 전체로(refresh)
+//   · 검색 건수가 상태와 같고 첫 쪽 물건이 모두 아는 것이면 나머지 쪽은 건너뛴다(skip)
+// 상태는 tools/auction_match.py가 pipeline/cache/auction_state.json에 쓴다(여기서는 읽기만).
+// 사용: node tools/auction.js [출력=pipeline/raw/auction_raw.json] [상태=pipeline/cache/auction_state.json]
+// 막히거나(차단·시간 초과·요청 상한) 실패해도 exit 0 — 모은 데까지 저장한다.
+// 환경 변수: AUCTION_BUDGET(쪽 요청 상한, 120) · AUCTION_TIMEOUT(초, 1200) · AUCTION_MAX_PAGES(검색 하나당 쪽 상한, 150) · AUCTION_SHOTS(오류 화면 폴더) · AUCTION_FULL=1(전부 전체로)
 const fs = require('fs'), path = require('path');
 const OUT = path.resolve(process.argv[2] || 'pipeline/raw/auction_raw.json');
+const STATE = path.resolve(process.argv[3] || 'pipeline/cache/auction_state.json');
 const URL0 = 'https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ151F00.xml';
 const API = /\/pgj\/pgjsearch\/searchControllerMain\.on/;
-const COURTS = ['서울중앙지방법원', '서울동부지방법원', '서울서부지방법원', '서울남부지방법원', '서울북부지방법원'];
-const SEL_COURT = '#mf_wfm_mainFrame_sbx_rletCortOfc', BTN = '#mf_wfm_mainFrame_btn_gdsDtlSrch';
-const MAX_PAGES = +process.env.AUCTION_MAX_PAGES || 150;   // 법원 하나당 쪽 수 상한
-const DAYS = +process.env.AUCTION_DAYS || 45;              // 기일 검색 기간(화면이 받아 주면 넓힌다 · 기본은 14일)
+const COURTS = ['서울서부지방법원', '서울중앙지방법원', '서울동부지방법원', '서울남부지방법원', '서울북부지방법원'];
+const JUR = { 서울서부지방법원: ['마포구', '서대문구', '은평구', '용산구'] };   // 법원 고르기가 안 먹을 때 소재지 검색(관할 구)
+const P = 'mf_wfm_mainFrame_';
+const SEL_COURT = `#${P}sbx_rletCortOfc`, BTN = `#${P}btn_gdsDtlSrch`, SEL_SD = `#${P}sbx_rletAdongSdS`, SEL_SGG = `#${P}sbx_rletAdongSggS`;
+const CAL_S = `${P}cal_rletPerdStr`, CAL_E = `${P}cal_rletPerdEnd`;
+const MAX_PAGES = +process.env.AUCTION_MAX_PAGES || 150;
+const BUDGET = +process.env.AUCTION_BUDGET || 120;
+const STALE_DAYS = 3, REFRESH_DAYS = 7;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const jitter = (a, b) => a + Math.floor(Math.random() * (b - a));
 const kst = (d = new Date()) => new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 10);
+const addD = (s, n) => new Date(Date.parse(s + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+const diffD = (a, b) => Math.round((Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / 864e5);
+const wday = (s) => new Date(s + 'T00:00:00Z').getUTCDay();
+const ymd = (s) => s.replaceAll('-', '');
+const iso = (v) => (/^\d{8}$/.test(String(v || '')) ? `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}` : null);
 const log = (...a) => console.log('[auction]', ...a);
-const BLOCK = /(접근이\s*(제한|차단)|차단되었|비정상적인\s*접근|해외\s*IP|허용되지\s*않은|Access\s*Denied|Forbidden)/i;
+const BLOCK = /(비정상적인\s*접(속|근)|보안정책|접근이\s*(제한|차단)|차단되었|해외\s*IP|허용되지\s*않은|Access\s*Denied|Forbidden)/i;
+const save = (o) => { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT + '.tmp', JSON.stringify(o)); fs.renameSync(OUT + '.tmp', OUT); };
 
-function save(o) { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT + '.tmp', JSON.stringify(o)); fs.renameSync(OUT + '.tmp', OUT); }
+// 오늘 할 검색 목록 만들기(상태 기준)
+function plan(state, today, wEnd) {
+  const S = state && state.courts ? state : { courts: {}, items: {} };
+  const fresh = state && state.asOf && diffD(today, state.asOf) <= STALE_DAYS && !process.env.AUCTION_FULL;
+  // 상태에 있는 '예정' 물건(법원·기일별) → 건너뛰기 판정용
+  const known = {};
+  for (const o of Object.values(S.items || {})) if (o && o.docid && o.court && o.date && (o.status || 'up') === 'up') (known[o.court] = known[o.court] || []).push([o.date, o.docid]);
+  const exp = (court, from, to) => (known[court] || []).filter(([d]) => d >= from && d <= to).map(([, id]) => id);
+  const weekdays = (from, to) => { const out = []; for (let d = from; d <= to; d = addD(d, 1)) if (wday(d) % 6) out.push(d); return out; };
+  const T = [], later = [];
+  for (const court of COURTS) {
+    const c = (S.courts || {})[court] || {};
+    if (!fresh || !c.lastFullDate || !c.through) { later.push({ court, kind: 'full', from: today, to: wEnd, exp: exp(court, today, wEnd), age: 999 }); continue; }
+    // 새로 들어온 날: 지난번 끝 날 다음 ~ 2주 끝(주말뿐이면 요청 없이 덮은 것으로)
+    const from = c.through >= today ? addD(c.through, 1) : today;
+    if (from <= wEnd) {
+      const wd = weekdays(from, wEnd);
+      if (wd.length) T.push({ court, kind: 'new', from: wd[0], to: wd[wd.length - 1], cover: [from, wEnd], exp: exp(court, wd[0], wEnd) });
+      else T.push({ court, kind: 'new', from, to: wEnd, noreq: true });
+    }
+    // 가까운 평일 2일 다시 보기(내일부터)
+    const re = weekdays(addD(today, 1), addD(today, 7)).slice(0, 2);
+    if (re.length) T.push({ court, kind: 're', from: re[0], to: re[re.length - 1], exp: exp(court, re[0], re[re.length - 1]) });
+    const age = diffD(today, c.lastFullDate);
+    if (age > REFRESH_DAYS) later.push({ court, kind: 'refresh', from: today, to: wEnd, exp: exp(court, today, wEnd), age });
+  }
+  later.sort((a, b) => b.age - a.age);
+  return { tasks: T, later, fresh };
+}
 
 (async () => {
-  const res = { asOf: kst(), ok: false, src: '법원경매정보', courts: [], items: [] };
+  const today = kst();
+  let state = null;
+  try { state = JSON.parse(fs.readFileSync(STATE, 'utf8')); } catch (e) {}
+  const res = { asOf: today, ok: false, src: '법원경매정보', v: 2, used: 0, budget: BUDGET, courts: [], searches: [], items: [] };
   let chromium;
   try { ({ chromium } = require('playwright')); } catch (e) { log('playwright 없음 — 건너뜀'); save({ ...res, err: 'no-playwright' }); return; }
-  let b;
-  const hard = setTimeout(() => { log('!! 전체 시간 초과 — 모은 것까지만 저장'); finish(true); }, (+process.env.AUCTION_TIMEOUT || 900) * 1000);
-  let done = false;
-  function finish(timeout) {
+  let b, done = false, stop = '';
+  const hard = setTimeout(() => { log('!! 전체 시간 초과 — 모은 것까지만 저장'); finish('timeout'); }, (+process.env.AUCTION_TIMEOUT || 1200) * 1000);
+  function finish(err) {
     if (done) return; done = true; clearTimeout(hard);
-    res.ok = res.courts.length === COURTS.length && res.courts.every((c) => c.ok);
-    if (timeout) res.err = 'timeout';
+    const by = {};
+    for (const s of res.searches) (by[s.court] = by[s.court] || []).push(s);
+    res.courts = COURTS.map((court) => { const ss = by[court] || []; return { court, ok: ss.length > 0 && ss.every((s) => s.complete), got: ss.reduce((a, s) => a + (s.got || 0), 0), how: (ss.find((s) => s.how) || {}).how, err: (ss.find((s) => s.err) || {}).err }; });
+    res.ok = res.courts.every((c) => c.ok);
+    if (err || stop) res.err = err || stop;
     save(res);
-    log(`끝 ok=${res.ok} 물건 ${res.items.length}건`, res.courts.map((c) => `${c.court}:${c.got}/${c.total ?? '?'}${c.err ? '(' + c.err + ')' : ''}`).join(' '));
+    log(`끝 ok=${res.ok} 물건 ${res.items.length}건 · 요청 ${res.used}/${BUDGET}${res.err ? ' · ' + res.err : ''}`);
+    for (const s of res.searches) log(' ', s.court, s.kind, `${s.from}~${s.to}`, `${s.got ?? 0}/${s.total ?? '?'}`, `${s.pages || 0}쪽`, s.how || '', s.skip ? 'skip' : '', s.noreq ? '(요청 없음)' : '', s.complete ? '완료' : '미완', s.err || '');
     Promise.resolve(b && b.close()).catch(() => {}).finally(() => process.exit(0));
   }
   try {
@@ -45,67 +97,99 @@ function save(o) { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writ
     const p = await ctx.newPage();
     await p.route(/google-analytics|googletagmanager|\.(woff2?|ttf)(\?|$)/, (r) => r.abort());
     p.on('dialog', (d) => { log('알림창:', d.message().slice(0, 80)); d.accept().catch(() => {}); });
-    // 응답 모으기: 마지막 검색 응답을 기다리는 쪽으로 넘긴다
-    let waiter = null, last = null;
+    let waiter = null;
     p.on('response', async (r) => {
       if (!API.test(r.url())) return;
       let j = null, st = r.status();
-      try { j = await r.json(); } catch (e) { try { const t = await r.text(); if (BLOCK.test(t)) j = { blocked: true }; } catch (e2) {} }
-      last = { st, j, req: r.request() };
-      if (waiter) { const w = waiter; waiter = null; w(last); }
+      try { j = await r.json(); } catch (e) { try { const t = await r.text(); if (BLOCK.test(t)) j = { blocked: true, message: t.slice(0, 120) }; } catch (e2) {} }
+      if (j && !j.blocked && j.message && BLOCK.test(String(j.message))) j = { blocked: true, message: String(j.message).slice(0, 120) };
+      let body = ''; try { body = r.request().postData() || ''; } catch (e) {}
+      if (waiter) { const w = waiter; waiter = null; w({ st, j, body }); }
     });
     const nextResp = (ms = 40000) => new Promise((ok) => { const t = setTimeout(() => { if (waiter === f) waiter = null; ok(null); }, ms); const f = (x) => { clearTimeout(t); ok(x); }; waiter = f; });
-    const blocked = async () => { try { return BLOCK.test(await p.evaluate(() => document.body ? document.body.innerText.slice(0, 4000) : '')); } catch (e) { return false; } };
-
-    await p.goto(URL0, { waitUntil: 'domcontentloaded', timeout: 90000 });
-    await p.waitForSelector(SEL_COURT, { timeout: 60000 }).catch(() => null);
-    if (await blocked()) throw new Error('blocked-page');
-    if (!(await p.$(SEL_COURT))) throw new Error('no-form');
-    await sleep(jitter(2000, 3500));
-
-    // 기일 검색 기간 넓히기(가능할 때만): 폼 안 'YYYY.MM.DD'/'YYYYMMDD' 날짜 칸 두 개 중 뒤 칸
-    const widen = async () => {
-      try {
-        const end = new Date(Date.now() + 9 * 3600e3 + DAYS * 864e5).toISOString().slice(0, 10);
-        const r = await p.evaluate((end) => {
-          const ins = [...document.querySelectorAll('input[id^="mf_wfm_mainFrame"]')].filter((i) => i.offsetParent && /^\d{4}[.\-]?\d{2}[.\-]?\d{2}$/.test(i.value.trim()));
-          if (ins.length < 2) return 'no-date-inputs';
-          const e = ins[1], v0 = e.value, sep = v0.includes('.') ? '.' : v0.includes('-') ? '-' : '';
-          const nv = end.replaceAll('-', sep);
-          // WebSquare 달력 컴포넌트면 그 API로(입력 칸 id 끝 '_input'을 뗀 이름)
-          const cid = e.id.replace(/_input$/, ''), c = window[cid] || (window.$p && $p.getComponentById && $p.getComponentById(cid));
-          if (c && typeof c.setValue === 'function') { c.setValue(end.replaceAll('-', '')); return 'ws:' + cid + '=' + (c.getValue ? c.getValue() : nv); }
-          e.focus(); e.value = nv; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); e.blur();
-          return 'dom:' + e.id + '=' + e.value;
-        }, end);
-        log('기간:', r);
-      } catch (e) { log('기간 넓히기 건너뜀', e.message.slice(0, 80)); }
+    const blockedPage = async () => { try { return BLOCK.test(await p.evaluate(() => document.body ? document.body.innerText.slice(0, 4000) : '')); } catch (e) { return false; } };
+    const popupText = () => p.evaluate(() => [...document.querySelectorAll('[class*="w2popup"],[class*="w2window"],[role="dialog"],[class*="alert"]')].filter((e) => e.offsetParent).map((e) => e.innerText.replace(/\s+/g, ' ').trim().slice(0, 160)).filter(Boolean).join(' | ')).catch(() => '');
+    const rows = (j) => (j && j.data && Array.isArray(j.data.dlt_srchResult) ? j.data.dlt_srchResult : null);
+    const info = (j) => (j && j.data && j.data.dma_pageInfo) || {};
+    // 요청 하나(검색·쪽 넘김 공통): 상한·차단은 여기서만 센다
+    const ask = async (fire) => {
+      if (stop) throw new Error(stop);
+      if (res.used >= BUDGET) { stop = 'budget'; throw new Error('budget'); }
+      res.used++;
+      const pr = nextResp();
+      if ((await fire()) === false) { waiter = null; res.used--; return { none: true }; }
+      const r = await pr;
+      if (r && r.j && r.j.blocked) { stop = 'blocked'; log('!! 차단 안내:', r.j.message); throw new Error('blocked'); }
+      return r;
     };
-    // 쪽 크기 50(화면에 고르는 칸이 있으면)
-    const bigPage = async () => {
-      try {
-        return await p.evaluate(() => {
-          const s = [...document.querySelectorAll('select')].find((x) => x.offsetParent && [...x.options].some((o) => /^50/.test(o.text.trim())) && [...x.options].some((o) => /^10/.test(o.text.trim())));
-          if (!s) return false;
-          const o = [...s.options].find((o) => /^50/.test(o.text.trim()));
-          if (s.value === o.value) return false;
-          s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true }));
-          const cid = s.id.replace(/_input_?\d*$/, ''), c = window[cid];
-          if (c && typeof c.setValue === 'function') { try { c.setValue(o.value); } catch (e) {} }
-          return true;
-        });
-      } catch (e) { return false; }
+    const open = async () => {
+      await p.goto(URL0, { waitUntil: 'domcontentloaded', timeout: 90000 });
+      await p.waitForSelector(SEL_COURT, { timeout: 60000 }).catch(() => null);
+      if (await blockedPage()) { stop = 'blocked'; throw new Error('blocked-page'); }
+      if (!(await p.$(SEL_COURT))) throw new Error('no-form');
+      await sleep(jitter(2000, 3500));
     };
-    const pickCourt = async (name) => {
-      try { await p.selectOption(SEL_COURT, { label: name }, { timeout: 8000 }); return true; } catch (e) {}
-      return p.evaluate(([sel, name]) => {
-        const s = document.querySelector(sel); if (!s) return false;
-        const o = [...(s.options || [])].find((o) => o.text.trim() === name); if (o) { s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); return true; }
-        const c = window[sel.slice(1)]; if (c && typeof c.setText === 'function') { c.setText(name); return true; }
-        return false;
-      }, [SEL_COURT, name]);
+    const getPeriod = () => p.evaluate(([a, b]) => { const g = (id) => { const c = window[id]; try { return c && c.getValue ? c.getValue() : null; } catch (e) { return null; } }; return [g(a), g(b)]; }, [CAL_S, CAL_E]);
+    const setPeriod = async (from, to) => {
+      const r = await p.evaluate(([a, b, f, t]) => {
+        const out = {};
+        for (const [id, v] of [[b, t], [a, f], [b, t]]) { const c = window[id]; if (!c || typeof c.setValue !== 'function') return { err: 'no-comp ' + id }; c.setValue(v); out[id] = c.getValue ? c.getValue() : v; }
+        return out;
+      }, [CAL_S, CAL_E, ymd(from), ymd(to)]);
+      return !r.err && r[CAL_S] === ymd(from) && r[CAL_E] === ymd(to) ? true : r;
     };
-    // 다음 쪽 누르기: 쪽 목록에서 숫자 n 버튼 → 없으면 '다음' 버튼
+    const courtState = () => p.evaluate((id) => {
+      const s = document.querySelector('#' + id), c = window[id];
+      const o = s && s.selectedOptions && s.selectedOptions[0];
+      let cv = null; try { cv = c && c.getValue ? c.getValue() : null; } catch (e) {}
+      return { dom: o ? `${o.value}:${o.text.trim()}` : null, ws: cv };
+    }, SEL_COURT.slice(1));
+    const pickCourt = async (name, mode) => {
+      if (mode === 'label') {
+        try { await p.selectOption(SEL_COURT, { label: name }, { timeout: 8000 }); return { how: 'label', ...(await courtState()) }; } catch (e) { return { err: 'no-label' }; }
+      }
+      const how = await p.evaluate(([id, name]) => {
+        const s = document.querySelector('#' + id); if (!s) return '';
+        const o = [...(s.options || [])].find((o) => o.text.replace(/\s+/g, '') === name) || [...(s.options || [])].find((o) => o.text.includes(name.replace(/^서울|지방법원$/g, '')));
+        if (!o) return '';
+        const c = window[id];
+        if (c && typeof c.setValue === 'function') { try { c.setValue(o.value); } catch (e) {} }
+        s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true }));
+        return o.value;
+      }, [SEL_COURT.slice(1), name]);
+      return how ? { how: 'ws', val: how, ...(await courtState()) } : { err: 'no-option' };
+    };
+    const selectByText = async (sel, text) => {
+      try { await p.selectOption(sel, { label: text }, { timeout: 6000 }); return true; } catch (e) {}
+      return p.evaluate(([id, text]) => {
+        const s = document.querySelector('#' + id); if (!s) return false;
+        const o = [...(s.options || [])].find((o) => o.text.trim() === text) || [...(s.options || [])].find((o) => o.text.includes(text));
+        if (!o) return false;
+        const c = window[id]; if (c && typeof c.setValue === 'function') { try { c.setValue(o.value); } catch (e) {} }
+        s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); return true;
+      }, [sel.slice(1), text]);
+    };
+    let radioLogged = false;
+    const pickAddr = async (gu) => {
+      const rs = await p.evaluate(() => [...document.querySelectorAll('input[type=radio]')].filter((e) => e.id.startsWith('mf_wfm_mainFrame')).map((e) => {
+        const l = document.querySelector(`label[for="${e.id}"]`);
+        return { id: e.id, name: e.name, v: e.value, ck: e.checked, vis: !!e.offsetParent, lab: (l ? l.textContent : (e.parentElement && e.parentElement.textContent) || '').replace(/\s+/g, ' ').trim().slice(0, 30) };
+      }));
+      if (!radioLogged) { radioLogged = true; log('라디오', JSON.stringify(rs).slice(0, 900)); }
+      const r = rs.find((x) => /소재지/.test(x.lab) && /지번/.test(x.lab)) || rs.find((x) => /소재지/.test(x.lab));
+      if (!r) return { err: 'no-radio' };
+      await p.evaluate((id) => { const e = document.getElementById(id); const l = document.querySelector(`label[for="${id}"]`); (l || e).click(); if (!e.checked) { e.checked = true; e.dispatchEvent(new Event('change', { bubbles: true })); e.dispatchEvent(new Event('click', { bubbles: true })); } }, r.id);
+      await sleep(jitter(800, 1400));
+      if (!(await selectByText(SEL_SD, '서울특별시'))) return { how: 'addr', err: 'no-sido', radio: r.id };
+      let okGu = false;
+      for (let k = 0; k < 20 && !okGu; k++) { await sleep(500); okGu = await p.evaluate(([id, gu]) => { const s = document.querySelector('#' + id); return !!(s && [...s.options].some((o) => o.text.trim() === gu)); }, [SEL_SGG.slice(1), gu]); }
+      if (!okGu || !(await selectByText(SEL_SGG, gu))) {
+        const opts = await p.evaluate((id) => { const s = document.querySelector('#' + id); return s ? [...s.options].map((o) => o.text.trim()).slice(0, 30) : null; }, SEL_SGG.slice(1));
+        return { how: 'addr', err: 'no-sgg', radio: r.id, opts };
+      }
+      await sleep(jitter(600, 1100));
+      return { how: 'addr', gu, radio: r.id };
+    };
     const clickPage = (n) => p.evaluate((n) => {
       const vis = (e) => e && e.offsetParent;
       const box = [...document.querySelectorAll('[id*="pgl"],[class*="pageList"],[class*="paging"]')].filter(vis);
@@ -117,87 +201,104 @@ function save(o) { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writ
         const nx = [...bx.querySelectorAll('[id$="_next_btn"],[class*="next"],a,button')].find((x) => vis(x) && (/_next_btn$/.test(x.id) || /next/.test(x.className) || /^(다음|>|›)$/.test(x.textContent.trim())) && !/last|end/.test(x.id + x.className));
         if (nx) { nx.click(); return 'next'; }
       }
-      return '';
+      return false;
     }, n);
-    const rows = (j) => (j && j.data && Array.isArray(j.data.dlt_srchResult) ? j.data.dlt_srchResult : null);
-    const info = (j) => (j && j.data && j.data.dma_pageInfo) || {};
+    const seen = new Map();   // docid → 물건(같은 실행 안 중복 제거 · 마지막 응답이 이긴다)
+    const take = (j, court) => { for (const it of rows(j)) { const key = it.docid || `${it.boCd}/${it.srnSaNo}/${it.maemulSer}/${it.mokmulSer}`; if (!seen.has(key)) res.items.push(seen.set(key, { ...it, _court: court }).get(key)); } };
+    const names = (j) => { const m = {}; for (const it of rows(j) || []) m[it.jiwonNm] = (m[it.jiwonNm] || 0) + 1; return m; };
 
-    // 기일 기간 칸 찾기·설정(WebSquare 달력 컴포넌트 API 우선). 화면 기본은 오늘~+14일이라, 2주씩 끊어 여러 번 검색한다
-    const WINS = +process.env.AUCTION_WINS || 4;   // 2주 × 4 = 8주 앞까지
-    const calIds = () => p.evaluate(() => [...document.querySelectorAll('[id^="mf_wfm_mainFrame_cal_rletPerd"]')].map((e) => e.id).filter((id) => !/_(input|img|button|div)/.test(id)));
-    const setPeriod = async (from, to) => p.evaluate(([from, to]) => {
-      const ids = [...document.querySelectorAll('[id^="mf_wfm_mainFrame_cal_rletPerd"]')].map((e) => e.id).filter((id) => !/_(input|img|button|div)/.test(id));
-      const comp = (id) => window[id] || (window.$p && $p.getComponentById && $p.getComponentById(id));
-      const st = ids.find((i) => /Bgn|Str|Start|Fr|Beg/i.test(i)), en = ids.find((i) => /End|To/i.test(i));
-      const out = {};
-      for (const [id, v] of [[st, from], [en, to]]) { const c = id && comp(id); if (c && c.setValue) { c.setValue(v); out[id] = c.getValue ? c.getValue() : v; } }
-      return { ids, out };
-    }, [from, to]);
-    const popupText = () => p.evaluate(() => [...document.querySelectorAll('[class*="w2popup"],[class*="w2window"],[role="dialog"],[class*="alert"]')].filter((e) => e.offsetParent).map((e) => e.innerText.replace(/\s+/g, ' ').slice(0, 160)).join(' | '));
-    const ymd = (d) => d.toISOString().slice(0, 10).replaceAll('-', '');
-    const today = new Date(Date.now() + 9 * 3600e3);
+    // 첫 화면: 법원 칸·달력 기본값(2주 끝 날)
+    await open();
+    const dflt = await getPeriod();
+    const wEnd = iso(dflt[1]) && diffD(iso(dflt[1]), today) >= 7 && diffD(iso(dflt[1]), today) <= 15 ? iso(dflt[1]) : addD(today, 13);
+    res.win = [today, wEnd];
+    const d0 = await p.evaluate((id) => { const s = document.querySelector('#' + id), c = window[id]; return { opts: s ? [...s.options].map((o) => `${o.value}:${o.text.trim()}`).filter((x) => /서울/.test(x)) : null, ws: !!c }; }, SEL_COURT.slice(1));
+    log('달력 기본', JSON.stringify(dflt), '→ 2주 끝', wEnd, '· 법원 칸', JSON.stringify(d0).slice(0, 400));
+    const { tasks, later, fresh } = plan(state, today, wEnd);
+    log(`상태 ${state ? state.asOf : '없음'}${fresh ? '' : ' (처음/묵음 → 전체)'} · 할 일`, tasks.length, '+ 전체', later.length);
 
-    let first = true;
-    for (const court of COURTS) {
-      const c = { court, ok: true, total: 0, got: 0, pages: 0, wins: [] };
-      res.courts.push(c);
-      const seen = new Set();
-      const take = (j) => { let k = 0; for (const it of rows(j)) { const key = it.docid || `${it.srnSaNo}/${it.maemulSer}/${it.mokmulSer}`; if (seen.has(key)) continue; seen.add(key); res.items.push({ ...it, _court: court }); k++; } return k; };
-      for (let w = 0; w < WINS; w++) {
-        const wi = { w, ok: false, total: null, got: 0 };
-        c.wins.push(wi);
-        try {
-          if (!first) { await p.goto(URL0, { waitUntil: 'domcontentloaded', timeout: 90000 }); await p.waitForSelector(SEL_COURT, { timeout: 60000 }).catch(() => null); await sleep(jitter(2000, 3500)); }
-          first = false;
-          await bigPage();
-          if (!(await pickCourt(court))) throw new Error('court-select');
-          await sleep(jitter(800, 1500));
-          if (w > 0) {
-            const from = new Date(today.getTime() + (w * 14 + 1) * 864e5), to = new Date(today.getTime() + (w + 1) * 14 * 864e5);
-            const r0 = await setPeriod(ymd(from), ymd(to));
-            if (court === COURTS[0]) log('기간', w, JSON.stringify(r0).slice(0, 200));
-            await sleep(jitter(600, 1200));
-          } else if (court === COURTS[0]) log('달력 칸', JSON.stringify(await calIds()));
-          const pr = nextResp();
-          await p.evaluate((sel) => { const b = document.querySelector(sel); if (b) b.click(); }, BTN);
-          let r = await pr;
-          if (!r) throw new Error('no-response ' + (await popupText()));
-          if (r.j && r.j.blocked) throw new Error('blocked');
-          if (r.st >= 400 || !rows(r.j)) throw new Error('bad-response ' + r.st + ' ' + JSON.stringify(r.j || '').slice(0, 120));
-          const g0 = seen.size;
-          take(r.j); c.pages++;
-          const pi = info(r.j), size = +pi.pageSize || 10; wi.total = +pi.totalCnt || 0;
-          const pages = Math.min(MAX_PAGES, Math.ceil(wi.total / size));
-          for (let n = 2; n <= pages; n++) {
-            await sleep(jitter(2500, 4000));
-            const pr2 = nextResp();
-            const how = await clickPage(n);
-            if (!how) { log(court, w, n, '쪽 버튼을 못 찾음'); break; }
-            r = await pr2;
-            if (!r || (r.j && r.j.blocked) || !rows(r.j)) { log(court, w, n, '쪽 응답 없음/막힘'); if (r && r.j && r.j.blocked) throw new Error('blocked'); break; }
-            take(r.j); c.pages++;
+    let firstOpen = true;
+    // 검색 한 번: 법원(how 순서대로) → 기간 → 검색 → 첫 쪽 판정 → 끝 쪽까지
+    const howOf = {};
+    for (const c of COURTS) { const h = state && state.courts && state.courts[c] && state.courts[c].how; howOf[c] = h ? [h] : []; }
+    async function runTask(t) {
+      const s = { court: t.court, kind: t.kind, from: t.from, to: t.to, total: 0, got: 0, pages: 0, complete: false };
+      if (t.cover) s.cover = t.cover;
+      res.searches.push(s);
+      if (t.noreq) { s.noreq = true; s.complete = true; return; }
+      const order = [...new Set([...(howOf[t.court] || []), 'label', 'ws', ...(JUR[t.court] ? ['addr'] : [])])];
+      for (const how of order) {
+        if (stop) { s.err = stop; return; }
+        const subs = how === 'addr' ? JUR[t.court] : [null];
+        let tot = 0, got = 0, pages = 0, okAll = true, bad = false, nskip = 0;
+        for (const gu of subs) {
+          if (!firstOpen) { await sleep(jitter(2500, 4000)); await open(); }
+          firstOpen = false;
+          const setup = () => (how === 'addr' ? pickAddr(gu) : pickCourt(t.court, how));
+          let st = await setup();
+          if (!st || st.err) { s.err = `${how}:${JSON.stringify(st).slice(0, 200)}`; bad = true; break; }
+          if (!(t.from === today && t.to === wEnd)) {
+            const ok = await setPeriod(t.from, t.to);
+            if (ok !== true) {
+              log('!! 기간 설정 실패', t.court, t.kind, JSON.stringify(ok).slice(0, 200));
+              if (t.kind !== 'new') { s.err = 'period'; return; }
+              // 새 날 검색인데 기간이 안 먹으면 2주 전체로
+              Object.assign(t, { from: today, to: wEnd, exp: null }); Object.assign(s, { from: today, to: wEnd, fallback: 'full' });
+              await open(); st = await setup();
+              if (!st || st.err) { s.err = `${how}:${JSON.stringify(st).slice(0, 200)}`; bad = true; break; }
+            }
           }
-          wi.got = seen.size - g0;
-          wi.ok = seen.size - g0 >= Math.min(wi.total, MAX_PAGES * size) - 1 - (wi.total - (seen.size - g0) > 0 ? 0 : 0);
-          c.total += wi.total;
-          log(court, `기간${w}`, `${wi.got}/${wi.total}`);
-        } catch (e) {
-          wi.err = String(e.message || e).slice(0, 160); log('!!', court, `기간${w}`, wi.err);
-          try { if (process.env.AUCTION_SHOTS) await p.screenshot({ path: path.join(process.env.AUCTION_SHOTS, `err-${res.courts.length}-${w}.png`) }); } catch (e2) {}
-          if (/blocked/.test(wi.err) || (await blocked())) { log('!! 차단 안내 — 멈춤'); c.ok = false; break; }
+          const isFull = t.from === today && t.to === wEnd;
+          await sleep(jitter(800, 1500));
+          const r = await ask(() => p.evaluate((sel) => { const b = document.querySelector(sel); if (!b) return false; b.click(); return true; }, BTN));
+          if (!r || r.none) { s.err = 'no-response ' + (await popupText()); bad = true; break; }
+          if (r.st >= 400 || !rows(r.j)) { s.err = 'bad-response ' + r.st + ' ' + JSON.stringify(r.j || '').slice(0, 120); bad = true; break; }
+          const pi = info(r.j), size = +pi.pageSize || 10, total = +pi.totalCnt || 0, nm = names(r.j);
+          if (res.searches.length <= 2 || how !== 'label' || t.kind === 'new') log(t.court, t.kind, how, gu || '', `${t.from}~${t.to}`, JSON.stringify({ set: st, total, names: nm, body: String(r.body || '').slice(0, 500) }));
+          // 법원 이름이 다르거나(법원 고르기가 안 먹음) 전체 2주인데 0건이면 다음 방법으로
+          if (how !== 'addr' && (Object.keys(nm).some((k) => k !== t.court) || (total === 0 && isFull && JUR[t.court]))) { s.err = `${how}:${total}건 ${JSON.stringify(nm)}`; bad = true; break; }
+          const ids = rows(r.j).map((x) => x.docid);
+          const exp = new Set(t.exp || []);
+          const skip = how !== 'addr' && t.exp && total === exp.size && total > 0 && ids.every((x) => exp.has(x));
+          take(r.j, t.court); pages++;
+          let g = rows(r.j).length;
+          if (skip) nskip++;
+          else {
+            const n = Math.min(MAX_PAGES, Math.ceil(total / size));
+            for (let k = 2; k <= n; k++) {
+              await sleep(jitter(2500, 4000));
+              let r2;
+              try { r2 = await ask(() => clickPage(k)); } catch (e) { s.err = String(e.message); break; }
+              if (!r2 || r2.none || !rows(r2.j)) { s.err = `page${k}-${r2 && r2.none ? 'no-button' : 'no-response'}`; break; }
+              take(r2.j, t.court); pages++; g += rows(r2.j).length;
+            }
+          }
+          tot += total; got += skip ? total : g;
+          if (!skip && g < total - Math.floor(total * 0.005)) okAll = false;
+          if (stop) { okAll = false; break; }
         }
-        if (w === 0 && !wi.ok) { c.ok = false; }
-        await sleep(jitter(2500, 4000));
+        if (bad) { if (stop) return; continue; }
+        Object.assign(s, { how, total: tot, got, pages, complete: okAll });
+        if (nskip) s.skip = true;
+        if (okAll) delete s.err;
+        howOf[t.court] = [how];
+        return;
       }
-      c.got = seen.size;
-      if (!c.wins[0] || !c.wins[0].ok) c.ok = false;
-      c.days = c.wins.filter((x) => x.ok).length * 14;
-      log(court, `합계 ${c.got} · ${c.days}일치`);
-      if (res.courts.length && /blocked/.test((c.wins.slice(-1)[0] || {}).err || '')) break;
-      await sleep(jitter(3000, 5000));
+    }
+    for (const t of tasks) { try { await runTask(t); } catch (e) { log('!!', t.court, t.kind, e.message); } if (stop) break; }
+    // 남은 요청으로 전체 받기(처음이면 꼭 · 아니면 7일 넘은 법원 하나) — 예상 쪽 수가 남은 요청보다 크면 다음 날로
+    let refreshed = 0;
+    for (const t of later) {
+      if (stop) break;
+      const need = Math.ceil(Math.max(t.exp.length, 10) / 10) + 2;
+      if (t.kind === 'refresh' && (refreshed >= 1 || BUDGET - res.used < need)) continue;
+      if (t.kind === 'full' && BUDGET - res.used < 3) { log('요청 상한이 모자라 다음에:', t.court); continue; }
+      try { await runTask(t); } catch (e) { log('!!', t.court, t.kind, e.message); }
+      if (t.kind === 'refresh') refreshed++;
     }
   } catch (e) {
     res.err = String(e.message || e).slice(0, 160); log('!! 실패:', res.err);
+    try { if (process.env.AUCTION_SHOTS) await b.contexts()[0].pages()[0].screenshot({ path: path.join(process.env.AUCTION_SHOTS, 'err.png') }); } catch (e2) {}
   }
-  finish(false);
+  finish();
 })();
