@@ -48,7 +48,7 @@
     else if (navigator.serviceWorker && navigator.serviceWorker.controller) now = "sw";
   } catch (e) { now = "err"; }
   B.now = now;
-  var c = navigator.connection, fast = !!(c && c.effectiveType === "4g" && c.rtt && c.rtt < 150 && !c.saveData);
+  var c = navigator.connection, fast = !!(c && c.effectiveType === "4g" && c.rtt && c.rtt < 150 && !c.saveData) && ls("zp_slow") !== "1";
   B.fast = fast;
   if (fast || now === "sw") B.font();
   if (now) B.full(now);

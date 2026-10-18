@@ -170,14 +170,12 @@ def island():
     tot = int(re.sub(r'\D', '', (re.search(r'([\d,]+)\s*곳\s*$', T(t[2]) or '') or [None, '0'])[1]) or 0)
     more = next((T(s[0][6]) for f in ('gap', 'cash') for s in P['st'][f] if T(s[0][6]) and re.search(r'\d', T(s[0][6]))), '더 보기 ({n}곳)')
     more = re.sub(r'[\d,]+(?=곳)', '{n}', more, count=1)
-    trim = ('<script>/* 미리 그린 목록: 화면 높이에 맞는 줄 수(60_simple.js SHOW0와 같은 식) · 흐름선 때문에 이름이 잘리는 줄은 흐름선 빼기(fitSp와 같은 판정) */(function(){'
+    trim = ('<script>/* 미리 그린 목록: 화면 높이에 맞는 줄 수(60_simple.js SHOW0와 같은 식). 레이아웃을 재는 일(흐름선 빼기)은 섬이 첫 페인트 뒤에 */(function(){'
             'var l=document.getElementById("sList"),m=document.getElementById("sMore");if(!l)return;'
             'var n=6;try{if(matchMedia("(min-width:981px)").matches)n=Math.max(6,Math.min(10,Math.floor((Math.min(innerHeight-79,902)-144)/75)))}catch(e){}'
             'while(l.children.length>n)l.removeChild(l.lastElementChild);'
             f'var t={tot};if(m&&t>n){{m.hidden=false;m.textContent={json.dumps(more, ensure_ascii=False)}.replace("{{n}}",(t-n).toLocaleString("ko-KR"))}}'
-            'window.ZP_fit=function(){var ls=document.querySelectorAll("#sList li");for(var i=0;i<ls.length;i++){var li=ls[i];if(!li.querySelector(".s-sp"))continue;li.classList.remove("s-nosp");'
-            'var b=li.querySelector(".s-nm b"),s=li.querySelector(".s-nm small");if((b&&b.scrollWidth>b.clientWidth+1)||(s&&s.getClientRects().length&&s.offsetHeight>parseFloat(getComputedStyle(s).lineHeight||"0")*1.5))li.classList.add("s-nosp")}};'
-            'window.ZP_fit()})()</script>')
+            '})()</script>')
     mv = re.search(r'<script>/\* 넓은 화면: 목록을 지도 오른쪽 칸으로[^<]*</script>', x)
     if not mv: raise ValueError('island: list mover script')
     x = x[:mv.end()] + trim + x[mv.end():]

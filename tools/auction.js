@@ -129,9 +129,9 @@ function save(o) { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writ
       try {
         if (!(await pickCourt(court))) throw new Error('court-select');
         await sleep(jitter(800, 1500));
-        if (first) { await widen(); await bigPage(); first = false; }
+        if (first) { if (process.env.AUCTION_WIDEN === '1') await widen(); await bigPage(); first = false; }
         const pr = nextResp();
-        await p.click(BTN, { timeout: 15000 });
+        await p.evaluate((sel) => { const b = document.querySelector(sel); if (b) b.click(); }, BTN);
         let r = await pr;
         if (!r) throw new Error('no-response');
         if (r.j && r.j.blocked) throw new Error('blocked');
@@ -158,6 +158,7 @@ function save(o) { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writ
         log(court, `${c.got}/${c.total} · ${c.pages}쪽`);
       } catch (e) {
         c.err = String(e.message || e).slice(0, 120); log('!!', court, c.err);
+        try { if (process.env.AUCTION_SHOTS) await p.screenshot({ path: path.join(process.env.AUCTION_SHOTS, `err-${res.courts.length}.png`), fullPage: false }); log('화면 글:', (await p.evaluate(() => document.body.innerText.replace(/\s+/g, ' ').slice(0, 300)))); } catch (e2) {}
         if (/blocked/.test(c.err) || (await blocked())) { log('!! 차단 안내 — 멈춤'); break; }
       }
       await sleep(jitter(3000, 5000));

@@ -20,6 +20,16 @@
   ["gap", "cash"].forEach(function (f) { P.st[f].forEach(function (s) { var t = S(s[0][6]); if (!moreT && t && /\d/.test(t)) moreT = t.replace(/[\d,]+(?=곳)/, "{n}"); }); });
   var cur = { f: P.def.f, i: STOPS.indexOf(P.def.c) };
   var dotEl = null;
+  // 좁은 화면: 흐름선 때문에 이름·동네가 잘리거나 줄이 바뀌면 그 줄만 흐름선을 뺀다(60_simple.js fitSp와 같은 판정)
+  var fit = function () {
+    var ls = document.querySelectorAll("#sList li");
+    for (var i = 0; i < ls.length; i++) {
+      var li = ls[i]; if (!li.querySelector(".s-sp")) continue;
+      li.classList.remove("s-nosp");
+      var b = li.querySelector(".s-nm b"), sm = li.querySelector(".s-nm small");
+      if ((b && b.scrollWidth > b.clientWidth + 1) || (sm && sm.getClientRects().length && sm.offsetHeight > parseFloat(getComputedStyle(sm).lineHeight || "0") * 1.5)) li.classList.add("s-nosp");
+    }
+  };
 
   function apply(f, i, fromInput) {
     var st = P.st[f] && P.st[f][i];
@@ -49,7 +59,7 @@
     H.classList.toggle("gapm", !!st[3]);
     el = $("pCash"); if (el) el.value = String(STOPS[i]);
     dots();
-    if (W.ZP_fit) W.ZP_fit();
+    fit();
   }
   // 앱과 같은 자리(주소 ?cash=…·localStorage jg-cond)에 남겨 → 앱이 붙을 때 그대로 이어받는다
   var saveT = 0;
@@ -165,9 +175,10 @@
     if (pend) { try { var el = document.querySelector(pend); if (el) el.click(); } catch (e) {} }
     pend = null; pendCh = [];
   });
-  W.addEventListener("resize", function () { if (!hyd() && $("sList").children.length !== Math.min(show0(), P.st[cur.f][cur.i][1].length)) apply(cur.f, cur.i, true); else if (W.ZP_fit) W.ZP_fit(); });
+  W.addEventListener("resize", function () { if (!hyd() && $("sList").children.length !== Math.min(show0(), P.st[cur.f][cur.i][1].length)) apply(cur.f, cur.i, true); else fit(); });
   ph();
   initial();
+  requestAnimationFrame(function () { setTimeout(function () { if (!hyd()) fit(); }, 0); });
   W.ZP_island = { ready: 1, set: function (f, c) { var i = STOPS.indexOf(c); if (i >= 0) apply(f, i); }, state: function () { return { f: cur.f, c: STOPS[cur.i] }; } };
   if (B.hyd) phDone();
 })();
