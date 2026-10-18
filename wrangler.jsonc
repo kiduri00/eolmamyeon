@@ -1,9 +1,16 @@
 {
-  // Cloudflare Workers 정적 자산 배포 설정: public/ 폴더를 그대로 올리고, 없는 주소는 public/404.html을 보여 준다
+  // Cloudflare Workers: public/ 정적 자산을 그대로 올리고(없는 주소는 404.html),
+  // /api/push/* 만 Worker(worker/index.js)가 받는다 — 관심 구역 웹 푸시(구독 저장은 KV, 매일 07:30 KST 발송)
   "name": "eolmamyeon",
+  "main": "worker/index.js",
   "compatibility_date": "2025-09-01",
   "assets": {
     "directory": "./public",
-    "not_found_handling": "404-page"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/push/*"]
+  },
+  "kv_namespaces": [{ "binding": "PUSH", "id": "97677fe6952f47158d738a96a480f443" }],
+  "triggers": { "crons": ["30 22 * * *"] },
+  "observability": { "enabled": true }
 }

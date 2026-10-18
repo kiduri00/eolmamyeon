@@ -13,11 +13,14 @@ const PRE = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-small.svg", "/ico
 // 구 페이지(목록 + 25개 구)는 설치 때 미리 저장 → 오프라인에서도 구별 구역 목록을 연다
 const GUS = "강남구 강동구 강북구 강서구 관악구 광진구 구로구 금천구 노원구 도봉구 동대문구 동작구 마포구 서대문구 서초구 성동구 성북구 송파구 양천구 영등포구 용산구 은평구 종로구 중구 중랑구".split(" ");
 const PRE_PAGES = ["/gu/"].concat(GUS.map((g) => "/gu/" + encodeURIComponent(g)));
-const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30, [BUND]: 6, [PAGES]: 80 };
+const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30, [BUND]: 12, [PAGES]: 80 };
 const isDoc = (p) => /^\/(z|gu|report|guide|feed)\//.test(p) || /^\/(years|about|method|contact|terms|privacy)$/.test(p);
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(SHELL).then((c) => Promise.all(PRE.map((u) => c.add(new Request(u, { cache: "reload" })).catch(() => {})))).then(() => keep(PRE_PAGES).catch(() => {})).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(SHELL).then((c) => Promise.all(PRE.map((u) => c.add(new Request(u, { cache: "reload" })).catch(() => {})))).then(() => keep(PRE_PAGES).catch(() => {}))
+    // 첫 화면이 참조하는 해시 묶음(/b/h·a·d·c)까지 미리 저장 → 처음 방문 뒤 바로 오프라인 가능
+    .then(() => fetch("/", { cache: "reload" }).then((r) => r.text()).then((t) => caches.open(BUND).then((c) => Promise.all([...new Set(t.match(/\/b\/[a-z]\.[0-9a-f]{10}\.(?:js|css)/g) || [])].map((u) => c.add(u).catch(() => {})))))).catch(() => {})
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
