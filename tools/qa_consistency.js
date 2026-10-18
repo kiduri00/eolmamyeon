@@ -763,14 +763,14 @@ async function uiLane(browser, api, errs, shared) {
       if (!s0.sheet) bad("ui.logoHome", T, `#${zid}: report sheet did not open`);
       else { await page.evaluate(() => document.querySelector("a.logo").click()); await page.waitForTimeout(400); const s = await st(); expect(ok(s), "ui.logoHome", T, `report #${zid} → logo: hash "${s.hash}" sheet ${s.sheet} classes [${s.cls}] home visible ${s.home} scrollY ${s.y}`); }
       await loadHome(page, "#news"); await page.waitForTimeout(600);
-      await page.tap("a.logo", { timeout: 4000 }).catch(() => {}); await page.waitForTimeout(400);
+      await page.tap("a.logo", { timeout: 4000 }).catch(() => {}); await page.waitForFunction(() => !location.hash && !document.documentElement.classList.contains("s-view"), null, { timeout: 6000 }).catch(() => {}); await page.waitForTimeout(400);
       { const s = await st(); expect(ok(s), "ui.logoHome", T, `tool #news → logo tap: hash "${s.hash}" classes [${s.cls}] home visible ${s.home} scrollY ${s.y}`); }
     }
     // 아래 탭 '관심 구역': 전체 지도에서 · 구역 상세를 닫은 뒤에도 → #favTop 화면(주소 #favTop · s-on · 보임)
     if (!over()) {
       const T = "아래 탭 '관심 구역'이 어디서든 #favTop 화면을 연다(전체 지도·상세 닫은 뒤)";
       const fav = () => page.evaluate(() => { const s = document.getElementById("favTop"), r = s && s.getBoundingClientRect(); return { hash: location.hash, on: !!(s && s.classList.contains("s-on")), vis: !!(r && r.height > 40 && r.top < innerHeight && r.bottom > 0), full: document.documentElement.classList.contains("s-full") }; });
-      const tapFav = async () => { await page.tap('#sNav [data-nav="fav"]', { timeout: 4000, force: true }).catch(() => {}); await page.waitForTimeout(1200); };
+      const tapFav = async () => { await page.tap('#sNav [data-nav="fav"]', { timeout: 4000, force: true }).catch(() => {}); await page.waitForFunction(() => location.hash === "#favTop" && !!document.querySelector("#favTop.s-on"), null, { timeout: 6000 }).catch(() => {}); await page.waitForTimeout(500); };   // 바쁜 기계(swiftshader 지도 다시 그리기)에선 누름 처리가 몇 초 늦다
       await loadHome(page, "#map"); await page.waitForTimeout(800);
       await tapFav(); { const s = await fav(); expect(s.hash === "#favTop" && s.on && s.vis && !s.full, "ui.favTab", T, `from full map: hash "${s.hash}" s-on ${s.on} visible ${s.vis} s-full ${s.full}`); }
       const zid = api.zones[1].id;
@@ -795,7 +795,7 @@ async function r1Lane(browser, api, errs) {
     // 탭을 차례로 누르기 → 뒤로 가기
     await loadHome(page); await page.mouse.move(10, 10).catch(() => {}); await page.evaluate(() => window.dispatchEvent(new Event("scroll")));   // 첫 손길 → 전체 앱 붙이기
     await page.waitForFunction(() => !window.ZP_boot || window.ZP_boot.hyd === 1, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(600);
-    const tap = async (k) => { await page.tap(`#sNav [data-nav="${k}"]`, { timeout: 4000, force: true }).catch(() => {}); await page.waitForTimeout(800); };
+    const tap = async (k) => { await page.tap(`#sNav [data-nav="${k}"]`, { timeout: 4000, force: true }).catch(() => {}); await page.waitForFunction((k) => { const b = document.querySelector(`#sNav [data-nav="${k}"]`); return b && b.getAttribute("aria-current") === "page"; }, k, { timeout: 6000 }).catch(() => {}); await page.waitForTimeout(500); };
     await tap("news"); await want("tap 소식", "news");
     { const h = await page.evaluate(() => location.hash); expect(h === "#news", "ui.tabs4", T, `tap 소식 → hash ${h}`); }
     await tap("my"); await want("tap MY", "my");
@@ -1181,8 +1181,10 @@ async function r14Lane(browser, api, errs) {
   const ONLY = process.env.QAC_ONLY || "";   // 'r14' = 14회차 줄만(개발용)
   const lane1 = ONLY ? Promise.resolve() : timed("counts+zones", (async () => { await countsLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(0, cut)); await deskLane(browser, errs); })());
   const lane2 = ONLY ? Promise.resolve() : timed("map+ui+zones", (async () => { await mapLane(browser, api, errs, shortSrc); const st = await stat.catch(() => ({})); shared.liveCounts = st.liveCounts; await uiLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(cut)); })());
-  const lane3 = timed("r14+r1", (ONLY === "r1" ? Promise.resolve() : r14Lane(browser, api, errs)).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)).then(() => (ONLY && ONLY !== "r1" ? null : r1Lane(browser, api, errs))));
+  const lane3 = timed("r14", (ONLY === "r1" ? Promise.resolve() : r14Lane(browser, api, errs)).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)));
   await Promise.all([stat.catch((e) => bad("runtime", "검사 실행", "static crashed: " + e.message)), lane1, lane2, lane3]);
+  // 리뉴얼 1단계 줄(탭 4개·MY)은 다른 줄이 끝난 뒤 혼자: 코어 2개 기계에서 세 번째 브라우저가 겹치면 손가락 누름이 길게 누름으로 바뀌어 다른 줄의 탭 검사가 흔들렸다
+  if (!ONLY || ONLY === "r1") await timed("r1", r1Lane(browser, api, errs));
   await browser.close();
 
   // 콘솔 오류

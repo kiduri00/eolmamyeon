@@ -240,7 +240,10 @@ const SIMPLE = (() => {
       const id = k === "fav" ? "favTop" : k;   // 관심 → #favTop · 소식 → #news · MY → #my
       // 전체 지도에서 누르면 지도를 닫는 뒤로 가기(popstate)가 끝난 뒤에 연다(먼저 열면 popstate가 홈으로 되돌렸다) · 열린 시트는 닫고 · 주소는 늘 #화면
       const go = () => { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (er) {} document.documentElement.classList.remove("s-rep"); if (cur === id) { const s = $(id); if (s) window.scrollTo({ top: s.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } else open(id); if (location.hash !== "#" + id) try { history.replaceState(history.state, "", location.pathname + location.search + "#" + id); } catch (er) {} navMark(); };
-      if (wasFull) { fullMap(false); let done = false; const g2 = () => { if (done) return; done = true; removeEventListener("popstate", pop); go(); }; const pop = () => setTimeout(g2, 30); addEventListener("popstate", pop); setTimeout(g2, 450); }
+      // 전체 지도를 바로 연 주소(#map, root)면 닫을 때 뒤로 가기가 없으니 바로 연다
+      const willPop = wasFull && !!(history.state && history.state.sFull && !history.state.root);
+      if (wasFull && !willPop) { fullMap(false); go(); }
+      else if (wasFull) { fullMap(false); let done = false; const g2 = () => { if (done) return; done = true; removeEventListener("popstate", pop); go(); }; const pop = () => setTimeout(g2, 30); addEventListener("popstate", pop); setTimeout(g2, 450); }
       else go();
     });
     $("sSearch").onclick = search;
