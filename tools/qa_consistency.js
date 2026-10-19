@@ -575,7 +575,7 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
       if (!opened) { bad("zone.open", "구역 리포트가 열림", `${where}: report did not render`); continue; }
       ok("zone.open", "구역 리포트가 열림");
       // tx.json은 리포트를 열 때 늦게 불러온다 → 글자가 멈출 때까지
-      await page.waitForFunction(() => /믿어도 될까|최근 구역 안 거래 없음|계산 안 함/.test((document.getElementById("report") || {}).innerText || ""), null, { timeout: 5000, polling: 150 }).catch(() => {});
+      await page.waitForFunction(() => /믿어도 될까|최근 구역 안 거래 없음|계산 안 함|계산 보류/.test((document.getElementById("report") || {}).innerText || ""), null, { timeout: 5000, polling: 150 }).catch(() => {});
       const ov = await stableText(page, "#report", 4000, 2);
       const tabs = await page.evaluate(() => [...document.querySelectorAll("#report [role=tab]")].map((b) => b.dataset.tab));
       const pane = {}; let aucI = null;
@@ -1347,11 +1347,27 @@ async function navLane(browser, api, errs) {
         await page.evaluate(() => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 70); });
         await page.waitForFunction(() => window.ZP_lmx && window.ZP_lmx.gus && window.ZP_lmx.gus().length > 0, null, { timeout: 25000, polling: 200 }).catch(() => {});
         await mapIdle(page); await page.waitForTimeout(400);
-        const hit = await page.evaluate((g) => { const e = document.querySelector(`#lmap .zgu[data-gu="${g}"]`); if (!e) return false; e.click(); return true; }, gn);
+        const hit = await page.evaluate((g) => { const e = document.querySelector(`#lmap .zgu[data-gu="${g}"]`); if (!e) return null; const l2 = (e.querySelector("span") || {}).textContent || ""; e.click(); return { l2 }; }, gn);
         if (!hit) { wrn("map.guPills", TG, `${w}px ${gn}: 묶음이 화면에 없음(칩 안)`); continue; }
         await page.waitForTimeout(900); await mapIdle(page); await page.waitForTimeout(500);
         const r = await page.evaluate(() => ({ v: document.getElementById("mapbox").dataset.view, pills: document.querySelectorAll("#lmap button.zpill[data-zid]").length, gus: document.querySelectorAll("#lmap .zgu").length, chip: !!(document.getElementById("lmGuMore") && !document.getElementById("lmGuMore").hidden), z: window.ZP_lmx.map().getZoom() }));
         expect(r.v === "gu" && r.pills > 0 && !r.gus && !r.chip, "map.guPills", TG, `${w}px ${gn}: view ${r.v} pills ${r.pills} clusters ${r.gus} chip ${r.chip} z${r.z.toFixed(2)}`);
+        // 23차: 그 구의 갈 수 있는 곳이 하나씩 알약(≥ min(구 곳 수, 6) · 같은 자리에 겹친 곳(점 사이 22px 안)은 묶여도 됨) · 가장 싼 곳 알약 == 구 묶음 '~' 금액 · '+N'은 그 구 곳만 · 알약끼리 글자 안 겹침
+        const q = await page.evaluate((g) => {
+          const m = ZP_lmx.map(), own = __ZPD.recs.filter((x) => x.g === g && window.ZP_ok(x)), ids = new Set(own.map((x) => x.id));
+          const P = ZP_lmx.pills().filter((p) => ids.has(p.id) && p.st === "ok"), pid = new Set(P.map((p) => p.id));
+          const pt = (id) => { const ll = ZP_lmx.llOf(id); return ll ? m.project(ll) : null; };
+          const anc = P.map((p) => pt(p.id)).filter(Boolean);
+          const stacked = own.filter((x) => !pid.has(x.id)).filter((x) => { const a = pt(x.id); return a && anc.some((b) => Math.abs(a.x - b.x) < 22 && Math.abs(a.y - b.y) < 22); }).length;
+          const more = P.reduce((a, p) => a + p.more, 0);
+          const B = [...document.querySelectorAll("#lmap button.zpill[data-zid] .zp-in")].map((e) => e.getBoundingClientRect()); let ov = 0;
+          for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) { const a = B[i], b = B[j]; if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 3) ov++; }
+          return { cnt: own.length, pills: P.length, stacked, more, ts: P.map((p) => p.t), ov };
+        }, gn);
+        const need = Math.min(q.cnt, 6), cheap = hit.l2.replace(/~$/, "");
+        expect(q.pills + q.stacked >= need && q.more <= q.cnt - q.pills, "map.guPills", TG, `${w}px ${gn}: ${q.cnt}곳 · pills ${q.pills} + stacked ${q.stacked} (need ${need}) · +N ${q.more}`);
+        expect(!cheap || q.ts.includes(cheap), "map.guPills", TG, `${w}px ${gn}: 묶음 '${hit.l2}' · 알약 ${q.ts.join(" ")}`);
+        expect(!q.ov, "map.guPills", TG, `${w}px ${gn}: 알약 겹침 ${q.ov}`);
       }
     } catch (e) { bad("runtime", "검사 실행", `guPills ${w} crashed: ` + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
@@ -1933,6 +1949,52 @@ async function r19Lane(browser, api, errs) {
       expect(e.recQ && e.recZ, "search.badges", TB, `빈 검색창: 최근 검색 ${e.recQ} · 최근 본 구역 ${e.recZ}`);
     } catch (e) { bad("runtime", "검사 실행", "search.badges crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
+  }  // --- search.values (23차): 검색 배지 '지금 X' == 목록 '지금' == /z '지금 필요한 돈'(같은 ZF.cash 꼴) · '가능'이면 X ≤ 내 돈 · 'N 부족'이면 X > 내 돈이고 N = X − 내 돈(한 칸 안)
+  {
+    const TV = "검색 배지 금액 = 목록·/z와 같은 꼴(0.1억 올림 · 1억 아래 만) · 가능/부족이 같은 숫자에서";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      await page.goto(BASE + `/?cash=2&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1, null, { timeout: 30000, polling: 100 }).catch(() => {});
+      await settle(page, 400);
+      await page.evaluate(() => { const q = document.getElementById("q"); if (!q.offsetWidth) document.getElementById("sSearch").click(); }); await page.waitForTimeout(300);
+      // 목록 '지금'(화면에 뜬 줄)
+      const listNow = await page.evaluate(() => { const o = {}; document.querySelectorAll("#sList li").forEach((li) => { const a = li.querySelector("a[data-id]"), b = li.querySelector(".s-amt"); if (a && b) { const m = /([\d.,]+억|[\d,]+만|0원)/.exec(b.innerText); if (m) o[a.dataset.id] = m[1]; } }); return o; });
+      const rows = {};
+      const grab = () => page.evaluate(() => [...document.querySelectorAll("#sugg button[data-id]")].map((b) => { const c = b.querySelector(".sg-c b"), k = b.querySelector(".sg-ok"); return { id: b.dataset.id, amt: c ? c.textContent.replace(/^(지금|입주까지)\s*/, "").trim() : null, tot: !!c && /^입주까지/.test(c.textContent.trim()), ok: k ? k.textContent.trim() : "" }; }));
+      for (const q of ["미아", "신길", "장위", "ㅎㄴ", "구로", "성수"]) { await page.fill("#q", q); await page.waitForTimeout(450); for (const x of await grab()) rows[x.id] = x; }
+      // 모든 구역(이름으로 하나씩 · 2곳에 1곳) — 그 구역 줄의 배지
+      const names = await page.evaluate(() => __ZPD.recs.filter((r, i) => i % 2 === 0 && r.s < 9 && r.src !== "moa").map((r) => [r.id, r.n]));
+      const got = await page.evaluate(async (names) => {
+        const q = document.getElementById("q"), out = [];
+        for (const [id, n] of names) {
+          q.value = n; q.dispatchEvent(new Event("input", { bubbles: true }));
+          await new Promise((ok) => setTimeout(ok, 110));
+          const b = document.querySelector(`#sugg button[data-id="${id}"]`); if (!b) continue;
+          const c = b.querySelector(".sg-c b"), k = b.querySelector(".sg-ok");
+          out.push({ id, amt: c ? c.textContent.replace(/^(지금|입주까지)\s*/, "").trim() : null, tot: !!c && /^입주까지/.test(c.textContent.trim()), ok: k ? k.textContent.trim() : "" });
+        }
+        return out;
+      }, names);
+      for (const x of got) rows[x.id] = x;
+      const all = Object.values(rows).filter((x) => x.amt && !x.tot);
+      const zs = await pool(all, 12, async (x) => { const r = await getPage("/z/" + x.id); return r.status === 200 ? parseZ(r.text).key : null; });
+      const bad1 = [], bad2 = [], bad3 = []; let nz = 0, nl = 0;
+      all.forEach((x, j) => {
+        const z = zs[j];
+        if (z && z.now) { nz++; if (z.now !== x.amt) bad1.push(`${x.id} 검색 ${x.amt} vs /z ${z.now}`); }
+        if (listNow[x.id]) { nl++; if (listNow[x.id] !== x.amt) bad2.push(`${x.id} 검색 ${x.amt} vs 목록 ${listNow[x.id]}`); }
+        const a = money(x.amt); if (!a) { bad3.push(`${x.id} '${x.amt}'`); return; }
+        if (/(^|[^\d.])0\.\d+억/.test(x.amt)) bad3.push(`${x.id} ${x.amt}(1억 아래는 만)`);
+        if (/가능/.test(x.ok) && a.v > 2 + 1e-9) bad3.push(`${x.id} ${x.amt} 가능?`);
+        const m = /내 돈 (.+) 부족/.exec(x.ok);
+        if (m) { const d = money(m[1]); if (!(a.v > 2 + 1e-9) || !d || Math.abs(a.v - 2 - d.v) > 0.1 + 1e-6) bad3.push(`${x.id} ${x.amt} / ${m[1]} 부족`); }
+      });
+      expect(all.length > 100 && nz > 100 && !bad1.length, "search.values", TV, `${all.length} badges · ${nz} vs /z · differ ${bad1.length}: ${bad1.slice(0, 5).join(" ; ")}`);
+      expect(!bad2.length, "search.values", TV, `${nl} vs list rows · differ: ${bad2.slice(0, 5).join(" ; ")}`);
+      expect(!bad3.length, "search.values", TV, `가능/부족·꼴: ${bad3.slice(0, 6).join(" ; ")}`);
+    } catch (e) { bad("runtime", "검사 실행", "search.values crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
   }
 }
 // ---------------------------------------------------------------- 21차: 가능 구역마다 알약 · 범례 = 그려진 것 · 서울 보기 구역 면 · 막대 끌기 부드러움 · 목록 줄 역 이름
@@ -2032,13 +2094,18 @@ async function r21Lane(browser, api, errs) {
         await page.goto(BASE + `/?cash=3&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
         await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && document.querySelectorAll("#sList li.s-card").length >= 6, null, { timeout: 30000, polling: 100 }).catch(() => {});
         await page.waitForTimeout(500);
-        const r = await page.evaluate(() => [...document.querySelectorAll("#sList li.s-card")].slice(0, 20).map((li) => {
+        for (let i = 0; i < 6; i++) { const more = await page.evaluate(() => { const m = document.getElementById("sMore"); if (!m || m.hidden) return false; m.click(); return true; }); if (!more) break; await page.waitForTimeout(200); }
+        const r = await page.evaluate(() => [...document.querySelectorAll("#sList li.s-card")].map((li) => {
           const R0 = li.getBoundingClientRect(), bad = [];
           // 보이는 상자 = 자기 상자 ∩ 넘침을 자르는 조상(overflow hidden·clip) 상자 — 잘려서 안 보이는 부분(자리가 없어 다음 줄로 밀려 숨은 '남는 돈')은 세지 않는다
           const vb = (e) => { let b = e.getBoundingClientRect(), r = [b.left, b.top, b.right, b.bottom]; for (let a = e.parentElement; a && a !== li; a = a.parentElement) { const cs = getComputedStyle(a); if (/hidden|clip/.test(cs.overflow + cs.overflowX + cs.overflowY)) { const c = a.getBoundingClientRect(); r = [Math.max(r[0], c.left), Math.max(r[1], c.top), Math.min(r[2], c.right), Math.min(r[3], c.bottom)]; } } return r; };
           li.querySelectorAll("*").forEach((e) => { const b = e.getBoundingClientRect(); if (b.width < 1 || b.height < 1 || getComputedStyle(e).visibility === "hidden" || e.closest("[hidden]")) return; const r = vb(e); if (r[2] - r[0] < 1 || r[3] - r[1] < 1) return; if (r[1] < R0.top - 1 || r[3] > R0.bottom + 1 || r[0] < R0.left - 1 || r[2] > R0.right + 1) bad.push((e.className && e.className.baseVal == null ? e.className : e.tagName) + " " + Math.round(r[3] - R0.bottom)); });
           const wk = li.querySelector(".s-wk"), sub = li.querySelector(".s-sub"), a = wk && wk.getBoundingClientRect(), c = sub && sub.getBoundingClientRect();
-          return { id: li.dataset.zid, over: li.scrollHeight > li.clientHeight + 1, bad: bad.slice(0, 3), wk: wk ? wk.textContent : "", cut: !!wk && (wk.scrollWidth > wk.clientWidth + 1 || a.right > c.right + 1 || a.width < 4) };
+          // 23차: '역 N분'(.s-wm)이 끝까지 보임 — 줄어드는 건 역 이름(.s-wn)뿐 · 둘째 줄 전체도 말줄임 없음 · 420px 아래는 '동 ·' 없음
+          const wm = li.querySelector(".s-wm"), m = wm && wm.getBoundingClientRect(), dg = li.querySelector(".s-dg.s-dgw");
+          const cutM = !!wm && (m.width < 4 || m.right > c.right + 1 || m.right > a.right + 1 || wm.scrollWidth > wm.clientWidth + 1);
+          const dgOn = !!dg && dg.getBoundingClientRect().width > 0 && innerWidth < 420;
+          return { id: li.dataset.zid, over: li.scrollHeight > li.clientHeight + 1, bad: bad.slice(0, 3), wk: wk ? wk.textContent : "", cut: !!wk && (!wm || cutM || sub.scrollWidth > sub.clientWidth + 1 || a.width < 4 || dgOn) };
         }));
         const ob = r.filter((x) => x.over || x.bad.length), cut = r.filter((x) => x.cut);
         expect(r.length >= 6 && !ob.length, "list.noOverflow", TO, `${w} ${cs}: ${r.length} rows · overflow ${ob.map((x) => x.id + "[" + x.bad.join("|") + "]").join(", ")}`);

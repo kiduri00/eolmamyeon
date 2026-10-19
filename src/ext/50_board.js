@@ -54,7 +54,7 @@ const BD = (() => {
       let ev = { txt: t, chg: false }; try { ev = evT(id, d, sec, t); } catch (e) {}
       const st = NT_STEP[sec], k = id + "|" + st;
       const up = c === "ok" && !!st && !/신청|공람/.test(t) && !ev.chg && !key.has(k);
-      const it = { d, id, sec, txt: ev.txt, c: up ? "up" : c, src: "" };
+      const it = { d, id, sec, txt: ev.txt, c: up ? "up" : c, src: "", nt: 1 };   // nt = 고시·공고 원문에서 온 줄(23차 '고시·공고' 칩)
       if (up) key.set(k, it);
       L.push(it);
     });
@@ -117,7 +117,7 @@ const BD = (() => {
     if (C === "auc") return aucList();
     if (!out || !NT) return;
     const A = feed();
-    const L = A.filter((x) => (C === "fav" ? isFav(x.id) : C === "up" ? x.c === "up" : true));
+    const L = A.filter((x) => (C === "fav" ? isFav(x.id) : C === "up" ? x.c === "up" : C === "ntc" ? !!x.nt : true));
     const ups = new Set(A.filter((x) => x.c === "up").map((x) => x.id)).size, pins = A.filter((x) => isFav(x.id)).length;
     const sum = `<p class="nt-sum"><b>최근 90일 ${fmt(A.length)}건</b> · 단계 오른 곳 ${fmt(ups)}곳${FAV.length ? ` · 관심 구역 소식 ${fmt(pins)}건` : ""}</p>`;
     out.innerHTML = L.length
@@ -146,8 +146,8 @@ const BD = (() => {
       io.observe(el);
     };
     once("txrTop", rank);
-    // 빠른 메뉴: '경공매'(#aucTop) = 소식 + 경공매 칩 · '고시공고'(#ntcTop) = 소식 + 전체 칩 · 소식 탭을 열면 고시·공고는 본 것으로
-    addEventListener("zp:alias", (e) => { if (e.detail === "aucTop") setC("auc"); else if (e.detail === "ntcTop") setC(""); });
+    // 빠른 메뉴: '경공매'(#aucTop) = 소식 + 경공매 칩 · '고시공고'(#ntcTop) = 소식 + 고시·공고 칩(23차) · 소식 탭을 열면 고시·공고는 본 것으로
+    addEventListener("zp:alias", (e) => { if (e.detail === "aucTop") setC("auc"); else if (e.detail === "ntcTop") setC("ntc"); });
     addEventListener("zp:view", (e) => { if (e.detail === "news" && C !== "auc") { try { NEWB.seen("ntc"); } catch (er) {} } });
     once("ntcTop", () => ntLoad().then((j) => { if (!j) throw 0; NT = j; notice(); }).catch(() => { const o = document.getElementById("ntcOut"); if (o) o.innerHTML = '<p class="mut">소식을 불러오지 못했어요.</p>'; }));
     // 계산기 현금이 바뀌면 '내 돈 가능' 표시 갱신

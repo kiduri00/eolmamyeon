@@ -212,17 +212,25 @@ document.readyState === "loading" ? document.addEventListener("DOMContentLoaded"
   function build() {
     const p = document.getElementById("lmLayers"), box = document.getElementById("mapbox");
     if (!p || !box) return false;
-    if (box.querySelector(".s-rail")) return true;
+    const st0 = box.querySelector(".s-rail-w[data-static]");
+    if (box.querySelector(".s-rail") && !st0) return true;
     if (!p.querySelector("input[type=checkbox]")) return false;
     document.querySelectorAll(".s-lyr").forEach((x) => x.remove());
     const chk = (k) => p.querySelector(`input[value="${k}"]`);
     const btn = (k) => { const c = chk(k); return c ? `<button type="button" data-l="${k}" aria-pressed="${c.checked}" aria-label="${NM[k]} 겹쳐 보기">${IC[k]}<span>${NM[k]}</span></button>` : ""; };
-    const w = document.createElement("div");
-    w.className = "s-rail-w";
-    w.innerHTML = `<div class="s-rail" role="group" aria-label="지도에 겹쳐 보기">${MAIN.map(btn).join("")}</div><div class="s-fly" role="group" aria-label="겹쳐 보기 더보기" hidden>${EXTRA.map(btn).join("")}</div><span class="s-tip" aria-live="polite"></span>`;
-    // 탭 순서: 겹쳐 보기 레일 → 확대·축소 → 지도(레일을 지도 앞에 둔다. 겹침 순서는 z-index로)
-    const lm = box.querySelector("#lmap");
-    lm ? box.insertBefore(w, lm) : box.appendChild(w);
+    let w = st0;
+    if (w) {
+      // 23차: 첫 화면 HTML에 미리 그린 레일(shell.html)을 그대로 쓴다 — 켜짐 상태만 저장된 겹쳐 보기에 맞춘다(첫 페인트 == 최종)
+      delete w.dataset.static;
+      w.querySelectorAll("button[data-l]").forEach((b) => { const c = chk(b.dataset.l); if (c) b.setAttribute("aria-pressed", String(c.checked)); });
+    } else {
+      w = document.createElement("div");
+      w.className = "s-rail-w";
+      w.innerHTML = `<div class="s-rail" role="group" aria-label="지도에 겹쳐 보기">${MAIN.map(btn).join("")}</div><div class="s-fly" role="group" aria-label="겹쳐 보기 더보기" hidden>${EXTRA.map(btn).join("")}</div><span class="s-tip" aria-live="polite"></span>`;
+      // 탭 순서: 겹쳐 보기 레일 → 확대·축소 → 지도(레일을 지도 앞에 둔다. 겹침 순서는 z-index로)
+      const lm = box.querySelector("#lmap");
+      lm ? box.insertBefore(w, lm) : box.appendChild(w);
+    }
     const fly = w.querySelector(".s-fly"), more = null, tip = w.querySelector(".s-tip");
     const dot = () => {};
     let tt = 0;

@@ -34,7 +34,8 @@ const PINS = (() => {
   const pinLine = `<path d="M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.4 7.2 4.4c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.5 3.1 4.4 6.5-1.6 4.8-9.2 9.4-9.2 9.4z"/>`;   // 17차: 관심 = 하트
 
   // ---------- 숫자 ----------
-  const amt = (v) => { v = Math.abs(v); if (v >= 0.95) return `${Math.round(v * 10) / 10}억`; const c = Math.round(v * 10); return c >= 1 ? `${c}천` : `${Math.max(100, Math.round((v * 1e4) / 100) * 100)}만`; };
+  // 23차: 금액 꼴 하나(ZF.cash · 0.1억 올림 · 1억 아래 만) — 따로 반올림·"3천" 꼴을 쓰던 것을 없앰
+  const amt = (v) => ZF.cash(Math.abs(v));
   const hiAmt = (m) => (m == null || !isFinite(m) ? "" : m >= 10000 ? `${Math.round(m / 1000) / 10}억` : `${Math.round(m).toLocaleString("ko-KR")}만`);
   const ymdOf = (t) => { const d = new Date(t + 9 * 36e5); return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`; };
   const dot = (t) => { const s = ymdOf(t); return `${s.slice(2, 4)}.${s.slice(4, 6)}.${s.slice(6, 8)}`; };

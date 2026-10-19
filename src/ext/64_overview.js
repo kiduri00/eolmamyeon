@@ -30,7 +30,9 @@ const OVX = (() => {
   const curStep = (r) => { const T = tlSteps(r), i = T.reduce((a, s, k) => (s[1] <= r.s ? k : a), -1); return [T, i]; };
   // 지금 사면 입주권이 안 나오는 구역(목록 '주변 시세만 보기'와 같은 판정 · app.js noTicket)
   const noIpR = (r) => { try { return noTicket(r); } catch (e) { return false; } };
-  const refTag = (r) => (noIpR(r) ? `<em class="ov-ref">참고용 · 사도 입주권 없음</em>` : "");
+  // 23차: 착공 뒤처럼 조합원 입주권 거래가 있는 곳은 머리('조합원 입주권을 사야 해요')와 같은 말 — '사도 입주권 없음'과 부딪치지 않게
+  const imOf = (r) => (r && r.s >= 8 && r.tx && r.tx.im ? r.tx.im : null);
+  const refTag = (r) => (noIpR(r) ? `<em class="ov-ref">${imOf(r) ? "참고용 · 조합원 입주권을 사야 해요" : "참고용 · 지금 사면 입주권 없음"}</em>` : "");
   function verdicts(r) {
     const out = [], fin = isDone(r); let noIp = false;
     if (!fin) {
@@ -257,11 +259,11 @@ const OVX = (() => {
     // 계산 안 한 까닭을 한 줄로(입주권 없음 · 모아타운 · 이주 뒤 · 재건축 단지 거래 없음 · 표본 없음)
     if (!x || x.price == null || !isFinite(x.price) || noIpR(r)) {
       const TT = "입주까지 현금 계산";
-      if (r.src === "moa") return H("안 함", "na", [], "모아타운 관리지역은 사업구역마다 조건이 달라 한 숫자로 계산하지 않아요. 안의 사업구역을 열어 보세요.", TT);
-      if (noIpR(r)) return H("안 함", "na", [], "지금 사면 입주권이 안 나와서 입주까지 현금(새 아파트 받을 때까지 드는 돈)을 계산하지 않아요.", TT);
-      if (x && x.stale) return H("안 함", "na", n12, "이주·철거가 시작돼 옛 집 매매가로는 계산할 수 없어요. 아는 입주권 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
-      if (x && x.noApt) return H("안 함", "na", n12, "재건축 단지 아파트 거래가 없어 매수가를 못 잡았어요. 아는 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
-      return H("안 함", "na", n12, "매수가로 쓸 거래가 없어 계산하지 않아요. 아는 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
+      if (r.src === "moa") return H("보류", "na", [], "모아타운 관리지역은 사업구역마다 조건이 달라 한 숫자로 계산하지 않아요. 안의 사업구역을 열어 보세요.", TT);
+      if (noIpR(r)) return imOf(r) ? H("보류", "na", [], `조합원 입주권을 사면 가능해요 · 참고 입주권 시세 ${eok(imOf(r))}. 입주권 값은 매물마다 달라서 입주까지 현금은 계산 보류예요.`, TT) : H("보류", "na", [], "지금 사는 집은 입주권이 안 나오는 시점이라 입주까지 현금(새 아파트 받을 때까지 드는 돈)은 계산 보류예요.", TT);
+      if (x && x.stale) return H("보류", "na", n12, "이주·철거가 시작돼 옛 집 매매가로는 계산할 수 없어요. 아는 입주권 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
+      if (x && x.noApt) return H("보류", "na", n12, "재건축 단지 아파트 거래가 없어 매수가를 못 잡았어요. 아는 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
+      return H("보류", "na", n12, "매수가로 쓸 거래가 없어 계산하지 않아요. 아는 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
     }
     let est = false; try { est = isEst(r); } catch (e) {}
     if (est) return H("낮음", "lo", n12, `구역 안 거래가 적어 같은 구(${esc(r.g)}) 빌라 시세로 추정한 값이에요 · 계약 전 매물 시세로 꼭 확인`);

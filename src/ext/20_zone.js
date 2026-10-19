@@ -406,13 +406,14 @@
     function smpBig(r) {
       let S = null; try { S = ZF.sample(r); } catch (e) {}
       if (!S || !S.n || !(S.med > 0)) return "";
+      try { if (noTicket(r)) return ""; } catch (e) {}   // 입주권 없는 곳: 계산 매수가 표본이 없다(계산 보류)
       const en = r.mk.entry, iq = en.p25 && en.p75 && S.n >= 3 ? ` · 가운데 50% ${eok(en.p25)}~${eok(en.p75)}` : "";
       return `<div class="bigrow"><div class="big"><span>매수가 표본 · ${esc(S.text.replace(/\(.*\)$/, ""))}</span><b>${ZF.manT(S.med / 1e4)}</b><small>${esc(S.text)}${en.area_med ? ` · 전용 ${en.area_med}㎡ 안팎` : ""}${iq}${S.last ? ` · 마지막 ${esc(S.last)}` : ""} · 머리 숫자·계산 매수가와 같은 표본</small></div></div>`;
     }
     function noTxHTML(r, t, z) {
       const nb = r.tag === "mk" || r.nx === "mk" ? null : t.nb;   // 시장·상가 정비는 빌라 시세를 쓰지 않는다
       // 제목만 남지 않게: 안내 문장은 note 클래스가 아닌 문단(간단 보기에서도 보임)
-      return `<div class="sect tx-none"><p style="margin:4px 0 8px;color:var(--text-2)">${(z && !z.e) || r.pcl ? "최근 구역 안 매매·전세 신고가 없어요." : "공식 경계가 없는 구역(후보지·구역지정 전 등)이라 경계 안 거래만 따로 모을 수 없어요."} 주변 시세는 '호재' 탭의 KB부동산에서 확인할 수 있어요.</p>${nearOf(r) ? "" : smpBig(r)}${nb && nb.n ? `<div class="bigrow"><div class="big"><span>같은 동${nb.dong ? `(${esc(nb.dong)})` : ""} 빌라 매매 가운데 값 · 참고</span><b>${eok(nb.med)}</b><small>최근 1년 ${fmt(nb.n)}건 · 구역 밖 거래 포함</small></div></div>` : ""}</div>`;
+      return `<div class="sect tx-none"><p style="margin:4px 0 8px;color:var(--text-2)">${(z && !z.e) || r.pcl || !GEO_Z ? "최근 구역 안 매매·전세 신고가 없어요." : r.s >= 2 || (r.sm && r.sm.area) ? "이 구역은 경계 모양 자료가 없어 경계 안 거래만 따로 모을 수 없어요." : "아직 공식 경계가 없는 곳(후보지 등)이라 경계 안 거래만 따로 모을 수 없어요."} 주변 시세는 '입지' 탭 아래 KB부동산 링크에서 볼 수 있어요.</p>${nearOf(r) ? "" : smpBig(r)}${nb && nb.n ? `<div class="bigrow"><div class="big"><span>같은 동${nb.dong ? `(${esc(nb.dong)})` : ""} 빌라 매매 가운데 값 · 참고</span><b>${eok(nb.med)}</b><small>최근 1년 ${fmt(nb.n)}건 · 구역 밖 거래 포함</small></div></div>` : ""}</div>`;
     }
     // 거래 탭 = 실거래(paneTx0) + 맨 아래 경매 물건 블록
     function paneTx(r) {
@@ -493,12 +494,13 @@
       const salesSecs = h && h.b !== "v" ? secA + secV : secV + secA;
       // 매수가 표본(주변 빌라): 머리 큰 숫자·'이 숫자 믿어도 될까'·계산 매수가가 쓰는 바로 그 거래들, 새 거래부터
       const nz = nearOf(r), nen = r.mk && r.mk.entry;
+      let ntR = false; try { ntR = noTicket(r); } catch (e) {}   // 23차: 입주권 없는 곳은 '계산 매수가'라 부르지 않는다(머리·돈 탭 '계산 보류'와 같게)
       const secN = nz ? (() => {
         const rowN = (v) => `<tr><td${C1}>${ymd2(v[0])} · 빌라${v[5] ? ` ${+v[5] < 0 ? "지하" + -v[5] : esc(String(v[5]))}층` : ""} · <span style="white-space:nowrap">전용 ${v[1]}㎡</span><small${SM}>${esc(v[6])} · ${v[7] ? `경계에서 ${fmt(v[7])}m` : "구역 안"} · ${v[3]}년 준공${v[2] > 0 ? ` · 대지 ${v[2]}㎡` : ""}</small></td><td class="n"><b>${eok(v[4])}</b></td><td class="n">${v[2] > 0 ? eok(Math.round((v[4] / v[2]) * 3.3058)) : "–"}</td></tr>`;
-        return `<div class="sect nearsmp"><h3>매수가 표본 · 주변 ${fmt(nz.r)}m 빌라 ${fmt(nz.s.length)}건</h3><p class="nz-def">계산 매수가 <b>${ZF.manT(nen.med / 1e4)}</b> = 아래 ${fmt(nz.s.length)}건의 가운데 값 · 새 거래부터 · 최근 ${nz.w}개월 · ${nen.yr_cap || 2010}년 이전 준공 · 전용 30~70㎡ · 구역 경계에서 ${fmt(nz.r)}m 안(경계 안 포함)</p><div id="txListN" class="txl"><table class="tx"${TS}><thead><tr><th scope="col">계약일 · 위치</th><th scope="col" class="n">가격</th><th scope="col" class="n">대지 3.3㎡당</th></tr></thead><tbody>${nz.s.reduce((a, v) => { const k = v.join("|"), l = a[a.length - 1]; if (l && l.k === k) l.n++; else a.push({ k, v, n: 1 }); return a; }, []).map(({ v, n }) => rowN(v).replace("</small></td>", `${n > 1 ? ` · 같은 조건 ${n}건` : ""}</small></td>`)).join("")}</tbody></table></div></div>`;
+        return `<div class="sect nearsmp"><h3>매수가 표본 · 주변 ${fmt(nz.r)}m 빌라 ${fmt(nz.s.length)}건</h3><p class="nz-def">${ntR ? "주변 빌라 매매" : "계산 매수가"} <b>${ZF.manT(nen.med / 1e4)}</b> = 아래 ${fmt(nz.s.length)}건의 가운데 값${ntR ? " · 참고(지금 사면 입주권이 없어 계산에는 안 써요)" : ""} · 새 거래부터 · 최근 ${nz.w}개월 · ${nen.yr_cap || 2010}년 이전 준공 · 전용 30~70㎡ · 구역 경계에서 ${fmt(nz.r)}m 안(경계 안 포함)</p><div id="txListN" class="txl"><table class="tx"${TS}><thead><tr><th scope="col">계약일 · 위치</th><th scope="col" class="n">가격</th><th scope="col" class="n">대지 3.3㎡당</th></tr></thead><tbody>${nz.s.reduce((a, v) => { const k = v.join("|"), l = a[a.length - 1]; if (l && l.k === k) l.n++; else a.push({ k, v, n: 1 }); return a; }, []).map(({ v, n }) => rowN(v).replace("</small></td>", `${n > 1 ? ` · 같은 조건 ${n}건` : ""}</small></td>`)).join("")}</tbody></table></div></div>`;
       })() : "";
       const calcNote = (() => {
-        if (x.price == null) return "";
+        if (x.price == null || ntR) return "";
         const LCW = { n: "매수가 표본이 3건 미만이라", old: "매수가에 쓴 거래가 1년 넘게 지난 것이라", thin: "구역 안 거래가 1~2건뿐이고 1년 넘게 지나 주변 시세로 정한 값을 확인할 수 없어" };
         const lc = en && en.lc && x.priceSrc !== "user" ? ` <em class="flag">참고값</em> ${LCW[en.lcw] || `구역 안 비교 거래가 적거나 구역 거래 구성(${h && h.b === "a" ? "아파트 위주" : "표본 적음"})과 달라`} '갈 수 있는 곳' 순위에서는 빼요.` : "";
         const warn = x.priceSrc !== "user" && en?.fill !== "zone" && en?.fill !== "zoneapt" && t.no

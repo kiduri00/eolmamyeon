@@ -395,7 +395,7 @@
           P.left = 40; P.right = Math.max(40, railPad()); P.top = 30; P.bottom = 24 + Math.round(Math.min(cv.height * 0.62, Math.max(0, bot - innerHeight)));
         }
         const ov = (sel) => { const e = document.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; const b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
-        const m = ov(".s-mini"); if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
+        const m = document.documentElement.classList.contains("s-full") ? ov(".s-mini") : null; if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
         const x = ov(".s-fullx"); if (x) P.bottom = Math.round(cv.bottom - x.top + 6);
       } catch (e) {}
       return P;
@@ -475,7 +475,7 @@
       const f = okSafe(), ok = R.filter((r) => !r.lc && f(r)), ids = ok.map((r) => r.id);   // 자리 그림의 남색 면 = 섬(P.zones)과 같은 집합
       if (lite) { ZP_G.lite(cnt, ids, min); return; }
       const el = ZP_G.el(); if (!el) return;
-      ZP_G.draw({ cnt, min, ok: ok.filter((r) => r.ll).map((r) => r.ll), ids, pad: fitPad(false, el.getBoundingClientRect()) });
+      ZP_G.draw({ cnt, min, ok: ok.filter((r) => r.ll).map((r) => [r.ll[0], r.ll[1], r.g]), ids, pad: fitPad(false, el.getBoundingClientRect()) });
     }
     // 실제 지도가 바탕 타일·구 묶음까지 다 그린 첫 '한가함(idle)' 뒤에 자리 그림을 200ms 동안 걷어 낸다(빈 회색 화면 없음)
     let fadeT = 0;
@@ -674,6 +674,8 @@
         // 21차: 구 화면 위 '← 서울 전체 | 구 이름' 막대(#mapBar)도 — 그 밑에 알약이 반쯤 깔리던 것
         document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmKey, #lmap .lm-snote, #lmap .maplibregl-ctrl-attrib, #mapbox > #mapBar").forEach((e) => {
           if (!e.offsetWidth || e.hidden || e.closest("[hidden]")) return;
+          // 23차: 스크롤하다 잠깐 지도 위에 걸친 작은 막대(.s-mini)는 피하지 않는다 — 막대가 나올 때마다 구 묶음이 '+N곳' 칩으로 빠지던 것(크게 본 지도에서는 늘 떠 있으니 피함)
+          if (e.id === "sMini" && !document.documentElement.classList.contains("s-full")) return;
           const b = e.getBoundingClientRect();
           if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;
           out.push([b.left - cb.left - 4, b.top - cb.top - 4, b.right - cb.left + 4, b.bottom - cb.top + 4]);
@@ -728,18 +730,22 @@
       const obs = obstacles(), mine = mineSet(), sel = selId(), named = map.getZoom() >= 14;
       const C = [];
       for (const r of VIS) { const s = ZS.get(r.id); if (s && (s.st === "ok" || s.st === "near") && s.need != null) C.push([r, s]); }
-      const rank = ([r, s]) => (r.id === sel ? -2e9 : 0) + (mine.has(r.id) ? -1e9 : 0) + (s.st === "ok" ? Math.abs(CASH - s.need) : 1e6 + s.need);
+      // 23차: 구 안에서는 그 구의 갈 수 있는 곳을 가장 적게 드는 곳부터(알약 = 구 묶음 '~' 금액) · 이웃 구는 그 뒤
+      const rank = gu
+        ? ([r, s]) => (r.id === sel ? -2e9 : 0) + (mine.has(r.id) ? -1e9 : 0) + (r.g === gu ? 0 : 1e7) + (s.st === "ok" ? s.need : 1e6 + s.need)
+        : ([r, s]) => (r.id === sel ? -2e9 : 0) + (mine.has(r.id) ? -1e9 : 0) + (s.st === "ok" ? Math.abs(CASH - s.need) : 1e6 + s.need);
       C.sort((a, b) => rank(a) - rank(b));
       const placed = [], P = new Map(), hid = [];
       for (const [r, s] of C) {
         const ll = llOf(r); if (!ll) continue;
         const q = map.project(ll);
         if (q.x < 4 || q.x > W - 4 || q.y < 4 || q.y > H - 4) continue;
-        if (P.size >= PILL_MAX) { if (s.st === "ok") hid.push(q); continue; }
+        const cnt1 = s.st === "ok" && (!gu || r.g === gu);   // 23차: 구 안의 '+N'은 그 구의 곳만
+        if (P.size >= PILL_MAX) { if (cnt1) hid.push(q); continue; }
         const t = pillText(s), fav = mine.has(r.id), nm = named ? mapName(r) : "", nw = SIMPLE.isNew(r, s.need);
         // 가까이(줌 15+)는 두 줄 알약: 이름 11/600 위 · 금액 13/800 아래 · 폭 최대 120(17차)
         const w = nm ? Math.min(150, Math.max(measure(t, 13, 800) + (fav ? 14 : 0) + (nw ? 30 : 0), measure(nm, 12, 600)) + 22) : measure(t, 13) + 18 + (fav ? 14 : 0) + (nw ? 30 : 0), h = nm ? 44 : 28;
-        const ins = gu ? 3 : 0;   // 구 안(경계 전체를 보이게 맞춘 화면): 알약끼리 살짝 더 붙어도 따로 보이게(+N 묶음을 줄임 · 20차 G4)
+        const ins = gu ? 4 : 0, insY = gu ? 1 : 0;   // 구 안: 알약끼리 옆으로는 살짝 붙어도 따로 보이게(+N 묶음을 줄임 · 20차 G4) · 위아래는 글자가 가리지 않게 거의 그대로(23차)
         // 자리 후보(21차): ① 점 위(오른쪽 '+N' 꼬리 자리까지) ② 점 위(꼬리 자리 없이) ③ 점 아래(꼬리가 위를 가리킴) ④ 옆으로 비켜(꼬리는 그대로 점을 가리킴)
         // → 레일·확대 버튼·구 막대 가장자리에 걸린 '가능' 구역이 점(대략 범위 고리)만 남던 것. 점 자체가 떠 있는 것 밑이면 안 보이는 곳이라 '+N'으로
         const pt = [q.x - 2, q.y - 2, q.x + 2, q.y + 2], under = r.id !== sel && obs.some((o) => hitB(o, pt));
@@ -747,17 +753,17 @@
         let got = null;
         for (const [dx, dn, tail] of C2) {
           const y0 = dn ? q.y - 1 : q.y - h - 2, y1 = dn ? q.y + h + 2 : q.y + 1;
-          const bx = [q.x + dx - w / 2 - 2 + ins, y0 + ins, q.x + dx + w / 2 + 2 + (tail && s.st === "ok" ? 14 : 0) - ins, y1 - ins];
+          const bx = [q.x + dx - w / 2 - 2 + ins, y0 + insY, q.x + dx + w / 2 + 2 + (tail && s.st === "ok" ? 14 : 0) - ins, y1 - insY];
           if (bx[0] < 2 || bx[2] > W - 2 || bx[1] < 2 || bx[3] > H - 2) { if (r.id !== sel) continue; }
           if (r.id !== sel && (obs.some((o) => hitB(o, bx)) || placed.some((o) => hitB(o, bx)))) continue;
           got = { bx, dx: Math.round(dx), dn }; break;
         }
         if (!got && r.id === sel) got = { bx: [q.x - w / 2, q.y - h, q.x + w / 2, q.y], dx: 0, dn: 0 };
-        if (!got) { if (s.st === "ok") hid.push(q); continue; }
+        if (!got) { if (cnt1) hid.push(q); continue; }
         placed.push(got.bx); P.set(r.id, { r, s, t, fav, nm, nw, sel: r.id === sel, q, more: 0, dx: got.dx, dn: got.dn });
       }
       // 자리가 없어 알약을 못 단 '가능' 구역 → 가장 가까운 알약에 '+N' 표시(알약 수 + N 합 == 화면 안 갈 수 있는 곳)
-      if (hid.length && P.size) { const V = [...P.values()]; hid.forEach((q) => { let b = null, bd = 1e9; V.forEach((v) => { const d = Math.hypot(v.q.x - q.x, v.q.y - q.y); if (d < bd) { bd = d; b = v; } }); if (b) b.more++; }); }
+      if (hid.length && P.size) { const V0 = [...P.values()], Vg = gu ? V0.filter((v) => v.r.g === gu && v.s.st === "ok") : [], V = Vg.length ? Vg : V0; hid.forEach((q) => { let b = null, bd = 1e9; V.forEach((v) => { const d = Math.hypot(v.q.x - q.x, v.q.y - q.y); if (d < bd) { bd = d; b = v; } }); if (b) b.more++; }); }
       pillsSet(P);
       // 고른 구역에 알약이 있으면 아래 이름 카드(sel-lab)는 빼서 같은 이름이 두 번 보이지 않게
       { const has = !!(selFeat && P.has(selFeat.properties.id)); if (has !== selHid) { selHid = has; try { map.getSource("sellab").setData(FC(selFeat && !has ? [selFeat] : [])); } catch (e) {} } }
@@ -1191,7 +1197,9 @@
       // 키 작은 폰 지도에 맞추면 줌 10.7 남짓 → 알약이 붙어 겹침. 구 안은 적어도 11.5(구 가장자리는 손가락으로 밀어 봄)
       // 그 구의 '가능·조금 모자람' 구역이 모인 곳에 맞춘다(구 경계 전체에 맞추면 구역이 한데 몰려 알약 하나 +N이 되던 것)
       // 20차 G4: 자리 그림에서 누른 구·실제 지도에서 누른 구가 같은 카메라 — 구 경계 상자 전체가 보이게(ZP_G.guCam, 같은 여백 규칙 guPad)
-      const cv = map.getCanvas(), C = window.ZP_G && ZP_G.guCam ? ZP_G.guCam(n, cv.clientWidth, cv.clientHeight, ZP_G.guPad(P, mob)) : null;
+      // 23차: 그 구의 갈 수 있는 곳이 모인 상자(자리 그림과 같은 목록 · 같은 함수) — 폰에서 알약이 하나씩 갈라지게
+      let okG = []; try { const f = okSafe(); okG = R.filter((r) => r.g === n && r.ll && !r.lc && f(r)).map((r) => [r.ll[0], r.ll[1], r.g]); } catch (e) {}
+      const cv = map.getCanvas(), C = window.ZP_G && ZP_G.guCam ? ZP_G.guCam(n, cv.clientWidth, cv.clientHeight, ZP_G.guPad(P, mob), okG) : null;
       const cam = C ? null : map.cameraForBounds(bboxOf(g.r), { padding: pad, maxZoom: 14 });
       if (C) map.easeTo({ center: C.c, zoom: C.z, duration: reduceMotion() || ghostOn() ? 0 : 500 });
       else if (cam) map.easeTo({ center: cam.center, zoom: cam.zoom, duration: reduceMotion() ? 0 : 500 });
@@ -1482,7 +1490,7 @@
       dragLite: () => {
         if (ghostOn()) ghostDraw(true);
         if (!map || !ready || !lastCity) return;
-        let cnt = {}, min = {}; try { cnt = SIMPLE.guCounts(); min = SIMPLE.guMins(); } catch (e) { return; }
+        let cnt = {}, min = {}; try { const T = SIMPLE.guTab && SIMPLE.guTab(); if (T) { cnt = T.cnt; min = T.min; } else { cnt = SIMPLE.guCounts(); min = SIMPLE.guMins(); } } catch (e) { return; }
         const mx = Math.max(1, ...Object.values(cnt));
         GUS.forEach((p, n) => {
           const c = cnt[n] || 0, mn = min[n] != null ? min[n] : null; if (+p.el.dataset.n === c && p.el.dataset.m === String(mn)) return;

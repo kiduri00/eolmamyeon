@@ -188,8 +188,8 @@ def key3(r, c, dt=None, as_of=None, upd=None):
     c = c or {}; s = r.get('s', 0) or 0
     done = s >= 9 or (bool(r.get('dn')) and s < 7)
     nt = noTicket(r, c)
-    # 계산하지 않는 칸: 맨 '–' 대신 말로(20차) — 지금 필요한 돈 '계산 안 함' · 입주까지 현금 '계산 보류'(목록·/gu·/z·상세 같은 이름 '입주까지 현금 계산 보류')
-    o = {'now': '계산 안 함', 'basis': '', 'alt': '', 'tot': '계산 보류', 'tsub': '', 'eta': eta_show(r, dt, as_of, upd), 'elab': '언제 입주'}
+    # 계산하지 않는 칸: 맨 '–' 대신 말로 — 23차부터 지금 필요한 돈·입주까지 현금 모두 '계산 보류'(목록·/gu·/z·상세 같은 이름 '입주까지 현금 계산 보류')
+    o = {'now': '계산 보류', 'basis': '', 'alt': '', 'tot': '계산 보류', 'tsub': '', 'eta': eta_show(r, dt, as_of, upd), 'elab': '언제 입주'}
     if r.get('src') == 'moa': o['basis'] = o['tsub'] = '모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요'
     elif done: o['basis'] = '사업이 끝난 곳이에요 · 일반 아파트 매매'; o['tsub'] = '새 아파트 입주까지 계산 대상이 아니에요'
     elif nt:
@@ -207,7 +207,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         if c.get('gapTotal') is not None: o['tot'] = cash(c['gapTotal'])
         else: o['tsub'] = '입주 시점·신축 시세 자료가 부족해요'
     else: o['basis'] = '매수가로 쓸 거래가 없어 계산하지 않아요'; o['tsub'] = '매수가가 없어 계산하지 않아요'
-    if o['now'] == '계산 안 함' and not o['alt'] and r.get('src') != 'moa' and not done and not o.get('im'): o['alt'] = ref_price(r)
+    if o['now'] == '계산 보류' and not o['alt'] and r.get('src') != 'moa' and not done and not o.get('im'): o['alt'] = ref_price(r)
     w = c.get('win')
     o['ip'] = None if nt else ('입주권 ✓ 나와요', 'ok') if w == 'ok' else ('입주권 ✕ 안 나와요', 'no') if w == 'no' else ('입주권 ! 확인 필요', 'warn') if not done and r.get('src') != 'moa' else None
     en = (r.get('mk') or {}).get('entry') or {}
@@ -218,5 +218,5 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         o['trust'] = ('추정', f'{basis} · 믿을 만함: ', lv, {'높음': 'hi', '보통': 'md', '낮음': 'lo'}.get(lv, ''))
     else:
         why = '모아타운은 사업구역마다 달라요' if r.get('src') == 'moa' else '새 아파트 계산 대상이 아니에요' if nt else '이주·철거가 시작됐어요' if 7 <= s < 9 else '매수가로 쓸 거래가 없어요'
-        o['trust'] = None if nt else ('계산 안 함', f'{why} · 이유 보기', '', 'na')   # 입주권 없는 곳은 이유를 셋째 칸에서 한 번만(20차 G3)
+        o['trust'] = None if nt else ('계산 보류', f'{why} · 이유 보기', '', 'na')   # 입주권 없는 곳은 이유를 셋째 칸에서 한 번만(20차 G3)
     return o

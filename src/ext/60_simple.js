@@ -157,7 +157,7 @@ const SIMPLE = (() => {
     const tag = sortK === "eta" ? etaTag(r) : sortK === "gain" ? gainTag(r) : "";   // 초기 단계는 단계 칩이 말한다
     // 2줄: 동 · 역 N분(구는 뺀다 — 짧게, 이름이 먼저) · 동을 못 찾으면 구
     // 동은 좁으면 먼저 줄어들고(…) 역·분은 늘 다 보인다
-    const sub = `<span class="s-dg${wk ? " s-dgw" : ""}">${esc(dongOf(r) || r.g)}${wk ? " ·\u00a0" : tag}</span>${wk ? `<span class="s-wk">${esc(wk)}${tag}</span>` : ""}`;
+    const sub = `<span class="s-dg${wk ? " s-dgw" : ""}">${esc(dongOf(r) || r.g)}${wk ? " ·\u00a0" : tag}</span>${wk ? `<span class="s-wk">${(() => { const m = /^(.*?)(역 \d+분)$/.exec(wk); return m ? `<span class="s-wn">${esc(m[1])}</span><span class="s-wm">${esc(m[2])}${tag}</span>` : esc(wk) + tag; })()}</span>` : ""}`;   // 23차: 좁으면 역 이름만 줄고(…) '역 N분'은 늘 다 보인다
     // 입주권 ✓는 화면 읽기 이름에만(카드 2줄을 동·역에 양보) · ✕만 주황 배지
     const bdg = `${tk === "n" ? '<em class="s-b s-b-no">입주권 ✕</em>' : ""}${nw ? '<em class="s-b s-b-new">NEW</em>' : ""}`;
     const mt = main != null ? eokS(main) : "–";
@@ -437,7 +437,7 @@ const SIMPLE = (() => {
   // ---------- 21차: 손가락으로 끄는 동안(홈 막대 · 예산 시트 · 전체 지도 위 막대) ----------
   // 손잡이·채움·말풍선 = pointermove에서 바로(transform · 레이아웃 읽기 없음) · 금액 글자·큰 숫자 = 다음 프레임(rAF, 곳 수는 미리 센 금액별 막대 자료에서 바로)
   // 목록·지도·'이 돈이면' 칸 = 150ms 멈추거나 손을 뗄 때 한 번
-  let dragV = null, dragRaf = 0, dragIdleT = 0, dragN0 = null, rangeEl = null;
+  let dragV = null, dragRaf = 0, dragIdleT = 0, dragN0 = null, rangeEl = null, liteT = 0;
   const DRAG_IDLE = 150;
   const fastCount = (v) => { const k = condK(); if (!hist || histK !== k) histData(); const i = STOPS.indexOf(v); return i >= 0 && hist ? hist[i][1] : countAt(v); };
   function dragTo(v) {
@@ -458,6 +458,8 @@ const SIMPLE = (() => {
     SCRS.forEach((x) => { if (x.getAttribute("role") === "slider") { x.setAttribute("aria-valuenow", String(v)); x.setAttribute("aria-valuetext", vt); } });
     if ($("sMiniN") && !gu && !bbF && !kind) $("sMiniN").textContent = fmt(all);
     if (bsOpen()) { $("bN").textContent = fmt(all); countTo($("bNB"), all); $("bGo").textContent = all ? `${fmt(all)}곳 보기` : "지도에서 보기"; }
+    // 23차: 끄는 동안에도 지도 구 묶음 숫자를 말풍선과 같은 값으로(표에서 · 100ms에 한 번) — 묶음 합이 말풍선보다 늦던 것(84 vs 97)
+    if (performance.now() - liteT > 100) { liteT = performance.now(); try { LMX.dragLite(); } catch (e) {} }
     if (scr) { const bub = scr.el.querySelector(".scr-bub"), d = all - scr.n0; if (bub) { const t = `${cashTxt(v)} · ${fmt(all)}곳${d ? ` (${d > 0 ? "+" : "−"}${fmt(Math.abs(d))})` : ""}`; if (bub.textContent !== t) bub.textContent = t; bub.hidden = false; } }
   }
   // 손이 150ms 멈추면: 목록·제목·'이 돈이면'·지도 구 묶음(가벼운 길) 한 번
@@ -645,11 +647,30 @@ const SIMPLE = (() => {
   const condK = () => { try { return `${gapMode()}|${effBasis()}|${JSON.stringify(P)}|${$("pIncome").value}`; } catch (e) { return String(Math.random()); } };
   const bsOpen = () => { const b = $("bSheet"); return !!b && !b.hidden; };
   // 금액별 막대(게이지 단계마다 한 칸 · 높이 = 그 금액의 곳 수 countAt) — 홈 카드 막대와 예산 시트 막대가 같은 자료
+  // 23차: 같은 한 바퀴에서 금액마다 구별 곳 수·가장 적게 드는 돈도 표로(GTAB) — 끄는 동안 지도 구 묶음이 머리 숫자(말풍선)와 같은 값을 바로 쓴다
+  let GTAB = null, GK = "";
   function histData() {
-    const k = condK(); if (hist && k === histK) return hist;
-    histK = k; hist = STOPS.map((c) => [c, countAt(c)]);
+    const k = condK(); if (hist && k === histK && GK === kind) return hist;
+    histK = k; GTAB = []; GK = kind;
+    const nowC = new Map(), nowOf = (r) => { if (!nowC.has(r.id)) { let v = null; try { v = needOf(r).now; } catch (e) {} nowC.set(r.id, v != null && isFinite(v) ? v : null); } return nowC.get(r.id); };
+    const save = CASH;
+    try {
+      hist = STOPS.map((c) => {
+        CASH = +c; let n = 0; const cnt = {}, min = {};
+        R.forEach((r) => {
+          if (!okR(r)) return; n++;
+          if (r.lc || (kind && KIND(r) !== kind)) return;
+          cnt[r.g] = (cnt[r.g] || 0) + 1;
+          const v = nowOf(r); if (v != null && (min[r.g] == null || v < min[r.g])) min[r.g] = v;
+        });
+        GTAB.push({ cnt, min });
+        return [c, n];
+      });
+    } finally { CASH = save; }
     return hist;
   }
+  // 지금 금액이 표에 있는 금액이면 그 칸(없으면 null → 그 자리에서 셈)
+  const guTab = () => { if (!hist || !GTAB || GK !== kind || histK !== condK()) return null; const i = STOPS.indexOf(CASH); return i >= 0 ? GTAB[i] : null; };
   // ---------- 막대로 금액 드래그(홈 카드 · 예산 시트): 막대 어디를 눌러 옆으로 끌어도 금액이 바뀐다 ----------
   // touch-action: pan-y → 세로로 밀면 페이지 스크롤, 가로로 끌면 금액. 끄는 동안 숫자·지도·목록이 바로 따라오고(rAF), 손을 떼면 전체 계산 한 번
   const PRESET = [1, 2, 3, 5, 7, 10];
@@ -1116,7 +1137,7 @@ const SIMPLE = (() => {
   }
   // 검색에서 구·역을 고르면(폰) 전체 지도로 — 예전 아래 탭 '지도'와 같은 길
   const mapTab = () => { const v = history.state && history.state.sView; close(); if (v) setTimeout(() => fullMap(true), 120); else fullMap(true); };
-  return { init, open, close, render, fullMap: (on) => fullMap(on), mapTab, cur: () => cur, setCash: (v) => setCash(v, true), toCash, toPos, zstate, shortTxt, cardHTML, guCount, guCounts, guMins, pick, spark: (id) => spark(id), stWord: ST_WORD, isNew: (r, n) => isNew(r, n), list: () => rows().map((x) => x.r.id) };
+  return { init, open, close, render, fullMap: (on) => fullMap(on), mapTab, cur: () => cur, setCash: (v) => setCash(v, true), toCash, toPos, zstate, shortTxt, cardHTML, guCount, guCounts, guMins, guTab, pick, spark: (id) => spark(id), stWord: ST_WORD, isNew: (r, n) => isNew(r, n), list: () => rows().map((x) => x.r.id) };
 })();
 window.ZP_simple = SIMPLE;   // 점검(QA)·다른 화면에서 같은 판정을 읽을 때
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", SIMPLE.init) : setTimeout(SIMPLE.init, 0);

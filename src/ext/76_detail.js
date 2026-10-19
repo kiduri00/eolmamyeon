@@ -46,8 +46,8 @@ const DTL = (() => {
   const upC = (v) => Math.ceil(v * 100 - 1e-6) / 100;   // 화면 금액(올림)으로 판정 — 목록 '+2,000만'과 같은 셈
   function keyHTML(r) {
     const n = nums(r);
-    // 계산하지 않는 칸은 맨 '–' 대신 말로(20차): 지금 '계산 안 함' · 입주까지 현금 '계산 보류'(목록·/gu·/z와 같은 이름)
-    const v1 = n.need != null ? C(n.need) : "계산 안 함", v2 = n.total != null ? C(n.total) : "계산 보류";
+    // 계산하지 않는 칸은 맨 '–' 대신 말로: 23차부터 두 칸 모두 '계산 보류' 하나(목록·/gu·/z·돈 탭과 같은 이름)
+    const v1 = n.need != null ? C(n.need) : "계산 보류", v2 = n.total != null ? C(n.total) : "계산 보류";
     const fit = n.need != null && upC(n.need) <= CASH + 1e-9;
     // 판정 한 줄(가능 · 사는 방법): '✓ 가능'과 '전세 끼고 ✓ 가능' 칩을 따로 두지 않는다
     const how = gapMode() ? "전세 끼고" : "대출 끼고";
@@ -68,11 +68,11 @@ const DTL = (() => {
     const tb = document.getElementById("ovTrust"), lvEl = tb && tb.querySelector(".ov-lv");
     const lv = lvEl ? lvEl.textContent.trim() : "", cls = tb ? (["hi", "md", "lo", "na"].find((c) => tb.classList.contains(c)) || "") : "";
     if (!lv) return "";
-    if (cls === "na" || lv === "안 함") {
+    if (cls === "na" || lv === "안 함" || lv === "보류") {
       let x = null; try { x = investC(r); } catch (e) {}
       let nt = false; try { nt = noTicket(r); } catch (e) {}
       const why = r.src === "moa" ? "모아타운은 사업구역마다 달라요" : nt ? "새 아파트 계산 대상이 아니에요" : x && x.stale ? "이주·철거가 시작됐어요" : x && x.noApt ? "단지 거래가 없어요" : "매수가로 쓸 거래가 없어요";
-      return `<button type="button" class="dt-trust na" data-dttrust><span class="dt-tc">계산 안 함</span><span class="dt-tt">${esc(why)} · 이유 보기</span><i aria-hidden="true">›</i></button>`;
+      return `<button type="button" class="dt-trust na" data-dttrust><span class="dt-tc">계산 보류</span><span class="dt-tt">${esc(why)} · 이유 보기</span><i aria-hidden="true">›</i></button>`;
     }
     let est = false; try { est = isEst(r); } catch (e) {}
     let x = null; try { x = investC(r); } catch (e) {}
@@ -206,7 +206,7 @@ const DTL = (() => {
   // ---------- '이 숫자가 틀렸어요' 시트 ----------
   const REASONS = [["price", "가격", "지금 필요한 돈·입주까지 현금·시세가 이상해요"], ["stage", "단계", "진행 단계·날짜가 달라요"], ["loc", "위치", "경계·주소·역 거리가 달라요"], ["name", "이름", "구역 이름이 달라요"], ["etc", "기타", "그 밖의 것"]];
   // '이 숫자가 틀렸어요' = 사이트 안 문의 양식(src/contact.js) — 구역 ID·주소·데이터 기준·화면 숫자를 함께 보낸다(메일 주소는 화면에 내지 않음 · 20차)
-  function numsTxt(r) { const n = nums(r); return `지금 필요한 돈 ${n.need != null ? C(n.need) : "계산 안 함"} · ${LBL.cashToMoveIn} ${n.total != null ? C(n.total) : "계산 보류"} (${gapMode() ? LBL.gap : LBL.loan} · 내 돈 ${C(CASH)})`; }
+  function numsTxt(r) { const n = nums(r); return `지금 필요한 돈 ${n.need != null ? C(n.need) : "계산 보류"} · ${LBL.cashToMoveIn} ${n.total != null ? C(n.total) : "계산 보류"} (${gapMode() ? LBL.gap : LBL.loan} · 내 돈 ${C(CASH)})`; }
   function repOpen() {
     const r = cur; if (!r || !window.ZP_contact) return;
     ZP_contact.open({ kind: "error", title: "이 숫자가 틀렸어요", meta: `${shortName(r.n)} · 구역 ID ${r.id} · ${asOf()} 기준`, reasons: REASONS, ph: "예: 최근 매물은 1.4억이에요", ctx: { zone: r.id, url: pageOf(r), asOf: asOf(), nums: numsTxt(r) } });

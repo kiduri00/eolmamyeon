@@ -122,6 +122,7 @@ def newd():
     return o
 NEWD = newd()
 assert js.count('/*NEWD*/ null') == 1; js = js.replace('/*NEWD*/ null', json.dumps(NEWD))
+assert shell.count('/*NEWD0*/{}') == 1; shell = shell.replace('/*NEWD0*/{}', json.dumps(NEWD))   # 23차: 첫 페인트 N 점(shell.html 작은 스크립트)
 _ud = _md(D.get('upd') or D.get('asOf'))
 shell = shell.replace('<span class="hdr-date" id="hdrDate"></span>', f'<span class="hdr-date" id="hdrDate">{_ud} 갱신</span>' if _ud else '<span class="hdr-date" id="hdrDate"></span>', 1)
 # 지도 자리 그림(src/ghost.js): 섬(h)과 앱(a)이 같은 코드 · 서울 모양은 빌드가 넣는다(tools/ghost_geo.py)

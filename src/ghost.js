@@ -45,7 +45,27 @@
   function proj(C, w, h) { var ws = 512 * Math.pow(2, C.z), cx = mx(C.c[0]), cy = my(C.c[1]); return function (ll) { return { x: (mx(ll[0]) - cx) * ws + w / 2, y: (my(ll[1]) - cy) * ws + h / 2 }; }; }
   // 구 하나에 맞춘 카메라(경계 상자 전체가 보이게 · 폰 당김 없음) — 자리 그림에서 구를 누를 때와 실제 지도 fitGu가 같은 함수(20차 G4)
   function guIdx(n) { if (!GD) return -1; for (var i = 0; i < GD.gu.length; i++) if (GD.gu[i][0] === n) return i; return -1; }
-  function guCam(n, w, h, pad) { var i = guIdx(n), g = i >= 0 ? GD.gu[i] : null; if (!g || g.length < 7) return null; var C = cam([[g[3], g[4]], [g[5], g[6]]], w, h, pad, false, 14); if (C && phoneQ() && C.z < 11) C.z = 11; return C; }   // 폰의 작은 지도칸: 적어도 줌 11(구 안 알약이 한데 뭉치지 않게 · 가운데는 구 경계 상자 가운데)
+  // 23차: pts(그 구의 갈 수 있는 곳 [위도, 경도, 구] — 자리 그림 st.ok · 실제 지도 fitGu가 같은 목록)가 있으면 그 곳들이 모인 상자에 맞춘다
+  // (구 경계 전체에 맞추면 폰에서 줌 11 → 알약이 한데 뭉쳐 '+N' 하나가 되던 것). 알약은 점 위로 서므로 위·양옆을 알약 자리만큼 더 비운다
+  function guCam(n, w, h, pad, pts) {
+    var i = guIdx(n), g = i >= 0 ? GD.gu[i] : null; if (!g || g.length < 7) return null;
+    var P = (pts || []).filter(function (x) { return x && x[2] === n && isFinite(x[0]) && isFinite(x[1]); });
+    if (P.length) {
+      var a = 999, b = 999, c = -999, d = -999;
+      P.forEach(function (x) { a = Math.min(a, x[1]); c = Math.max(c, x[1]); b = Math.min(b, x[0]); d = Math.max(d, x[0]); });
+      var ex = 0.0015;
+      var pp = { top: pad.top + 32, bottom: pad.bottom + 4, left: pad.left + 30, right: pad.right + 30 };
+      var C1 = cam([[a - ex, b - ex], [c + ex, d + ex]], w, h, pp, false, 13.6);
+      if (C1) {
+        if (phoneQ() && C1.z < 11) C1.z = 11;
+        // 남는 세로 자리가 있으면 곳들을 아래쪽에 붙인다 — 위 두 모서리의 떠 있는 것(왼쪽 '← 서울 전체' 막대 · 오른쪽 겹쳐 보기 레일) 밑에 가장 싼 곳이 깔리지 않게
+        var ws = 512 * Math.pow(2, C1.z), hh = (my(b - ex) - my(d + ex)) * ws, sl = h - pp.top - pp.bottom - hh;
+        if (sl > 2) C1.c = [C1.c[0], ly(my(C1.c[1]) - sl / 2 / ws)];
+        return C1;
+      }
+    }
+    var C = cam([[g[3], g[4]], [g[5], g[6]]], w, h, pad, false, 14); if (C && phoneQ() && C.z < 11) C.z = 11; return C;
+  }
   function guPad(P, phone) {
     var top = P.top + (phone ? 6 : 18);
     // 지도 위에 떠 있는 '← 서울 전체 | 구 이름' 막대 밑으로 경계 윗부분이 숨지 않게
@@ -53,7 +73,8 @@
     return { top: top, bottom: P.bottom + (phone ? 52 : 18), left: phone ? 16 : 30, right: phone ? 16 : Math.max(30, P.right) };
   }
   var hit = function (a, b) { return a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]; };
-  var tier = function (c, m) { return c / m > 0.6 ? 3 : c / m > 0.25 ? 2 : 1; };
+  // 23차: 묶음 색은 한 가지(중간 남색) — 곳 수는 숫자가 말한다. 범례에 없는 '진함 세 단계'를 없앰(뜻 모를 색 없음)
+  var tier = function () { return 2; };
   // 구 묶음 자리 잡기(실제 지도 guLayout과 같은 함수): 겹치면 ① 둘레로 비켜 ② 작게 ③ 안 되면(또는 화면 밖) '+N곳' 칩으로
   function place(o) {
     var w = o.W, h = o.H, obs = o.obs || [], phone = o.phone;
@@ -66,28 +87,30 @@
     // pre = 이미 자리 잡은 묶음(그대로 둔다) · only = 이번에 자리 잡을 구 이름(없으면 전부)
     var run = function (extra, pre, only) {
       var placed = (extra ? [extra] : []).concat((pre || []).map(boxOf)), keep = (pre || []).slice(), left = [];
-      var free = function (bx) { return bx[0] >= 2 && bx[2] <= w - 2 && bx[1] >= 2 && bx[3] <= h - bot && !obs.some(function (q) { return hit(q, bx); }) && !placed.some(function (q) { return hit(q, bx); }); };
+      // m = 보이는 상자 밖 투명 누름 자리(작은 묶음은 40px 상자 안에 보이는 30·22px) — 그 둘레까지 지도 칸 안에(23차: 위 가장자리 묶음이 칸 밖으로 5px 나가던 것)
+      var free = function (bx, m) { m = m || 0; return bx[0] >= 2 && bx[2] <= w - 2 && bx[1] - m >= 2 && bx[3] + m <= h - bot && !obs.some(function (q) { return hit(q, bx); }) && !placed.some(function (q) { return hit(q, bx); }); };
       L.forEach(function (g0) {
         if (!g0.c) return;
         if (only && !only[g0.n]) return;
         var g = { n: g0.n, ll: g0.ll, c: g0.c, m: g0.m }, q = o.proj(g.ll), sn = g.n.length > 2 ? g.n.replace(/구$/, "") : g.n, l1 = sn + " " + fmt(g.c) + "곳", l2 = g.m != null ? MT(g.m) : "";
         if (q.x < -8 || q.x > w + 8 || q.y < -8 || q.y > h + 8) { left.push(g); return; }
         var got = null;
-        for (var s = 0; s < 2 && !got; s++) {
+        // 23차: 좁은 폰(380px 아래)은 칩으로 보내기 전에 한 줄('영등포 7곳') 작은 묶음으로 한 번 더(s = 2)
+        for (var s = 0; s < (w < 380 ? 3 : 2) && !got; s++) {
           // 21차: 둥근 네모 두 줄('강북 1곳' / '7,400만~') — 폭 = 글자 폭 + 여백, 높이 40(누르는 자리 · 작게 줄인 것은 보이는 30 + 투명 둘레로 40)
-          var sm = s === 1, bw = sm ? Math.max(tw(l1, 11), tw(l2, 9.5)) + 12 : Math.max(tw(l1, 12.5), tw(l2, 10.5)) + 18, bh = sm ? (l2 ? 30 : 22) : 40, d = Math.max(bw, bh);
+          var one = s === 2, L2 = one ? "" : l2, sm = s >= 1, bw = sm ? Math.max(tw(l1, 11), tw(L2, 9.5)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 10.5)) + 18, bh = sm ? (L2 ? 30 : 22) : 40, d = Math.max(bw, bh);
           var RR = sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05];
           for (var i = 0; i < RR.length && !got; i++) {
             var A = RR[i] ? ANG : [0];
             for (var j = 0; j < A.length; j++) {
               var x = q.x + RR[i] * Math.cos(A[j]), y = q.y + RR[i] * Math.sin(A[j]) * (bh / d), bx = [x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2];
-              if (free(bx)) { got = { bx: bx, w: bw, h: bh, sm: sm, dx: x - q.x, dy: y - q.y }; break; }
+              if (free(bx, sm ? (40 - bh) / 2 : 0)) { got = { bx: bx, w: bw, h: bh, sm: sm, one: one, dx: x - q.x, dy: y - q.y }; break; }
             }
           }
         }
         if (!got) { left.push(g); return; }
         placed.push(got.bx);
-        g.sn = sn; g.l1 = l1; g.l2 = l2; g.w = Math.ceil(got.w); g.h = got.h; g.sm = got.sm; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy); g.t = tier(g.c, m); g.q = q;
+        g.sn = sn; g.l1 = l1; g.l2 = got.one ? "" : l2; g.w = Math.ceil(got.w); g.h = got.h; g.sm = got.sm; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy); g.t = tier(g.c, m); g.q = q;
         keep.push(g);
       });
       return { keep: keep, left: left };
@@ -103,7 +126,8 @@
     return r;
   }
   // 서울 보기 범례(21차) — 구 묶음 두 줄의 뜻
-  var KEY = '<span><i class="k-gu"></i>숫자 = 내 돈으로 갈 수 있는 곳</span><span class="k-s">금액 = 가장 적게 드는 곳</span>';
+  // 23차: 좁은 폰(380px 아래)은 '내 돈으로 '를 숨겨 한 줄로(지도 칸을 덜 가림 · 뜻은 aria-label에 다)
+  var KEY = '<span><i class="k-gu"></i>숫자 = <span class="k-x">내 돈으로 </span>갈 수 있는 곳</span><span class="k-s">금액 = 가장 적게 드는 곳</span>';
   var KEY_L = "범례: 구 묶음의 숫자는 그 구에서 내 돈으로 갈 수 있는 곳 수, 금액은 그중 지금 필요한 돈이 가장 적은 곳, 남색으로 칠한 구역은 내 돈으로 가능한 곳";
   var fmt = function (n) { try { return Number(n).toLocaleString("ko-KR"); } catch (e) { return String(n); } };
   // 금액 꼴 = 앱 ZF.cash와 같은 규칙(1억 아래 100만 단위 '7,400만' · 1억부터 '1.2억' · 올림) — 섬(앱 전)도 같은 글자
@@ -161,7 +185,8 @@
     else if (box.classList.contains("lm-short")) add({ left: cb.left + w - 6 - 122, right: cb.left + w - 6, top: cb.top + 6, bottom: cb.top + 88 });
     else if (!phoneQ()) add({ left: cb.left + w - 12 - 94, right: cb.left + w - 12, top: cb.top + 12, bottom: cb.top + 146 });
     el.querySelectorAll(".lm-zoom, .lm-key, .zg-attr").forEach(function (e) { if (e.offsetWidth) add(e.getBoundingClientRect()); });
-    Dc.querySelectorAll(".s-mini, .s-fullx").forEach(function (e) { if (e.offsetWidth && !e.hidden) add(e.getBoundingClientRect()); });
+    var full = Dc.documentElement.classList.contains("s-full");
+    Dc.querySelectorAll(".s-mini, .s-fullx").forEach(function (e) { if (e.classList.contains("s-mini") && !full) return; if (e.offsetWidth && !e.hidden) add(e.getBoundingClientRect()); });
     return out;
   }
   function padOf(el, box) {
@@ -173,7 +198,7 @@
         P.left = 40; P.right = Math.max(40, rp); P.top = 30; P.bottom = 24 + Math.round(Math.min(cv.height * 0.62, Math.max(0, cv.bottom - innerHeight)));
       }
       var ov = function (sel) { var e = Dc.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; var b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
-      var m = ov(".s-mini"); if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
+      var m = Dc.documentElement.classList.contains("s-full") ? ov(".s-mini") : null; if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
       var x = ov(".s-fullx"); if (x) P.bottom = Math.round(cv.bottom - x.top + 6);
     } catch (e) {}
     return P;
@@ -208,7 +233,7 @@
     var w = el.clientWidth, h = el.clientHeight;
     if (w < 50 || h < 50) return null;
     var phone = phoneQ(), pad = st.pad || padOf(el, box);
-    var C = st.cam || (S.dim ? guCam(S.dim, w, h, guPad(padOf(el, box), phone)) : null) || cam(bb(st.ok, st.cnt, phone), w, h, pad, phone, 12);
+    var C = st.cam || (S.dim ? guCam(S.dim, w, h, guPad(padOf(el, box), phone), (S.st && S.st.ok) || st.ok) : null) || cam(bb(st.ok, st.cnt, phone), w, h, pad, phone, 12);
     if (!C) return null;
     S.last = C;
     var P = proj(C, w, h), ws = 512 * Math.pow(2, C.z), k = ws / GD.S, tx = (GD.o[0] / GD.S - mx(C.c[0])) * ws + w / 2, ty = (GD.o[1] / GD.S - my(C.c[1])) * ws + h / 2;
