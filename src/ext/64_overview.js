@@ -1,6 +1,7 @@
 /* ===================== 구역 상세 맨 위: 위치 지도 · 실거래 · 노후도 =====================
    사람들이 제일 먼저 보는 것(어디인지, 얼마에 거래되는지, 얼마나 낡았는지)을 탭보다 먼저 보여 준다. */
 const OVX = (() => {
+  let mm = null, mmId = null;
   const ym = (d) => (d && d.length >= 6 ? `${d.slice(2, 4)}.${d.slice(4, 6)}` : "");
   const eok = ZF.eok;   // 숫자 꼴은 ZF 하나(05_facts.js)
   const e1 = (v) => (v == null || !isFinite(v) ? "–" : v >= 1e4 ? `${(v / 1e4).toFixed(1).replace(/\.0$/, "")}억` : `${Math.round(v).toLocaleString()}만`);
@@ -315,73 +316,41 @@ const OVX = (() => {
     const a = t.apt; if (!a || !a.n) return "";
     return `<div class="ov-c ov-tx"><h3>단지 실거래${refTag(r)}</h3><div class="ov-k"><div><span>최근 거래</span><b>${eok(a.last)}</b></div><div><span>1년 가운데 값</span><b>${a.med ? eok(a.med) : "–"}</b></div><div><span>거래 수(1년)</span><b>${a.n}건</b></div></div></div>`;
   }
-  // 22차: 작은 지도는 WebGL 지도 하나를 화면 밖에 두고 다시 쓴다(구역마다 새 지도 = 셰이더·글자 그림을 매번 새로 → 입지 탭 열 때 0.5~1초 긴 작업).
-  // 다 그리면 그림(이미지)으로 바꿔 넣는 것은 예전과 같다. 같은 구역·같은 밝기·같은 크기 그림은 다시 그리지 않는다.
   const MINI = new Map();
-  let MW = null;   // { map, el, dark, ready, tok }
-  const darkNow = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
-  function miniPut(box, url, est) {
-    const im = new Image(); im.alt = ""; im.src = url; im.className = "ov-img";
-    box.innerHTML = ""; box.appendChild(im);
-    if (est) box.insertAdjacentHTML("beforeend", '<span class="ov-mtag">대략 범위 · 경계 미공개</span>');
-  }
-  function miniMap(w, h, dark) {
-    if (MW && MW.dark !== dark) { try { MW.map.remove(); } catch (e) {} try { MW.el.remove(); } catch (e) {} MW = null; }
-    if (!MW) {
-      const el = document.createElement("div");
-      el.setAttribute("aria-hidden", "true");
-      el.style.cssText = "position:fixed;left:-10000px;top:0;pointer-events:none;visibility:hidden";
-      document.body.appendChild(el);
-      el.style.width = w + "px"; el.style.height = h + "px";
-      const map = new maplibregl.Map({ container: el, style: LMX.style(), interactive: false, attributionControl: false, preserveDrawingBuffer: true, fadeDuration: 0, center: [126.98, 37.56], zoom: 12 });
-      MW = { map, el, dark, ready: null, tok: 0 };
-      MW.ready = new Promise((ok) => map.on("load", () => {
-        const E = { type: "FeatureCollection", features: [] };
-        try { map.addSource("sub", { type: "geojson", data: LMX.subway() }); map.addLayer({ id: "sub", type: "line", source: "sub", paint: { "line-color": ["get", "c"], "line-width": 3, "line-opacity": 0.85 } }); } catch (e) {}
-        map.addSource("z", { type: "geojson", data: E });
-        map.addLayer({ id: "zf", type: "fill", source: "z", paint: { "fill-color": "#2f6feb", "fill-opacity": 0.16 } });
-        map.addLayer({ id: "zl", type: "line", source: "z", paint: { "line-color": dark ? "#8fb0ff" : "#1f3a87", "line-width": 2.5 } });
-        map.addSource("p", { type: "geojson", data: E });
-        map.addLayer({ id: "p", type: "circle", source: "p", paint: { "circle-radius": 8, "circle-color": "#1f3a87", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
-        ok();
-      }));
-    } else if (MW.el.offsetWidth !== w || MW.el.offsetHeight !== h) { MW.el.style.width = w + "px"; MW.el.style.height = h + "px"; MW.map.resize(); }
-    return MW;
-  }
   function mini(r) {
     const box = document.getElementById("ovMap"); if (!box) return;
     if (!window.matchMedia("(max-width:980px)").matches) { box.remove(); return; }
-    box.onclick = () => { try { closeSheetNow(); } catch (e) {} setTimeout(() => { try { LMX.focus(true); } catch (e) {} }, 250); };
-    const dark = darkNow();
-    const bw = Math.round(box.clientWidth) || Math.min(innerWidth - 32, 560), bh = Math.round(box.clientHeight) || 180;
-    const key = `${r.id}|${dark ? 1 : 0}|${bw}x${bh}`, hit = MINI.get(key);
-    if (hit) { miniPut(box, hit.url, hit.est); return; }
-    Promise.all([LMX.lib(), LMX.geo()]).then(async ([, g]) => {
+    // 22차: 한 번 그린 작은 지도 그림은 다시 쓴다(같은 구역·같은 밝기·같은 크기) — 다시 열 때 WebGL 지도를 새로 만들지 않게
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
+    const key = `${r.id}|${dark ? 1 : 0}|${Math.round(box.clientWidth)}x${Math.round(box.clientHeight)}`, hit = MINI.get(key);
+    if (hit) { const im = new Image(); im.alt = ""; im.src = hit.url; im.className = "ov-img"; box.innerHTML = ""; box.appendChild(im); if (hit.est) box.insertAdjacentHTML("beforeend", '<span class="ov-mtag">대략 범위 · 경계 미공개</span>'); box.onclick = () => { try { closeSheetNow(); } catch (e) {} setTimeout(() => { try { LMX.focus(true); } catch (e) {} }, 250); }; return; }
+    Promise.all([LMX.lib(), LMX.geo()]).then(([, g]) => {
       if (!document.getElementById("ovMap") || cur !== r || !window.maplibregl) return;
       const z = g && g.z && g.z[r.id] && g.z[r.id].g ? g.z[r.id] : null, est = !!(z && z.e);   // 추정 범위는 점선으로(경계처럼 보이지 않게)
       if (!z && !r.ll) { box.remove(); return; }
       let bb;
       if (z) { let a = 180, b = 90, c = -180, d = -90; z.g.forEach((rg) => rg.forEach(([x, y]) => { if (x < a) a = x; if (y < b) b = y; if (x > c) c = x; if (y > d) d = y; })); bb = [[a, b], [c, d]]; }
-      const M = miniMap(bw, bh, dark), tok = ++M.tok, map = M.map;
-      await M.ready;
-      if (tok !== M.tok || MW !== M) return;
-      const E = { type: "FeatureCollection", features: [] };
-      map.getSource("z").setData(z ? { type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: {} } : E);
-      map.getSource("p").setData(z ? E : { type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: {} });
-      map.setPaintProperty("zf", "fill-opacity", est ? 0.08 : 0.16);
-      map.setPaintProperty("zl", "line-width", est ? 2 : 2.5);
-      map.setPaintProperty("zl", "line-dasharray", est ? [2, 1.5] : null);
-      if (bb) map.fitBounds(bb, { padding: est ? 56 : 28, maxZoom: est ? 15.6 : 16.2, duration: 0 }); else map.jumpTo({ center: [r.ll[1], r.ll[0]], zoom: 15 });
-      map.once("idle", () => setTimeout(() => {
-        try {
-          if (tok !== M.tok || MW !== M) return;
-          const url = map.getCanvas().toDataURL("image/png");
-          MINI.set(key, { url, est }); if (MINI.size > 30) MINI.delete(MINI.keys().next().value);
-          const bx = document.getElementById("ovMap");
-          if (bx && cur === r) miniPut(bx, url, est);
-        } catch (e) {}
-      }, 120));
-      map.triggerRepaint();
+      try { if (mm) mm.remove(); } catch (e) {}
+      mm = new maplibregl.Map({ container: "ovMap", style: LMX.style(), interactive: false, attributionControl: false, preserveDrawingBuffer: true, fadeDuration: 0, ...(bb ? { bounds: bb, fitBoundsOptions: { padding: est ? 56 : 28, maxZoom: est ? 15.6 : 16.2 } } : { center: [r.ll[1], r.ll[0]], zoom: 15 }) });
+      mmId = r.id;
+      const fit = () => { try { mm.resize(); if (bb) mm.fitBounds(bb, { padding: est ? 56 : 28, maxZoom: est ? 15.6 : 16.2, duration: 0 }); } catch (e) {} };
+      try { new ResizeObserver(fit).observe(box); } catch (e) {}
+      setTimeout(fit, 350); setTimeout(fit, 900);
+      // 다 그려지면 그림으로 바꿔 WebGL을 놓아 준다(시트 스크롤·메모리)
+      mm.once("idle", () => setTimeout(() => { try { if (!mm || mmId !== r.id) return; const url = mm.getCanvas().toDataURL("image/png"); MINI.set(key, { url, est }); if (MINI.size > 30) MINI.delete(MINI.keys().next().value); const im = new Image(); im.alt = ""; im.src = url; im.className = "ov-img"; const m = mm; mm = null; m.remove(); const tg = box.querySelector(".ov-mtag"); box.innerHTML = ""; box.appendChild(im); if (tg) box.appendChild(tg); } catch (e) {} }, 120));
+      mm.on("load", () => {
+        try { mm.addSource("sub", { type: "geojson", data: LMX.subway() }); mm.addLayer({ id: "sub", type: "line", source: "sub", paint: { "line-color": ["get", "c"], "line-width": 3, "line-opacity": 0.85 } }); } catch (e) {}
+        if (z) {
+          mm.addSource("z", { type: "geojson", data: { type: "Feature", geometry: { type: "Polygon", coordinates: z.g }, properties: {} } });
+          mm.addLayer({ id: "zf", type: "fill", source: "z", paint: { "fill-color": "#2f6feb", "fill-opacity": est ? 0.08 : 0.16 } });
+          mm.addLayer({ id: "zl", type: "line", source: "z", paint: { "line-color": matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark" ? "#8fb0ff" : "#1f3a87", "line-width": est ? 2 : 2.5, ...(est ? { "line-dasharray": [2, 1.5] } : {}) } });
+          if (est) box.insertAdjacentHTML("beforeend", '<span class="ov-mtag">대략 범위 · 경계 미공개</span>');
+        } else {
+          mm.addSource("p", { type: "geojson", data: { type: "Feature", geometry: { type: "Point", coordinates: [r.ll[1], r.ll[0]] }, properties: {} } });
+          mm.addLayer({ id: "p", type: "circle", source: "p", paint: { "circle-radius": 8, "circle-color": "#1f3a87", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
+        }
+      });
+      box.onclick = () => { try { closeSheetNow(); } catch (e) {} setTimeout(() => { try { LMX.focus(true); } catch (e) {} }, 250); };
     }).catch(() => box.remove());
   }
   // 주소 줄 칩: 무엇에 대한 말인지 글자에 다 넣고(역 도보 · 매수가 추정/주변 시세 · 경사 %), 누르면 한 줄 설명

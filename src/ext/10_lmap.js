@@ -1333,6 +1333,12 @@
           locale: { "CooperativeGesturesHandler.WindowsHelpText": "Ctrl 키를 누른 채 스크롤하면 확대·축소돼요", "CooperativeGesturesHandler.MacHelpText": "⌘ 키를 누른 채 스크롤하면 확대·축소돼요", "CooperativeGesturesHandler.MobileHelpText": "두 손가락으로 지도를 움직여 보세요", "AttributionControl.ToggleAttribution": "지도 출처", "AttributionControl.MapFeedback": "지도 고치기 제안" },
         });
       } catch (e) { map = null; failed = true; return false; }
+      // 22차: 관심·소식·MY 화면으로 가면 지도 칸이 숨어 크기가 0 → 지도가 400×300으로 줄었다가 찾기로 돌아올 때 다시 키우며 캔버스를 새로 잡고 전부 다시 그렸다(탭 전환마다).
+      // 숨은 동안(0 크기)과 크기가 그대로일 때는 크기 맞추기를 건너뛴다(돌아오면 같은 크기라 그대로 보인다).
+      try {
+        const rs0 = map.resize.bind(map), box = map.getContainer(); let last = box.clientWidth + "x" + box.clientHeight + "@" + devicePixelRatio;
+        map.resize = function (ev, ct) { const w = box.clientWidth, h = box.clientHeight; if (!w || !h) return map; const k = w + "x" + h + "@" + devicePixelRatio; if (k === last && ct === undefined) return map; last = k; return rs0(ev, ct); };
+      } catch (e) {}
       map.touchZoomRotate.disableRotation();
       // 금액 막대를 끄는 동안은 지도 프레임을 그리지 않는다(소프트웨어 WebGL에서 한 장 150ms+ → 끄는 숫자가 밀리던 것). 손을 떼면 한 번에 그린다
       try {
