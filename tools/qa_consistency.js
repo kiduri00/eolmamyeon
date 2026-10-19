@@ -2202,6 +2202,144 @@ async function r17bLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
 }
+// ================================================================ 22차: 앱 껍데기(색 모드·매니페스트·새 버전·오류 알림·자료 다시 받기) · 모든 구역 열기(오류 없음 · 앱 == /z 3숫자 == 목록)
+async function r22Lane(browser, api, errs, shared) {
+  const mob = (w, h, cs) => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs });
+  // --- app.colorScheme: <meta name="color-scheme" content="light dark"> + 계산된 color-scheme이 밝은 화면 light · 어두운 화면 dark(크롬 자동 어둡게가 밝은 화면을 다시 칠하지 않게) · theme-color 두 벌
+  {
+    const T = "색 모드: meta color-scheme 'light dark' · 계산된 color-scheme = 화면 밝기 · theme-color 밝은/어두운 두 벌(앱·정적 페이지)";
+    for (const cs of ["light", "dark"]) for (const u of ["/", "/z/o916.html", "/faq.html", "/gu/"]) {
+      const { ctx, page } = await newPage(browser, mob(390, 844, cs), errs);
+      try {
+        page.__where = u + " " + cs;
+        await page.goto(BASE + u, { waitUntil: "domcontentloaded", timeout: 30000 });
+        const r = await page.evaluate(() => ({ meta: (document.querySelector('meta[name="color-scheme"]') || {}).content || "", cs: getComputedStyle(document.documentElement).colorScheme, tc: [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => (m.media || "") + "=" + m.content) }));
+        expect(r.meta === "light dark" && r.cs === cs && r.tc.length >= 2 && r.tc.some((x) => /light/.test(x)) && r.tc.some((x) => /dark/.test(x)), "app.colorScheme", T, `${u} ${cs}: meta "${r.meta}" computed "${r.cs}" theme-color ${r.tc.join(" , ")}`);
+      } catch (e) { bad("runtime", "검사 실행", `r22 colorScheme ${u} crashed: ` + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- app.manifest: 설치 앱 준비(id · start_url ?src=app · scope · standalone · orientation any · 색 · maskable · 바로가기 · 스크린샷 파일 크기)
+  {
+    const T = "매니페스트: id · start_url /?src=app · scope / · standalone · orientation any · 색 · maskable 아이콘 · 바로가기 · 스크린샷(적힌 크기 == 파일 크기)";
+    try {
+      const m = JSON.parse((await get(BASE + "/manifest.webmanifest")).text);
+      const miss = [];
+      if (m.id !== "/") miss.push("id " + m.id); if (m.start_url !== "/?src=app") miss.push("start_url " + m.start_url); if (m.scope !== "/") miss.push("scope"); if (m.display !== "standalone") miss.push("display " + m.display); if (m.orientation !== "any") miss.push("orientation " + m.orientation);
+      if (!/^#[0-9a-f]{6}$/i.test(m.theme_color || "") || !/^#[0-9a-f]{6}$/i.test(m.background_color || "")) miss.push("colors");
+      if (!(m.icons || []).some((i) => /maskable/.test(i.purpose || "") && /512/.test(i.sizes || ""))) miss.push("maskable 512");
+      if (!(m.shortcuts || []).length || (m.shortcuts || []).some((x) => !/src=app/.test(x.url))) miss.push("shortcuts");
+      for (const sh of m.screenshots || []) {
+        const r = await fetch(BASE + sh.src); const b = Buffer.from(await r.arrayBuffer());
+        const w = b.readUInt32BE(16), h = b.readUInt32BE(20);
+        if (r.status !== 200 || `${w}x${h}` !== sh.sizes) miss.push(`screenshot ${sh.src} ${r.status} ${w}x${h} vs ${sh.sizes}`);
+      }
+      if (!(m.screenshots || []).some((x) => x.form_factor === "wide") || !(m.screenshots || []).some((x) => x.form_factor === "narrow")) miss.push("screenshots narrow+wide");
+      for (const ic of m.icons || []) { const r = await get(BASE + ic.src, "HEAD"); if (r.status !== 200) miss.push(`icon ${ic.src} ${r.status}`); }
+      expect(!miss.length, "app.manifest", T, miss.join(" ; "));
+    } catch (e) { bad("app.manifest", T, "manifest unreadable: " + e.message); }
+  }
+  // --- app.swUpdate: 이 화면을 맡던 서비스 워커가 바뀌면(배포) 첫 화면 묶음(/b/a·d)이 이 화면과 다를 때만 '새 버전이 있어요 · 새로고침' · 같으면 조용히 · 새로고침 누르면 다시 불러옴
+  {
+    const T = "새 버전: 워커가 바뀌고 첫 화면 묶음이 다르면 '새 버전이 있어요 · 새로고침'(누르면 다시 불러옴) · 같으면 알림 없음";
+    const { ctx, page } = await newPage(browser, mob(390, 844, "light"), errs);
+    try {
+      let alter = false;
+      await ctx.route(/\/\?swv=\d+/, async (route) => { const r = await route.fetch(); let t = await r.text(); if (alter) t = t.replace(/\/b\/a\.[0-9a-f]{10}\.js/g, "/b/a.0000000000.js"); await route.fulfill({ status: 200, contentType: "text/html", body: t }); });
+      await loadHome(page, "#my"); await page.waitForTimeout(600);
+      const fire = async () => { await page.evaluate(() => { navigator.serviceWorker.__zpTest = true; navigator.serviceWorker.dispatchEvent(new Event("controllerchange")); }); await page.waitForTimeout(1200); return page.evaluate(() => { const t = document.getElementById("zpUpd"); return t ? { on: t.classList.contains("on") && window.__qc.vis(t), txt: t.innerText.replace(/\s+/g, " ").trim() } : null; }); };
+      const has = await page.evaluate(() => !!(navigator.serviceWorker && window.ZP_app && ZP_app.updCheck));
+      if (!has) bad("app.swUpdate", T, "no serviceWorker / ZP_app.updCheck");
+      else {
+        const a = await fire();
+        expect(!a, "app.swUpdate", T, `same bundles but toast shown: ${JSON.stringify(a)}`);
+        alter = true;
+        const b = await fire();
+        expect(b && b.on && /새 버전이 있어요/.test(b.txt) && /새로고침/.test(b.txt), "app.swUpdate", T, `new bundles: toast ${JSON.stringify(b)}`);
+        if (b && b.on) {
+          const nav = page.waitForNavigation({ timeout: 8000 }).then(() => true, () => false);
+          await page.click("#zpUpd [data-r]");
+          expect(await nav, "app.swUpdate", T, "새로고침 did not reload");
+        }
+      }
+    } catch (e) { bad("runtime", "검사 실행", "r22 swUpdate crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- app.errToast · app.fetchRetry: 잡히지 않은 오류 → 콘솔 + '화면 일부를 그리지 못했어요 · 다시 시도'(화면은 그대로) · 자료 받기가 한 번 끊겨도 다시 받아 성공
+  {
+    const T1 = "잡히지 않은 오류: 화면은 그대로 · 작은 알림 '화면 일부를 그리지 못했어요 · 다시 시도'(누르면 다시 불러옴)";
+    const T2 = "자료 받기(/data/): 연결이 한 번 끊기거나 503이어도 다시 받아 성공 · 다른 출처·POST는 손대지 않음";
+    const dummy = [];
+    const { ctx, page } = await newPage(browser, mob(390, 844, "dark"), dummy);
+    try {
+      let hits = 0, hits2 = 0;
+      await ctx.route(/\/data\/notice\.json\?qa=1/, (r) => { hits++; return hits === 1 ? r.abort("connectionreset") : r.continue(); });
+      await ctx.route(/\/data\/notice\.json\?qa=2/, (r) => { hits2++; return hits2 <= 2 ? r.fulfill({ status: 503, body: "busy" }) : r.continue(); });
+      await loadHome(page); await page.waitForTimeout(500);
+      const f = await page.evaluate(async () => { const a = await fetch("data/notice.json?qa=1").then((r) => r.status, (e) => "err " + e.message); const b = await fetch("/data/notice.json?qa=2").then((r) => r.status, (e) => "err " + e.message); return [a, b]; });
+      expect(f[0] === 200 && hits === 2 && f[1] === 200 && hits2 === 3, "app.fetchRetry", T2, `reset→${f[0]} (tries ${hits}) · 503→${f[1]} (tries ${hits2})`);
+      const before = await page.evaluate(() => document.getElementById("sN").textContent);
+      await page.evaluate(() => setTimeout(() => { null.qa22; }, 0));
+      await page.waitForTimeout(700);
+      const t = await page.evaluate(() => { const e = document.getElementById("zpErr"); return e ? { on: e.classList.contains("on") && window.__qc.vis(e), txt: e.innerText.replace(/\s+/g, " ").trim(), sN: document.getElementById("sN").textContent } : null; });
+      expect(t && t.on && /화면 일부를 그리지 못했어요/.test(t.txt) && /다시 시도/.test(t.txt) && t.sN === before, "app.errToast", T1, JSON.stringify(t));
+      if (t && t.on) { const nav = page.waitForNavigation({ timeout: 8000 }).then(() => true, () => false); await page.click("#zpErr [data-r]"); expect(await nav, "app.errToast", T1, "다시 시도 did not reload"); }
+    } catch (e) { bad("runtime", "검사 실행", "r22 errToast crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- zone.fuzzAll: 한 화면에서 모든 구역(#id)을 차례로 열어 페이지 오류 0 · 다 열림 · 첫 화면 3숫자 == /z 페이지 == 15억 목록 줄(전세 끼고 기본)
+  {
+    const T = "모든 구역을 한 화면에서 차례로 열기(폰 밝게 전체 · PC 어둡게 1/8): 페이지 오류 0 · 다 열림";
+    const T2 = "모든 구역: 앱 상세 첫 화면 3숫자(이름·값) == /z 페이지 == 15억 목록 줄 '지금'·'입주까지 현금'";
+    const FZ_MS = +(process.env.QAC_FUZZ_MS || 420000);
+    for (const [vp, cs, step] of [[mob(390, 844, "light"), "light", 1], [{ viewport: { width: 1440, height: 900 }, colorScheme: "dark" }, "dark", 8]]) {
+      const local = [];
+      const { ctx, page } = await newPage(browser, vp, local);
+      const where = `${vp.isMobile ? "390" : "1440"} ${cs}`;
+      try {
+        page.__where = "fuzzAll " + where;
+        await loadHome(page);
+        const ids = (await page.evaluate(() => (window.__ZPD || {}).recs ? __ZPD.recs.map((r) => r.id) : [])).filter((_, i) => i % step === 0);
+        if (!ids.length) { bad("zone.fuzzAll", T, `${where}: no zone ids`); continue; }
+        const t0 = Date.now(); const got = {}; let done = 0;
+        for (let i = 0; i < ids.length; i += 40) {
+          if (Date.now() - t0 > FZ_MS / (step === 1 ? 1.25 : 5)) break;
+          const part = await page.evaluate(async (chunk) => {
+            const out = {};
+            const wait = (f, ms) => new Promise((ok) => { const s = performance.now(); const tick = () => { const v = f(); if (v || performance.now() - s > ms) ok(v); else requestAnimationFrame(tick); }; tick(); });
+            for (const id of chunk) {
+              const t = document.getElementById("repTitle"); if (t) t.__fz = 1;
+              location.hash = "#" + id;
+              const ok = await wait(() => { const e = document.getElementById("repTitle"); return e && !e.__fz && e.textContent.trim(); }, 4000);
+              const k = document.querySelector("#report .dt-k"), g = (q) => { const e = k && k.querySelector(`[data-k="${q}"] .dt-v`); return e ? e.textContent.trim() : null; };
+              out[id] = { ok: !!ok, now: g("now"), tot: g("tot"), eta: g("eta"), labs: k ? [...k.querySelectorAll(".dt-l")].map((e) => e.textContent.trim()).join("|") : "" };
+            }
+            return out;
+          }, ids.slice(i, i + 40));
+          Object.assign(got, part); done += Object.keys(part).length;
+        }
+        const pe = [...new Set(local.filter((e) => /pageerror/.test(e.msg)).map((e) => e.msg))];
+        errs.push(...local.filter((e) => !/pageerror/.test(e.msg)));
+        const notOpen = Object.entries(got).filter(([, v]) => !v.ok).map(([k]) => k);
+        expect(!pe.length && !notOpen.length && done === ids.length, "zone.fuzzAll", T, `${where}: opened ${done}/${ids.length} in ${Math.round((Date.now() - t0) / 1000)}s · not open ${notOpen.slice(0, 6).join(" ")} · pageerrors ${pe.slice(0, 3).join(" ; ")}`);
+        if (step !== 1) continue;
+        // /z 페이지와 3숫자 비교(전부) · 15억 목록 줄과 비교(목록에 있는 곳)
+        const okIds = Object.keys(got).filter((k) => got[k].ok && got[k].now != null);
+        const zs = await pool(okIds, 12, async (id) => { const r = await getPage("/z/" + id); return r.status === 200 ? parseZ(r.text).key : null; });
+        const mis = [], misL = []; let nz = 0, nl = 0;
+        okIds.forEach((id, j) => {
+          const a = got[id], z = zs[j];
+          if (z && z.now != null) { nz++; if (a.now !== z.now || a.tot !== z.tot || a.eta !== z.eta || a.labs !== z.labs) mis.push(`${id}: app ${a.now}/${a.tot}/${a.eta} [${a.labs}] vs /z ${z.now}/${z.tot}/${z.eta} [${z.labs}]`); }
+          const lm = shared.listMap && shared.listMap.get(id);
+          if (lm && lm.now) { nl++; const an = money(a.now), at = money(a.tot); if (an && !eqMoney(lm.now, an)) misL.push(`${id}: list 지금 ${fm(lm.now)} vs detail ${a.now}`); if (lm.tot && at && !eqMoney(lm.tot, at)) misL.push(`${id}: list 입주까지 ${fm(lm.tot)} vs detail ${a.tot}`); }
+        });
+        expect(nz > 300 && !mis.length, "zone.allVsZ", T2, `${nz} /z compared · ${mis.length} differ: ${mis.slice(0, 4).join(" ; ")}`);
+        if (nl) expect(!misL.length, "zone.allVsZ", T2, `${nl} list rows compared · ${misL.slice(0, 4).join(" ; ")}`);
+      } catch (e) { bad("runtime", "검사 실행", `r22 fuzzAll ${where} crashed: ` + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+}
 // ================================================================ main
 (async () => {
   // API
@@ -2249,6 +2387,8 @@ async function r17bLane(browser, api, errs) {
   if (!ONLY || ONLY === "r19") await timed("r19", r19Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r19Lane crashed: " + e.message)));
   // 21차(가능 구역마다 알약 · 범례 · 서울 보기 구역 면 · 막대 끌기 · 목록 줄) — 혼자(끄는 프레임을 잰다)
   if (!ONLY || ONLY === "r21") await timed("r21", r21Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r21Lane crashed: " + e.message)));
+  // 22차(앱 껍데기 · 모든 구역 열기) — 혼자, 맨 끝(모든 구역을 여는 데 몇 분)
+  if (!ONLY || ONLY === "r22") await timed("r22", r22Lane(browser, api, errs, shared).catch((e) => bad("runtime", "검사 실행", "r22Lane crashed: " + e.message)));
   await browser.close();
 
   // 콘솔 오류

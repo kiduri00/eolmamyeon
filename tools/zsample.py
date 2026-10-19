@@ -121,13 +121,37 @@ def short0(n):   # 사업 종류 꼬리를 뗀다(옛 규칙 · 대체용)
 def _ymd(s):
     m = re.match(r'(\d{4})-?(\d\d)-?(\d\d)', str(s or ''))
     return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+# 22차: 가로·소규모 입주 시점 보정 — 화면 app.js(ETA_ADJ)와 같은 규칙: 사업시행계획인가에 관리처분이 포함되므로 '사업시행→관리처분' 대기(DUP년)를 뺀다.
+# 예전엔 /z·api가 보정 전 값을 써서 22곳에서 '언제 입주'가 화면(7~10년 뒤)과 /z(10~15년 뒤)로 갈렸다.
+DUP = None
+def set_dup(D):
+    global DUP
+    try: DUP = (((D.get('etaMeta') or {}).get('transitions') or {}).get('small') or {}).get('사업시행>관리처분', {}).get('med') or 0
+    except Exception: DUP = 0
+def eta_adj(r, as_of=None):
+    """→ r['eta'] 그대로 또는 가로·소규모 보정본(app.js와 같은 식: 로그정규 근사로 p10·p15, 날짜는 DUP년 당김)."""
+    import math
+    e = r.get('eta') or {}
+    if not DUP or not e or not e.get('eMid') or e.get('grp') != 'small' or r.get('src') == 'moa' or r.get('dn') or (r.get('s', 0) or 0) > 5: return e
+    t = _ymd(as_of) or datetime.date.today()
+    base = t.year + (t.month - 1) / 12
+    yr = lambda x: int(x[:4]) + (int(x[5:7]) - 0.5) / 12 - base
+    def ym(v):   # app.js ymOf: TODAY + v년(365.25일)
+        d = datetime.datetime(t.year, t.month, t.day) + datetime.timedelta(days=v * 365.25)
+        return f'{d.year}-{d.month:02d}'
+    t25, t50, t75 = max(0.25, yr(e['eLo'])), max(0.3, yr(e['eMid'])), max(0.35, yr(e['eHi']))
+    mu, sig, cond = math.log(t50), max(0.08, (math.log(t75) - math.log(t25)) / 1.349), e.get('cond', 1) if e.get('cond') is not None else 1
+    F = lambda h: 0.5 * (1 + math.erf((math.log(max(h, 0.001)) - mu) / sig / math.sqrt(2)))
+    adj = lambda p, h: max(0, min(cond, (p or 0) + cond * (F(h + DUP) - F(h))))
+    sh = lambda x: ym(max(0.25, yr(x) - DUP))
+    return {**e, 'p10': adj(e.get('p10'), 10), 'p15': adj(e.get('p15'), 15), 'eLo': sh(e['eLo']), 'eMid': sh(e['eMid']), 'eHi': sh(e['eHi']), 'adj': DUP}
 def eta_show(r, dt=None, as_of=None, upd=None):
     """예상 입주 글자 — 화면 app.js etaShow(projection·etaSpan·stallYrs)와 같은 규칙.
     dt = premium 단계 날짜(없으면 r.sd), as_of = D.asOf(TODAY), upd = D.upd(ETA_NOW)."""
     s = r.get('s', 0) or 0
     if r.get('dn') or s >= 9: return '완료'
     if r.get('src') == 'moa': return '사업구역별'
-    e = r.get('eta') or {}
+    e = eta_adj(r, as_of) or {}
     if r.get('stale') or e.get('stale'): return '진행 확인 필요'
     today = _ymd(as_of) or datetime.date.today(); now = _ymd(upd) or today
     pre = False

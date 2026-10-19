@@ -11,10 +11,11 @@
 """
 import json, os, re, math, datetime, collections, shutil
 import sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from zsample import smpTxt, trust, isEst, short   # /z/ 페이지와 같은 표본 문장·신뢰도
+from zsample import smpTxt, trust, isEst, short, eta_adj, set_dup   # /z/ 페이지와 같은 표본 문장·신뢰도 · 입주 시점(가로·소규모 보정 = 화면과 같은 값)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p, d=None: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else d
 D = J('pipeline/data.enriched.json') or J('src/data.json'); P = J('public/premium.json', {}); C = J('pipeline/calc.json', {})
+set_dup(D)
 TX = J('public/data/tx.json', {}); TH = J('public/data/toheo.json', {}) or {}; S = J('public/data/sang.json'); NT = J('public/data/notice.json', {}) or {}
 RB = J('pipeline/rebuild.json', {}) or {}
 OUT = os.path.join(ROOT, 'public/api/v1'); SITE = 'https://jaegaebal.alwaysquestions.kr'
@@ -33,7 +34,7 @@ def dong(r):
 def active(r): return not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n')
 R = [r for r in D['recs'] if active(r)]
 def summary(r):
-    c = C.get(r['id']) or {}; t = r.get('tx') or {}; e = r.get('eta') or {}; st = r.get('st') or {}
+    c = C.get(r['id']) or {}; t = r.get('tx') or {}; e = eta_adj(r, D.get('asOf')) or {}; st = r.get('st') or {}
     old = t.get('old') if r.get('s', 0) < 7 else None
     th = (TH.get('z') or {}).get(r['id'])
     mkz = r.get('tag') == 'mk' or r.get('nx') == 'mk'
