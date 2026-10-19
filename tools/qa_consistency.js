@@ -699,7 +699,7 @@ async function uiLane(browser, api, errs, shared) {
         await loadHome(page); await settle(page, 300);
         const r = await page.evaluate(async (h) => { const a = document.querySelector(`#sQuick a[href="#${h}"]`); const y0 = scrollY; a.scrollIntoView({ block: "center" }); await new Promise((r) => setTimeout(r, 120)); const y1 = scrollY; a.click(); await new Promise((r) => setTimeout(r, 700)); const on = [...document.querySelectorAll(".s-on")].map((e) => e.id); const chip = document.querySelector("#ntcF [aria-pressed=\"true\"]"); const tab = document.querySelector("#rankHub [role=tab][aria-selected=\"true\"]"); return { on, chip: chip ? chip.dataset.c : null, tab: tab ? tab.dataset.tab : null, y1, auc: (document.getElementById("ntcOut") || {}).textContent || "" }; }, x.h);
         const [view, sub] = TGT[x.h] || [];
-        const okV = r.on.includes(view) && (x.h !== "aucTop" || r.chip === "auc") && (x.h !== "ntcTop" || r.chip === "") && (x.h !== "txrTop" || /txr|실거래/.test(String(r.tab)));
+        const okV = r.on.includes(view) && (x.h !== "aucTop" || r.chip === "auc") && (x.h !== "ntcTop" || r.chip === "ntc") && (x.h !== "txrTop" || /txr|실거래/.test(String(r.tab)));
         expect(okV, "ui.tiles", TT, `${x.t} (#${x.h}): open ${r.on.join(",")} chip ${r.chip} tab ${r.tab}`);
         // 돌아가기 → 홈의 빠른 메뉴 자리로
         const back = await page.evaluate(async () => { history.back(); await new Promise((r) => setTimeout(r, 700)); return { view: document.documentElement.classList.contains("s-view"), y: scrollY }; });
@@ -1805,7 +1805,7 @@ async function r19Lane(browser, api, errs) {
         await page.waitForFunction(() => /^강북구 · /.test(document.getElementById("sLT").textContent), null, { timeout: 30000, polling: 100 }).catch(() => {});
         await page.waitForFunction(() => { const m = window.ZP_lmx && ZP_lmx.map && ZP_lmx.map(); return m && m.loaded() && !m.isMoving(); }, null, { timeout: 30000, polling: 200 }).catch(() => {});
         await page.waitForTimeout(600);
-        const r = await page.evaluate(() => { const m = ZP_lmx.map(), b = m && m.getBounds(), n = window.ZP_simple ? ZP_simple.list().length : null; return { lt: document.getElementById("sLT").textContent, view: document.getElementById("mapbox").dataset.view, gu: document.getElementById("mapbox").dataset.gu, n, inB: b ? b.contains([127.0257, 37.6396]) : false, z: m ? m.getZoom() : 0 }; });
+        const r = await page.evaluate(() => { const m = ZP_lmx.map(), b = m && m.getBounds(), n = window.ZP_simple ? ZP_simple.list().length : null; return { lt: document.getElementById("sLT").textContent, view: document.getElementById("mapbox").dataset.view, gu: document.getElementById("mapbox").dataset.gu, n, inB: b ? (() => { const ok = __ZPD.recs.filter((x) => x.g === "강북구" && window.ZP_ok && ZP_ok(x)).map((x) => ZP_lmx.llOf(x.id)).filter(Boolean); return ok.length ? ok.every((ll) => b.contains(ll)) : b.contains([127.0257, 37.6396]); })() : false,   /* 23차: 구 화면은 그 구의 갈 수 있는 곳에 맞춘다(폰) — 그 곳들이 다 보이면 맞춤 */ z: m ? m.getZoom() : 0 }; });
         expect(new RegExp("^강북구 · [\\d,]+곳$").test(r.lt) && r.view === "gu" && r.gu === "강북구" && r.inB && r.z >= 10, "ui.guDeepLink", TL, `${w}px: list '${r.lt}' view ${r.view}/${r.gu} zoom ${r.z.toFixed(2)} 강북 in view ${r.inB}`);
       } catch (e) { bad("runtime", "검사 실행", "guDeepLink crashed: " + String(e.message || e).split("\n")[0]); }
       finally { await ctx.close().catch(() => {}); }

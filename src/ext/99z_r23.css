@@ -2,7 +2,7 @@
 /* 목록 줄 둘째 줄: 420px 아래는 역·도보만(동 · 빼기) · 좁으면 역 이름만 줄이고 '역 N분'은 끝까지 */
 @media (max-width:419px){.s-sub .s-dg.s-dgw{display:none}}
 .s-card .s-sub .s-wk{display:inline-flex;align-items:baseline;max-width:100%;min-width:0;overflow:hidden}
-.s-card .s-sub .s-wk .s-wn{flex:0 1 auto;min-width:1.5em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-card .s-sub .s-wk .s-wn{flex:0 1 auto;min-width:1em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .s-card .s-sub .s-wk .s-wm{flex:none;white-space:nowrap}
 /* 빠른 메뉴 6칸: 폰(360~980)은 6열 격자 — 옆으로 밀려 '입주 계…'가 잘리던 것 · 좁을수록 타일·글자를 조금씩 줄인다 */
 @media (max-width:980px){
