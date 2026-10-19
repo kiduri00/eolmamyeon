@@ -60,7 +60,7 @@ li.m.new{border-color:var(--zn);box-shadow:inset 3px 0 0 var(--zn)}
     return fetch("/api/contact/admin/" + p, { method: body ? "POST" : "GET", headers: Object.assign({ Authorization: "Bearer " + tok() }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined, cache: "no-store" })
       .then(function (r) { if (r.status === 401) { show(false); throw new Error("토큰이 맞지 않아요"); } return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; }); });
   };
-  var cursor = null;
+  var cursor = null, total = 0;
   var when = function (iso) { try { return new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return iso; } };
   function row(m) {
     var subj = "[집핀] 문의 답장" + (m.zone ? " · " + m.zone : "");
@@ -78,7 +78,7 @@ li.m.new{border-color:var(--zn);box-shadow:inset 3px 0 0 var(--zn)}
       if (more) $("list").insertAdjacentHTML("beforeend", html); else $("list").innerHTML = html || '<li class="empty">아직 받은 문의가 없어요</li>';
       $("more").hidden = !cursor;
       var n = j.items.filter(function (x) { return !x.read; }).length;
-      st("모두 " + j.total + "건" + (n ? " · 이 화면에 새 문의 " + n + "건" : ""));
+      total = j.total; st("모두 " + j.total + "건" + (n ? " · 이 화면에 새 문의 " + n + "건" : ""));
     }).catch(function (e) { st("불러오지 못했어요 · " + e.message, true); });
   }
   function show(on) { $("login").hidden = on; $("app").hidden = !on; if (on) load(false); else { try { localStorage.removeItem(K); } catch (e) {} } }
@@ -91,7 +91,7 @@ li.m.new{border-color:var(--zn);box-shadow:inset 3px 0 0 var(--zn)}
     var li = b.closest("li"), id = li.getAttribute("data-id"), a = b.getAttribute("data-a");
     if (a === "delete" && !confirm("이 문의를 지울까요? 되돌릴 수 없어요.")) return;
     b.disabled = true;
-    api(a, { id: id }).then(function () { if (a === "delete") li.remove(); else { li.classList.remove("new"); b.remove(); var h = li.querySelector(".h b"); if (h) h.remove(); } }).catch(function (er) { b.disabled = false; st("처리하지 못했어요 · " + er.message, true); });
+    api(a, { id: id }).then(function () { if (a === "delete") { li.remove(); total = Math.max(0, total - 1); st("모두 " + total + "건 · 1건 지웠어요"); if (!$("list").children.length) $("list").innerHTML = '<li class="empty">아직 받은 문의가 없어요</li>'; } else { li.classList.remove("new"); b.remove(); var h = li.querySelector(".h b"); if (h) h.remove(); } }).catch(function (er) { b.disabled = false; st("처리하지 못했어요 · " + er.message, true); });
   });
   var u8 = function (s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; var r = atob(s), o = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) o[i] = r.charCodeAt(i); return o; };
   $("push").onclick = function () {

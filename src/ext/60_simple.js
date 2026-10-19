@@ -15,7 +15,7 @@ const SIMPLE = (() => {
     ["favTop", "관심 구역", "M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.4 7.2 4.4c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.5 3.1 4.4 6.5-1.6 4.8-9.2 9.4-9.2 9.4z", "#1f3a87", "관심 구역 소식"],
   ];
   // 예전 도구 주소(#gapTop 등)는 합친 화면 + 그 탭으로 연다(정적 페이지·공유 링크가 그대로 동작) — [화면, 탭]
-  const ALIAS = window.ZP_ALIAS = { gapTop: ["rankHub", "gap"], txrTop: ["rankHub", "txr"], rankTop: ["rankHub", "loc"], ntcTop: ["news", "feed"], newTop: ["news", "feed"], supplyTop: ["news", "supply"], saveTop: ["planner", "save"] };
+  const ALIAS = window.ZP_ALIAS = { gapTop: ["rankHub", "gap"], txrTop: ["rankHub", "txr"], rankTop: ["rankHub", "loc"], ntcTop: ["news", "feed"], aucTop: ["news", "feed"], newTop: ["news", "feed"], supplyTop: ["news", "supply"], saveTop: ["planner", "save"] };
   // 격자 = 도구 6개 전부(폰 3×2 · PC 한 줄/두 줄), 더보기 없음
   const VIEWS = TOOLS_ALL;
   // ⋯ 메뉴 '도구' 묶음: 전부(shell.html #mpTools는 비워 두고 여기서 채운다)
@@ -117,7 +117,7 @@ const SIMPLE = (() => {
   // ---------- 구역 상태 4가지(지도 알약·점·목록 카드가 같은 함수) ----------
   // ok 가능(지금 필요한 돈 ≤ 내 돈 · 목록 '갈 수 있는 곳'과 같은 판정 okR) · near 조금 모자람(내 돈 × 1.2 안) · far 멀다 · na 정보 부족(계산 보류·구 평균 추정)
   const NEAR_K = 1.2;
-  const ST_WORD = { ok: "가능", near: "조금 모자람", far: "멀다", na: "정보 부족" };
+  const ST_WORD = { ok: "가능", near: "조금 모자람", far: "더 필요해요", na: "자료 없음" };   // 21차: '멀다'(거리로 읽힘)·'정보 부족' → 쉬운 말
   function zstate(r) {
     let need = null, total = null;
     try { const n = needOf(r); need = n.now != null && isFinite(n.now) ? n.now : null; total = n.total != null && isFinite(n.total) ? n.total : null; } catch (e) {}
@@ -170,7 +170,7 @@ const SIMPLE = (() => {
     const lab = `${nm}, ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} ${mt}, ${word}${gapT}${z.total != null && nowK ? `, ${LBL.cashToMoveIn} ${eokS(z.total)}` : ""}, ${stg}${tk === "n" ? ", 입주권 안 나옴" : tk === "y" ? ", 입주권 나옴" : ""}${nw ? ", 이번 주 새로 가능" : ""}${left == null ? "" : fit ? ", 딱 맞아요" : left >= 0.01 ? `, 남는 돈 ${eokS(left)}` : ""}`;
     // 지도 고른 카드(#lmPick): 두 칸 — 왼쪽 이름 한 줄 · 배지 · 남는 돈 / 오른쪽 '지금 X' 위 '입주까지 현금 Y' · 끝에 ›
     if (o.peek) return `<li class="s-card s-peek st-${z.st}${fav ? " fav" : ""}" data-zid="${r.id}"><a href="#${r.id}" data-id="${r.id}" data-zid="${r.id}" class="pk-a" aria-label="${esc(lab)} · 눌러서 자세히"><span class="pk-l"><b class="pk-n">${esc(nm)}</b><span class="pk-b"><em class="s-b s-stg">${esc(stg)}</em>${bdg}${fit ? '<em class="s-fit">딱 맞아요</em>' : ""}</span>${!fit && left != null && left >= 0.01 ? `<small class="pk-left">남는 돈 ${esc(eokS(left))}</small>` : z.st === "near" && z.need != null ? `<small class="pk-left">${esc(shortTxt(z.need))} 더 필요</small>` : ""}</span><span class="pk-r"><span class="pk-v"><i>${nowK ? "지금" : "입주까지"}</i> <b>${mt}</b></span>${nowK ? `<small>${z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : NA_L}</small>` : ""}</span><span class="pk-go" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span></a></li>`;
-    return `<li class="s-card st-${z.st}${fav ? " fav" : ""}${o.cls ? " " + o.cls : ""}" data-zid="${r.id}"${left != null ? ` data-need="${needR}"` : ""}><a href="#${r.id}" data-id="${r.id}" class="s-cm" aria-label="${esc(lab)}"><span class="s-nm"><b>${esc(nm)}</b></span><span class="s-l2"><em class="s-b s-stg">${esc(stg)}</em>${bdg}<span class="s-fx">${fitH}</span><small class="s-sub">${sub}</small></span></a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(nm)} ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} 추정 ${mt}${z.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · ${LBL.cashToMoveIn} ${eokS(z.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog"><span class="s-av"><i class="s-al" aria-hidden="true">${nowK ? "지금" : "입주까지"}</i><b>${mt}</b></span><small${z.total == null && nowK ? ' class="s-na"' : ""}>${z.st === "near" ? `<span class="s-gapt">${shortTxt(z.need)} 더 필요</span>` : line2}</small></button><button type="button" class="s-heart" data-heart="${r.id}" aria-pressed="${fav}" aria-label="${esc(heartLbl(r, fav))}">${HEART(fav)}</button></li>`;
+    return `<li class="s-card st-${z.st}${fav ? " fav" : ""}${o.cls ? " " + o.cls : ""}" data-zid="${r.id}"${left != null ? ` data-need="${needR}"` : ""}><a href="#${r.id}" data-id="${r.id}" class="s-cm" aria-label="${esc(lab)}"><span class="s-nm"><b>${esc(nm)}</b></span><span class="s-l2"><span class="s-mt"><em class="s-b s-stg">${esc(stg)}</em>${bdg}<small class="s-sub">${sub}</small></span><span class="s-fx">${fitH}</span></span></a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(nm)} ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} 추정 ${mt}${z.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · ${LBL.cashToMoveIn} ${eokS(z.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog"><span class="s-av"><i class="s-al" aria-hidden="true">${nowK ? "지금" : "입주까지"}</i><b>${mt}</b></span><small${z.total == null && nowK ? ' class="s-na"' : ""}>${z.st === "near" ? `<span class="s-gapt">${shortTxt(z.need)} 더 필요</span>` : line2}</small></button><button type="button" class="s-heart" data-heart="${r.id}" aria-pressed="${fav}" aria-label="${esc(heartLbl(r, fav))}">${HEART(fav)}</button></li>`;
   }
   // ♡ 누르면 관심 구역(핀과 같은 toggleFav → 되돌리기 토스트·관심 탭·지도 하트 모두 같은 길)
   function heartSync() {
@@ -188,6 +188,8 @@ const SIMPLE = (() => {
   addEventListener("pins:change", () => heartSync());
   // 구별 곳 수 한 번에(rows()에서 구를 고른 것과 같은 거르기: okR · 참고값 제외 · 유형 칩) — 지도 구 묶음 숫자
   const guCounts = () => { const o = {}; R.forEach((r) => { if (okR(r) && !r.lc && (!kind || KIND(r) === kind)) o[r.g] = (o[r.g] || 0) + 1; }); return o; };
+  // 21차: 구 묶음 둘째 줄 '7,400만~' = 그 구의 갈 수 있는 곳 중 지금 필요한 돈이 가장 적은 값(구 묶음 숫자와 같은 거르기)
+  const guMins = () => { const o = {}; R.forEach((r) => { if (!okR(r) || r.lc || (kind && KIND(r) !== kind)) return; let v = null; try { v = needOf(r).now; } catch (e) {} if (v != null && isFinite(v) && (o[r.g] == null || v < o[r.g])) o[r.g] = v; }); return o; };
   // 구 묶음(지도 줌 11 이하) 숫자 = 그 구를 고르면 보이는 목록 곳 수(같은 rows 거르기)
   const guCount = (g) => { const save = gu; try { gu = g; return rows().length; } finally { gu = save; } };
   // 지도 알약을 누르면: 목록의 그 카드로(PC는 목록 칸 안에서 스크롤, 폰은 카드만 표시 — 지도가 화면 밖으로 밀리지 않게)
@@ -256,8 +258,10 @@ const SIMPLE = (() => {
     const gg = $("sGauge");
     const place = () => {
       // PC: 왼쪽 칸(예산 카드·목록)이 문서 순서로도 지도보다 먼저(Tab이 예산 카드 → 목록 → 지도 버튼 순)
-      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); if (gg && list.firstElementChild !== gg) list.insertBefore(gg, list.firstElementChild); if (main.firstElementChild !== right) main.insertBefore(right, main.firstElementChild); }
-      else { if (main.lastElementChild !== right) main.appendChild(right); if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); }
+      // 빠른 메뉴 한 줄(#sQuick, 21차): 폰은 지도 밑·목록 머리 위, PC는 왼쪽 칸 맨 아래(목록 밑)
+      const qk = $("sQuick");
+      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); if (gg && list.firstElementChild !== gg) list.insertBefore(gg, list.firstElementChild); if (main.firstElementChild !== right) main.insertBefore(right, main.firstElementChild); if (qk && list.lastElementChild !== qk) list.appendChild(qk); }
+      else { if (main.lastElementChild !== right) main.appendChild(right); if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); const lh = list.querySelector(":scope > .s-lh"); if (qk && lh && lh.previousElementSibling !== qk) lh.before(qk); }
     };
     place(); matchMedia("(min-width:981px)").addEventListener("change", place);
     // 상세 위 '← 목록' 단추는 하나: 구 화면에서 열었으면 '← 강북구 · 갈 수 있는 곳 6곳'(같은 목록으로) · 구 화면 기록 칸이면 뒤로 가기와 같은 길
@@ -285,8 +289,9 @@ const SIMPLE = (() => {
     // 전체 지도 위 막대에서도 전세 끼고/대출 끼고 전환(본 버튼을 대신 누른다 → 상태·목록·지도 모두 같은 길)
     mini.querySelector(".s-mm").addEventListener("click", (e) => { const b = e.target.closest("button[data-f]"); if (!b) return; const o = map.querySelector(`.s-mode button[data-f="${b.dataset.f}"]`); if (o) o.click(); });
     const mr = mini.querySelector("#sMiniR");
-    mr.addEventListener("input", () => { $("sCash").value = mr.value; label(toCash(+mr.value)); live(toCash(+mr.value)); });
-    mr.addEventListener("change", () => { clearTimeout(timer); clearTimeout(idleT); setCash(toCash(+mr.value), true); });
+    mr.addEventListener("input", () => { const v = toCash(+mr.value); if (dragging && rangeEl === mr) { mr.style.setProperty("--p", mr.value + "%"); dragTo(v); return; } $("sCash").value = mr.value; label(v); live(v); });
+    mr.addEventListener("pointerdown", () => { dragging = true; rangeEl = mr; dragN0 = null; try { histData(); } catch (e) {} }, { passive: true });
+    mr.addEventListener("change", () => { clearTimeout(timer); clearTimeout(idleT); if (snapFn || dragging) return; setCash(toCash(+mr.value), true); });
     let gaugeOut = false, areaIn = true;
     const sync = () => { if (document.documentElement.classList.contains("s-full")) { mini.hidden = false; return; } mini.hidden = !(gaugeOut && areaIn && !document.documentElement.classList.contains("s-view")) || !matchMedia("(max-width:980px)").matches; };
     if (window.IntersectionObserver) {
@@ -344,8 +349,9 @@ const SIMPLE = (() => {
     });
     // 이벤트
     const sl = $("sCash");
-    sl.addEventListener("input", () => { label(toCash(+sl.value)); live(toCash(+sl.value)); });
-    sl.addEventListener("pointerdown", () => { dragging = true; });
+    // 손가락으로 끄는 중: 채움(--p)은 손잡이를 그대로 따라가고(원래 값), 숫자는 다음 프레임 · 키보드·프로그램 입력은 예전 길(live)
+    sl.addEventListener("input", () => { const v = toCash(+sl.value); if (dragging && rangeEl === sl) { sl.style.setProperty("--p", sl.value + "%"); dragTo(v); } else { label(v); live(v); } });
+    sl.addEventListener("pointerdown", () => { dragging = true; rangeEl = sl; dragN0 = null; try { histData(); } catch (e) {} }, { passive: true });
     // 키보드: 2억 아래는 0.1억, 5억 아래는 0.25억, 그 위는 0.5억씩
     const key = (e) => {
       const c = +$("pCash").value || 1, st = c < 2 ? 0.1 : c < 5 ? 0.25 : 0.5;
@@ -357,9 +363,10 @@ const SIMPLE = (() => {
     };
     sl.addEventListener("keydown", key);
     $("sMiniR") && $("sMiniR").addEventListener("keydown", key);
-    const up = () => { if (!dragging) return; dragging = false; clearTimeout(idleT); idleT = setTimeout(() => setCash(toCash(+sl.value), true), 30); };
-    window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
-    sl.addEventListener("change", () => { clearTimeout(timer); clearTimeout(idleT); setCash(toCash(+sl.value), true); });
+    // 놓으면: 숫자 마지막 프레임 → 손잡이를 금액 자리로 살짝 → 전체 계산(목록·지도) 한 번
+    const up = () => { if (!dragging || !rangeEl) return; const el = rangeEl; dragging = false; rangeEl = null; dragEnd(); clearTimeout(idleT); rangeSnap(el, () => setCash(toCash(+el.value), true)); };
+    window.addEventListener("pointerup", up, { passive: true }); window.addEventListener("pointercancel", up, { passive: true });
+    sl.addEventListener("change", () => { clearTimeout(timer); clearTimeout(idleT); if (snapFn || dragging) { if (dragging && rangeEl === sl) up(); return; } setCash(toCash(+sl.value), true); });
     map.querySelector(".s-mode").addEventListener("click", (e) => { const b = e.target.closest("button[data-f]"); if (!b) return; if (b.dataset.f === "cash") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (er) {} } setFund(b.dataset.f); setTimeout(() => { try { LMX.fitAff(true); } catch (er) {} }, 60); });
     list.querySelector(".s-flt").addEventListener("click", (e) => {
       const b = e.target.closest("button[data-k]"); if (!b) return;
@@ -403,15 +410,12 @@ const SIMPLE = (() => {
   // 금액 글자: ZF.cash와 같은 꼴(1억 아래는 '5,000만', 1억부터 '1.5억', 15억 넘으면 '15억+') — 카드 '내 돈 1억 ▾'·한 줄 막대·예산 시트가 같은 글
   const cashTxt = (v, real) => (real != null && real > 15 ? "15억+" : ZF.cash(real != null ? Math.round(real * 100) / 100 : v));
   const cashHTML = (t) => { const m = t.match(/^([\d,.]+)(만|억\+?)$/) || [, t, ""]; return `${m[1]}<small>${m[2]}</small>`; };
+  let labT = "";
   function label(v, real) {
-    const t = cashTxt(v, real);
-    $("sCashV").innerHTML = cashHTML(t);
-    const pct = toPos(v);
-    if ($("sMiniV")) { $("sMiniV").textContent = t; if (!dragging || document.activeElement !== $("sMiniR")) $("sMiniR").value = pct; $("sMiniR").style.setProperty("--p", pct + "%"); }
-    if (!dragging || document.activeElement !== $("sCash")) { if (Math.abs(+$("sCash").value - pct) > 0.6) $("sCash").value = pct; }
-    $("sCash").style.setProperty("--p", pct + "%");
-    if ($("sMiniR")) $("sMiniR").setAttribute("aria-valuetext", t);
-    if ($("bCash")) $("bCash").innerHTML = cashHTML(t);
+    const t = cashTxt(v, real), pct = toPos(v), rg = dragging && rangeEl;   // 손가락으로 끄는 기본 막대(range)는 손잡이·채움을 손가락이 정한다(21차: 단계 자리로 튀지 않게)
+    if (t !== labT) { labT = t; $("sCashV").innerHTML = cashHTML(t); if ($("sMiniV")) $("sMiniV").textContent = t; if ($("sMiniR")) $("sMiniR").setAttribute("aria-valuetext", t); if ($("bCash")) $("bCash").innerHTML = cashHTML(t); }
+    if ($("sMiniR") && rg !== $("sMiniR")) { if (Math.abs(+$("sMiniR").value - pct) > 0.6 || !dragging) $("sMiniR").value = pct; $("sMiniR").style.setProperty("--p", pct + "%"); }
+    if (rg !== $("sCash")) { if (Math.abs(+$("sCash").value - pct) > 0.6) $("sCash").value = pct; $("sCash").style.setProperty("--p", pct + "%"); }
   }
   // 끄는 동안에도 지도·숫자가 따라오게(계산은 약 30ms라 프레임마다 한 번까지만)
   // 끄는 동안: 무거운 전체 계산 대신 '필요한 돈 ≤ 현금' 판정만 다시 해 숫자·목록·구별 말풍선을 매 프레임 갱신.
@@ -429,6 +433,51 @@ const SIMPLE = (() => {
       clearTimeout(heavyT); heavyT = setTimeout(() => { heavyT = 0; try { render(); } catch (e) {} }, 250);
     });
     clearTimeout(idleT); if (!dragging) idleT = setTimeout(() => setCash(liveV, true), 220);
+  }
+  // ---------- 21차: 손가락으로 끄는 동안(홈 막대 · 예산 시트 · 전체 지도 위 막대) ----------
+  // 손잡이·채움·말풍선 = pointermove에서 바로(transform · 레이아웃 읽기 없음) · 금액 글자·큰 숫자 = 다음 프레임(rAF, 곳 수는 미리 센 금액별 막대 자료에서 바로)
+  // 목록·지도·'이 돈이면' 칸 = 150ms 멈추거나 손을 뗄 때 한 번
+  let dragV = null, dragRaf = 0, dragIdleT = 0, dragN0 = null, rangeEl = null;
+  const DRAG_IDLE = 150;
+  const fastCount = (v) => { const k = condK(); if (!hist || histK !== k) histData(); const i = STOPS.indexOf(v); return i >= 0 && hist ? hist[i][1] : countAt(v); };
+  function dragTo(v) {
+    if (v === dragV) return;
+    dragV = v;
+    if (!dragRaf) dragRaf = requestAnimationFrame(dragFrame);
+    clearTimeout(dragIdleT); dragIdleT = setTimeout(dragIdle, DRAG_IDLE);
+  }
+  function dragFrame() {
+    dragRaf = 0;
+    const v = dragV; if (v == null) return;
+    $("pCash").value = String(v); CASH = v;
+    label(v);
+    const all = fastCount(v), vt = `${cashTxt(v)}, ${fmt(all)}곳`;
+    if (dragN0 == null) dragN0 = all;
+    $("sN").textContent = fmt(all); countTo($("sNB"), all);
+    $("sCash").setAttribute("aria-valuetext", vt);
+    SCRS.forEach((x) => { if (x.getAttribute("role") === "slider") { x.setAttribute("aria-valuenow", String(v)); x.setAttribute("aria-valuetext", vt); } });
+    if ($("sMiniN") && !gu && !bbF && !kind) $("sMiniN").textContent = fmt(all);
+    if (bsOpen()) { $("bN").textContent = fmt(all); countTo($("bNB"), all); $("bGo").textContent = all ? `${fmt(all)}곳 보기` : "지도에서 보기"; }
+    if (scr) { const bub = scr.el.querySelector(".scr-bub"), d = all - scr.n0; if (bub) { const t = `${cashTxt(v)} · ${fmt(all)}곳${d ? ` (${d > 0 ? "+" : "−"}${fmt(Math.abs(d))})` : ""}`; if (bub.textContent !== t) bub.textContent = t; bub.hidden = false; } }
+  }
+  // 손이 150ms 멈추면: 목록·제목·'이 돈이면'·지도 구 묶음(가벼운 길) 한 번
+  function dragIdle() {
+    dragIdleT = 0;
+    if (!dragging || dragV == null) return;
+    try { render(); } catch (e) {}
+    try { LMX.dragLite(); } catch (e) {}
+  }
+  function dragEnd() { clearTimeout(dragIdleT); dragIdleT = 0; if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; dragFrame(); } dragV = null; dragN0 = null; }
+  // 기본 막대(range)를 놓으면: 손잡이를 가까운 금액 자리로 살짝(90ms) 옮긴 뒤 전체 계산 — 움직임 줄이기 설정이면 바로
+  let snapRaf = 0, snapFn = null;
+  function rangeSnap(el, fn) {
+    snapFn = fn; cancelAnimationFrame(snapRaf);
+    const to = toPos(toCash(+el.value)), from = +el.value, rd = reduceMotion() || Math.abs(to - from) < 0.05;
+    const done = () => { snapRaf = 0; el.value = String(to); el.style.setProperty("--p", to + "%"); const f = snapFn; snapFn = null; if (f) setTimeout(f, 0); };
+    if (rd) return done();
+    const t0 = performance.now(), D = 90;
+    const step = (t) => { const k = Math.min(1, (t - t0) / D), e = 1 - (1 - k) * (1 - k), x = from + (to - from) * e; el.value = String(x); el.style.setProperty("--p", x + "%"); if (k < 1) snapRaf = requestAnimationFrame(step); else done(); };
+    snapRaf = requestAnimationFrame(step);
   }
   // 키보드로 막대를 움직일 때(20차 A3): 숫자·제목·슬라이더 글은 그 자리에서 바로(가벼운 길) — 목록·지도·계획 전체 계산은 키를 멈춘 뒤 0.4초에 한 번
   let keyT = 0, keyOn = false;
@@ -626,35 +675,54 @@ const SIMPLE = (() => {
     });
     const keepBars = (el.querySelector(".scr-bars") || {}).innerHTML || "";   // 첫 화면 섬이 그려 둔 막대는 그대로(곳 수 계산이 한가할 때 끝나기 전까지 빈 막대가 되지 않게)
     el.innerHTML = `<div class="scr-bars" aria-hidden="true">${keepBars}</div><i class="scr-h" aria-hidden="true"></i><span class="scr-bub" hidden aria-hidden="true"></span><div class="scr-t" aria-hidden="true">${TICKS.map(([c, t]) => `<span style="left:${toPos(c)}%">${t}</span>`).join("")}</div>`;
-    let S = null;
-    const bars = el.querySelector(".scr-bars");
+    let S = null, G0 = null;
+    const bars = el.querySelector(".scr-bars"), hEl = el.querySelector(".scr-h"), bub = el.querySelector(".scr-bub");
+    // 21차: 끄는 동안 레이아웃을 읽지 않는다 — 막대 자리·폭은 손을 댈 때 한 번만 재고, 손잡이·말풍선은 transform으로만 옮긴다
+    const measure = () => { const b = bars.getBoundingClientRect(), c = +$("pCash").value || 1; G0 = { l: b.left, w: b.width, p0: (toPos(Math.min(15, Math.max(0.5, c))) / 100) * b.width }; };
+    const fill = (v) => { for (const i of bars.children) { const c = +i.dataset.c; i.classList.toggle("on", c <= v + 1e-9); i.classList.toggle("cur", Math.abs(c - v) < 1e-9); } };
     const at = (x) => {
-      const b = bars.getBoundingClientRect(); if (!b.width) return;
-      const v = toCash(Math.min(100, Math.max(0, ((x - b.left) / b.width) * 100)));
+      if (!G0 || !G0.w) return;
+      const px = Math.min(G0.w, Math.max(0, x - G0.l)), v = toCash((px / G0.w) * 100);
+      hEl.style.transform = `translate3d(${(px - G0.p0).toFixed(1)}px,0,0)`;
+      if (bub) bub.style.transform = `translate3d(${Math.min(G0.w - 70, Math.max(70, px)).toFixed(1)}px,0,0) translateX(-50%)`;
       if (scr.last != null && v !== scr.last) { const lo = Math.min(scr.last, v), hi = Math.max(scr.last, v); if (PRESET.some((q) => q > lo + 1e-9 && q <= hi + 1e-9)) try { navigator.vibrate && navigator.vibrate(8); } catch (er) {} }
       if (v === scr.last) return;
-      scr.last = v; $("sCash").value = String(toPos(v)); label(v); live(v);
+      scr.last = v; fill(v); dragTo(v);
     };
     const start = (e) => {
       S.on = true; try { el.setPointerCapture(e.pointerId); } catch (er) {}
-      scr = { el, n0: R.filter(okR).length, last: null };
-      document.documentElement.classList.add("scrub-on"); el.classList.add("on"); dragging = true;
+      // 놓은 뒤 미끄러지는 중에 다시 잡아도 손잡이가 튀지 않게: 자리(--p)를 지금 금액으로 먼저 맞추고 transform을 비운다
+      clearTimeout(el._snapT); el.classList.remove("snap"); hEl.style.transform = ""; el.style.setProperty("--p", toPos(Math.min(15, Math.max(0.5, +$("pCash").value || 1))) + "%");
+      measure();
+      try { histData(); } catch (er) {}
+      scr = { el, n0: fastCount(+$("pCash").value || 1), last: null };
+      document.documentElement.classList.add("scrub-on"); el.classList.add("on", "drag"); dragging = true; dragN0 = null;
       at(e.clientX);
     };
+    // 놓으면: 손잡이가 가까운 금액 자리로 살짝 미끄러지고(140ms, 합성 단계에서 — 무거운 계산이 막지 않음) 그다음 전체 계산 한 번
     const finish = () => {
       dragging = false; document.documentElement.classList.remove("scrub-on"); el.classList.remove("on");
-      const v = scr && scr.last; scr = null; SCRS.forEach((x) => { const bb = x.querySelector(".scr-bub"); if (bb) bb.hidden = true; });
-      clearTimeout(idleT); clearTimeout(timer); if (v != null) setCash(v, true);
+      const v = scr && scr.last; scr = null; dragEnd();
+      SCRS.forEach((x) => { const bb = x.querySelector(".scr-bub"); if (bb) { bb.hidden = true; bb.style.transform = ""; } });
+      clearTimeout(idleT); clearTimeout(timer);
+      const settle = () => { el.classList.remove("snap", "drag"); hEl.style.transform = ""; if (v != null) el.style.setProperty("--p", toPos(v) + "%"); };
+      if (v != null && G0 && !reduceMotion()) {
+        el.classList.add("snap");
+        hEl.style.transform = `translate3d(${((toPos(v) / 100) * G0.w - G0.p0).toFixed(1)}px,0,0)`;
+        el._snapT = setTimeout(settle, 160);
+        // 미끄러짐이 합성 단계에서 시작된 뒤(두 프레임) 무거운 계산
+        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => setCash(v, true), 0)));
+      } else { settle(); if (v != null) setCash(v, true); }
     };
     el.addEventListener("pointerdown", (e) => { if (e.button > 0) return; S = { id: e.pointerId, x: e.clientX, y: e.clientY, on: false }; if (e.pointerType === "mouse") { e.preventDefault(); start(e); } });
     el.addEventListener("pointermove", (e) => {
       if (!S || e.pointerId !== S.id) return;
       if (!S.on) { const dx = Math.abs(e.clientX - S.x), dy = Math.abs(e.clientY - S.y); if (dy > 10 && dy > dx * 1.2) { S = null; return; } if (dx < 6) return; start(e); }
       at(e.clientX);
-    });
+    }, { passive: true });
     const end = (e, cancel) => { if (!S || e.pointerId !== S.id) return; const was = S; S = null; if (was.on) { at(e.clientX); finish(); } else if (!cancel) { S = was; start(e); S = null; finish(); } };
-    el.addEventListener("pointerup", (e) => end(e, false));
-    el.addEventListener("pointercancel", (e) => { if (S && S.on) { S = null; finish(); } else S = null; });
+    el.addEventListener("pointerup", (e) => end(e, false), { passive: true });
+    el.addEventListener("pointercancel", (e) => { if (S && S.on) { S = null; finish(); } else S = null; }, { passive: true });
     SCRS.push(el);
   }
   // 막대 다시 그리기: 자료(곳 수)가 바뀐 때만 막대를 새로 만들고, 금액이 바뀌면 칠·손잡이·말풍선만
@@ -675,11 +743,11 @@ const SIMPLE = (() => {
       }
       for (const i of bars.children) { const v = +i.dataset.c; i.classList.toggle("on", v <= c + 1e-9); i.classList.toggle("cur", Math.abs(v - c) < 1e-9); }
       const p = toPos(c);
-      el.style.setProperty("--p", p + "%");
+      if (!el.classList.contains("drag")) el.style.setProperty("--p", p + "%");   // 끄는 중·미끄러지는 중에는 손잡이를 손가락(transform)이 정한다
       // 막대 맨 왼쪽 눈금 = 실제 최솟값(5,000만 아래로 정해 두면 그 금액을 쓴다 — 손잡이가 눈금 밖에 있지 않게)
       { const t0 = el.querySelector(".scr-t span"), tx = c < 0.5 - 1e-9 ? cashTxt(c) : "5,000만"; if (t0 && t0.textContent !== tx) t0.textContent = tx; }
       const bub = el.querySelector(".scr-bub");
-      if (scr && scr.el === el && all != null) { const d = all - scr.n0; bub.textContent = `${cashTxt(c)} · ${fmt(all)}곳${d ? ` (${d > 0 ? "+" : "−"}${fmt(Math.abs(d))})` : ""}`; bub.hidden = false; }
+      if (scr && scr.el === el && all != null) { const d = all - scr.n0, t = `${cashTxt(c)} · ${fmt(all)}곳${d ? ` (${d > 0 ? "+" : "−"}${fmt(Math.abs(d))})` : ""}`; if (bub.textContent !== t) bub.textContent = t; bub.hidden = false; }
     });
   }
   // '+0.5억이면 N곳 더' — 0.5억 더 넣어도 그대로면 처음 늘어나는 금액까지(15억 안)
@@ -897,6 +965,7 @@ const SIMPLE = (() => {
     // 예전 주소(#txrTop 등) → 합친 화면 + 그 탭(66_tools.js ZP_HUB)
     const from = id, al = ALIAS[id];
     if (al) { id = al[0]; try { window.ZP_HUB && ZP_HUB.pick(al[0], al[1]); } catch (e) {} }
+    try { window.dispatchEvent(new CustomEvent("zp:alias", { detail: from })); } catch (e) {}   // 21차: 빠른 메뉴 '경공매'(#aucTop)·'고시공고'(#ntcTop) → 소식 거르기 칩
     if (!IDS.includes(id)) return false;
     if (!cur && !noScroll) tileY = scrollY;   // 홈 화면이 숨기 전에(숨으면 문서가 짧아져 scrollY가 줄어든다)
     IDS.forEach((x) => { const s = $(x); if (s) s.classList.toggle("s-on", x === id); });
@@ -1047,7 +1116,7 @@ const SIMPLE = (() => {
   }
   // 검색에서 구·역을 고르면(폰) 전체 지도로 — 예전 아래 탭 '지도'와 같은 길
   const mapTab = () => { const v = history.state && history.state.sView; close(); if (v) setTimeout(() => fullMap(true), 120); else fullMap(true); };
-  return { init, open, close, render, fullMap: (on) => fullMap(on), mapTab, cur: () => cur, setCash: (v) => setCash(v, true), toCash, toPos, zstate, shortTxt, cardHTML, guCount, guCounts, pick, spark: (id) => spark(id), stWord: ST_WORD, isNew: (r, n) => isNew(r, n), list: () => rows().map((x) => x.r.id) };
+  return { init, open, close, render, fullMap: (on) => fullMap(on), mapTab, cur: () => cur, setCash: (v) => setCash(v, true), toCash, toPos, zstate, shortTxt, cardHTML, guCount, guCounts, guMins, pick, spark: (id) => spark(id), stWord: ST_WORD, isNew: (r, n) => isNew(r, n), list: () => rows().map((x) => x.r.id) };
 })();
 window.ZP_simple = SIMPLE;   // 점검(QA)·다른 화면에서 같은 판정을 읽을 때
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", SIMPLE.init) : setTimeout(SIMPLE.init, 0);

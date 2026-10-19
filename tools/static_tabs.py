@@ -33,10 +33,48 @@ CSS = ('.zp-tabs{display:none}'
        '@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){footer.f{display:none!important}}')
 
 
+# 21차: 머리 오른쪽 종(소식) + 'N' 점 + '10.19 갱신' — 앱(63_newb.js)과 같은 키(zp.seen.auc·zp.seen.ntc)·같은 날짜(가장 늦은 경매·고시 날)
+import json
+def _newd():
+    o = {}
+    try:
+        a = json.load(open(os.path.join(PUB, 'data', 'auction.json'), encoding='utf-8'))
+        fs = [x.get('fs') or '' for v in (a.get('byZone') or {}).values() for x in v if x.get('fs')]
+        if fs: o['auc'] = max(fs)
+    except Exception: pass
+    try:
+        n = json.load(open(os.path.join(PUB, 'data', 'notice.json'), encoding='utf-8'))
+        ds = [i[0] for i in n.get('items') or [] if i and i[0]]
+        if ds: o['ntc'] = max(ds)
+    except Exception: pass
+    return o
+def _upd():
+    try:
+        D = json.load(open(os.path.join(R, 'pipeline', 'data.enriched.json'), encoding='utf-8'))
+        m = re.search(r'(\d{4})-?(\d\d)-?(\d\d)', D.get('upd') or D.get('asOf') or '')
+        return f'{int(m.group(2))}.{m.group(3)}' if m else ''
+    except Exception: return ''
+NEWD, UPD = _newd(), _upd()
+BELL = ('<span class="hdr-date">' + (UPD + ' 갱신' if UPD else '') + '</span>'
+        '<a class="hdr-bell" href="/#news" aria-label="소식"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4zM10 20.5a2.2 2.2 0 0 0 4 0"/></svg><i class="nb-dot" aria-hidden="true" hidden>N</i></a>')
+BCSS = ('.top .in{align-items:center}.hdr-date{order:3;flex:none;margin-left:10px;font-weight:500;font-size:12px;line-height:1;color:#5c6573;white-space:nowrap}'
+        '.hdr-bell{order:4;position:relative;flex:none;margin-left:2px;display:inline-grid;place-items:center;width:44px;height:44px;margin-right:-8px;border-radius:12px;color:var(--brand,#1f3a87)}'
+        '.hdr-bell:focus-visible{outline:2px solid var(--brand,#1f3a87);outline-offset:-4px}'
+        '.nb-dot{position:absolute;top:6px;right:5px;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#e5484d;color:#fff;font-weight:800;font-size:10px;line-height:1;font-style:normal;box-shadow:0 0 0 2px var(--surface,#fff)}.nb-dot[hidden]{display:none}'
+        '.zp-tabs a{position:relative}.zp-tabs .nb-dot{top:2px;right:auto;left:calc(50% + 6px)}'
+        '@media (max-width:399px){.hdr-date{display:none}}'
+        '@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hdr-date{color:#8b93a1}:root:not([data-theme="light"]) .hdr-bell{color:#9fb3ff}}'
+        ':root[data-theme="dark"] .hdr-date{color:#8b93a1}:root[data-theme="dark"] .hdr-bell{color:#9fb3ff}')
+NJS = ('<script>(function(){var D=' + json.dumps(NEWD) + ',g=function(k){try{return localStorage.getItem("zp.seen."+k)||""}catch(e){return""}},'
+       'u=["auc","ntc"].some(function(k){return D[k]&&D[k]>g(k)});if(!u)return;'
+       '[].forEach.call(document.querySelectorAll(".hdr-bell .nb-dot,.zp-tabs .nb-dot"),function(e){e.hidden=false});'
+       'var b=document.querySelector(".hdr-bell");if(b)b.setAttribute("aria-label","소식, 새 소식 있음")})()</script>')
+
+
 def block(cur):
     ac = ' aria-current="page"'
-    a = ''.join(f'<a href="{u}"{ac if k == cur else ""}>{SV(d)}<span>{t}</span></a>' for k, u, t, d in TABS)
-    return f'<!--zp-tabs--><style>{CSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav><!--/zp-tabs-->'
+    a = ''.join(f'<a href="{u}"{ac if k == cur else ""}>{SV(d)}<span>{t}</span>{"<i class=\"nb-dot\" aria-hidden=\"true\" hidden>N</i>" if k == "news" else ""}</a>' for k, u, t, d in TABS)
+    return f'<!--zp-tabs--><style>{CSS}{BCSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}<!--/zp-tabs-->'
 
 
 RX = re.compile(r'<!--zp-tabs-->.*?<!--/zp-tabs-->', re.S)
@@ -52,6 +90,8 @@ def app_header(h):
     if not m: return h
     hd = NAV.sub('', m.group(0))
     if 'class="tsr"' not in hd: hd = hd.replace('</div></header>', FORM + '</div></header>', 1)
+    hd = re.sub(r'<span class="hdr-date">.*?</span><a class="hdr-bell".*?</a>', '', hd, flags=re.S)
+    hd = hd.replace('</div></header>', BELL + '</div></header>', 1)
     hd = re.sub(r'(<input id="tq"[^>]*placeholder=")[^"]*(")', lambda x: x.group(1) + PH + x.group(2), hd)
     return h[:m.start()] + hd + h[m.end():]
 

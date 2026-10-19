@@ -1,0 +1,96 @@
+/* ===================== 21차 ===================== */
+
+/* ---------- 목록 줄: 높이는 내용대로(최소 76px) · 왼쪽 두 줄(이름 / 단계 · 역 N분) · 오른쪽 '지금 X' / '입주까지 현금 Y' ----------
+   '남는 돈'·'딱 맞아요'는 둘째 줄 끝에 자리가 남을 때만(넘치면 통째로 다음 줄 = 숨김) → 역·도보 분이 먼저, 글자가 다음 줄·구분선을 넘지 않는다 */
+.s-list li.s-card{height:auto;min-height:76px}
+.s-list li.s-card>a.s-cm{gap:4px;padding:12px 4px 12px 16px;min-width:0;overflow:hidden}
+.s-list li.s-card>button.s-amt{padding:12px 4px 12px 6px;min-width:0;max-width:52vw}
+.s-card .s-nm{min-width:0}
+.s-card .s-l2{display:flex;flex-wrap:wrap;align-items:center;column-gap:6px;row-gap:0;height:20px;overflow:hidden;min-width:0}
+.s-card .s-l2 .s-mt{display:flex;align-items:center;gap:5px;flex:0 1 auto;min-width:0;max-width:100%;height:20px}
+.s-card .s-l2 .s-mt .s-sub{flex:0 1 auto;min-width:0;height:auto;line-height:20px}
+.s-card .s-l2 .s-fx{display:inline-flex;align-items:center;flex:none;height:20px}
+.s-card button.s-amt small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:374px){.s-list li.s-card>a.s-cm{padding-left:12px}}
+.s-card .s-l2 .s-sub{display:flex;align-items:center;overflow:hidden}
+.s-card .s-l2 .s-sub .s-dg{flex:0 100 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.s-card .s-l2 .s-sub .s-wk{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- 막대 색(다크에서도 보이게): 안 찬 칸 #2a3142 · 찬 칸 #9fb3ff (밝은 화면은 그대로 남색) ---------- */
+:root{--trk:#B9C4E0;--fil:#1F3A87;--trk2:#dfe3ec}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--trk:#2a3142;--fil:#9fb3ff;--trk2:#2a3142}}
+:root[data-theme="dark"]{--trk:#2a3142;--fil:#9fb3ff;--trk2:#2a3142}
+.scrub .scr-bars i{background:var(--trk)}
+.scrub .scr-bars i.on{background:var(--fil)}
+
+/* ---------- 위에 붙는 작은 금액 막대(#sMiniR): 큰 막대와 같은 꼴 — 찬 부분 남색(다크 #9fb3ff) · 보이는 칸 · 꽉 찬 손잡이 + 둘레 · 누르는 높이 44px ----------
+   (앞 파일의 다크 규칙보다 우선하도록 :root를 겹쳐 씀) */
+:root:root:root #sMiniR{height:44px;margin:0;padding:0;background:transparent;cursor:pointer}
+:root:root:root #sMiniR::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--fil) 0 var(--p,8%),var(--trk2) var(--p,8%) 100%)}
+:root:root:root #sMiniR::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-8px;border:0;border-radius:50%;background:var(--fil);box-shadow:0 0 0 3px var(--surface),0 1px 4px rgba(15,23,42,.35)}
+:root:root:root #sMiniR::-moz-range-track{height:6px;border-radius:3px;background:var(--trk2)}
+:root:root:root #sMiniR::-moz-range-progress{height:6px;border-radius:3px;background:var(--fil)}
+:root:root:root #sMiniR::-moz-range-thumb{width:22px;height:22px;border:0;border-radius:50%;background:var(--fil);box-shadow:0 0 0 3px var(--surface),0 1px 4px rgba(15,23,42,.35)}
+:root:root:root #sMiniR:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:8px}
+
+/* ---------- 이름 카드(이 돈이면 3곳) 다크: 카드 바탕 #1b2130 + 1px #2a3142 · 금액 #9fb3ff ---------- */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]).simple .s-sum .s-rail3 button{background:#1b2130;border-color:#2a3142}}
+:root[data-theme="dark"].simple .s-sum .s-rail3 button{background:#1b2130;border-color:#2a3142}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-rail3 .s-rv{color:#9fb3ff}:root:not([data-theme="light"]) .s-rail3 .s-rs{background:#232a3a;color:#c3cad9}}
+:root[data-theme="dark"] .s-rail3 .s-rv{color:#9fb3ff}
+:root[data-theme="dark"] .s-rail3 .s-rs{background:#232a3a;color:#c3cad9}
+
+/* ---------- 구 묶음: 둥근 네모 두 줄 '강북 1곳'(12.5/800) / '7,400만~'(10.5/600) · 폭 = 글자(자리 잡기 ZP_G.place와 같은 값 --w) ---------- */
+.zgu{width:auto;min-width:var(--w,56px);height:var(--h,40px);padding:0 9px;border-radius:12px;box-sizing:border-box;white-space:nowrap}
+.zgu b{font:800 12.5px/1.15 var(--font);letter-spacing:-.03em}
+.zgu span{margin-top:2px;font:600 10.5px/1.1 var(--font);font-variant-numeric:tabular-nums;letter-spacing:-.02em;opacity:.95}
+.zgu.sm{min-width:var(--w,44px);height:40px;padding:0 6px;border-radius:10px;isolation:isolate;background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+.zgu.sm::before{display:block;content:"";position:absolute;left:0;right:0;top:5px;bottom:5px;width:auto;height:auto;transform:none;z-index:-1;box-sizing:border-box;border-radius:10px;border:1.5px solid var(--zn);background:var(--zn);box-shadow:0 1px 3px rgba(15,23,42,.2)}
+.zgu.sm.t2::before{background:var(--zn-mid)}
+.zgu.sm.t1::before{background:var(--zn-soft);border-color:color-mix(in srgb,var(--zn) 60%,transparent)}
+.zgu.sm::after{display:none}
+.zgu.sm b{font-size:11px}.zgu.sm span{font-size:9.5px;margin-top:1px}
+.lm-gumore-b small{margin-left:-1px}
+
+/* ---------- 머리 오른쪽: '10.19 갱신'(작은 회색) + 종(소식) 44×44 + 새 소식 N 점 ---------- */
+.hdr-r .asof{display:none!important}
+.hdr-date{flex:none;font:500 12px/1 var(--font);color:#5c6573;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hdr-bell{position:relative;flex:none;display:inline-grid;place-items:center;width:44px;height:44px;margin:0 -6px 0 -4px;border-radius:12px;color:#1f3a87;text-decoration:none;-webkit-tap-highlight-color:transparent}
+.hdr-bell:hover{background:var(--surface-2)}
+.hdr-bell:focus-visible{outline:2px solid var(--focus);outline-offset:-4px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hdr-date{color:#8b93a1}:root:not([data-theme="light"]) .hdr-bell{color:#9fb3ff}}
+:root[data-theme="dark"] .hdr-date{color:#8b93a1}
+:root[data-theme="dark"] .hdr-bell{color:#9fb3ff}
+@media (max-width:359px){.hdr-date{display:none}}
+.hdr.searching .hdr-date,.hdr.searching .hdr-bell{display:none}
+/* 새 소식 N 점: 빨강은 이 점에만 */
+.nb-dot{position:absolute;top:6px;right:5px;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#e5484d;color:#fff;font:800 10px/1 var(--font);font-style:normal;box-shadow:0 0 0 2px var(--surface);pointer-events:none}
+.nb-dot[hidden]{display:none}
+#sNav [data-nav="news"]{position:relative}
+#sNav [data-nav="news"] .nb-dot{top:3px;right:auto;left:calc(50% + 5px)}
+.hdr-r .s-nav [data-nav="news"] .nb-dot{top:3px;left:20px;right:auto;width:14px;height:14px;font-size:9px}
+#ntcF .ichip{position:relative}
+#ntcF .ichip .nb-dot{position:relative;top:auto;right:auto;display:inline-grid;width:14px;height:14px;margin-left:4px;font-size:9px;box-shadow:none;vertical-align:1px}
+#ntcF .ichip .nb-dot[hidden]{display:none}
+
+/* ---------- 홈 빠른 메뉴 한 줄(지도 밑 · 목록 머리 위 / PC 왼쪽 칸 맨 아래): 56×56 타일 · 24px 남색 선 아이콘 · 12/600 이름 ---------- */
+.s-quick{display:flex;gap:4px;justify-content:space-between;margin:14px 0 6px;padding:2px 16px 6px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;scroll-padding:0 16px;-webkit-overflow-scrolling:touch}
+.s-quick::-webkit-scrollbar{display:none}
+.s-quick a{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;width:56px;min-height:44px;padding:0;color:var(--text-2);text-decoration:none;-webkit-tap-highlight-color:transparent;border-radius:16px}
+.s-quick .q-ic{position:relative;display:grid;place-items:center;width:56px;height:56px;border-radius:16px;background:#eef1f9;color:#1f3a87;font-style:normal;transition:transform .12s}
+.s-quick a:active .q-ic{transform:scale(.96)}
+.s-quick a span{font:600 12px/1.2 var(--font);white-space:nowrap;color:var(--text-2)}
+.s-quick a:focus-visible{outline:none}
+.s-quick a:focus-visible .q-ic{outline:2px solid var(--focus);outline-offset:2px}
+.s-quick .nb-dot{top:-3px;right:-3px}
+@media (hover:hover){.s-quick a:hover .q-ic{background:#e3e8f5}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-quick .q-ic{background:#1b2130;color:#9fb3ff}}
+:root[data-theme="dark"] .s-quick .q-ic{background:#1b2130;color:#9fb3ff}
+@media (prefers-reduced-motion:reduce){.s-quick .q-ic{transition:none}}
+@media (max-width:379px){.s-quick{justify-content:flex-start;gap:8px}}
+@media (min-width:981px){.s-quick{justify-content:space-between;margin:18px 0 8px;padding:12px 16px 4px;border-top:1px solid var(--border);overflow:visible}}
+
+/* 밝은 화면: 바탕(회색) 위에서 #eef1f9 타일이 묻히지 않게 옅은 남색 테두리 */
+.s-quick .q-ic{box-shadow:inset 0 0 0 1px #dde3f1}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-quick .q-ic{box-shadow:inset 0 0 0 1px #2a3142}}
+:root[data-theme="dark"] .s-quick .q-ic{box-shadow:inset 0 0 0 1px #2a3142}

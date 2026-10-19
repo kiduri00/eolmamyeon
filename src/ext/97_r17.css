@@ -250,7 +250,7 @@ html.simple #bSheet input.scr-in{position:static!important;display:block;width:1
 .zpill.two .zp-v{font-size:13px;font-weight:800;line-height:1.15}
 /* 구 묶음 범례: 진한 원(많음) · 옅은 원(적음) */
 .lm-key .k-gu.k-gu2{background:var(--zn-mid);border:1px solid var(--zn);box-sizing:border-box}
-.lm-key span+span{margin-left:8px}
+.lm-key span+span{margin-left:0}
 /* 다크 지도 말풍선: 흰 카드 → 어두운 카드 */
 :root[data-theme="dark"] .lm-pop .maplibregl-popup-content{background:#1b2130;color:#e8ebf2;border:1px solid #2a3142}
 :root[data-theme="dark"] .lm-pop.maplibregl-popup-anchor-bottom .maplibregl-popup-tip{border-top-color:#1b2130}

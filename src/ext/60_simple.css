@@ -561,4 +561,4 @@ html.simple #sTT{margin-bottom:16px}
 
 /* 20차: 400px 아래 목록 줄은 역·도보만('미아사거리역 9분') — '미아동 · 미…'처럼 둘 다 잘리지 않게 */
 @media (max-width:399px){.s-sub .s-dg.s-dgw{display:none}}
-@media (max-width:399px){.s-card .s-l2{flex-wrap:wrap;row-gap:2px}.s-card .s-l2 .s-sub{flex:1 1 100%}}
+/* 21차: 둘째 줄을 두 줄로 접던 규칙은 뺐다(줄 높이를 넘어 다음 줄에 겹쳤다) — 98_r21.css */

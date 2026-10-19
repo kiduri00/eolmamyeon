@@ -65,19 +65,19 @@ async function state(out) {
       const S = (s) => { s = s == null ? null : String(s); if (s == null) return -1; if (!strIx.has(s)) { strIx.set(s, strs.length); strs.push(s); } return strIx.get(s); };
       const recs = (window.__ZPD && window.__ZPD.recs) || [];
       const okF = typeof window.ZP_ok === "function" ? window.ZP_ok : null;
-      const zIx = new Map(), zones = [];
+      const zIx = new Map(), zones = []; let curF = "gap";   // 구역마다 방식별 '지금 필요한 돈'(구 묶음 둘째 줄 '7,400만~' — 섬이 가장 적은 값을 고른다)
       const snap = () => {
         const li = [...$("sList").children].map((el) => {
           const c = el.cloneNode(true); c.classList.remove("s-nosp"); if (!c.className) c.removeAttribute("class");
           // 금액마다 달라지는 '남는 돈 · 딱 맞아요'는 빼고 뜬다(섬이 data-need로 다시 채움 — 줄 모양이 금액마다 새로 생기지 않게)
-          const h = c.outerHTML.replace(/<span class="s-fx">.*?<\/span><small class="s-sub">/, '<span class="s-fx"></span><small class="s-sub">').replace(/, (딱 맞아요|남는 돈 [^"]*)(?=")/, ""); if (!rowIx.has(h)) { rowIx.set(h, rows.length); rows.push(h); } return rowIx.get(h);
+          const h = c.outerHTML.replace(/<span class="s-fx">.*?<\/span><\/span><\/a>/, '<span class="s-fx"></span></span></a>').replace(/, (딱 맞아요|남는 돈 [^"]*)(?=")/, ""); if (!rowIx.has(h)) { rowIx.set(h, rows.length); rows.push(h); } return rowIx.get(h);
         });
         const ok = [];
         let nOk = 0;
-        if (okF) recs.forEach((r) => { let y = false; try { y = !!okF(r); } catch (e) {} if (y) nOk++; if (y && !r.lc) { if (!zIx.has(r.id)) { zIx.set(r.id, zones.length); zones.push([r.id, r.g || "", r.ll ? +(+r.ll[0]).toFixed(5) : null, r.ll ? +(+r.ll[1]).toFixed(5) : null]); } ok.push(zIx.get(r.id)); } });
+        if (okF) recs.forEach((r) => { let y = false; try { y = !!okF(r); } catch (e) {} if (y) nOk++; if (y && !r.lc) { if (!zIx.has(r.id)) { zIx.set(r.id, zones.length); zones.push([r.id, r.g || "", r.ll ? +(+r.ll[0]).toFixed(5) : null, r.ll ? +(+r.ll[1]).toFixed(5) : null, null, null]); } const z = zones[zIx.get(r.id)], k = curF === "cash" ? 5 : 4; if (z[k] == null) { try { const v = window.ZP_simple.zstate(r).need; if (v != null && isFinite(v)) z[k] = +v.toFixed(5); } catch (e) {} } ok.push(zIx.get(r.id)); } });
         const sl = $("sCash"), mo = $("sMore"), as = $("sAsm");
         return {
-          t: [S($("sN").textContent), S($("sNL").textContent), S($("sLT").textContent), S($("sLS").textContent), S($("sCashV").innerHTML), S($("sSum").innerHTML), S(mo.hidden ? null : mo.textContent), S(as.hidden ? null : as.innerHTML), S(as.getAttribute("aria-label")), S(sl.style.getPropertyValue("--p")), S(sl.getAttribute("aria-valuetext"))],
+          t: [S($("sN").textContent), S($("sNL").textContent), S($("sLT").textContent), S($("sLS").textContent), S($("sCashV").innerHTML), S($("sSum").innerHTML), S(mo.hidden ? null : mo.textContent), S(as.hidden ? null : as.innerHTML), S(as.getAttribute("aria-label")), S(window.ZP_simple ? window.ZP_simple.toPos(+$("pCash").value) + "%" : sl.style.getPropertyValue("--p")), S(sl.getAttribute("aria-valuetext"))],
           l: li, ok, nOk,
         };
       };
@@ -96,6 +96,7 @@ async function state(out) {
         return s;
       };
       for (const f of ["gap", "cash"]) {
+        curF = f;
         const b = document.querySelector(`.s-mode button[data-f="${f}"]`);
         if (b.getAttribute("aria-pressed") !== "true") b.click();
         await raf(); await new Promise((r) => setTimeout(r, 120));
@@ -107,7 +108,7 @@ async function state(out) {
         // 빠른 길(input만)로 뜬 값이 실제 확정 경로(change → setCash)와 같은지 몇 단계 대조
         for (const c of [1, 5, 15, stops[0]]) {
           const a = out[f][stops.indexOf(c)], b = await go(c, true);
-          if (JSON.stringify([a.t, a.l, a.nOk]) !== JSON.stringify([b.t, b.l, b.nOk])) throw new Error(`fast/slow mismatch ${f} ${c}`);
+          if (JSON.stringify([a.t, a.l, a.nOk]) !== JSON.stringify([b.t, b.l, b.nOk])) throw new Error(`fast/slow mismatch ${f} ${c} ` + JSON.stringify([a.t.map((i) => strs[i]), b.t.map((i) => strs[i]), a.nOk, b.nOk, a.l.length, b.l.length]).slice(0, 1500));
         }
         await go(15, true);
         await new Promise((r) => setTimeout(r, 450));
@@ -138,7 +139,7 @@ async function state(out) {
       v: 1, stops, KN, pos: stops.map((c) => +toPos(c).toFixed(4)), def: res.def, cls, conds,
       strs: res.strs, rows: res.rows,
       st: { gap: res.out.gap.map((s) => [s.t, s.l, s.pressed, s.gapm]), cash: res.out.cash.map((s) => [s.t, s.l, s.pressed, s.gapm]) },
-      zones: mono ? res.zones.map((z) => [z[1], z[2], z[3]]) : [], thr: mono ? thr : null, map: res.map,
+      zones: mono ? res.zones.map((z) => [z[1], z[2], z[3], z[0], z[4], z[5]]) : [], thr: mono ? thr : null, map: res.map,
     };
     fs.writeFileSync(out, JSON.stringify(pack));
     console.log(`prerender state: ${stops.length} stops × 2 · rows ${res.rows.length} · strs ${res.strs.length} · zones ${pack.zones.length}${mono ? "" : " (no dots)"} · ${(JSON.stringify(pack).length / 1024).toFixed(0)}KB`);

@@ -243,6 +243,11 @@ const CH = {
   r = await worker.fetch(A("/api/contact/admin/read", { id }), E); assert.equal(r.status, 200); assert.equal(JSON.parse(E.PUSH.m.get(id)).read, true);
   r = await worker.fetch(A("/api/contact/admin/read", { id: "sub:x" }), E); assert.equal(r.status, 400, "msg: 키만");
   r = await worker.fetch(A("/api/contact/admin/delete", { id }), E); assert.equal(r.status, 200); assert.equal(msgs().length, 5);
+  // 실제 KV는 지운 키를 list에 한동안 더 돌려준다 → 그래도 '모두 N건'은 바로 줄어야 한다(21차)
+  { const l0 = E.PUSH.list; E.PUSH.list = async (o) => { const L = await l0(o); if ((o.prefix || "") === "msg:" && !L.keys.some((k) => k.name === id)) L.keys.push({ name: id }); return L; };
+    r = await worker.fetch(A("/api/contact/admin/list?limit=30"), E); L = await r.json(); assert.equal(L.total, 5, "지운 뒤 total -1 (stale list)"); assert.ok(!L.items.some((x) => x.id === id));
+    E.PUSH.list = l0; }
+  r = await worker.fetch(A("/api/contact/admin/list?limit=30"), E); L = await r.json(); assert.equal(L.total, 5); assert.equal(L.items.length, 5);
   // 운영자 푸시: 구독을 저장하면 새 문의마다 한 통
   const ua = uaKeys(), sent = [];
   r = await worker.fetch(A("/api/contact/admin/sub", { sub: mkSub(ua, "https://fcm.googleapis.com/fcm/send/ADMIN") }), E); assert.equal(r.status, 200);

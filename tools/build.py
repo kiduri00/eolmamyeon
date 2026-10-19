@@ -106,6 +106,24 @@ EXT = os.path.join(R, 'src', 'ext')
 ext_js = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))
 ext_css = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.css'))
 js = S('app.js'); assert js.count('/*EXT*/') == 1; js = js.replace('/*EXT*/', ext_js.strip() + '\n')
+# 21차: 새 소식 'N' 점의 기준 날짜(경매 물건이 처음 보인 날 · 고시·공고 기록 날 중 가장 늦은 날) — 63_newb.js · 정적 페이지(static_tabs.py)가 같은 값
+def newd():
+    o = {}
+    try:
+        a = json.load(open(os.path.join(R, 'public', 'data', 'auction.json'), encoding='utf-8'))
+        fs = [x.get('fs') or '' for v in (a.get('byZone') or {}).values() for x in v if x.get('fs')]
+        if fs: o['auc'] = max(fs)
+    except Exception as e: print('newd auction', e)
+    try:
+        n = json.load(open(os.path.join(R, 'public', 'data', 'notice.json'), encoding='utf-8'))
+        ds = [i[0] for i in n.get('items') or [] if i and i[0]]
+        if ds: o['ntc'] = max(ds)
+    except Exception as e: print('newd notice', e)
+    return o
+NEWD = newd()
+assert js.count('/*NEWD*/ null') == 1; js = js.replace('/*NEWD*/ null', json.dumps(NEWD))
+_ud = _md(D.get('upd') or D.get('asOf'))
+shell = shell.replace('<span class="hdr-date" id="hdrDate"></span>', f'<span class="hdr-date" id="hdrDate">{_ud} 갱신</span>' if _ud else '<span class="hdr-date" id="hdrDate"></span>', 1)
 # 지도 자리 그림(src/ghost.js): 섬(h)과 앱(a)이 같은 코드 · 서울 모양은 빌드가 넣는다(tools/ghost_geo.py)
 import ghost_geo
 GHOST_JS = S('ghost.js'); assert GHOST_JS.count('/*GHOST*/ null') == 1

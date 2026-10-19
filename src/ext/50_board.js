@@ -87,8 +87,34 @@ const BD = (() => {
       return `<span class="nt-m${v <= CASH + 1e-9 ? " ok" : ""}">${LBL.cashToMoveIn} ${ZF.cash(v)}${v <= CASH + 1e-9 ? " · 내 돈으로 됨" : ""}</span>`;
     } catch (e) { return ""; }
   }
+  // 21차: 소식 > '경공매' 칩 — 구역 안 경매 물건 중 매각기일이 남은 사건(법원경매정보 · data/auction.json), 기일 가까운 순
+  let AU = null, AUP = null, auPrev = "";
+  const auLoad = () => AUP || (AUP = fetch(`data/auction.json?v=${(D.dv && D.dv.auction) || D.upd || ""}`).then((r) => (r.ok ? r.json() : null)).catch(() => null).then((j) => (AU = j && j.ok && j.byZone ? j : { byZone: {} })));
+  const auToday = () => new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
+  const auDay = (d) => { const t = new Date(d + "T00:00:00+09:00"); return `${+d.slice(5, 7)}.${+d.slice(8, 10)} (${"일월화수목금토"[t.getDay()]})`; };
+  function aucList() {
+    const out = document.getElementById("ntcOut"); if (!out) return;
+    if (!AU) { out.innerHTML = '<p class="mut">경매 물건 불러오는 중…</p>'; auLoad().then(() => { if (C === "auc") aucList(); }); return; }
+    const t0 = auToday(), cases = new Map();
+    Object.entries(AU.byZone).forEach(([id, xs]) => { if (!byId[id] || (AU.miss || []).includes(byId[id].g)) return; (xs || []).forEach((o) => { if (!o.date || o.date < t0 || o.st === "gone" || o.st === "chk") return; const k = `${o.court}|${o.cs}`; const c = cases.get(k) || { id, o, n: 0, fs: "" }; c.n++; if ((o.fs || "") > c.fs) c.fs = o.fs || ""; if ((o.min || 1e15) < (c.o.min || 1e15)) c.o = o; cases.set(k, c); }); });
+    const L = [...cases.values()].sort((a, b) => a.o.date.localeCompare(b.o.date) || (a.o.min || 0) - (b.o.min || 0));
+    const nw = L.filter((c) => c.fs && c.fs > auPrev).length;
+    const sum = `<p class="nt-sum"><b>매각기일 남은 경매 ${fmt(L.length)}건</b>${nw ? ` · 새로 올라온 ${fmt(nw)}건` : ""} · 정비구역 안 필지만</p>`;
+    out.innerHTML = L.length
+      ? `${sum}<ul class="ntl aul">${L.slice(0, 80).map((c) => { const r = byId[c.id], o = c.o, isN = c.fs && c.fs > auPrev; return `<li class="c-auc${isFav(c.id) ? " fav" : ""}"><span class="nt-d mono">${auDay(o.date)}</span><span class="nt-b">${go(c.id)}<small>${esc(r.g)} · ${esc(stageName(r))}</small><span class="nt-t"><em class="nt-c">${isN ? "새 물건" : "경매"}</em><b>${esc(ZF.aucUse(o.use) || "부동산")}</b> 최저 ${esc(ZF.aucAmt(o.min))}${o.rate ? ` (감정가 ${o.rate}%)` : ""}${o.fail ? ` · 유찰 ${o.fail}회` : " · 신건"}${c.n > 1 ? ` · 물건 ${c.n}개` : ""}</span></span></li>`; }).join("")}</ul><p class="t-note">출처: 대법원 법원경매정보 · ${esc(String(AU.asOf || "").replaceAll("-", "."))} 기준 · 구역 경계 안 지번과 맞는 물건만 · 입찰 전 법원 공고를 꼭 확인하세요</p>`
+      : `${sum}<p class="mut nt-e">지금은 매각기일이 남은 구역 안 경매 물건이 없어요.</p>`;
+  }
+  // 칩 고르기(빠른 메뉴에서 바로 오는 길도 같은 함수) — 보면 그 목록의 '새 소식' 표시(N)를 지운다
+  function setC(c) {
+    C = c;
+    const f = document.getElementById("ntcF"); if (f) f.querySelectorAll("button[data-c]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.c === c)));
+    if (c === "auc") { auPrev = (window.NEWB && NEWB.last("auc")) || ""; aucList(); try { NEWB.seen("auc"); } catch (e) {} return; }
+    try { NEWB.seen("ntc"); } catch (e) {}
+    if (NT) notice(); else ntLoad().then((j) => { if (j) { NT = j; if (C === c) notice(); } });
+  }
   function notice() {
     const out = document.getElementById("ntcOut");
+    if (C === "auc") return aucList();
     if (!out || !NT) return;
     const A = feed();
     const L = A.filter((x) => (C === "fav" ? isFav(x.id) : C === "up" ? x.c === "up" : true));
@@ -107,7 +133,7 @@ const BD = (() => {
     const f = document.getElementById("ntcF");
     if (f) f.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-c]"); if (!b) return;
-      C = b.dataset.c; f.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); notice();
+      setC(b.dataset.c);
     });
     document.addEventListener("click", (e) => {
       const b = e.target.closest && e.target.closest("[data-txgo]"); if (!b) return;
@@ -120,6 +146,9 @@ const BD = (() => {
       io.observe(el);
     };
     once("txrTop", rank);
+    // 빠른 메뉴: '경공매'(#aucTop) = 소식 + 경공매 칩 · '고시공고'(#ntcTop) = 소식 + 전체 칩 · 소식 탭을 열면 고시·공고는 본 것으로
+    addEventListener("zp:alias", (e) => { if (e.detail === "aucTop") setC("auc"); else if (e.detail === "ntcTop") setC(""); });
+    addEventListener("zp:view", (e) => { if (e.detail === "news" && C !== "auc") { try { NEWB.seen("ntc"); } catch (er) {} } });
     once("ntcTop", () => ntLoad().then((j) => { if (!j) throw 0; NT = j; notice(); }).catch(() => { const o = document.getElementById("ntcOut"); if (o) o.innerHTML = '<p class="mut">소식을 불러오지 못했어요.</p>'; }));
     // 계산기 현금이 바뀌면 '내 돈 가능' 표시 갱신
     {

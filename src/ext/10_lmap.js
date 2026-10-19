@@ -92,7 +92,7 @@
     }
     const POIURL = {};
     const poiUrl = (k) => { const key = k + (dark() ? "d" : ""); if (!POIURL[key]) { try { POIURL[key] = poiIcon(k, dark(), 3).toDataURL(); } catch (e) { POIURL[key] = ""; } } return POIURL[key]; };
-    // 상태 점 그림(남색 한 가지 안에서): 멀다 = 6px 회남색 점 · 정보 부족 = 점선 동그라미 · 가능/모자람(알약 자리 없음) = 작은 남색 점/테두리 점 · 관심 구역 = 남색 하트
+    // 상태 점 그림(남색 한 가지 안에서): 더 필요(far) = 6px 회남색 점 · 자료 없음(na) = 속 빈 고리 · 가능/모자람(알약 자리 없음) = 작은 남색 점/테두리 점 · 관심 구역 = 남색 하트
     function dotImgs(dk) {
       const k = 3, NV = dk ? "#7FA6FF" : "#1F3A87", GR = dk ? "#7C8AA6" : "#8792AE", HL = dk ? "#11161D" : "#FFFFFF";
       const put = (id, S, draw) => { if (map.hasImage(id)) map.removeImage(id); const c = document.createElement("canvas"); c.width = c.height = S * k; const x = c.getContext("2d"); x.scale(k, k); draw(x, S / 2); map.addImage(id, x.getImageData(0, 0, S * k, S * k), { pixelRatio: k }); };
@@ -170,7 +170,7 @@
     async function overlays1(Y) {
       const dk = dark(), P = palette(), halo = dk ? "#11161D" : "#ffffff";
       const add = (id) => { if (!map.getSource(id)) map.addSource(id, Object.assign({ type: "geojson", data: FC([]) }, /^(zones|zest|zlab|pts)$/.test(id) ? { promoteId: "id" } : {}), { validate: false }); };
-      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gun", "dong", "sdim", "sring", "spt", "hov", "sellab", "gudim", "gusel", "zdot", "pillb"].forEach(add);
+      ["mask", "seoul", "gul", "zones", "zest", "zlab", "pts", "stn", "sel", "hj", "hi", "sang", "subway", "gun", "dong", "sdim", "sring", "spt", "hov", "sellab", "gudim", "gusel", "zdot", "pillb", "zokp"].forEach(add);
       map.getSource("gun").setData(guLabels());
       map.getSource("dong").setData(dongLabels());
       map.getSource("subway").setData(subwayGeo());
@@ -190,19 +190,27 @@
       const T1 = dk ? "#8A95A5" : "#6A7482", T2 = dk ? "#7A8696" : "#7C8693";
       L({ id: "gu-lab", type: "symbol", source: "gun", minzoom: 8.8, maxzoom: 13.4, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10.5, 12.5, 12.5], "text-padding": 4, "text-letter-spacing": 0.04, "text-variable-anchor": ["center", "top", "bottom", "right", "left"], "text-radial-offset": 0.7, "text-justify": "auto" }, paint: { "text-color": T1, "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.6, 0.95, 13.4, 0], "text-halo-color": halo, "text-halo-width": 1.6 } });
       L({ id: "dong-lab", type: "symbol", source: "dong", minzoom: 13.2, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 13.2, 10.5, 16, 12], "text-padding": 6, "text-variable-anchor": ["center", "top", "bottom"], "text-radial-offset": 0.9, "symbol-sort-key": ["get", "k"] }, paint: { "text-color": T2, "text-halo-color": halo, "text-halo-width": 1.6 } });
-      // 구역: 한 가지 색(브랜드 남색). 상태 4가지(feature-state k)는 남색 안에서 채움·테두리로만: 가능 = 면 20% + 진한 선 · 조금 모자람 = 면 없이 선만 · 멀다·정보 부족 = 아주 옅게
+      // 구역: 한 가지 색(브랜드 남색). 상태 4가지(feature-state k)는 남색 안에서 채움·테두리로만: 가능 = 면 45% + 진한 선 · 조금 모자람 = 면 없이 선만 · 더 필요·자료 없음 = 아주 옅게(8%)
       // 관심 구역(f) = 선을 굵게. 공식 경계 없는 추정 범위는 점선
-      const ZC = dk ? "#5B8CFF" : "#1F3A87", ZL = dk ? "#7FA6FF" : "#1F3A87";
+      // 21차: 더 진하게 + 서울 전체(구 묶음 줌)에서도 바로 보이게 — 가능 = 남색 면 45%(다크 #9fb3ff 40%) + 1.5px 실선 · 조금 모자람 = 면 없이 2px 선(줌 11부터) · 나머지 8%
+      // 구 묶음(DOM, 자기 바탕색)은 늘 이 면 위에 뜬다. 지도 자리 그림(ghost.js)도 같은 색·같은 농도로 같은 모양을 그린다(바뀔 때 달라 보이지 않게)
+      const ZC = dk ? "#9FB3FF" : "#1F3A87", ZL = dk ? "#9FB3FF" : "#1F3A87";
       const K = ["coalesce", ["feature-state", "k"], 2], FV = ["boolean", ["feature-state", "f"], false];
-      const fo = (ok, far, na) => ["match", K, 0, ok, 1, 0, 2, far, na];
-      const zop = (m) => ["interpolate", ["linear"], ["zoom"], 10, fo((dk ? 0.34 : 0.26) * m, (dk ? 0.07 : 0.05) * m, (dk ? 0.05 : 0.04) * m), 13, fo((dk ? 0.28 : 0.21) * m, (dk ? 0.06 : 0.045) * m, (dk ? 0.05 : 0.035) * m), 16, fo((dk ? 0.22 : 0.16) * m, (dk ? 0.05 : 0.04) * m, (dk ? 0.04 : 0.03) * m)];
-      const lw = (a, b, c) => ["+", ["match", K, 0, a, 1, a * 1.05, b], ["case", FV, c, 0]];
-      const zlw = ["interpolate", ["linear"], ["zoom"], 10, lw(0.9, 0.45, 1), 12, lw(1.3, 0.6, 1.3), 14, lw(1.8, 0.8, 1.6), 16, lw(2.1, 0.9, 1.8)];
-      const zlo = ["case", FV, 1, ["match", K, 0, 0.95, 1, 0.9, dk ? 0.34 : 0.28]];
-      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ZC, "fill-opacity": zop(0.8) } });
+      // 조금 모자람: 서울 보기(줌 11 아래)에서는 나머지처럼 8%(선이 아직 없어 자리 그림과 같게) → 구 안에서는 면 없이 2px 선만
+      const fo = (ok, near, far, na) => ["match", K, 0, ok, 1, near, 2, far, na];
+      const zop = (m) => ["interpolate", ["linear"], ["zoom"], 10.8, fo((dk ? 0.4 : 0.45) * m, 0.08 * m, 0.08 * m, 0.08 * m), 11.2, fo((dk ? 0.4 : 0.45) * m, 0, 0.08 * m, 0.08 * m), 13, fo((dk ? 0.38 : 0.42) * m, 0, 0.08 * m, 0.07 * m), 16, fo((dk ? 0.3 : 0.32) * m, 0, 0.07 * m, 0.06 * m)];
+      const lw = (a, b, c, n) => ["+", ["match", K, 0, a, 1, n, b], ["case", FV, c, 0]];
+      const zlw = ["interpolate", ["linear"], ["zoom"], 10, lw(1, 0.4, 0.8, 1.2), 12, lw(1.5, 0.6, 1.2, 2), 14, lw(1.8, 0.8, 1.5, 2.2), 16, lw(2.1, 0.9, 1.8, 2.4)];
+      // 선 농도: 서울 보기(줌 11 아래)는 가능 선만(작은 면의 테두리 = 진하게 보임) · 모자람·나머지 선은 구 안에서부터
+      const zlo = ["interpolate", ["linear"], ["zoom"], 10.8, ["case", FV, 1, ["match", K, 0, 0.9, 0]], 11.2, ["case", FV, 1, ["match", K, 0, 0.95, 1, 0.95, dk ? 0.3 : 0.24]]];
+      // 서울 보기(줌 11 아래)의 가능 구역 테두리는 면의 1px 외곽선(fill-outline)으로 — 선 레이어는 구 안(11부터)만(서울 보기 한 장 그리는 시간을 늘리지 않게)
+      const OUT = ["match", K, 0, ZL, "rgba(0,0,0,0)"];
+      L({ id: "zest-fill", type: "fill", source: "zest", paint: { "fill-color": ZC, "fill-opacity": zop(0.85), "fill-outline-color": OUT } });
       L({ id: "zest-line", type: "line", source: "zest", minzoom: 11, layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-dasharray": [2.2, 1.6], "line-opacity": zlo } });
-      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ZC, "fill-opacity": zop(1), "fill-antialias": true } });
+      L({ id: "zone-fill", type: "fill", source: "zones", paint: { "fill-color": ZC, "fill-opacity": zop(1), "fill-antialias": true, "fill-outline-color": OUT } });
       L({ id: "zone-line", type: "line", source: "zones", minzoom: 11, layout: { "line-join": "round" }, paint: { "line-color": ZL, "line-width": zlw, "line-opacity": zlo } });
+      // 서울 보기에서 너무 작은 '가능' 구역(면적 9만㎡ 아래 = 줌 10.5에서 8px 안)은 같은 색 작은 원(반지름 4px)으로 — 면만으로는 점 하나라 '어디'가 안 보이던 것(21차)
+      L({ id: "zone-okdot", type: "circle", source: "zokp", paint: { "circle-radius": 4, "circle-color": ZC, "circle-opacity": dk ? 0.45 : 0.5, "circle-stroke-color": ZL, "circle-stroke-width": 1.5, "circle-stroke-opacity": 0.9 } });
       // 알약이 없는 구역의 점(멀다 6px 회남색 · 정보 부족 점선 · 자리가 없는 가능·모자람 · 관심 구역 하트) — 구 묶음 줌(11 이하)에는 비운다
       dotImgs(dk);
       L({ id: "zdot", type: "symbol", source: "zdot", layout: { "icon-image": ["concat", "zd-", ["get", "t"]], "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.85, 15, 1.1], "symbol-sort-key": ["-", 10, ["get", "k"]] }, paint: {} });
@@ -293,10 +301,10 @@
       // 목록 줄에 마우스: 그 구역 이름표를 맨 위에(줌과 상관없이, 다른 카드에 안 가림)
       L({ id: "hov-lab", type: "symbol", source: "hov", filter: ["==", ["geometry-type"], "Point"], layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": 12.5, "text-anchor": "bottom", "text-offset": [0, -1.35], "text-allow-overlap": true, "text-ignore-placement": false }, paint: { "text-color": dk ? "#9fb3ff" : "#1f3a87", "text-halo-color": halo, "text-halo-width": 2.4 } });
       // 알약·구 묶음 자리표(보이지 않는 글자, 맨 위 = 가장 먼저 자리 잡음): 구역·동·역·구 이름이 DOM 알약 밑에 깔리지 않게
-      L({ id: "pill-blk", type: "symbol", source: "pillb", layout: { "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-anchor": ["case", ["has", "c"], "center", "bottom"], "text-offset": ["case", ["has", "c"], ["literal", [0, 0]], ["literal", [0, -0.55]]], "text-line-height": 1.6, "text-allow-overlap": true, "text-padding": 7 }, paint: { "text-opacity": 0 } });
+      L({ id: "pill-blk", type: "symbol", source: "pillb", layout: { "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-anchor": ["case", ["has", "c"], "center", ["has", "dn"], "top", "bottom"], "text-offset": ["case", ["has", "c"], ["literal", [0, 0]], ["has", "dn"], ["literal", [0, 0.55]], ["literal", [0, -0.55]]], "text-line-height": 1.6, "text-allow-overlap": true, "text-padding": 7 }, paint: { "text-opacity": 0 } });
       await Y();
       stnDraw(); hovDraw(); guDraw();
-      FSV.clear(); MW.clear(); dotK = ""; pbK = "";
+      FSV.clear(); MW.clear(); dotK = ""; pbK = ""; okdK = "";
       ready = true;
       layerData();
       layers();
@@ -463,10 +471,11 @@
           if (a.zoom) { pendZ += +a.zoom; gateOpen(); }
         });
       }
-      let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) {}
-      if (lite) { ZP_G.lite(cnt); return; }
+      let cnt = {}, min = {}; try { cnt = SIMPLE.guCounts(); min = SIMPLE.guMins(); } catch (e) {}
+      const f = okSafe(), ok = R.filter((r) => !r.lc && f(r)), ids = ok.map((r) => r.id);   // 자리 그림의 남색 면 = 섬(P.zones)과 같은 집합
+      if (lite) { ZP_G.lite(cnt, ids, min); return; }
       const el = ZP_G.el(); if (!el) return;
-      ZP_G.draw({ cnt, ok: okLL(), pad: fitPad(false, el.getBoundingClientRect()) });
+      ZP_G.draw({ cnt, min, ok: ok.filter((r) => r.ll).map((r) => r.ll), ids, pad: fitPad(false, el.getBoundingClientRect()) });
     }
     // 실제 지도가 바탕 타일·구 묶음까지 다 그린 첫 '한가함(idle)' 뒤에 자리 그림을 200ms 동안 걷어 낸다(빈 회색 화면 없음)
     let fadeT = 0;
@@ -662,7 +671,8 @@
       const out = [];
       try {
         const cb = map.getCanvas().getBoundingClientRect();
-        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmKey, #lmap .lm-snote, #lmap .maplibregl-ctrl-attrib").forEach((e) => {
+        // 21차: 구 화면 위 '← 서울 전체 | 구 이름' 막대(#mapBar)도 — 그 밑에 알약이 반쯤 깔리던 것
+        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmKey, #lmap .lm-snote, #lmap .maplibregl-ctrl-attrib, #mapbox > #mapBar").forEach((e) => {
           if (!e.offsetWidth || e.hidden || e.closest("[hidden]")) return;
           const b = e.getBoundingClientRect();
           if (b.bottom <= cb.top || b.top >= cb.bottom || b.right <= cb.left || b.left >= cb.right) return;
@@ -692,13 +702,29 @@
       if (!map || !ready || !geo) return;
       if ($("lmap").hidden) { pillsSet(new Map()); gusSet([]); GUMORE = { c: 0, L: [] }; guMoreDraw(); return; }
       const city = isCity();
-      lastCity = city; keyDraw(city);
-      if (city) { pillsSet(new Map(), true); dotsSet([]); guLayout(); }
-      else { gusSet([]); guMoreDraw(); pillsLayout(); }
+      lastCity = city;
+      if (city) { keyDraw(true); pillsSet(new Map(), true); dotsSet([]); okDots(true); guLayout(); }
+      else {
+        gusSet([]); guMoreDraw(); okDots(false);
+        // 범례 = 이번에 실제로 놓인 알약·점(21차). 범례 크기가 바뀌면(알약 자리에 영향) 한 번만 다시 자리 잡는다
+        const P = pillsLayout(), k0 = $("lmKey") ? $("lmKey").dataset.h : null;
+        if (P) { keyDraw(false, keyStates(P)); if (!keyRe && $("lmKey").dataset.h !== k0) { keyRe = true; try { pillsLayout(); } finally { keyRe = false; } } }
+      }
     }
+    // 서울 보기의 작은 '가능' 구역 원(zone-okdot) — 구 안·알약 줌에서는 비운다. 자리 그림(ghost.js GD.zl)과 같은 규칙·같은 자리(구역 이름 자리 z.l)
+    const OKDOT_A = 90000;
+    let okdK = "";
+    function okDots(on) {
+      const F = [];
+      if (on) for (const r of VIS) { const s = ZS.get(r.id), z = geo.z[r.id]; if (s && s.st === "ok" && !r.lc && z && z.l && +z.a < OKDOT_A) F.push({ type: "Feature", geometry: { type: "Point", coordinates: z.l }, properties: { id: r.id } }); }
+      const k = F.map((f) => f.properties.id).join(",");
+      if (k === okdK) return; okdK = k;
+      try { map.getSource("zokp").setData(FC(F)); } catch (e) {}
+    }
+    let keyRe = false;
     function pillsLayout() {
       const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight;
-      if (W < 50 || H < 50) return;
+      if (W < 50 || H < 50) return null;
       const obs = obstacles(), mine = mineSet(), sel = selId(), named = map.getZoom() >= 14;
       const C = [];
       for (const r of VIS) { const s = ZS.get(r.id); if (s && (s.st === "ok" || s.st === "near") && s.need != null) C.push([r, s]); }
@@ -714,9 +740,21 @@
         // 가까이(줌 15+)는 두 줄 알약: 이름 11/600 위 · 금액 13/800 아래 · 폭 최대 120(17차)
         const w = nm ? Math.min(150, Math.max(measure(t, 13, 800) + (fav ? 14 : 0) + (nw ? 30 : 0), measure(nm, 12, 600)) + 22) : measure(t, 13) + 18 + (fav ? 14 : 0) + (nw ? 30 : 0), h = nm ? 44 : 28;
         const ins = gu ? 3 : 0;   // 구 안(경계 전체를 보이게 맞춘 화면): 알약끼리 살짝 더 붙어도 따로 보이게(+N 묶음을 줄임 · 20차 G4)
-        const bx = [q.x - w / 2 - 2 + ins, q.y - h - 2 + ins, q.x + w / 2 + 2 + (s.st === "ok" ? 14 : 0) - ins, q.y + 1 - ins];   // 오른쪽 '+N' 꼬리 자리까지(확대 버튼 밑에 반쯤 깔리지 않게)
-        if (bx[0] < 2 || bx[2] > W - 2 || bx[1] < 2 || (r.id !== sel && (obs.some((o) => hitB(o, bx)) || placed.some((o) => hitB(o, bx))))) { if (s.st === "ok") hid.push(q); continue; }
-        placed.push(bx); P.set(r.id, { r, s, t, fav, nm, nw, sel: r.id === sel, q, more: 0 });
+        // 자리 후보(21차): ① 점 위(오른쪽 '+N' 꼬리 자리까지) ② 점 위(꼬리 자리 없이) ③ 점 아래(꼬리가 위를 가리킴) ④ 옆으로 비켜(꼬리는 그대로 점을 가리킴)
+        // → 레일·확대 버튼·구 막대 가장자리에 걸린 '가능' 구역이 점(대략 범위 고리)만 남던 것. 점 자체가 떠 있는 것 밑이면 안 보이는 곳이라 '+N'으로
+        const pt = [q.x - 2, q.y - 2, q.x + 2, q.y + 2], under = r.id !== sel && obs.some((o) => hitB(o, pt));
+        const sh = Math.max(0, w / 2 - 16), C2 = under ? [] : [[0, 0, 1], [0, 0, 0], [0, 1, 0], [-sh, 0, 0], [sh, 0, 0], [-sh, 1, 0], [sh, 1, 0]];
+        let got = null;
+        for (const [dx, dn, tail] of C2) {
+          const y0 = dn ? q.y - 1 : q.y - h - 2, y1 = dn ? q.y + h + 2 : q.y + 1;
+          const bx = [q.x + dx - w / 2 - 2 + ins, y0 + ins, q.x + dx + w / 2 + 2 + (tail && s.st === "ok" ? 14 : 0) - ins, y1 - ins];
+          if (bx[0] < 2 || bx[2] > W - 2 || bx[1] < 2 || bx[3] > H - 2) { if (r.id !== sel) continue; }
+          if (r.id !== sel && (obs.some((o) => hitB(o, bx)) || placed.some((o) => hitB(o, bx)))) continue;
+          got = { bx, dx: Math.round(dx), dn }; break;
+        }
+        if (!got && r.id === sel) got = { bx: [q.x - w / 2, q.y - h, q.x + w / 2, q.y], dx: 0, dn: 0 };
+        if (!got) { if (s.st === "ok") hid.push(q); continue; }
+        placed.push(got.bx); P.set(r.id, { r, s, t, fav, nm, nw, sel: r.id === sel, q, more: 0, dx: got.dx, dn: got.dn });
       }
       // 자리가 없어 알약을 못 단 '가능' 구역 → 가장 가까운 알약에 '+N' 표시(알약 수 + N 합 == 화면 안 갈 수 있는 곳)
       if (hid.length && P.size) { const V = [...P.values()]; hid.forEach((q) => { let b = null, bd = 1e9; V.forEach((v) => { const d = Math.hypot(v.q.x - q.x, v.q.y - q.y); if (d < bd) { bd = d; b = v; } }); if (b) b.more++; }); }
@@ -731,16 +769,43 @@
         F.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { id: r.id, t: mine.has(r.id) ? "fav" : s.st, k: mine.has(r.id) ? 0 : ST_K[s.st] + 1 } });
       }
       dotsSet(F);
+      return P;
     }
-    // 늘 보이는 작은 범례(지도 왼쪽 아래): 상태 4가지를 말로 · 서울 보기에서는 구 묶음 뜻
-    function keyDraw(city) {
+    // 늘 보이는 작은 범례(지도 왼쪽 아래 · 21차): 지금 화면에 실제로 그려진 것만, 그려진 것과 같은 꼴의 작은 견본 + 쉬운 말
+    // [7,400만] 내 돈으로 가능 · [500만 부족] 조금 모자람 · • 더 필요해요 · ○ 자료 없음 · ┄ 점선 = 대략 범위 — 서울 보기에서는 구 묶음 뜻(ZP_G.KEY)
+    // 화면 안 구역(점 자리 기준)으로 정한다(알약 자리 잡기 전에 — 범례 크기가 알약 자리에 영향을 주므로)
+    function keyStates(P) {
+      const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, mine = mineSet();
+      const o = { ok: null, near: null, far: 0, na: 0, est: 0 };
+      P.forEach((v) => { if (v.s.st === "ok" && !o.ok) o.ok = v.t; else if (v.s.st === "near" && !o.near) o.near = v.t; });   // 맞춤순 맨 앞 알약 = 견본
+      for (const r of VIS) {
+        const s = ZS.get(r.id), ll = llOf(r); if (!s || !ll) continue;
+        const z = geo.z[r.id], est = !!(z && z.e), dot = !P.has(r.id) && !mine.has(r.id) && (s.st === "far" || s.st === "na");
+        if (!est && !dot) continue;
+        const q = map.project(ll); if (q.x < 0 || q.x > W || q.y < 0 || q.y > H) continue;
+        if (est) o.est++;
+        if (dot) o[s.st]++;
+      }
+      return o;
+    }
+    function keyDraw(city, o) {
       let el = $("lmKey");
       if (!el) { el = document.createElement("p"); el.id = "lmKey"; el.className = "lm-key"; $("lmap").appendChild(el); }
-      const k = city ? "c" : "z";
-      if (el.dataset.k === k) return;
-      el.dataset.k = k;
-      el.innerHTML = city ? ZP_G.KEY : `<span><i class="k-ok"></i>가능</span><span><i class="k-near"></i>조금 모자람</span><span><i class="k-far"></i>멀다</span><span><i class="k-na"></i>정보 부족</span>`;
-      el.setAttribute("aria-label", city ? ZP_G.KEY_L : "범례: 남색 알약 가능, 흰 알약 조금 모자람(모자란 돈 표시), 작은 점 멀다, 속 빈 고리 정보 부족, 점선 테두리 대략 범위");
+      let h, lab;
+      if (city) { h = ZP_G.KEY; lab = ZP_G.KEY_L; }
+      else {
+        const it = [], L = [];
+        if (o.ok) { it.push(`<span><i class="k-p">${esc(o.ok)}</i>내 돈으로 가능</span>`); L.push(`남색 알약은 내 돈으로 가능, 알약 숫자는 지금 필요한 돈`); }
+        if (o.near) { it.push(`<span><i class="k-p k-pn">${esc(o.near)}</i>조금 모자람</span>`); L.push(`테두리 알약은 조금 모자람, 숫자는 모자란 돈`); }
+        if (o.far) { it.push(`<span><i class="k-far"></i>더 필요해요</span>`); L.push(`작은 회색 점은 돈이 20% 넘게 더 필요한 곳`); }
+        if (o.na) { it.push(`<span><i class="k-na"></i>자료 없음</span>`); L.push(`속 빈 고리는 계산할 자료가 없는 곳`); }
+        if (o.est) { it.push(`<span><i class="k-dash"></i>점선 = 대략 범위</span>`); L.push(`점선 테두리는 공식 경계가 없어 면적으로 잡은 대략 범위`); }
+        h = it.join(""); lab = L.length ? `범례: ${L.join(", ")}` : "";
+      }
+      if (el.dataset.h === h) return;
+      el.dataset.h = h; el.dataset.k = city ? "c" : "z";
+      el.innerHTML = h; el.hidden = !h;
+      if (lab) el.setAttribute("aria-label", lab); else el.removeAttribute("aria-label");
     }
     // 같은 점이면 다시 넣지 않는다(지도 크기·위치만 바뀐 경우 — 1,300개 점을 일꾼에 다시 보내지 않게)
     let dotK = "";
@@ -760,16 +825,20 @@
           p = { el, key: "", mk: new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(ll).addTo(map) };
           PILLS.set(id, p);
         }
-        const key = [v.s.st, v.t, v.fav, v.sel, v.nm, v.nw, v.more].join("|");
+        const key = [v.s.st, v.t, v.fav, v.sel, v.nm, v.nw, v.more, v.dx || 0, v.dn || 0].join("|");
         if (p.key !== key) {
           p.key = key;
-          p.el.className = `zpill st-${v.s.st}${v.fav ? " fav" : ""}${v.sel ? " sel" : ""}${v.nm ? " two" : ""}${hovId === id ? " hov" : ""}`;
+          // 아래로 놓인 알약(dn): 요소 위 끝이 점 · 옆으로 비킨 알약(dx): 꼬리는 그대로 점 위(--tx)
+          p.el.style.setProperty("--tx", (-(v.dx || 0)) + "px");
+          p.el.className = `zpill st-${v.s.st}${v.fav ? " fav" : ""}${v.sel ? " sel" : ""}${v.nm ? " two" : ""}${v.dn ? " dn" : ""}${hovId === id ? " hov" : ""}`;
+          p.dn = v.dn; p.dx = v.dx || 0;
           p.el.style.zIndex = v.sel ? 4 : v.fav ? 3 : v.s.st === "ok" ? 2 : 1;
           p.el.innerHTML = `<span class="zp-in">${v.nm ? `<i class="zp-n">${esc(v.nm)}</i>` : ""}<span class="zp-l">${v.fav ? HEART_S : ""}<b class="zp-v">${esc(v.t)}</b></span>${v.nw ? '<em class="zp-new">NEW</em>' : ""}${v.more ? `<i class="zp-more" aria-hidden="true">+${v.more}</i>` : ""}</span>`;
           p.el.setAttribute("aria-label", pillLabel(v.r, v.s, v.fav, v.nw) + (v.more ? `, 근처 갈 수 있는 곳 ${v.more}곳 더(확대하면 보여요)` : ""));
           p.el.setAttribute("aria-pressed", String(!!v.sel));
+          p.mk.setOffset([p.dx, p.dn ? p.el.offsetHeight || 40 : 0]);   // 아래 알약은 요소 위 끝(꼬리 끝)이 점에
         }
-        B.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { t: (v.fav ? "♥ " : "") + (v.nm ? v.nm + " " : "") + v.t + (v.nw ? " NEW" : "") } });
+        B.push({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties: { t: (v.fav ? "♥ " : "") + (v.nm ? v.nm + " " : "") + v.t + (v.nw ? " NEW" : ""), ...(v.dn ? { dn: 1 } : {}) } });
       });
       const bk = B.map((f) => f.properties.t + f.geometry.coordinates).join("|");
       if (!noBlk && bk !== pbK) { pbK = bk; try { map.getSource("pillb").setData(FC(B)); } catch (e) {} }
@@ -840,17 +909,17 @@
     let GUL = null, GUMORE = { c: 0, L: [] };
     function guLayout() {
       if (!GUL) GUL = guLabels().features.map((f) => ({ n: f.properties.n, ll: f.geometry.coordinates }));
-      let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) {}
+      let cnt = {}, min = {}; try { cnt = SIMPLE.guCounts(); min = SIMPLE.guMins(); } catch (e) {}
       const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, obs = obstacles(), phone = MQ_SHEET.matches;
       // 칩 자리(범례 바로 위 왼쪽): 칩이 필요할 때만 비워 두고 다시 놓는다
       const chipBox = () => { const k = $("lmKey"), nt = $("lmNotes"), cb = cv.getBoundingClientRect(); let y = H - 40; try { if (k && k.offsetWidth) y = k.getBoundingClientRect().top - cb.top - 6; if (nt && !nt.hidden && nt.offsetWidth && nt.parentNode === $("lmap")) { const b = nt.getBoundingClientRect(); if (b.left - cb.left < 130) y = Math.min(y, b.top - cb.top - 6); } } catch (e) {} return [4, y - 40, 120, y]; };   // 레이어 범례가 왼쪽 아래에 있으면 그 위로
       // 자리 잡기는 지도 자리 그림(ghost.js)과 같은 함수 — 같은 카메라면 같은 자리
-      const { keep, left } = ZP_G.place({ W, H, obs, phone, gus: GUL.map((g) => ({ n: g.n, ll: g.ll, c: cnt[g.n] || 0 })), proj: (ll) => map.project(ll), chip: chipBox() });
+      const { keep, left } = ZP_G.place({ W, H, obs, phone, gus: GUL.map((g) => ({ n: g.n, ll: g.ll, c: cnt[g.n] || 0, m: min[g.n] != null ? min[g.n] : null })), proj: (ll) => map.project(ll), chip: chipBox() });
       gusSet(keep);
       GUMORE = { c: left.reduce((a, g) => a + g.c, 0), L: left, y: chipBox()[1] };
       guMoreDraw();
       // 자리표 글자는 숫자 자리만 맞춘다('가능 8' → '가능 0') — 금액을 끄는 동안 숫자만 바뀌면 다시 넣지 않는다(지도 다시 그리기 한 번이 느린 기기에서 수백 ms)
-      const gB = keep.map((g) => ({ type: "Feature", geometry: { type: "Point", coordinates: g.ll }, properties: { t: g.sn + "\n가능 " + String(g.c).replace(/\d/g, "0"), c: 1 } }));
+      const gB = keep.map((g) => ({ type: "Feature", geometry: { type: "Point", coordinates: g.ll }, properties: { t: (g.l1 + (g.l2 ? "\n" + g.l2 : "")).replace(/\d/g, "0"), c: 1 } }));
       const gk = "g|" + gB.map((f) => f.properties.t + f.geometry.coordinates).join("|");
       if (gk !== pbK) { pbK = gk; try { map.getSource("pillb").setData(FC(gB)); } catch (e) {} }
     }
@@ -890,14 +959,12 @@
           p = { el, key: "", mk: new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(g.ll).addTo(map) };
           GUS.set(n, p);
         }
-        const key = g.c + "|" + g.t + "|" + g.d + "|" + g.dx + "|" + g.dy + "|" + g.sm;
+        const key = [g.c, g.m, g.t, g.w, g.h, g.dx, g.dy, g.sm].join("|");
         if (p.key === key) return;
         p.key = key;
         p.mk.setOffset([g.dx || 0, g.dy || 0]);
-        p.el.className = `zgu t${g.t}${g.sm ? " sm" : ""}`; p.el.dataset.n = String(g.c);
-        p.el.style.setProperty("--d", g.d + "px");
-        p.el.innerHTML = `<b>${esc(g.sn)}</b><span>가능 ${fmt(g.c)}</span>`;
-        p.el.setAttribute("aria-label", ZP_G.GU_LBL(n, g.c));
+        ZP_G.guEl(p.el, g);   // 자리 그림과 같은 마크업('강북 1곳' / '7,400만~')
+        p.el.dataset.m = String(g.m);
       });
     }
     // 금액을 바꾸고 손을 떼면: 진동 한 번 + '새로 갈 수 있는 곳 4곳 · 2곳 빠졌어요'(바뀐 게 있을 때만, 2초) — 홈 숫자와 같은 판정(70_pins.js window.ZP_ok)
@@ -918,19 +985,21 @@
       let mT = 0; map.on("moveend", () => { clearTimeout(mT); mT = setTimeout(layout, 30); });
       map.on("resize", () => { clearTimeout(mT); mT = setTimeout(layout, 60); });
       const isG = (t) => t && (t.id === "sCash" || t.id === "sMiniR" || (t.closest && t.closest(".scrub")));
-      document.addEventListener("pointerdown", (e) => { if (isG(e.target)) pinSnap = okIds(); }, true);
+      // 손을 댈 때는 금액만 적어 두고(그 자리에서 전체 판정을 돌리면 끌기 첫 프레임이 늦음 · 21차), 비교는 손을 뗀 뒤 그 금액으로 다시 센다
+      document.addEventListener("pointerdown", (e) => { if (isG(e.target)) pinSnap = { c: CASH }; }, { capture: true, passive: true });
       const done = () => {
         if (!pinSnap) return;
-        const snap = pinSnap; pinSnap = null;
+        const c0 = pinSnap.c; pinSnap = null;
         try { if (navigator.vibrate) navigator.vibrate(10); } catch (er) {}
         setTimeout(() => {
           if (!map || !$("lmap") || $("lmap").hidden) return;
+          let snap; const save = CASH; try { CASH = c0; snap = okIds(); } finally { CASH = save; }
           const nowS = okIds(); let a = 0, b = 0; nowS.forEach((id) => { if (!snap.has(id)) a++; }); snap.forEach((id) => { if (!nowS.has(id)) b++; });
           if (a || b) pinToast([a ? `새로 갈 수 있는 곳 ${a}곳` : "", b ? `${b}곳 빠졌어요` : ""].filter(Boolean).join(" · "));
         }, 380);
       };
       document.addEventListener("change", (e) => { if (isG(e.target)) done(); }, true);
-      document.addEventListener("pointerup", (e) => { if (isG(e.target)) setTimeout(done, 40); }, true);
+      document.addEventListener("pointerup", (e) => { if (isG(e.target)) setTimeout(done, 40); }, { capture: true, passive: true });
       addEventListener("storage", () => states());
       addEventListener("keydown", (e) => { if (e.key === "Escape" && pickId) pickClear(); });
     }
@@ -1134,14 +1203,14 @@
       if (!el) return;
       // 상태 4가지를 말로(색만으로 가르지 않음): 지도와 같은 꼴의 작은 알약·점 + 이름
       const note = { old: "노후도 = 경계 안 건축물 중 사용승인 후 30년(철근콘크리트)·20년(그 외) 지난 비율 · 서울도시공간포털 건물 레이어(사용승인 2022년까지 반영)로 직접 계산 · 이주·철거 이후 구역과 연도 확인 건물이 적은 곳은 빼요", vol: "최근 12개월 구역 안 연립·다세대 매매 건수(단독·아파트 제외, 서울시 실거래)", yoy: "대지지분 3.3㎡당 매매가 가운데 값, 최근 12개월 vs 그 전 12개월 · 두 기간 5건 이상" }[colorBy];
-      const ex = { ok: "7,300만", near: "2,000만 부족" };
+      const ex = { ok: "7,400만", near: "500만 부족" };
       el.innerHTML = `<b class="lm-lgt">지금 필요한 돈 · 내 돈 기준</b>`
         + `<span><i class="lg-pill zpill st-ok"><span class="zp-in"><b class="zp-v">${ex.ok}</b></span></i>가능 · 내 돈으로 돼요</span>`
         + `<span><i class="lg-pill zpill st-near"><span class="zp-in"><b class="zp-v">${ex.near}</b></span></i>조금 모자람 · 모자란 돈</span>`
-        + `<span><i class="lg-dot far"></i>멀다 · 20% 넘게 더 필요</span>`
-        + `<span><i class="lg-dot na"></i>정보 부족 · 속 빈 고리 · 계산할 자료 없음</span>`
+        + `<span><i class="lg-dot far"></i>더 필요해요 · 20% 넘게 더 필요</span>`
+        + `<span><i class="lg-dot na"></i>자료 없음 · 계산할 자료가 아직 없어요</span>`
         + `<span><i class="lg-heart" aria-hidden="true">${HEART_S}</i>관심 구역 · 굵은 테두리</span>`
-        + `<span><i class="lg-gu"></i>서울 보기(줌 11 이하) · 구 묶음</span>`
+        + `<span><i class="lg-gu"></i>서울 보기 · 구 묶음 숫자 = 갈 수 있는 곳 수</span>`
         + `<span class="lm-est"><i></i>점선 테두리 = 대략 범위 · 공식 경계 없음(면적 기준 추정)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;
     }
     // 레이어 범례·'확대하면 보여요' 안내: 오른쪽 위 레일 바로 아래에 작은 글자로
@@ -1407,14 +1476,11 @@
       dragLite: () => {
         if (ghostOn()) ghostDraw(true);
         if (!map || !ready || !lastCity) return;
-        let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) { return; }
+        let cnt = {}, min = {}; try { cnt = SIMPLE.guCounts(); min = SIMPLE.guMins(); } catch (e) { return; }
         const mx = Math.max(1, ...Object.values(cnt));
         GUS.forEach((p, n) => {
-          const c = cnt[n] || 0; if (+p.el.dataset.n === c) return;
-          p.el.dataset.n = String(c); p.key = "";
-          const sp = p.el.querySelector("span"); if (sp) sp.textContent = `가능 ${fmt(c)}`;
-          p.el.classList.remove("t1", "t2", "t3"); p.el.classList.add("t" + ZP_G.tier(c, mx));
-          p.el.classList.toggle("z0", !c);
+          const c = cnt[n] || 0, mn = min[n] != null ? min[n] : null; if (+p.el.dataset.n === c && p.el.dataset.m === String(mn)) return;
+          p.key = ""; ZP_G.guLite(p.el, c, mn, mx);
         });
         const el = $("lmGuMore");
         if (el && !el.hidden && GUMORE.L.length) { const t = GUMORE.L.reduce((a, g) => a + (cnt[g.n] || 0), 0); if (+el.dataset.n !== t) { el.dataset.n = String(t); const b = el.querySelector(".lm-gumore-b"); if (b && b.firstChild) b.firstChild.textContent = `+${fmt(t)}곳 `; } }
@@ -1423,6 +1489,11 @@
       counts: () => states(),
       pins: () => states(),     // 관심 구역이 바뀌면 불러 주세요(하트·굵은 테두리)
       pills: () => [...PILLS.entries()].map(([id, p]) => ({ id, more: +((p.el.querySelector(".zp-more") || {}).textContent || 0), st: (ZS.get(id) || {}).st, need: (ZS.get(id) || {}).need, t: (p.el.querySelector(".zp-v") || {}).textContent || "", lab: p.el.getAttribute("aria-label") || "", fav: p.el.classList.contains("fav"), sel: p.el.classList.contains("sel") })),
+      // 점검(21차 map.pillVisible): 화면 안에서 점이 떠 있는 것(레일·막대·범례 등) 밑이 아닌 '가능' 구역 id
+      okVis: () => { if (!map || !ready) return []; const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, obs = obstacles(), out = []; for (const r of VIS) { const s = ZS.get(r.id), ll = llOf(r); if (!s || s.st !== "ok" || !ll) continue; const q = map.project(ll); if (q.x < 4 || q.x > W - 4 || q.y < 4 || q.y > H - 4) continue; const pt = [q.x - 2, q.y - 2, q.x + 2, q.y + 2]; if (obs.some((o) => hitB(o, pt))) continue; out.push(r.id); } return out; },
+      obstacles: () => (map ? obstacles() : []),
+      okDots: () => (okdK ? okdK.split(",").length : 0),
+      llOf: (id) => (byId[id] ? llOf(byId[id]) : null),
       gus: () => [...GUS.entries()].map(([n, p]) => ({ n, c: +p.el.dataset.n, t: p.el.textContent, lab: p.el.getAttribute("aria-label") || "" })),
       // 자리를 못 잡은 구 묶음이 모인 '+N곳' 칩의 곳 수(없으면 0) · 화면 묶음 합 + 이 값 == 홈 숫자
       ghost: () => (window.ZP_G && ZP_G.on() ? { gus: ZP_G.gus(), more: ZP_G.more(), cam: ZP_G.last() } : null),

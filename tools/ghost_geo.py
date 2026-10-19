@@ -39,6 +39,7 @@ def path(rings, o, tol, close=True):
             d = (p[0] - last[0], p[1] - last[1])
             if d == (0, 0): continue
             rel.append(f'{d[0]} {d[1]}'.replace(' -', '-')); last = p
+        if not rel: continue   # 한 점으로 줄어든 아주 작은 고리(빈 'l'은 SVG 오류)
         out.append(s + 'l' + ' '.join(rel).replace(' -', '-') + ('z' if close else ''))
     return ''.join(out)
 
@@ -88,7 +89,19 @@ def build(D):
         rv = path([pts], o, 1.2, close=False)
     except Exception as e:
         print('ghost river 건너뜀:', e)
-    return {'S': S, 'o': list(o), 'gu': gu, 'gpl': gpl, 'sp': sp, 'rv': rv}
+    # 21차: 정비구역 모양(서울 보기 줌 ≤ 11.5에서 1px 안팎 오차로 줄임) — 자리 그림이 '내 돈으로 가능' 구역을 실제 지도와 같은 남색 면으로 칠한다
+    # zp = {구역 id: 경로}, ze = 공식 경계 없이 면적으로 추정한 구역(점선) id
+    # zl = 면적 9만㎡ 아래 구역의 이름 자리(실제 지도 zone-okdot과 같은 규칙 · 서울 보기에서 작은 원으로)
+    zp, ze, zl = {}, [], {}
+    for zid, z in sorted((g.get('z') or {}).items()):
+        if not z.get('g'): continue
+        d = path(z['g'], o, 1.2)
+        if not d: continue
+        zp[zid] = d
+        if z.get('e'): ze.append(zid)
+        if z.get('l') and float(z.get('a') or 0) < 90000:
+            x, y = merc(z['l'][0], z['l'][1]); zl[zid] = [round(x - o[0]), round(y - o[1])]
+    return {'S': S, 'o': list(o), 'gu': gu, 'gpl': gpl, 'sp': sp, 'rv': rv, 'zp': zp, 'ze': ze, 'zl': zl}
 
 
 if __name__ == '__main__':

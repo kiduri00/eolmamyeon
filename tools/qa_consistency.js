@@ -201,7 +201,7 @@ async function newPage(browser, opts, errs) {
   await ctx.addInitScript(IN_PAGE);
   await ctx.addInitScript(() => { try { localStorage.setItem("emr.coach1", "1"); } catch (e) {} });
   const page = await ctx.newPage();
-  page.on("pageerror", (e) => errs.push({ where: page.__where || "", msg: "pageerror: " + (e.message || String(e)).split("\n")[0].slice(0, 200) }));
+  page.on("pageerror", (e) => errs.push({ where: page.__where || "", msg: "pageerror: " + (e.message || String(e)).split("\n")[0].slice(0, 200) + " @" + String((e.stack || "").split("\n")[1] || "").trim().replace(/^at\s+/, "").replace(/https?:\/\/[^/]+/, "").slice(0, 90) }));
   page.on("console", (m) => {
     if (m.type() !== "error") return;
     const t = m.text(), u = (m.location() && m.location().url) || "";
@@ -687,11 +687,24 @@ async function uiLane(browser, api, errs, shared) {
       shared.toolIds = m.ids.concat(EXTRA_VIEWS);
       shared.alias = await page.evaluate(() => window.ZP_ALIAS || {});
     }
-    // 홈 '더 알아보기' 격자는 없앴다(리뉴얼 2단계) — 도구는 MY '도구' 묶음에 전부(ZP_TOOLS 순서)
+    // 21차: 홈 '더 알아보기' 격자(#sTiles)는 없고, 아래쪽 빠른 메뉴 한 줄(#sQuick)에 정확히 6개 · 각각 그 화면을 연다 · MY 도구 묶음은 전부 그대로
     {
-      const g = await page.evaluate(() => ({ grid: !!document.getElementById("sTiles") || !!document.querySelector(".s-t[data-view]"), my: [...document.querySelectorAll("#myTools a")].map((a) => a.dataset.menu || (a.getAttribute("href") || "").replace(/^#/, "")), ids: (window.ZP_TOOLS || []).map((t) => t[0]) }));
-      const lack = g.ids.filter((id) => !g.my.includes(id) && id !== "favTop" && id !== "news");   // 관심·소식은 아래 탭
-      expect(!g.grid && g.ids.length && !lack.length, "ui.tiles", "홈 '더 알아보기' 격자 없음 · 도구(ZP_TOOLS)는 MY 도구 묶음(관심·소식은 아래 탭)에 전부", `grid ${g.grid} · not in MY: [${lack.join(", ")}]`);
+      const TT = "홈 빠른 메뉴 한 줄 = 순위·실거래·경공매·고시공고·출퇴근·입주 계산(각각 그 화면) · 격자 없음 · 도구(ZP_TOOLS)는 MY 도구 묶음(관심·소식은 아래 탭)에 전부";
+      const g = await page.evaluate(() => ({ grid: !!document.getElementById("sTiles") || !!document.querySelector(".s-t[data-view]"), q: [...document.querySelectorAll("#sQuick a")].map((a) => ({ t: a.querySelector("span").textContent.trim(), h: (a.getAttribute("href") || "").slice(1), lab: a.getAttribute("aria-label") || "" })), my: [...document.querySelectorAll("#myTools a")].map((a) => a.dataset.menu || (a.getAttribute("href") || "").replace(/^#/, "")), ids: (window.ZP_TOOLS || []).map((t) => t[0]) }));
+      const lack = g.ids.filter((id) => !g.my.includes(id) && id !== "favTop" && id !== "news");
+      const want = ["순위", "실거래", "경공매", "고시공고", "출퇴근", "입주 계산"];
+      expect(!g.grid && g.ids.length && !lack.length && JSON.stringify(g.q.map((x) => x.t)) === JSON.stringify(want) && g.q.every((x) => x.lab.startsWith(x.t)), "ui.tiles", TT, `grid ${g.grid} · quick ${JSON.stringify(g.q.map((x) => x.t))} · not in MY: [${lack.join(", ")}]`);
+      const TGT = { rankHub: ["rankHub", null], txrTop: ["rankHub", "txr"], aucTop: ["news", "auc"], ntcTop: ["news", ""], commuteTop: ["commuteTop", null], planner: ["planner", null] };
+      for (const x of g.q) {
+        await loadHome(page); await settle(page, 300);
+        const r = await page.evaluate(async (h) => { const a = document.querySelector(`#sQuick a[href="#${h}"]`); const y0 = scrollY; a.scrollIntoView({ block: "center" }); await new Promise((r) => setTimeout(r, 120)); const y1 = scrollY; a.click(); await new Promise((r) => setTimeout(r, 700)); const on = [...document.querySelectorAll(".s-on")].map((e) => e.id); const chip = document.querySelector("#ntcF [aria-pressed=\"true\"]"); const tab = document.querySelector("#rankHub [role=tab][aria-selected=\"true\"]"); return { on, chip: chip ? chip.dataset.c : null, tab: tab ? tab.dataset.tab : null, y1, auc: (document.getElementById("ntcOut") || {}).textContent || "" }; }, x.h);
+        const [view, sub] = TGT[x.h] || [];
+        const okV = r.on.includes(view) && (x.h !== "aucTop" || r.chip === "auc") && (x.h !== "ntcTop" || r.chip === "") && (x.h !== "txrTop" || /txr|실거래/.test(String(r.tab)));
+        expect(okV, "ui.tiles", TT, `${x.t} (#${x.h}): open ${r.on.join(",")} chip ${r.chip} tab ${r.tab}`);
+        // 돌아가기 → 홈의 빠른 메뉴 자리로
+        const back = await page.evaluate(async () => { history.back(); await new Promise((r) => setTimeout(r, 700)); return { view: document.documentElement.classList.contains("s-view"), y: scrollY }; });
+        expect(!back.view && Math.abs(back.y - r.y1) <= 80, "ui.tiles", TT, `${x.t}: 뒤로 가기 → 홈 ${!back.view} · scroll ${Math.round(back.y)} (was ${Math.round(r.y1)})`);
+      }
     }
     // 돌아가기: MY에서 연 도구의 '← 돌아가기' → MY로(아래 탭 화면 관심·소식·MY에는 돌아가기 없음)
     {
@@ -1422,11 +1435,12 @@ async function r3Lane(browser, errs) {
     await mapIdle(); await page.waitForTimeout(600);
     // --- map.guCluster: 줌 11 이하 구 묶음 숫자 == 그 구 목록 곳 수(window.ZP_simple.guCount) · 누르면 목록 제목 곳 수가 같음
     {
-      const T = "줌 11 이하 구 묶음 '구로 · 가능 N' == 그 구 목록 곳 수(누르면 목록 제목도 N곳)";
+      const T = "줌 11 이하 구 묶음 '구로 N곳 / 7,400만~' == 그 구 목록 곳 수·가장 적은 금액(누르면 목록 제목도 N곳)";
       await goTo(10.4, [126.98, 37.55]);
-      const g = await page.evaluate(() => (window.ZP_lmx.gus ? window.ZP_lmx.gus() : []).map((x) => ({ ...x, want: window.ZP_simple.guCount(x.n) })));
+      const g = await page.evaluate(() => { const M = window.ZP_simple.guMins(); return (window.ZP_lmx.gus ? window.ZP_lmx.gus() : []).map((x) => ({ ...x, want: window.ZP_simple.guCount(x.n), wm: M[x.n] != null ? window.ZP_G.MT(M[x.n]) : "", list: window.ZP_simple.guCount(x.n) })); });
       expect(g.length > 0, "map.guCluster", T, `no 구 clusters at zoom 10.4`);
-      for (const x of g) expect(x.c === x.want && x.c > 0 && new RegExp(`가능\\s*${x.c}`).test(x.t) && x.lab.includes(x.n), "map.guCluster", T, `${x.n}: cluster ${x.c} "${x.t}" vs list ${x.want}`);
+      // 21차: 두 줄 '강북 1곳' / '7,400만~'(그 구 갈 수 있는 곳 중 가장 적은 지금 필요한 돈)
+      for (const x of g) expect(x.c === x.want && x.c > 0 && new RegExp(`${x.c}곳`).test(x.t) && !!x.wm && x.t.includes(x.wm) && x.lab.includes(x.n), "map.guCluster", T, `${x.n}: cluster ${x.c} "${x.t}" vs list ${x.want} min ${x.wm}`);
       if (g.length) {
         const pk = g[0];
         await page.evaluate((n) => { const b = document.querySelector(`.zgu[data-gu="${n}"]`); if (b) b.click(); }, pk.n); await page.waitForTimeout(1200); await settle(page, 300);
@@ -1451,7 +1465,7 @@ async function r3Lane(browser, errs) {
         for (const p of P) {
           const lab = /지금 필요한 돈/.test(p.lab) && p.lab.length > 12;
           if (p.st === "ok") expect(p.need <= c + 1e-9 && list[p.id] != null && p.t === list[p.id] && p.t === zfCash(p.need) && lab && /가능/.test(p.lab), "map.pills", T, `${where} ${p.id}: pill "${p.t}" list "${list[p.id]}" need ${p.need} label "${p.lab}"`);
-          else if (p.st === "near") { const want = "+" + zfCash(Math.max(0.01, Math.ceil(p.need * 100 - 1e-6) / 100 - c)); expect(p.need > c && p.need <= c * 1.2 + 1e-9 && p.t === want && list[p.id] == null && /조금 모자람/.test(p.lab), "map.pills", T, `${where} ${p.id}: near pill "${p.t}" want "${want}" need ${p.need} in list ${list[p.id] != null}`); }
+          else if (p.st === "near") { const want = zfCash(Math.max(0.01, Math.ceil(p.need * 100 - 1e-6) / 100 - c)) + " 부족"; /* 모자란 곳은 '5,700만 부족' */ expect(p.need > c && p.need <= c * 1.2 + 1e-9 && p.t === want && list[p.id] == null && /조금 모자람/.test(p.lab), "map.pills", T, `${where} ${p.id}: near pill "${p.t}" want "${want}" need ${p.need} in list ${list[p.id] != null}`); }
           else bad("map.pills", T, `${where} ${p.id}: pill with state ${p.st}`);
         }
         // 알약끼리 겹치지 않음(보이는 알약 상자)
@@ -1921,6 +1935,147 @@ async function r19Lane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
 }
+// ---------------------------------------------------------------- 21차: 가능 구역마다 알약 · 범례 = 그려진 것 · 서울 보기 구역 면 · 막대 끌기 부드러움 · 목록 줄 역 이름
+async function r21Lane(browser, api, errs) {
+  const mob = (w, h, cs) => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs });
+  const idle = (page) => page.waitForFunction(() => { const m = window.ZP_lmx && ZP_lmx.map && ZP_lmx.map(); return m && m.loaded() && !m.isMoving() && !(window.ZP_G && ZP_G.on()); }, null, { timeout: 30000, polling: 200 }).catch(() => {});
+  const TP = "구 화면: 화면 안(떠 있는 버튼 밑이 아닌) '가능' 구역은 모두 가격 알약이 있거나 이웃 알약의 '+N'에 셈 · 성북구 1억 정릉3구역 알약(레일 모서리 옆으로 옮겨도)";
+  const TK = "범례 = 지금 화면에 그려진 것만(견본 알약 글자 == 지도 알약 · '멀다'·'정보 부족' 없음 · 서울 보기 '숫자 = 내 돈으로 갈 수 있는 곳 · 금액 = 가장 적게 드는 곳')";
+  for (const [w, h] of [[360, 740], [390, 844]]) for (const cs of ["light", "dark"]) {
+    const { ctx, page } = await newPage(browser, mob(w, h, cs), errs);
+    const where = `${w} ${cs}`;
+    try {
+      page.__where = `/#map-성북구 ${where}`;
+      await page.goto(BASE + `/?cash=1&mode=jeonse&qac=${++LOADS}#map-${encodeURIComponent("성북구")}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction(() => /^성북구 · /.test(document.getElementById("sLT").textContent), null, { timeout: 30000, polling: 100 }).catch(() => {});
+      await page.evaluate(() => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 70); try { ZP_lmx.attach && 0; } catch (e) {} });
+      await idle(page); await page.waitForTimeout(700);
+      const chk = async (tag) => {
+        const r = await page.evaluate(() => { const P = ZP_lmx.pills(), ok = ZP_lmx.okVis(); const okP = P.filter((p) => p.st === "ok"); return { ok, okP: okP.map((p) => p.id), more: P.reduce((a, p) => a + p.more, 0), key: (document.getElementById("lmKey") || {}).textContent || "", keyS: [...document.querySelectorAll("#lmKey .k-p")].map((e) => e.textContent), pt: P.map((p) => p.t), view: document.getElementById("mapbox").dataset.view }; });
+        const missing = r.ok.filter((id) => !r.okP.includes(id));
+        expect(r.view === "gu" && r.ok.length > 0 && missing.length <= r.more && r.ok.includes("o430") === r.okP.includes("o430"), "map.pillVisible", TP, `${where} ${tag}: ok in view ${r.ok.length} · pills ${r.okP.length} · +N ${r.more} · no pill ${missing.join(",")}`);
+        expect(!/멀다|정보 부족/.test(r.key) && r.keyS.every((t) => r.pt.includes(t)) && (r.okP.length ? /내 돈으로 가능/.test(r.key) : !/내 돈으로 가능/.test(r.key)), "map.legend", TK, `${where} ${tag}: key "${r.key}" samples ${JSON.stringify(r.keyS)} pills ${JSON.stringify(r.pt.slice(0, 6))}`);
+        return r;
+      };
+      const r0 = await chk("first");
+      expect(r0.okP.includes("o430"), "map.pillVisible", TP, `${where}: 정릉3구역(o430) 알약 없음 · pills ${r0.okP.join(",")}`);
+      // 사장님 화면: 정릉3구역 점이 오른쪽 위 레일 왼쪽 아래 모서리 바로 옆(원래는 '+N' 꼬리 자리 때문에 알약이 빠지고 점선 고리만 남았다)
+      for (const [dx, dy] of [[-22, 18], [-40, 30], [-12, 40]]) {
+        await page.evaluate(([dx, dy]) => {
+          const m = ZP_lmx.map(), rail = document.querySelector("#mapbox .s-rail"), cv = m.getCanvas().getBoundingClientRect(), rb = rail.getBoundingClientRect();
+          const want = [rb.left - cv.left + dx, rb.bottom - cv.top + dy], q = m.project(ZP_lmx.llOf("o430"));
+          m.panBy([q.x - want[0], q.y - want[1]], { duration: 0 });
+        }, [dx, dy]);
+        await idle(page); await page.waitForTimeout(400);
+        const r = await chk(`rail+${dx},${dy}`);
+        expect(!r.ok.includes("o430") || r.okP.includes("o430"), "map.pillVisible", TP, `${where} rail ${dx},${dy}: 정릉3구역 보이는데 알약 없음 · pills ${r.okP.join(",")}`);
+      }
+      // 서울 보기: 범례 짧게(구 묶음 뜻 + 칠한 곳)
+      await page.evaluate(() => { const x = document.getElementById("sGuX") || document.getElementById("mapBack"); if (x) x.click(); });
+      await page.waitForTimeout(900); await idle(page); await page.waitForTimeout(500);
+      const c = await page.evaluate(() => ({ key: (document.getElementById("lmKey") || {}).textContent || "", view: document.getElementById("mapbox").dataset.view, z: ZP_lmx.map().getZoom(), dots: ZP_lmx.okDots(), n: +document.getElementById("sN").textContent.replace(/\D/g, "") }));
+      expect(c.view !== "gu" && /숫자 = 내 돈으로 갈 수 있는 곳/.test(c.key) && /금액 = 가장 적게 드는 곳/.test(c.key) && c.key.length <= 40, "map.legend", TK, `${where} 서울 보기: key "${c.key}" view ${c.view}`);
+      expect(c.z > 11.01 || !c.n || c.dots > 0, "map.zoneShade", "서울 보기(줌 ≤ 11)에서 가능 구역이 바로 보임: 남색 면 45% + 작은 구역은 남색 원(자리 그림도 같은 면·원)", `${where}: zoom ${c.z.toFixed(2)} count ${c.n} small-zone dots ${c.dots}`);
+      const op = await page.evaluate(() => { const m = ZP_lmx.map(); return JSON.stringify(m.getPaintProperty("zone-fill", "fill-opacity")); });
+      expect(/,0,0\.(4|45),/.test(op), "map.zoneShade", "서울 보기(줌 ≤ 11)에서 가능 구역이 바로 보임: 남색 면 45% + 작은 구역은 남색 원(자리 그림도 같은 면·원)", `${where}: zone-fill opacity ${op.slice(0, 120)}`);
+    } catch (e) { bad("runtime", "검사 실행", `r21 ${where} crashed: ` + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- map.zoneShade(자리 그림): 첫 화면 자리 그림에도 가능 구역 면·원
+  {
+    const { ctx, page } = await newPage(browser, mob(390, 844, "light"), errs);
+    try {
+      await page.goto(BASE + `/?cash=3&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.evaluate(() => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 120); });
+      const g = await page.waitForFunction(() => { const e = document.querySelector(".zp-ph"); if (!e) return { gone: 1 }; const p = e.querySelectorAll(".zg-z path").length, c = e.querySelectorAll(".zg-zd circle").length; return p || c ? { p, c } : null; }, null, { timeout: 8000, polling: 50 }).then((h) => h.jsonValue()).catch(() => ({ none: 1 }));
+      expect(!g.none && (g.gone || (g.p > 0 && g.c > 0)), "map.zoneShade", "서울 보기(줌 ≤ 11)에서 가능 구역이 바로 보임: 남색 면 45% + 작은 구역은 남색 원(자리 그림도 같은 면·원)", `ghost 3억: paths ${g.p} circles ${g.c}${g.gone ? " (자리 그림이 이미 걷힘)" : ""}`);
+    } catch (e) { bad("runtime", "검사 실행", "r21 ghost crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- ui.scrubSmooth: 홈 막대를 손가락으로 1.5초 끄는 동안 손잡이는 transform으로 따라오고, 큰 숫자는 100ms 안 · 놓으면 금액 자리로
+  {
+    const TD = "홈 금액 막대 끌기: 손잡이·말풍선이 손가락을 바로 따라옴(transform) · 큰 숫자 지연 중앙값 ≤ 100ms · 33ms 넘는 프레임 ≤ 10% · 놓으면 금액 자리(--p)로";
+    const { ctx, page } = await newPage(browser, mob(390, 844, "light"), errs);
+    try {
+      await loadHome(page); await settle(page, 600);
+      const box = await page.evaluate(() => { const e = document.getElementById("sScrub"); e.scrollIntoView({ block: "center" }); const b = e.getBoundingClientRect(); return { x: b.left, y: b.top + b.height / 2, w: b.width }; });
+      await page.waitForTimeout(400);
+      const cdp = await ctx.newCDPSession(page);
+      await page.evaluate(() => {
+        const F = (window.__F = []), L = (window.__L = []); let last = null, need = 0; window.__on = true;
+        const loop = (t) => { F.push(t); if (window.__on) requestAnimationFrame(loop); }; requestAnimationFrame(loop);
+        const bars = document.querySelector("#sScrub .scr-bars"), n = document.getElementById("sN"); let prev = n.textContent;
+        document.addEventListener("pointermove", (e) => { const b = bars.getBoundingClientRect(), c = ZP_simple.toCash(Math.min(100, Math.max(0, ((e.clientX - b.left) / b.width) * 100))); if (c !== last) { last = c; if (!need) need = performance.now(); } }, true);
+        new MutationObserver(() => { if (n.textContent !== prev) { prev = n.textContent; if (need) { L.push(performance.now() - need); need = 0; } } }).observe(n, { childList: true, characterData: true, subtree: true });
+      });
+      const T = (type, x) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y: box.y, id: 1 }] });
+      const x0 = box.x + box.w * 0.1, x1 = box.x + box.w * 0.6;
+      await T("touchStart", x0);
+      const t0 = Date.now(); let mid = null, i = 0;
+      while (Date.now() - t0 < 1500) { const k = (Date.now() - t0) / 1500; await T("touchMove", x0 + (x1 - x0) * k + (i++ % 2) * 0.3); if (!mid && k > 0.5) mid = await page.evaluate(() => ({ tf: document.querySelector("#sScrub .scr-h").style.transform, drag: document.getElementById("sScrub").classList.contains("drag") })); await new Promise((r) => setTimeout(r, 14)); }
+      await T("touchEnd", x1);
+      await page.waitForTimeout(900);
+      const r = await page.evaluate(() => { window.__on = false; const F = window.__F, d = []; for (let i = 1; i < F.length; i++) d.push(F[i] - F[i - 1]); const L = window.__L.slice().sort((a, b) => a - b); const el = document.getElementById("sScrub"), c = +document.getElementById("pCash").value; return { n: d.length, s33: d.filter((x) => x > 33.4).length, L: L.length, med: L[L.length >> 1], p: el.style.getPropertyValue("--p"), want: ZP_simple.toPos(c) + "%", tf: el.querySelector(".scr-h").style.transform, drag: el.classList.contains("drag") }; });
+      expect(mid && mid.drag && /translate3d/.test(mid.tf), "ui.scrubSmooth", TD, `mid-drag thumb transform "${mid && mid.tf}" drag ${mid && mid.drag}`);
+      expect(r.L >= 5 && r.med <= 100 && r.s33 / Math.max(1, r.n) <= 0.1, "ui.scrubSmooth", TD, `count changes ${r.L} · median latency ${Math.round(r.med)}ms · frames >33ms ${r.s33}/${r.n}`);
+      expect(!r.drag && !r.tf && r.p === r.want, "ui.scrubSmooth", TD, `after release: --p ${r.p} want ${r.want} transform "${r.tf}" drag ${r.drag}`);
+    } catch (e) { bad("runtime", "검사 실행", "r21 scrub crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- list.rowFit · list.noOverflow: 목록 줄(360·390·412 · 밝은·어두운): 역·도보 분이 다 보임 · 줄 안 글자가 줄 상자 밖(다음 줄·구분선)으로 안 나감
+  {
+    const TR = "목록 줄 둘째 줄: 역 이름·도보 분이 다 보임(360·390·412px)";
+    const TO = "목록 줄: 모든 글자·칩이 줄 상자 안(scrollHeight ≤ clientHeight) · 다음 줄과 겹치지 않음(360·390·412 · 밝은·어두운)";
+    for (const w of [360, 390, 412]) for (const cs of ["light", "dark"]) {
+      const { ctx, page } = await newPage(browser, mob(w, 800, cs), errs);
+      try {
+        await page.goto(BASE + `/?cash=3&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+        await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && document.querySelectorAll("#sList li.s-card").length >= 6, null, { timeout: 30000, polling: 100 }).catch(() => {});
+        await page.waitForTimeout(500);
+        const r = await page.evaluate(() => [...document.querySelectorAll("#sList li.s-card")].slice(0, 20).map((li) => {
+          const R0 = li.getBoundingClientRect(), bad = [];
+          // 보이는 상자 = 자기 상자 ∩ 넘침을 자르는 조상(overflow hidden·clip) 상자 — 잘려서 안 보이는 부분(자리가 없어 다음 줄로 밀려 숨은 '남는 돈')은 세지 않는다
+          const vb = (e) => { let b = e.getBoundingClientRect(), r = [b.left, b.top, b.right, b.bottom]; for (let a = e.parentElement; a && a !== li; a = a.parentElement) { const cs = getComputedStyle(a); if (/hidden|clip/.test(cs.overflow + cs.overflowX + cs.overflowY)) { const c = a.getBoundingClientRect(); r = [Math.max(r[0], c.left), Math.max(r[1], c.top), Math.min(r[2], c.right), Math.min(r[3], c.bottom)]; } } return r; };
+          li.querySelectorAll("*").forEach((e) => { const b = e.getBoundingClientRect(); if (b.width < 1 || b.height < 1 || getComputedStyle(e).visibility === "hidden" || e.closest("[hidden]")) return; const r = vb(e); if (r[2] - r[0] < 1 || r[3] - r[1] < 1) return; if (r[1] < R0.top - 1 || r[3] > R0.bottom + 1 || r[0] < R0.left - 1 || r[2] > R0.right + 1) bad.push((e.className && e.className.baseVal == null ? e.className : e.tagName) + " " + Math.round(r[3] - R0.bottom)); });
+          const wk = li.querySelector(".s-wk"), sub = li.querySelector(".s-sub"), a = wk && wk.getBoundingClientRect(), c = sub && sub.getBoundingClientRect();
+          return { id: li.dataset.zid, over: li.scrollHeight > li.clientHeight + 1, bad: bad.slice(0, 3), wk: wk ? wk.textContent : "", cut: !!wk && (wk.scrollWidth > wk.clientWidth + 1 || a.right > c.right + 1 || a.width < 4) };
+        }));
+        const ob = r.filter((x) => x.over || x.bad.length), cut = r.filter((x) => x.cut);
+        expect(r.length >= 6 && !ob.length, "list.noOverflow", TO, `${w} ${cs}: ${r.length} rows · overflow ${ob.map((x) => x.id + "[" + x.bad.join("|") + "]").join(", ")}`);
+        if (cs === "light") expect(r.length > 0 && !cut.length, "list.rowFit", TR, `${w}px: ${r.length} rows · cut ${cut.map((x) => x.id + " " + x.wk).join(", ")}`);
+      } catch (e) { bad("runtime", "검사 실행", "r21 rowFit crashed: " + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- ui.newBadge: 마지막으로 본 날보다 새 소식이 있으면 경공매·고시공고 타일·소식 탭·머리 종에 N · 그 목록을 열면 지워짐 · 정적 페이지 종도 같은 기준
+  {
+    const TB = "새 소식 N 점: 마지막으로 본 날보다 새 경매·고시가 있으면 타일·소식 탭·머리 종에 N · 그 목록을 열면 지워짐 · 정적 페이지 종도 같은 키";
+    const { ctx, page } = await newPage(browser, mob(390, 844, "light"), errs);
+    try {
+      await loadHome(page); await settle(page, 300);
+      const D0 = await page.evaluate(() => { localStorage.setItem("zp.seen.auc", "2000-01-01"); localStorage.setItem("zp.seen.ntc", "2000-01-01"); return window.NEWB && NEWB.NEWD; });
+      await loadHome(page); await settle(page, 500);
+      const vis = () => page.evaluate(() => { const v = (s) => { const e = document.querySelector(s); return !!(e && !e.hidden && getComputedStyle(e).display !== "none"); }; /* 타일은 도구 화면이 열린 동안 숨어 있어도 점 상태(hidden)로 본다 */ return { auc: v('#sQuick a[href="#aucTop"] .nb-dot'), ntc: v('#sQuick a[href="#ntcTop"] .nb-dot'), tab: v('#sNav [data-nav="news"] .nb-dot'), bell: v("#hdrBell .nb-dot"), bl: (document.getElementById("hdrBell") || {}).getAttribute ? document.getElementById("hdrBell").getAttribute("aria-label") : "" }; });
+      const a = await vis();
+      expect(!!(D0 && D0.auc && D0.ntc) && a.auc && a.ntc && a.tab && a.bell && /새 소식/.test(a.bl), "ui.newBadge", TB, `stale seen: ${JSON.stringify(a)} NEWD ${JSON.stringify(D0)}`);
+      await page.evaluate(() => document.querySelector('#sQuick a[href="#aucTop"]').click()); await page.waitForTimeout(800);
+      const b = await vis(), k = await page.evaluate(() => localStorage.getItem("zp.seen.auc"));
+      expect(!b.auc && b.ntc && b.bell && k === D0.auc, "ui.newBadge", TB, `after 경공매: ${JSON.stringify(b)} seen ${k}`);
+      await page.evaluate(() => history.back()); await page.waitForTimeout(600);
+      await page.evaluate(() => document.querySelector('#sQuick a[href="#ntcTop"]').click()); await page.waitForTimeout(800);
+      const c = await vis();
+      expect(!c.auc && !c.ntc && !c.tab && !c.bell, "ui.newBadge", TB, `after 고시공고: ${JSON.stringify(c)}`);
+      // 정적 페이지: 다 본 뒤엔 점 없음 · 다시 옛날로 돌리면 점
+      await page.goto(BASE + "/faq.html", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(300);
+      const s1 = await page.evaluate(() => { const e = document.querySelector(".hdr-bell .nb-dot"); return e ? !e.hidden : null; });
+      await page.evaluate(() => localStorage.setItem("zp.seen.ntc", "2000-01-01")); await page.reload({ waitUntil: "domcontentloaded" }); await page.waitForTimeout(300);
+      const s2 = await page.evaluate(() => { const e = document.querySelector(".hdr-bell .nb-dot"); return e ? !e.hidden : null; });
+      expect(s1 === false && s2 === true, "ui.newBadge", TB, `static /faq: after seen ${s1} · stale ${s2}`);
+    } catch (e) { bad("runtime", "검사 실행", "r21 newBadge crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+}
+
 async function r17bLane(browser, api, errs) {
   // ---- term.glossary(정적): 메타 태그 · 매니페스트 · 월간 리포트 · 앱 코드(JS 묶음) 화면 글자 ----
   try {
@@ -2092,6 +2247,8 @@ async function r17bLane(browser, api, errs) {
   if (!ONLY || ONLY === "r17b") await timed("r17b", r17bLane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r17bLane crashed: " + e.message)));
   // 19차(지도 자리 그림 = 실제 지도 · 붙일 때 긴 작업 · 홈 막대 슬라이더 · PC 구 화면 뒤로 · 돈 꼴 · 검색 배지) — 혼자(긴 작업을 잰다)
   if (!ONLY || ONLY === "r19") await timed("r19", r19Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r19Lane crashed: " + e.message)));
+  // 21차(가능 구역마다 알약 · 범례 · 서울 보기 구역 면 · 막대 끌기 · 목록 줄) — 혼자(끄는 프레임을 잰다)
+  if (!ONLY || ONLY === "r21") await timed("r21", r21Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r21Lane crashed: " + e.message)));
   await browser.close();
 
   // 콘솔 오류

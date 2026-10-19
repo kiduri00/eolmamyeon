@@ -81,6 +81,20 @@ async function notifyAdmin(env, v, opts = {}) {
   return code;
 }
 
+// 막 지운 문의 키(5분): KV list가 지운 키를 한동안 더 돌려줘 '모두 N건'이 줄지 않던 것(21차)
+const DEL_KEY = "admin:del", DEL_MS = 5 * 60 * 1000;
+async function delSet(env) {
+  let L = []; try { L = (await env.PUSH.get(DEL_KEY, "json")) || []; } catch (e) { L = []; }
+  const t = Date.now();
+  return new Set((Array.isArray(L) ? L : []).filter((x) => x && t - x.t < DEL_MS).map((x) => x.id));
+}
+async function delMark(env, id) {
+  let L = []; try { L = (await env.PUSH.get(DEL_KEY, "json")) || []; } catch (e) { L = []; }
+  const t = Date.now();
+  L = (Array.isArray(L) ? L : []).filter((x) => x && t - x.t < DEL_MS && x.id !== id).slice(-200);
+  L.push({ id, t });
+  await env.PUSH.put(DEL_KEY, JSON.stringify(L), { expirationTtl: 600 });
+}
 export async function handleContact(req, env, ctx, opts = {}) {
   const u = new URL(req.url), p = u.pathname.replace(/\/+$/, "");
   if (!env.PUSH) return json({ error: "off" }, 503);
@@ -115,16 +129,21 @@ export async function handleContact(req, env, ctx, opts = {}) {
     // KV 목록은 이름 오름차순(= 오래된 순) → 이름만 다 모아 최신순으로 뒤집고, 커서 = 건너뛸 개수
     const names = []; let cur;
     for (let i = 0; i < 50; i++) { const L = await env.PUSH.list({ prefix: "msg:", cursor: cur, limit: 1000 }); L.keys.forEach((k) => names.push(k.name)); if (L.list_complete || !L.cursor) break; cur = L.cursor; }
+    // KV 목록은 지운 뒤에도 최대 60초 동안 지운 키를 돌려준다(전 세계 복제 지연) → 막 지운 키(admin:del, 5분)를 빼고 센다
+    const gone = await delSet(env), live0 = names.filter((n) => !gone.has(n));
+    names.length = 0; names.push(...live0);
     names.sort().reverse();
     const off = Math.max(0, Math.floor(+u.searchParams.get("cursor") || 0)), lim = Math.max(1, Math.min(100, Math.floor(+u.searchParams.get("limit") || 30)));
     const page = names.slice(off, off + lim), items = [];
-    for (const id of page) { const v = await env.PUSH.get(id, "json"); if (v) items.push({ id, ...v, kindT: KINDS[v.kind] || v.kind }); }
-    return json({ items, total: names.length, unread: null, cursor: off + lim < names.length ? String(off + lim) : null });
+    let miss = 0;
+    for (const id of page) { const v = await env.PUSH.get(id, "json"); if (v) items.push({ id, ...v, kindT: KINDS[v.kind] || v.kind }); else miss++; }
+    // 목록에는 있는데 값이 없는 키(만료·다른 곳에서 지움)는 세지 않는다
+    return json({ items, total: Math.max(0, names.length - miss), unread: null, cursor: off + lim < names.length ? String(off + lim) : null });
   }
   if ((p === "/api/contact/admin/read" || p === "/api/contact/admin/delete") && req.method === "POST") {
     const b = await readBody(req), id = b && typeof b.id === "string" ? b.id : "";
     if (!MSG_ID.test(id)) return json({ error: "id" }, 400);
-    if (p.endsWith("/delete")) { await env.PUSH.delete(id); return json({ ok: true }); }
+    if (p.endsWith("/delete")) { await env.PUSH.delete(id); await delMark(env, id); return json({ ok: true }); }
     const v = await env.PUSH.get(id, "json");
     if (!v) return json({ error: "gone" }, 404);
     v.read = b.read !== false;

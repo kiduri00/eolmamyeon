@@ -124,9 +124,9 @@
   }
   // 지도 자리: 실제 지도와 같은 구 묶음·범례·'+N곳' 칩(src/ghost.js · 지금 금액의 구별 곳 수) — 앱이 붙으면 앱(10_lmap.js)이 이어받고, 실제 지도가 다 그려지면 걷힌다
   function ghostSt() {
-    var t = P.thr && P.thr[cur.f], cnt = {}, ok = [];
-    if (t) for (var k = 0; k < P.zones.length; k++) if (t[k] >= 0 && t[k] <= cur.i) { var z = P.zones[k]; cnt[z[0]] = (cnt[z[0]] || 0) + 1; if (z[1] != null) ok.push([z[1], z[2]]); }
-    return { cnt: cnt, ok: ok };
+    var t = P.thr && P.thr[cur.f], cnt = {}, ok = [], ids = [], min = {}, ni = cur.f === "cash" ? 5 : 4;
+    if (t) for (var k = 0; k < P.zones.length; k++) if (t[k] >= 0 && t[k] <= cur.i) { var z = P.zones[k], v = z[ni]; cnt[z[0]] = (cnt[z[0]] || 0) + 1; if (z[1] != null) ok.push([z[1], z[2]]); if (z[3]) ids.push(z[3]); if (v != null && (min[z[0]] == null || v < min[z[0]])) min[z[0]] = v; }
+    return { cnt: cnt, ok: ok, ids: ids, min: min };
   }
   function ph() {
     if (!W.ZP_G || !P.thr || !$("mapbox")) return;
@@ -137,7 +137,7 @@
   function dots() {
     if (!W.ZP_G || !W.ZP_G.on() || hyd()) return;
     var g = ghostSt();
-    if (dragI) W.ZP_G.lite(g.cnt); else W.ZP_G.draw(g);
+    if (dragI) W.ZP_G.lite(g.cnt, g.ids, g.min); else W.ZP_G.draw(g);
   }
   // 앱이 붙기 전에 누른 단추: 앱이 붙으면 마지막 것 한 번만 다시
   var pend = null, pendCh = [];

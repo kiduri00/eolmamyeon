@@ -11,6 +11,17 @@
 .zg-river{fill:none;stroke:#BFD9EC;stroke-linecap:round;stroke-linejoin:round}
 .zg-gu{fill:none;stroke:#AEB7C4;stroke-width:.9px;stroke-dasharray:2 2}
 .zg-mask{fill:#fff;fill-opacity:.75}
+/* 21차: 정비구역 면 — 실제 지도 zone-fill과 같은 농도(전체 8% 위에 가능 구역 남색을 겹쳐 합이 45%) */
+.zg-zall{fill:#1F3A87;fill-opacity:.08}
+.zg-zok{fill:#1F3A87;fill-opacity:.4;stroke:#1F3A87;stroke-opacity:.9;stroke-linejoin:round}
+.zg-zok.zg-zest{fill-opacity:.33}
+.zg-zd circle{fill:#1F3A87;fill-opacity:.5;stroke:#1F3A87;stroke-opacity:.9;stroke-width:1.5px}
+:root[data-theme="dark"] .zg-zd circle{fill:#9FB3FF;fill-opacity:.45;stroke:#9FB3FF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .zg-zd circle{fill:#9FB3FF;fill-opacity:.45;stroke:#9FB3FF}}
+:root[data-theme="dark"] .zg-zall{fill:#9FB3FF}
+:root[data-theme="dark"] .zg-zok{fill:#9FB3FF;fill-opacity:.35;stroke:#9FB3FF}
+:root[data-theme="dark"] .zg-zok.zg-zest{fill-opacity:.29}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .zg-zall{fill:#9FB3FF}:root:not([data-theme="light"]) .zg-zok{fill:#9FB3FF;fill-opacity:.35;stroke:#9FB3FF}:root:not([data-theme="light"]) .zg-zok.zg-zest{fill-opacity:.29}}
 .zg-seoul{fill:none;stroke:#5F6B7A;stroke-width:1.6px;stroke-opacity:.7}
 .zg-t text{fill:#6A7482;font:700 11px var(--font,system-ui,sans-serif);letter-spacing:.04em;text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
 .zp-ph .zg-attr{position:absolute;right:10px;bottom:10px;width:24px;height:24px;border-radius:12px;background:color-mix(in srgb,var(--surface,#fff) 85%,transparent) url("data:image/svg+xml;charset=utf-8,%3Csvg width='24' height='24' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg' fill-rule='evenodd'%3E%3Cpath d='M4 10a6 6 0 1 0 12 0 6 6 0 1 0-12 0m5-3a1 1 0 1 0 2 0 1 1 0 1 0-2 0m0 3a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0'/%3E%3C/svg%3E") center/24px no-repeat}
