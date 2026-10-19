@@ -542,9 +542,14 @@ const OVX = (() => {
   }
   // PC: 목록에서 구역을 열면 포커스를 상세 제목으로 · 상세를 닫으면(Esc·목록 버튼) 주소의 #구역id를 지워 새로고침해도 다시 열리지 않게
   function deskFocus() {
-    const PC = () => matchMedia("(min-width:981px)").matches;
+    const PC = () => matchMedia("(min-width:981px)").matches, H0 = () => document.documentElement;
     const toH = () => requestAnimationFrame(() => requestAnimationFrame(() => { const h = document.getElementById("repTitle"); if (h && h.offsetParent) h.focus({ preventScroll: true }); }));
     document.addEventListener("click", (e) => { if (PC() && e.target.closest && e.target.closest("#sList [data-id]") && !e.target.closest("[data-why]")) toH(); });
+    // 23차: 주소 #구역id로 바로 열린 PC 상세도 초점을 제목으로(화면 읽기·키보드가 body에 남던 것) — 사용자가 먼저 다른 곳에 초점을 두면 건드리지 않는다
+    try {
+      const id0 = location.hash.slice(1);
+      if (PC() && id0 && byId[id0]) { let n = 0; const t = setInterval(() => { const h = document.getElementById("repTitle"); if (++n > 40 || (document.activeElement && document.activeElement !== document.body)) return clearInterval(t); if (H0().classList.contains("s-rep") && h && h.offsetParent && h.textContent.trim()) { clearInterval(t); h.setAttribute("tabindex", h.getAttribute("tabindex") || "-1"); h.focus({ preventScroll: true }); } }, 150); }
+    } catch (e) {}
     const H = document.documentElement; let was = H.classList.contains("s-rep");
     const clr = () => { try { const id = location.hash.slice(1); if (id && byId[id]) history.replaceState(history.state, "", location.pathname + location.search); } catch (e) {} };
     try { new MutationObserver(() => { const on = H.classList.contains("s-rep"); if (was && !on && PC()) clr(); was = on; }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}

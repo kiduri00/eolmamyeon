@@ -1,7 +1,7 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "dac8954d"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "a4289098"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
@@ -21,7 +21,7 @@ const isApp = (p) => p === "/" || p === "/index.html";
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => Promise.all(PRE.map((u) => c.add(new Request(u, { cache: "reload" })).catch(() => {})))).then(() => keep(PRE_PAGES).catch(() => {}))
     // 첫 화면이 참조하는 해시 묶음(/b/h·a·d·c)까지 미리 저장 → 처음 방문 뒤 바로 오프라인 가능
-    .then(() => fetch("/", { cache: "reload" }).then((r) => r.text()).then((t) => caches.open(BUND).then((c) => Promise.all([...new Set(t.match(/\/b\/[a-z]\.[0-9a-f]{10}\.(?:js|css)/g) || [])].map((u) => c.add(u).catch(() => {})))))).catch(() => {})
+    .then(() => fetch("/", { cache: "reload" }).then((r) => r.text()).then((t) => caches.open(BUND).then((c) => Promise.all([...new Set(t.match(/\/b\/[a-z]\.[0-9a-f]{10}\.(?:js|css|json)/g) || [])].map((u) => c.add(u).catch(() => {})))))).catch(() => {})
     .then(() => self.skipWaiting()));
 });
 

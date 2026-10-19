@@ -36,7 +36,19 @@
   W.addEventListener("zp:hydrated", function () { qArm(); setTimeout(qFire, 30000); });
   B.font = function () {
     if (B.fo) return; B.fo = 1;
-    var on = function () { if (on.d) return; on.d = 1; B.quiet(function () { (W.requestIdleCallback || setTimeout)(function () { H.classList.add("fo"); }, { timeout: 1500 }); }); };
+    // 23차: 웹글꼴로 바꾸기를 몇 조각으로(한 번에 html.fo → 문서 전체 스타일 다시 계산 · 4배 느린 CPU에서 300~500ms 긴 작업 하나였던 것).
+    //       맨 위 칸들(머리·지도 칸 아이들·나머지)에 .fp(--font = 웹글꼴)를 한가할 때 하나씩 — 뿌리(html·body)는 건드리지 않는다. 나중에 붙는 칸(시트·알림)도 .fp
+    var FP = ["#hdr,#sNav", "#sGauge,#sListW", "#mapbox>*", "#mapTop .main>*", "#mapTop>*", "main.wrap>*:not(#mapTop)", "body>*:not(main):not(#hdr):not(#sNav):not(script):not(style)"];
+    var fpAdd = function (e) { if (e && e.nodeType === 1 && e.classList && !/^(SCRIPT|STYLE|LINK)$/.test(e.tagName)) e.classList.add("fp"); };
+    var fpStep = function (i) {
+      if (i >= FP.length) {
+        try { var mo = new MutationObserver(function (L) { L.forEach(function (m) { [].forEach.call(m.addedNodes, fpAdd); }); }); [document.body, document.querySelector("main.wrap"), document.getElementById("mapTop")].forEach(function (x) { if (x) mo.observe(x, { childList: true }); }); } catch (e) {}
+        B.fp = 1; return;
+      }
+      // 조각마다 그 자리에서 스타일·배치를 끝내고(offsetHeight) 다음 프레임 뒤 한가할 때 다음 조각 — 여러 조각이 한 프레임에 몰려 다시 긴 작업 하나가 되지 않게
+      (W.requestIdleCallback || setTimeout)(function () { [].forEach.call(document.querySelectorAll(FP[i]), fpAdd); void document.body.offsetHeight; requestAnimationFrame(function () { setTimeout(function () { fpStep(i + 1); }, 0); }); }, { timeout: 1500 });
+    };
+    var on = function () { if (on.d) return; on.d = 1; B.quiet(function () { fpStep(0); }); };
     css(B.f, function () {
       try {
         var t = ((document.body && document.body.innerText) || "").replace(/\s+/g, ""), u = {}, x = "";

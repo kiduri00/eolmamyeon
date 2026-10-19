@@ -124,7 +124,8 @@ NEWD = newd()
 assert js.count('/*NEWD*/ null') == 1; js = js.replace('/*NEWD*/ null', json.dumps(NEWD))
 assert shell.count('/*NEWD0*/{}') == 1; shell = shell.replace('/*NEWD0*/{}', json.dumps(NEWD))   # 23차: 첫 페인트 N 점(shell.html 작은 스크립트)
 _ud = _md(D.get('upd') or D.get('asOf'))
-shell = shell.replace('<span class="hdr-date" id="hdrDate"></span>', f'<span class="hdr-date" id="hdrDate">{_ud} 갱신</span>' if _ud else '<span class="hdr-date" id="hdrDate"></span>', 1)
+_uf = (lambda m: f'{m.group(1)}.{m.group(2)}.{m.group(3)}' if m else '')(re.search(r'(\d{4})-?(\d\d)-?(\d\d)', str(D.get('upd') or D.get('asOf') or '')))   # 23차: 문의 보낼 때 자료 기준일(contact.js pageAsOf)
+shell = shell.replace('<span class="hdr-date" id="hdrDate"></span>', f'<span class="hdr-date" id="hdrDate" data-asof="{_uf}">{_ud} 갱신</span>' if _ud else '<span class="hdr-date" id="hdrDate"></span>', 1)
 # 지도 자리 그림(src/ghost.js): 섬(h)과 앱(a)이 같은 코드 · 서울 모양은 빌드가 넣는다(tools/ghost_geo.py)
 import ghost_geo
 GHOST_JS = S('ghost.js'); assert GHOST_JS.count('/*GHOST*/ null') == 1
@@ -223,7 +224,7 @@ c_url = emit('c', css, 'css')
 # 지난 빌드 파일은 이번 것 + 바로 전 것만 남김(배포 직후 옛 화면이 잠깐 참조할 수 있게)
 KEEP = 2
 def prune():
-    for pre, ext in (('d', 'js'), ('a', 'js'), ('c', 'css'), ('h', 'js')):
+    for pre, ext in (('d', 'js'), ('a', 'js'), ('c', 'css'), ('h', 'js'), ('r', 'json')):
         fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.' + ext)], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
         cur = {u.split('/')[-1] for u in d_urls} if pre == 'd' else set()
         for f in [x for x in fs if x not in cur][KEEP * (len(d_urls) if pre == 'd' else 1) - len(cur):]:
@@ -271,7 +272,11 @@ def island():
     st = P['st'][f0][i0]; t = st[0]
     isl = GHOST_JS + S('island.js'); boot = S('boot.js')
     if ESB and not os.environ.get('NO_MINIFY'): isl = mini(isl, 'js'); boot = mini(boot, 'js')
-    h_url = emit('h', 'window.__ZPH=' + json.dumps(P, ensure_ascii=False, separators=(',', ':')) + ';\n' + isl)
+    # 23차: 금액마다 미리 그린 목록 줄(rows · 압축 31KB)은 첫 화면 JS에서 빼서 JSON 파일로 — 섬이 시작하자마자 받아 두고, 오기 전에 금액을 바꾸면 줄만 받는 대로 채운다
+    #       (기본 금액의 줄은 HTML에 이미 있음 → 첫 페인트는 그대로). 첫 화면 JS 95KB → 64KB 안팎
+    rows_all = P['rows']
+    PJ = dict(P); PJ['rows'] = None; PJ['ru'] = emit('r', json.dumps(rows_all, ensure_ascii=False, separators=(',', ':')), 'json')
+    h_url = emit('h', 'window.__ZPH=' + json.dumps(PJ, ensure_ascii=False, separators=(',', ':')) + ';\n' + isl)
     font = re.search(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/[^"]*pretendard[^"]*)"', shell)
     boot = boot.replace('__A__', a_url).replace('__D__', ','.join(d_urls)).replace('__C__', c_url).replace('__F__', font.group(1) if font else '')
     x = shell

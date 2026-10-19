@@ -9,6 +9,16 @@
   var H = document.documentElement, W = window;
   var $ = function (i) { return document.getElementById(i); };
   var KN = P.KN, STOPS = P.stops;
+  // 23차: 목록 줄 자료는 따로(빌드 r.<해시>.json) — 바로 받아 두고, 받기 전에 바꾼 금액이 있으면 오는 대로 그 줄을 채운다
+  var rowsWant = null;
+  if (!P.rows && P.ru) {
+    try {
+      fetch(P.ru).then(function (r) { return r.ok ? r.json() : null; }).then(function (a) {
+        if (!a) return; P.rows = a;
+        if (rowsWant && !hyd()) { var w = rowsWant, st = P.st[w[0]] && P.st[w[0]][w[1]]; rowsWant = null; if (st && cur.f === w[0] && cur.i === w[1]) { var L = $("sList"); L.innerHTML = st[1].slice(0, show0()).map(function (r) { return P.rows[r]; }).join(""); fx(L, STOPS[w[1]]); } }
+      }).catch(function () {});
+    } catch (e) {}
+  }
   var hyd = function () { return !!B.hyd || typeof W.ZP_count === "function"; };
   var S = function (i) { return i == null || i < 0 ? null : P.strs[i]; };
   var fmt = function (n) { try { return Number(n).toLocaleString("ko-KR"); } catch (e) { return String(n); } };
@@ -63,8 +73,8 @@
     $("sCashV").innerHTML = S(t[4]);
     $("sSum").innerHTML = S(t[5]);
     var n = show0(), L = $("sList"), tot = num(S(t[2]));
-    L.innerHTML = st[1].slice(0, n).map(function (r) { return P.rows[r]; }).join("");
-    fx(L, STOPS[i]);
+    if (P.rows) { L.innerHTML = st[1].slice(0, n).map(function (r) { return P.rows[r]; }).join(""); fx(L, STOPS[i]); }
+    else rowsWant = [f, i];   // 줄 자료(r.json)가 아직이면 오는 대로 이 금액의 줄을 채운다
     el = $("sMore");
     if (el) { el.hidden = !(tot > n); if (tot > n && moreT) el.textContent = moreT.replace("{n}", fmt(tot - n)); }
     el = $("sAsm");

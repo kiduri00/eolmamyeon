@@ -50,21 +50,42 @@
   function guCam(n, w, h, pad, pts) {
     var i = guIdx(n), g = i >= 0 ? GD.gu[i] : null; if (!g || g.length < 7) return null;
     var P = (pts || []).filter(function (x) { return x && x[2] === n && isFinite(x[0]) && isFinite(x[1]); });
-    if (P.length) {
+    if (P.length && phoneQ()) {   // 폰만(PC 큰 지도는 구 경계 전체가 보이는 예전 맞춤 그대로)
       var a = 999, b = 999, c = -999, d = -999;
       P.forEach(function (x) { a = Math.min(a, x[1]); c = Math.max(c, x[1]); b = Math.min(b, x[0]); d = Math.max(d, x[0]); });
       var ex = 0.0015;
       var pp = { top: pad.top + 32, bottom: pad.bottom + 4, left: pad.left + 30, right: pad.right + 30 };
-      var C1 = cam([[a - ex, b - ex], [c + ex, d + ex]], w, h, pp, false, 13.6);
+      var B = [[a - ex, b - ex], [c + ex, d + ex]], C1 = cam(B, w, h, pp, false, 13.6);
       if (C1) {
         if (phoneQ() && C1.z < 11) C1.z = 11;
         // 남는 세로 자리가 있으면 곳들을 아래쪽에 붙인다 — 위 두 모서리의 떠 있는 것(왼쪽 '← 서울 전체' 막대 · 오른쪽 겹쳐 보기 레일) 밑에 가장 싼 곳이 깔리지 않게
         var ws = 512 * Math.pow(2, C1.z), hh = (my(b - ex) - my(d + ex)) * ws, sl = h - pp.top - pp.bottom - hh;
         if (sl > 2) C1.c = [C1.c[0], ly(my(C1.c[1]) - sl / 2 / ws)];
+        // 그래도 오른쪽 위 레일 밑에 깔린 곳이 있으면: 아래로 밀 자리가 있으면 밀고, 없으면 조금씩 줄여(줌 −0.15) 다시 — 자리 그림·실제 지도가 같은 DOM(레일)을 재므로 같은 카메라
+        var ro = railBox(w);
+        for (var it = 0; ro && it < 10; it++) {
+          var PJ = proj(C1, w, h), qs = P.map(function (x) { return PJ([x[1], x[0]]); }), dy = 0, lo = -1e9;
+          qs.forEach(function (q) { lo = Math.max(lo, q.y); if (q.x > ro[0] - 14 && q.y < ro[3] + 4) dy = Math.max(dy, ro[3] + 4 - q.y); });
+          if (!dy) break;
+          ws = 512 * Math.pow(2, C1.z);
+          if (lo + dy <= h - pp.bottom + 4) { C1.c = [C1.c[0], ly(my(C1.c[1]) - dy / ws)]; break; }
+          var z2 = C1.z - 0.15; if (z2 < (phoneQ() ? 11 : 9)) break;
+          C1 = { c: C1.c, z: z2 };
+        }
         return C1;
       }
     }
     var C = cam([[g[3], g[4]], [g[5], g[6]]], w, h, pad, false, 14); if (C && phoneQ() && C.z < 11) C.z = 11; return C;
+  }
+  // 지도 칸 안 오른쪽 위 겹쳐 보기 레일 상자 [왼, 위, 오른, 아래](지도 칸 기준 · 없으면 null) — 폰에서만
+  function railBox(w) {
+    try {
+      if (!phoneQ()) return null;
+      var mb = Dc.getElementById("mapbox"), rl = mb && mb.querySelector(".s-rail");
+      if (!rl || !rl.offsetWidth) return null;
+      var a = mb.getBoundingClientRect(), b = rl.getBoundingClientRect(), ox = (a.width - w) / 2;
+      return [b.left - a.left - ox, b.top - a.top, b.right - a.left - ox, b.bottom - a.top];
+    } catch (e) { return null; }
   }
   function guPad(P, phone) {
     var top = P.top + (phone ? 6 : 18);
@@ -250,7 +271,7 @@
     [].forEach.call(mk.children, function (b) { have[b.dataset.gu] = b; });
     R.keep.forEach(function (g) {
       var b = have[g.n]; delete have[g.n];
-      if (!b) { b = Dc.createElement("button"); b.type = "button"; b.tabIndex = -1; mk.appendChild(b); }
+      if (!b) { b = Dc.createElement("button"); b.type = "button"; b.tabIndex = 0; mk.appendChild(b); }
       guEl(b, g);
       b.style.transform = "translate(" + Math.round(g.q.x + g.dx) + "px," + Math.round(g.q.y + g.dy) + "px) translate(-50%,-50%)";
     });

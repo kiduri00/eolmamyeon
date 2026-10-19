@@ -7051,7 +7051,7 @@
     refreshFades();
   }
   function condText() {
-    const homes = { 0: "무주택", 1: "1주택·처분 예정", 3: "1주택 유지", 2: "2주택+" }[P.homes];
+    const homes = { 0: "무주택", 1: "1채·팔 거예요", 3: "1채 유지", 2: "2채 이상" }[P.homes];   // 23차: 첫 실행 질문과 같은 말(채)
     const adv =
       (num("aRate") ?? 4.5) !== 4.5 ||
       num("aUnit") != null ||

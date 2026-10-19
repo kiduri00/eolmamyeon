@@ -45,13 +45,14 @@
     opts = opts || {};
     var n = ++seq, P = "cf" + n + "_", ctx = opts.ctx || {};
     var dr = ls.get() || {};
-    var kind0 = opts.kind || dr.kind || "general"; if (!KINDS.some(function (k) { return k[0] === kind0; })) kind0 = "general";
+    var kind0 = (opts.reasons && opts.reasons.length ? opts.kind || "error" : opts.kind || dr.kind) || "general"; if (!KINDS.some(function (k) { return k[0] === kind0; })) kind0 = "general";
     var f = D.createElement("form");
     f.className = "cf"; f.noValidate = true; f.setAttribute("aria-labelledby", P + "t");
     var rs = opts.reasons || [];
     f.innerHTML = '<h' + (opts.hl || 3) + ' id="' + P + 't">' + esc(opts.title || "문의하기") + "</h" + (opts.hl || 3) + ">" + (opts.meta ? '<p class="cf-meta">' + esc(opts.meta) + "</p>" : "")
       + (rs.length ? '<fieldset class="cf-r"><legend>어디가 틀렸나요</legend>' + rs.map(function (r, i) { return '<label><input type="radio" name="' + P + 'why" value="' + esc(r[0]) + '"' + (i ? "" : " checked") + '><span><b>' + esc(r[1]) + "</b>" + (r[2] ? "<small>" + esc(r[2]) + "</small>" : "") + "</span></label>"; }).join("") + "</fieldset>" : "")
-      + '<fieldset><legend>종류</legend><div class="cf-k">' + KINDS.map(function (k) { return '<label><input type="radio" name="' + P + 'kind" value="' + k[0] + '"' + (k[0] === kind0 ? " checked" : "") + "><span>" + k[1] + "</span></label>"; }).join("") + "</div></fieldset>"
+      // 23차: 구역 숫자 신고(이유 고르기가 있는 시트)는 종류가 곧 '숫자 오류' — 종류 줄을 두 번 묻지 않는다
+      + (rs.length ? '<input type="hidden" name="' + P + 'kind" value="' + kind0 + '">' : '<fieldset><legend>종류</legend><div class="cf-k">' + KINDS.map(function (k) { return '<label><input type="radio" name="' + P + 'kind" value="' + k[0] + '"' + (k[0] === kind0 ? " checked" : "") + "><span>" + k[1] + "</span></label>"; }).join("") + "</div></fieldset>")
       + '<div><label class="cf-l" for="' + P + 'tx">내용 <small>(' + MIN + "자 이상)</small></label>"
       + '<textarea id="' + P + 'tx" name="text" maxlength="' + MAX + '" required aria-required="true" aria-describedby="' + P + "cnt " + P + 'txe" placeholder="' + esc(opts.ph || "무엇이 궁금하거나 불편했는지 적어 주세요") + '"></textarea>'
       + '<div class="cf-rw"><p class="cf-err" id="' + P + 'txe" hidden></p><span class="cf-cnt" id="' + P + 'cnt" aria-live="polite">0 / ' + fmt(MAX) + "</span></div></div>"
@@ -65,7 +66,7 @@
     var tx = $("textarea"), em = $('input[type="email"]'), cnt = $(".cf-cnt"), st = $(".cf-st"), go = $(".cf-go");
     if (dr.text) tx.value = dr.text;
     if (dr.email) em.value = dr.email;
-    var kindV = function () { var c = f.querySelector('input[name="' + P + 'kind"]:checked'); return c ? c.value : "general"; };
+    var kindV = function () { var c = f.querySelector('input[name="' + P + 'kind"]:checked') || f.querySelector('input[type="hidden"][name="' + P + 'kind"]'); return c ? c.value : "general"; };
     var whyV = function () { var c = f.querySelector('input[name="' + P + 'why"]:checked'); if (!c) return ""; var r = rs.filter(function (x) { return x[0] === c.value; })[0]; return r ? r[1] : c.value; };
     var count = function () { var l = tx.value.trim().length; cnt.textContent = fmt(tx.value.length) + " / " + fmt(MAX); cnt.classList.toggle("over", tx.value.length > MAX); return l; };
     var save = function () { ls.set({ kind: kindV(), text: tx.value, email: em.value, at: Date.now() }); };
@@ -87,7 +88,7 @@
       save();
       if (W.navigator && navigator.onLine === false) { st.className = "cf-st bad"; st.textContent = "오프라인이에요. 연결되면 다시 보내 주세요"; return; }
       busy = true; go.disabled = true; go.setAttribute("aria-busy", "true"); go.innerHTML = '<span class="cf-spin" aria-hidden="true"></span>보내는 중…'; st.className = "cf-st"; st.textContent = "";
-      var body = { kind: kindV(), text: t, email: m, website: (f.querySelector('input[name="website"]') || {}).value || "", zone: ctx.zone || "", url: ctx.url || location.href, asOf: ctx.asOf || "", nums: ctx.nums || "", why: whyV() };
+      var body = { kind: kindV(), text: t, email: m, website: (f.querySelector('input[name="website"]') || {}).value || "", zone: ctx.zone || "", url: ctx.url || location.href, asOf: ctx.asOf || pageAsOf(), nums: ctx.nums || "", why: whyV() };
       var done = function (ok, msg) {
         busy = false; go.disabled = false; go.removeAttribute("aria-busy");
         if (ok) {
@@ -147,6 +148,8 @@
     me.sh.remove(); D.documentElement.classList.remove("cf-on");
     if (me.last && me.last.isConnected) try { me.last.focus({ preventScroll: true }); } catch (e) {}
   }
+  // 23차: 보낼 때 자료 기준일이 비지 않게 — 머리 '10.19 갱신' 칸(앱 #hdrDate · 정적 .hdr-date)의 data-asof(빌드가 넣음)
+  function pageAsOf() { var e = D.querySelector("#hdrDate[data-asof], .hdr-date[data-asof]"); return e ? e.getAttribute("data-asof") : ""; }
   function mount(el, opts) { var F = build(opts, null); el.innerHTML = ""; el.appendChild(F.el); return F; }
   // 정적 페이지·앱 어디서든: [data-zp-contact] 링크·단추는 시트로(스크립트가 없으면 링크대로 /contact 페이지)
   D.addEventListener("click", function (e) {
@@ -160,8 +163,9 @@
   // /contact 페이지: <div data-zp-contact-here> 자리에 바로(주소 ?kind=error&zone=o916 이면 그 값으로)
   function auto() {
     var h = D.querySelector("[data-zp-contact-here]"); if (!h) return;
-    var q = new URLSearchParams(location.search), z = /^[A-Za-z0-9_-]{1,24}$/.test(q.get("zone") || "") ? q.get("zone") : "", k = q.get("kind") || "general";
-    mount(h, { hl: 2, kind: k, title: h.getAttribute("data-title") || "문의 보내기", ctx: { zone: z, url: z ? location.origin + "/z/" + z : location.href }, reasons: k === "error" && z ? REASONS : null, meta: z ? "구역 ID " + z + "가 함께 가요" : "" });
+    // 23차: ?zone=만 있으면 종류는 '숫자 오류'(구역에서 온 신고) · 구역 ID 문장은 받침과 상관없게
+    var q = new URLSearchParams(location.search), z = /^[A-Za-z0-9_-]{1,24}$/.test(q.get("zone") || "") ? q.get("zone") : "", k = q.get("kind") || (z ? "error" : "general");
+    mount(h, { hl: 2, kind: k, title: z && k === "error" ? "이 숫자가 틀렸어요" : h.getAttribute("data-title") || "문의 보내기", ctx: { zone: z, url: z ? location.origin + "/z/" + z : location.href }, reasons: k === "error" && z ? REASONS : null, meta: z ? "구역 ID(" + z + ")를 함께 보내요" : "" });
   }
   if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", auto); else auto();
   W.ZP_contact = { open: open, close: close, mount: mount, REASONS: REASONS, KINDS: KINDS, draft: ls.get };

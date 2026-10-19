@@ -689,7 +689,7 @@
     const pillLabel = (r, s, fav, nw) => `${fullName(r)}, 지금 필요한 돈 ${ZF.cash(s.need)}, ${SIMPLE.stWord[s.st]}${s.st === "near" ? `, ${SIMPLE.shortTxt(s.need).slice(1)} 더 필요` : ""}${fav ? ", 관심 구역" : ""}${nw ? ", 이번 주 새로 가능" : ""}`;
     const selId = () => pickId || (cur && cur.id) || null;
     // now = 바로(금액을 끄는 동안 목록과 같은 프레임에 — 한 프레임 늦지 않게) · 아니면 다음 프레임에 한 번
-    let stT = 0, ghRaf = 0;
+    let stT = 0, ghRaf = 0, guDrawn = null;
     function states(now) {
       // 자리 그림이 떠 있는 동안은(실제 지도가 밑에서 준비됐어도) 금액이 바뀔 때마다 같은 자리 잡기로 다시 그린다(20차 G1 — 머리 숫자 == 묶음 합 + 칩)
       if (ghostOn()) { if (now) ghostDraw(); else { cancelAnimationFrame(ghRaf); ghRaf = requestAnimationFrame(() => ghostDraw()); } }
@@ -705,6 +705,7 @@
       if ($("lmap").hidden) { pillsSet(new Map()); gusSet([]); GUMORE = { c: 0, L: [] }; guMoreDraw(); return; }
       const city = isCity();
       lastCity = city;
+      if ((gu || null) !== guDrawn) guDraw();
       if (city) { keyDraw(true); pillsSet(new Map(), true); dotsSet([]); okDots(true); guLayout(); }
       else {
         gusSet([]); guMoreDraw(); okDots(false);
@@ -960,7 +961,7 @@
         let p = GUS.get(n);
         if (!p) {
           const el = document.createElement("button");
-          el.type = "button"; el.tabIndex = -1; el.dataset.gu = n;
+          el.type = "button"; el.tabIndex = 0; el.dataset.gu = n;   // 23차: 키보드로도 구에 들어간다(Tab → Enter)
           el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); try { enterGu(n, { hist: true }); } catch (er) {} });
           p = { el, key: "", mk: new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(g.ll).addTo(map) };
           GUS.set(n, p);
@@ -1182,6 +1183,7 @@
     function guDraw() {
       if (!map || !ready || !map.getSource("gusel")) return;
       const g = gu && geo && geo.gu.find((x) => x.n === gu);
+      guDrawn = g ? gu : null;   // 23차: 지도·경계 자료가 늦게 준비된 딥링크(#map-구)도 layout()이 한 번 더 그린다
       const outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
       map.getSource("gusel").setData(g ? { type: "Feature", geometry: { type: "MultiLineString", coordinates: g.r }, properties: {} } : FC([]));
       map.getSource("gudim").setData(g ? { type: "Feature", geometry: { type: "Polygon", coordinates: [outer, ...g.r] }, properties: {} } : FC([]));

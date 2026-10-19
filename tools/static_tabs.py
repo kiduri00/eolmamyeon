@@ -52,10 +52,10 @@ def _upd():
     try:
         D = json.load(open(os.path.join(R, 'pipeline', 'data.enriched.json'), encoding='utf-8'))
         m = re.search(r'(\d{4})-?(\d\d)-?(\d\d)', D.get('upd') or D.get('asOf') or '')
-        return f'{int(m.group(2))}.{m.group(3)}' if m else ''
-    except Exception: return ''
-NEWD, UPD = _newd(), _upd()
-BELL = ('<span class="hdr-date">' + (UPD + ' 갱신' if UPD else '') + '</span>'
+        return (f'{int(m.group(2))}.{m.group(3)}', f'{m.group(1)}.{m.group(2)}.{m.group(3)}') if m else ('', '')
+    except Exception: return ('', '')
+NEWD, (UPD, UPDF) = _newd(), _upd()
+BELL = ('<span class="hdr-date"' + (f' data-asof="{UPDF}"' if UPDF else '') + '>' + (UPD + ' 갱신' if UPD else '') + '</span>'
         '<a class="hdr-bell" href="/#news" aria-label="소식"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4zM10 20.5a2.2 2.2 0 0 0 4 0"/></svg><i class="nb-dot" aria-hidden="true" hidden>N</i></a>')
 BCSS = ('.top .in{align-items:center}.hdr-date{order:3;flex:none;margin-left:10px;font-weight:500;font-size:12px;line-height:1;color:#5c6573;white-space:nowrap}'
         '.hdr-bell{order:4;position:relative;flex:none;margin-left:2px;display:inline-grid;place-items:center;width:44px;height:44px;margin-right:-8px;border-radius:12px;color:var(--brand,#1f3a87)}'
@@ -90,7 +90,7 @@ def app_header(h):
     if not m: return h
     hd = NAV.sub('', m.group(0))
     if 'class="tsr"' not in hd: hd = hd.replace('</div></header>', FORM + '</div></header>', 1)
-    hd = re.sub(r'<span class="hdr-date">.*?</span><a class="hdr-bell".*?</a>', '', hd, flags=re.S)
+    hd = re.sub(r'<span class="hdr-date"[^>]*>.*?</span><a class="hdr-bell".*?</a>', '', hd, flags=re.S)
     hd = hd.replace('</div></header>', BELL + '</div></header>', 1)
     hd = re.sub(r'(<input id="tq"[^>]*placeholder=")[^"]*(")', lambda x: x.group(1) + PH + x.group(2), hd)
     return h[:m.start()] + hd + h[m.end():]

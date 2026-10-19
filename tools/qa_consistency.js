@@ -1352,16 +1352,16 @@ async function navLane(browser, api, errs) {
         await page.waitForTimeout(900); await mapIdle(page); await page.waitForTimeout(500);
         const r = await page.evaluate(() => ({ v: document.getElementById("mapbox").dataset.view, pills: document.querySelectorAll("#lmap button.zpill[data-zid]").length, gus: document.querySelectorAll("#lmap .zgu").length, chip: !!(document.getElementById("lmGuMore") && !document.getElementById("lmGuMore").hidden), z: window.ZP_lmx.map().getZoom() }));
         expect(r.v === "gu" && r.pills > 0 && !r.gus && !r.chip, "map.guPills", TG, `${w}px ${gn}: view ${r.v} pills ${r.pills} clusters ${r.gus} chip ${r.chip} z${r.z.toFixed(2)}`);
-        // 23차: 그 구의 갈 수 있는 곳이 하나씩 알약(≥ min(구 곳 수, 6) · 같은 자리에 겹친 곳(점 사이 22px 안)은 묶여도 됨) · 가장 싼 곳 알약 == 구 묶음 '~' 금액 · '+N'은 그 구 곳만 · 알약끼리 글자 안 겹침
+        // 23차: 그 구의 갈 수 있는 곳이 하나씩 알약(≥ min(구 곳 수, 6) · 같은 자리에 겹친 곳(점 사이 알약 높이 28px 안)은 묶여도 됨) · 가장 싼 곳 알약 == 구 묶음 '~' 금액 · '+N'은 그 구 곳만 · 알약끼리 글자 안 겹침
         const q = await page.evaluate((g) => {
           const m = ZP_lmx.map(), own = __ZPD.recs.filter((x) => x.g === g && window.ZP_ok(x)), ids = new Set(own.map((x) => x.id));
           const P = ZP_lmx.pills().filter((p) => ids.has(p.id) && p.st === "ok"), pid = new Set(P.map((p) => p.id));
           const pt = (id) => { const ll = ZP_lmx.llOf(id); return ll ? m.project(ll) : null; };
           const anc = P.map((p) => pt(p.id)).filter(Boolean);
-          const stacked = own.filter((x) => !pid.has(x.id)).filter((x) => { const a = pt(x.id); return a && anc.some((b) => Math.abs(a.x - b.x) < 22 && Math.abs(a.y - b.y) < 22); }).length;
+          const stacked = own.filter((x) => !pid.has(x.id)).filter((x) => { const a = pt(x.id); return a && anc.some((b) => Math.abs(a.x - b.x) < 28 && Math.abs(a.y - b.y) < 28); }).length;
           const more = P.reduce((a, p) => a + p.more, 0);
           const B = [...document.querySelectorAll("#lmap button.zpill[data-zid] .zp-in")].map((e) => e.getBoundingClientRect()); let ov = 0;
-          for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) { const a = B[i], b = B[j]; if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 3) ov++; }
+          for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) { const a = B[i], b = B[j]; if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 10 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 4) ov++; /* 둥근 모서리끼리 살짝 닿는 것(10×4 안)은 글자를 안 가림 */ }
           return { cnt: own.length, pills: P.length, stacked, more, ts: P.map((p) => p.t), ov };
         }, gn);
         const need = Math.min(q.cnt, 6), cheap = hit.l2.replace(/~$/, "");
@@ -1635,12 +1635,12 @@ async function r4Lane(browser, api, errs) {
           const b = document.querySelector("#report [data-dtrep]"); if (!b) return { none: 1 };
           b.click(); await new Promise((r) => setTimeout(r, 300));
           const s = document.getElementById("cfSheet"); if (!s) return { nosheet: 1 };
-          const radios = s.querySelectorAll('.cf-r input[type=radio]').length, kind = (s.querySelector('.cf-k input:checked') || {}).value;
+          const radios = s.querySelectorAll('.cf-r input[type=radio]').length, kind = (s.querySelector('.cf-k input:checked') || s.querySelector('input[type=hidden][name$="kind"]') || {}).value, kindQ = s.querySelectorAll('.cf-k input').length;   /* 23차: 숫자 신고 시트는 종류 줄 없이 '숫자 오류' 고정 */
           const st = s.querySelector('.cf-r input[value="stage"]'); if (st) st.click();
           const tx = s.querySelector("textarea"); tx.value = "QA 확인 · 단계 날짜가 달라요"; tx.dispatchEvent(new Event("input", { bubbles: true }));
           s.querySelector(".cf-go").click();
           for (let i = 0; i < 30 && !s.querySelector(".cf-ok"); i++) await new Promise((r) => setTimeout(r, 100));
-          const out = { radios, kind, ok: (s.querySelector(".cf-ok") || {}).innerText || "", at: /@/.test(s.innerText) };
+          const out = { radios, kind, kindQ, ok: (s.querySelector(".cf-ok") || {}).innerText || "", at: /@/.test(s.innerText) };
           const x = s.querySelector(".cf-x"); if (x) x.click(); await new Promise((r) => setTimeout(r, 150));
           out.closed = !document.getElementById("cfSheet");
           return out;
@@ -1649,7 +1649,7 @@ async function r4Lane(browser, api, errs) {
         if (rr.none || rr.nosheet) bad("zone.report", TR, `#${zid}: ${rr.none ? "no button" : "sheet did not open"}`);
         else {
           const m = sent[0] || {};
-          expect(rr.radios === 5 && rr.kind === "error" && !rr.at, "zone.report", TR, `#${zid}: radios ${rr.radios} kind ${rr.kind} address shown ${rr.at}`);
+          expect(rr.radios === 5 && rr.kind === "error" && !rr.kindQ && !rr.at, "zone.report", TR, `#${zid}: radios ${rr.radios} kind ${rr.kind} 종류 줄 ${rr.kindQ} address shown ${rr.at}`);
           expect(sent.length === 1 && m.zone === zid && /\d{4}\.\d\d\.\d\d/.test(m.asOf || "") && String(m.url || "").includes(zid) && m.why === "단계" && /지금 필요한 돈/.test(m.nums || "") && /QA 확인/.test(m.text || "") && m.kind === "error", "zone.report", TR, `#${zid}: sent ${JSON.stringify(m).slice(0, 220)}`);
           expect(/잘 받았어요/.test(rr.ok) && rr.closed, "zone.report", TR, `#${zid}: confirmation "${rr.ok}" closed ${rr.closed}`);
         }
