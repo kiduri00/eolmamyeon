@@ -14,7 +14,7 @@
   var fmt = function (n) { try { return Number(n).toLocaleString("ko-KR"); } catch (e) { return String(n); } };
   var ls = { get: function () { try { return JSON.parse(localStorage.getItem(DK) || "null"); } catch (e) { return null; } }, set: function (v) { try { localStorage.setItem(DK, JSON.stringify(v)); } catch (e) {} }, del: function () { try { localStorage.removeItem(DK); } catch (e) {} } };
   var CSS = ".cf{display:flex;flex-direction:column;gap:12px;font:15px/1.5 var(--font,system-ui,-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif);color:var(--text-1,#141821)}"
-    + ".cf h3{margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em}.cf .cf-meta{margin:-6px 0 0;color:var(--text-2,#4a5361);font-size:13px}"
+    + ".cf h3,.cf h2{margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em}.cf .cf-meta{margin:-6px 0 0;color:var(--text-2,#4a5361);font-size:13px}"
     + ".cf fieldset{margin:0;padding:0;border:0;min-width:0}.cf legend,.cf .cf-l{display:block;margin:0 0 6px;padding:0;font-weight:700;font-size:14px}.cf .cf-l small,.cf legend small{font-weight:500;color:var(--text-3,#6a7482)}"
     + ".cf .cf-k{display:flex;flex-wrap:wrap;gap:6px}.cf .cf-k label{position:relative}.cf .cf-k input,.cf .cf-r input{position:absolute;opacity:0;width:1px;height:1px;margin:0}"
     + ".cf .cf-k span{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--border,#d7dce5);border-radius:999px;background:var(--surface,#fff);font-weight:600;font-size:14px;cursor:pointer}"
@@ -49,7 +49,7 @@
     var f = D.createElement("form");
     f.className = "cf"; f.noValidate = true; f.setAttribute("aria-labelledby", P + "t");
     var rs = opts.reasons || [];
-    f.innerHTML = '<h3 id="' + P + 't">' + esc(opts.title || "문의하기") + "</h3>" + (opts.meta ? '<p class="cf-meta">' + esc(opts.meta) + "</p>" : "")
+    f.innerHTML = '<h' + (opts.hl || 3) + ' id="' + P + 't">' + esc(opts.title || "문의하기") + "</h" + (opts.hl || 3) + ">" + (opts.meta ? '<p class="cf-meta">' + esc(opts.meta) + "</p>" : "")
       + (rs.length ? '<fieldset class="cf-r"><legend>어디가 틀렸나요</legend>' + rs.map(function (r, i) { return '<label><input type="radio" name="' + P + 'why" value="' + esc(r[0]) + '"' + (i ? "" : " checked") + '><span><b>' + esc(r[1]) + "</b>" + (r[2] ? "<small>" + esc(r[2]) + "</small>" : "") + "</span></label>"; }).join("") + "</fieldset>" : "")
       + '<fieldset><legend>종류</legend><div class="cf-k">' + KINDS.map(function (k) { return '<label><input type="radio" name="' + P + 'kind" value="' + k[0] + '"' + (k[0] === kind0 ? " checked" : "") + "><span>" + k[1] + "</span></label>"; }).join("") + "</div></fieldset>"
       + '<div><label class="cf-l" for="' + P + 'tx">내용 <small>(' + MIN + "자 이상)</small></label>"
@@ -161,7 +161,7 @@
   function auto() {
     var h = D.querySelector("[data-zp-contact-here]"); if (!h) return;
     var q = new URLSearchParams(location.search), z = /^[A-Za-z0-9_-]{1,24}$/.test(q.get("zone") || "") ? q.get("zone") : "", k = q.get("kind") || "general";
-    mount(h, { kind: k, title: h.getAttribute("data-title") || "문의 보내기", ctx: { zone: z, url: z ? location.origin + "/z/" + z : location.href }, reasons: k === "error" && z ? REASONS : null, meta: z ? "구역 ID " + z + "가 함께 가요" : "" });
+    mount(h, { hl: 2, kind: k, title: h.getAttribute("data-title") || "문의 보내기", ctx: { zone: z, url: z ? location.origin + "/z/" + z : location.href }, reasons: k === "error" && z ? REASONS : null, meta: z ? "구역 ID " + z + "가 함께 가요" : "" });
   }
   if (D.readyState === "loading") D.addEventListener("DOMContentLoaded", auto); else auto();
   W.ZP_contact = { open: open, close: close, mount: mount, REASONS: REASONS, KINDS: KINDS, draft: ls.get };

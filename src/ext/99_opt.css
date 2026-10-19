@@ -1,0 +1,18 @@
+/* ===================== 22차: 앱 껍데기 마무리 =====================
+   새 버전 알림(68_app.js) · 오류 '다시 시도' 알림(src/net.js) · 상세 시트 머리 안전 영역 · 오프라인 띠 안전 영역 */
+.zp-upd,.zp-err{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:1300;display:flex;align-items:center;gap:4px;max-width:calc(100vw - 24px);box-sizing:border-box;padding:4px 4px 4px 16px;border-radius:999px;background:var(--text-1,#14171c);color:var(--surface,#fff);font:600 14px/1.3 var(--font,system-ui);box-shadow:0 6px 18px rgba(15,23,42,.22);transform:translate(-50%,12px);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;white-space:nowrap}
+.zp-upd.on,.zp-err.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.zp-upd span,.zp-err span{min-width:0;overflow:hidden;text-overflow:ellipsis;margin-right:4px}
+.zp-upd button,.zp-err button{flex:none;min-width:44px;min-height:44px;padding:0 12px;border:0;border-radius:999px;background:none;color:inherit;font:inherit;cursor:pointer}
+.zp-upd button[data-r],.zp-err button[data-r]{color:#b9c8ff;font-weight:700}
+.zp-upd button[data-x],.zp-err button[data-x]{padding:0;font-size:20px;line-height:1;opacity:.8}
+.zp-upd button:focus-visible,.zp-err button:focus-visible{outline:2px solid currentColor;outline-offset:-4px}
+@media (max-width:980px){html.simple .zp-upd,html.simple .zp-err{bottom:calc(76px + env(safe-area-inset-bottom,0px))}html.sheet-open .zp-upd,html.sheet-open .zp-err{bottom:calc(16px + env(safe-area-inset-bottom,0px))}}
+:root[data-theme="dark"] .zp-upd button[data-r],:root[data-theme="dark"] .zp-err button[data-r]{color:#1f3a87}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .zp-upd button[data-r],:root:not([data-theme="light"]) .zp-err button[data-r]{color:#1f3a87}}
+@media (prefers-reduced-motion:reduce){.zp-upd,.zp-err{transition:none}}
+/* 노치·상태 표시줄(설치 앱 · viewport-fit=cover): 꽉 찬 상세 시트 머리가 상태 표시줄 밑으로 들어가지 않게. 일반 브라우저는 env()=0이라 그대로 */
+@media (max-width:980px){
+  #report.sheet .sheet-bar{height:calc(52px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px)}
+  .off-bar{top:calc((var(--hdr-h,56px) - 28px + env(safe-area-inset-top,0px)) / 2)}
+}

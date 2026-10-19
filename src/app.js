@@ -2201,7 +2201,8 @@
         if (mapView === "gu" && BASEGU === all[0]?.g) paintDots();
       });
     const ORD = { x: 0, u: 1, e: 2, n: 3, y: 4 };
-    const items = all.map((r) => ({ r, a: dotState(r), p: lay.get(r.id) })).sort((a, b) => ORD[a.a] - ORD[b.a]);
+    // 22차: 저장된 배치(LAYOUT)가 이 구역 목록보다 먼저 만들어졌으면 새 구역은 제자리(xy)에 — 없는 자리를 읽어 지도 그리기가 멈추던 오류(#o348 등)
+    const items = all.map((r) => ({ r, a: dotState(r), p: lay.get(r.id) || r.xy })).sort((a, b) => ORD[a.a] - ORD[b.a]);
     let marks = "",
       leads = "";
     items.forEach(({ r, a, p }) => {

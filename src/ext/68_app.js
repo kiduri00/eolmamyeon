@@ -76,6 +76,36 @@
   if ("serviceWorker" in navigator && okHost) {
     // 핀 꽂은 구역의 /z 페이지는 미리 받아 둔다(오프라인에서 핀 → 구역 페이지)
     const keepPins = () => navigator.serviceWorker.ready.then((r) => { try { const ids = (window.PINS && PINS.list()) || []; if (r.active && ids.length) r.active.postMessage({ t: "keep", u: ids.slice(0, 40).map((id) => "/z/" + encodeURIComponent(id)) }); } catch (_) {} }).catch(() => {});
+    // 22차: 새 버전 알림 — 이 화면을 이미 서비스 워커가 맡고 있었는데(재방문) 새 워커가 넘겨받으면(배포) 조용히 옛 화면으로 두지 않고 '새 버전이 있어요 · 새로고침'.
+    // 오래 켜 둔 앱(홈 화면 설치)은 다시 앞으로 올 때 30분에 한 번 새 버전을 확인한다.
+    const hadCtl = !!navigator.serviceWorker.controller;
+    let updOn = false;
+    const updToast = () => {
+      if (updOn || !document.body) return; updOn = true;
+      const t = document.createElement("div");
+      t.id = "zpUpd"; t.className = "zp-upd"; t.setAttribute("role", "status");
+      t.innerHTML = `<span>새 버전이 있어요</span><button type="button" data-r="1">새로고침</button><button type="button" data-x="1" aria-label="닫기">×</button>`;
+      t.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("button"); if (!b) return; t.classList.remove("on"); if (b.dataset.r) location.reload(); });
+      document.body.appendChild(t);
+      requestAnimationFrame(() => t.classList.add("on"));
+    };
+    // 새 워커가 왔다고 다 새 화면은 아니다(첫 화면은 네트워크 우선이라 이미 새 것일 수 있음) → 지금 첫 화면이 가리키는 묶음(/b/a·d)과 이 화면의 묶음을 견준다
+    const BRX = /\/b\/[ad]\.[0-9a-f]{10}\.js/g;
+    const updCheck = async () => {
+      try {
+        const t = await (await fetch("/?swv=" + Date.now(), { cache: "no-store" })).text();
+        const mine = new Set(document.documentElement.innerHTML.match(BRX) || []), nw = t.match(BRX) || [];
+        if (mine.size && nw.length && nw.some((u) => !mine.has(u))) updToast();
+      } catch (_) {}
+    };
+    window.ZP_app = Object.assign(window.ZP_app || {}, { updToast, updCheck, hadCtl: () => hadCtl });
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadCtl || navigator.serviceWorker.__zpTest) updCheck(); });
+    let lastChk = Date.now();
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible" || Date.now() - lastChk < 30 * 60e3) return;
+      lastChk = Date.now();
+      navigator.serviceWorker.getRegistration("/").then((r) => r && r.update && r.update()).catch(() => {});
+    });
     const reg = () => navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(() => { keepPins(); try { window.PINS && PINS.on(keepPins); } catch (_) {} }).catch(() => {});
     if (document.readyState === "complete") setTimeout(reg, 1500); else addEventListener("load", () => setTimeout(reg, 1500), { once: true });
   }

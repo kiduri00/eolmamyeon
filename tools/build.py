@@ -132,7 +132,51 @@ js = GHOST_JS + js
 # 문의하기 양식(src/contact.js): 앱 묶음에 넣고, 정적 페이지(/contact · /faq · /z)용으로 public/cf.js 로도 낸다(같은 코드)
 CONTACT_JS = S('contact.js')
 js = CONTACT_JS + js
+# 22차: 자료 받기 시간 제한·다시 받기 + 잡히지 않은 오류 알림(src/net.js) — 앱 묶음 맨 앞
+js = S('net.js') + js
 css = S('app.css') + ext_css
+# 22차: 죽은 CSS 규칙 빼기 — 선택자에 꼭 있어야 하는 class·id가 앱 코드·첫 화면 HTML·생성기 어디에도 없는 규칙(21번의 덧칠로 남은 옛 화면 규칙).
+# 한 낱말이라도 남아 있거나("pre-" + x 처럼 이어 붙이는 앞부분 포함) 확신이 없는 선택자(\ 이스케이프·:is·:where 안)는 그대로 둔다.
+def prune_css(css):
+    import glob
+    src = ''.join(open(f, encoding='utf-8').read() for f in [os.path.join(R, 'src', p) for p in ('app.js', 'shell.html', 'island.js', 'boot.js', 'ghost.js', 'contact.js', 'net.js')] + sorted(glob.glob(os.path.join(R, 'src', 'ext', '*.js'))) + sorted(glob.glob(os.path.join(R, 'tools', '*.py'))) + [os.path.join(R, 'tools', 'prerender.js')] if os.path.exists(f))
+    words = set(re.findall(r'[\w-]+', src))
+    pre = set(re.findall(r'(?<![\w-])([\w-]+-)(?=["\'`]|\$\{)', src))
+    def alive(t):
+        if t.startswith(('maplibregl', 'mapboxgl')) or t in words: return True
+        p = t.split('-')
+        return any('-'.join(p[:i]) + '-' in pre for i in range(1, len(p)))
+    def sel_dead(x):
+        if '\\' in x: return False
+        x = re.sub(r'\[[^\]]*\]', '', x)
+        for _ in range(3): x = re.sub(r':(?:not|is|where)\([^()]*\)', '', x)
+        if re.search(r':(?:not|is|where)\(', x): return False
+        return any(not alive(t) for t in re.findall(r'[.#](-?[A-Za-z_][\w-]*)', x))
+    def walk(s):
+        out = []; i = 0; n = len(s)
+        while i < n:
+            j = s.find('{', i)
+            if j < 0: out.append(s[i:]); break
+            d = 0; k = j
+            while k < n:
+                c = s[k]
+                if c == '{': d += 1
+                elif c == '}':
+                    d -= 1
+                    if d == 0: break
+                elif c in '"\'':
+                    k += 1
+                    while k < n and s[k] != c: k += 2 if s[k] == '\\' else 1
+                k += 1
+            head = s[i:j]; body = s[j + 1:k]; hs = head.strip()
+            if hs.startswith(('@media', '@supports', '@layer', '@container')):
+                inner = walk(body)
+                if inner.strip(): out.append(head + '{' + inner + '}')
+            elif hs.startswith('@') or not all(sel_dead(x) for x in re.split(r',(?![^()]*\))', hs)):
+                out.append(s[i:k + 1])
+            i = k + 1
+        return ''.join(out)
+    return walk(css)
 # 배포본만 줄이기(원본 src는 그대로): esbuild가 있으면 JS·CSS를 압축. 없으면 그대로 둔다.
 import shutil, subprocess
 ESB = os.environ.get('ESBUILD') or shutil.which('esbuild') or next((x for x in (os.path.join(R, 'node_modules/.bin/esbuild'), '/tmp/esb/node_modules/.bin/esbuild') if os.path.exists(x)), None)
@@ -144,6 +188,8 @@ if ESB and not os.environ.get('NO_MINIFY'):
     js0, css0 = len(js), len(css)
     js = mini(js, 'js'); css = mini(css, 'css'); CONTACT_JS = mini(CONTACT_JS, 'js')
     print(f'minify js {js0}->{len(js)} css {css0}->{len(css)}')
+    if not os.environ.get('NO_CSS_PRUNE'):
+        c1 = len(css); css = prune_css(css); print(f'css prune {c1}->{len(css)}')
 # 큰 데이터·앱 코드는 내용 해시가 박힌 파일로 따로(브라우저·서비스 워커가 오래 저장) → index.html은 작게
 B = os.path.join(R, 'public', 'b'); os.makedirs(B, exist_ok=True)
 _cf = os.path.join(R, 'public', 'cf.js')

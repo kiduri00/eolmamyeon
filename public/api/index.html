@@ -18,7 +18,7 @@
 <h1>공개 데이터 API</h1>
 <p class="lede">사이트와 같은 자료, 같은 계산 엔진 결과를 JSON 파일로 공개해요. 로그인·키 없이 GET으로 읽으면 되고, 어떤 도메인에서든 불러올 수 있어요(CORS 허용). 실거래·고시·토지거래허가는 매일 새벽에 갱신돼요.</p>
 <h2>엔드포인트</h2>
-<div class="tw"><table class="ep"><thead><tr><th>주소</th><th>내용</th></tr></thead><tbody>
+<div class="tw" tabindex="0" role="region" aria-label="표 1 · 옆으로 밀어 보기"><table class="ep"><thead><tr><th>주소</th><th>내용</th></tr></thead><tbody>
 <tr><td><a href="v1/meta.json">v1/meta.json</a></td><td>갱신 시각, 실거래 기준일, 계산 가정, 엔드포인트 목록</td></tr>
 <tr><td><a href="v1/zones.json">v1/zones.json</a></td><td>진행 중 구역 전체 요약(목록·지도용). 위치, 단계, 가까운 역, 필요한 현금(전세 끼고/현금만), 입주권 판정, 10년 준공 확률, 권리산정기준일, 노후도, 실거래 요약, 최근 30일 토지거래허가 수</td></tr>
 <tr><td><code>v1/zones/{id}.json</code></td><td>구역 상세: 인가 이력, 정비사업 정보몽땅 최근 기록, 최근 매매 20건·전세 10건, 토지거래허가 내역, 반경 1km 상권</td></tr>
