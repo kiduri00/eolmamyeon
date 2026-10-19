@@ -16,3 +16,14 @@
   #report.sheet .sheet-bar{height:calc(52px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px)}
   .off-bar{top:calc((var(--hdr-h,56px) - 28px + env(safe-area-inset-top,0px)) / 2)}
 }
+/* 22차 접근성: 200% 확대(폰 390 → 화면 폭 약 195px)에서 상세가 한 글자씩 세로로 쪼개지거나 아래 버튼 글자가 옆 버튼을 덮지 않게 — 좁을 때만 한 줄에 하나로 */
+@media (max-width:300px){
+  #report .gtl,#report .bigrow{grid-template-columns:minmax(0,1fr)!important;row-gap:12px}
+  #report .gtl li{padding-top:12px}
+  #report .big.gain{flex-wrap:wrap}
+  #report .f{grid-template-columns:minmax(0,1fr)!important}
+  #report .dt-vd{display:block;line-height:1.45;padding:6px 0}
+  #report .dt-vd .dt-ck{vertical-align:-3px;margin-right:4px}
+  #report .dt-bar .dt-fav{white-space:normal;height:auto;min-height:48px;line-height:1.25;padding:6px 10px;text-align:center}
+  .dt-bar .dt-share{min-width:64px}
+}
