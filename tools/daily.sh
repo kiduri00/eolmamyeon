@@ -46,6 +46,9 @@ if [ "$(date -u +%u)" = "1" ] || [ ! -f pipeline/cache/ledger.json ]; then timeo
 python3 tools/rebuild.py || echo "!! 재건축 연한 단지 목록 실패"
 python3 tools/api.py || echo "!! 앱용 데이터(API) 생성 실패"
 python3 tools/feeds.py || echo "!! 구별 RSS 실패"
+# 정적 페이지(구역·구·가이드·리포트) 공통 머리·아래 탭·푸터 링크: zpages·rebuild가 새로 쓴 페이지에도 다시 입힌다(build.py가 앞에서 한 번 돌았어도 그 뒤에 새로 쓴 파일이 있다)
+python3 tools/static_tabs.py || echo "!! 정적 페이지 탭·푸터 실패"
+# 사이트맵: noindex(얇은 구역 페이지 · tools/zpages.py가 매일 다시 판정) 페이지는 뺀다
 python3 tools/sitemap.py
 # 월간 리포트: 매달 5일에 지난달 호 생성
 if [ "$(TZ=Asia/Seoul date +%d)" = "05" ] || [ -n "${FORCE_REPORT:-}" ]; then

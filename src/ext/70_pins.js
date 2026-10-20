@@ -794,7 +794,7 @@ const PINS = (() => {
     }
     // PC 두 칸: 알림 카드는 왼쪽 목록 칸 맨 아래(목록과 같은 높이 안 — 지도 옆에 빈 띠가 생기지 않게)
     const lw = $("sListW");
-    if (lw && matchMedia("(min-width:981px)").matches) { const li = w.closest("li.s-alli"); if (lw.lastElementChild !== w) lw.appendChild(w); if (li) li.remove(); }
+    if (lw && matchMedia("(min-width:981px)").matches) { const li = w.closest("li.s-alli"); const sl = $("sList"), tl = [$("sQuick"), $("sReads")].find((x) => x && x.parentNode === lw && sl && (sl.compareDocumentPosition(x) & 4)) || null; if (tl ? w.nextElementSibling !== tl : lw.lastElementChild !== w) lw.insertBefore(w, tl); if (li) li.remove(); }
     else alSlot();   // 폰: 목록 다섯째 줄 뒤 56px 한 줄(17차 — 첫 화면은 이름·금액이 먼저)
     const b = w.firstElementChild, sc = sameCond();
     if (!sc) {

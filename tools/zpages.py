@@ -436,10 +436,51 @@ def hand_fix(r):
     f = os.path.join(ZD, r['id'] + '.html'); h0 = open(f, encoding='utf-8').read()
     h1 = static_norm(hand_seo(r, term_fix(hand_live(r, h0) if r['id'] in _LIVE else h0)))
     if h1 != h0: open(f, 'w', encoding='utf-8').write(h1)
+# ---- 얇은 페이지 거르기(24차 · 애드센스 '가치가 별로 없는 콘텐츠' 대응) ----
+# 자동 페이지마다 (1) 자료가 얼마나 있는지(계산 매수가 표본 · 구역 안 거래 · 날짜가 있는 인가 이력 · 정보몽땅 추진경과 기록 · 법원경매 · 토지거래허가)와
+# (2) 다른 구역 페이지와 겹치지 않는 본문 글자 수(숫자를 0으로 바꿔 같은 틀 문장이 THIN_TPL곳 넘게 나오면 틀로 봄)를 잰다.
+# 자료 점수(계산 매수가 표본 2점 — 실제 거래로 낸 이 구역만의 숫자 · 구역 안 거래·인가 날짜·추진경과 기록·경매·토지거래허가 각 1점)가 THIN_SIG 미만이고 고유 본문도 THIN_TXT자 미만이면 <meta name="robots" content="noindex,follow"> — 사람은 그대로 열 수 있고 링크는 따라가며,
+# sitemap.py가 noindex 페이지를 사이트맵에서 뺀다. 손으로 쓴 구역 글(emr-auto 없음)은 늘 색인. 매일 다시 잰다(자료가 늘면 다시 색인).
+THIN_SIG, THIN_TXT, THIN_TPL = 2, 400, 10
+THIN_W = {'price': 2, 'trades': 1, 'dates': 1, 'records': 1, 'auction': 1, 'toheo': 1}
+NOIDX = '<meta name="robots" content="noindex,follow">'
+def zsignals(r):
+    rid = r['id']; c = C.get(rid) or {}; dt = (P.get(rid) or {}).get('dt') or {}
+    today = datetime.date.today().isoformat()
+    t = r.get('tx') or {}; hd = ((TXX.get(rid) or {}).get('x') or {}).get('hd')
+    s = {'price': bool(c.get('price') is not None and c.get('priceSrc') in PSRC and not noTicket(r, c)),   # 계산 매수가 표본(이 구역 거래로 낸 매수가)
+         'trades': bool(hd or t.get('pp') or t.get('im')),   # 구역 안 대표 거래 · 빌라 대지 3.3㎡당 · 입주권 매매
+         'dates': any(dt.get(k) for k, _ in DTK),
+         'records': any(e and e[0] <= today for e in ((P.get(rid) or {}).get('ev') or [])),
+         'auction': bool(AUC.get('ok') and [x for x in ((AUC.get('byZone') or {}).get(rid) or []) if not x.get('st') and str(x.get('date') or '') >= AUT]),
+         'toheo': bool((TH.get('z') or {}).get(rid))}
+    return s
+_SEGX = re.compile(r'<(?:/?)(?:p|h\d|li|div|tr|td|th|section|ul|ol|table|details|summary|a|small|br|span|b)\b[^>]*>')
+def zsegs(h):
+    m = re.search(r'<main>(.*)</main>', h, re.S); b = m.group(1) if m else ''
+    b = re.sub(r'<(script|style|svg)[^>]*>.*?</\1>', '', b, flags=re.S)
+    b = html.unescape(re.sub(r'<[^>]+>', '', _SEGX.sub('\n', b)))
+    return [x.strip() for x in re.split(r'\n|(?<=[.요다])\s', b) if x.strip()]
+_tpl = lambda x: re.sub(r'[\d,.%]+', '0', x)
 made = kept = 0
+AUTO = {}
 for r in R:
     if is_hand(r['id']): kept += 1; hand_og(r); hand_fix(r); continue
-    open(os.path.join(ZD, r['id'] + '.html'), 'w', encoding='utf-8').write(MONEY(page(r))); made += 1
+    AUTO[r['id']] = (r, MONEY(page(r)))
+_SG = {k: zsegs(h) for k, (_, h) in AUTO.items()}
+_CNT = collections.Counter(t for v in _SG.values() for t in {_tpl(x) for x in v})
+THIN = {}
+for rid, (r, h) in AUTO.items():
+    sg = zsignals(r); n = sum(THIN_W[k] for k, v in sg.items() if v)
+    u = sum(len(x) for x in _SG[rid] if _CNT[_tpl(x)] <= THIN_TPL)
+    thin = n < THIN_SIG and u < THIN_TXT
+    THIN[rid] = {'sig': [k for k, v in sg.items() if v], 'score': n, 'uniq': u, 'noindex': thin}
+    if thin: h = h.replace('<meta name="emr-auto" content="1">', '<meta name="emr-auto" content="1">\n' + NOIDX, 1)
+    open(os.path.join(ZD, rid + '.html'), 'w', encoding='utf-8').write(h); made += 1
+_ni = sum(1 for v in THIN.values() if v['noindex'])
+json.dump({'rule': {'score_min': THIN_SIG, 'weights': THIN_W, 'unique_chars_min': THIN_TXT, 'template_pages': THIN_TPL}, 'auto': len(THIN), 'indexed': len(THIN) - _ni, 'noindex': _ni, 'hand': kept, 'pages': THIN},
+          open(os.path.join(ROOT, 'pipeline/cache/zthin.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+print(f'zpages thin control: auto {len(THIN)} · indexed {len(THIN) - _ni} · noindex {_ni} · hand(always indexed) {kept}')
 _RID = {r['id'] for r in R}
 for r in D['recs']:   # 준공·해산 등으로 목록에서 빠졌지만 손으로 쓴 페이지가 남은 구역도 공유 카드는 붙인다
     if r['id'] not in _RID and r.get('n') and os.path.exists(os.path.join(ZD, r['id'] + '.html')) and os.path.getsize(os.path.join(ZD, r['id'] + '.html')): hand_og(r); hand_fix(r)
@@ -579,8 +620,14 @@ if os.path.isdir(RD):
     for f in iss:
         h = open(os.path.join(RD, f), encoding='utf-8').read(); ym = f[:7]
         h1m = re.search(r'<h1[^>]*>(.*?)</h1>', h, re.S)
+        # 발행일 = 머리글 '발행 YYYY년 M월 D일'(예전엔 해당 월 1일을 넣어 머리의 Article과 날짜가 달랐다) · 머리에 따로 있던 Article 구조화 데이터는 이 한 덩이로 합친다
+        pm = re.search(r'발행 (\d{4})년 (\d{1,2})월 (\d{1,2})일', h)
+        pubd = f"{pm.group(1)}-{int(pm.group(2)):02d}-{int(pm.group(3)):02d}" if pm else ym + "-01"
+        hd0 = h[:h.find('<body')]
+        hd1 = re.sub(r'<script type="application/ld\+json">\{[^<]*?"@type": ?"Article"[^<]*?</script>\n?', '', hd0)
+        if hd1 != hd0: open(os.path.join(RD, f), 'w', encoding='utf-8').write(hd1 + h[len(hd0):])
         _ld_put(os.path.join(RD, f), {"@context": "https://schema.org", "@type": "Article", "headline": re.sub(r'<[^>]+>', '', h1m.group(1)).strip()[:110] if h1m else _meta(h, 'title'),
-                 "description": _meta(h, 'desc'), "inLanguage": "ko", "datePublished": ym + "-01", "url": f"{SITE}/report/{ym}", "mainEntityOfPage": f"{SITE}/report/{ym}",
+                 "description": _meta(h, 'desc'), "inLanguage": "ko", "datePublished": pubd, "dateModified": pubd, "url": f"{SITE}/report/{ym}", "mainEntityOfPage": f"{SITE}/report/{ym}",
                  "image": f"{SITE}/og.png", "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": _pub})
     ix = os.path.join(RD, 'index.html')
     if os.path.exists(ix):

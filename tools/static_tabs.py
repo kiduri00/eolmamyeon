@@ -96,6 +96,19 @@ def app_header(h):
     return h[:m.start()] + hd + h[m.end():]
 
 
+# 24차: 모든 정적 페이지 푸터 링크 한 줄을 같은 목록·같은 순서로(첫 화면 .f-nav와 같은 9곳 + 구역별·기간·블로그) — 절대 경로라 어느 폴더에서든 같다
+FOOT_LINKS = [('/about', '소개'), ('/method', '계산 방법'), ('/faq', '자주 묻는 질문'), ('/contact', '문의'), ('/terms', '이용약관'), ('/privacy', '<b>개인정보처리방침</b>'),
+              ('/gu/', '구별 페이지'), ('/guide/', '가이드'), ('/report/', '월간 리포트'), ('/z/', '구역별 페이지'), ('/years', '몇 년 걸리나')]
+FOOT_P = ' · '.join(f'<a href="{u}">{t}</a>' for u, t in FOOT_LINKS) + ' · <a href="https://blog.naver.com/always_questions" rel="noopener">블로그</a>'
+RF1 = re.compile(r'(<footer class="f"><p>).*?(</p>)', re.S)
+RF2 = re.compile(r'(<footer id="contact">.*?<p class="fl">).*?(</p>)', re.S)
+
+
+def foot_links(h):
+    h = RF1.sub(lambda m: m.group(1) + FOOT_P + m.group(2), h, count=1)
+    return RF2.sub(lambda m: m.group(1) + FOOT_P + m.group(2), h, count=1)
+
+
 def main():
     n = 0
     for root, _, files in os.walk(PUB):
@@ -110,6 +123,7 @@ def main():
             b = block(cur)
             h1 = RX.sub(lambda m: b, h, count=1) if RX.search(h) else h.replace('</body>', b + '\n</body>', 1)
             h1 = app_header(h1)
+            h1 = foot_links(h1)
             # 22차 접근성: 옆으로 밀리는 표 상자(.tw)는 키보드로도 밀 수 있게(초점 + 이름) — axe scrollable-region-focusable
             k = iter(range(1, 999))
             h1 = re.sub(r'<div class="(tw(?: [^"]*)?)"(?: tabindex="0" role="region" aria-label="[^"]*")?>', lambda m: f'<div class="{m.group(1)}" tabindex="0" role="region" aria-label="표 {next(k)} · 옆으로 밀어 보기">', h1)

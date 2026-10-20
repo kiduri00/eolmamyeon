@@ -257,6 +257,27 @@ async function zoneChecks(page, scen, id, opts) {
       }
       await checkOverflow(page, name + "/home");
       await checkClip(page, name + "/home", ".s-hero");
+      // ---- seo.homeLinks (24차): 첫 화면(브라우저)에서 글·사이트 정보로 가는 링크가 눈에 보여야 한다(애드센스 '가치 낮은 콘텐츠' 재심사) ----
+      if (plan.homeLinks) {
+        const hl = await page.evaluate(() => {
+          const shown = (a) => { const r = a.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return false; for (let e = a; e; e = e.parentElement) { const cs = getComputedStyle(e); if (e.hidden || cs.display === "none" || cs.visibility === "hidden" || +cs.opacity === 0) return false; } return true; };
+          const out = {};
+          for (const a of document.querySelectorAll("a[href]")) {
+            if (!shown(a)) continue;
+            let u; try { u = new URL(a.getAttribute("href"), location.href); } catch (e) { continue; }
+            if (u.origin !== location.origin) continue;
+            (out[u.pathname] = out[u.pathname] || 0); out[u.pathname]++;
+          }
+          return out;
+        });
+        const P = Object.keys(hl);
+        const need = [["/guide/", (p) => p === "/guide/"], ["/report/", (p) => p === "/report/"], ["/about", (p) => /^\/about(\.html)?$/.test(p)], ["/privacy", (p) => /^\/privacy(\.html)?$/.test(p)], ["/contact", (p) => /^\/contact(\.html)?$/.test(p)]];
+        for (const [lab, f] of need) if (!P.some(f)) fail("seo.homeLinks", name, `no visible link on / to ${lab}`);
+        const arts = P.filter((p) => /^\/guide\/[a-z0-9-]+$/.test(p)), reps = P.filter((p) => /^\/report\/\d{4}-\d{2}$/.test(p));
+        if (arts.length < 4) fail("seo.homeLinks", name, `only ${arts.length} visible guide article links on / (need 4+): ${arts.join(" ")}`);
+        if (!reps.length) fail("seo.homeLinks", name, "no visible link to the latest monthly report on /");
+        info[name].homeLinks = { guides: arts.length, reports: reps.length, site: need.filter(([, f]) => P.some(f)).map(([l]) => l) };
+      }
       if (plan.touch) {
         const t = await page.evaluate(() => __qa.touch("body", "#report,.sheet,[hidden]"));
         measured.touch["home_" + name] = t.length;
@@ -330,8 +351,8 @@ async function zoneChecks(page, scen, id, opts) {
   }
 
   await scenario("m360", MOB(360, 740), { api: true, gauge: true, touch: true, zones: 12, tabs: true, tools: TOOLS, zoneDeep: true, notFound: true });
-  await scenario("m390", MOB(390, 844), { api: true, gauge: true, touch: true, zones: 4, tabs: false });
-  await scenario("d1440", DESK, { api: true, gauge: true, zones: 3, tabs: true, tools: ["rankHub", "news", "planner"], zoneDeep: true });
+  await scenario("m390", MOB(390, 844), { api: true, gauge: true, touch: true, zones: 4, tabs: false, homeLinks: true });
+  await scenario("d1440", DESK, { api: true, gauge: true, zones: 3, tabs: true, tools: ["rankHub", "news", "planner"], zoneDeep: true, homeLinks: true });
   await scenario("m360-dark", { ...MOB(360, 740), colorScheme: "dark" }, { api: true, zones: 4, tabs: false, tools: ["planner"] });
   await scenario("d1440-dark", { ...DESK, colorScheme: "dark" }, { api: true, zones: 2, tabs: false });
   await browser.close();
@@ -358,6 +379,7 @@ async function zoneChecks(page, scen, id, opts) {
     if (v.gauge) parts.push("gauge " + v.gauge.map((g) => `${g.label}:${g.hero}/${g.list}${g.api != null ? "/api" + g.api : ""}`).join(" "));
     if (v.touchHome) parts.push(`touch<40 home ${v.touchHome.count}`);
     if (v.touchSheet) parts.push(`sheet max ${v.touchSheet.maxCount}`);
+    if (v.homeLinks) parts.push(`home links: guides ${v.homeLinks.guides} · report ${v.homeLinks.reports} · ${v.homeLinks.site.join(" ")}`);
     console.log(`  ${n.padEnd(11)} ${parts.join(" · ")}`);
   }
   const fw = (title, arr, max) => { if (!arr.length) return; console.log(`\n${title} (${arr.length})`); for (const [c, xs] of Object.entries(group(arr))) { console.log(`  [${c}] ${xs.length}`); xs.slice(0, max).forEach((x) => console.log(`    - ${x.where}: ${x.msg}`)); if (xs.length > max) console.log(`    … +${xs.length - max} more (see JSON)`); } };

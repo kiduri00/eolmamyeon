@@ -15,8 +15,8 @@
 }
 /* 부제 '서울 재개발 지도'는 데스크톱만 */
 @media (max-width:980px){.logo .logo-s{display:none!important}}
-/* 앱 화면에서는 웹 푸터를 숨긴다(출처·약관·문의는 MY에) — SEO용 푸터는 /z·/gu·/guide 정적 페이지에 남아 있다 */
-html.simple .site-foot,html.simple .ad-slot[data-slot="bottom"]{display:none!important}
+/* 아래 광고 칸은 앱 화면에서 쓰지 않는다 · 웹 푸터는 브라우저에서 보이고 설치 앱(standalone)에서만 숨긴다(99zz_r24.css) */
+html.simple .ad-slot[data-slot="bottom"]{display:none!important}
 html.simple main.wrap{padding-bottom:24px}
 
 /* ===================== 앱다운 느낌 ===================== */

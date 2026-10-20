@@ -855,7 +855,11 @@ async function r1Lane(browser, api, errs) {
       await loadHome(dp, "#news"); await dp.waitForTimeout(800);
       const t = await dp.evaluate(() => { const B = [...document.querySelectorAll("#sNav [data-nav]")].filter((b) => window.__qc.vis(b)); return { n: B.length, inHdr: !!document.querySelector("#hdr #sNav"), cur: B.filter((b) => b.getAttribute("aria-current") === "page").map((b) => b.dataset.nav), foot: !!(document.querySelector(".site-foot") && window.__qc.vis(document.querySelector(".site-foot"))) }; });
       expect(t.n === 4 && t.inHdr && t.cur.join() === "news", "ui.tabs4", T, `1440 #news: ${t.n} tabs in header ${t.inHdr} current [${t.cur}]`);
-      expect(!t.foot, "ui.tabs4", T, "1440: web footer visible in app");
+      // 24차: 브라우저로 연 앱 화면에서는 웹 푸터(소개·약관·개인정보·문의)가 보여야 하고, 설치 앱(display-mode: standalone)에서만 숨긴다
+      expect(t.foot, "ui.tabs4", T, "1440: web footer hidden in browser mode (should be visible; hidden only in standalone)");
+      const sa = await dp.evaluate(() => { const hit = []; const walk = (rs, mq) => { for (const r of rs) { if (r.media && r.cssRules) walk(r.cssRules, r.media.mediaText); else if (r.cssRules && r.conditionText) walk(r.cssRules, r.conditionText); else if (r.selectorText && r.selectorText.split(",").some((x) => /\.site-foot$/.test(x.trim())) && r.style && r.style.display === "none") hit.push(mq || ""); } }; for (const sh of document.styleSheets) { try { walk(sh.cssRules, ""); } catch (e) {} } return hit; });
+      expect(sa.some((m) => /display-mode:\s*standalone/.test(m)), "ui.tabs4", T, "no @media (display-mode: standalone) rule hides .site-foot");
+      expect(!sa.some((m) => !/display-mode/.test(m)), "ui.tabs4", T, `.site-foot hidden outside display-mode media: [${sa.filter((m) => !/display-mode/.test(m)).join(" | ")}]`);
       await d.close();
     }
     // 정적 페이지도 같은 탭 4개(폰)
@@ -1258,6 +1262,8 @@ async function r14Lane(browser, api, errs) {
       // PC 두 칸: 왼쪽 420~440px · 지도 폭 ≥ 55% · 머리 바로 밑에 붙어(sticky) 화면 높이 · 확대 버튼·범례가 화면 안 · Tab 순서 예산 카드 → 지도 버튼
       for (const y of [0, 400, 2000]) {
         const L = await page.evaluate(async (y) => {
+          // 24차: 페이지 끝에는 웹 푸터가 있어 그 구간에서는 지도가 보통 웹페이지처럼 함께 올라간다 → '왼쪽 칸 끝까지' 스크롤했을 때 sticky를 본다
+          const sr = document.getElementById("sRight"); if (sr && document.querySelector(".site-foot") && document.querySelector(".site-foot").offsetHeight) y = Math.min(y, Math.max(0, Math.floor(sr.getBoundingClientRect().bottom + scrollY - innerHeight)));
           scrollTo(0, y); await new Promise((r) => setTimeout(r, 250));
           const hd = document.getElementById("hdr").getBoundingClientRect().bottom, m = document.getElementById("mapbox").getBoundingClientRect(), l = document.getElementById("sRight").getBoundingClientRect();
           const z = document.querySelector("#lmap .lm-zoom"), zb = z ? z.getBoundingClientRect() : null, k = document.getElementById("lmKey"), kb = k && k.offsetWidth ? k.getBoundingClientRect() : null;

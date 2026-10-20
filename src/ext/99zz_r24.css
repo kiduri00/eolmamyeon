@@ -1,0 +1,47 @@
+/* ===================== 24차: 읽을거리 · 웹 푸터 (브라우저로 연 첫 화면) =====================
+   첫 화면에서 글(가이드·월간 리포트)과 사이트 정보(소개·약관·개인정보·문의)로 가는 길을 눈에 보이게 둔다.
+   설치한 앱(standalone)에서는 둘 다 숨긴다 — 같은 링크가 MY 탭(가이드·월간 리포트 · 도움말 · 약관·정보)에 있다. */
+
+/* ---- 재개발 공부하기(#sReads): 폰은 목록 밑, PC는 왼쪽 칸 맨 아래 ---- */
+.s-reads{margin:24px 0 0}
+.s-reads .sr-h{padding:0 4px 10px}
+.s-reads .sr-h h2{margin:0;font-size:18px;line-height:1.35;font-weight:800;letter-spacing:-.02em;color:var(--text-1)}
+.s-reads .sr-h p{margin:2px 0 0;font-size:13px;line-height:1.45;color:var(--text-3)}
+.s-reads .sr-l{list-style:none;margin:0;padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden}
+.s-reads .sr-l li+li{border-top:1px solid var(--divider,var(--border))}
+.s-reads .sr-r{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 10px 8px 14px;color:var(--text-1);text-decoration:none!important;-webkit-tap-highlight-color:transparent}
+@media (hover:hover){.s-reads .sr-r:hover{background:var(--surface-2)}.s-reads .sr-r:hover .sr-t{color:var(--brand)}}
+.s-reads .sr-r:focus-visible{outline:2px solid var(--focus,var(--brand));outline-offset:-2px;border-radius:12px}
+.s-reads .sr-k{flex:none;min-width:46px;padding:3px 7px;border-radius:6px;background:color-mix(in srgb,var(--brand) 9%,transparent);color:var(--brand);font-size:11.5px;font-weight:700;line-height:1.3;text-align:center;white-space:nowrap}
+.s-reads .sr-t{flex:1 1 auto;min-width:0;font-size:15px;font-weight:600;line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;word-break:keep-all}
+.s-reads .sr-ch{flex:none;color:var(--text-4,var(--text-3))}
+.s-reads .sr-all{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 8px;margin:4px 0 0;padding:0 2px}
+.s-reads .sr-all a{display:inline-flex;align-items:center;min-height:44px;padding:0 6px;border-radius:8px;font-size:14px;font-weight:700;color:var(--brand);text-decoration:none!important}
+@media (hover:hover){.s-reads .sr-all a:hover{background:var(--surface-2)}}
+@media (min-width:981px){
+  .s-reads{margin:20px 0 4px;padding-top:16px;border-top:1px solid var(--border)}
+  .s-reads .sr-h{padding:0 2px 8px}
+  .s-reads .sr-h h2{font-size:16px}
+}
+/* 목록 머리 밑 상세(s-rep)·전체 지도·도구 화면에서는 목록과 함께 숨는다(부모 #sListW 규칙 그대로) · 다크 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-reads .sr-k{background:color-mix(in srgb,var(--brand) 18%,transparent)}}
+:root[data-theme="dark"] .s-reads .sr-k{background:color-mix(in srgb,var(--brand) 18%,transparent)}
+
+/* ---- 웹 푸터: 앱 화면(브라우저)에서도 짧게 보인다 ---- */
+html.simple .site-foot{display:block;margin-top:32px;padding:20px 0 24px;border-top:1px solid var(--border);background:var(--surface)}
+html.simple .site-foot .f-grid{display:none}
+.site-foot .f-nav{display:flex;flex-wrap:wrap;gap:0 2px;margin:0 -8px}
+.site-foot .f-nav a{display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;padding:0 8px;border-radius:8px;font-size:13px;font-weight:600;line-height:1.2;color:var(--text-2);text-decoration:none!important}
+@media (hover:hover){.site-foot .f-nav a:hover{background:var(--surface-2);color:var(--brand)}}
+.site-foot .f-nav a:focus-visible{outline:2px solid var(--focus,var(--brand));outline-offset:-2px}
+.site-foot .f-nav .f-priv{color:var(--text-1);font-weight:800}
+.site-foot .f-meta{display:flex;flex-wrap:wrap;gap:2px 12px;margin:8px 0 0;font-size:12px;line-height:1.6;color:var(--text-3)}
+.site-foot .f-asof{font-variant-numeric:tabular-nums}
+@media (max-width:980px){html.simple .site-foot{padding-bottom:20px}}
+
+/* 설치한 앱으로 열었을 때만 숨김(같은 링크는 MY에) */
+@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){
+  html.simple .site-foot,.s-reads{display:none!important}
+}
+/* PC: 푸터 글줄을 왼쪽 목록 칸과 같은 줄에서 시작 */
+@media (min-width:981px){html.simple .site-foot .wrap{max-width:none;padding-left:20px;padding-right:20px}}

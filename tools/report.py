@@ -168,6 +168,9 @@ body = f'''<main>
 <p><a href="../years">우리 동네가 지금 어느 단계인지 고르고 보기 →</a></p>
 <h2>한눈에 보기 (표)</h2>
 <div class="tw cards compact"><table><thead><tr><th>구역</th><th>단계</th><th class="n">인가일(정보몽땅)</th><th>원문</th><th>계산</th></tr></thead><tbody>{table}</tbody></table></div>
+<h2>함께 읽기</h2>
+<ul class="links"><li><a href="/guide/status">서울 정비사업, 지금 어느 단계에 몇 곳</a></li><li><a href="/guide/jungong">재개발 단계별로 10년 안에 준공될 확률</a></li><li><a href="/guide/ipjugwon">조합설립인가 뒤에 사도 입주권이 나오나</a></li><li><a href="/guide/long-stall">한 단계에 10년 넘게 머문 서울 정비구역들</a></li><li><a href="/years">재개발 단계별로 몇 년 걸리나</a></li><li><a href="/report/">지난 월간 리포트 모두 보기</a></li></ul>
+<p class="meta">이 리포트의 숫자는 <a href="/method">계산 방법</a>의 기본 가정으로 낸 추정이에요. 내 돈으로 갈 수 있는 구역은 <a href="/">찾기(첫 화면)</a>에서 바로 볼 수 있어요.</p>
 <h2>인용하실 때</h2><p class="meta">출처를 '집핀 월간 리포트({Y}년 {M}월분)'로 적고 이 페이지 링크를 붙여 주세요. 날짜는 서울시 정비사업 정보몽땅 등록 기준이고, 투자 권유가 아니에요.</p>
 </main>'''
 if A.test:

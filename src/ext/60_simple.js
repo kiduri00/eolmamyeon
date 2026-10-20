@@ -260,7 +260,7 @@ const SIMPLE = (() => {
       // PC: 왼쪽 칸(예산 카드·목록)이 문서 순서로도 지도보다 먼저(Tab이 예산 카드 → 목록 → 지도 버튼 순)
       // 빠른 메뉴 한 줄(#sQuick, 21차): 폰은 지도 밑·목록 머리 위, PC는 왼쪽 칸 맨 아래(목록 밑)
       const qk = $("sQuick");
-      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); if (gg && list.firstElementChild !== gg) list.insertBefore(gg, list.firstElementChild); if (main.firstElementChild !== right) main.insertBefore(right, main.firstElementChild); if (qk && list.lastElementChild !== qk) list.appendChild(qk); }
+      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); if (gg && list.firstElementChild !== gg) list.insertBefore(gg, list.firstElementChild); if (main.firstElementChild !== right) main.insertBefore(right, main.firstElementChild); const rd = $("sReads"); if (rd && list.lastElementChild !== rd) list.appendChild(rd); if (qk && qk.nextElementSibling !== rd) list.insertBefore(qk, rd || null); }
       else { if (main.lastElementChild !== right) main.appendChild(right); if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); const lh = list.querySelector(":scope > .s-lh"); if (qk && lh && lh.previousElementSibling !== qk) lh.before(qk); }
     };
     place(); matchMedia("(min-width:981px)").addEventListener("change", place);

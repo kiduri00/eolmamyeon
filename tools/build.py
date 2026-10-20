@@ -43,6 +43,18 @@ if os.path.exists(LT):
         if lt['ym'] > cur.get('ym', ''):
             new = {'ym': lt['ym'], 'no': lt['no'], 'url': lt['url'] + '.html', 'items': [{'id': i['id'], 'step': i['step'], 'date': i['date'], 'src': ''} for i in lt['items']]}
             shell = shell[:m.start(2)] + json.dumps(new, ensure_ascii=False) + shell[m.end(2):]
+# 24차: 첫 화면 '재개발 공부하기' 첫 줄 = 가장 최근에 낸 월간 리포트(색인 안 하는 초안은 건너뜀)
+_RD = os.path.join(R, 'public', 'report')
+_iss = sorted((f for f in (os.listdir(_RD) if os.path.isdir(_RD) else []) if re.match(r'\d{4}-\d{2}\.html$', f)), reverse=True)
+for _f in _iss:
+    _h = open(os.path.join(_RD, _f), encoding='utf-8').read()
+    if 'name="robots" content="noindex' in _h: continue
+    _m = re.search(r'<h1[^>]*>(.*?)</h1>', _h, re.S)
+    if _m:
+        _t = re.sub(r'<[^>]+>', '', _m.group(1)).strip()
+        shell = re.sub(r'<a class="sr-r" href="report/[^"]*" id="sReadsRpt">(<span class="sr-k">[^<]*</span>)<span class="sr-t">[^<]*</span>',
+                       lambda m: f'<a class="sr-r" href="report/{_f[:-5]}" id="sReadsRpt">{m.group(1)}<span class="sr-t">{_t.replace("&", "&amp;").replace("<", "&lt;")}</span>', shell, count=1)
+    break
 PJ = os.path.join(R, 'public', 'premium.json')
 if os.path.exists(PJ):
     pv = hashlib.md5(open(PJ, 'rb').read()).hexdigest()[:8]

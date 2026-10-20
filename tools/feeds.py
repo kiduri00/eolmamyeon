@@ -25,6 +25,9 @@ head = re.sub(r'<title>.*?</title>', '<title>구별 정비사업 새 소식 구�
 head = re.sub(r'(name="description" content=")[^"]*', r'\1서울 25개 구의 재개발·재건축 인가·착공·준공 소식을 RSS로 받아 보세요.', head)
 head = re.sub(r'(property="og:title" content=")[^"]*', r'\1구별 정비사업 새 소식 구독 | 집핀 - 서울 재개발 지도', head)
 head = re.sub(r'(property="og:description" content=")[^"]*', r'\1서울 25개 구의 재개발·재건축 인가·착공·준공 소식을 RSS로 받아 보세요.', head)
+head = head.replace(f'{SITE}/report/"', f'{SITE}/feed/"')   # 대표 주소·og:url = 이 페이지(예전엔 리포트 목록을 가리켰다)
+# RSS 주소 목록일 뿐이라 검색 색인에서는 뺀다(링크는 따라감) — 사이트맵에도 안 실린다
+if 'name="robots"' not in head: head = head.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<meta name="robots" content="noindex,follow">', 1)
 foot = tpl[tpl.index('</main>') + 7:]
 rows = ''.join(f'<a class="zl" href="gu/{urllib.parse.quote(g)}.xml"><b>{esc(g)}</b><small>최근 180일 소식 {len(G.get(g, []))}건 · RSS</small></a>' for g in gus)
 body = f'<main><h1>구별 정비사업 새 소식 구독</h1><p>관심 있는 구의 RSS 주소를 피드 앱(Feedly, Inoreader, 네이버 블로그 이웃 대신 쓰는 RSS 리더 등)에 넣으면, 정비구역 지정·추진위·조합설립·사업시행·관리처분 인가와 착공·준공이 정보몽땅에 올라올 때마다 받아 볼 수 있어요. 매일 아침 갱신돼요. 가입이나 개인정보는 필요 없어요.</p><div class="rlist">{rows}</div><p class="meta">월간 리포트 전체는 <a href="../report/feed.xml">월간 리포트 RSS</a>로 받을 수 있어요.</p></main>'
