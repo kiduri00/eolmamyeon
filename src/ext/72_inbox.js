@@ -322,7 +322,7 @@ const INBOX = (() => {
   const week = () => { const d0 = addDay(day(), -6); return pinEvents().filter((e) => e.date >= d0); };
   // MY > 알림 설정에서 쓰는 것: 폰 알림 상태(st) · 켜기/끄기 · 종류별 끄기
   const st = () => ({ can: !!KEY && canPush(), on: isOn() && canPush() && Notification.permission === "granted", perm: canPush() ? Notification.permission : "unsupported", msg: PMSG });
-  function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); rerender(); sync(true); }
+  function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
   return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind };
 })();
 window.ZP_INBOX = INBOX;   // 점검(QA): 폰 알림 상태·종류 끄기

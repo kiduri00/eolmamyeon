@@ -882,9 +882,6 @@ async function r1Lane(browser, api, errs) {
     expect(!r.miss.length && r.kinds >= 4 && r.tools === 6 && /\d/.test(r.ver) && !/__/.test(r.ver) && /\d/.test(r.asof) && /억|만/.test(r.cash) && r.mail, "ui.my", TM, `missing [${r.miss}] kinds ${r.kinds} tools ${r.tools} ver "${r.ver}" asof "${r.asof}" cash "${r.cash}" mail ${r.mail}`);
     expect(!r.small.length, "ui.my", TM, `rows < 44px: ${r.small.join(" ; ")}`);
     // 종류 끄기 → 저장
-    // 폰 알림이 꺼져 있으면(점검 브라우저는 늘 꺼짐) 종류 스위치는 흐리게·누를 수 없음·켜진 것처럼 보이지 않음 + '폰 알림을 켜면 골라 받을 수 있어요'
-    { const k = await page.evaluate(() => { const on = window.ZP_INBOX && window.ZP_INBOX.st().on; const S = [...document.querySelectorAll("#myKinds [role=switch]")]; const c = document.getElementById("myKindsC"); return { on: !!on, n: S.length, dis: S.filter((b) => b.disabled).length, onN: S.filter((b) => b.getAttribute("aria-checked") === "true").length, cap: c && !c.hidden ? c.textContent : "" }; });
-      if (!k.on) expect(k.n && k.dis === k.n && !k.onN && /폰 알림을 켜면/.test(k.cap), "ui.myToggles", "폰 알림 꺼짐: MY 알림 종류 스위치 흐리게(disabled)·꺼진 모양 + 안내 한 줄", `push off: ${k.dis}/${k.n} disabled, ${k.onN} look ON, caption "${k.cap}"`); }
     await page.evaluate(() => { const b = document.querySelector('#myKinds [data-kind="trade"]'); if (b && !b.disabled) b.click(); else if (window.ZP_INBOX) window.ZP_INBOX.setKind("trade", false); });
     { const v = await page.evaluate(() => localStorage.getItem("zp-alert-off")); expect(/trade/.test(v || ""), "ui.my", TM, `alert kind toggle not stored: ${v}`); }
     // 지우기: 첫 누름은 확인 칸만(데이터 그대로) · 닫기 → 그대로 · 모두 지우기 → 저장소 빔 · 첫 화면
@@ -899,6 +896,72 @@ async function r1Lane(browser, api, errs) {
     expect(dialogs === 0, "ui.my", TM, `native dialog (confirm/alert) shown ${dialogs}×`);
   } catch (e) { bad("runtime", "검사 실행", "r1Lane crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await ctx.close().catch(() => {}); }
+  {
+  const TM_M = { viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 };
+  // --- ui.myToggles: MY 알림 종류 스위치는 폰 알림이 꺼져 있어도 늘 누를 수 있다(처음엔 모두 켜짐) · 누르면 바로 aria-checked가 바뀌고
+  //     새로 열어도 그대로(zp-alert-off) · 소식 목록에서 그 종류가 빠지고 N 배지(경공매 타일·종)도 꺼짐 · 폰 알림이 켜져 있으면 서버 o 목록도 맞춤
+  {
+    const T = "MY 알림 종류 스위치: 폰 알림 꺼져 있어도 누르면 바로 바뀜(줄 전체 44px+) · 새로 열어도 유지 · 소식 목록·N 배지에 적용 · 폰 알림 켜져 있으면 서버 o 동기화";
+    const ctx = await browser.newContext({ ...TM_M, serviceWorkers: "block" });
+    try {
+      await ctx.route(BLOCK, (r) => r.abort());
+      await ctx.addInitScript(IN_PAGE);
+      const page = await ctx.newPage(); page.__where = "/#my (toggles)";
+      page.on("pageerror", (e) => errs.push({ where: "/#my (toggles)", msg: "pageerror: " + (e.message || String(e)).split("\n")[0].slice(0, 200) }));
+      await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
+      // 실거래 소식이 있는 구역을 관심 구역으로(목록에서 빠지는지 보려고)
+      const pick = await page.evaluate(async (fb) => { let ids = []; try { const j = await (await fetch("data/changes.json", { cache: "no-store" })).json(); const s = new Set(); (j.items || []).forEach((e) => { if (e.type === "trade" && s.size < 3) s.add(e.id); }); ids = [...s]; } catch (e) {} if (!ids.length) ids = fb; localStorage.setItem("jg-fav", JSON.stringify(ids)); localStorage.removeItem("zp-alert-off"); localStorage.setItem("zp.seen.auc", "2000-01-01"); localStorage.setItem("zp.seen.ntc", "2000-01-01"); return ids; }, api.zones.slice(0, 2).map((z) => z.id));
+      await loadHome(page, "#my"); await page.waitForTimeout(1000);
+      const st = () => page.evaluate(() => { const S = [...document.querySelectorAll("#myKinds [role=switch]")], c = document.getElementById("myKindsC"), I = window.ZP_INBOX, dot = document.querySelector('#sQuick a[href="#aucTop"] .nb-dot'); return { on: !!(I && I.st().on), can: !!(I && I.st().can), n: S.length, dis: S.filter((b) => b.disabled || b.getAttribute("aria-disabled") === "true").length, chk: Object.fromEntries(S.map((b) => [b.dataset.kind, b.getAttribute("aria-checked")])), small: S.filter((b) => b.getBoundingClientRect().height < 44).length, cap: c && !c.hidden ? c.textContent : "", capBtn: !!(c && c.querySelector("[data-push-on]")), ls: localStorage.getItem("zp-alert-off"), aucN: !!(window.NEWB && NEWB.unseen("auc")), aucDot: !!(dot && !dot.hidden), hasAucD: !!(window.NEWB && NEWB.NEWD && NEWB.NEWD.auc) }; });
+      const a = await st();
+      expect(!a.on && a.n === 5 && !a.dis && Object.values(a.chk).every((v) => v === "true") && !a.small, "ui.myToggles", T, `push off first open: ${a.n} switches, ${a.dis} disabled, checked ${JSON.stringify(a.chk)}, <44px ${a.small}`);
+      expect(/앱 안 소식에만/.test(a.cap) && a.capBtn === a.can, "ui.myToggles", T, `caption "${a.cap}" button ${a.capBtn} (push can ${a.can})`);
+      // 실제 탭(줄 왼쪽 글자 위를 눌러도 바뀜)
+      const tap = async (k) => { await page.evaluate((k) => document.querySelector(`#myKinds [data-kind="${k}"]`).scrollIntoView({ block: "center", behavior: "instant" }), k); await page.waitForTimeout(400); const r = await page.evaluate((k) => { const b = document.querySelector(`#myKinds [data-kind="${k}"]`), q = b.getBoundingClientRect(), x = q.left + 24, y = q.top + q.height / 2, e = document.elementFromPoint(x, y); return { x, y, hit: !!(e && b.contains(e)), top: e ? window.__qc.sel(e) : "" }; }, k); if (!r.hit) expect(false, "ui.myToggles", T, `switch row "${k}" covered by ${r.top}`); await page.mouse.click(r.x, r.y); await page.waitForTimeout(250); };
+      await tap("trade"); await tap("auction");
+      const b = await st();
+      expect(b.chk.trade === "false" && b.chk.auction === "false" && b.chk.stage === "true" && /trade/.test(b.ls || "") && /auction/.test(b.ls || ""), "ui.myToggles", T, `after tap trade+auction: ${JSON.stringify(b.chk)} stored ${b.ls}`);
+      expect(!b.hasAucD || (a.aucN && !b.aucN && !b.aucDot), "ui.myToggles", T, `경매 끔 → 경공매 N 배지: before ${a.aucN} after ${b.aucN} dot ${b.aucDot}`);
+      await page.reload({ waitUntil: "domcontentloaded" }); await page.waitForTimeout(1200);
+      const c = await st();
+      expect(c.chk.trade === "false" && c.chk.auction === "false" && c.chk.stage === "true", "ui.myToggles", T, `after reload: ${JSON.stringify(c.chk)}`);
+      // 소식 목록: 실거래가 빠짐 → 다시 켜면 돌아옴
+      const trN = async () => { await page.evaluate(() => { location.hash = "#news"; }); await page.waitForFunction(() => { const m = document.getElementById("nwMine"); return !!(m && m.querySelector("#ibPT")); }, null, { timeout: 10000 }).catch(() => {}); await page.waitForTimeout(300); return page.evaluate(() => document.querySelectorAll("#nwMine .ib-tg.tr").length); };
+      const t0 = await trN();
+      await page.evaluate(() => { location.hash = "#my"; }); await page.waitForTimeout(600);
+      await tap("trade");
+      const t1 = await trN();
+      expect(t0 === 0 && (pick.length === 0 || t1 > 0), "ui.myToggles", T, `소식 목록 실거래 줄: off ${t0} → on ${t1} (pins ${pick.length})`);
+    } catch (e) { bad("ui.myToggles", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // 폰 알림 켜진 상태(구독 흉내): 종류를 끄면 서버로 o 목록을 다시 보낸다 · 안내 줄은 '켜 둔 소식만 폰 알림으로'
+  {
+    const T = "MY 알림 종류: 폰 알림 켜져 있으면 끄는 즉시 서버(POST /api/push/sub)의 o 목록에 반영 · 안내 '켜 둔 소식만 폰 알림으로 보내요'";
+    const ctx = await browser.newContext({ ...TM_M, serviceWorkers: "allow" });
+    try {
+      await ctx.route(BLOCK, (r) => r.abort());
+      await ctx.grantPermissions(["notifications"], { origin: BASE });
+      await ctx.route("**/api/push/key", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ key: PUSH_KEY }) }));
+      const posts = [];
+      await ctx.route("**/api/push/sub", (r) => { try { posts.push(JSON.parse(r.request().postData() || "{}")); } catch (e) {} r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' }); });
+      await ctx.addInitScript(IN_PAGE);
+      await ctx.addInitScript(() => { try { localStorage.setItem("zp-push", JSON.stringify({ on: 1, at: Date.now() })); localStorage.removeItem("zp-alert-off"); const S = { endpoint: "https://x.invalid/1", options: {}, toJSON() { return { endpoint: "https://x.invalid/1" }; } }; PushManager.prototype.getSubscription = () => Promise.resolve(S); PushManager.prototype.subscribe = () => Promise.resolve(S); } catch (e) {} });
+      const page = await ctx.newPage(); page.__where = "/#my (toggles push)";
+      page.on("pageerror", (e) => errs.push({ where: "/#my (toggles push)", msg: "pageerror: " + (e.message || String(e)).split("\n")[0].slice(0, 200) }));
+      await loadHome(page, "#my"); await page.waitForTimeout(1200);
+      const cap = await page.evaluate(() => { const c = document.getElementById("myKindsC"); return { on: window.ZP_INBOX.st().on, t: c && !c.hidden ? c.textContent : "" }; });
+      expect(cap.on && /켜 둔 소식만 폰 알림으로/.test(cap.t), "ui.myToggles", T, `push on: st.on ${cap.on} caption "${cap.t}"`);
+      posts.length = 0;
+      await page.evaluate(() => document.querySelector('#myKinds [data-kind="notice"]').click());
+      const t0 = Date.now();
+      while (!posts.length && Date.now() - t0 < 6000) await page.waitForTimeout(200);
+      const o = posts.length ? posts[posts.length - 1].o : null;
+      expect(Array.isArray(o) && o.includes("notice"), "ui.myToggles", T, `sync POST o = ${JSON.stringify(o)} (${posts.length} posts)`);
+    } catch (e) { bad("ui.myToggles", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  }
 }
 
 // ================================================================ 5) 검색·역·이름·데스크톱

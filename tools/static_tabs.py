@@ -66,7 +66,7 @@ BCSS = ('.top .in{align-items:center}.hdr-date{order:3;flex:none;margin-left:10p
         '@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hdr-date{color:#8b93a1}:root:not([data-theme="light"]) .hdr-bell{color:#9fb3ff}}'
         ':root[data-theme="dark"] .hdr-date{color:#8b93a1}:root[data-theme="dark"] .hdr-bell{color:#9fb3ff}')
 NJS = ('<script>(function(){var D=' + json.dumps(NEWD) + ',g=function(k){try{return localStorage.getItem("zp.seen."+k)||""}catch(e){return""}},'
-       'u=["auc","ntc"].some(function(k){return D[k]&&D[k]>g(k)});if(!u)return;'
+       'o=[];try{o=JSON.parse(localStorage.getItem("zp-alert-off")||"[]")||[]}catch(e){}var M={auc:"auction",ntc:"notice"},u=["auc","ntc"].some(function(k){return D[k]&&D[k]>g(k)&&o.indexOf(M[k])<0});if(!u)return;'
        '[].forEach.call(document.querySelectorAll(".hdr-bell .nb-dot,.zp-tabs .nb-dot"),function(e){e.hidden=false});'
        'var b=document.querySelector(".hdr-bell");if(b)b.setAttribute("aria-label","소식, 새 소식 있음")})()</script>')
 

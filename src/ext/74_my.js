@@ -1,7 +1,7 @@
 /* ===================== MY 화면(#my) =====================
    뼈대(줄 목록)는 shell.html에 있고, 여기서는 지금 값만 채우고 누르면 하는 일을 붙인다.
    - 내 조건: 내 돈(첫 화면 게이지와 같은 값 · 여기서 바로 바꿈) · 사는 방식(전세 끼고/대출 끼고 — 첫 화면 단추를 대신 누름)
-   - 알림 설정: 폰 알림 켜기/끄기(72_inbox) · 권한 상태와 푸는 법 · 종류별 끄기(zp-alert-off)
+   - 알림 설정: 폰 알림 켜기/끄기(72_inbox) · 권한 상태와 푸는 법 · 종류별 끄기(zp-alert-off · 폰 알림과 상관없이 늘 동작: 소식 목록·N 배지·폰 알림 모두)
    - 관심 구역 옮기기: 관심 구역 화면의 '링크 복사'와 같은 것(70_pins PINS.move)
    - 앱 설치(69_install) · 앱 버전·데이터 기준일
    - 내 데이터 모두 지우기: 화면 안 확인 단계 → 이 기기 저장소를 비우고 첫 실행 상태로 다시 연다 */
@@ -19,8 +19,8 @@ const MY = (() => {
     document.querySelectorAll("#myMode button[data-f]").forEach((x) => x.setAttribute("aria-pressed", String((x.dataset.f === "gap") === !!g)));
   }
   // ---------- 알림 ----------
-  // 폰 알림이 꺼져 있으면 종류 스위치는 흐리게·누를 수 없게(켜진 것처럼 보이지 않게) + 한 줄 안내
-  const SW = (k, t, onv, dis) => `<li><button type="button" class="my-r my-sw" role="switch" aria-checked="${dis ? "false" : onv}" data-kind="${k}"${dis ? ' disabled aria-disabled="true" aria-describedby="myKindsC"' : ""}><span class="my-t"><b>${t}</b></span><i class="my-tg" aria-hidden="true"></i></button></li>`;
+  // 종류 스위치는 늘 누를 수 있다(폰 알림이 꺼져 있어도 소식 목록·N 배지에 바로 적용) · 줄 전체가 스위치
+  const SW = (k, t, onv) => `<li><button type="button" class="my-r my-sw" role="switch" aria-checked="${onv}" data-kind="${k}" aria-describedby="myKindsC"><span class="my-t"><b>${t}</b></span><i class="my-tg" aria-hidden="true"></i></button></li>`;
   function alerts() {
     if (typeof INBOX === "undefined") return;
     const s = INBOX.st(), S = $("myPermS"), B = $("myPermB"), Hh = $("myPermH");
@@ -34,13 +34,22 @@ const MY = (() => {
     S.textContent = txt;
     if (B.innerHTML !== btn) B.innerHTML = btn;
     if (Hh) { Hh.textContent = help; Hh.hidden = !help; }
-    const K = $("myKinds"), dis = !s.on;
+    const K = $("myKinds");
     if (K) {
-      K.innerHTML = INBOX.KINDS.map(([k, t]) => SW(k, t, !INBOX.isOff(k), dis)).join("");
-      K.classList.toggle("off", dis);
+      // 이미 그려져 있으면 aria-checked만 맞춘다(누르는 순간의 움직임이 끊기지 않게)
+      const cur = K.querySelectorAll("[data-kind]");
+      if (cur.length === INBOX.KINDS.length) cur.forEach((b) => { const v = String(!INBOX.isOff(b.dataset.kind)); if (b.getAttribute("aria-checked") !== v) b.setAttribute("aria-checked", v); });
+      else K.innerHTML = INBOX.KINDS.map(([k, t]) => SW(k, t, !INBOX.isOff(k))).join("");
+      K.classList.remove("off");
       let c = $("myKindsC");
       if (!c) { c = document.createElement("p"); c.id = "myKindsC"; c.className = "my-kc"; K.before(c); }
-      c.textContent = "폰 알림을 켜면 골라 받을 수 있어요"; c.hidden = !dis;
+      let h;
+      if (s.on) h = "켜 둔 소식만 폰 알림으로 보내요";
+      else if (s.perm === "denied") h = "지금은 앱 안 소식에만 적용돼요 · 폰 알림 " + help;
+      else if (!s.can) h = "지금은 앱 안 소식에만 적용돼요";
+      else h = `지금은 앱 안 소식에만 적용돼요 · 폰 알림도 받으려면 <button type="button" class="my-kb" data-push-on>알림 받기</button>`;
+      if (c.innerHTML !== h) c.innerHTML = h;
+      c.hidden = false;
     }
   }
   // ---------- 관심 구역 옮기기 ----------
@@ -100,9 +109,9 @@ const MY = (() => {
       const t = e.target.closest("button, a"); if (!t) return;
       if (t.id === "myCash") { const box = $("myCashBox"); box.hidden = !box.hidden; t.setAttribute("aria-expanded", String(!box.hidden)); if (!box.hidden) { cond(); $("myCashR").focus({ preventScroll: true }); } return; }
       if (t.closest("#myMode") && t.dataset.f) { const o = document.querySelector(`#mapTop .s-mode button[data-f="${t.dataset.f}"]`); if (o) o.click(); setTimeout(cond, 60); return; }
-      if (t.id === "myPushOn") { INBOX.subscribe(t).then(alerts); return; }
+      if (t.id === "myPushOn" || t.hasAttribute("data-push-on")) { INBOX.subscribe(t).then(alerts); return; }
       if (t.id === "myPushOff") { INBOX.unsubscribe().then(alerts); return; }
-      if (t.dataset.kind) { if (t.disabled) return; const v = t.getAttribute("aria-checked") !== "true"; INBOX.setKind(t.dataset.kind, v); t.setAttribute("aria-checked", String(v)); return; }
+      if (t.dataset.kind) { const v = t.getAttribute("aria-checked") !== "true"; t.setAttribute("aria-checked", String(v)); INBOX.setKind(t.dataset.kind, v); return; }
       if (t.id === "myMove") { T(() => PINS.move($("myMoveFb"))); return; }
       if (t.id === "myInstB") {
         const I = window.ZP_INSTALL, st = I && I.state ? I.state() : {};

@@ -7,7 +7,10 @@ const NEWB = window.NEWB = (() => {
   const NEWD = /*NEWD*/ null;
   const K = { auc: "zp.seen.auc", ntc: "zp.seen.ntc" };
   const last = (k) => { try { return localStorage.getItem(K[k]) || ""; } catch (e) { return ""; } };
-  const unseen = (k) => !!(NEWD && NEWD[k] && NEWD[k] > last(k));
+  // MY > 알림 종류에서 끈 것(zp-alert-off: auction·notice)은 N을 띄우지 않는다
+  const KOFF = { auc: "auction", ntc: "notice" };
+  const muted = (k) => { try { const v = JSON.parse(localStorage.getItem("zp-alert-off") || "[]"); return Array.isArray(v) && v.includes(KOFF[k]); } catch (e) { return false; } };
+  const unseen = (k) => !!(NEWD && NEWD[k] && NEWD[k] > last(k)) && !muted(k);
   const any = () => unseen("auc") || unseen("ntc");
   const LBL = { auc: "경공매", ntc: "고시공고" };
   function paint() {
@@ -21,7 +24,7 @@ const NEWB = window.NEWB = (() => {
     document.querySelectorAll("#sQuick [data-q]").forEach((a) => { const k = a.dataset.q === "aucTop" ? "auc" : a.dataset.q === "ntcTop" ? "ntc" : ""; if (k) a.setAttribute("aria-label", LBL[k] + (st[k] ? ", 새 소식 있음" : "")); });
   }
   function seen(k) { if (!NEWD || !NEWD[k]) return; try { localStorage.setItem(K[k], NEWD[k]); } catch (e) {} paint(); }
-  const init = () => { paint(); addEventListener("storage", (e) => { if (!e.key || /^zp\.seen\./.test(e.key)) paint(); }); };
+  const init = () => { paint(); addEventListener("storage", (e) => { if (!e.key || /^zp\.seen\.|^zp-alert-off$/.test(e.key)) paint(); }); };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", init) : setTimeout(init, 0);
   return { unseen, any, seen, last, paint, NEWD };
 })();
