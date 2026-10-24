@@ -1171,7 +1171,7 @@ async function r14Lane(browser, api, errs) {
       page.on("pageerror", (e) => errs.push({ where: "/ (onboard)", msg: "pageerror: " + (e.message || String(e)).split("\n")[0].slice(0, 200) }));
       await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
       // 25차: 화면을 덮는 전체 화면 질문 대신 홈 맨 위 카드(한 단계 · '나중에' 닫기) — 목록·읽을거리·푸터가 그대로 보이고 스크롤된다
-      const a = await page.evaluate(() => { const o = document.getElementById("onb"), r = o && o.getBoundingClientRect(), cs = o && getComputedStyle(o), rd = document.getElementById("sReads"), H = getComputedStyle(document.documentElement).overflow + getComputedStyle(document.body).overflow;
+      const a = await page.evaluate(() => { const o = document.getElementById("onb"), r = o && o.getBoundingClientRect(), cs = o && getComputedStyle(o), rd = document.getElementById("sRd"), H = getComputedStyle(document.documentElement).overflow + getComputedStyle(document.body).overflow;
         return { on: !!o && !o.hidden && r.width > 200 && r.height > 80, inline: !!cs && cs.position !== "fixed" && cs.position !== "absolute" && r.height < innerHeight * 0.6, lock: /hidden/.test(H), later: !!(o && o.querySelector("[data-olater]")), reads: !!rd && rd.getClientRects().length > 0, q: o ? o.innerText : "", chips: o ? [...o.querySelectorAll("[data-oc]")].map((b) => b.textContent.trim()) : [] }; });
       expect(a.on && a.inline && !a.lock && a.later && a.reads && /지금 쓸 수 있는 현금이 얼마예요\?/.test(a.q) && !/집 있어요/.test(a.q) && a.chips.join(",") === "5,000만,1억,2억,3억,5억,7억,10억,15억+", "ui.onboard", T, `first run: shown ${a.on} · inline ${a.inline} · scroll lock ${a.lock} · 나중에 ${a.later} · reads visible ${a.reads} · chips [${a.chips.join(", ")}]`);
       await page.tap('#onb [data-oc="2"]').catch(() => page.click('#onb [data-oc="2"]'));
@@ -2190,9 +2190,11 @@ async function r21Lane(browser, api, errs) {
       await loadHome(page); await settle(page, 300);
       const D0 = await page.evaluate(() => { localStorage.setItem("zp.seen.auc", "2000-01-01"); localStorage.setItem("zp.seen.ntc", "2000-01-01"); return window.NEWB && NEWB.NEWD; });
       await loadHome(page); await settle(page, 500);
-      const vis = () => page.evaluate(() => { const v = (s) => { const e = document.querySelector(s); return !!(e && !e.hidden && getComputedStyle(e).display !== "none"); }; /* 타일은 도구 화면이 열린 동안 숨어 있어도 점 상태(hidden)로 본다 */ return { auc: v('#sQuick a[href="#aucTop"] .nb-dot'), ntc: v('#sQuick a[href="#ntcTop"] .nb-dot'), tab: v('#sNav [data-nav="news"] .nb-dot'), bell: v("#hdrBell .nb-dot"), bl: (document.getElementById("hdrBell") || {}).getAttribute ? document.getElementById("hdrBell").getAttribute("aria-label") : "" }; });
+      const vis = () => page.evaluate(() => { const v = (s) => { const e = document.querySelector(s); return !!(e && !e.hidden && getComputedStyle(e).display !== "none"); }; /* 타일은 도구 화면이 열린 동안 숨어 있어도 점 상태(hidden)로 본다 */ return { auc: v('#sQuick a[href="#aucTop"] .nb-dot'), ntc: v('#sQuick a[href="#ntcTop"] .nb-dot'), tab: v('#sNav [data-nav="news"] .nb-dot'), bell: (() => { const e = document.querySelector("#hdrBell .nb-dot"); return !!(e && !e.hidden); })(), bellShown: v("#hdrBell"), bl: (document.getElementById("hdrBell") || {}).getAttribute ? document.getElementById("hdrBell").getAttribute("aria-label") : "" }; });
       const a = await vis();
       expect(!!(D0 && D0.auc && D0.ntc) && a.auc && a.ntc && a.tab && a.bell && /새 소식/.test(a.bl), "ui.newBadge", TB, `stale seen: ${JSON.stringify(a)} NEWD ${JSON.stringify(D0)}`);
+      // 26차: 폰은 아래 탭(소식)이 있으니 머리 종을 숨긴다(점 상태는 그대로 둠 · PC 머리 종과 같은 키)
+      expect(!a.bellShown, "ui.newBadge", TB, `390: header bell still visible next to the 소식 tab`);
       await page.evaluate(() => document.querySelector('#sQuick a[href="#aucTop"]').click()); await page.waitForTimeout(800);
       const b = await vis(), k = await page.evaluate(() => localStorage.getItem("zp.seen.auc"));
       expect(!b.auc && b.ntc && b.bell && k === D0.auc, "ui.newBadge", TB, `after 경공매: ${JSON.stringify(b)} seen ${k}`);
@@ -2476,6 +2478,154 @@ async function r22Lane(browser, api, errs, shared) {
     }
   }
 }
+// ================================================================ 26차(애드센스 2차 + 제품 2차 레드팀)
+// app.standaloneClean · my.layout · zone.eligibleConsistent · desk.stickyEnd · ui.onboardKey · home.readsTop
+const FORCE_SA = () => {   // (display-mode: standalone) 규칙을 그대로 꺼내 강제로 켠다(크롬 헤드리스는 display-mode를 흉내 못 냄)
+  let css = "";
+  const walk = (rules) => { for (const r of rules) { if (r.media && /display-mode:\s*standalone/.test(r.media.mediaText)) { for (const x of r.cssRules) css += x.cssText + "\n"; } else if (r.cssRules && !r.media) walk(r.cssRules); } };
+  for (const s of document.styleSheets) { try { walk(s.cssRules); } catch (e) {} }
+  const st = document.createElement("style"); st.id = "qaSA"; st.textContent = css; document.head.appendChild(st);
+  return css.length;
+};
+async function r26Lane(browser, api, errs) {
+  const mob = (w, h, cs = "light") => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs });
+  const WEB = [".s-rd", ".s-reads", ".site-foot", ".ad-slot", ".s-about", ".s-read3", "#sAbout", "#sRead3"];
+  // --- home.readsTop: 브라우저 첫 화면(폰·PC) 검색칸 바로 밑 읽을거리 한 줄(리포트·가이드 두 링크 · 한 줄 · 누르는 높이 40px 이상)이 첫 화면 안에 · '재개발 공부하기'는 목록 뒤 · '집핀이 뭔가요' 상자 없음
+  {
+    const T = "홈 읽을거리: 검색칸 밑 한 줄(리포트·가이드 · 줄바꿈 없음 · 40px 이상)이 첫 화면 안 · 재개발 공부하기는 목록 뒤 · 소개 상자 없음";
+    for (const [vp, tag] of [[mob(360, 740), "360"], [mob(390, 844), "390"], [mob(412, 915), "412"], [{ viewport: { width: 1440, height: 900 } }, "1440"]]) {
+      const { ctx, page } = await newPage(browser, vp, errs);
+      try {
+        page.__where = "readsTop " + tag;
+        await loadHome(page); await settle(page, 400);
+        const r = await page.evaluate(() => { const d = document.getElementById("sRd"), b = d && d.getBoundingClientRect(), L = d ? [...d.querySelectorAll("a")] : [], rd = document.getElementById("sReads"), li = document.getElementById("sList");
+          return { ok: !!d && b.height > 0, top: b ? Math.round(b.top) : null, h: b ? Math.round(b.height) : 0, vh: innerHeight, links: L.map((a) => [a.getAttribute("href"), Math.round(a.getBoundingClientRect().height), a.scrollWidth > a.clientWidth + 1]), lines: d ? Math.round(b.height / 44) : 0,
+            readsAfter: !!(rd && li && (li.compareDocumentPosition(rd) & 4)), about: !!document.getElementById("sAbout"), read3: !!document.getElementById("sRead3") }; });
+        const linksOk = r.links.length === 2 && r.links.some((x) => /^report\//.test(x[0])) && r.links.some((x) => /^guide\//.test(x[0])) && r.links.every((x) => x[1] >= 40);
+        expect(r.ok && r.top != null && r.top + r.h <= r.vh && r.h <= 52 && linksOk && r.readsAfter && !r.about && !r.read3, "home.readsTop", T, `${tag}: ${JSON.stringify(r)}`);
+      } catch (e) { bad("runtime", "검사 실행", "r26 readsTop crashed: " + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- app.standaloneClean: 설치 앱 규칙을 강제로 켜면 웹 덩이가 하나도 안 보임(폰 두 상태 · PC)
+  {
+    const T = "설치 앱(standalone): 읽을거리 한 줄·재개발 공부하기·웹 푸터·광고 자리·소개 상자 모두 숨김(앱 화면만)";
+    for (const [vp, u, tag] of [[mob(390, 844), "/?cash=2", "390"], [mob(360, 740, "dark"), "/?cash=1", "360 dark"], [{ viewport: { width: 1440, height: 900 } }, "/?cash=2", "1440"]]) {
+      const { ctx, page } = await newPage(browser, vp, errs);
+      try {
+        page.__where = "standalone " + tag;
+        await page.goto(BASE + u, { waitUntil: "load" });
+        await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1, null, { timeout: 20000 }).catch(() => {});
+        await settle(page, 500);
+        const n = await page.evaluate(FORCE_SA);
+        await page.waitForTimeout(200);
+        const vis = await page.evaluate((W) => W.flatMap((s) => [...document.querySelectorAll(s)]).filter((e) => { const cs = getComputedStyle(e), b = e.getBoundingClientRect(); return cs.display !== "none" && cs.visibility !== "hidden" && b.height > 0 && b.width > 0; }).map((e) => (e.id || e.className) + "@" + Math.round(e.getBoundingClientRect().top + scrollY)), WEB);
+        const app = await page.evaluate(() => ({ list: !!document.querySelector("#sList .s-card"), nav: getComputedStyle(document.getElementById("sNav")).display !== "none" }));
+        expect(n > 0 && !vis.length && app.list && app.nav, "app.standaloneClean", T, `${tag}: rules ${n}B · still visible ${vis.join(", ")} · app list ${app.list} nav ${app.nav}`);
+      } catch (e) { bad("runtime", "검사 실행", "r26 standalone crashed: " + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- my.layout: MY '집 있어요?' 줄 — 440px 아래에서는 제목 한 줄(눌리지 않음) · 칩은 그 아래 · 넘침 없음 · 칩 40px 이상
+  {
+    const T = "MY '집 있어요?': 제목이 한 글자 폭으로 눌리지 않음(폭 100px 이상·높이 60px 이하) · 좁으면 칩은 제목 아래 · 칩 높이 40px 이상 · 가로 넘침 없음";
+    for (const w of [360, 390, 412]) {
+      const { ctx, page } = await newPage(browser, mob(w, 800), errs);
+      try {
+        page.__where = "my " + w;
+        await loadHome(page, "#my"); await settle(page, 500);
+        const r = await page.evaluate(() => { const row = document.querySelector("#my .my-hm"), t = row && row.querySelector(".my-t"), sg = row && row.querySelector(".my-seg4"); if (!row || !t || !sg) return null; const a = t.getBoundingClientRect(), b = sg.getBoundingClientRect(), c = row.getBoundingClientRect();
+          return { tw: Math.round(a.width), th: Math.round(a.height), below: b.top >= a.bottom - 2, segR: Math.round(b.right), rowR: Math.round(c.right), btn: Math.min(...[...sg.querySelectorAll("button")].map((x) => x.getBoundingClientRect().height)), over: document.documentElement.scrollWidth > innerWidth + 1 }; });
+        expect(r && r.tw >= 100 && r.th <= 60 && r.below && r.segR <= r.rowR + 1 && r.btn >= 40 && !r.over, "my.layout", T, `${w}: ${JSON.stringify(r)}`);
+      } catch (e) { bad("runtime", "검사 실행", "r26 my crashed: " + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- zone.eligibleConsistent: 2억 · 지금 필요한 돈이 2억 안인 모든 구역 — 곳 수에 드는 곳(ZP_ok)만 상세 '가능해요' · 빠지는 곳(추정·참고값)은 상세·검색·/z 모두 '추정 신뢰 낮아 목록에서 뺐어요'
+  {
+    const T = "한 판정: 2억에서 상세 '가능해요' ⇔ 곳 수에 듦(ZP_ok) · 추정 신뢰가 낮아 빠지는 곳은 상세·검색·/z가 같은 말 '추정 신뢰 낮아 목록에서 뺐어요'";
+    const EX = "추정 신뢰 낮아 목록에서 뺐어요";
+    const cand = api.zones.filter((z) => z.need && z.need.gap && z.need.gap.now != null && Math.ceil(z.need.gap.now * 100 - 1e-6) / 100 <= 2 + 1e-9).map((z) => z.id);
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      page.__where = "eligible /?cash=2";
+      await page.goto(BASE + "/?cash=2&mode=jeonse", { waitUntil: "load" });
+      await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.ZP_ok === "function", null, { timeout: 20000 }).catch(() => {});
+      await settle(page, 600);
+      const got = await page.evaluate(async (ids) => {
+        const out = {}, wait = (f, ms) => new Promise((ok) => { const s = performance.now(); const tick = () => { const v = f(); if (v || performance.now() - s > ms) ok(v); else requestAnimationFrame(tick); }; tick(); });
+        const by = {}; (window.__ZPD && __ZPD.recs || []).forEach((r) => (by[r.id] = r));
+        for (const id of ids) {
+          const t = document.getElementById("repTitle"); if (t) t.__ec = 1;
+          location.hash = "#" + id;
+          await wait(() => { const e = document.getElementById("repTitle"); return e && !e.__ec && e.textContent.trim(); }, 4000);
+          await new Promise((r) => setTimeout(r, 30));
+          const vd = document.querySelector("#report .dt-k .dt-vd");
+          out[id] = { ok: !!(by[id] && window.ZP_ok(by[id])), vd: vd ? vd.textContent.replace(/\s+/g, " ").trim() : "", now: ((document.querySelector('#report .dt-k [data-k="now"] .dt-v') || {}).textContent || "").trim() };
+        }
+        return out;
+      }, cand);
+      const bad1 = [], exIds = [];
+      for (const [id, v] of Object.entries(got)) {
+        const says = /가능해요/.test(v.vd);
+        if (v.ok !== says) bad1.push(`${id} ok ${v.ok} vd "${v.vd}"`);
+        if (!v.ok && v.now && v.now !== "계산 보류") { if (!v.vd.includes(EX) && !/더 필요/.test(v.vd)) bad1.push(`${id} excluded but vd "${v.vd}"`); if (v.vd.includes(EX)) exIds.push(id); }
+      }
+      expect(Object.keys(got).length === cand.length && !bad1.length, "zone.eligibleConsistent", T, `${cand.length} zones (need ≤ 2억) · ${bad1.length} differ: ${bad1.slice(0, 5).join(" ; ")}`);
+      // 검색 배지(빠지는 곳 3곳까지)
+      const sb = [];
+      for (const id of exIds.slice(0, 3)) {
+        const r = await page.evaluate(async ([id, EX]) => { const rec = (__ZPD.recs || []).find((x) => x.id === id); const q = document.getElementById("q"); if (!q || !rec) return "no q"; try { location.hash = ""; } catch (e) {} q.value = (window.ZP_shortName ? ZP_shortName(rec.n) : rec.n).slice(0, 12); q.dispatchEvent(new Event("input", { bubbles: true })); await new Promise((r) => setTimeout(r, 500)); const row = document.querySelector(`#sugg [data-id="${id}"]`); const t = row ? row.textContent.replace(/\s+/g, " ") : "row missing"; q.value = ""; q.dispatchEvent(new Event("input", { bubbles: true })); return t; }, [id, EX]);
+        if (r !== "row missing" && r !== "no q" && (!r.includes(EX) || /내 돈으로 가능/.test(r))) sb.push(`${id} search "${r.slice(0, 80)}"`);
+      }
+      // /z 페이지(빠지는 곳)
+      const zb = [];
+      for (const id of exIds) { const z = await getPage("/z/" + id); if (z.status === 200 && !z.text.includes(EX)) zb.push(id); }
+      expect(!sb.length && !zb.length, "zone.eligibleConsistent", T, `excluded ${exIds.length} · search ${sb.join(" ; ")} · /z missing phrase ${zb.join(" ")}`);
+    } catch (e) { bad("runtime", "검사 실행", "r26 eligible crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- desk.stickyEnd: PC 1440 · 맨 아래까지 내려도 붙은 지도와 겹쳐 보기 단추가 머리 아래(가리지 않음)
+  {
+    const T = "PC: 페이지 끝까지 내려도 지도 칸 위쪽·겹쳐 보기 단추가 머리 밑으로 들어가지 않음(웹 푸터는 왼쪽 칸 맨 아래)";
+    for (const cs of ["light", "dark"]) {
+      const { ctx, page } = await newPage(browser, { viewport: { width: 1440, height: 900 }, colorScheme: cs }, errs);
+      try {
+        page.__where = "stickyEnd " + cs;
+        await loadHome(page); await settle(page, 600);
+        const r = [];
+        for (const y of [800, 99999]) {
+          await page.evaluate((y) => scrollTo(0, y), y); await page.waitForTimeout(500);
+          r.push(await page.evaluate(() => { const h = document.getElementById("hdr").getBoundingClientRect().bottom, m = document.getElementById("mapbox").getBoundingClientRect(), rl = document.querySelector("#mapbox .s-rail"), b = rl ? rl.getBoundingClientRect() : null, f = document.querySelector(".site-foot"); return { hdr: Math.round(h), map: Math.round(m.top), rail: b ? Math.round(b.top) : null, end: Math.round(scrollY + innerHeight) >= document.documentElement.scrollHeight - 2, foot: f ? f.getBoundingClientRect().height > 0 : false }; }));
+        }
+        expect(r.every((x) => x.map >= x.hdr - 1 && (x.rail == null || x.rail >= x.hdr)) && r[1].end && r[1].foot, "desk.stickyEnd", T, `${cs}: ${JSON.stringify(r)}`);
+      } catch (e) { bad("runtime", "검사 실행", "r26 stickyEnd crashed: " + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- ui.onboardKey: 첫 방문 카드가 떠 있을 때 키보드로 막대를 움직여도 칩처럼(카드 닫힘 · ?cash= · jg-cond 저장 · 다시 열어도 그 금액) · 기본 1억 칩 눌린 상태 · '나중에' 44px
+  {
+    const T = "첫 방문 카드: 키보드로 금액을 바꿔도 칩과 같이 닫히고 저장(?cash= · jg-cond · 다시 열면 그 금액) · 기본 1억 칩이 눌린 상태 · '나중에 ×' 44px 이상";
+    const ctx = await browser.newContext({ ...mob(390, 844), serviceWorkers: "block" });
+    try {
+      await ctx.route(BLOCK, (r) => r.abort());
+      const page = await ctx.newPage();
+      page.on("pageerror", (e) => errs.push({ where: "/ (onboardKey)", msg: "pageerror: " + (e.message || String(e)).split("\n")[0].slice(0, 200) }));
+      await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.ZP_count === "function", null, { timeout: 20000 }).catch(() => {});
+      await page.evaluate(() => { try { window.ZP_boot && ZP_boot.quietNow && ZP_boot.quietNow(); } catch (e) {} });
+      await settle(page, 600);
+      const a = await page.evaluate(() => { const o = document.getElementById("onb"), b1 = o && o.querySelector('[data-oc="1"]'), x = o && o.querySelector("[data-olater]"); return { on: !!o && !o.hidden, p1: b1 ? b1.getAttribute("aria-pressed") : null, lh: x ? Math.round(x.getBoundingClientRect().height) : 0 }; });
+      await page.focus("#sScrub"); await page.keyboard.press("ArrowRight"); await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(1400); await settle(page, 400);
+      const b = await page.evaluate(() => ({ hidden: document.getElementById("onb").hidden, v: document.getElementById("sCashV").textContent.trim(), url: location.search, cond: localStorage.getItem("jg-cond") || "", onb: localStorage.getItem("zp.onb") }));
+      await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(500);
+      const c = await page.evaluate(() => ({ on: !document.getElementById("onb").hidden, v: document.getElementById("sCashV").textContent.trim() }));
+      expect(a.on && a.p1 === "true" && a.lh >= 44 && b.hidden && b.v !== "1억" && /[?&]cash=/.test(b.url) && /cash=/.test(b.cond) && !c.on && c.v === b.v, "ui.onboardKey", T, `first ${JSON.stringify(a)} · after keys ${JSON.stringify(b)} · revisit ${JSON.stringify(c)}`);
+    } catch (e) { bad("ui.onboardKey", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+}
 // ================================================================ main
 (async () => {
   // API
@@ -2523,6 +2673,8 @@ async function r22Lane(browser, api, errs, shared) {
   if (!ONLY || ONLY === "r19") await timed("r19", r19Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r19Lane crashed: " + e.message)));
   // 21차(가능 구역마다 알약 · 범례 · 서울 보기 구역 면 · 막대 끌기 · 목록 줄) — 혼자(끄는 프레임을 잰다)
   if (!ONLY || ONLY === "r21") await timed("r21", r21Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r21Lane crashed: " + e.message)));
+  // 26차(설치 앱 웹 덩이 · MY 줄 · 한 판정 · PC 끝 · 키보드 첫 방문) — 혼자
+  if (!ONLY || ONLY === "r26") await timed("r26", r26Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r26Lane crashed: " + e.message)));
   // 22차(앱 껍데기 · 모든 구역 열기) — 혼자, 맨 끝(모든 구역을 여는 데 몇 분)
   if (!ONLY || ONLY === "r22") await timed("r22", r22Lane(browser, api, errs, shared).catch((e) => bad("runtime", "검사 실행", "r22Lane crashed: " + e.message)));
   await browser.close();

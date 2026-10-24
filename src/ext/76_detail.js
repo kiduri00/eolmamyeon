@@ -48,11 +48,13 @@ const DTL = (() => {
     const n = nums(r);
     // 계산하지 않는 칸은 맨 '–' 대신 말로: 23차부터 두 칸 모두 '계산 보류' 하나(목록·/gu·/z·돈 탭과 같은 이름)
     const v1 = n.need != null ? C(n.need) : "계산 보류", v2 = n.total != null ? C(n.total) : "계산 보류";
-    const fit = n.need != null && upC(n.need) <= CASH + 1e-9;
+    // 26차: 목록·곳 수와 같은 판정 하나 — 추정 매수가(같은 구 시세로 채운 값)·참고값(lc)은 곳 수에서 빠지므로 '가능해요'라 하지 않는다
+    const excl = (() => { try { return !!(r.lc || estHide(r)); } catch (e) { return !!r.lc; } })();
+    const fit = n.need != null && upC(n.need) <= CASH + 1e-9 && !excl;
     // 판정 한 줄(가능 · 사는 방법): '✓ 가능'과 '전세 끼고 ✓ 가능' 칩을 따로 두지 않는다
     const how = gapMode() ? "전세 끼고" : "대출 끼고";
     const CK = '<svg class="dt-ck" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const vd1 = n.need == null ? "" : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : C(n.need - CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
+    const vd1 = n.need == null ? "" : excl && upC(n.need) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>${ZF.EXCL}</b><small> · 숫자는 참고만</small></em>` : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : C(n.need - CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
     const sub2 = n.total == null ? esc(n.why2) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${C(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
     let eta = "–"; try { eta = etaShow(r); } catch (e) {}
     // 입주권 없는 곳: 셋째 칸 이름 '입주권' · 이유는 그 아래 한 번 · 착공 뒤처럼 입주권 거래가 있으면 '조합원 입주권을 사야 해요'(참고 시세) — '입주권 없음'과 시세가 부딪치지 않게(20차 G3)

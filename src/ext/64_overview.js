@@ -260,7 +260,7 @@ const OVX = (() => {
     if (!x || x.price == null || !isFinite(x.price) || noIpR(r)) {
       const TT = "입주까지 현금 계산";
       if (r.src === "moa") return H("보류", "na", [], "모아타운 관리지역은 사업구역마다 조건이 달라 한 숫자로 계산하지 않아요. 안의 사업구역을 열어 보세요.", TT);
-      if (noIpR(r)) return imOf(r) ? H("보류", "na", [], `조합원 입주권을 사면 가능해요 · 참고 입주권 시세 ${eok(imOf(r))}. 입주권 값은 매물마다 달라서 입주까지 현금은 계산 보류예요.`, TT) : H("보류", "na", [], "지금 사는 집은 입주권이 안 나오는 시점이라 입주까지 현금(새 아파트 받을 때까지 드는 돈)은 계산 보류예요.", TT);
+      if (noIpR(r)) return imOf(r) ? H("보류", "na", [], "입주권 값은 매물마다 달라서 입주까지 현금은 계산 보류예요. 위 참고 시세를 기준으로 실제 입주권 매물 값을 견줘 보세요.", TT) : H("보류", "na", [], "지금 사는 집은 입주권이 안 나오는 시점이라 입주까지 현금(새 아파트 받을 때까지 드는 돈)은 계산 보류예요.", TT);
       if (x && x.stale) return H("보류", "na", n12, "이주·철거가 시작돼 옛 집 매매가로는 계산할 수 없어요. 아는 입주권 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
       if (x && x.noApt) return H("보류", "na", n12, "재건축 단지 아파트 거래가 없어 매수가를 못 잡았어요. 아는 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
       return H("보류", "na", n12, "매수가로 쓸 거래가 없어 계산하지 않아요. 아는 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
@@ -489,7 +489,7 @@ const OVX = (() => {
     // 19차: 거래 탭의 '다른 기준 보기' 여러 개(3.3㎡당 · 구역 안 거래 · 연식별)를 하나로 접는다(늦게 붙는 머리 카드 것도 · 잠깐 뒤 한 번 더)
     if (curTab === "tx") { mergeAlt(p); [60, 400].forEach((t) => setTimeout(() => { if (cur === r && curTab === "tx") mergeAlt(document.getElementById("pane")); }, t)); }
     // 입주 현금 탭이 짧아 아래가 비면 '계산 근거 · 숫자 바꿔 보기'를 펼쳐 둔다(한 번만 · 사용자가 접으면 그대로)
-    if (curTab === "money") requestAnimationFrame(() => { const pp = document.getElementById("pane"), f = pp && pp.querySelector(".s-fold"); if (!f || f.dataset.auto || cur !== r) return; f.dataset.auto = "1"; if (pp.getBoundingClientRect().height < innerHeight * 0.9) f.open = true; });
+    if (curTab === "money") requestAnimationFrame(() => { const pp = document.getElementById("pane"), f = pp && pp.querySelector(".s-fold"); if (!f || f.dataset.auto || cur !== r) return; f.dataset.auto = "1"; /* 26차: 접힌 근거가 비어 있으면(o903) 펼치지도 보이지도 않게 */ const has = [...f.children].some((el) => el.tagName !== "SUMMARY" && !el.hidden && getComputedStyle(el).display !== "none" && el.textContent.trim().length > 0); if (!has) { f.hidden = true; return; } if (pp.getBoundingClientRect().height < innerHeight * 0.9) f.open = true; });
     if (curTab === "money" && apt) p.querySelectorAll(".rvj").forEach((x) => (x.hidden = true));
     if (curTab === "req") hideSect(/적용 기준|동의 기준|접도|조례/);
     // 입주 현금 탭이 접힌 근거만 남아 비면, 위 카드의 결론을 한 번 더 크게

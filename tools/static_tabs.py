@@ -62,7 +62,7 @@ BCSS = ('.top .in{align-items:center}.hdr-date{order:3;flex:none;margin-left:10p
         '.hdr-bell:focus-visible{outline:2px solid var(--brand,#1f3a87);outline-offset:-4px}'
         '.nb-dot{position:absolute;top:6px;right:5px;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#e5484d;color:#fff;font-weight:800;font-size:10px;line-height:1;font-style:normal;box-shadow:0 0 0 2px var(--surface,#fff)}.nb-dot[hidden]{display:none}'
         '.zp-tabs a{position:relative}.zp-tabs .nb-dot{top:2px;right:auto;left:calc(50% + 6px)}'
-        '@media (max-width:359px){.hdr-date{display:none}}'
+        '@media (max-width:359px){.hdr-date{display:none}}@media (max-width:980px){.hdr-bell{display:none!important}.hdr-date{margin-right:2px}}'
         '@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hdr-date{color:#8b93a1}:root:not([data-theme="light"]) .hdr-bell{color:#9fb3ff}}'
         ':root[data-theme="dark"] .hdr-date{color:#8b93a1}:root[data-theme="dark"] .hdr-bell{color:#9fb3ff}')
 NJS = ('<script>(function(){var D=' + json.dumps(NEWD) + ',g=function(k){try{return localStorage.getItem("zp.seen."+k)||""}catch(e){return""}},'
@@ -93,6 +93,9 @@ def app_header(h):
     hd = re.sub(r'<span class="hdr-date"[^>]*>.*?</span><a class="hdr-bell".*?</a>', '', hd, flags=re.S)
     hd = hd.replace('</div></header>', BELL + '</div></header>', 1)
     hd = re.sub(r'(<input id="tq"[^>]*placeholder=")[^"]*(")', lambda x: x.group(1) + PH + x.group(2), hd)
+    # 26차: 400px 아래에선 자리표시가 잘려 '구역·동·:'로 보이던 것 → '검색'
+    hd = re.sub(r'<script>(?:innerWidth<400|matchMedia\("\(max-width:399)[^<]*</script>', '', hd)
+    hd = hd.replace('</form>', '</form><script>matchMedia("(max-width:399.98px)").matches&&(document.getElementById("tq").placeholder="검색")</script>', 1)
     return h[:m.start()] + hd + h[m.end():]
 
 
@@ -119,11 +122,14 @@ def main():
             if rel == 'index.html' or rel == 'admin.html' or rel.startswith('b/'): continue   # 운영자 화면(admin.html)은 사이트 탭 없이
             h = open(fp, encoding='utf-8').read()
             if '</body>' not in h: continue
-            cur = 'home' if rel.startswith(('z/', 'gu/')) or rel == '404.html' else 'my'
+            # 26차: 리포트·가이드·기간 글은 '찾기'(예전엔 MY가 켜져 있었다 — 읽을거리 입구가 찾기 첫 화면) · 약관·소개·FAQ·문의 = MY
+            cur = 'home' if rel.startswith(('z/', 'gu/', 'report/', 'guide/', 'feed/', 'api/')) or rel in ('404.html', 'years.html') else 'my'
             b = block(cur)
             h1 = RX.sub(lambda m: b, h, count=1) if RX.search(h) else h.replace('</body>', b + '\n</body>', 1)
             h1 = app_header(h1)
             h1 = foot_links(h1)
+            # 26차: 글꼴 CSS를 늦게 붙여 봤지만(/z TBT) 나아지지 않아 원래대로(첫 그림부터 같은 글꼴 · CLS 0)
+            h1 = re.sub(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/gh/orioncactus/pretendard[^"]+)" media="print" onload="this\.media=\'all\'" crossorigin>', lambda m: f'<link rel="stylesheet" href="{m.group(1)}" crossorigin>', h1)
             # 22차 접근성: 옆으로 밀리는 표 상자(.tw)는 키보드로도 밀 수 있게(초점 + 이름) — axe scrollable-region-focusable
             k = iter(range(1, 999))
             h1 = re.sub(r'<div class="(tw(?: [^"]*)?)"(?: tabindex="0" role="region" aria-label="[^"]*")?>', lambda m: f'<div class="{m.group(1)}" tabindex="0" role="region" aria-label="표 {next(k)} · 옆으로 밀어 보기">', h1)

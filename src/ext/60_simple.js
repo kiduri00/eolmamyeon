@@ -151,6 +151,8 @@ const SIMPLE = (() => {
   const HEART = (on) => `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.4 7.2 4.4c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.5 3.1 4.4 6.5-1.6 4.8-9.2 9.4-9.2 9.4z" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
   const heartLbl = (r, on) => `${shortName(r.n)} ${on ? "관심 구역에서 빼기" : "관심 구역에 추가"}`;
   // 목록 카드 한 장(지도 알약을 눌렀을 때 뜨는 미리보기도 같은 카드): 1줄 이름 + 단계 칩 · 2줄 구·동 · 역 도보 N분 · 오른쪽 '지금 X' / '입주까지 Y' · ♡
+  // 26차: 목록 줄 이름만 긴 사업 방식 말을 줄인다(상세·검색·/z 이름은 그대로) — '신길4구역 도심공공주택복합' → '신길4구역 도심복합'
+  const listNm = (nm) => String(nm).replace(/도심공공주택복합(?:사업)?/g, "도심복합").replace(/신속통합기획/g, "신통기획").replace(/공공재개발/g, "공공").replace(/\s*주택정비형(?=\s|$)/g, "").replace(/\s{2,}/g, " ").trim();
   function cardHTML(r, o = {}) {
     const z = o.z || zstate(r), nowK = gapMode() || effBasis() !== "total";
     const main = nowK ? z.need : z.total, nm = shortName(r.n), fav = isFav(r.id), stg = stgShort(r), wk = walkTxt(r), tk = tkOf(r), nw = isNew(r, z.need);
@@ -165,12 +167,12 @@ const SIMPLE = (() => {
     // 17차: 가능한 곳은 '남는 돈 1,000만'(12/600 회색) · 내 돈의 10% 안으로 딱 맞으면 '딱 맞아요' 작은 꼬리표
     const needR = z.need != null ? Math.ceil(z.need * 100 - 1e-6) / 100 : null, left = z.st === "ok" && nowK && needR != null ? Math.max(0, Math.round((CASH - needR) * 100) / 100) : null;
     const fit = left != null && left <= CASH * 0.1 + 1e-9;
-    const fitH = left == null ? "" : fit ? '<em class="s-fit">예산 범위</em>' : left >= 0.01 ? `<span class="s-left">예산에서 남는 돈 ${esc(eokS(left))}</span>` : "";
+    const fitH = left == null ? "" : fit ? '<em class="s-fit">예산 거의 다 씀</em>' : left >= 0.01 ? `<span class="s-left">예산에서 남는 돈 ${esc(eokS(left))}</span>` : "";
     const word = ST_WORD[z.st], gapT = z.st === "near" && z.need != null ? `, ${shortTxt(z.need).slice(1)} 더 필요` : "";
-    const lab = `${nm}, ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} ${mt}, ${word}${gapT}${z.total != null && nowK ? `, ${LBL.cashToMoveIn} ${eokS(z.total)}` : ""}, ${stg}${tk === "n" ? ", 입주권 안 나옴" : tk === "y" ? ", 입주권 나옴" : ""}${nw ? ", 이번 주 새로 가능" : ""}${left == null ? "" : fit ? ", 예산 범위" : left >= 0.01 ? `, 예산에서 남는 돈 ${eokS(left)}` : ""}`;
+    const lab = `${nm}, ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} ${mt}, ${word}${gapT}${z.total != null && nowK ? `, ${LBL.cashToMoveIn} ${eokS(z.total)}` : ""}, ${stg}${tk === "n" ? ", 입주권 안 나옴" : tk === "y" ? ", 입주권 나옴" : ""}${nw ? ", 이번 주 새로 가능" : ""}${left == null ? "" : fit ? ", 예산 거의 다 씀" : left >= 0.01 ? `, 예산에서 남는 돈 ${eokS(left)}` : ""}`;
     // 지도 고른 카드(#lmPick): 두 칸 — 왼쪽 이름 한 줄 · 배지 · 남는 돈 / 오른쪽 '지금 X' 위 '입주까지 현금 Y' · 끝에 ›
-    if (o.peek) return `<li class="s-card s-peek st-${z.st}${fav ? " fav" : ""}" data-zid="${r.id}"><a href="#${r.id}" data-id="${r.id}" data-zid="${r.id}" class="pk-a" aria-label="${esc(lab)} · 눌러서 자세히"><span class="pk-l"><b class="pk-n">${esc(nm)}</b><span class="pk-b"><em class="s-b s-stg">${esc(stg)}</em>${bdg}${fit ? '<em class="s-fit">예산 범위</em>' : ""}</span>${!fit && left != null && left >= 0.01 ? `<small class="pk-left">예산에서 남는 돈 ${esc(eokS(left))}</small>` : z.st === "near" && z.need != null ? `<small class="pk-left">${esc(shortTxt(z.need))} 더 필요</small>` : ""}</span><span class="pk-r"><span class="pk-v"><i>${nowK ? "지금" : "입주까지"}</i> <b>${mt}</b></span>${nowK ? `<small>${z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : NA_L}</small>` : ""}</span><span class="pk-go" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span></a></li>`;
-    return `<li class="s-card st-${z.st}${fav ? " fav" : ""}${o.cls ? " " + o.cls : ""}" data-zid="${r.id}"${left != null ? ` data-need="${needR}"` : ""}><a href="#${r.id}" data-id="${r.id}" class="s-cm" aria-label="${esc(lab)}"><span class="s-nm"><b>${esc(nm)}</b></span><span class="s-l2"><span class="s-mt"><em class="s-b s-stg">${esc(stg)}</em>${bdg}<small class="s-sub">${sub}</small></span><span class="s-fx">${fitH}</span></span></a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(nm)} ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} 추정 ${mt}${z.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · ${LBL.cashToMoveIn} ${eokS(z.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog"><span class="s-av"><i class="s-al" aria-hidden="true">${nowK ? "지금" : "입주까지"}</i><b>${mt}</b></span><small${z.total == null && nowK ? ' class="s-na"' : ""}>${z.st === "near" ? `<span class="s-gapt">${shortTxt(z.need)} 더 필요</span>` : line2}</small></button><button type="button" class="s-heart" data-heart="${r.id}" aria-pressed="${fav}" aria-label="${esc(heartLbl(r, fav))}">${HEART(fav)}</button></li>`;
+    if (o.peek) return `<li class="s-card s-peek st-${z.st}${fav ? " fav" : ""}" data-zid="${r.id}"><a href="#${r.id}" data-id="${r.id}" data-zid="${r.id}" class="pk-a" aria-label="${esc(lab)} · 눌러서 자세히"><span class="pk-l"><b class="pk-n">${esc(nm)}</b><span class="pk-b"><em class="s-b s-stg">${esc(stg)}</em>${bdg}${fit ? '<em class="s-fit">예산 거의 다 씀</em>' : ""}</span>${!fit && left != null && left >= 0.01 ? `<small class="pk-left">예산에서 남는 돈 ${esc(eokS(left))}</small>` : z.st === "near" && z.need != null ? `<small class="pk-left">${esc(shortTxt(z.need))} 더 필요</small>` : ""}</span><span class="pk-r"><span class="pk-v"><i>${nowK ? "지금" : "입주까지"}</i> <b>${mt}</b></span>${nowK ? `<small>${z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : NA_L}</small>` : ""}</span><span class="pk-go" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span></a></li>`;
+    return `<li class="s-card st-${z.st}${fav ? " fav" : ""}${o.cls ? " " + o.cls : ""}" data-zid="${r.id}"${left != null ? ` data-need="${needR}"` : ""}><a href="#${r.id}" data-id="${r.id}" class="s-cm" aria-label="${esc(lab)}"><span class="s-nm"><b title="${esc(nm)}">${esc(listNm(nm))}</b></span><span class="s-l2"><span class="s-mt"><em class="s-b s-stg">${esc(stg)}</em>${bdg}<small class="s-sub">${sub}</small></span><span class="s-fx">${fitH}</span></span></a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(nm)} ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} 추정 ${mt}${z.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · ${LBL.cashToMoveIn} ${eokS(z.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog"><span class="s-av"><i class="s-al" aria-hidden="true">${nowK ? "지금" : "입주까지"}</i><b>${mt}</b></span><small${z.total == null && nowK ? ' class="s-na"' : ""}>${z.st === "near" ? `<span class="s-gapt">${shortTxt(z.need)} 더 필요</span>` : line2}</small></button><button type="button" class="s-heart" data-heart="${r.id}" aria-pressed="${fav}" aria-label="${esc(heartLbl(r, fav))}">${HEART(fav)}</button></li>`;
   }
   // ♡ 누르면 관심 구역(핀과 같은 toggleFav → 되돌리기 토스트·관심 탭·지도 하트 모두 같은 길)
   function heartSync() {
@@ -260,9 +262,12 @@ const SIMPLE = (() => {
       // PC: 왼쪽 칸(예산 카드·목록)이 문서 순서로도 지도보다 먼저(Tab이 예산 카드 → 목록 → 지도 버튼 순)
       // 빠른 메뉴 한 줄(#sQuick, 21차): 폰은 지도 밑·목록 머리 위, PC는 왼쪽 칸 맨 아래(목록 밑)
       const qk = $("sQuick");
-      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); const ob = $("onb"); if (ob && ob.parentNode !== list) list.insertBefore(ob, list.firstElementChild); if (gg && (ob ? ob.nextElementSibling : list.firstElementChild) !== gg) { if (ob) ob.after(gg); else list.insertBefore(gg, list.firstElementChild); } if (main.firstElementChild !== right) main.insertBefore(right, main.firstElementChild); const rd = $("sReads"); if (rd && list.lastElementChild !== rd) list.appendChild(rd); if (qk && qk.nextElementSibling !== rd) list.insertBefore(qk, rd || null); }
-      else { if (main.lastElementChild !== right) main.appendChild(right); if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); const ob = $("onb"); if (ob && ob.parentNode !== map && sen) sen.before(ob); const lh = list.querySelector(":scope > .s-lh"); if (qk && lh && lh.previousElementSibling !== qk) lh.before(qk); }
+      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); const ob = $("onb"); if (ob && ob.parentNode !== list) list.insertBefore(ob, list.firstElementChild); if (gg && (ob ? ob.nextElementSibling : list.firstElementChild) !== gg) { if (ob) ob.after(gg); else list.insertBefore(gg, list.firstElementChild); } if (main.firstElementChild !== right) main.insertBefore(right, main.firstElementChild); const sd = $("sRd"); if (sd && list.firstElementChild !== sd) list.insertBefore(sd, list.firstElementChild); const rd = $("sReads"), ft = document.querySelector("body > .site-foot, #sListW > .site-foot"); if (rd && rd.nextElementSibling !== ft && list.lastElementChild !== rd) list.appendChild(rd); if (qk && qk.nextElementSibling !== rd) list.insertBefore(qk, rd || null); ftPlace(); }
+      else { if (main.lastElementChild !== right) main.appendChild(right); if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); const ob = $("onb"); if (ob && ob.parentNode !== map && sen) sen.before(ob); const sd = $("sRd"), ss = $("sSearch"); if (sd && ss && ss.nextElementSibling !== sd) ss.after(sd); ftPlace(); const lh = list.querySelector(":scope > .s-lh"); if (qk && lh && lh.previousElementSibling !== qk) lh.before(qk); }
     };
+    // 26차: PC 첫 화면(목록 칸이 보일 때)은 웹 푸터를 목록 칸 맨 아래로(붙은 지도가 끝까지) · 도구 화면·폰은 본래 자리(본문 아래)
+    function ftPlace() { const ft = document.querySelector(".site-foot"); if (!ft) return; const ab = document.querySelector('.ad-slot[data-slot="bottom"]'); if (matchMedia("(min-width:981px)").matches && !document.documentElement.classList.contains("s-view") && getComputedStyle(list).display !== "none") { if (list.lastElementChild !== ft) list.appendChild(ft); } else if (ab && ab.nextElementSibling !== ft) ab.after(ft); }
+    try { new MutationObserver(ftPlace).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
     place(); matchMedia("(min-width:981px)").addEventListener("change", place);
     // 상세 위 '← 목록' 단추는 하나: 구 화면에서 열었으면 '← 강북구 · 갈 수 있는 곳 6곳'(같은 목록으로) · 구 화면 기록 칸이면 뒤로 가기와 같은 길
     $("sToList").onclick = () => { const hs = history.state || {}; if (hs.det && hs.gu) { try { history.back(); return; } catch (e) {} } document.documentElement.classList.remove("s-rep"); };
@@ -459,7 +464,8 @@ const SIMPLE = (() => {
     if ($("sMiniN") && !gu && !bbF && !kind) $("sMiniN").textContent = fmt(all);
     if (bsOpen()) { $("bN").textContent = fmt(all); countTo($("bNB"), all); $("bGo").textContent = all ? `${fmt(all)}곳 보기` : "지도에서 보기"; }
     // 23차: 끄는 동안에도 지도 구 묶음 숫자를 말풍선과 같은 값으로(표에서 · 100ms에 한 번) — 묶음 합이 말풍선보다 늦던 것(84 vs 97)
-    if (performance.now() - liteT > 100) { liteT = performance.now(); try { LMX.dragLite(); } catch (e) {} }
+    // 26차: 말풍선과 같은 프레임에(예전엔 100ms에 한 번이라 끄는 중 구 묶음 합이 말풍선보다 늦었다: 89 vs 102) — 바뀐 묶음만 다시 쓰므로 가볍다
+    liteT = performance.now(); try { LMX.dragLite(); } catch (e) {}
     if (scr) { const bub = scr.el.querySelector(".scr-bub"), d = all - scr.n0; if (bub) { const t = `${cashTxt(v)} · ${fmt(all)}곳${d ? ` (${d > 0 ? "+" : "−"}${fmt(Math.abs(d))})` : ""}`; if (bub.textContent !== t) bub.textContent = t; bub.hidden = false; } }
   }
   // 손이 150ms 멈추면: 목록·제목·'이 돈이면'·지도 구 묶음(가벼운 길) 한 번
@@ -500,7 +506,10 @@ const SIMPLE = (() => {
     planN = PLAN0();
     plan();
     // 금액을 정하면 그 돈으로 되는 구역까지 지도가 따라 넓어진다
-    try { LMX.fitAff(true); } catch (e) {}
+    // 26차 성능: 금액을 바꾼 뒤 지도 맞춤은 움직임 없이 한 번(0.7초 이동 동안 프레임마다 지도를 다시 그려 손을 뗀 뒤 긴 작업이 몰리던 것)
+    try { LMX.fitAff(false); } catch (e) {}
+    // 26차: 첫 방문 카드가 떠 있을 때 어떤 길로든 금액이 정해지면 카드 칩과 똑같이 닫고 저장(shell.html #onb)
+    if (document.documentElement.classList.contains("onb-on")) try { window.dispatchEvent(new CustomEvent("zp:cashpick", { detail: v })); } catch (e) {}
   }
   // ---------- 구역 상세 '실거래' 칸의 최근 2년 시세 흐름(작은 선) — 목록 카드에서 상세로 옮김(리뉴얼 3단계) ----------
   // txs.json[id] = [["26Q2", 값], …] 최근 8분기(build.py가 tx.json에서 뽑은 경량본, ~100KB) — 처음 그린 뒤 한 번만 늦게 불러와 다시 그린다.

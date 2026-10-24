@@ -148,7 +148,7 @@
   }
   // 서울 보기 범례(21차) — 구 묶음 두 줄의 뜻
   // 23차: 좁은 폰(380px 아래)은 '내 돈으로 '를 숨겨 한 줄로(지도 칸을 덜 가림 · 뜻은 aria-label에 다)
-  var KEY = '<span><i class="k-gu"></i>숫자 = <span class="k-x">내 돈으로 </span>갈 수 있는 곳</span><span class="k-s">금액 = 가장 적게 드는 곳</span>';
+  var KEY = '<span><i class="k-gu"></i>점·숫자 = <span class="k-x">내 돈으로 </span>갈 수 있는 곳</span><span class="k-s">금액 = 가장 적게 드는 곳</span>';
   var KEY_L = "범례: 구 묶음의 숫자는 그 구에서 내 돈으로 갈 수 있는 곳 수, 금액은 그중 지금 필요한 돈이 가장 적은 곳, 남색으로 칠한 구역은 내 돈으로 가능한 곳";
   var fmt = function (n) { try { return Number(n).toLocaleString("ko-KR"); } catch (e) { return String(n); } };
   // 금액 꼴 = 앱 ZF.cash와 같은 규칙(1억 아래 100만 단위 '7,400만' · 1억부터 '1.2억' · 올림) — 섬(앱 전)도 같은 글자

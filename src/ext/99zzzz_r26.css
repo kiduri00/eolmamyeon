@@ -1,0 +1,53 @@
+/* ===================== 26차: 애드센스 2차 + 제품 2차 레드팀 ===================== */
+/* ---- 검색칸 바로 밑 읽을거리 한 줄(브라우저로 연 첫 화면에서만) — 줄바꿈 없이 · 넘치면 말줄임 · 누르는 높이 44px ---- */
+.s-rd{display:flex;flex-wrap:nowrap;align-items:center;gap:0 2px;min-width:0;margin:0;padding:0 6px 0 10px;min-height:44px;border-radius:12px;background:var(--surface-2,#f2f4f6);font-size:14px;line-height:1.3;white-space:nowrap;overflow:hidden}
+.s-rd .rd-i{flex:none;margin-right:4px;font-size:15px;line-height:1}
+.s-rd a{display:inline-flex;align-items:center;min-height:44px;min-width:0;padding:0 6px;border-radius:8px;color:var(--brand,#1f3a87);font-weight:700;text-decoration:none!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-rd a:first-of-type{flex:0 1 auto}
+.s-rd a:last-of-type{flex:0 1 auto}
+.s-rd i{flex:none;font-style:normal;color:var(--text-3,#5c6573)}
+@media (hover:hover){.s-rd a:hover{background:var(--surface,#fff)}}
+.s-rd a:focus-visible{outline:2px solid var(--focus,#1f3a87);outline-offset:-2px}
+@media (min-width:981px){.s-rd{margin:12px 0 0;border:1px solid var(--border,#e5e8eb);background:var(--surface,#fff)}html.simple #sListW>.s-rd+.onb{margin-top:10px}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-rd{background:var(--surface-2)}}
+:root[data-theme="dark"] .s-rd{background:var(--surface-2)}
+
+/* ---- 설치한 앱(standalone 등): 웹 덩이(읽을거리 한 줄 · 재개발 공부하기 · 웹 푸터 · 광고 자리 · 광고 안내 글) 모두 숨김 · 같은 길은 MY에 ---- */
+@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){
+  .s-rd,.s-reads,.s-read3,.s-about,html.simple .site-foot,.site-foot,.ad-slot,.ad-note,[data-web-only]{display:none!important}
+}
+/* 앱이 standalone임을 알아챈 경우(iOS 홈 화면 등 navigator.standalone)도 같은 규칙 — 68_app.js가 html.is-app을 단다 */
+html.is-app .s-rd,html.is-app .s-reads,html.is-app .ad-slot{display:none!important}
+
+/* ---- MY '집 있어요?' 줄: 좁은 폭(440px 아래)에서는 제목 한 줄, 칩은 그 아래 줄(제목이 한 글자 폭으로 눌리던 것) ---- */
+@media (max-width:439.98px){
+  .my-hm{flex-direction:column!important;align-items:stretch!important;gap:8px!important}
+  .my-hm>.my-t,.my-hm .my-t{flex:none!important;width:auto!important;min-width:0!important;max-width:none!important;white-space:normal}
+  .my-hm .my-seg4{width:100%;box-sizing:border-box;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+  .my-hm .my-seg4 button{min-width:0;padding:0 4px}
+}
+
+/* ---- 예산 시트 칩 8개: 폰에서는 4칸 두 줄(10억이 혼자 둘째 줄에 남던 것) ---- */
+@media (max-width:640px){#bSheet .bs-chips{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 6px!important;overflow:visible!important}#bSheet .bs-chips button{padding:0 4px!important;min-width:0}}
+
+/* ---- PC: 웹 푸터는 왼쪽 목록 칸 맨 아래(2칸 판이 페이지 끝까지 가서 붙은 지도가 머리 밑으로 밀리지 않음 · 겹쳐 보기 단추가 가리던 것) ---- */
+@media (min-width:981px){html.simple #sListW>.site-foot{margin:24px 0 0;padding:16px 0 8px;border-top:1px solid var(--border);background:none}html.simple #sListW>.site-foot .wrap{max-width:none;padding:0}}
+
+/* ---- 첫 방문 카드: 폰 360에서 지도가 첫 화면에 보이게 — 예산 카드 아래 여백도 줄인다 ---- */
+@media (max-width:420px){html.onb-on .s-hero{gap:8px;margin-bottom:8px}html.onb-on #onb{margin-bottom:8px}}
+@media (max-width:420px){html.onb-on #sSum{display:none!important}}
+
+/* ---- 폰: 아래 탭(소식)이 있으니 머리 종은 뺀다(날짜는 둔다) · 26차 ---- */
+@media (max-width:980px){html.simple #hdrBell{display:none!important}html.simple .hdr-date{margin-right:4px}}
+
+/* ---- 목록 줄 둘째 줄: '예산 거의 다 씀'은 자리가 없으면 숨지 않고 한 줄 아래로(잘리지 않게) · 역 'N분'은 늘 다 보이고 동·역 이름만 줄어든다 ---- */
+.s-list .s-card .s-l2{height:auto!important;row-gap:4px!important;overflow:visible!important}
+.s-list .s-card .s-l2 .s-fx{flex:none}
+.s-card .s-l2 .s-sub .s-wm{flex:none;white-space:nowrap}
+@media (max-width:980px){html.off-on .hdr-date{visibility:hidden}}
+
+/* ---- 상세 시트에서 연 '이 숫자가 틀렸어요': 시트 위에 시트를 겹치지 않고 그 자리를 바꿔 쓴다(닫으면 상세가 그대로 돌아옴) ---- */
+@media (max-width:980px){html.cf-on #report.sheet{visibility:hidden}html.cf-on .sheet-bd,html.cf-on #sheetBd{opacity:0}}
+
+/* ---- 폰 지도: 겹쳐 보기 6칸은 늘 3칸×2줄 가로 띠(구 화면에서도 · 이름은 그대로 보임) — 지도 면적의 10% 안쪽 ---- */
+@media (max-width:980px){#mapbox .s-rail{grid-template-columns:repeat(3,40px)!important}}

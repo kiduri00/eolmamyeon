@@ -48,7 +48,7 @@ const MY = (() => {
       if (s.on) h = "켜 둔 소식만 폰 알림으로 보내요";
       else if (s.perm === "denied") h = "지금은 앱 안 소식에만 적용돼요 · 폰 알림 " + help;
       else if (!s.can) h = "지금은 앱 안 소식에만 적용돼요";
-      else h = `지금은 앱 안 소식에만 적용돼요 · 폰 알림도 받으려면 <button type="button" class="my-kb" data-push-on>알림 받기</button>`;
+      else h = "지금은 앱 안 소식에만 적용돼요 · 폰 알림은 위 '알림 받기'로 켜요";   // 26차: '알림 받기' 단추는 위 한 곳만
       if (c.innerHTML !== h) c.innerHTML = h;
       c.hidden = false;
     }

@@ -55,7 +55,7 @@ for _f in _iss:
         shell = re.sub(r'<a class="sr-r" href="report/[^"]*" id="sReadsRpt">(<span class="sr-k">[^<]*</span>)<span class="sr-t">[^<]*</span>',
                        lambda m: f'<a class="sr-r" href="report/{_f[:-5]}" id="sReadsRpt">{m.group(1)}<span class="sr-t">{_t.replace("&", "&amp;").replace("<", "&lt;")}</span>', shell, count=1)
         # 25차: 목록 위 '읽을거리' 한 줄의 리포트 링크도 같은 호로(‘10월 리포트’)
-        shell = re.sub(r'<a href="report/[^"]*" id="sRead3Rpt">[^<]*</a>', f'<a href="report/{_f[:-5]}" id="sRead3Rpt">{int(_f[5:7])}월 리포트</a>', shell, count=1)
+        shell = re.sub(r'<a href="report/[^"]*" id="sRdRpt">[^<]*</a>', f'<a href="report/{_f[:-5]}" id="sRdRpt">{int(_f[5:7])}월 리포트</a>', shell, count=1)
     break
 PJ = os.path.join(R, 'public', 'premium.json')
 if os.path.exists(PJ):

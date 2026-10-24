@@ -74,6 +74,10 @@ for p, v in T['apt'].items():
     hh = lg[1] if lg else None; ld = round(lg[2] / lg[1], 1) if far and lg[2] > 0 and lg[1] > 0 and 5 <= lg[2] / lg[1] < 300 else None
     rows.append({'g': gd[0], 'd': gd[1], 'n': v['name'], 'y': yr, 'c': v['n'], 'w': v.get('win', 12), 'm': v['med'], 'a': v.get('area_med'), 'l': v['last'], 'z': zid,
                  'zs': (byId[zid].get('sr') if zid else ''), 'far': far, 'hh': hh, 'ld': ld})
+# 26차: 실거래 신고는 '아파트'지만 이름이 빌라·연립·주택이고 세대수가 30 미만(또는 대장에 없음)인 작은 공동주택은 재건축 단지 목록에서 뺀다(예: '은진빌라')
+_VILLA = re.compile(r'빌라(?!트)|연립|다세대|주택(?:\(|$)')
+SMALL = [r for r in rows if _VILLA.search(r['n']) and '아파트' not in r['n'] and not (r['hh'] and r['hh'] >= 30)]
+rows = [r for r in rows if r not in SMALL]
 for r in rows: r['farS'] = f"{round(r['far'])}%" if r['far'] else '–'; r['hhS'] = f"{r['hh']:,}세대" if r['hh'] else ''; r['ldS'] = f"{r['ld']}㎡" if r['ld'] else '–'
 rows.sort(key=lambda x: (x['g'], -x['c']))
 json.dump({'asOf': (D.get('upd') or ''), 'items': [{k: r[k] for k in ('g', 'd', 'n', 'y', 'c', 'w', 'm', 'a', 'l', 'z', 'far', 'hh', 'ld')} for r in rows]}, open(os.path.join(ROOT, 'pipeline/rebuild.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
@@ -120,12 +124,17 @@ def narrative():
         S.append(('이미 정비사업 중인 단지', f'<p>정비구역 안에 있는 {zN:,}단지를 지금 단계로 나누면 ' + ', '.join(f'{esc(k)} {v:,}단지' for k, v in zs.most_common(5)) + '예요. 표에서 ‘정비사업 진행 중’ 링크를 누르면 구역 페이지에서 인가 이력과 입주까지 현금을 볼 수 있어요. 재건축은 조합설립인가 뒤에 사면 입주권이 나오지 않으니 단계를 먼저 확인하세요.</p>'))
     return ''.join(f'<h2>{t}</h2>{b}' for t, b in S)
 NARR = narrative()
-trs = ''.join(
+def _tr(r): return (
     f'<tr data-g="{esc(r["g"])}" data-z="{1 if r["z"] else 0}" data-far="{r["far"] or 999}"><td>{esc(r["g"])}<small>{esc(r["d"])}</small></td><td><b>{esc(r["n"])}</b>'
     + (f'<small><a href="../z/{r["z"]}">정비사업 진행 중 · {esc(r["zs"])}</a></small>' if r['z'] else '') +
     f'</td><td class="n">{r["y"]}<small>{NOWY - r["y"]}년</small></td><td class="n">{r["farS"]}<small>{r["hhS"]}</small></td><td class="n">{r["ldS"]}<small>{"세대당 대지" if r["ld"] else ""}</small></td><td class="n">{eok(r["m"])}<small>전용 {r["a"]}㎡ 가운데</small></td><td class="n">{r["c"]}건<small>최근 {r["w"]}개월</small></td></tr>'
-    for r in rows)
-opts = ''.join(f'<option value="{esc(g)}">{esc(g)} ({n})</option>' for g, n in sorted(guN.items()))
+    )
+TOP = sorted(rows, key=lambda r: (-r['c'], r['g'], r['n']))[:100]; _top = {id(r) for r in TOP}
+trs_top = ''.join(_tr(r) for r in TOP)
+trs = ''.join(_tr(r) for r in rows if id(r) not in _top)
+NREST = len(rows) - len(TOP)
+_gr = collections.Counter(r['g'] for r in rows if id(r) not in _top)
+opts = ''.join(f'<option value="{esc(g)}">{esc(g)} ({n})</option>' for g, n in sorted(_gr.items()))
 desc = f"준공 30년이 지난 서울 아파트 {len(rows):,}단지의 실거래 가운데 값·거래 수·준공연도. 이미 정비사업이 진행 중인 {zN}단지는 구역 페이지로 연결. 데이터 기준 {UPD}."
 LD = json.dumps({"@context": "https://schema.org", "@type": "Article", "headline": f"준공 30년 넘은 서울 아파트 {len(rows):,}단지", "description": desc, "inLanguage": "ko", "datePublished": "2026-10-17", "dateModified": UPD.replace('.', '-'),
                  "mainEntityOfPage": "https://jaegaebal.alwaysquestions.kr/guide/rebuild-30y", "image": "https://jaegaebal.alwaysquestions.kr/og.png", "author": {"@type": "Person", "name": "집핀 운영자", "url": "https://jaegaebal.alwaysquestions.kr/about"},
@@ -158,9 +167,11 @@ page = f'''<!doctype html>
 <p class="lede">재건축 연한(준공 30년)이 지난 서울 아파트 가운데 최근 실거래가 있는 단지를 모았어요. 이 가운데 <b>{zN}단지</b>는 이미 정비사업(재건축 등)이 진행 중이라 구역 페이지로 연결했고, 나머지는 아직 정비구역으로 잡히지 않은 단지예요.</p>
 <div class="hbox"><b>읽는 법</b>준공 30년은 재건축을 시작할 수 있는 최소 조건일 뿐이에요. 실제 사업성은 용적률·대지지분·단지 규모·안전진단(재건축 진단) 결과에 달려 있는데, 용적률·세대수는 건축물대장 총괄표제부(여러 동이 한 대지에 있는 단지만 있음)에서 가져왔고, 대지지분은 대지면적÷세대수로 낸 세대당 평균이에요. 총괄표제부가 없는 단지는 '–'로 보여요. 가격은 최근 12개월(거래가 적으면 2024년 이후) 실거래 가운데 값이고 평형이 섞여 있어요.</div>
 {NARR}
-<h2>단지 목록</h2>
-<details class="rb-d"><summary>{len(rows):,}단지 표 펼치기(자치구·용적률로 거르기)</summary>
-<div class="rb-f"><label>자치구 <select id="rbG"><option value="">서울 전체 ({len(rows):,})</option>{opts}</select></label><label><input type="checkbox" id="rbZ"> 정비사업 진행 중 빼기</label><label><input type="checkbox" id="rbF"> 용적률 200% 이하</label><input id="rbQ" type="search" placeholder="단지·동 이름 검색" aria-label="단지·동 이름 검색"><span id="rbCnt"></span></div>
+<h2>거래가 많은 100단지</h2>
+<p class="meta">최근 실거래 수가 많은 순이에요. 나머지 {NREST:,}단지는 아래 표를 펼쳐 자치구·용적률로 걸러 볼 수 있어요.{f' 이름이 빌라·연립·주택이고 세대수가 30 미만이거나 대장에 없는 작은 공동주택 {len(SMALL)}곳은 재건축 단지로 보기 어려워 뺐어요.' if SMALL else ''}</p>
+<div class="rb-w"><table class="rb"><thead><tr><th>구·동</th><th>단지</th><th class="n">준공</th><th class="n">용적률</th><th class="n">대지지분</th><th class="n">실거래 가운데 값</th><th class="n">거래 수</th></tr></thead><tbody>{trs_top}</tbody></table></div>
+<details class="rb-d"><summary>나머지 {NREST:,}단지 표 펼치기(자치구·용적률로 거르기)</summary>
+<div class="rb-f"><label>자치구 <select id="rbG"><option value="">서울 전체 ({NREST:,})</option>{opts}</select></label><label><input type="checkbox" id="rbZ"> 정비사업 진행 중 빼기</label><label><input type="checkbox" id="rbF"> 용적률 200% 이하</label><input id="rbQ" type="search" placeholder="단지·동 이름 검색" aria-label="단지·동 이름 검색"><span id="rbCnt"></span></div>
 <div class="rb-w"><table class="rb"><thead><tr><th>구·동</th><th>단지</th><th class="n">준공</th><th class="n">용적률</th><th class="n">대지지분</th><th class="n">실거래 가운데 값</th><th class="n">거래 수</th></tr></thead><tbody id="rbB">{trs}</tbody></table></div>
 </details>
 <p class="note">자료: 서울시 건축물대장 총괄표제부(서울 열린데이터광장), 서울시 부동산 실거래가(아파트 매매, {esc(T['asOf']['sale'][:4])}.{esc(T['asOf']['sale'][4:6])}.{esc(T['asOf']['sale'][6:])}까지), 정비구역 필지 서울도시공간포털. 단지 이름은 실거래 신고 이름이라 실제 단지명과 다를 수 있어요. 투자 권유가 아니에요.</p>

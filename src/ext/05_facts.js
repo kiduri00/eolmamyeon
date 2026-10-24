@@ -116,7 +116,9 @@
     }
     // 경매 금액(원) → '3.3억'(첫째 자리 반올림) · 1억 아래 '9,500만' — /z·알림함(tools/zsample.auc_amt)과 같은 규칙
     const aucAmt = (v) => (v == null || !isFinite(v) || v <= 0 ? "–" : v >= 1e8 ? `${(Math.round(v / 1e7) / 10).toLocaleString("ko-KR")}억` : `${Math.round(v / 1e4).toLocaleString("ko-KR")}만`);
-    return { aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
+    // 26차: 경계가 없을 때 이유는 자료로 — 구역지정 이후(면적·인가가 있는 곳)는 '경계 도면 자료가 아직 없어', 그 전은 '공식 경계가 없는 곳(후보지 등)'
+    const bndTxt = (r, what) => { const a = r && r.sm && r.sm.area; return (r && (r.s >= 2 || a)) ? `구역 면적${a ? `(${Math.round(a).toLocaleString("ko-KR")}㎡)` : ""}은 정보몽땅에 등록돼 있지만 경계 도면(서울도시공간포털)을 아직 받지 못해 ${what}` : `아직 공식 경계가 없는 곳(후보지 등)이라 ${what}`; };
+    return { EXCL: "추정 신뢰 낮아 목록에서 뺐어요", bndTxt, aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
   })();
   // 정적 HTML(shell.html)의 방식 버튼 글자도 LBL에서: data-lbl="gap|loan|cashToMoveIn"
   { const lbl = () => document.querySelectorAll("[data-lbl]").forEach((e) => { const t = LBL[e.dataset.lbl]; if (t && e.textContent !== t) e.textContent = t; }); document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", lbl) : lbl(); }

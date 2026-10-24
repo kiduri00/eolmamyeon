@@ -4056,6 +4056,8 @@
           `<li class="hj"><div class="hj-t"><i class="hj-sw" style="background:${h.c}" aria-hidden="true"></i><b>${esc(h.n)}</b>${hjBadge(st)}<span class="hj-d mono">${at ? `${esc(at)}역까지 ` : ""}${kmTxt(d)}</span></div><p class="hj-s">${esc(h.s)}</p>${h.note ? `<p class="hj-n">${esc(h.note)}</p>` : ""}<p class="hj-src">출처 ${h.src.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join(" · ")}</p>${r.xy ? `<button type="button" class="btn text sm hj-map" data-hjmap="${h.id}">지도에서 보기</button>` : ""}</li>`,
       )
       .join("");
+    // 26차: 좌표가 없는 구역은 '호재 없음'처럼 비어 보이는 칸 대신 이유 한 줄(지어내지 않음)
+    if (!r.ll && !hs.length) { p.innerHTML = `<div class="sect"><p class="hj-none">이 구역은 위치 좌표가 아직 없어 가까운 역·학교·호재를 계산하지 못했어요. 주소(${esc(r.j || r.g)})로 지도 앱에서 확인해 주세요.</p></div>`; return; }
     p.innerHTML = `\n    <div class="sect"><h3>주변 호재 <small>구역 대표 좌표에서 약 1.5km 안 · 직선거리 · ${HJD.asOf.replaceAll("-", ".")} 기준</small></h3>\n      ${hs.length ? `<ul class="hjl">${rows}</ul>` : `<p class="hj-none">1.5km 안 정리된 호재 없음 <span>(GTX·새 철도·대형 복합개발 ${HJD.items.length}건 중)</span></p>`}\n      <p class="hj-warn">계획은 변경·지연될 수 있어요. 공식 발표로 확인하세요.</p></div>\n    <div class="sect"><h3>매물 보기</h3>\n      ${ns ? `<p class="hj-st">${esc(nearTxt(r))}${ns.s && ns.s.ls.length ? ` · ${esc(stnLines(ns.s))}` : ""}</p>` : ""}\n      ${listBtn(r, "primary") || '<p class="note">대표 좌표가 없어 지도 매물 링크를 만들 수 없어요.</p>'}\n      ${listingURL(r) ? `<p class="list-note">${noTicket(r) ? "" : LIST_NOTE + " "}${aptZone(r) && KBC[r.id] ? "KB부동산 단지 화면이 새 창으로 열려요(매매·전세 매물)." : "KB부동산 지도가 구역 대표 좌표를 가운데에 두고 새 창으로 열려요(매물·시세)."}</p>` : ""}</div>\n    <div class="chk3"><h3>매물 볼 때 체크할 3가지</h3><ol>${CHK3.map(([t, d]) => `<li><b>${t}</b><span>${d}</span></li>`).join("")}</ol><p class="note">구역별 판정은 '규제' 탭에서 볼 수 있어요.</p></div>\n    ${leadCard("in-rep")}`;
     p.querySelectorAll("[data-hjmap]").forEach(
       (b) =>
@@ -4634,7 +4636,7 @@
     const row = (r, i, near) => {
       const n = needS(r), ok = okZ(r);
       const wt = near || moaIn.has(r.id) ? `${esc(stn[0].replace(/역$/, ""))}역 ${ZF.walkMin(stnW(r))}분${moaIn.has(r.id) ? " · 15분 안" : ""}` : r.st ? walkT(r) : "";
-      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b><i class="sg-l">${n.l === "입주까지" ? "입주까지" : "지금"}</i> ${e1S(n.v)}</b>${ok ? '<i class="sg-ok">내 돈으로 가능</i>' : n.v > CASH + 1e-9 ? `<i class="sg-ok sg-no">내 돈 ${esc(ZF.cash(n.v - CASH))} 부족</i>` : '<i class="sg-ok sg-no sg-na">조건 밖</i>'}` : r.s >= 9 ? "" : '<i class="sg-ok sg-no sg-na">계산 보류</i>'}</em></button>`;   // 20차: 금액이 없는 줄도 빈칸 대신 '계산 보류'
+      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b><i class="sg-l">${n.l === "입주까지" ? "입주까지" : "지금"}</i> ${e1S(n.v)}</b>${ok ? '<i class="sg-ok">내 돈으로 가능</i>' : n.v > CASH + 1e-9 ? `<i class="sg-ok sg-no">내 돈 ${esc(ZF.cash(n.v - CASH))} 부족</i>` : (r.lc || estHide(r)) ? `<i class="sg-ok sg-no sg-na">${ZF.EXCL}</i>` : '<i class="sg-ok sg-no sg-na">조건 밖</i>'}` : r.s >= 9 ? "" : '<i class="sg-ok sg-no sg-na">계산 보류</i>'}</em></button>`;   // 20차: 금액이 없는 줄도 빈칸 대신 '계산 보류'
     };
     const stnRow = stn
       ? `<button type="button" role="option" id="sgS" aria-selected="false" data-stn="${esc(stn[0])}" tabindex="-1" class="sg-stn"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="14" rx="3"/><path d="M6 10h12M8 21l2-4M16 21l-2-4"/></svg>${esc(stn[0])}<small>${esc((stn[3] || []).join(" · "))} · 지도에서 역 주변 보기</small></span><em>지도 →</em></button>`
@@ -6008,6 +6010,7 @@
       .trim();
     return s.length >= 2 ? s : n;
   }
+  window.ZP_shortName = (n) => shortName(n);   // 26차: 검사(한 판정 · 검색 배지)용 — shortName0 원본 덩이(zsample·qa가 잘라 씀) 밖에 둔다
   const walk = walkM;
   function rewinBlocked(r) {
     const y = num("pRewin");
@@ -6105,7 +6108,7 @@
           ? `손실 예상 · ${e2(left) === "0" ? "남는 돈 없음" : ZF.cash(left) + " 남음"}`
           : tight
             ? e2(left) === "0"
-              ? "예산 범위"
+              ? "예산 거의 다 씀"
               : `${ZF.cash(left)} 남음 · 빠듯`
             : `${ZF.cash(left)} 남음`;
       const inc = num("pIncome"),
@@ -6801,7 +6804,7 @@
       if (el) el.classList.toggle("stale", stale);
     });
     $("staleNote").hidden = !stale;
-    $("staleNote").textContent = `입력값을 확인하세요 · 아래 결과는 마지막 유효값 ${ZF.cash(lastValidCash)} 기준`;
+    { const t = stale ? `입력값을 확인하세요 · 아래 결과는 마지막 유효값 ${ZF.cash(lastValidCash)} 기준` : ""; if ($("staleNote").textContent !== t) $("staleNote").textContent = t; }   // 26차: 숨은 상태 알림에 지난 글이 남지 않게(화면 읽기)
     $("incErr").hidden = !AV.incomeBad;
     sizeCash();
     $("cashQuick")

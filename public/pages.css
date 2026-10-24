@@ -170,3 +170,22 @@ main a.zk-rb{display:inline-flex;align-items:center;min-height:44px;padding:0 16
 /* 푸터 링크 사이 '·'는 숨기고 간격으로만 구분(줄 머리에 '·'가 오지 않게) */
 footer.f p:first-child{font-size:0}
 footer.f p:first-child a{font-size:13px}
+/* 26차: 표 머리칸 글자가 값 위로 넘치던 것(white-space:nowrap 상속) → 머리칸 안에서 줄바꿈 */
+.ov th{white-space:normal!important;word-break:keep-all;overflow-wrap:anywhere;hyphens:none}
+.ov td{white-space:normal}
+/* 26차: 따로 선 링크(지도 크게 보기 · 출처 줄 · 리포트 목차 칩)는 누르기 쉬운 높이(40px 이상) */
+figure figcaption a,.zrow a,.zk-rep a{display:inline-flex;align-items:center;min-height:40px}
+.rp-toc a{min-height:40px!important}
+/* 26차: '이 숫자가 틀렸어요'는 작은 링크 하나 */
+.zk-rep{margin:12px 0 0}
+main a.zk-rb.zk-rs{min-height:40px;padding:0;border:0;background:none;color:var(--text-2);font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+/* 26차: 손으로 쓴 계산 보류 페이지 — 큰 값은 '대출 끼고 지금 X', '계산 보류'는 작은 표시로 */
+.zk-hv .zk-v{margin-top:4px;padding:2px 8px;border-radius:6px;background:var(--surface-2);font-size:13px;font-weight:700;line-height:1.5;color:var(--text-2)}
+.zk-av{display:flex;flex-direction:column;margin-top:4px}
+.zk-av small{font-size:13px;font-weight:600;color:var(--text-2)}
+.zk-av b{font-size:28px;font-weight:700;line-height:1.15;letter-spacing:-.02em;color:var(--text-1);font-variant-numeric:tabular-nums}
+.znum{margin:-4px 0 14px}
+.gnote{font-size:15.5px;line-height:1.8}
+/* 26차 성능: 첫 화면 아래 덩이는 화면에 올 때 그린다(글꼴이 바뀔 때마다 긴 페이지 전체를 다시 배치하던 것) */
+main>figure,main>table,main>.ov,main>ul.steps,main>h2~nav,footer.f,main>details,main>.zstory{content-visibility:auto;contain-intrinsic-size:auto 420px}
+.zk-s.zk-ex{color:var(--warn-ink,#8a5a00);font-weight:600}

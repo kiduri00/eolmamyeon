@@ -327,7 +327,7 @@
 
     // ---------- 주소로 물건 확인 ----------
     function addrHTML(r) {
-      if (!r.pcl || r.src === "moa") return `<div class="sect acheck"><h3>매물 지번으로 확인</h3><p class="note">이 구역은 공식 경계가 공개되지 않아(후보지·구역지정 전 등) 지번별 경계 판정을 할 수 없어요. 구청 도시정비과에 구역계 도면을 확인하세요.</p></div>`;
+      if (!r.pcl || r.src === "moa") return `<div class="sect acheck"><h3>매물 지번으로 확인</h3><p class="note">${esc(ZF.bndTxt(r, "지번별 경계 판정을 할 수 없어요"))}. 구청 도시정비과에 구역계 도면을 확인하세요.</p></div>`;
       return `<div class="sect acheck"><h3>매물 지번으로 확인 <small>구역 경계 안인지 · 언제 지은 건물인지</small></h3>
         <form class="ac-f" id="acForm" autocomplete="off"><label class="sr-only" for="acIn">지번</label><div class="inp"><input id="acIn" placeholder="예: ${esc(((r.bj || r.j || "").split(" ")[1]) || "123-4")}" inputmode="text"></div><button type="submit" class="btn secondary sm">확인</button></form>
         <div id="acOut" aria-live="polite"></div>
@@ -413,7 +413,7 @@
     function noTxHTML(r, t, z) {
       const nb = r.tag === "mk" || r.nx === "mk" ? null : t.nb;   // 시장·상가 정비는 빌라 시세를 쓰지 않는다
       // 제목만 남지 않게: 안내 문장은 note 클래스가 아닌 문단(간단 보기에서도 보임)
-      return `<div class="sect tx-none"><p style="margin:4px 0 8px;color:var(--text-2)">${(z && !z.e) || r.pcl || !GEO_Z ? "최근 구역 안 매매·전세 신고가 없어요." : r.s >= 2 || (r.sm && r.sm.area) ? "이 구역은 경계 모양 자료가 없어 경계 안 거래만 따로 모을 수 없어요." : "아직 공식 경계가 없는 곳(후보지 등)이라 경계 안 거래만 따로 모을 수 없어요."} 주변 시세는 '입지' 탭 아래 KB부동산 링크에서 볼 수 있어요.</p>${nearOf(r) ? "" : smpBig(r)}${nb && nb.n ? `<div class="bigrow"><div class="big"><span>같은 동${nb.dong ? `(${esc(nb.dong)})` : ""} 빌라 매매 가운데 값 · 참고</span><b>${eok(nb.med)}</b><small>최근 1년 ${fmt(nb.n)}건 · 구역 밖 거래 포함</small></div></div>` : ""}</div>`;
+      return `<div class="sect tx-none"><p style="margin:4px 0 8px;color:var(--text-2)">${(z && !z.e) || r.pcl || !GEO_Z ? "최근 구역 안 매매·전세 신고가 없어요." : ZF.bndTxt(r, "경계 안 거래만 따로 모을 수 없어요") + "."}${r.ll ? " 주변 시세는 '입지' 탭 아래 KB부동산 링크에서 볼 수 있어요." : ""}</p>${nearOf(r) ? "" : smpBig(r)}${nb && nb.n ? `<div class="bigrow"><div class="big"><span>같은 동${nb.dong ? `(${esc(nb.dong)})` : ""} 빌라 매매 가운데 값 · 참고</span><b>${eok(nb.med)}</b><small>최근 1년 ${fmt(nb.n)}건 · 구역 밖 거래 포함</small></div></div>` : ""}</div>`;
     }
     // 거래 탭 = 실거래(paneTx0) + 맨 아래 경매 물건 블록
     function paneTx(r) {

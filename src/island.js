@@ -33,9 +33,9 @@
     for (var k = 0; k < li.length; k++) {
       var n = +li[k].getAttribute("data-need"), el = li[k].querySelector(".s-fx"), a = li[k].querySelector("a.s-cm");
       if (!el || !isFinite(n)) continue;
-      var left = Math.max(0, Math.round((c - n) * 100) / 100), fit = left <= c * 0.1 + 1e-9, t = fit ? "예산 범위" : left >= 0.01 ? "예산에서 남는 돈 " + cashT(left) : "";
-      el.innerHTML = fit ? '<em class="s-fit">예산 범위</em>' : t ? '<span class="s-left">' + t + "</span>" : "";
-      if (a && t && !/, (예산 범위|예산에서 남는 돈)/.test(a.getAttribute("aria-label") || "")) a.setAttribute("aria-label", (a.getAttribute("aria-label") || "") + ", " + t);
+      var left = Math.max(0, Math.round((c - n) * 100) / 100), fit = left <= c * 0.1 + 1e-9, t = fit ? "예산 거의 다 씀" : left >= 0.01 ? "예산에서 남는 돈 " + cashT(left) : "";
+      el.innerHTML = fit ? '<em class="s-fit">예산 거의 다 씀</em>' : t ? '<span class="s-left">' + t + "</span>" : "";
+      if (a && t && !/, (예산 거의 다 씀|예산에서 남는 돈)/.test(a.getAttribute("aria-label") || "")) a.setAttribute("aria-label", (a.getAttribute("aria-label") || "") + ", " + t);
     }
   }
   var moreT = null;

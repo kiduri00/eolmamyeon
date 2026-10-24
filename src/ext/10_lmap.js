@@ -408,10 +408,13 @@
     }
     function fitTo(bb, anim, maxZ) {
       const C = camOf(bb, maxZ, fitPad());
+      // 26차: 거의 같은 자리면 옮기지 않는다(다시 그리기 없음)
+      if (C) { try { const c0 = map.getCenter(), p0 = map.project(c0), p1 = map.project({ lng: C.c[0], lat: C.c[1] }); if (Math.abs(map.getZoom() - C.z) < 0.12 && Math.hypot(p1.x - p0.x, p1.y - p0.y) < 12) return; } catch (e) {} }
       if (C) { map.easeTo({ center: C.c, zoom: C.z, duration: anim && !reduceMotion() ? 700 : 0 }); return; }
       const cam = map.cameraForBounds(bb, { padding: fitPad(), maxZoom: maxZ });
       if (cam) map.easeTo({ center: cam.center, zoom: Math.min(cam.zoom, maxZ + 0.75), duration: anim && !reduceMotion() ? 700 : 0 });
     }
+    let affFit = false;
     function fitAff(anim, force) {
       if (!map || !ready || mapView !== "seoul" || gu) return;
       // 구역 상세가 열려 있는 동안(데스크톱 2칸)은 고른 구역을 비춘 자리 그대로 — 목록이 다시 그려지거나 스크롤돼도 서울로 돌아가지 않게
@@ -419,6 +422,10 @@
       map.resize();
       if (stnF) return;   // 역을 보고 있는 동안은 자동 맞춤으로 옮기지 않는다
       if (!force && typeof window.ZP_bbOn === "function" && window.ZP_bbOn()) return;   // 목록이 '지도 범위만'을 따르는 동안도(금액을 바꿔도 보던 곳 그대로)
+      // 26차: 큰 금액(갈 수 있는 곳이 12개 구 넘게 퍼짐)에서는 금액을 바꾸거나 스크롤해도 한 번 맞춘 화면을 다시 옮기지 않는다(구 묶음이 겹치며 '+8곳' 칩으로 접히던 것)
+      let ng = 0; try { const c = SIMPLE.guCounts(); ng = Object.keys(c).filter((k) => c[k] > 0).length; } catch (e) {}
+      if (!force && ng >= 12 && affFit) return;
+      affFit = ng >= 12;
       fitTo(affBB(), anim, 12);
     }
     // 지도 라이브러리(~180KB)·경계(geo.json ~115KB)·타일은 지도 칸이 화면 근처에 올 때 처음 불러온다(도구 화면으로 바로 들어온 경우 등).
@@ -1410,9 +1417,14 @@
       });
       const pop = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: "lm-pop", offset: 10, maxWidth: "260px" });
       const hit = ["zone-fill", "zest-fill", "pts"];
+      let tipPT = matchMedia("(hover:hover) and (pointer:fine)").matches ? "mouse" : "touch";
+      map.getCanvasContainer().addEventListener("pointermove", (e) => { tipPT = e.pointerType || "mouse"; }, { capture: true, passive: true });
+      map.getCanvasContainer().addEventListener("pointerdown", (e) => { tipPT = e.pointerType || "mouse"; if (tipPT !== "mouse") pop.remove(); }, { capture: true, passive: true });
+      map.on("movestart", () => { if (tipPT !== "mouse") pop.remove(); });
       const tipOf = (r) => `<b>${esc(fullName(r))}</b><small>${esc([SHAPE[shapeOf(r)], r.src === "moa" ? srLabel(r) : stageName(r)].join(" · "))}</small><small>${esc(labelOf(r))}${geo && geo.z[r.id] && geo.z[r.id].e ? " · 경계 추정" : ""}</small>`;
       hit.forEach((l) => {
-        map.on("mousemove", l, (e) => { const r = byId[e.features[0].properties.id]; if (!r) return; map.getCanvas().style.cursor = "pointer"; pop.setLngLat(e.lngLat).setHTML(tipOf(r)).addTo(map); rowMark(r.id); });
+        // 26차: 손가락으로 누른 뒤 남는 마우스 흉내(mousemove)로는 띄우지 않는다(남아서 붙어 있던 것) · 겹쳐 보기 단추 밑으로 들어가면 띄우지 않는다
+        map.on("mousemove", l, (e) => { if (tipPT !== "mouse") return; const r = byId[e.features[0].properties.id]; if (!r) return; map.getCanvas().style.cursor = "pointer"; pop.setLngLat(e.lngLat).setHTML(tipOf(r)).addTo(map); rowMark(r.id); try { const pe = pop.getElement(), rl = document.querySelector("#mapbox .s-rail"); if (pe && rl) { const a = pe.getBoundingClientRect(), b = rl.getBoundingClientRect(); if (b.width && a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom) pop.remove(); } } catch (er) {} });
         map.on("mouseleave", l, () => { map.getCanvas().style.cursor = ""; pop.remove(); rowMark(null); });
       });
       let lastPT = "touch";
@@ -1516,7 +1528,7 @@
       attach: () => { gateOpen(); if (mapView === "seoul" && !gu) seoul(); },
       gusMore: () => { const e = $("lmGuMore"); return e && !e.hidden ? +e.dataset.n || 0 : 0; },
       pick: (id) => (id ? pillTap(id) : pickClear()),
-      focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); },
+      focus: (zoom) => { if (map && ready && !$("lmap").hidden) focus(zoom); else if (zoom && !MQ_SHEET.matches) pendFocus = zoom; },   // 26차: PC 딥링크(#o…)가 지도 준비 전이면 준비되는 대로 그 구역으로
       noLoc: () => noLoc(),
       zoom: (k) => { if (!map) return; if (k > 0) map.zoomIn(); else if (k < 0) map.zoomOut(); else { clearStation(); if (gu) fitGu(gu); else fitAff(true, true); } },
       geo: () => loadGeo(),
