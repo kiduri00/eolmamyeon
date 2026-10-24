@@ -1,0 +1,51 @@
+/* ===== 27차 ===== */
+/* ---- 폰 지도 겹쳐 보기: 3×2 판(지도 약 9%) → 오른쪽 위 한 줄 띠 6칸(이름 그대로 · 누르는 자리 40×40 · 보이는 띠는 30px 높이 → 지도의 약 6.5%) ---- */
+@media (max-width:980px){
+  #mapbox .s-rail-w,#mapbox.lm-short .s-rail-w{top:6px;right:6px}
+  #mapbox[data-view="gu"] .s-rail-w{top:58px}
+  #mapbox .s-rail,#mapbox.lm-short .s-rail{display:flex!important;flex-direction:row;grid-template-columns:none!important;border:0!important;border-radius:0;background:transparent!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;overflow:visible}
+  #mapbox .s-rail button,#mapbox.lm-short .s-rail button{isolation:isolate;width:40px!important;height:40px!important;gap:1px!important;border:0!important;background:transparent!important}
+  #mapbox .s-rail button::before{content:"";position:absolute;z-index:-1;left:0;right:0;top:5px;bottom:5px;background:rgba(255,255,255,.95);border-top:1px solid rgba(31,58,135,.14);border-bottom:1px solid rgba(31,58,135,.14);box-shadow:0 2px 3px -2px rgba(0,0,0,.18)}
+  #mapbox .s-rail button+button::before{box-shadow:inset 1px 0 rgba(31,58,135,.10),0 2px 3px -2px rgba(0,0,0,.18)}
+  #mapbox .s-rail button:first-child::before{border-left:1px solid rgba(31,58,135,.14);border-radius:9px 0 0 9px}
+  #mapbox .s-rail button:last-child::before{border-right:1px solid rgba(31,58,135,.14);border-radius:0 9px 9px 0}
+  #mapbox .s-rail button[aria-pressed="true"]{background:transparent!important;color:var(--sel-ink)!important}
+  #mapbox .s-rail button[aria-pressed="true"]::before{background:var(--sel)}
+  #mapbox .s-rail svg{width:14px!important;height:14px!important}
+  #mapbox .s-rail button span{font-size:9px}
+  :root[data-theme="dark"] #mapbox .s-rail button::before{background:rgba(24,28,40,.94);border-color:rgba(255,255,255,.10)}
+  :root[data-theme="dark"] #mapbox .s-rail button[aria-pressed="true"]::before{background:var(--sel)}
+}
+@media (max-width:980px) and (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) #mapbox .s-rail button::before{background:rgba(24,28,40,.94);border-color:rgba(255,255,255,.10)}
+  :root:not([data-theme="light"]) #mapbox .s-rail button[aria-pressed="true"]::before{background:var(--sel)}
+}
+/* ---- 구역 상세: 전세 끼고는 못 사는 곳의 큰 값 = 대출 끼고 산 값 + 꼬리표(/z .zk-mode와 같은 꼴) ---- */
+.dt-mode{display:inline-flex;align-items:center;height:22px;margin-top:4px;padding:0 8px;border-radius:6px;background:var(--sel,#e8edf7);color:var(--sel-ink,#1f3a87);font:700 12px/1 var(--font);font-style:normal}
+/* ---- 구 묶음 셋째 크기(xs): 금액 줄을 지우지 않고 더 작은 두 줄(보이는 높이 26 · 누르는 자리 40 그대로) ---- */
+.zgu.sm.xs{padding:0 4px}
+.zgu.sm.xs::before{top:7px;bottom:7px;border-radius:8px}
+.zgu.sm.xs b{font-size:10px;line-height:1.05}.zgu.sm.xs span{font-size:8.5px;margin-top:0;line-height:1.05}
+/* ---- 폰 '+N곳' 칩: 왼쪽 위 · 목록은 아래로 펼침 ---- */
+.lm-gumore.top .lm-gumore-l{top:calc(100% + 6px);bottom:auto}
+/* ---- 목록 2줄 맞춤(60_simple.js rowFit): 역 이름이 잘리면 '가까운 역 N분' → '역 N분' → NEW 칩 숨김 · '분'은 늘 보임 ---- */
+.s-card .s-l2.wf1 .s-wn{display:none}
+.s-card .s-l2.wf1 .s-wm::before{content:"가까운 "}
+.s-card .s-l2.wf2 .s-wm::before{content:none}
+.s-card .s-l2.wf3 .s-b-new{display:none}
+@media (max-width:420px){.s-card button.s-amt small.s-na .s-nah{display:none}}
+/* ---- 폰: 시트(구역 상세 등)가 열린 동안 오프라인 띠는 숨긴다 — 머리 오른쪽 띠가 시트 닫기 ✕를 덮던 것(시트를 닫으면 다시 보임) ---- */
+@media (max-width:980px){html.sheet-open .off-bar,html.menu-open .off-bar,html.cf-on .off-bar{display:none!important}}
+/* ---- PC 머리 '소식': N 점은 종 아이콘 오른쪽 위(글자 '소식' 위에 겹치던 것) ---- */
+@media (min-width:981px){.hdr-r .s-nav [data-nav="news"] .nb-dot{left:21px!important;right:auto!important;top:5px!important;width:13px!important;height:13px!important;min-width:0!important;padding:0!important;font-size:8.5px!important;line-height:13px!important}}
+/* ---- 소식 거르기 칩·관심 정렬 칩: 한 줄 가로 스크롤 + 오른쪽 끝 흐림(더 있음) · 끝까지 밀면 마지막 칩이 흐림 밖으로 ---- */
+#ntcF,.pn-sort{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-right:28px!important;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+#ntcF::-webkit-scrollbar,.pn-sort::-webkit-scrollbar{display:none}
+#ntcF>*,.pn-sort>*{flex:none!important}
+/* ---- 검색: 공식 이름에만 맞은 줄은 공식 이름 한 줄 ---- */
+#sugg .sg-off{display:block;margin-top:1px;font-size:12px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ---- MY 오픈소스·저작권 링크: 누르는 높이 40px ---- */
+.my-lic a{display:inline-flex;align-items:center;min-height:40px}
+/* ---- 성능: 숨은 옛 SVG 지도(#map)의 '가능 점' 맥박 애니메이션이 자리 그림 밑에서 계속 돌며 프레임마다 화면을 다시 합성하던 것(4배 느린 CPU에서 긴 작업) — 숨었으면 멈추고, 보여도 세 번만 ---- */
+#map .okh{animation-iteration-count:3}
+#map[style*="hidden"] .okh,#map[aria-hidden="true"] .okh,.lm-on #map .okh{animation:none!important}

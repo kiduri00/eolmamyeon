@@ -271,11 +271,12 @@ async function zoneChecks(page, scen, id, opts) {
           return out;
         });
         const P = Object.keys(hl);
-        const need = [["/guide/", (p) => p === "/guide/"], ["/report/", (p) => p === "/report/"], ["/about", (p) => /^\/about(\.html)?$/.test(p)], ["/privacy", (p) => /^\/privacy(\.html)?$/.test(p)], ["/contact", (p) => /^\/contact(\.html)?$/.test(p)]];
+        // 27차(운영자 결정): 가이드·리포트로 가는 곳은 검색칸 밑 읽을거리 한 줄(최신 리포트 + 가이드 목록)과 MY 둘만 — 맨 아래 '재개발 공부하기' 카드·푸터 가이드 링크는 뺐다
+        const need = [["/guide/", (p) => p === "/guide/"], ["/about", (p) => /^\/about(\.html)?$/.test(p)], ["/privacy", (p) => /^\/privacy(\.html)?$/.test(p)], ["/contact", (p) => /^\/contact(\.html)?$/.test(p)]];
         for (const [lab, f] of need) if (!P.some(f)) fail("seo.homeLinks", name, `no visible link on / to ${lab}`);
         const arts = P.filter((p) => /^\/guide\/[a-z0-9-]+$/.test(p)), reps = P.filter((p) => /^\/report\/\d{4}-\d{2}$/.test(p));
-        if (arts.length < 4) fail("seo.homeLinks", name, `only ${arts.length} visible guide article links on / (need 4+): ${arts.join(" ")}`);
         if (!reps.length) fail("seo.homeLinks", name, "no visible link to the latest monthly report on /");
+        if ((hl["/guide/"] || 0) + (hl["/report/"] || 0) + arts.length > 2) fail("seo.homeLinks", name, `guide/report entry links on / more than the reading line: ${JSON.stringify(Object.fromEntries(P.filter((p) => /^\/(guide|report)\//.test(p)).map((p) => [p, hl[p]])))}`);
         info[name].homeLinks = { guides: arts.length, reports: reps.length, site: need.filter(([, f]) => P.some(f)).map(([l]) => l) };
       }
       if (plan.touch) {

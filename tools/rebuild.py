@@ -122,6 +122,13 @@ def narrative():
                   f'거래가 가장 많은 단지는 ' + ', '.join(f'{esc(r["g"])} {esc(r["n"])}({r["c"]}건)' for r in tc) + '이에요.</p>'))
     if zs:
         S.append(('이미 정비사업 중인 단지', f'<p>정비구역 안에 있는 {zN:,}단지를 지금 단계로 나누면 ' + ', '.join(f'{esc(k)} {v:,}단지' for k, v in zs.most_common(5)) + '예요. 표에서 ‘정비사업 진행 중’ 링크를 누르면 구역 페이지에서 인가 이력과 입주까지 현금을 볼 수 있어요. 재건축은 조합설립인가 뒤에 사면 입주권이 나오지 않으니 단계를 먼저 확인하세요.</p>'))
+    # 27차(애드센스 3차): 표를 읽는 법 — 두 조건(낮은 용적률 · 넓은 대지지분)을 함께 갖춘 단지 수 · 아직 정비구역 밖인 곳(자료에서 센 값만)
+    both = [r for r in rows if r['far'] and r['ld'] and r['far'] <= 200 and r['ld'] >= 40]
+    bothN = [r for r in both if not r['z']]
+    if F and LDv:
+        S.append(('표를 볼 때', f'<p>용적률이 200% 이하이면서 세대당 대지지분이 40㎡ 이상인 단지는 {len(both):,}단지예요. 이 가운데 {len(bothN):,}단지는 아직 정비구역에 들어가지 않았어요. '
+                  '두 숫자가 좋아도 단지 규모가 작거나 상가·도로 지분이 섞여 있으면 사업성이 떨어질 수 있어요. 반대로 용적률이 250%를 넘어도 서울시 정비계획에서 상한 용적률을 높여 주면 사업이 될 수 있어요. '
+                  '그래서 이 표는 “어디가 오를까”가 아니라 “어느 단지가 재건축 조건을 얼마나 갖췄나”를 보는 출발점으로 쓰는 게 맞아요. 관심 단지는 구청 공람·고시와 안전진단 결과를 따로 확인하세요.</p>'))
     return ''.join(f'<h2>{t}</h2>{b}' for t, b in S)
 NARR = narrative()
 def _tr(r): return (
@@ -175,6 +182,8 @@ page = f'''<!doctype html>
 <div class="rb-w"><table class="rb"><thead><tr><th>구·동</th><th>단지</th><th class="n">준공</th><th class="n">용적률</th><th class="n">대지지분</th><th class="n">실거래 가운데 값</th><th class="n">거래 수</th></tr></thead><tbody id="rbB">{trs}</tbody></table></div>
 </details>
 <p class="note">자료: 서울시 건축물대장 총괄표제부(서울 열린데이터광장), 서울시 부동산 실거래가(아파트 매매, {esc(T['asOf']['sale'][:4])}.{esc(T['asOf']['sale'][4:6])}.{esc(T['asOf']['sale'][6:])}까지), 정비구역 필지 서울도시공간포털. 단지 이름은 실거래 신고 이름이라 실제 단지명과 다를 수 있어요. 투자 권유가 아니에요.</p>
+<h2>출처</h2>
+<ul class="links"><li><a href="https://data.seoul.go.kr/dataList/OA-23051/S/1/datasetView.do" target="_blank" rel="noopener">서울시 건축물대장 총괄표제부 · 서울 열린데이터광장</a> — 용적률·세대수·대지면적·사용승인일</li><li><a href="https://data.seoul.go.kr/dataList/OA-21275/S/1/datasetView.do" target="_blank" rel="noopener">서울시 부동산 실거래가 정보(국토교통부 신고 자료) · 서울 열린데이터광장</a> — 단지 이름·준공연도·매매 가운데 값·거래 수</li><li><a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a> — 정비구역 경계·필지(이미 정비사업 중인 단지 표시)</li><li><a href="../method">집핀 계산 방법</a> — 가운데 값·기간 기준</li></ul>
 <h2>함께 읽기</h2>
 <ul class="links"><li><a href="/guide/redevelop-vs-rebuild">같은 돈으로 재개발과 재건축은 무엇이 다를까</a></li><li><a href="/guide/ipjugwon">조합설립인가 뒤에 사도 입주권이 나오나</a></li><li><a href="/guide/jungong">재개발 단계별로 10년 안에 준공될 확률</a></li><li><a href="/guide/status">서울 정비사업, 지금 어느 단계에 몇 곳</a></li><li><a href="/gu/">구별 페이지: 구마다 진행 중인 정비사업</a></li></ul>
 <p class="meta">계산 방식과 자료: <a href="/method">계산 방법</a> · <a href="/about">집핀 소개</a> · <a href="/">찾기에서 내 돈으로 갈 수 있는 구역 보기 →</a></p>

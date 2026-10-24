@@ -47,7 +47,7 @@ const OVX = (() => {
         let blk = null; try { blk = gapOf(r).block; } catch (e) { blk = typeof gapBlock === "function" ? gapBlock(r) : null; }
         // 아래 '전세 끼고 사기 불가' 카드·계산과 같은 판정(가능성 구역도 계산에서 빼므로 '불가')
         if (lp) out.push({ k: "전세 끼고", c: "no", v: "✕ 불가 · 토허 실거주 2년", why: () => (/가능성/.test(lp.t) ? `${/공공재개발/.test(lp.t) ? "공공재개발" : "신속통합기획"} 구역은 토지거래허가(2년 실거주)로 묶이는 경우가 많아 전세 낀 매수에서 빼요 · 지정 여부는 구청 확인` : "토지거래허가구역 · 2년 실거주라 전세 낀 매수 불가") });
-        else if (blk && !/대상 아님/.test(blk)) out.push({ k: "전세 끼고", c: /보류/.test(blk) ? "warn" : "no", v: /세입자/.test(blk) ? "✕ 세입자 없음" : /입주권 없음/.test(blk) ? "✕ 입주권 없음" : "! 확인 필요", why: () => blk });
+        else if (blk && !/대상 아님/.test(blk)) out.push({ k: "전세 끼고", c: /보류/.test(blk) ? "warn" : "no", v: /세입자/.test(blk) ? "✕ 세입자 없음" : /입주권 없음/.test(blk) ? (imOf(r) ? "✕ 집을 사면 입주권 없음" : "✕ 입주권 없음") : "! 확인 필요", why: () => (/입주권 없음/.test(blk) && imOf(r) ? "착공 뒤라 집(땅)을 사면 입주권이 안 나와요 · 새 아파트는 조합원 입주권을 따로 사야 해요(첫 화면 '조합원 입주권을 사야 해요'와 같은 뜻)" : blk) });
         else if (!blk) out.push({ k: "전세 끼고", c: "ok", v: "✓ 가능", why: () => "토지거래허가 대상 아님 · 전세금만큼 덜 내고 갈 수 있어요" });
       } catch (e) {}
     }

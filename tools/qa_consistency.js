@@ -494,13 +494,13 @@ async function countsLane(browser, api, errs, shared) {
     expect(!misN.length, "list.api", "15억 전세 끼고 목록 각 줄 '지금'·'입주까지 현금' == /api/v1/zones.json", `지금: ${misN.slice(0, 4).join(" ; ")}${misN.length > 4 ? ` … +${misN.length - 4}` : ""}`);
     expect(!misT.length, "list.api", "15억 전세 끼고 목록 각 줄 '지금'·'입주까지 현금' == /api/v1/zones.json", `입주까지: ${misT.slice(0, 4).join(" ; ")}${misT.length > 4 ? ` … +${misT.length - 4}` : ""}`);
     // 입주 계산 불가 줄은 아래로
-    { const firstNA = rowsG.findIndex((r) => !/입주까지(?! 현금 계산 보류)/.test(r.amt)), lastOK = rowsG.map((r) => /입주까지(?! 현금 계산 보류)/.test(r.amt)).lastIndexOf(true);
+    { const firstNA = rowsG.findIndex((r) => !/입주까지(?! (?:현금 )?계산 보류)/.test(r.amt)), lastOK = rowsG.map((r) => /입주까지(?! (?:현금 )?계산 보류)/.test(r.amt)).lastIndexOf(true);
       expect(firstNA < 0 || firstNA > lastOK, "list.order", "'입주 계산 불가' 줄은 계산되는 줄보다 아래", `first n/a row #${firstNA} (${rowsG[firstNA] && rowsG[firstNA].name}) above calculable row #${lastOK}`); }
     // 맞춤순(기본 정렬): 지금 필요한 돈이 내 현금(15억)에 가까운 줄부터 — |현금 − 금액| 오름차순(표시 반올림 허용), 계산 불가 줄은 아래(list.order)
     {
       const sk = await page.evaluate(() => { try { return localStorage.getItem("emr.sort") || "fit"; } catch (e) { return "fit"; } });
       if (sk === "fit") {
-        const ok = rowsG.filter((r) => /입주까지(?! 현금 계산 보류)/.test(r.amt)).map((r) => ({ r, m: money((/([\d.,]+억|[\d,]+만|0원)/.exec(r.amt) || [])[1]) })).filter((x) => x.m);
+        const ok = rowsG.filter((r) => /입주까지(?! (?:현금 )?계산 보류)/.test(r.amt)).map((r) => ({ r, m: money((/([\d.,]+억|[\d,]+만|0원)/.exec(r.amt) || [])[1]) })).filter((x) => x.m);
         let at = -1; for (let i = 1; i < ok.length; i++) { const a = Math.abs(15 - ok[i - 1].m.v), b = Math.abs(15 - ok[i].m.v); if (b + ok[i].m.tol + ok[i - 1].m.tol + 1e-6 < a) { at = i; break; } }
         expect(ok.length > 5 && at < 0, "list.fitSort", "맞춤순: 내 현금에 가까운 금액부터(|현금−금액| 오름차순 · 계산 불가는 아래)", at < 0 ? `only ${ok.length} rows` : `15억: row ${at - 1} ${ok[at - 1].r.name} ${ok[at - 1].r.amt.split("\n")[0]} before row ${at} ${ok[at].r.name} ${ok[at].r.amt.split("\n")[0]}`);
       } else skip("list.fitSort", "맞춤순: 내 현금에 가까운 금액부터(|현금−금액| 오름차순 · 계산 불가는 아래)", `stored sort ${sk}`);
@@ -1795,36 +1795,49 @@ async function r19Lane(browser, api, errs) {
   // --- map.attachJank: 붙이기(zp-att) ~ 자리 그림 걷힘(zp-fade) 사이 가장 긴 작업 ≤ 300ms (이 기계 · CPU 1배) · 붙는 동안 끈 막대 숫자 지연 중앙 ≤ 100 · 최대 ≤ 200
   {
     const TJ = "실제 지도를 붙이는 동안 가장 긴 작업 ≤ 300ms(이 기계 1배) · 붙는 중 막대 끌기 숫자 지연 중앙값 ≤ 100ms · 최대 ≤ 200ms";
-    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    // 27차: 이 기계가 바쁘면(다른 검사·브라우저가 같이 돌면) 한 번 더 재고, 바쁜 배수(loadFactor)만큼 기준을 늘린다 — 공유 기계에서의 거짓 실패
+    const once = async () => {
+      const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+      try {
+        await ctx.addInitScript(() => { window.__lt19 = []; try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt19.push([Math.round(e.startTime), Math.round(e.duration)]))).observe({ type: "longtask", buffered: true }); } catch (e) {} });
+        page.__where = "/?cash=2 attach";
+        await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+        await page.waitForFunction(() => performance.getEntriesByName("zp-fade").length, null, { timeout: 60000, polling: 200 }).catch(() => {});
+        return await page.evaluate(() => { const a = (performance.getEntriesByName("zp-att")[0] || {}).startTime, f = (performance.getEntriesByName("zp-fade")[0] || {}).startTime; const L = (window.__lt19 || []).filter((x) => a != null && x[0] >= a - 5 && x[0] <= (f || 1e9) + 300); return { a, f, max: Math.max(0, ...L.map((x) => x[1])), n: L.length }; });
+      } finally { await ctx.close().catch(() => {}); }
+    };
     try {
-      await ctx.addInitScript(() => { window.__lt19 = []; try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt19.push([Math.round(e.startTime), Math.round(e.duration)]))).observe({ type: "longtask", buffered: true }); } catch (e) {} });
-      page.__where = "/?cash=2 attach";
-      await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
-      await page.waitForFunction(() => performance.getEntriesByName("zp-fade").length, null, { timeout: 60000, polling: 200 }).catch(() => {});
-      const r = await page.evaluate(() => { const a = (performance.getEntriesByName("zp-att")[0] || {}).startTime, f = (performance.getEntriesByName("zp-fade")[0] || {}).startTime; const L = (window.__lt19 || []).filter((x) => a != null && x[0] >= a - 5 && x[0] <= (f || 1e9) + 300); return { a, f, max: Math.max(0, ...L.map((x) => x[1])), n: L.length }; });
+      let r = await once(), lf = 1, tries = 1;
+      if (r.a != null && r.f != null && r.max > 300) { lf = await loadFactor(browser); r = await once(); tries = 2; if (r.max > 300 * Math.min(2, lf)) lf = Math.max(lf, await loadFactor(browser)); }
+      const lim = Math.round(300 * Math.min(2, lf));
       if (r.a == null || r.f == null) bad("map.attachJank", TJ, `붙이기 표시 없음 zp-att ${r.a} zp-fade ${r.f}`);
-      else expect(r.max <= 300, "map.attachJank", TJ, `attach ${Math.round(r.a)}→${Math.round(r.f)}ms · longest task ${r.max}ms (${r.n} long tasks)`);
+      else expect(r.max <= lim, "map.attachJank", TJ, `attach ${Math.round(r.a)}→${Math.round(r.f)}ms · longest task ${r.max}ms (${r.n} long tasks) · limit ${lim} (load ×${lf.toFixed(2)}, tries ${tries})`);
     } catch (e) { bad("runtime", "검사 실행", "attachJank crashed: " + String(e.message || e).split("\n")[0]); }
-    finally { await ctx.close().catch(() => {}); }
-    // 붙는 동안(첫 화면 2.5초) 손가락으로 끌기
-    const { ctx: c2, page: p2 } = await newPage(browser, mob(390, 844), errs);
+    // 붙는 동안(첫 화면 2.5초) 손가락으로 끌기 — 27차: 넘으면 바쁜 배수를 재고 한 번 더(기준 × 배수, 최대 2배)
+    const drag1 = async () => {
+      const { ctx: c2, page: p2 } = await newPage(browser, mob(390, 844), errs);
+      try {
+        p2.__where = "/?cash=2 first drag";
+        await p2.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+        await p2.waitForTimeout(2500);
+        await p2.waitForSelector("#sScrub .scr-bars", { timeout: 15000 }).catch(() => {});
+        const box = await p2.evaluate(() => { const e = document.querySelector("#sScrub .scr-bars") || document.getElementById("sScrub"); const r = e.getBoundingClientRect(); window.scrollTo(0, 0); return { l: r.left, w: r.width, y: r.top + r.height / 2 }; });
+        await p2.evaluate(() => { window.__mu = []; const sN = document.getElementById("sN"); new MutationObserver(() => window.__mu.push(performance.now())).observe(sN, { childList: true, characterData: true, subtree: true }); });
+        const cdp = await c2.newCDPSession(p2), tp = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
+        const sends = []; let x = box.l + box.w * 0.12; await tp("touchStart", x, box.y); await p2.waitForTimeout(150);
+        for (let i = 1; i <= 16; i++) { x = box.l + box.w * (0.12 + i * 0.03); sends.push(await p2.evaluate(() => performance.now())); await tp("touchMove", x, box.y); await p2.waitForTimeout(60); }
+        await tp("touchEnd"); await p2.waitForTimeout(1500);
+        const mu = await p2.evaluate(() => window.__mu);
+        return sends.map((s0) => { const m = mu.find((t) => t >= s0); return m == null ? null : m - s0; }).filter((v) => v != null).sort((a, b) => a - b);
+      } finally { await c2.close().catch(() => {}); }
+    };
     try {
-      p2.__where = "/?cash=2 first drag";
-      await p2.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
-      await p2.waitForTimeout(2500);
-      await p2.waitForSelector("#sScrub .scr-bars", { timeout: 15000 }).catch(() => {});
-      const box = await p2.evaluate(() => { const e = document.querySelector("#sScrub .scr-bars") || document.getElementById("sScrub"); const r = e.getBoundingClientRect(); window.scrollTo(0, 0); return { l: r.left, w: r.width, y: r.top + r.height / 2 }; });
-      await p2.evaluate(() => { window.__mu = []; const sN = document.getElementById("sN"); new MutationObserver(() => window.__mu.push(performance.now())).observe(sN, { childList: true, characterData: true, subtree: true }); });
-      const cdp = await c2.newCDPSession(p2), tp = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
-      const sends = []; let x = box.l + box.w * 0.12; await tp("touchStart", x, box.y); await p2.waitForTimeout(150);
-      for (let i = 1; i <= 16; i++) { x = box.l + box.w * (0.12 + i * 0.03); sends.push(await p2.evaluate(() => performance.now())); await tp("touchMove", x, box.y); await p2.waitForTimeout(60); }
-      await tp("touchEnd"); await p2.waitForTimeout(1500);
-      const mu = await p2.evaluate(() => window.__mu);
-      const lat = sends.map((s0) => { const m = mu.find((t) => t >= s0); return m == null ? null : m - s0; }).filter((v) => v != null).sort((a, b) => a - b);
+      let lat = await drag1(), lf = 1, tries = 1;
+      const okL = (L, f) => L.length >= 6 && L[L.length >> 1] <= 100 * f && L[L.length - 1] <= 200 * f;
+      if (!okL(lat, 1)) { lf = Math.min(2, await loadFactor(browser)); lat = await drag1(); tries = 2; }
       if (lat.length < 6) bad("map.attachJank", TJ, `첫 끌기: 숫자가 거의 바뀌지 않음(${lat.length}번)`);
-      else { const med = lat[lat.length >> 1], mx = lat[lat.length - 1]; expect(med <= 100 && mx <= 200, "map.attachJank", TJ, `first drag at 2.5s: median ${Math.round(med)}ms max ${Math.round(mx)}ms (n ${lat.length})`); }
+      else { const med = lat[lat.length >> 1], mx = lat[lat.length - 1]; expect(okL(lat, lf), "map.attachJank", TJ, `first drag at 2.5s: median ${Math.round(med)}ms max ${Math.round(mx)}ms (n ${lat.length}) · load ×${lf.toFixed(2)} tries ${tries}`); }
     } catch (e) { bad("runtime", "검사 실행", "firstDrag crashed: " + String(e.message || e).split("\n")[0]); }
-    finally { await c2.close().catch(() => {}); }
   }
   // --- ui.scrubA11y: 홈 금액 막대 = role=slider(값·글 · 키보드 ←→ PageUp/Down Home/End)
   {
@@ -2125,6 +2138,8 @@ async function r21Lane(browser, api, errs) {
   // --- ui.scrubSmooth: 홈 막대를 손가락으로 1.5초 끄는 동안 손잡이는 transform으로 따라오고, 큰 숫자는 100ms 안 · 놓으면 금액 자리로
   {
     const TD = "홈 금액 막대 끌기: 손잡이·말풍선이 손가락을 바로 따라옴(transform) · 큰 숫자 지연 중앙값 ≤ 100ms · 33ms 넘는 프레임 ≤ 10% · 놓으면 금액 자리(--p)로";
+    // 27차: 넘으면 바쁜 배수를 재고 한 번 더(지연 기준 × 배수 · 33ms 넘는 프레임 비율 10% × 배수, 최대 2배)
+    const scrub1 = async () => {
     const { ctx, page } = await newPage(browser, mob(390, 844, "light"), errs);
     try {
       await loadHome(page); await settle(page, 600);
@@ -2146,20 +2161,27 @@ async function r21Lane(browser, api, errs) {
       await T("touchEnd", x1);
       await page.waitForTimeout(900);
       const r = await page.evaluate(() => { window.__on = false; const F = window.__F, d = []; for (let i = 1; i < F.length; i++) d.push(F[i] - F[i - 1]); const L = window.__L.slice().sort((a, b) => a - b); const el = document.getElementById("sScrub"), c = +document.getElementById("pCash").value; return { n: d.length, s33: d.filter((x) => x > 33.4).length, L: L.length, med: L[L.length >> 1], p: el.style.getPropertyValue("--p"), want: ZP_simple.toPos(c) + "%", tf: el.querySelector(".scr-h").style.transform, drag: el.classList.contains("drag") }; });
+      return { mid, r };
+    } finally { await ctx.close().catch(() => {}); }
+      };
+    try {
+      let { mid, r } = await scrub1(), lf = 1, tries = 1;
+      const okS = (r, f) => r.L >= 5 && r.med <= 100 * f && r.s33 / Math.max(1, r.n) <= 0.1 * f;
+      if (!okS(r, 1)) { lf = Math.min(2, await loadFactor(browser)); ({ mid, r } = await scrub1()); tries = 2; }
       expect(mid && mid.drag && /translate3d/.test(mid.tf), "ui.scrubSmooth", TD, `mid-drag thumb transform "${mid && mid.tf}" drag ${mid && mid.drag}`);
-      expect(r.L >= 5 && r.med <= 100 && r.s33 / Math.max(1, r.n) <= 0.1, "ui.scrubSmooth", TD, `count changes ${r.L} · median latency ${Math.round(r.med)}ms · frames >33ms ${r.s33}/${r.n}`);
+      expect(okS(r, lf), "ui.scrubSmooth", TD, `count changes ${r.L} · median latency ${Math.round(r.med)}ms · frames >33ms ${r.s33}/${r.n} · load ×${lf.toFixed(2)} tries ${tries}`);
       expect(!r.drag && !r.tf && r.p === r.want, "ui.scrubSmooth", TD, `after release: --p ${r.p} want ${r.want} transform "${r.tf}" drag ${r.drag}`);
     } catch (e) { bad("runtime", "검사 실행", "r21 scrub crashed: " + String(e.message || e).split("\n")[0]); }
-    finally { await ctx.close().catch(() => {}); }
   }
   // --- list.rowFit · list.noOverflow: 목록 줄(360·390·412 · 밝은·어두운): 역·도보 분이 다 보임 · 줄 안 글자가 줄 상자 밖(다음 줄·구분선)으로 안 나감
   {
-    const TR = "목록 줄 둘째 줄: 역 이름·도보 분이 다 보임(360·390·412px)";
+    const TR = "목록 줄 둘째 줄: 역 이름·도보 분이 다 보임 · 역 이름이 '…'로 잘리지 않음(좁으면 '가까운 역 N분') · 360·390·412 · 1억·2억·3억 모든 줄";
     const TO = "목록 줄: 모든 글자·칩이 줄 상자 안(scrollHeight ≤ clientHeight) · 다음 줄과 겹치지 않음(360·390·412 · 밝은·어두운)";
-    for (const w of [360, 390, 412]) for (const cs of ["light", "dark"]) {
+    // 27차: 2억·1억(역 이름이 잘리던 신길4 · 미아사거리 줄이 나오는 금액)과 3억 · 모든 줄 — 역 이름이 '…'로 잘려도 실패(줄어들면 '가까운 역 N분'으로 바뀌어야 함)
+    for (const [w, cs, cash] of [[360, "light", 2], [360, "light", 1], [360, "dark", 3], [390, "light", 2], [390, "light", 1], [390, "dark", 3], [412, "light", 2], [412, "light", 1], [412, "dark", 3]]) {
       const { ctx, page } = await newPage(browser, mob(w, 800, cs), errs);
       try {
-        await page.goto(BASE + `/?cash=3&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+        await page.goto(BASE + `/?cash=${cash}&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
         await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && document.querySelectorAll("#sList li.s-card").length >= 6, null, { timeout: 30000, polling: 100 }).catch(() => {});
         await page.waitForTimeout(500);
         for (let i = 0; i < 6; i++) { const more = await page.evaluate(() => { const m = document.getElementById("sMore"); if (!m || m.hidden) return false; m.click(); return true; }); if (!more) break; await page.waitForTimeout(200); }
@@ -2171,13 +2193,14 @@ async function r21Lane(browser, api, errs) {
           const wk = li.querySelector(".s-wk"), sub = li.querySelector(".s-sub"), a = wk && wk.getBoundingClientRect(), c = sub && sub.getBoundingClientRect();
           // 23차: '역 N분'(.s-wm)이 끝까지 보임 — 줄어드는 건 역 이름(.s-wn)뿐 · 둘째 줄 전체도 말줄임 없음 · 420px 아래는 '동 ·' 없음
           const wm = li.querySelector(".s-wm"), m = wm && wm.getBoundingClientRect(), dg = li.querySelector(".s-dg.s-dgw");
-          const cutM = !!wm && (m.width < 4 || m.right > c.right + 1 || m.right > a.right + 1 || wm.scrollWidth > wm.clientWidth + 1);
+          const wn = li.querySelector(".s-wn"), wnCut = !!wn && wn.offsetWidth > 0 && wn.scrollWidth > wn.clientWidth + 1;
+          const cutM = !!wm && (m.width < 4 || m.right > c.right + 1 || m.right > a.right + 1 || wm.scrollWidth > wm.clientWidth + 1 || wnCut);
           const dgOn = !!dg && dg.getBoundingClientRect().width > 0 && innerWidth < 420;
           return { id: li.dataset.zid, over: li.scrollHeight > li.clientHeight + 1, bad: bad.slice(0, 3), wk: wk ? wk.textContent : "", cut: !!wk && (!wm || cutM || sub.scrollWidth > sub.clientWidth + 1 || a.width < 4 || dgOn) };
         }));
         const ob = r.filter((x) => x.over || x.bad.length), cut = r.filter((x) => x.cut);
-        expect(r.length >= 6 && !ob.length, "list.noOverflow", TO, `${w} ${cs}: ${r.length} rows · overflow ${ob.map((x) => x.id + "[" + x.bad.join("|") + "]").join(", ")}`);
-        if (cs === "light") expect(r.length > 0 && !cut.length, "list.rowFit", TR, `${w}px: ${r.length} rows · cut ${cut.map((x) => x.id + " " + x.wk).join(", ")}`);
+        expect(r.length >= (cash >= 2 ? 6 : 1) && !ob.length, "list.noOverflow", TO, `${w} ${cs} ${cash}억: ${r.length} rows · overflow ${ob.map((x) => x.id + "[" + x.bad.join("|") + "]").join(", ")}`);
+        expect(r.length > 0 && !cut.length, "list.rowFit", TR, `${w}px ${cash}억: ${r.length} rows · cut ${cut.map((x) => x.id + " " + x.wk).join(", ")}`);
       } catch (e) { bad("runtime", "검사 실행", "r21 rowFit crashed: " + String(e.message || e).split("\n")[0]); }
       finally { await ctx.close().catch(() => {}); }
     }
@@ -2440,7 +2463,7 @@ async function r22Lane(browser, api, errs, shared) {
         if (!ids.length) { bad("zone.fuzzAll", T, `${where}: no zone ids`); continue; }
         const t0 = Date.now(); const got = {}; let done = 0;
         for (let i = 0; i < ids.length; i += 40) {
-          if (Date.now() - t0 > FZ_MS / (step === 1 ? 1.25 : 5)) break;
+          if (Date.now() - t0 > (step === 1 ? Math.max(FZ_MS / 1.25, 150000) : FZ_MS / 5)) break;   // 27차: 폰 전체 줄은 적어도 150초(/z 비교 300곳 넘게 · 공유 기계에서 283곳에서 끊기던 것)
           const part = await page.evaluate(async (chunk) => {
             const out = {};
             const wait = (f, ms) => new Promise((ok) => { const s = performance.now(); const tick = () => { const v = f(); if (v || performance.now() - s > ms) ok(v); else requestAnimationFrame(tick); }; tick(); });
@@ -2492,7 +2515,7 @@ async function r26Lane(browser, api, errs) {
   const WEB = [".s-rd", ".s-reads", ".site-foot", ".ad-slot", ".s-about", ".s-read3", "#sAbout", "#sRead3"];
   // --- home.readsTop: 브라우저 첫 화면(폰·PC) 검색칸 바로 밑 읽을거리 한 줄(리포트·가이드 두 링크 · 한 줄 · 누르는 높이 40px 이상)이 첫 화면 안에 · '재개발 공부하기'는 목록 뒤 · '집핀이 뭔가요' 상자 없음
   {
-    const T = "홈 읽을거리: 검색칸 밑 한 줄(리포트·가이드 · 줄바꿈 없음 · 40px 이상)이 첫 화면 안 · 재개발 공부하기는 목록 뒤 · 소개 상자 없음";
+    const T = "홈 읽을거리: 검색칸 밑 한 줄(리포트·가이드 · 줄바꿈 없음 · 40px 이상)이 첫 화면 안 · 맨 아래 공부하기 카드·푸터 가이드 링크 없음(들어가는 곳 둘: 한 줄 + MY) · 소개 상자 없음";
     for (const [vp, tag] of [[mob(360, 740), "360"], [mob(390, 844), "390"], [mob(412, 915), "412"], [{ viewport: { width: 1440, height: 900 } }, "1440"]]) {
       const { ctx, page } = await newPage(browser, vp, errs);
       try {
@@ -2500,9 +2523,11 @@ async function r26Lane(browser, api, errs) {
         await loadHome(page); await settle(page, 400);
         const r = await page.evaluate(() => { const d = document.getElementById("sRd"), b = d && d.getBoundingClientRect(), L = d ? [...d.querySelectorAll("a")] : [], rd = document.getElementById("sReads"), li = document.getElementById("sList");
           return { ok: !!d && b.height > 0, top: b ? Math.round(b.top) : null, h: b ? Math.round(b.height) : 0, vh: innerHeight, links: L.map((a) => [a.getAttribute("href"), Math.round(a.getBoundingClientRect().height), a.scrollWidth > a.clientWidth + 1]), lines: d ? Math.round(b.height / 44) : 0,
-            readsAfter: !!(rd && li && (li.compareDocumentPosition(rd) & 4)), about: !!document.getElementById("sAbout"), read3: !!document.getElementById("sRead3") }; });
+            reads: !!rd, about: !!document.getElementById("sAbout"), read3: !!document.getElementById("sRead3") }; });
         const linksOk = r.links.length === 2 && r.links.some((x) => /^report\//.test(x[0])) && r.links.some((x) => /^guide\//.test(x[0])) && r.links.every((x) => x[1] >= 40);
-        expect(r.ok && r.top != null && r.top + r.h <= r.vh && r.h <= 52 && linksOk && r.readsAfter && !r.about && !r.read3, "home.readsTop", T, `${tag}: ${JSON.stringify(r)}`);
+        // 27차: 가이드·리포트로 가는 곳은 읽을거리 한 줄 + MY 둘만 — 맨 아래 '재개발 공부하기' 카드 없음 · 웹 푸터에 가이드·리포트 링크 없음
+        r.foot = await page.evaluate(() => [...document.querySelectorAll(".site-foot a")].map((a) => a.getAttribute("href")).filter((h) => /^(\/)?(guide|report)\//.test(h || "")));
+        expect(r.ok && r.top != null && r.top + r.h <= r.vh && r.h <= 52 && linksOk && !r.reads && !r.foot.length && !r.about && !r.read3, "home.readsTop", T, `${tag}: ${JSON.stringify(r)}`);
       } catch (e) { bad("runtime", "검사 실행", "r26 readsTop crashed: " + String(e.message || e).split("\n")[0]); }
       finally { await ctx.close().catch(() => {}); }
     }
@@ -2606,7 +2631,7 @@ async function r26Lane(browser, api, errs) {
   // --- ui.onboardKey: 첫 방문 카드가 떠 있을 때 키보드로 막대를 움직여도 칩처럼(카드 닫힘 · ?cash= · jg-cond 저장 · 다시 열어도 그 금액) · 기본 1억 칩 눌린 상태 · '나중에' 44px
   {
     const T = "첫 방문 카드: 키보드로 금액을 바꿔도 칩과 같이 닫히고 저장(?cash= · jg-cond · 다시 열면 그 금액) · 기본 1억 칩이 눌린 상태 · '나중에 ×' 44px 이상";
-    const ctx = await browser.newContext({ ...mob(390, 844), serviceWorkers: "block" });
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: "block" });   // 27차: 폰 첫 방문은 칩 카드가 막대 대신(막대·사는 방식은 고른 뒤) — 키보드 막대는 넓은 화면에서 잰다
     try {
       await ctx.route(BLOCK, (r) => r.abort());
       const page = await ctx.newPage();
@@ -2624,6 +2649,103 @@ async function r26Lane(browser, api, errs) {
       expect(a.on && a.p1 === "true" && a.lh >= 44 && b.hidden && b.v !== "1억" && /[?&]cash=/.test(b.url) && /cash=/.test(b.cond) && !c.on && c.v === b.v, "ui.onboardKey", T, `first ${JSON.stringify(a)} · after keys ${JSON.stringify(b)} · revisit ${JSON.stringify(c)}`);
     } catch (e) { bad("ui.onboardKey", T, "crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
+  }
+}
+
+// ================================================================ 27차(애드센스 3차 + 제품 3차 레드팀)
+// fresh.cls · map.guLabels · gu.sumProse
+// 이 기계가 바쁜 정도(가벼운 기준 일을 몇 번 재서 느려진 배수) — 긴 작업·프레임 검사의 기준을 그만큼만 늘리고 한 번 더 잰다(공유 기계에서 거짓 실패 막기)
+async function cpuLoad(browser) {
+  const ctx = await browser.newContext(); const page = await ctx.newPage();
+  try {
+    const t = await page.evaluate(() => { const one = () => { const t0 = performance.now(); let x = 0; for (let i = 0; i < 3e6; i++) x += Math.sqrt(i); return performance.now() - t0 + (x < 0 ? 1 : 0); }; one(); const L = [one(), one(), one(), one(), one()].sort((a, b) => a - b); return L[2]; });
+    return t;
+  } catch (e) { return null; } finally { await ctx.close().catch(() => {}); }
+}
+let CPU0 = null;   // 첫 잰 값(조용할 때 기준 ≈ 이 기계 1배)
+async function loadFactor(browser) {
+  const t = await cpuLoad(browser);
+  if (t == null) return 1;
+  if (CPU0 == null || t < CPU0) CPU0 = Math.min(t, CPU0 == null ? t : CPU0);
+  return Math.max(1, t / CPU0);
+}
+async function r27Lane(browser, api, errs) {
+  const mob = (w, h, cs) => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs || "light" });
+  // --- fresh.cls: 처음 온 사람(저장된 것 없음 · ?cash= 없음) 홈의 레이아웃 밀림 합 < 0.02 (360·390·412) · 첫 화면에 구역 이름 3곳(이름 줄) · 지도가 아래 탭 위로 120px 이상 보임(360)
+  {
+    const T = "첫 방문(?cash= 없음) 홈: 레이아웃 밀림(CLS) < 0.02 · 첫 방문 카드가 있어도 구역 이름 줄이 첫 화면에 · 카드 줄 '1억이면 … N곳'(게이지와 겹침) 없음 · 360에서 지도가 탭 위로 120px 이상";
+    for (const [w, h] of [[360, 740], [390, 844], [412, 823]]) {
+      const ctx = await browser.newContext({ ...mob(w, h), serviceWorkers: "block" });
+      try {
+        await ctx.route(BLOCK, (r) => r.abort());
+        await ctx.addInitScript(() => { window.__cls = 0; window.__clsS = []; try { new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) { window.__cls += e.value; window.__clsS.push((e.sources || []).map((x) => (x.node && (x.node.id || x.node.className)) || "?").slice(0, 3).join(",") + " " + e.value.toFixed(3)); } }).observe({ type: "layout-shift", buffered: true }); } catch (e) {} });
+        const page = await ctx.newPage();
+        page.on("pageerror", (e) => errs.push({ where: "/ (fresh.cls)", msg: "pageerror: " + (e.message || String(e)).split("\n")[0].slice(0, 200) }));
+        await page.goto(BASE + "/", { waitUntil: "load", timeout: 30000 });
+        await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1, null, { timeout: 20000 }).catch(() => {});
+        await page.waitForTimeout(2500);
+        const r = await page.evaluate(() => { const o = document.getElementById("onb"), s = document.getElementById("sSum"), m = document.getElementById("mapbox"), nav = document.getElementById("sNav"); const R = (e) => (e ? e.getBoundingClientRect() : null); const sr = R(s), mr = R(m), nr = R(nav);
+          return { cls: +window.__cls.toFixed(4), src: window.__clsS.slice(0, 3), onb: !!o && !o.hidden && o.offsetHeight > 0, names: s ? s.querySelectorAll(".s-rail3 [data-id]").length : 0, namesIn: !!sr && sr.height > 0 && sr.bottom <= innerHeight, pv: !!document.getElementById("onbPv"), peek: mr && nr ? Math.round(nr.top - mr.top) : null }; });
+        expect(r.cls < 0.02 && r.onb && r.names >= 1 && r.namesIn && !r.pv && (w !== 360 || (r.peek != null && r.peek >= 120)), "fresh.cls", T, `${w}: ${JSON.stringify(r)}`);
+      } catch (e) { bad("fresh.cls", T, `${w} crashed: ` + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- map.guLabels: 구 화면(구 묶음을 누른 줌 ≈ 12.7)에 바탕 이름(동·역·구) 글자가 그려진다 · 서울 보기에서 묶음이 있는 구는 바탕 구 이름을 겹쳐 쓰지 않는다
+  {
+    const T = "구 화면(줌 11~13.5): 동·역·구 이름 글자가 4개 이상 그려짐(밝게·어둡게) · 서울 보기: 묶음('강북 1곳')이 있는 구는 바탕 구 이름을 따로 안 씀";
+    for (const cs of ["light", "dark"]) {
+      const { ctx, page } = await newPage(browser, mob(390, 844, cs), errs);
+      try {
+        page.__where = "guLabels " + cs;
+        await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+        await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1, null, { timeout: 20000 }).catch(() => {});
+        await page.evaluate(() => { try { ZP_boot.quietNow && ZP_boot.quietNow(); } catch (e) {} });
+        await page.waitForFunction(() => window.ZP_lmx && ZP_lmx.map() && ZP_lmx.gus().length && !(window.ZP_G && ZP_G.on()), null, { timeout: 40000, polling: 200 }).catch(() => {});
+        await page.evaluate(() => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 60); });
+        await page.waitForTimeout(800);
+        const sv = await page.evaluate(() => { const m = ZP_lmx.map(), names = new Set([...document.querySelectorAll("#lmap .zgu")].map((e) => e.dataset.gu)); const lab = m.getLayer("gu-lab") ? m.queryRenderedFeatures({ layers: ["gu-lab"] }).map((f) => f.properties.n) : []; return { bub: names.size, dup: lab.filter((n) => names.has(n)) }; });
+        await page.evaluate(() => { const e = [...document.querySelectorAll("#lmap .zgu")].sort((a, b) => +b.dataset.n - +a.dataset.n)[0]; if (e) e.click(); });
+        await page.waitForFunction(() => document.getElementById("mapbox").dataset.view === "gu" && !ZP_lmx.map().isMoving(), null, { timeout: 15000, polling: 200 }).catch(() => {});
+        await page.waitForTimeout(1500);
+        const r = await page.evaluate(() => { const m = ZP_lmx.map(), o = { z: +m.getZoom().toFixed(2), gu: document.getElementById("mapbox").dataset.gu }; let n = 0; for (const id of ["gu-lab", "dong-lab", "stn-mj-lab", "stn-mid-lab", "place"]) { const k = m.getLayer(id) ? m.queryRenderedFeatures({ layers: [id] }).length : 0; o[id] = k; n += k; } o.n = n; return o; });
+        expect(r.z >= 11 && r.z <= 14 && r.n >= 4 && !sv.dup.length, "map.guLabels", T, `${cs}: seoul bubbles ${sv.bub} dup base names ${sv.dup.join(",")} · gu view ${JSON.stringify(r)}`);
+      } catch (e) { bad("map.guLabels", T, `${cs} crashed: ` + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+}
+// --- gu.sumProse(정적): /gu 25곳 해설 문단의 숫자 합 — 사업 종류 합 == 전체 · '나온 곳 N' + '나머지 M' == 전체 · 내역 합 == M('모두 N곳'이면 N) · 내역 == 아래 표의 빈칸 이유 갈래 수 · 5곳 미만이면 서울 견주기 없음
+async function guProse() {
+  const T = "/gu 해설 문단: 사업 종류 합·'나온 곳'+'나머지'·이유 내역 합이 전체 곳 수와 맞음 · 내역 = 아래 표 갈래 · 계산되는 곳 5곳 미만이면 서울 견주기 문장 없음 · 앞에 센 곳 없으면 '나머지' 대신 '모두'";
+  const idx = await getPage("/gu/");
+  const gus = [...new Set([...(idx.text || "").matchAll(/href="(?:\.\.\/gu\/|\/gu\/|\.\/)?([가-힣]+구)"/g)].map((m) => m[1]))];
+  if (gus.length < 25) { bad("gu.sumProse", T, `/gu/ index lists ${gus.length} gu`); return; }
+  const WHY = { 토지거래허가구역: "토허제", "이주·철거로 세입자 없음": "세입자 없음", "입주권 없음": "입주권 없음", "입주권 판정 보류": "판정 보류", "계산 대상 아님": "대상 아님", "매수가·전세 자료 부족": "자료 부족" };
+  for (const g of gus) {
+    const r = await getPage("/gu/" + g);
+    const p = htmlText(((/<p class="gnote">([\s\S]*?)<\/p>/.exec(r.text || "") || [])[1]) || "");
+    const N = +(((/<h1>[^<]*?([\d,]+)곳<\/h1>/.exec(r.text || "") || [])[1]) || "0").replace(/,/g, "");
+    const errs2 = [];
+    if (!p || !N) { bad("gu.sumProse", T, `${g}: no gnote/h1 (${r.status})`); continue; }
+    const kinds = /정비사업 ([\d,]+)곳은 모두 /.exec(p) || /정비사업 ([\d,]+)곳은 (.*?)이에요\./.exec(p);
+    if (!kinds || +kinds[1].replace(/,/g, "") !== N) errs2.push(`intro total ${kinds && kinds[1]} vs h1 ${N}`);
+    else if (kinds[2]) { const s = [...kinds[2].matchAll(/([\d,]+)곳/g)].reduce((a, m) => a + +m[1].replace(/,/g, ""), 0); if (s !== N) errs2.push(`kinds sum ${s} ≠ ${N}`); }
+    if (/나머지/.test(p) && !/나온 곳은/.test(p)) errs2.push("'나머지' without a preceding count");
+    const got = /나온 곳은 ([\d,]+)곳/.exec(p), rest = /나머지 ([\d,]+)곳은 비어 있어요: ([^.]*)\./.exec(p), all = /([\d,]+)곳 모두 전세 끼고 지금 필요한 돈이 비어 있어요: ([^.]*)\./.exec(p);
+    const tbl = {}; [...(r.text || "").matchAll(/class="gr-v gr-na"><i>전세 끼고<\/i> <b class="gr-now">([^<]+?)(?:<sup>\*<\/sup>)?<\/b>/g)].forEach((m) => (tbl[m[1]] = (tbl[m[1]] || 0) + 1));
+    const tN = Object.values(tbl).reduce((a, b) => a + b, 0);
+    const part = (txt) => { const o = {}; [...txt.matchAll(/([^,]+?) ([\d,]+)곳/g)].forEach((m) => { const k = WHY[m[1].trim()] || m[1].trim(); o[k] = (o[k] || 0) + +m[2].replace(/,/g, ""); }); return o; };
+    if (all) { const o = part(all[2]), s = Object.values(o).reduce((a, b) => a + b, 0); if (+all[1] !== N || s !== N) errs2.push(`모두 ${all[1]} / sum ${s} vs ${N}`); if (JSON.stringify(Object.entries(o).sort()) !== JSON.stringify(Object.entries(tbl).sort())) errs2.push(`breakdown ${JSON.stringify(o)} vs table ${JSON.stringify(tbl)}`); }
+    else if (got) {
+      const k = +got[1].replace(/,/g, ""), m = rest ? +rest[1].replace(/,/g, "") : 0;
+      if (k + m !== N) errs2.push(`나온 ${k} + 나머지 ${m} ≠ ${N}`);
+      if (rest) { const o = part(rest[2]), s = Object.values(o).reduce((a, b) => a + b, 0); if (s !== m) errs2.push(`나머지 ${m} vs breakdown sum ${s}`); if (JSON.stringify(Object.entries(o).sort()) !== JSON.stringify(Object.entries(tbl).sort())) errs2.push(`breakdown ${JSON.stringify(o)} vs table ${JSON.stringify(tbl)}`); }
+      else if (tN) errs2.push(`table has ${tN} blank rows but no 나머지`);
+      const cmp = /서울 전체 가운데 값/.test(p), base = /참고값을 뺀 ([\d,]+)곳/.exec(p), nOk = base ? +base[1] : k;
+      if (cmp && nOk < 5) errs2.push(`compares with Seoul on ${nOk} zones (<5)`);
+    } else errs2.push("no 나온 곳/모두 sentence");
+    expect(!errs2.length, "gu.sumProse", T, `${g}: ${errs2.join(" ; ")} · "${p.slice(0, 140)}"`);
   }
 }
 // ================================================================ main
@@ -2675,6 +2797,8 @@ async function r26Lane(browser, api, errs) {
   if (!ONLY || ONLY === "r21") await timed("r21", r21Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r21Lane crashed: " + e.message)));
   // 26차(설치 앱 웹 덩이 · MY 줄 · 한 판정 · PC 끝 · 키보드 첫 방문) — 혼자
   if (!ONLY || ONLY === "r26") await timed("r26", r26Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r26Lane crashed: " + e.message)));
+  // 27차(첫 방문 밀림 · 구 화면 바탕 이름 · /gu 해설 숫자) — 혼자
+  if (!ONLY || ONLY === "r27") await timed("r27", Promise.all([r27Lane(browser, api, errs), guProse()]).catch((e) => bad("runtime", "검사 실행", "r27Lane crashed: " + e.message)));
   // 22차(앱 껍데기 · 모든 구역 열기) — 혼자, 맨 끝(모든 구역을 여는 데 몇 분)
   if (!ONLY || ONLY === "r22") await timed("r22", r22Lane(browser, api, errs, shared).catch((e) => bad("runtime", "검사 실행", "r22Lane crashed: " + e.message)));
   await browser.close();

@@ -176,7 +176,7 @@ button.s-amt b{border-bottom:0!important}
 .ov-p b .vd-t{vertical-align:baseline}
 @media (max-width:980px){
   #report.sheet .sheet-bar{height:52px;padding:0 4px 0 16px}
-  #report.sheet .sheet-bar>b{visibility:visible!important;font-size:17px!important;font-weight:700;-webkit-line-clamp:1!important;display:block!important;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis}
+  #report.sheet .sheet-bar>b{visibility:inherit!important;font-size:17px!important;font-weight:700;-webkit-line-clamp:1!important;display:block!important;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis}
   #report.sheet #sheetClose{flex:none;width:44px;height:44px;min-height:44px;padding:0;justify-content:center;font-size:0;gap:0;border-radius:12px}
   #report.sheet #sheetClose svg{width:22px;height:22px}
   /* 머리 줄에 이름이 늘 있으니 본문 큰 이름은 화면 읽기에만 */

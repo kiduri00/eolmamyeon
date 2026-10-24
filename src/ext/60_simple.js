@@ -163,7 +163,8 @@ const SIMPLE = (() => {
     // 입주권 ✓는 화면 읽기 이름에만(카드 2줄을 동·역에 양보) · ✕만 주황 배지
     const bdg = `${tk === "n" ? '<em class="s-b s-b-no">입주권 ✕</em>' : ""}${nw ? '<em class="s-b s-b-new">NEW</em>' : ""}`;
     const mt = main != null ? eokS(main) : "–";
-    const line2 = nowK ? (z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : `${NA_L}<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(z.need)}`;
+    // 27차: 좁은 폰(≤420)은 '현금 '을 숨겨 오른쪽 칸을 줄인다(글은 그대로 · 화면 읽기는 aria-label) — 2줄 역 이름이 잘리던 것
+    const line2 = nowK ? (z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : `입주까지 <span class="s-nah">현금 </span>계산 보류<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(z.need)}`;
     // 17차: 가능한 곳은 '남는 돈 1,000만'(12/600 회색) · 내 돈의 10% 안으로 딱 맞으면 '딱 맞아요' 작은 꼬리표
     const needR = z.need != null ? Math.ceil(z.need * 100 - 1e-6) / 100 : null, left = z.st === "ok" && nowK && needR != null ? Math.max(0, Math.round((CASH - needR) * 100) / 100) : null;
     const fit = left != null && left <= CASH * 0.1 + 1e-9;
@@ -791,7 +792,7 @@ const SIMPLE = (() => {
     countTo($("bNB"), all); $("bN").textContent = fmt(all);
     $("bGo").textContent = all ? `${fmt(all)}곳 보기` : "지도에서 보기";
     $$("#bSheet [data-bc]").forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(+b.dataset.bc - c) < 1e-9)));
-    $$("#bSheet [data-bstep]").forEach((b) => { b.disabled = +b.dataset.bstep < 0 ? c <= 0.5 + 1e-9 : c >= 15 - 1e-9; });
+    $$("#bSheet [data-bstep]").forEach((b) => { const dn = +b.dataset.bstep < 0; b.disabled = dn ? c <= 0.5 + 1e-9 : c >= 15 - 1e-9; b.setAttribute("aria-label", `${(dn ? c <= 2 + 1e-9 : c < 2 - 1e-9) ? "1,000만" : "5,000만"} ${dn ? "줄이기" : "늘리기"}`); });
     histData(); scrubPaint(all);
     if (dragging) return;   // 끄는 동안엔 '+0.5억이면'을 다시 세지 않는다(손을 떼면 한 번)
     const m = moreTxt(c, all), el = $("bMore");
@@ -826,7 +827,7 @@ const SIMPLE = (() => {
       if (e.target.closest("[data-bx]")) return sheetClose(false);
       const c = e.target.closest("[data-bc]"); if (c) { setCash(+c.dataset.bc, true); try { navigator.vibrate && navigator.vibrate(8); } catch (er) {} return; }
       // −0.5억 / +0.5억(17차: 시트의 막대 그림 대신) — 1억 아래에서 줄이면 5,000만에서 멈춘다
-      const st = e.target.closest("[data-bstep]"); if (st) { const c0 = +$("pCash").value || 1, d = +st.dataset.bstep; let v = d < 0 ? Math.ceil(c0 * 2 - 1e-9) / 2 - 0.5 : Math.floor(c0 * 2 + 1e-9) / 2 + 0.5; v = Math.min(15, Math.max(0.5, v)); setCash(v, true); return; }
+      const st = e.target.closest("[data-bstep]"); if (st) { const c0 = +$("pCash").value || 1, d = +st.dataset.bstep; let v = d < 0 ? (c0 <= 2 + 1e-9 ? Math.ceil(c0 * 10 - 1e-9) / 10 - 0.1 : Math.ceil(c0 * 2 - 1e-9) / 2 - 0.5) : (c0 < 2 - 1e-9 ? Math.floor(c0 * 10 + 1e-9) / 10 + 0.1 : Math.floor(c0 * 2 + 1e-9) / 2 + 0.5); v = Math.min(15, Math.max(0.5, Math.round(v * 100) / 100)); setCash(v, true); return; }   // 27차: 2억 아래는 1,000만씩(9,000만에 바로 닿게) · 2억부터 5,000만씩
       if (e.target.closest("#bGo")) sheetClose(true);
     });
     b.addEventListener("keydown", (e) => {
@@ -966,7 +967,21 @@ const SIMPLE = (() => {
     moreWatch();
     if (whyEl && !whyEl.hidden && whyFor && !document.contains(whyFor)) { const nb = $("sList").querySelector(`[data-why="${whyFor.dataset.why}"]`); if (nb) whyFor = nb; else whyClose(); }
     newLoad();
+    rowFit();
   }
+  // 27차: 목록 2줄(단계 · 동 · 역 N분)이 좁아 역 이름이 '서울지…'·'미…'처럼 잘리면 — 역 이름 대신 '가까운 역 N분'(1단계) → '역 N분'(2단계) → NEW 칩 숨김(3단계)
+  // '분'은 늘 다 보인다. 읽기 한 번 → 쓰기 한 번(단계마다 남은 줄만 다시 잰다)
+  let rowFitT = 0;
+  function rowFit(root) {
+    const L = [...(root || document).querySelectorAll("#sList li.s-card .s-l2")];
+    if (!L.length) return;
+    L.forEach((e) => e.classList.remove("wf1", "wf2", "wf3"));
+    const over = (e) => { const sub = e.querySelector(".s-sub"), wn = e.querySelector(".s-wn"), wm = e.querySelector(".s-wm"); if (!sub || !wm) return false; const a = sub.getBoundingClientRect(), m = wm.getBoundingClientRect(); return (wn && wn.offsetWidth && wn.scrollWidth > wn.clientWidth + 1) || m.right > a.right + 0.5 || m.width < 4; };
+    let bad = L.filter(over);
+    for (const c of ["wf1", "wf2", "wf3"]) { if (!bad.length) break; bad.forEach((e) => e.classList.add(c)); bad = bad.filter(over); }
+  }
+  addEventListener("resize", () => { clearTimeout(rowFitT); rowFitT = setTimeout(() => rowFit(), 150); }, { passive: true });
+  try { window.ZP_rowFit = rowFit; } catch (e) {}
   // 게이지 '이 돈이면' 칸: 넓은 PC는 오른쪽 칸(3곳 · 입주까지 현금 범위), 좁은 화면은 숫자 밑 한 줄 칩(첫 목록 줄이 화면 아래로 밀려도 바로 열 수 있게)
   // 입주까지 계산되는 곳을 먼저(계산 불가 곳만 3개 뜨지 않게), 그 안에서 적은 돈순
   // 17차: 첫 화면이 이름으로 답한다 — 폰은 예산 카드 바로 밑 가로 카드 3장(맞춤순 위 3곳: 이름 · '지금 1.9억' · 단계) + '외 N곳' 카드.

@@ -117,21 +117,22 @@
         if (q.x < -8 || q.x > w + 8 || q.y < -8 || q.y > h + 8) { left.push(g); return; }
         var got = null;
         // 23차: 좁은 폰(380px 아래)은 칩으로 보내기 전에 한 줄('영등포 7곳') 작은 묶음으로 한 번 더(s = 2)
-        for (var s = 0; s < (w < 380 ? 3 : 2) && !got; s++) {
+        for (var s = 0; s < (phone || w < 380 ? 3 : 2) && !got; s++) {
           // 21차: 둥근 네모 두 줄('강북 1곳' / '7,400만~') — 폭 = 글자 폭 + 여백, 높이 40(누르는 자리 · 작게 줄인 것은 보이는 30 + 투명 둘레로 40)
-          var one = s === 2, L2 = one ? "" : l2, sm = s >= 1, bw = sm ? Math.max(tw(l1, 11), tw(L2, 9.5)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 10.5)) + 18, bh = sm ? (L2 ? 30 : 22) : 40, d = Math.max(bw, bh);
+          // 27차: 셋째 단계도 금액 줄('6,700만~')을 지운 한 줄이 아니라 더 작은 두 줄(xs · 보이는 높이 26) — 높은 금액에서 구 묶음 금액 줄이 빠지던 것
+          var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = xs ? Math.max(tw(l1, 10), tw(L2, 8.5)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 9.5)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 10.5)) + 18, bh = xs ? (L2 ? 26 : 20) : sm ? (L2 ? 30 : 22) : 40, d = Math.max(bw, bh);
           var RR = sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05];
           for (var i = 0; i < RR.length && !got; i++) {
             var A = RR[i] ? ANG : [0];
             for (var j = 0; j < A.length; j++) {
               var x = q.x + RR[i] * Math.cos(A[j]), y = q.y + RR[i] * Math.sin(A[j]) * (bh / d), bx = [x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2];
-              if (free(bx, sm ? (40 - bh) / 2 : 0)) { got = { bx: bx, w: bw, h: bh, sm: sm, one: one, dx: x - q.x, dy: y - q.y }; break; }
+              if (free(bx, sm ? (40 - bh) / 2 : 0)) { got = { bx: bx, w: bw, h: bh, sm: sm, xs: xs, one: one, dx: x - q.x, dy: y - q.y }; break; }
             }
           }
         }
         if (!got) { left.push(g); return; }
         placed.push(got.bx);
-        g.sn = sn; g.l1 = l1; g.l2 = got.one ? "" : l2; g.w = Math.ceil(got.w); g.h = got.h; g.sm = got.sm; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy); g.t = tier(g.c, m); g.q = q;
+        g.sn = sn; g.l1 = l1; g.l2 = got.one ? "" : l2; g.w = Math.ceil(got.w); g.h = got.h; g.sm = got.sm; g.xs = got.xs; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy); g.t = tier(g.c, m); g.q = q;
         keep.push(g);
       });
       return { keep: keep, left: left };
@@ -163,7 +164,7 @@
   var GU_LBL = function (n, c, m) { return n + ", 내 돈으로 갈 수 있는 곳 " + fmt(c) + "곳" + (m != null ? ", 가장 적게 드는 곳 " + cash(m) : "") + ", 눌러서 " + n + " 보기"; };
   // 구 묶음 한 개의 마크업(실제 지도 gusSet도 이 함수) — 두 줄: '강북 1곳' / '7,400만~'
   function guEl(el, g) {
-    el.className = "zgu t" + g.t + (g.sm ? " sm" : "") + (g.l2 ? "" : " one");
+    el.className = "zgu t" + g.t + (g.sm ? " sm" : "") + (g.xs ? " xs" : "") + (g.l2 ? "" : " one");
     el.dataset.n = String(g.c); el.dataset.gu = g.n;
     el.style.setProperty("--w", g.w + "px"); el.style.setProperty("--h", g.h + "px");
     el.innerHTML = "<b>" + esc(g.l1) + "</b>" + (g.l2 ? "<span>" + esc(g.l2) + "</span>" : "");
@@ -217,6 +218,10 @@
       if (!phoneQ()) {
         var rail = box.querySelector(".s-rail"), rp = rail && rail.offsetWidth ? Math.max(16, Math.round(cv.right - rail.getBoundingClientRect().left) + 8) : 114;
         P.left = 40; P.right = Math.max(40, rp); P.top = 30; P.bottom = 24 + Math.round(Math.min(cv.height * 0.62, Math.max(0, cv.bottom - innerHeight)));
+      } else if (!Dc.documentElement.classList.contains("s-full")) {
+        // 27차: 폰 서울 보기 — 위 겹쳐 보기 띠·아래 범례 자리를 비워 맞춘다(띠·범례에 걸린 북쪽·남쪽 구 묶음이 '+N곳'으로 빠지던 것 · 10_lmap.js fitPad와 같은 값)
+        var rl = box.querySelector(".s-rail"); if (rl && rl.offsetWidth) { var rb = rl.getBoundingClientRect(); if (rb.top < cv.top + 60 && rb.bottom > cv.top) P.top = Math.max(P.top, Math.round(rb.bottom - cv.top) + 4); }
+        P.bottom = 62;
       }
       var ov = function (sel) { var e = Dc.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; var b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
       var m = Dc.documentElement.classList.contains("s-full") ? ov(".s-mini") : null; if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
@@ -266,7 +271,9 @@
     if (S.dim) gus = gus.filter(function (g) { return g.n === S.dim; }).map(function (g) { g.c = g.c || 0; return g; });
     var key = el.querySelector(".lm-key"), cb = el.getBoundingClientRect(), ky = h - 40;
     try { if (key.offsetWidth) ky = key.getBoundingClientRect().top - cb.top - 6; } catch (e) {}
-    var R = place({ W: w, H: h, obs: obsOf(el, box), gus: gus, proj: P, phone: phone, chip: [4, ky - 40, 120, ky] });
+    // 27차: 폰 서울 보기는 '+N곳' 칩을 왼쪽 위(서울 밖 고양 쪽 빈 자리)에 — 왼쪽 아래에 두면 구로·양천 묶음 자리를 칩이 차지했다(10_lmap.js chipBox와 같은 규칙)
+    var ctop = phone && !Dc.documentElement.classList.contains("s-full");
+    var R = place({ W: w, H: h, obs: obsOf(el, box), gus: gus, proj: P, phone: phone, chip: ctop ? [4, 6, 120, 46] : [4, ky - 40, 120, ky] });
     var mk = el.querySelector(".zg-mk"), have = {};
     [].forEach.call(mk.children, function (b) { have[b.dataset.gu] = b; });
     R.keep.forEach(function (g) {
@@ -280,7 +287,7 @@
     var ch = el.querySelector(".lm-gumore"), c = S.dim ? 0 : R.left.reduce(function (a, g) { return a + g.c; }, 0);
     ch.hidden = !c;
     if (S.dim) [].forEach.call(mk.children, function (b) { b.classList.add("zg-busy"); });
-    if (c) { var kk = R.left.map(function (g) { return g.n + g.c; }).join(","); if (ch.dataset.k !== kk) { ch.dataset.k = kk; ch.innerHTML = chipHTML(R.left, c); ch.classList.remove("open"); } ch.dataset.n = String(c); ch.style.top = Math.max(6, Math.round(ky - 40)) + "px"; }
+    if (c) { var kk = R.left.map(function (g) { return g.n + g.c; }).join(","); if (ch.dataset.k !== kk) { ch.dataset.k = kk; ch.innerHTML = chipHTML(R.left, c); ch.classList.remove("open"); } ch.dataset.n = String(c); ch.style.top = (ctop ? 6 : Math.max(6, Math.round(ky - 40))) + "px"; ch.classList.toggle("top", !!ctop); }
     // 바탕: 땅 · 한강 · 구 경계(점선) · 서울 밖 옅게 · 서울 경계 · 묶음 없는 구 이름
     var txt = "", used = R.keep.map(function (g) { var x = g.q.x + g.dx, y = g.q.y + g.dy; return [x - g.w / 2, y - g.h / 2, x + g.w / 2, y + g.h / 2]; }).concat(obsOf(el, box));
     var fs = C.z <= 10 ? 10.5 : C.z >= 12.5 ? 12.5 : 10.5 + (C.z - 10) * 0.8;

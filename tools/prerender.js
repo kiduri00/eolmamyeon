@@ -205,7 +205,11 @@ async function css(cssFile, out) {
       if (!ruleTexts) {
         ruleTexts = await page.evaluate((base) => {
           const sheet = [...document.styleSheets].find((s) => s.href && s.href.includes(base));
-          const tree = (list) => [...list].map((r) => (r.type === 1 || !r.cssRules ? { t: r.cssText } : { p: r.cssText.slice(0, r.cssText.indexOf("{")).trim(), c: tree(r.cssRules), kf: r.type === 7 }));
+          // 27차: var()가 든 줄임 속성(font: 500 12px/1 var(--font) 등)은 크롬 cssText가 'font-style: ;'처럼 빈 값으로 낸다 → 첫 페인트 CSS에서 글자 크기가 빠져 앱이 붙을 때 머리 줄이 밀렸다.
+          //       빈 값이 있으면 줄임 속성 값(getPropertyValue)을 먼저, 그다음 값 있는 낱 속성을 다시 써 준다
+          const SH = ["font", "background", "border", "border-top", "border-right", "border-bottom", "border-left", "border-color", "border-width", "border-style", "border-radius", "margin", "padding", "inset", "gap", "flex", "flex-flow", "grid", "grid-template", "grid-area", "grid-row", "grid-column", "place-items", "place-content", "place-self", "overflow", "outline", "transition", "animation", "text-decoration", "list-style", "columns", "mask", "font-variant", "scroll-padding", "scroll-margin"];
+          const txt = (r) => { const t = r.cssText; if (r.type !== 1 || !/:\s*;/.test(t)) return t; const st = r.style, out = []; for (const sh of SH) { const v = st.getPropertyValue(sh); if (v && /var\(/.test(v)) out.push(`${sh}: ${v}${st.getPropertyPriority(sh) ? " !important" : ""};`); } for (let i = 0; i < st.length; i++) { const k = st[i], v = st.getPropertyValue(k); if (v !== "") out.push(`${k}: ${v}${st.getPropertyPriority(k) ? " !important" : ""};`); } return `${r.selectorText} { ${out.join(" ")} }`; };
+          const tree = (list) => [...list].map((r) => (r.type === 1 || !r.cssRules ? { t: txt(r) } : { p: r.cssText.slice(0, r.cssText.indexOf("{")).trim(), c: tree(r.cssRules), kf: r.type === 7 }));
           return tree(sheet.cssRules);
         }, path.basename(cssFile));
       }

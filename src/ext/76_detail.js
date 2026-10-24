@@ -29,7 +29,8 @@ const DTL = (() => {
         // 전세 끼고는 못 사는 곳: 전세 낀 숫자는 내지 않고(머리 '전세 끼고 사기 불가'와 같은 판정) 대출 끼고 사는 길을 한 줄로 — /z 페이지(zsample.key3)와 같은 글
         o.need = null; o.total = null; o.why2 = "전세 끼고는 계산하지 않아요";
         o.basis = `전세 끼고는 못 사요 · ${String(g.block).replace(/\s*\(.*\)\s*$/, "").replace(/^전세 낀 매수 불가\s*·\s*/, "")}`;
-        if (x && ok(x.needBuy) && !r.lc && r.tag !== "mk") o.alt = `대출 끼고 사면 지금 ${C(x.needBuy)}${x.ok ? ` · 입주까지 ${C(x.needTotal)}` : ""}`;
+        // 27차: 대출 끼고 사는 값을 칸의 큰 값으로(+ '대출 끼고' 꼬리표) — '계산 보류' 칸과 아래 한 줄이 같은 말을 두 번 하던 것(/z zsample.key3 lnow·ltot와 같은 값)
+        if (x && ok(x.needBuy) && !r.lc && r.tag !== "mk") { o.lnow = x.needBuy; if (x.ok && ok(x.needTotal)) o.ltot = x.needTotal; }
       } else if (!g || g.na || !g.x || !ok(g.x.price)) o.basis = noPriceTxt(r);
       else o.basis = `전세 끼고 · 매수가 ${ZF.manT(g.x.price)} − 전세 ${ZF.manT(g.D)}${g.x.tax >= 0.005 ? " (+취득세)" : ""}`;
     } else if (!x || !ok(x.needBuy)) o.basis = x && x.price == null ? noPriceTxt(r) : "지금 필요한 돈을 계산하지 못했어요";
@@ -47,7 +48,8 @@ const DTL = (() => {
   function keyHTML(r) {
     const n = nums(r);
     // 계산하지 않는 칸은 맨 '–' 대신 말로: 23차부터 두 칸 모두 '계산 보류' 하나(목록·/gu·/z·돈 탭과 같은 이름)
-    const v1 = n.need != null ? C(n.need) : "계산 보류", v2 = n.total != null ? C(n.total) : "계산 보류";
+    const v1 = n.need != null ? C(n.need) : n.lnow != null ? C(n.lnow) : "계산 보류", v2 = n.total != null ? C(n.total) : n.ltot != null ? C(n.ltot) : "계산 보류";
+    const MODE = '<em class="dt-mode">대출 끼고</em>';
     // 26차: 목록·곳 수와 같은 판정 하나 — 추정 매수가(같은 구 시세로 채운 값)·참고값(lc)은 곳 수에서 빠지므로 '가능해요'라 하지 않는다
     const excl = (() => { try { return !!(r.lc || estHide(r)); } catch (e) { return !!r.lc; } })();
     const fit = n.need != null && upC(n.need) <= CASH + 1e-9 && !excl;
@@ -55,13 +57,13 @@ const DTL = (() => {
     const how = gapMode() ? "전세 끼고" : "대출 끼고";
     const CK = '<svg class="dt-ck" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     const vd1 = n.need == null ? "" : excl && upC(n.need) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>${ZF.EXCL}</b><small> · 숫자는 참고만</small></em>` : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : C(n.need - CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
-    const sub2 = n.total == null ? esc(n.why2) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${C(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
+    const sub2 = n.total == null ? (n.ltot != null ? "대출 끼고 산 경우 · 잔금대출 뺀 값" : esc(n.why2)) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${C(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
     let eta = "–"; try { eta = etaShow(r); } catch (e) {}
     // 입주권 없는 곳: 셋째 칸 이름 '입주권' · 이유는 그 아래 한 번 · 착공 뒤처럼 입주권 거래가 있으면 '조합원 입주권을 사야 해요'(참고 시세) — '입주권 없음'과 시세가 부딪치지 않게(20차 G3)
     if (n.nt) eta = n.im ? "조합원 입주권을 사야 해요" : "없음";
     return `<section class="dt-k" aria-label="핵심 숫자">
-      <div class="dt-i" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b><span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && !n.moa && !n.done && !n.im && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1}<span class="dt-slot" data-slot="gap"></span></span></div>
-      <div class="dt-i" data-k="tot"><span class="dt-l">${LBL.cashToMoveIn}</span><b class="dt-v">${v2}</b><span class="dt-s">${sub2}</span></div>
+      <div class="dt-i" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b>${n.lnow != null ? MODE : ""}<span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && n.lnow == null && !n.moa && !n.done && !n.im && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1}<span class="dt-slot" data-slot="gap"></span></span></div>
+      <div class="dt-i" data-k="tot"><span class="dt-l">${LBL.cashToMoveIn}</span><b class="dt-v">${v2}</b>${n.ltot != null ? MODE : ""}<span class="dt-s">${sub2}</span></div>
       <div class="dt-i" data-k="eta"><span class="dt-l">${n.nt ? "입주권" : "언제 입주"}</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `${n.im ? `<span class="dt-s dt-alt">참고 입주권 시세 ${ZF.eok(n.im)}</span>` : ""}<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 알아봐야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
     </section>`;
   }
@@ -208,7 +210,7 @@ const DTL = (() => {
   // ---------- '이 숫자가 틀렸어요' 시트 ----------
   const REASONS = [["price", "가격", "지금 필요한 돈·입주까지 현금·시세가 이상해요"], ["stage", "단계", "진행 단계·날짜가 달라요"], ["loc", "위치", "경계·주소·역 거리가 달라요"], ["name", "이름", "구역 이름이 달라요"], ["etc", "기타", "그 밖의 것"]];
   // '이 숫자가 틀렸어요' = 사이트 안 문의 양식(src/contact.js) — 구역 ID·주소·데이터 기준·화면 숫자를 함께 보낸다(메일 주소는 화면에 내지 않음 · 20차)
-  function numsTxt(r) { const n = nums(r); return `지금 필요한 돈 ${n.need != null ? C(n.need) : "계산 보류"} · ${LBL.cashToMoveIn} ${n.total != null ? C(n.total) : "계산 보류"} (${gapMode() ? LBL.gap : LBL.loan} · 내 돈 ${C(CASH)})`; }
+  function numsTxt(r) { const n = nums(r); if (n.need == null && n.lnow != null) return `지금 필요한 돈 ${C(n.lnow)} · ${LBL.cashToMoveIn} ${n.ltot != null ? C(n.ltot) : "계산 보류"} (${LBL.loan} · 전세 끼고는 못 사요 · 내 돈 ${C(CASH)})`; return `지금 필요한 돈 ${n.need != null ? C(n.need) : "계산 보류"} · ${LBL.cashToMoveIn} ${n.total != null ? C(n.total) : "계산 보류"} (${gapMode() ? LBL.gap : LBL.loan} · 내 돈 ${C(CASH)})`; }
   function repOpen() {
     const r = cur; if (!r || !window.ZP_contact) return;
     ZP_contact.open({ kind: "error", title: "이 숫자가 틀렸어요", meta: `${shortName(r.n)} · 구역 ID ${r.id} · ${asOf()} 기준`, reasons: REASONS, ph: "예: 최근 매물은 1.4억이에요", ctx: { zone: r.id, url: pageOf(r), asOf: asOf(), nums: numsTxt(r) } });

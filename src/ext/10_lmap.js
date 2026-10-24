@@ -186,10 +186,10 @@
       L({ id: "seoul-line", type: "line", source: "seoul", paint: { "line-color": P.sub, "line-width": 1.6, "line-opacity": 0.7 } });
       L({ id: "subway-case", type: "line", source: "subway", minzoom: 11, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": halo, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.8, 14, 4], "line-opacity": 0.5 } });
       L({ id: "subway", type: "line", source: "subway", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 12, 1.2, 14, 2, 16, 2.6], "line-opacity": 0.5 } });
-      // 바탕 이름: 구(줌 9.5~13.4) → 동(13.2부터) → 큰 역(12부터, 환승역). 회색으로 작게, 구역 카드가 먼저 자리 잡는다
+      // 바탕 이름: 구(줌 9.5~13.6) → 동(11부터 · 27차: 구 화면(줌 11~13)에서 이름이 하나도 없던 것) → 큰 역(11부터, 환승역) · 나머지 역(11.5부터). 회색으로 작게, 구역 카드가 먼저 자리 잡는다
       const T1 = dk ? "#8A95A5" : "#6A7482", T2 = dk ? "#7A8696" : "#7C8693";
-      L({ id: "gu-lab", type: "symbol", source: "gun", minzoom: 8.8, maxzoom: 13.4, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10.5, 12.5, 12.5], "text-padding": 4, "text-letter-spacing": 0.04, "text-variable-anchor": ["center", "top", "bottom", "right", "left"], "text-radial-offset": 0.7, "text-justify": "auto" }, paint: { "text-color": T1, "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.6, 0.95, 13.4, 0], "text-halo-color": halo, "text-halo-width": 1.6 } });
-      L({ id: "dong-lab", type: "symbol", source: "dong", minzoom: 13.2, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 13.2, 10.5, 16, 12], "text-padding": 6, "text-variable-anchor": ["center", "top", "bottom"], "text-radial-offset": 0.9, "symbol-sort-key": ["get", "k"] }, paint: { "text-color": T2, "text-halo-color": halo, "text-halo-width": 1.6 } });
+      L({ id: "gu-lab", type: "symbol", source: "gun", minzoom: 8.8, maxzoom: 13.6, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10.5, 12.5, 12.5], "text-padding": 4, "text-letter-spacing": 0.04, "text-variable-anchor": ["center", "top", "bottom", "right", "left"], "text-radial-offset": 0.7, "text-justify": "auto" }, paint: { "text-color": T1, "text-opacity": ["interpolate", ["linear"], ["zoom"], 13.1, 0.95, 13.6, 0], "text-halo-color": halo, "text-halo-width": 1.6 } });
+      L({ id: "dong-lab", type: "symbol", source: "dong", minzoom: 11, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 10, 16, 12], "text-padding": 6, "text-variable-anchor": ["center", "top", "bottom"], "text-radial-offset": 0.9, "symbol-sort-key": ["get", "k"] }, paint: { "text-color": T1, "text-halo-color": halo, "text-halo-width": 1.6 } });
       // 구역: 한 가지 색(브랜드 남색). 상태 4가지(feature-state k)는 남색 안에서 채움·테두리로만: 가능 = 면 45% + 진한 선 · 조금 모자람 = 면 없이 선만 · 더 필요·자료 없음 = 아주 옅게(8%)
       // 관심 구역(f) = 선을 굵게. 공식 경계 없는 추정 범위는 점선
       // 21차: 더 진하게 + 서울 전체(구 묶음 줌)에서도 바로 보이게 — 가능 = 남색 면 45%(다크 #9fb3ff 40%) + 1.5px 실선 · 조금 모자람 = 면 없이 2px 선(줌 11부터) · 나머지 8%
@@ -232,8 +232,11 @@
       L({ id: "sel-line", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": dk ? "#9DBBFF" : "#1F3A87", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2.6, 16, 4.5] } });
       L({ id: "stn", type: "circle", source: "stn", minzoom: 14, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 3.5, 16, 5.5], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 14, 2, 16, 2.6] } });
       // 큰 역(환승역)은 12부터 작은 점 + '○○역'
-      L({ id: "stn-mj", type: "circle", source: "stn", minzoom: 12, maxzoom: 14, filter: [">=", ["get", "t"], 2], paint: { "circle-radius": 2.6, "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": dk ? "#8A95A5" : "#5F6B7A", "circle-stroke-width": 1.4 } });
-      L({ id: "stn-mj-lab", type: "symbol", source: "stn", minzoom: 12, maxzoom: 14, filter: [">=", ["get", "t"], 2], layout: { "text-field": ["concat", ["get", "n"], "역"], "text-font": ["Noto Sans Regular"], "text-size": 10.5, "text-offset": [0, 0.75], "text-anchor": "top", "text-padding": 4, "text-optional": true }, paint: { "text-color": T1, "text-halo-color": halo, "text-halo-width": 1.6 } });
+      L({ id: "stn-mj", type: "circle", source: "stn", minzoom: 11, maxzoom: 14, filter: [">=", ["get", "t"], 2], paint: { "circle-radius": 2.6, "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": dk ? "#8A95A5" : "#5F6B7A", "circle-stroke-width": 1.4 } });
+      L({ id: "stn-mj-lab", type: "symbol", source: "stn", minzoom: 11, maxzoom: 14, filter: [">=", ["get", "t"], 2], layout: { "text-field": ["concat", ["get", "n"], "역"], "text-font": ["Noto Sans Regular"], "text-size": 10.5, "text-offset": [0, 0.75], "text-anchor": "top", "text-padding": 4, "text-optional": true }, paint: { "text-color": T1, "text-halo-color": halo, "text-halo-width": 1.6 } });
+      // 27차: 환승역이 아닌 역도 구 화면(줌 12.3~14)에서 이름이 보이게 — 알약·구역 카드가 먼저 자리 잡고, 남는 자리에만(text-optional · 충돌 검사)
+      L({ id: "stn-mid", type: "circle", source: "stn", minzoom: 11.5, maxzoom: 14, filter: ["<", ["get", "t"], 2], paint: { "circle-radius": 2.2, "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": dk ? "#8A95A5" : "#5F6B7A", "circle-stroke-width": 1.2 } });
+      L({ id: "stn-mid-lab", type: "symbol", source: "stn", minzoom: 11.5, maxzoom: 14, filter: ["<", ["get", "t"], 2], layout: { "text-field": ["concat", ["get", "n"], "역"], "text-font": ["Noto Sans Regular"], "text-size": 10, "text-offset": [0, 0.7], "text-anchor": "top", "text-padding": 3, "text-optional": true }, paint: { "text-color": T2, "text-halo-color": halo, "text-halo-width": 1.6 } });
       L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 14, layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Regular"], "text-size": 11, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true }, paint: { "text-color": P.sub, "text-halo-color": halo, "text-halo-width": 1.6 } });
       await Y();
       // ---- 겹쳐 보기 레이어 ----
@@ -393,6 +396,10 @@
           const railPad = () => { const w = $("mapbox") && $("mapbox").querySelector(".s-rail"); return w && w.offsetWidth ? Math.max(16, Math.round(cv.right - w.getBoundingClientRect().left) + 8) : 16; };
           if (settled && !document.documentElement.classList.contains("s-full")) { const mc = document.querySelector("#mapTop .main>.mapcard"); if (mc) { const top0 = (HDR() || 56) + 8 + (cv.top - mc.getBoundingClientRect().top); bot = Math.min(cv.bottom, top0 + cv.height); } }
           P.left = 40; P.right = Math.max(40, railPad()); P.top = 30; P.bottom = 24 + Math.round(Math.min(cv.height * 0.62, Math.max(0, bot - innerHeight)));
+        } else if (!document.documentElement.classList.contains("s-full")) {
+          // 27차: 폰 서울 보기 — 위 겹쳐 보기 띠·아래 범례 자리를 비운다(ghost.js padOf와 같은 값 · 자리 그림 = 실제 지도)
+          const rl = $("mapbox") && $("mapbox").querySelector(".s-rail"); if (rl && rl.offsetWidth) { const rb = rl.getBoundingClientRect(); if (rb.top < cv.top + 60 && rb.bottom > cv.top) P.top = Math.max(P.top, Math.round(rb.bottom - cv.top) + 4); }
+          P.bottom = 62;
         }
         const ov = (sel) => { const e = document.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; const b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
         const m = document.documentElement.classList.contains("s-full") ? ov(".s-mini") : null; if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
@@ -679,7 +686,8 @@
       try {
         const cb = map.getCanvas().getBoundingClientRect();
         // 21차: 구 화면 위 '← 서울 전체 | 구 이름' 막대(#mapBar)도 — 그 밑에 알약이 반쯤 깔리던 것
-        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmPick, #lmKey, #lmap .lm-snote, #lmap .maplibregl-ctrl-attrib, #mapbox > #mapBar").forEach((e) => {
+        // 27차: 고른 구역 카드(#lmPick)는 피하지 않는다 — 카드가 열릴 때마다 알약이 다시 묶여 '+1'이 '+3'으로 바뀌던 것(카드는 잠깐 위에 덮일 뿐)
+        document.querySelectorAll("#mapbox .s-rail, #lmap .lm-zoom, #lmap .lm-ctl, .s-mini, .s-fullx, #lmNotes, #lmAucLg, #lmKey, #lmap .lm-snote, #lmap .maplibregl-ctrl-attrib, #mapbox > #mapBar").forEach((e) => {
           if (!e.offsetWidth || e.hidden || e.closest("[hidden]")) return;
           // 23차: 스크롤하다 잠깐 지도 위에 걸친 작은 막대(.s-mini)는 피하지 않는다 — 막대가 나올 때마다 구 묶음이 '+N곳' 칩으로 빠지던 것(크게 본 지도에서는 늘 떠 있으니 피함)
           if (e.id === "sMini" && !document.documentElement.classList.contains("s-full")) return;
@@ -920,13 +928,14 @@
     // 구 묶음(줌 11 이하): 구 이름 자리에 동그라미 '구로 / 가능 3' · 농도 4단계(0 · 적음 · 중간 · 많음)
     // 묶음은 절대 사라지지 않는다: 겹치면 ① 둘레로 비켜 놓고 ② 작게 줄여 다시 놓고 ③ 그래도 안 되면(또는 화면 밖) '+N곳' 칩 하나에 모은다
     // → 화면 묶음 숫자 합 + 칩 숫자 == 홈 '갈 수 있는 곳' 숫자(어느 금액에서나)
-    let GUL = null, GUMORE = { c: 0, L: [] };
+    let GUL = null, GUMORE = { c: 0, L: [] }, guLabPoly = null, guLabEx = [];
     function guLayout() {
       if (!GUL) GUL = guLabels().features.map((f) => ({ n: f.properties.n, ll: f.geometry.coordinates }));
       let cnt = {}, min = {}; try { cnt = SIMPLE.guCounts(); min = SIMPLE.guMins(); } catch (e) {}
       const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, obs = obstacles(), phone = MQ_SHEET.matches;
       // 칩 자리(범례 바로 위 왼쪽): 칩이 필요할 때만 비워 두고 다시 놓는다
-      const chipBox = () => { const k = $("lmKey"), nt = $("lmNotes"), cb = cv.getBoundingClientRect(); let y = H - 40; try { if (k && k.offsetWidth) y = k.getBoundingClientRect().top - cb.top - 6; if (nt && !nt.hidden && nt.offsetWidth && nt.parentNode === $("lmap")) { const b = nt.getBoundingClientRect(); if (b.left - cb.left < 130) y = Math.min(y, b.top - cb.top - 6); } } catch (e) {} return [4, y - 40, 120, y]; };   // 레이어 범례가 왼쪽 아래에 있으면 그 위로
+      const chipBox = () => { if (phone && !document.documentElement.classList.contains("s-full")) return [4, 6, 120, 46];   // 27차: 폰은 왼쪽 위(ghost.js와 같은 규칙)
+        const k = $("lmKey"), nt = $("lmNotes"), cb = cv.getBoundingClientRect(); let y = H - 40; try { if (k && k.offsetWidth) y = k.getBoundingClientRect().top - cb.top - 6; if (nt && !nt.hidden && nt.offsetWidth && nt.parentNode === $("lmap")) { const b = nt.getBoundingClientRect(); if (b.left - cb.left < 130) y = Math.min(y, b.top - cb.top - 6); } } catch (e) {} return [4, y - 40, 120, y]; };   // 레이어 범례가 왼쪽 아래에 있으면 그 위로
       // 자리 잡기는 지도 자리 그림(ghost.js)과 같은 함수 — 같은 카메라면 같은 자리
       const { keep, left } = ZP_G.place({ W, H, obs, phone, gus: GUL.map((g) => ({ n: g.n, ll: g.ll, c: cnt[g.n] || 0, m: min[g.n] != null ? min[g.n] : null })), proj: (ll) => map.project(ll), chip: chipBox() });
       gusSet(keep);
@@ -959,10 +968,12 @@
       }
       el.dataset.n = String(M.c);
       el.style.top = Math.max(6, Math.round(M.y || 6)) + "px";
+      el.classList.toggle("top", M.y != null && M.y <= 6 && MQ_SHEET.matches);
       el.hidden = false;
     }
     function gusSet(keep) {
       const K = new Map(keep.map((g) => [g.n, g]));
+      { const ex = [...K.keys()].sort(); if (ex.join() !== guLabEx.join()) { guLabEx = ex; guLabF(); } }
       GUS.forEach((p, n) => { if (!K.has(n)) { p.mk.remove(); GUS.delete(n); } });
       K.forEach((g, n) => {
         let p = GUS.get(n);
@@ -1288,10 +1299,16 @@
         map.setFilter("zone-lab", ["all", ["==", ["get", "p"], 0], ["within", poly]]);
         map.setFilter("zone-lab-p", ["all", ["==", ["get", "p"], 1], ["within", poly]]);
         // 구 이름도 가장자리에서 반쯤 잘려 보이지 않게(예: 왼쪽 끝 '강서구'), 레일·확대 버튼 밑에서는 빼기
-        if (map.getLayer("gu-lab")) map.setFilter("gu-lab", ["within", poly]);
+        guLabPoly = poly; guLabF();
       } catch (e) {}
     }
     const edgeSoon = () => { clearTimeout(edgeT); edgeT = setTimeout(edgeFilter, 60); };
+    // 27차: 바탕 구 이름 필터 = 가장자리·떠 있는 버튼 밑 빼기 + (서울 보기) 묶음이 있는 구 빼기(묶음 글자 '강북 1곳'에 이름이 이미 있다)
+    function guLabF() {
+      if (!map || !map.getLayer("gu-lab")) return;
+      const f = ["all"]; if (guLabPoly) f.push(["within", guLabPoly]); if (guLabEx.length) f.push(["!", ["in", ["get", "n"], ["literal", guLabEx]]]);
+      try { map.setFilter("gu-lab", f.length > 1 ? f : null); } catch (e) {}
+    }
     function ui() {
       const box = $("mapbox");
       if (!box || $("lmap")) return;
@@ -1361,8 +1378,19 @@
       try {
         const r0 = map._render;
         if (typeof r0 === "function") {
-          let held = false;
-          map._render = function (t) { if (DRAG) { if (!held) { held = true; const w = () => (DRAG ? setTimeout(w, 80) : (held = false, map && map.triggerRepaint())); setTimeout(w, 80); } return this; } return r0.call(this, t); };
+          let held = false, heldG = false, lastG = 0;
+          map._render = function (t) {
+            if (DRAG) { if (!held) { held = true; const w = () => (DRAG ? setTimeout(w, 80) : (held = false, map && map.triggerRepaint())); setTimeout(w, 80); } return this; }
+            // 27차: 자리 그림(ghost)이 실제 지도를 덮고 있는 동안(타일이 하나씩 오는 몇 초)은 0.45초에 한 번만 그린다 — 안 보이는 프레임마다 그리기·합성이 이어져 시작 뒤 긴 작업이 줄줄이 생기던 것.
+            //       글자 자리 잡기(placement)가 진행 중이거나 스타일이 바뀐 프레임은 건너뛰지 않는다(레이어를 나눠 붙이는 중 자리 잡기가 끊기면 maplibre 오류)
+            if (ghostOn()) {
+              const st = this.style, busy = !st || st._changed || (st.pauseablePlacement && !st.pauseablePlacement.isDone());
+              const now = performance.now();
+              if (!busy && now - lastG < 450) { if (!heldG) { heldG = true; setTimeout(() => { heldG = false; if (map) map.triggerRepaint(); }, 450 - (now - lastG)); } return this; }
+              lastG = now;
+            }
+            return r0.call(this, t);
+          };
         }
       } catch (e) {}
       map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: '정비구역 경계 <a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a>' }), "bottom-right");
@@ -1483,6 +1511,8 @@
     }
     function enter(n) {
       gateOpen();
+      // 27차: 구·구역으로 들어가면(딥링크 #o<id> · 해시 바뀜 포함) '조용해진 뒤' 미뤄 둔 지도 일(글자 레이어 나눠 켜기)을 바로 — 자리 그림(구 묶음)이 실제 지도 위에 남아 구역으로 날아간 화면을 가리던 것(PC)
+      try { window.ZP_boot && ZP_boot.quietNow && ZP_boot.quietNow(); } catch (e) {}
       gu = n;
       if (ghostOn() && ZP_G.zoomGu) ZP_G.zoomGu(n);   // 자리 그림도 바로 그 구로(같은 카메라 guCam)
       ui();
@@ -1510,8 +1540,14 @@
           const c = cnt[n] || 0, mn = min[n] != null ? min[n] : null; if (+p.el.dataset.n === c && p.el.dataset.m === String(mn)) return;
           p.key = ""; ZP_G.guLite(p.el, c, mn, mx);
         });
-        const el = $("lmGuMore");
-        if (el && !el.hidden && GUMORE.L.length) { const t = GUMORE.L.reduce((a, g) => a + (cnt[g.n] || 0), 0); if (+el.dataset.n !== t) { el.dataset.n = String(t); const b = el.querySelector(".lm-gumore-b"); if (b && b.firstChild) b.firstChild.textContent = `+${fmt(t)}곳 `; } }
+        // 27차: 끄는 중 새로 0곳 → N곳이 된 구(묶음이 아직 없는 구)도 칩 숫자에 넣는다 — 화면 묶음 합 + 칩 = 말풍선 숫자(같은 프레임 · 예전엔 73 대 80)
+        const L2 = Object.keys(cnt).filter((n) => cnt[n] > 0 && !GUS.has(n)).map((n) => ({ n, c: cnt[n], m: min[n] != null ? min[n] : null })).sort((a, b) => b.c - a.c);
+        const t = L2.reduce((a, g) => a + g.c, 0), el = $("lmGuMore");
+        if (t !== GUMORE.c || L2.map((g) => g.n).join() !== GUMORE.L.map((g) => g.n).join()) {
+          GUMORE = { c: t, L: L2, y: GUMORE.y };
+          if (el && !el.hidden && t && L2.length) { const b = el.querySelector(".lm-gumore-b"); el.dataset.n = String(t); if (b && b.firstChild && el.dataset.k === L2.map((g) => g.n + g.c).join(",")) b.firstChild.textContent = `+${fmt(t)}곳 `; else guMoreDraw(); }
+          else guMoreDraw();
+        }
       },
       states: (now) => states(now),   // 금액·방식·유형이 바뀌면(끄는 중에도) — 다음 프레임에 한 번: 상태 4가지·알약·점·구 묶음
       counts: () => states(),

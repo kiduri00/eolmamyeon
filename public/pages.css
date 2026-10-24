@@ -42,7 +42,7 @@ p{margin:8px 0}
 .lede{color:var(--text-2);font-size:16px;max-width:66ch}
 .meta{color:var(--text-3);font-size:13px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;margin:14px 0}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:10px;margin:16px 0}
+.kpis{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}.kpis>.kpi{flex:1 1 170px}
 .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;min-width:0}
 .kpi span{display:block;font-size:12.5px;color:var(--text-3)}
 .kpi b{display:block;font-size:clamp(17px,5vw,22px);line-height:1.3;word-break:keep-all;font-variant-numeric:tabular-nums;margin-top:2px}
@@ -179,13 +179,16 @@ figure figcaption a,.zrow a,.zk-rep a{display:inline-flex;align-items:center;min
 /* 26차: '이 숫자가 틀렸어요'는 작은 링크 하나 */
 .zk-rep{margin:12px 0 0}
 main a.zk-rb.zk-rs{min-height:40px;padding:0;border:0;background:none;color:var(--text-2);font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
-/* 26차: 손으로 쓴 계산 보류 페이지 — 큰 값은 '대출 끼고 지금 X', '계산 보류'는 작은 표시로 */
-.zk-hv .zk-v{margin-top:4px;padding:2px 8px;border-radius:6px;background:var(--surface-2);font-size:13px;font-weight:700;line-height:1.5;color:var(--text-2)}
-.zk-av{display:flex;flex-direction:column;margin-top:4px}
-.zk-av small{font-size:13px;font-weight:600;color:var(--text-2)}
-.zk-av b{font-size:28px;font-weight:700;line-height:1.15;letter-spacing:-.02em;color:var(--text-1);font-variant-numeric:tabular-nums}
+/* 27차: 전세 끼고는 못 사는 곳 — 칸의 큰 값은 대출 끼고 산 값 + '대출 끼고' 꼬리표(앱 상세 .dt-mode와 같은 꼴) */
+.zk-mode{display:inline-flex;align-items:center;height:22px;margin-top:4px;padding:0 8px;border-radius:6px;background:var(--brand-soft);color:var(--brand);font-size:12px;font-weight:700;font-style:normal}
 .znum{margin:-4px 0 14px}
 .gnote{font-size:15.5px;line-height:1.8}
 /* 26차 성능: 첫 화면 아래 덩이는 화면에 올 때 그린다(글꼴이 바뀔 때마다 긴 페이지 전체를 다시 배치하던 것) */
 main>figure,main>table,main>.ov,main>ul.steps,main>h2~nav,footer.f,main>details,main>.zstory{content-visibility:auto;contain-intrinsic-size:auto 420px}
 .zk-s.zk-ex{color:var(--warn-ink,#8a5a00);font-weight:600}
+/* 27차: 리포트·표 안 링크(구역 이름·원문)도 누르는 높이 40px */
+main table td a,main table th a{display:inline-flex;align-items:center;min-height:40px}
+/* 27차: 설치한 앱(standalone)으로 연 정적 페이지는 누를 때 파란 하이라이트 없음(앱 화면과 같게) */
+@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){html,a,button,summary,label{-webkit-tap-highlight-color:transparent}}
+/* 27차 성능: 웹 글꼴 조각이 다 오기 전에는 같은 크기로 맞춘 대체 글꼴로(조각마다 페이지를 다시 배치하지 않게) · 다 오면 html.fo(static_tabs.py FONTJS) */
+html:not(.fo){--font:"Pretendard Fallback",-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif}

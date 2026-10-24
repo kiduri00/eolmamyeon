@@ -4192,7 +4192,7 @@
     if (c) {
       const isUnion = !!cs["조합설립"];
       const th = isUnion ? (r.k === "재건축" ? 70 : /가로|소규모재개발/.test(r.k) ? 75 : r.k === "소규모재건축" ? 70 : 75) : 50;
-      consentHtml = `<div class="sect"><h3>${isUnion ? "조합설립 동의율" : "추진위원회 동의율"} <small>정비사업 정보몽땅 추진경과 · ${esc(c.d)}</small></h3>\n      <div class="meter"><i style="width:${Math.min(100, c.v)}%"></i><div class="th" style="left:${th}%"><span>법정 기준 ${th}%</span></div></div>\n      <div class="meter-v"><b>${c.v.toFixed(2)}%</b><span>${c.first != null && c.first !== c.v ? `최초 인가 때 ${c.first}%` : ""}</span></div></div>`;
+      consentHtml = `<div class="sect"><h3>${isUnion ? "조합설립 동의율" : "추진위원회 동의율"} <small>정비사업 정보몽땅 추진경과 · ${esc(c.d)}</small></h3>\n      <div class="meter"><i style="width:${Math.min(100, c.v)}%"></i><div class="th" style="left:${th}%"><span>법정 기준 ${th}%</span></div></div>\n      <div class="meter-v"><b>${String(+c.v.toFixed(2))}%</b><span>${c.first != null && c.first !== c.v ? `최초 인가 때 ${c.first}%` : ""}</span></div></div>`;
     } else if (r.uc) {
       consentHtml = `<div class="sect"><h3>조합설립 동의율 <small>출처: ${esc(r.uc.src)}</small></h3><div class="meter"><i style="width:76%"></i><div class="th" style="left:75%"><span>법정 기준 75%</span></div></div><div class="meter-v"><b>75% 초과</b><span class="pill">조합 발표</span></div><p class="note" style="margin-top:12px">${esc(r.uc.t)}. ${esc(r.uc.note)}</p></div>`;
     } else {
@@ -4636,7 +4636,9 @@
     const row = (r, i, near) => {
       const n = needS(r), ok = okZ(r);
       const wt = near || moaIn.has(r.id) ? `${esc(stn[0].replace(/역$/, ""))}역 ${ZF.walkMin(stnW(r))}분${moaIn.has(r.id) ? " · 15분 안" : ""}` : r.st ? walkT(r) : "";
-      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(shortName(r.n))}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b><i class="sg-l">${n.l === "입주까지" ? "입주까지" : "지금"}</i> ${e1S(n.v)}</b>${ok ? '<i class="sg-ok">내 돈으로 가능</i>' : n.v > CASH + 1e-9 ? `<i class="sg-ok sg-no">내 돈 ${esc(ZF.cash(n.v - CASH))} 부족</i>` : (r.lc || estHide(r)) ? `<i class="sg-ok sg-no sg-na">${ZF.EXCL}</i>` : '<i class="sg-ok sg-no sg-na">조건 밖</i>'}` : r.s >= 9 ? "" : '<i class="sg-ok sg-no sg-na">계산 보류</i>'}</em></button>`;   // 20차: 금액이 없는 줄도 빈칸 대신 '계산 보류'
+      // 27차: 보이는 이름에는 없고 공식 이름에만 검색어가 있으면(강북2구역 ← '미아중심재정비촉진지구…') 공식 이름을 한 줄 더
+      const qn = String(q || "").replace(/\s+/g, ""), sn = shortName(r.n), offi = qn.length >= 2 && !near && !sn.replace(/\s+/g, "").includes(qn) && String(r.n || "").replace(/\s+/g, "").includes(qn) ? `<small class="sg-off">공식 이름: ${esc(String(r.n).trim())}</small>` : "";
+      return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(sn)}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}${offi}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b><i class="sg-l">${n.l === "입주까지" ? "입주까지" : "지금"}</i> ${e1S(n.v)}</b>${ok ? '<i class="sg-ok">내 돈으로 가능</i>' : n.v > CASH + 1e-9 ? `<i class="sg-ok sg-no">내 돈 ${esc(ZF.cash(n.v - CASH))} 부족</i>` : (r.lc || estHide(r)) ? `<i class="sg-ok sg-no sg-na">${ZF.EXCL}</i>` : '<i class="sg-ok sg-no sg-na">조건 밖</i>'}` : r.s >= 9 ? "" : '<i class="sg-ok sg-no sg-na">계산 보류</i>'}</em></button>`;   // 20차: 금액이 없는 줄도 빈칸 대신 '계산 보류'
     };
     const stnRow = stn
       ? `<button type="button" role="option" id="sgS" aria-selected="false" data-stn="${esc(stn[0])}" tabindex="-1" class="sg-stn"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="14" rx="3"/><path d="M6 10h12M8 21l2-4M16 21l-2-4"/></svg>${esc(stn[0])}<small>${esc((stn[3] || []).join(" · "))} · 지도에서 역 주변 보기</small></span><em>지도 →</em></button>`
@@ -6044,7 +6046,7 @@
       return `<div class="hv ref"><span>${GAIN_LBL()}</span><b>${uI(sg(x.gain))} <em class="refb">시점 미정 · 참고값</em></b><small>${x.yrs ? "입주 2년 이내 · 연환산 생략" : `입주 시점 미정${x.loanNow ? ` · 매수대출 이자는 ${CONS_YRS}년(보수 가정)` : ""}`}</small>${isMulti() ? `<small class="mh">${MULTI_NOTE}</small>` : ""}</div>`;
     const sub =
       x.gain <= 0
-        ? "손실 예상 · 추정 수익률 없음"
+        ? "손실 예상 · 추정 이율 없음"
         : `<span title="매수대출 이자와 분담금 납부 시점을 반영한 연 복리 수익률(연 복리 수익률)">연 ${pcIrr(x.annual)} (연 복리 수익률)</span>${x.annual < DEP ? ` · <span class="lowp">예금 ${(DEP * 100).toFixed(1)}% 미만</span>` : ""}${slow ? ` · <span class="lowp" title="10년 안 준공 가능성이 낮아요">10년 내 준공 ${probTxt(p10)}로 낮음</span>` : ""}`;
     const cls = x.gain >= 0.05 ? "up" : x.gain <= -0.05 ? "dn" : "";
     return `<div class="hv ${cls}"><span>${GAIN_LBL()}</span><b>${uI(sg(x.gain))}</b><small>${sub}${x.refund ? " · 환급 추정(조합 추정분담금 확인)" : ""}</small>${isMulti() ? `<small class="mh">${MULTI_NOTE}</small>` : ""}</div>`;
@@ -6437,7 +6439,7 @@
     const x = g.x;
     if (!x.ok) return x.nvThin ? "입주 때 시세 차이: 신축 시세 표본 부족" : "입주 때 시세 차이: 계산 전";
     const gg = g.gain,
-      ann = x.annual != null ? ` · 추정 수익률(가정) ${pcIrr(x.annual)}(현금으로 샀을 때)` : "";
+      ann = x.annual != null ? ` · 추정 이율(가정) ${pcIrr(x.annual)}(현금으로 샀을 때)` : "";
     if (gg <= -0.3) return `시세 그대로면 손실 예상 <b>${sg(gg)}</b>${ann}`;
     if (gg < 0.3) return `시세 그대로면 차익 거의 없음 (${sg(gg)})${ann}`;
     return `입주 때 시세 차이 <b>${sg(gg)}</b> (시세 상승 0% 가정)${ann}`;
@@ -6674,7 +6676,7 @@
       c.outerHTML = `<div class="big cash"><span>전세 끼고 입주까지 현금</span><b>${ZF.cash(g.total)}</b><small>${esc(gapFrame(g))}</small></div>`;
     const gn = p.querySelector(".bigrow .big.gain");
     if (gn)
-      gn.outerHTML = `<div class="big gain ${g.gain >= 0.05 ? "up" : g.gain <= -0.05 ? "dn" : ""}"><span>입주 때 시세 차이 (전세 끼고 산 경우·추정)</span><b>${sg(g.gain)}</b><small>${g.gain > -0.3 && g.gain < 0.3 ? "시세 그대로면 차익 거의 없음 · " : ""}${g.x.annual != null ? `추정 수익률(가정) ${pcIrr(g.x.annual)}(현금으로 샀을 때) · ` : ""}추정 · 시세 상승 0% 가정</small></div>`;
+      gn.outerHTML = `<div class="big gain ${g.gain >= 0.05 ? "up" : g.gain <= -0.05 ? "dn" : ""}"><span>입주 때 시세 차이 (전세 끼고 산 경우·추정)</span><b>${sg(g.gain)}</b><small>${g.gain > -0.3 && g.gain < 0.3 ? "시세 그대로면 차익 거의 없음 · " : ""}${g.x.annual != null ? `추정 이율(가정) ${pcIrr(g.x.annual)}(현금으로 샀을 때) · ` : ""}추정 · 시세 상승 0% 가정</small></div>`;
     // 비례율 표도 위 큰 숫자와 같은 '전세 끼고' 기준(차이 = 매수대출 이자 대신 이주비 이자 · 비례율과 무관한 상수)
     const sb = $("mSens");
     if (sb && isFinite(g.x.gain)) {
@@ -6944,12 +6946,12 @@
       $("maxBox").setAttribute("aria-disabled", String(stale));
     });
     const next = TOP
-      ? `<button type="button" class="ans-top" data-go="${TOP.r.id}"><span><span class="t1">추정 수익률(가정) 3%·준공 30% 넘는 곳 중 첫 번째</span><span class="t2">${esc(shortName(TOP.r.n))}</span><span class="t3">${zline(TOP)}${tightTxt(TOP)}</span></span><span class="go">보기 →</span></button>`
+      ? `<button type="button" class="ans-top" data-go="${TOP.r.id}"><span><span class="t1">추정 이율(가정) 3%·준공 30% 넘는 곳 중 첫 번째</span><span class="t2">${esc(shortName(TOP.r.n))}</span><span class="t3">${zline(TOP)}${tightTxt(TOP)}</span></span><span class="go">보기 →</span></button>`
       : unlock
-        ? `<div class="ans-next"><p>추정 수익률(가정) 3%·10년 내 준공 30%를 넘는 곳은 <b>${ZF.cash(unlockCash)}</b>부터 나와요 · 서울 전체 ${fmt(passAll)}곳<small>${esc(shortName(unlock.r.n))} · ${zline(unlock)}</small></p><div class="ans-acts"><button type="button" class="btn secondary sm" data-cash="${unlockCash}">${ZF.cash(unlockCash)}이면 어떻게 되나 보기</button></div></div>`
+        ? `<div class="ans-next"><p>추정 이율(가정) 3%·10년 내 준공 30%를 넘는 곳은 <b>${ZF.cash(unlockCash)}</b>부터 나와요 · 서울 전체 ${fmt(passAll)}곳<small>${esc(shortName(unlock.r.n))} · ${zline(unlock)}</small></p><div class="ans-acts"><button type="button" class="btn secondary sm" data-cash="${unlockCash}">${ZF.cash(unlockCash)}이면 어떻게 되나 보기</button></div></div>`
         : "";
     setMore(
-      `${dsrWarn}<div class="ans-row${passN ? "" : " one"}">\n      ${passN ? `<div><span>추정 수익률(가정) 3%·준공 30% 넘는 곳</span><b class="okc">${fmt(passN)}곳</b><small>추정 수익률(가정) 3%↑ · 10년 안 준공 가능성 30%↑</small></div>` : ""}\n      <div><span>${otherTxt}</span><b>${fmt(otherN)}곳</b><small>${maxLine}</small></div>\n    </div>${next}`,
+      `${dsrWarn}<div class="ans-row${passN ? "" : " one"}">\n      ${passN ? `<div><span>추정 이율(가정) 3%·준공 30% 넘는 곳</span><b class="okc">${fmt(passN)}곳</b><small>추정 이율(가정) 3%↑ · 10년 안 준공 가능성 30%↑</small></div>` : ""}\n      <div><span>${otherTxt}</span><b>${fmt(otherN)}곳</b><small>${maxLine}</small></div>\n    </div>${next}`,
       "대출·기준·다음 금액·현금별 곳 수",
     );
     $("qAns").innerHTML = `<span>${ZF.cash(CASH)}이면 ${qa}</span><a href="#maxBox" class="qa-go">결과 보기</a>`;

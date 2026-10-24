@@ -199,7 +199,11 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         else: o['eta'] = '없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 알아봐야 해요'
     elif c.get('gapBlock') and c['gapBlock'] not in ('계산 대상 아님', 'na'):   # 'na' = 매수가 자료 없음(아래 마지막 갈래)
         o['basis'] = '전세 끼고는 못 사요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
-        if c.get('now') is not None and not r.get('lc') and r.get('tag') != 'mk': o['alt'] = f"대출 끼고 사면 지금 {cash(c['now'])}" + (f" · 입주까지 {cash(c['need'])}" if c.get('cashOk') and c.get('need') is not None else '')
+        if c.get('now') is not None and not r.get('lc') and r.get('tag') != 'mk':
+            o['alt'] = f"대출 끼고 사면 지금 {cash(c['now'])}" + (f" · 입주까지 {cash(c['need'])}" if c.get('need') is not None else '')
+            # 27차: 대출 끼고 사는 값을 칸의 큰 값으로(앱 76_detail.js keyHTML과 같은 꼴: 값 + '대출 끼고' 꼬리표) — '계산 보류' 칸과 아래 한 줄이 겹치던 것
+            o['lnow'] = cash(c['now'])
+            if c.get('need') is not None: o['ltot'] = cash(c['need'])   # 입주까지 값이 계산되면(앱 x.ok와 같은 판정 · cashOk는 '기본 예산 안' 뜻이라 쓰지 않는다)
         o['tsub'] = '전세 끼고는 계산하지 않아요'
     elif c.get('gapNow') is not None:
         o['now'] = cash(c['gapNow'])
@@ -211,7 +215,8 @@ def key3(r, c, dt=None, as_of=None, upd=None):
     w = c.get('win')
     o['ip'] = None if nt else ('입주권 ✓ 나와요', 'ok') if w == 'ok' else ('입주권 ✕ 안 나와요', 'no') if w == 'no' else ('입주권 ! 확인 필요', 'warn') if not done and r.get('src') != 'moa' else None
     en = (r.get('mk') or {}).get('entry') or {}
-    if c.get('price') is not None and c.get('priceSrc') in PSRC and not nt and r.get('src') != 'moa' and not done:
+    # 27차: 같은 구 빌라 시세로 채운 추정 매수가(calc.json priceSrc 'user')도 앱 상세처럼 '추정 · 같은 구 빌라 시세 기준 · 믿을 만함: 낮음'(전엔 '계산 보류'라 하면서 숫자를 보였다 · /z/o219)
+    if c.get('price') is not None and (c.get('priceSrc') in PSRC or isEst(r, c)) and not nt and r.get('src') != 'moa' and not done:
         lv, _ = trust(r, c)
         est = isEst(r, c)
         basis = f"같은 구({r.get('g', '')}) 빌라 시세 기준" if est else (f"{('구역 안 아파트' if en.get('fill') == 'zoneapt' else '단지') if en.get('src') == 'complex' else '같은 동 빌라' if en.get('fill') == 'dong' else '주변 빌라' if en.get('radius') else '같은 본번 빌라' if en.get('m') == 'jibun' else '구역 안 빌라'} {en['n']}건 기준" if en.get('n') else '실거래 기준')

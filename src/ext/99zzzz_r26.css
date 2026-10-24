@@ -34,8 +34,7 @@ html.is-app .s-rd,html.is-app .s-reads,html.is-app .ad-slot{display:none!importa
 @media (min-width:981px){html.simple #sListW>.site-foot{margin:24px 0 0;padding:16px 0 8px;border-top:1px solid var(--border);background:none}html.simple #sListW>.site-foot .wrap{max-width:none;padding:0}}
 
 /* ---- 첫 방문 카드: 폰 360에서 지도가 첫 화면에 보이게 — 예산 카드 아래 여백도 줄인다 ---- */
-@media (max-width:420px){html.onb-on .s-hero{gap:8px;margin-bottom:8px}html.onb-on #onb{margin-bottom:8px}}
-@media (max-width:420px){html.onb-on #sSum{display:none!important}}
+/* (27차) 첫 방문 카드 크기·여백은 shell.html 머리 style로 옮김 — 첫 프레임부터 같게 · 이름 3곳 줄은 첫 방문에도 보인다 */
 
 /* ---- 폰: 아래 탭(소식)이 있으니 머리 종은 뺀다(날짜는 둔다) · 26차 ---- */
 @media (max-width:980px){html.simple #hdrBell{display:none!important}html.simple .hdr-date{margin-right:4px}}

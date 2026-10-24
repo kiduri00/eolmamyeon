@@ -139,8 +139,11 @@ const INBOX = (() => {
     return KEYP || (KEYP = fetch("/api/push/key", { cache: "no-store", headers: { Accept: "application/json" } })
       .then((r) => (r.ok && /json/.test(r.headers.get("content-type") || "") ? r.json() : null))
       .then((j) => (KEY = j && typeof j.key === "string" && /^[A-Za-z0-9_-]{80,100}$/.test(j.key) ? j.key : null))
-      .catch(() => (KEY = null)));
+      .catch(() => { KEYP = null; KNET = true; KEY = undefined; return null; }));   // 27차: 네트워크 실패(오프라인)는 '안 되는 브라우저'가 아니다 — 다음에 다시 받는다
   };
+  let KNET = false;
+  try { addEventListener("online", () => { if (KNET) { KNET = false; pushKey(); } }); } catch (e) {}
+  const P_OFF = "오프라인이라 지금은 켤 수 없어요 · 연결되면 다시 눌러 주세요";
   const isOn = () => !!(lsR(PK, null) || {}).on;
   function pushBox() {
     if (!KEY || !canPush()) return "";
@@ -191,7 +194,7 @@ const INBOX = (() => {
         lsW(PK, { on: 1, at: Date.now() });
         res = { ok: true, msg: "" };
       }
-    } catch (e) { res = { ok: false, msg: P_FAIL }; }
+    } catch (e) { res = { ok: false, msg: navigator.onLine === false || KNET ? P_OFF : P_FAIL }; }
     PMSG = res.ok ? "" : res.msg;
     if (btn && btn.isConnected && !res.ok) { btn.disabled = false; btn.removeAttribute("aria-busy"); btn.innerHTML = lbl; }
     if (res.ok) { tst("폰 알림 켰어요", "매일 아침 새 소식이 있으면 알려 드려요"); setTimeout(() => { try { window.ZP_INSTALL && ZP_INSTALL.offer("push"); } catch (e) {} }, 3600); }
@@ -321,7 +324,7 @@ const INBOX = (() => {
   const evOf = (id) => (CH ? CH.items.filter((e) => e.id === id && TY[e.type]) : []);
   const week = () => { const d0 = addDay(day(), -6); return pinEvents().filter((e) => e.date >= d0); };
   // MY > 알림 설정에서 쓰는 것: 폰 알림 상태(st) · 켜기/끄기 · 종류별 끄기
-  const st = () => ({ can: !!KEY && canPush(), on: isOn() && canPush() && Notification.permission === "granted", perm: canPush() ? Notification.permission : "unsupported", msg: PMSG });
+  const st = () => ({ can: (!!KEY || KNET || (KEY === undefined && navigator.onLine === false)) && canPush(), on: isOn() && canPush() && Notification.permission === "granted", perm: canPush() ? Notification.permission : "unsupported", msg: PMSG });
   function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
   return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind };
 })();

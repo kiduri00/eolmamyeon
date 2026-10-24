@@ -71,10 +71,18 @@ NJS = ('<script>(function(){var D=' + json.dumps(NEWD) + ',g=function(k){try{ret
        'var b=document.querySelector(".hdr-bell");if(b)b.setAttribute("aria-label","소식, 새 소식 있음")})()</script>')
 
 
+# 27차 성능(/z TBT): 웹 글꼴 조각(유니코드 범위별 woff2 20여 개)이 하나 올 때마다 긴 페이지 전체를 다시 배치하던 것 → 대체 글꼴(같은 크기로 맞춘 Pretendard Fallback)로 그리다가
+# 이 페이지 글자에 필요한 조각이 다 오면 html.fo 한 번으로 바꾼다(앱 첫 화면 boot.js와 같은 방식 · pages.css html:not(.fo))
+FONTJS = ('<script>(function(){var H=document.documentElement;if(H.classList.contains("fo"))return;var t0=performance.now(),go=function(){H.classList.add("fo")};'
+          'try{if(!document.fonts||!document.fonts.load)return go();var t=(document.body.textContent||"").replace(/\\s+/g," ").slice(0,20000);'
+          # font-display: optional 처럼 — 조각이 금방(캐시) 오면 바로 바꾸고, 늦게 오면 이 화면은 대체 글꼴 그대로(받은 조각은 캐시돼 다음 페이지부터 바로)
+          'Promise.all(["400","700"].map(function(w){return document.fonts.load(w+" 15px \\"Pretendard Variable\\"",t)})).then(function(){if(performance.now()-t0<250)go()},function(){})}catch(e){go()}})()</script>')
+
+
 def block(cur):
     ac = ' aria-current="page"'
     a = ''.join(f'<a href="{u}"{ac if k == cur else ""}>{SV(d)}<span>{t}</span>{"<i class=\"nb-dot\" aria-hidden=\"true\" hidden>N</i>" if k == "news" else ""}</a>' for k, u, t, d in TABS)
-    return f'<!--zp-tabs--><style>{CSS}{BCSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}<!--/zp-tabs-->'
+    return f'<!--zp-tabs--><style>{CSS}{BCSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}{FONTJS}<!--/zp-tabs-->'
 
 
 RX = re.compile(r'<!--zp-tabs-->.*?<!--/zp-tabs-->', re.S)
