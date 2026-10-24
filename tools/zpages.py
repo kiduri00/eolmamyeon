@@ -623,11 +623,13 @@ if os.path.isdir(RD):
         # 발행일 = 머리글 '발행 YYYY년 M월 D일'(예전엔 해당 월 1일을 넣어 머리의 Article과 날짜가 달랐다) · 머리에 따로 있던 Article 구조화 데이터는 이 한 덩이로 합친다
         pm = re.search(r'발행 (\d{4})년 (\d{1,2})월 (\d{1,2})일', h)
         pubd = f"{pm.group(1)}-{int(pm.group(2)):02d}-{int(pm.group(3)):02d}" if pm else ym + "-01"
+        gm = re.search(r'갱신 (\d{4})년 (\d{1,2})월 (\d{1,2})일', h)   # 부분 호를 다음 달 전체 자료로 다시 쓴 날(tools/report.py)
+        modd = f"{gm.group(1)}-{int(gm.group(2)):02d}-{int(gm.group(3)):02d}" if gm else pubd
         hd0 = h[:h.find('<body')]
         hd1 = re.sub(r'<script type="application/ld\+json">\{[^<]*?"@type": ?"Article"[^<]*?</script>\n?', '', hd0)
         if hd1 != hd0: open(os.path.join(RD, f), 'w', encoding='utf-8').write(hd1 + h[len(hd0):])
         _ld_put(os.path.join(RD, f), {"@context": "https://schema.org", "@type": "Article", "headline": re.sub(r'<[^>]+>', '', h1m.group(1)).strip()[:110] if h1m else _meta(h, 'title'),
-                 "description": _meta(h, 'desc'), "inLanguage": "ko", "datePublished": pubd, "dateModified": pubd, "url": f"{SITE}/report/{ym}", "mainEntityOfPage": f"{SITE}/report/{ym}",
+                 "description": _meta(h, 'desc'), "inLanguage": "ko", "datePublished": pubd, "dateModified": modd, "url": f"{SITE}/report/{ym}", "mainEntityOfPage": f"{SITE}/report/{ym}",
                  "image": f"{SITE}/og.png", "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": _pub})
     ix = os.path.join(RD, 'index.html')
     if os.path.exists(ix):
