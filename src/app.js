@@ -1080,7 +1080,7 @@
   window.ZP_zones = { live: POP.length, done: R.filter((r) => isDone(r) && r.src !== "moa").length, moa: MOA_ALL.length };
   try { $("eyebrow").title = `진행 중 ${fmt(POP.length)}곳 = 준공·해산 ${fmt(window.ZP_zones.done)}곳과 모아타운 관리지역 ${fmt(MOA_ALL.length)}곳을 뺀 숫자`; } catch (e) {}
   document.querySelectorAll("[data-zcount]").forEach((el) => (el.textContent = `진행 중 ${fmt(POP.length)}곳 한 장씩`));
-  $("eyebrow").innerHTML =
+  if ($("eyebrow")) $("eyebrow").innerHTML =
     `<span class="live" aria-hidden="true"></span><span class="eb-l">서울 진행 중 정비사업 ${fmt(POP.length)}곳 · 모아타운 관리지역 ${fmt(MOA_ALL.length)}곳 별도 · 데이터 갱신 ${UPD}</span><span class="eb-s">서울 정비사업 ${fmt(POP.length)}곳 · ${+(D.upd || D.asOf).slice(5, 7)}.${+(D.upd || D.asOf).slice(8, 10)} 갱신</span>`;
   $("asof").textContent = window.ZP_fresh;
   const KINDS = [
@@ -6041,7 +6041,7 @@
       return `<div class="hv ref"><span>${GAIN_LBL()}</span><b>${uI(sg(x.gain))} <em class="refb">시점 미정 · 참고값</em></b><small>${x.yrs ? "입주 2년 이내 · 연환산 생략" : `입주 시점 미정${x.loanNow ? ` · 매수대출 이자는 ${CONS_YRS}년(보수 가정)` : ""}`}</small>${isMulti() ? `<small class="mh">${MULTI_NOTE}</small>` : ""}</div>`;
     const sub =
       x.gain <= 0
-        ? "손실 예상 · 연수익 없음"
+        ? "손실 예상 · 추정 수익률 없음"
         : `<span title="매수대출 이자와 분담금 납부 시점을 반영한 연 복리 수익률(연 복리 수익률)">연 ${pcIrr(x.annual)} (연 복리 수익률)</span>${x.annual < DEP ? ` · <span class="lowp">예금 ${(DEP * 100).toFixed(1)}% 미만</span>` : ""}${slow ? ` · <span class="lowp" title="10년 안 준공 가능성이 낮아요">10년 내 준공 ${probTxt(p10)}로 낮음</span>` : ""}`;
     const cls = x.gain >= 0.05 ? "up" : x.gain <= -0.05 ? "dn" : "";
     return `<div class="hv ${cls}"><span>${GAIN_LBL()}</span><b>${uI(sg(x.gain))}</b><small>${sub}${x.refund ? " · 환급 추정(조합 추정분담금 확인)" : ""}</small>${isMulti() ? `<small class="mh">${MULTI_NOTE}</small>` : ""}</div>`;
@@ -6105,7 +6105,7 @@
           ? `손실 예상 · ${e2(left) === "0" ? "남는 돈 없음" : ZF.cash(left) + " 남음"}`
           : tight
             ? e2(left) === "0"
-              ? "예산에 딱 맞음"
+              ? "예산 범위"
               : `${ZF.cash(left)} 남음 · 빠듯`
             : `${ZF.cash(left)} 남음`;
       const inc = num("pIncome"),
@@ -6434,7 +6434,7 @@
     const x = g.x;
     if (!x.ok) return x.nvThin ? "입주 때 시세 차이: 신축 시세 표본 부족" : "입주 때 시세 차이: 계산 전";
     const gg = g.gain,
-      ann = x.annual != null ? ` · 연수익 ${pcIrr(x.annual)}(현금으로 샀을 때)` : "";
+      ann = x.annual != null ? ` · 추정 수익률(가정) ${pcIrr(x.annual)}(현금으로 샀을 때)` : "";
     if (gg <= -0.3) return `시세 그대로면 손실 예상 <b>${sg(gg)}</b>${ann}`;
     if (gg < 0.3) return `시세 그대로면 차익 거의 없음 (${sg(gg)})${ann}`;
     return `입주 때 시세 차이 <b>${sg(gg)}</b> (시세 상승 0% 가정)${ann}`;
@@ -6671,7 +6671,7 @@
       c.outerHTML = `<div class="big cash"><span>전세 끼고 입주까지 현금</span><b>${ZF.cash(g.total)}</b><small>${esc(gapFrame(g))}</small></div>`;
     const gn = p.querySelector(".bigrow .big.gain");
     if (gn)
-      gn.outerHTML = `<div class="big gain ${g.gain >= 0.05 ? "up" : g.gain <= -0.05 ? "dn" : ""}"><span>입주 때 시세 차이 (전세 끼고 산 경우·추정)</span><b>${sg(g.gain)}</b><small>${g.gain > -0.3 && g.gain < 0.3 ? "시세 그대로면 차익 거의 없음 · " : ""}${g.x.annual != null ? `연수익 ${pcIrr(g.x.annual)}(현금으로 샀을 때) · ` : ""}추정 · 시세 상승 0% 가정</small></div>`;
+      gn.outerHTML = `<div class="big gain ${g.gain >= 0.05 ? "up" : g.gain <= -0.05 ? "dn" : ""}"><span>입주 때 시세 차이 (전세 끼고 산 경우·추정)</span><b>${sg(g.gain)}</b><small>${g.gain > -0.3 && g.gain < 0.3 ? "시세 그대로면 차익 거의 없음 · " : ""}${g.x.annual != null ? `추정 수익률(가정) ${pcIrr(g.x.annual)}(현금으로 샀을 때) · ` : ""}추정 · 시세 상승 0% 가정</small></div>`;
     // 비례율 표도 위 큰 숫자와 같은 '전세 끼고' 기준(차이 = 매수대출 이자 대신 이주비 이자 · 비례율과 무관한 상수)
     const sb = $("mSens");
     if (sb && isFinite(g.x.gain)) {
@@ -6941,12 +6941,12 @@
       $("maxBox").setAttribute("aria-disabled", String(stale));
     });
     const next = TOP
-      ? `<button type="button" class="ans-top" data-go="${TOP.r.id}"><span><span class="t1">연수익 3%·준공 30% 넘는 곳 중 1순위</span><span class="t2">${esc(shortName(TOP.r.n))}</span><span class="t3">${zline(TOP)}${tightTxt(TOP)}</span></span><span class="go">보기 →</span></button>`
+      ? `<button type="button" class="ans-top" data-go="${TOP.r.id}"><span><span class="t1">추정 수익률(가정) 3%·준공 30% 넘는 곳 중 첫 번째</span><span class="t2">${esc(shortName(TOP.r.n))}</span><span class="t3">${zline(TOP)}${tightTxt(TOP)}</span></span><span class="go">보기 →</span></button>`
       : unlock
-        ? `<div class="ans-next"><p>연수익 3%·10년 내 준공 30%를 넘는 곳은 <b>${ZF.cash(unlockCash)}</b>부터 나와요 · 서울 전체 ${fmt(passAll)}곳<small>${esc(shortName(unlock.r.n))} · ${zline(unlock)}</small></p><div class="ans-acts"><button type="button" class="btn secondary sm" data-cash="${unlockCash}">${ZF.cash(unlockCash)}이면 어떻게 되나 보기</button></div></div>`
+        ? `<div class="ans-next"><p>추정 수익률(가정) 3%·10년 내 준공 30%를 넘는 곳은 <b>${ZF.cash(unlockCash)}</b>부터 나와요 · 서울 전체 ${fmt(passAll)}곳<small>${esc(shortName(unlock.r.n))} · ${zline(unlock)}</small></p><div class="ans-acts"><button type="button" class="btn secondary sm" data-cash="${unlockCash}">${ZF.cash(unlockCash)}이면 어떻게 되나 보기</button></div></div>`
         : "";
     setMore(
-      `${dsrWarn}<div class="ans-row${passN ? "" : " one"}">\n      ${passN ? `<div><span>연수익 3%·준공 30% 넘는 곳</span><b class="okc">${fmt(passN)}곳</b><small>연수익 3%↑ · 10년 안 준공 가능성 30%↑</small></div>` : ""}\n      <div><span>${otherTxt}</span><b>${fmt(otherN)}곳</b><small>${maxLine}</small></div>\n    </div>${next}`,
+      `${dsrWarn}<div class="ans-row${passN ? "" : " one"}">\n      ${passN ? `<div><span>추정 수익률(가정) 3%·준공 30% 넘는 곳</span><b class="okc">${fmt(passN)}곳</b><small>추정 수익률(가정) 3%↑ · 10년 안 준공 가능성 30%↑</small></div>` : ""}\n      <div><span>${otherTxt}</span><b>${fmt(otherN)}곳</b><small>${maxLine}</small></div>\n    </div>${next}`,
       "대출·기준·다음 금액·현금별 곳 수",
     );
     $("qAns").innerHTML = `<span>${ZF.cash(CASH)}이면 ${qa}</span><a href="#maxBox" class="qa-go">결과 보기</a>`;
@@ -7022,7 +7022,7 @@
         listHTML(
           shown.map(card),
           mainF.length,
-          `${!shown.length && !earlyF.length ? `<div class="t-empty"><b>${LF ? `${LF_LAB[LF]} 중에는 없어요` : `현금 ${ZF.cash(CASH)}으로 ${basisLab} 가능한 곳이 아직 없어요`}</b><p>${LF ? "유형 거르기를 풀어 보세요." : "위 답 카드의 다음 금액이나 전세 끼고 보기를 눌러 보세요."}</p></div>` : ""}${mainF.length > planN ? `<button type="button" class="btn-more" id="planMore">${fmt(Math.min(12, mainF.length - planN))}곳 더 보기 · 남은 ${fmt(mainF.length - planN)}곳</button>` : ""}\n    ${earlyF.length ? `<details class="early" id="earlyBox"${mainF.length ? "" : " open"}><summary><b>입주 시점 미정</b><span class="cnt">${fmt(earlyF.length)}곳</span><small>입주 시점·매수가·신축 시세 표본이 없어 연수익을 계산하지 않은 구역</small></summary><div class="zl" id="earlyList">${!mainF.length ? earlyF.slice(0, 24).map(card).join("") : ""}</div>${earlyF.length > 24 ? `<p class="early-more">외 ${fmt(earlyF.length - 24)}곳은 지도에서 확인</p>` : ""}</details>` : ""}`,
+          `${!shown.length && !earlyF.length ? `<div class="t-empty"><b>${LF ? `${LF_LAB[LF]} 중에는 없어요` : `현금 ${ZF.cash(CASH)}으로 ${basisLab} 가능한 곳이 아직 없어요`}</b><p>${LF ? "유형 거르기를 풀어 보세요." : "위 답 카드의 다음 금액이나 전세 끼고 보기를 눌러 보세요."}</p></div>` : ""}${mainF.length > planN ? `<button type="button" class="btn-more" id="planMore">${fmt(Math.min(12, mainF.length - planN))}곳 더 보기 · 남은 ${fmt(mainF.length - planN)}곳</button>` : ""}\n    ${earlyF.length ? `<details class="early" id="earlyBox"${mainF.length ? "" : " open"}><summary><b>입주 시점 미정</b><span class="cnt">${fmt(earlyF.length)}곳</span><small>입주 시점·매수가·신축 시세 표본이 없어 추정 수익률을 계산하지 않은 구역</small></summary><div class="zl" id="earlyList">${!mainF.length ? earlyF.slice(0, 24).map(card).join("") : ""}</div>${earlyF.length > 24 ? `<p class="early-more">외 ${fmt(earlyF.length - 24)}곳은 지도에서 확인</p>` : ""}</details>` : ""}`,
         ),
       );
     });

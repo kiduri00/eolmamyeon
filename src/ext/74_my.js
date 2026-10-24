@@ -17,6 +17,7 @@ const MY = (() => {
     const nn = $("myCashN"); if (nn && n != null) nn.textContent = `갈 수 있는 곳 ${fmt(n)}곳`;
     const r = $("myCashR"); if (r && c != null && document.activeElement !== r) T(() => { r.value = String(SIMPLE.toPos(c)); r.setAttribute("aria-valuetext", ZF.cash(c)); });
     document.querySelectorAll("#myMode button[data-f]").forEach((x) => x.setAttribute("aria-pressed", String((x.dataset.f === "gap") === !!g)));
+    const hm = T(() => P.homes); if (hm != null) document.querySelectorAll("#myHomes button[data-h]").forEach((x) => x.setAttribute("aria-pressed", String(+x.dataset.h === +hm)));   // 25차: 첫 방문 2단계 질문을 여기(선택)로
   }
   // ---------- 알림 ----------
   // 종류 스위치는 늘 누를 수 있다(폰 알림이 꺼져 있어도 소식 목록·N 배지에 바로 적용) · 줄 전체가 스위치
@@ -108,6 +109,7 @@ const MY = (() => {
     s.addEventListener("click", (e) => {
       const t = e.target.closest("button, a"); if (!t) return;
       if (t.id === "myCash") { const box = $("myCashBox"); box.hidden = !box.hidden; t.setAttribute("aria-expanded", String(!box.hidden)); if (!box.hidden) { cond(); $("myCashR").focus({ preventScroll: true }); } return; }
+      if (t.closest("#myHomes") && t.dataset.h != null) { T(() => window.ZP_budget.homes(+t.dataset.h)); setTimeout(cond, 60); return; }
       if (t.closest("#myMode") && t.dataset.f) { const o = document.querySelector(`#mapTop .s-mode button[data-f="${t.dataset.f}"]`); if (o) o.click(); setTimeout(cond, 60); return; }
       if (t.id === "myPushOn" || t.hasAttribute("data-push-on")) { INBOX.subscribe(t).then(alerts); return; }
       if (t.id === "myPushOff") { INBOX.unsubscribe().then(alerts); return; }

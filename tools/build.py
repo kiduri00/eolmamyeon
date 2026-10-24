@@ -41,7 +41,7 @@ if os.path.exists(LT):
     if m and lt.get('items'):
         cur = json.loads(m.group(2))
         if lt['ym'] > cur.get('ym', ''):
-            new = {'ym': lt['ym'], 'no': lt['no'], 'url': lt['url'] + '.html', 'items': [{'id': i['id'], 'step': i['step'], 'date': i['date'], 'src': ''} for i in lt['items']]}
+            new = {'ym': lt['ym'], 'no': lt['no'], 'url': lt['url'], 'items': [{'id': i['id'], 'step': i['step'], 'date': i['date'], 'src': ''} for i in lt['items']]}
             shell = shell[:m.start(2)] + json.dumps(new, ensure_ascii=False) + shell[m.end(2):]
 # 24차: 첫 화면 '재개발 공부하기' 첫 줄 = 가장 최근에 낸 월간 리포트(색인 안 하는 초안은 건너뜀)
 _RD = os.path.join(R, 'public', 'report')
@@ -54,6 +54,8 @@ for _f in _iss:
         _t = re.sub(r'<[^>]+>', '', _m.group(1)).strip()
         shell = re.sub(r'<a class="sr-r" href="report/[^"]*" id="sReadsRpt">(<span class="sr-k">[^<]*</span>)<span class="sr-t">[^<]*</span>',
                        lambda m: f'<a class="sr-r" href="report/{_f[:-5]}" id="sReadsRpt">{m.group(1)}<span class="sr-t">{_t.replace("&", "&amp;").replace("<", "&lt;")}</span>', shell, count=1)
+        # 25차: 목록 위 '읽을거리' 한 줄의 리포트 링크도 같은 호로(‘10월 리포트’)
+        shell = re.sub(r'<a href="report/[^"]*" id="sRead3Rpt">[^<]*</a>', f'<a href="report/{_f[:-5]}" id="sRead3Rpt">{int(_f[5:7])}월 리포트</a>', shell, count=1)
     break
 PJ = os.path.join(R, 'public', 'premium.json')
 if os.path.exists(PJ):

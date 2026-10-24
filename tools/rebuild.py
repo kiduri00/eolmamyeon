@@ -81,6 +81,45 @@ UPD = (D.get('upd') or '').replace('-', '.')
 guN = collections.Counter(r['g'] for r in rows)
 zN = sum(1 for r in rows if r['z'])
 eok = lambda v: f"{v/10000:.1f}억".replace('.0억', '억')
+# 25차(애드센스 1차 레드팀): 표만 있던 글 → 요약 + 자료로 쓴 설명 다섯 꼭지(숫자는 모두 위 rows에서) · 큰 표는 접어 둔다
+def _med(v): v = sorted(v); return v[len(v) // 2] if v else None
+def _pc(a, b): return round(a / b * 100) if b else 0
+def narrative():
+    N = len(rows)
+    if not N: return ''
+    top = guN.most_common(5); low = [g for g, n in sorted(guN.items(), key=lambda z: (z[1], z[0]))[:3]]
+    zg = collections.Counter(r['g'] for r in rows if r['z'])
+    dec = collections.Counter((r['y'] // 10) * 10 for r in rows)
+    old = min(rows, key=lambda r: (r['y'], -r['c']))
+    F = [r['far'] for r in rows if r['far']]; fb = lambda lo, hi: sum(1 for v in F if lo < v <= hi)
+    LDv = [r['ld'] for r in rows if r['ld']]
+    pm = {g: _med([r['m'] for r in rows if r['g'] == g]) for g in guN if guN[g] >= 10}
+    pr = sorted(pm.items(), key=lambda z: z[1])
+    tc = sorted(rows, key=lambda r: -r['c'])[:3]
+    zs = collections.Counter(r['zs'] for r in rows if r['z'] and r['zs'])
+    S = []
+    S.append(('요약', f'<ul><li>준공 30년이 지나고 최근 실거래가 있는 서울 아파트는 <b>{N:,}단지</b>예요.</li><li>{top[0][0]}({top[0][1]:,}단지)·{top[1][0]}({top[1][1]:,})·{top[2][0]}({top[2][1]:,})에 가장 많아요.</li>'
+              f'<li>이미 정비구역에 들어간 단지는 {zN:,}단지({_pc(zN, N)}%)이고, 나머지 {N - zN:,}단지는 아직 정비구역으로 잡히지 않았어요.</li>'
+              + (f'<li>용적률이 확인된 {len(F):,}단지 가운데 200% 이하가 {fb(0, 200):,}단지({_pc(fb(0, 200), len(F))}%)예요.</li>' if F else '')
+              + f'<li>단지별 실거래 가운데 값의 가운데 값은 {eok(_med([r["m"] for r in rows]))}이에요.</li></ul>'))
+    S.append(('어느 구에 많나', f'<p>{", ".join(f"{g} {n:,}단지" for g, n in top)} 순이에요. 다섯 구만 합쳐도 {_pc(sum(n for _, n in top), N)}%예요. 가장 적은 곳은 {", ".join(low)}예요. '
+              + (f'이미 정비사업이 진행 중인 단지 비율은 {", ".join(f"{g} {_pc(zg[g], guN[g])}%" for g, _ in top[:3])}로, 같은 노후 단지라도 구마다 사업에 들어간 정도가 달라요.' if zg else '') + '</p>'))
+    ds = sorted(dec.items())
+    S.append(('언제 지어졌나', f'<p>준공 연대로 나누면 ' + ', '.join(f"{d}년대 {n:,}단지" for d, n in ds) + f'예요. 가장 오래된 단지는 {esc(old["g"])} {esc(old["d"])}의 {esc(old["n"])}({old["y"]}년 준공, {NOWY - old["y"]}년)이에요. '
+              f'1990년대 준공 단지는 해마다 새로 30년을 넘기면서 이 목록이 길어져요. 30년은 재건축을 검토할 수 있는 최소 조건이고, 실제 착수는 안전진단(재건축 진단)과 정비계획을 거쳐야 해요.</p>'))
+    if F:
+        S.append(('용적률로 보는 여지', f'<p>용적률은 대지 면적 대비 건물 연면적 비율이에요. 지금 용적률이 낮을수록 다시 지을 때 늘릴 수 있는 폭이 커서 일반분양 몫이 생기기 쉬워요. 확인된 {len(F):,}단지 가운데 150% 이하 {fb(0, 150):,}단지, 150~200% {fb(150, 200):,}단지, 200~250% {fb(200, 250):,}단지, 250% 넘음 {fb(250, 999):,}단지예요(가운데 값 {round(_med(F))}%). '
+                  f'다만 용적률은 건축물대장 총괄표제부가 있는 단지만 확인돼서, 한 동짜리 단지는 빠져 있어요.</p>'))
+    if LDv:
+        S.append(('세대당 대지지분', f'<p>대지면적을 세대수로 나눈 세대당 평균 대지지분은 가운데 값 {_med(LDv)}㎡예요. 같은 용적률이라도 대지지분이 클수록 조합원 한 사람 몫의 땅이 많아 분담금 부담이 줄어드는 쪽으로 작용해요. '
+                  f'대지지분이 확인된 {len(LDv):,}단지 가운데 40㎡ 이상은 {sum(1 for v in LDv if v >= 40):,}단지, 20㎡ 미만은 {sum(1 for v in LDv if v < 20):,}단지예요.</p>'))
+    if pr:
+        S.append(('값과 거래', f'<p>단지가 10곳 넘는 구만 놓고 단지별 가운데 값을 다시 가운데로 모으면 {pr[0][0]} {eok(pr[0][1])}, {pr[1][0]} {eok(pr[1][1])}이 가장 낮고 {pr[-1][0]} {eok(pr[-1][1])}, {pr[-2][0]} {eok(pr[-2][1])}이 가장 높아요. 평형이 섞인 값이라 단지끼리 바로 비교하기보다는 흐름을 보는 용도예요. '
+                  f'거래가 가장 많은 단지는 ' + ', '.join(f'{esc(r["g"])} {esc(r["n"])}({r["c"]}건)' for r in tc) + '이에요.</p>'))
+    if zs:
+        S.append(('이미 정비사업 중인 단지', f'<p>정비구역 안에 있는 {zN:,}단지를 지금 단계로 나누면 ' + ', '.join(f'{esc(k)} {v:,}단지' for k, v in zs.most_common(5)) + '예요. 표에서 ‘정비사업 진행 중’ 링크를 누르면 구역 페이지에서 인가 이력과 입주까지 현금을 볼 수 있어요. 재건축은 조합설립인가 뒤에 사면 입주권이 나오지 않으니 단계를 먼저 확인하세요.</p>'))
+    return ''.join(f'<h2>{t}</h2>{b}' for t, b in S)
+NARR = narrative()
 trs = ''.join(
     f'<tr data-g="{esc(r["g"])}" data-z="{1 if r["z"] else 0}" data-far="{r["far"] or 999}"><td>{esc(r["g"])}<small>{esc(r["d"])}</small></td><td><b>{esc(r["n"])}</b>'
     + (f'<small><a href="../z/{r["z"]}">정비사업 진행 중 · {esc(r["zs"])}</a></small>' if r['z'] else '') +
@@ -118,8 +157,12 @@ page = f'''<!doctype html>
 <p class="byline">정리: 집핀 운영자 · <time datetime="2026-10-17">2026.10.17</time> 작성 · 매일 자동 갱신(<time datetime="{UPD.replace('.', '-')}">{UPD}</time> 자료)</p>
 <p class="lede">재건축 연한(준공 30년)이 지난 서울 아파트 가운데 최근 실거래가 있는 단지를 모았어요. 이 가운데 <b>{zN}단지</b>는 이미 정비사업(재건축 등)이 진행 중이라 구역 페이지로 연결했고, 나머지는 아직 정비구역으로 잡히지 않은 단지예요.</p>
 <div class="hbox"><b>읽는 법</b>준공 30년은 재건축을 시작할 수 있는 최소 조건일 뿐이에요. 실제 사업성은 용적률·대지지분·단지 규모·안전진단(재건축 진단) 결과에 달려 있는데, 용적률·세대수는 건축물대장 총괄표제부(여러 동이 한 대지에 있는 단지만 있음)에서 가져왔고, 대지지분은 대지면적÷세대수로 낸 세대당 평균이에요. 총괄표제부가 없는 단지는 '–'로 보여요. 가격은 최근 12개월(거래가 적으면 2024년 이후) 실거래 가운데 값이고 평형이 섞여 있어요.</div>
+{NARR}
+<h2>단지 목록</h2>
+<details class="rb-d"><summary>{len(rows):,}단지 표 펼치기(자치구·용적률로 거르기)</summary>
 <div class="rb-f"><label>자치구 <select id="rbG"><option value="">서울 전체 ({len(rows):,})</option>{opts}</select></label><label><input type="checkbox" id="rbZ"> 정비사업 진행 중 빼기</label><label><input type="checkbox" id="rbF"> 용적률 200% 이하</label><input id="rbQ" type="search" placeholder="단지·동 이름 검색" aria-label="단지·동 이름 검색"><span id="rbCnt"></span></div>
 <div class="rb-w"><table class="rb"><thead><tr><th>구·동</th><th>단지</th><th class="n">준공</th><th class="n">용적률</th><th class="n">대지지분</th><th class="n">실거래 가운데 값</th><th class="n">거래 수</th></tr></thead><tbody id="rbB">{trs}</tbody></table></div>
+</details>
 <p class="note">자료: 서울시 건축물대장 총괄표제부(서울 열린데이터광장), 서울시 부동산 실거래가(아파트 매매, {esc(T['asOf']['sale'][:4])}.{esc(T['asOf']['sale'][4:6])}.{esc(T['asOf']['sale'][6:])}까지), 정비구역 필지 서울도시공간포털. 단지 이름은 실거래 신고 이름이라 실제 단지명과 다를 수 있어요. 투자 권유가 아니에요.</p>
 <h2>함께 읽기</h2>
 <ul class="links"><li><a href="/guide/redevelop-vs-rebuild">같은 돈으로 재개발과 재건축은 무엇이 다를까</a></li><li><a href="/guide/ipjugwon">조합설립인가 뒤에 사도 입주권이 나오나</a></li><li><a href="/guide/jungong">재개발 단계별로 10년 안에 준공될 확률</a></li><li><a href="/guide/status">서울 정비사업, 지금 어느 단계에 몇 곳</a></li><li><a href="/gu/">구별 페이지: 구마다 진행 중인 정비사업</a></li></ul>

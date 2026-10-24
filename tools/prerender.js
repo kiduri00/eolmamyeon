@@ -70,7 +70,7 @@ async function state(out) {
         const li = [...$("sList").children].map((el) => {
           const c = el.cloneNode(true); c.classList.remove("s-nosp"); if (!c.className) c.removeAttribute("class");
           // 금액마다 달라지는 '남는 돈 · 딱 맞아요'는 빼고 뜬다(섬이 data-need로 다시 채움 — 줄 모양이 금액마다 새로 생기지 않게)
-          const h = c.outerHTML.replace(/<span class="s-fx">.*?<\/span><\/span><\/a>/, '<span class="s-fx"></span></span></a>').replace(/, (딱 맞아요|남는 돈 [^"]*)(?=")/, ""); if (!rowIx.has(h)) { rowIx.set(h, rows.length); rows.push(h); } return rowIx.get(h);
+          const h = c.outerHTML.replace(/<span class="s-fx">.*?<\/span><\/span><\/a>/, '<span class="s-fx"></span></span></a>').replace(/, (예산 범위|예산에서 남는 돈 [^"]*)(?=")/, ""); if (!rowIx.has(h)) { rowIx.set(h, rows.length); rows.push(h); } return rowIx.get(h);
         });
         const ok = [];
         let nOk = 0;

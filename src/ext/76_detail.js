@@ -60,7 +60,7 @@ const DTL = (() => {
     return `<section class="dt-k" aria-label="핵심 숫자">
       <div class="dt-i" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b><span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && !n.moa && !n.done && !n.im && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1}<span class="dt-slot" data-slot="gap"></span></span></div>
       <div class="dt-i" data-k="tot"><span class="dt-l">${LBL.cashToMoveIn}</span><b class="dt-v">${v2}</b><span class="dt-s">${sub2}</span></div>
-      <div class="dt-i" data-k="eta"><span class="dt-l">${n.nt ? "입주권" : "언제 입주"}</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `${n.im ? `<span class="dt-s dt-alt">참고 입주권 시세 ${ZF.eok(n.im)}</span>` : ""}<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 노려야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
+      <div class="dt-i" data-k="eta"><span class="dt-l">${n.nt ? "입주권" : "언제 입주"}</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `${n.im ? `<span class="dt-s dt-alt">참고 입주권 시세 ${ZF.eok(n.im)}</span>` : ""}<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 알아봐야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
     </section>`;
   }
   // ---------- 신뢰 한 줄: 추정 칩 하나 · 표본 · 믿을 만함 › (누르면 '돈' 탭의 '이 숫자 믿어도 될까'로) ----------

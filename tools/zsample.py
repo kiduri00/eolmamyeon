@@ -196,8 +196,8 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         # 입주권 이야기는 셋째 칸('입주권')에서 한 번(앱 76_detail.js와 같은 글) · 착공 뒤처럼 입주권 거래가 있는 곳은 '조합원 입주권을 사야 해요'(참고 시세)
         t = r.get('tx') or {}; o['basis'] = ''; o['tsub'] = ''; o['elab'] = '입주권'
         if s >= 8 and t.get('im'): o['eta'] = '조합원 입주권을 사야 해요'; o['esub'] = f"참고 입주권 시세 {eok_m(t['im'])}"; o['im'] = 1
-        else: o['eta'] = '없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 노려야 해요'
-    elif c.get('gapBlock') and c['gapBlock'] != '계산 대상 아님':
+        else: o['eta'] = '없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 알아봐야 해요'
+    elif c.get('gapBlock') and c['gapBlock'] not in ('계산 대상 아님', 'na'):   # 'na' = 매수가 자료 없음(아래 마지막 갈래)
         o['basis'] = '전세 끼고는 못 사요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
         if c.get('now') is not None and not r.get('lc') and r.get('tag') != 'mk': o['alt'] = f"대출 끼고 사면 지금 {cash(c['now'])}" + (f" · 입주까지 {cash(c['need'])}" if c.get('cashOk') and c.get('need') is not None else '')
         o['tsub'] = '전세 끼고는 계산하지 않아요'

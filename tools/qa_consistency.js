@@ -1163,20 +1163,19 @@ async function r14Lane(browser, api, errs) {
   // --- ui.onboard: 첫 실행 질문(저장된 조건·딥링크 없을 때만) → 2억을 고르면 카드·곳 수가 2억 · 딥링크·두 번째 방문은 건너뜀
   //     url.cash: ?cash=2 로 열면 2억 · ui.budgetSheet: 예산 시트 막대(고른 금액) 곳 수 == 카드 곳 수 == 시트 곳 수 == ZP_count
   {
-    const T = "첫 실행 질문: 처음엔 '지금 쓸 수 있는 현금' 질문 · 2억 고르면 카드 2억·곳 수 == ZP_count(2) · 딥링크(#구역)·두 번째 방문은 질문 없음";
+    const T = "첫 방문 카드(화면을 덮지 않음 · 한 단계 · 나중에 닫기): 처음엔 '지금 쓸 수 있는 현금' 질문 · 2억 고르면 카드 2억·곳 수 == ZP_count(2) · 딥링크(#구역)·두 번째 방문은 질문 없음";
     const ctx = await browser.newContext({ ...M, serviceWorkers: "block" });   // IN_PAGE(질문 답한 사용자) 없이
     try {
       await ctx.route(BLOCK, (r) => r.abort());
       const page = await ctx.newPage();
       page.on("pageerror", (e) => errs.push({ where: "/ (onboard)", msg: "pageerror: " + (e.message || String(e)).split("\n")[0].slice(0, 200) }));
       await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
-      const a = await page.evaluate(() => { const o = document.getElementById("onb"), r = o && o.getBoundingClientRect(); return { on: !!o && !o.hidden && r.width > 200 && r.height > 300, q: o ? o.innerText : "", chips: o ? [...o.querySelectorAll("[data-oc]")].map((b) => b.textContent.trim()) : [] }; });
-      expect(a.on && /지금 쓸 수 있는 현금이 얼마예요\?/.test(a.q) && a.chips.join(",") === "5,000만,1억,2억,3억,5억,7억,10억,15억+,잘 모르겠어요 → 1억으로 둘러보기", "ui.onboard", T, `first run: shown ${a.on} · chips [${a.chips.join(", ")}]`);
+      // 25차: 화면을 덮는 전체 화면 질문 대신 홈 맨 위 카드(한 단계 · '나중에' 닫기) — 목록·읽을거리·푸터가 그대로 보이고 스크롤된다
+      const a = await page.evaluate(() => { const o = document.getElementById("onb"), r = o && o.getBoundingClientRect(), cs = o && getComputedStyle(o), rd = document.getElementById("sReads"), H = getComputedStyle(document.documentElement).overflow + getComputedStyle(document.body).overflow;
+        return { on: !!o && !o.hidden && r.width > 200 && r.height > 80, inline: !!cs && cs.position !== "fixed" && cs.position !== "absolute" && r.height < innerHeight * 0.6, lock: /hidden/.test(H), later: !!(o && o.querySelector("[data-olater]")), reads: !!rd && rd.getClientRects().length > 0, q: o ? o.innerText : "", chips: o ? [...o.querySelectorAll("[data-oc]")].map((b) => b.textContent.trim()) : [] }; });
+      expect(a.on && a.inline && !a.lock && a.later && a.reads && /지금 쓸 수 있는 현금이 얼마예요\?/.test(a.q) && !/집 있어요/.test(a.q) && a.chips.join(",") === "5,000만,1억,2억,3억,5억,7억,10억,15억+", "ui.onboard", T, `first run: shown ${a.on} · inline ${a.inline} · scroll lock ${a.lock} · 나중에 ${a.later} · reads visible ${a.reads} · chips [${a.chips.join(", ")}]`);
       await page.tap('#onb [data-oc="2"]').catch(() => page.click('#onb [data-oc="2"]'));
       await page.waitForTimeout(250);
-      const st2 = await page.evaluate(() => { const s = document.querySelector('#onb [data-st="2"]'); return !!s && !s.hidden && /집 있어요\?/.test(s.innerText) && s.querySelectorAll("[data-oh]").length === 4; });
-      expect(st2, "ui.onboard", T, "second question '집 있어요?' with 4 choices not shown after picking cash");
-      await page.click("#onb [data-olater]");
       await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.ZP_count === "function", null, { timeout: 20000 }).catch(() => {});
       await settle(page, 900);
       const b = await page.evaluate(() => ({ hidden: document.getElementById("onb").hidden, lock: document.documentElement.classList.contains("onb-on"), v: document.getElementById("sCashV").textContent.trim(), n: document.getElementById("sN").textContent, zc: window.ZP_count(2), zcNow: window.ZP_count(), pc: (document.getElementById("pCash") || {}).value, url: location.search, cond: localStorage.getItem("jg-cond"), vt: document.getElementById("sCash").getAttribute("aria-valuetext") }));

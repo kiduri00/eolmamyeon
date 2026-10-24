@@ -162,10 +162,10 @@ def minimap(r, GEO, D, short):
            '@media (prefers-color-scheme:dark){.mm-bg{fill:#121722}.mm-og{fill:#171d2a;stroke:#3a4458}.mm-gu{fill:#1b2130;stroke:#8b95a8}.mm-grid{stroke:#fff}.mm-oz{fill:#7da2ff;stroke:#7da2ff}'
            '.mm-lc{stroke:#1b2130}.mm-z{fill:#7da2ff;stroke:#9db8ff}.mm-st{fill:#1b2130;stroke:#d5dae3}.mm-tx{fill:#d5dae3;stroke:#1b2130}.mm-lab rect{fill:#9db8ff}.mm-lab text{fill:#14213d}'
            '.mm-sb rect,.mm-n circle{fill:#1b2130}.mm-sb path{stroke:#d5dae3}.mm-sb text,.mm-n text{fill:#d5dae3}.mm-n path,.mm-off path{fill:#d5dae3}.mm-gn{fill:#c3cad9;stroke:#1b2130}}')
-    cap = f'정비구역 경계(서울도시공간포털·정비사업 현황){" · 경계 자료가 없어 면적 기준 원으로 표시(점선)" if est else ""} · 옅은 칸은 주변 정비구역 · 점선은 {esc(r["g"])} 경계'
-    return (f'<figure class="mm" style="margin:16px 0 8px"><svg viewBox="0 0 {W} {H}" role="img" aria-label="{esc(short(r["n"]))} 위치 지도: 정비구역 경계와 가까운 지하철역">'
+    cap = '경계 자료가 없어 면적만큼 원으로 그렸어요 · ' if est else ''
+    return (f'<figure class="mm" style="margin:16px 0 8px"><svg viewBox="0 0 {W} {H}" role="img" aria-label="{esc(short(r["n"]))} 위치 지도: 정비구역 경계(서울도시공간포털)와 가까운 지하철역">'
             f'<style>{css}</style><rect width="{W}" height="{H}" class="mm-bg"/>{"".join(o)}</svg>'
-            f'<figcaption class="meta">{cap} · <a href="../#{r["id"]}">앱 지도에서 크게 보기</a></figcaption></figure>')
+            f'<figcaption class="meta">{cap}<a href="../#{r["id"]}">지도에서 크게 보기</a></figcaption></figure>')
 
 # ---------- 공유 카드(OG) ----------
 _FONTS = {}

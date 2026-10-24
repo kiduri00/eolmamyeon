@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """public/sitemap.xml 재생성: 정적 페이지 + 리포트 + 구역 + 가이드 (lastmod = 파일 내용이 바뀐 날)"""
-import os, re, json, hashlib, datetime
+import os, re, json, hashlib, datetime, collections, urllib.parse
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PUB = os.path.join(ROOT, 'public'); SITE = 'https://jaegaebal.alwaysquestions.kr'
 STATE = os.path.join(ROOT, 'pipeline/cache/sitemap_state.json')
@@ -21,7 +21,9 @@ for dp, _, fs in os.walk(PUB):
         if not o or o['h'] != h: st[rel] = o = {'h': h, 'd': today}
         urls.append((loc, o['d']))
 urls.sort(key=lambda u: (u[0].count('/'), u[0]))
-xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + ''.join(f'<url><loc>{SITE}/{l}</loc><lastmod>{d}</lastmod></url>\n' for l, d in urls) + '</urlset>\n'
+# 25차: 한글 경로(/gu/강남구)는 퍼센트 인코딩해서 싣는다(그대로 요청하면 307로 한 번 돌아 들어왔다)
+xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + ''.join(f'<url><loc>{SITE}/{urllib.parse.quote(l, safe="/")}</loc><lastmod>{d}</lastmod></url>\n' for l, d in urls) + '</urlset>\n'
 open(os.path.join(PUB, 'sitemap.xml'), 'w', encoding='utf-8').write(xml)
 json.dump(st, open(STATE, 'w'), separators=(',', ':'))
-print('sitemap', len(urls))
+comp = collections.Counter((l.split('/')[0] if '/' in l else 'static') for l, _ in urls)
+print('sitemap', len(urls), dict(comp), f"/z share {comp.get('z', 0) / max(1, len(urls)) * 100:.0f}%")
