@@ -4273,10 +4273,10 @@
   function tiParts(x) {
     const rate = num("aRate") ?? 4.5;
     return [
-      `원시취득세 ${won(x.origTax)} (${NF2.format(Math.round(Math.max(x.contrib, x.unitPrice * 0.35) * 100) / 100)}억 × ${x.unitArea > 85 ? "3.16" : "2.96"}%)`,
+      `원시취득세 ${won(x.origTax)} (${ZF.exact(Math.max(x.contrib, x.unitPrice * 0.35))} × ${x.unitArea > 85 ? "3.16" : "2.96"}%)`,
       x.loanNow
         ? `매수대출 이자 ${won(x.interest)} (${won(x.loanNow)} × ${rate}% × ${x.yrs ? NF1.format(x.yrs) + "년" : `${CONS_YRS}년(입주 시점 미정 · 보수 가정)`} 단리)`
-        : "매수대출 이자 없음 (매수 대출 안 받음)",
+        : x.loanCap > 0.005 ? "매수대출 이자 넣지 않음 (매수 대출은 입주 전 갚는다고 봄)" : "매수대출 없음",
       x.midInt ? `중도금 이자 ${won(x.midInt)} (분담금 60% × ${rate}% × 2년)` : "중도금 이자 없음",
     ].join(" · ");
   }
@@ -4319,7 +4319,7 @@
     const left = CASH - x.needTotal;
     // 입주 때 시세를 못 정해 입주까지 계산이 안 되면 빈 '–' 카드 셋 대신 이유 한 장 + 넣을 칸으로 바로 가기
     const noCalc = x.ok ? "" : `<div class="big cash nocalc"><span>입주까지 현금</span><b class="t">계산 보류</b><small>${x.nvThin ? "주변 신축 거래가 적어" : "주변 신축 실거래가 없어"} 입주 때 시세를 못 정했어요.${x.needBuy != null && isFinite(x.needBuy) ? ` 지금 사는 데는 대출 끼고 <b>${ZF.cash(x.needBuy)}</b>(매수가 ${ZF.cash(x.price)} · ${o.est ? "구 평균 추정" : x.priceSrc === "user" ? "직접 입력" : "추정"})` : ""}</small><span class="nc-a"><button type="button" class="btn secondary sm" data-nc="mNv">입주 때 시세 넣기</button><button type="button" class="btn text sm" data-nc="mPrice">매수가 넣기</button></span></div>`;
-    p.innerHTML = `\n    ${noCalc}<div class="bigrow"${x.ok ? "" : " hidden"}>\n      <div class="big cash"><span>입주까지 현금</span><b>${x.ok ? ZF.cash(x.needTotal) + "" : "–"}</b><small>${x.ok ? (x.needTotal <= CASH ? `내 돈 ${ZF.cash(CASH)} · ${e2(left) === "0" ? "남는 돈 없음" : ZF.cash(left) + " 남음"}` : `내 돈 ${ZF.cash(CASH)} · ${ZF.short(x.needTotal - CASH)} 부족`) : ""}</small></div>\n      <div class="big gain ${gainCls}"><span>입주 때 시세 차이</span><b>${x.ok ? sg(x.gain) : x.nvThin ? "표본 부족" : "–"}</b><small>${x.ok ? (x.gain <= 0 ? "손실 예상" : x.annual != null ? `연 ${pcIrr(x.annual)} (연 복리 수익률)${x.annual < DEP ? ' · <span class="lowp">예금 3.0% 미만</span>' : ""}${r.eta?.p10 != null && r.eta.p10 < 0.3 ? ` · <span class="lowp">10년 내 준공 ${probTxt(r.eta.p10)}</span>` : ""}` : `입주 시점 미정 · 참고값${x.loanNow ? ` (매수대출 이자 ${CONS_YRS}년 가정)` : ""}`) : x.nvThin ? "주변 신축 비교 거래가 부족해 차익을 계산하지 않아요" : ""}</small><small class="lbl2">추정 · 시세 상승 ${num("aGrowth") ? `연 ${num("aGrowth")}%` : "0%"} 가정${isMulti() ? " · " + MULTI_NOTE : ""}</small></div>\n      <div class="big"><span>${x.refund ? "환급 추정" : "추가 분담금"}</span><b>${x.ok ? ZF.cash(Math.abs(x.contrib)) + "" : "–"}</b><small>${x.ok ? `조합원 분양가 ${ZF.cash(x.unitPrice)} − 권리가액 ${ZF.cash(x.right)}` : ""}</small></div>\n    </div>\n    ${x.ok ? `<div class="cash-brw">${cashBr(x.needTotal, x.loanEnd).html}</div>` : ""}\n    ${x.ok ? `<details class="note flow"><summary><b>계산식</b></summary><p>${esc(flowLine(x))}</p></details>` : ""}\n    ${x.ok && r.s >= 5 && x.prem < x.right * 0.2 && x.priceSrc !== "user" ? `<p class="note warnbox"><b>매수가가 낮게 잡혔을 수 있음</b> 사업시행인가 이후인데 프리미엄 추정(${won(x.prem)})이 권리가액의 20% 미만이에요. 실제 매물가를 아래 '매수가'에 넣어 보세요.</p>` : ""}\n    ${o.appr != null && x.price != null && o.appr > x.price ? `<p class="note warnbox"><b>감정가가 매수가보다 높아요</b> 매수가(현재 시세)도 함께 바꿔야 결과가 과하게 좋게 나오지 않아요.</p>` : ""}\n    ${isEst(r) ? `<p class="note warnbox"><b>구 평균 시세로 추정</b> 주변 빌라 거래가 적어 매수가를 정할 수 없는 구역이라, 같은 구(${esc(r.g)}) 다른 구역 ${EST_N[r.g] || 0}곳의 주변 빌라 실거래 가운데 값 ${ZF.cash(o.price)}을 매수가로 넣었어요. 실제 매물가를 아래 '매수가'에 넣으면 그 값으로 계산해요.${P.est ? "" : " 기본 설정에서는 곳 수·목록에서 빠져 있어요(조건 더 보기 → 추정 구역 포함)."}</p>` : ""}\n    ${r.src === "moa" ? `<p class="note warnbox"><b>관리지역 평균값</b> 모아타운 관리지역 전체 기준의 참고값이에요. 실제 분담금·입주권은 사업구역(블록)별로 달라요.</p>` : ""}\n    <p class="note ${w.cls === "no" ? "riskbox" : ""}"><b>${esc(w.t)}</b> ${esc(w.d)}${lp ? ` · <b>${esc(lp.t)}</b> ${esc(lp.d)}` : ""}</p>\n    <div class="sect"><h3>숫자 바꿔 보기 <small>'추정'은 자동 계산값 · 바꾸면 목록 카드에도 반영</small></h3><div class="ff">\n      ${f("mPrice", "매수가", "프리미엄 포함 실제 매물가", o.price, e2(x.price), "억")}\n      ${f("mAppr", "종전자산 감정가", "관리처분 뒤에는 조합 공개값", o.appr, e2(x.appr), "억")}\n      ${f("mRatio", "비례율", "모든 구역 일괄 변경은 고급 가정에서", ratioChg ? Math.round(x.ratio * 100) : "", ratioChg ? "" : Math.round(x.ratio * 100), "%")}\n      ${f("mUnit", "조합원 분양가", `${P.unit}㎡ 기준`, o.unitPrice, x.ok ? e2(x.unitPrice) : "", "억")}\n      ${f("mNv", "입주 때 시세", x.ref ? `주변 신축 ${esc(x.ref.scope || "")} ${x.ref.n}건${x.ref.complexes ? " · " + x.ref.complexes.slice(0, 2).map(esc).join(", ") : ""}` : "주변 신축 실거래 기준", o.nv, x.ok ? e2(x.nv) : "", "억")}\n    </div></div>\n    ${x.ok ? `<dl class="facts">\n      <div><dt>권리가액</dt><dd>${won(x.right)}<small>감정가 ${won(x.appr)} × 비례율 ${Math.round(x.ratio * 100)}%</small></dd></div>\n      <div><dt>프리미엄 추정</dt><dd>${won(x.prem)}<small>매수가 − 권리가액 (표시값은 반올림)</small></dd></div>\n      <div><dt>취득세</dt><dd>${won(x.tax)}<small>${taxDesc(x)} · '지금 필요한 돈'에 포함</small></dd></div>\n      <div><dt>매수 대출</dt><dd>${loanWhy(x)}</dd></div>\n      <div class="fx-ti"><dt>세금·이자 (입주까지)</dt><dd>${ZF.cash(flowParts(x).ti)}<small>${tiParts(x)}</small></dd></div>\n      <div class="fx-tot"><dt>입주까지 들어가는 돈 합계(잔금대출 빼기 전)</dt><dd>${ZF.cash(cashBr(x.needTotal, x.loanEnd).s)}<small>매수가 + 취득세 + 분담금 + 세금·이자(입주까지)</small></dd></div>\n      <div><dt>입주 잔금대출</dt><dd>${ZF.cash(x.loanEnd)}<small>신축 시세 기준 LTV ${Math.round(ltvEnd() * 100)}%·가격구간 한도${P.first ? " (생애최초 70%는 매수 대출에만)" : ""}${r.s >= 6 ? " · 2025.10.15 이전 관리처분인가 구역은 종전 규정 적용 가능(은행 확인)" : ""} · 현행 규제(2025.10.16~) 기준 · 입주 시점 규제에 따라 달라짐</small></dd></div>\n    </dl>\n    <div class="sect"><h3>비례율에 따른 결과 <small>현금 매수 기준 · 나머지 조건 고정</small></h3><table class="sens"><caption class="sr-only">비례율별 입주 때 시세 차이와 분담금</caption><thead><tr><th scope="col">비례율</th><th scope="col">입주 때 시세 차이</th><th scope="col">분담금</th></tr></thead><tbody id="mSens"></tbody></table></div>` : ""}\n    <p class="note">감정가 추정: ${esc(x.apprWhy || "")}. ${r.k === "재건축" ? "재건축초과이익환수 부담금은 미반영. " : ""}실제 감정가·비례율·조합원 분양가는 관리처분계획에서 확정됩니다.</p>\n    <p class="note"><b>포함하지 않은 비용</b> ${MISSING_COSTS}</p>`;
+    p.innerHTML = `\n    ${noCalc}<div class="bigrow"${x.ok ? "" : " hidden"}>\n      <div class="big cash"><span>입주까지 현금</span><b>${x.ok ? ZF.cash(x.needTotal) + "" : "–"}</b><small>${x.ok ? (x.needTotal <= CASH ? `내 돈 ${ZF.cash(CASH)} · ${e2(left) === "0" ? "남는 돈 없음" : ZF.cash(left) + " 남음"}` : `내 돈 ${ZF.cash(CASH)} · ${ZF.short(x.needTotal - CASH)} 부족`) : ""}</small></div>\n      <div class="big gain ${gainCls}"><span>입주 때 시세 차이</span><b>${x.ok ? sg(x.gain) : x.nvThin ? "표본 부족" : "–"}</b><small>${x.ok ? (x.gain <= 0 ? "손실 예상" : x.annual != null ? `연 ${pcIrr(x.annual)} (연 복리 수익률)${x.annual < DEP ? ' · <span class="lowp">예금 3.0% 미만</span>' : ""}${r.eta?.p10 != null && r.eta.p10 < 0.3 ? ` · <span class="lowp">10년 내 준공 ${probTxt(r.eta.p10)}</span>` : ""}` : `입주 시점 미정 · 참고값${x.loanNow ? ` (매수대출 이자 ${CONS_YRS}년 가정)` : ""}`) : x.nvThin ? "주변 신축 비교 거래가 부족해 차익을 계산하지 않아요" : ""}</small><small class="lbl2">추정 · 시세 상승 ${num("aGrowth") ? `연 ${num("aGrowth")}%` : "0%"} 가정${isMulti() ? " · " + MULTI_NOTE : ""}</small></div>\n      <div class="big"><span>${x.refund ? "환급 추정" : "추가 분담금"}</span><b>${x.ok ? ZF.cash(Math.abs(x.contrib)) + "" : "–"}</b><small>${x.ok ? `조합원 분양가 ${ZF.cash(x.unitPrice)} − 권리가액 ${ZF.cash(x.right)}` : ""}</small></div>\n    </div>\n    ${x.ok ? `<div class="cash-brw">${cashBr(x.needTotal, x.loanEnd).html}</div>` : ""}\n    ${x.ok ? `<details class="note flow"><summary><b>계산식</b></summary><p>${esc(flowLine(x))}</p></details>` : ""}\n    ${x.ok && r.s >= 5 && x.prem < x.right * 0.2 && x.priceSrc !== "user" ? `<p class="note warnbox"><b>매수가가 낮게 잡혔을 수 있음</b> 사업시행인가 이후인데 프리미엄 추정(${won(x.prem)})이 권리가액의 20% 미만이에요. 실제 매물가를 아래 '매수가'에 넣어 보세요.</p>` : ""}\n    ${o.appr != null && x.price != null && o.appr > x.price ? `<p class="note warnbox"><b>감정가가 매수가보다 높아요</b> 매수가(현재 시세)도 함께 바꿔야 결과가 과하게 좋게 나오지 않아요.</p>` : ""}\n    ${isEst(r) ? `<p class="note warnbox"><b>구 평균 시세로 추정</b> 주변 빌라 거래가 적어 매수가를 정할 수 없는 구역이라, 같은 구(${esc(r.g)}) 다른 구역 ${EST_N[r.g] || 0}곳의 주변 빌라 실거래 가운데 값 ${ZF.cash(o.price)}을 매수가로 넣었어요. 실제 매물가를 아래 '매수가'에 넣으면 그 값으로 계산해요.${P.est ? "" : " 기본 설정에서는 곳 수·목록에서 빠져 있어요(조건 더 보기 → 추정 구역 포함)."}</p>` : ""}\n    ${r.src === "moa" ? `<p class="note warnbox"><b>관리지역 평균값</b> 모아타운 관리지역 전체 기준의 참고값이에요. 실제 분담금·입주권은 사업구역(블록)별로 달라요.</p>` : ""}\n    <p class="note ${w.cls === "no" ? "riskbox" : ""}"><b>${esc(w.t)}</b> ${esc(w.d)}${lp ? ` · <b>${esc(lp.t)}</b> ${esc(lp.d)}` : ""}</p>\n    <div class="sect"><h3>숫자 바꿔 보기 <small>'추정'은 자동 계산값 · 바꾸면 목록 카드에도 반영</small></h3><div class="ff">\n      ${f("mPrice", "매수가", "프리미엄 포함 실제 매물가", o.price, e2(x.price), "억")}\n      ${f("mAppr", "종전자산 감정가", "관리처분 뒤에는 조합 공개값", o.appr, e2(x.appr), "억")}\n      ${f("mRatio", "비례율", "모든 구역 일괄 변경은 고급 가정에서", ratioChg ? Math.round(x.ratio * 100) : "", ratioChg ? "" : Math.round(x.ratio * 100), "%")}\n      ${f("mUnit", "조합원 분양가", `${P.unit}㎡ 기준`, o.unitPrice, x.ok ? e2(x.unitPrice) : "", "억")}\n      ${f("mNv", "입주 때 시세", x.ref ? `주변 신축 ${esc(x.ref.scope || "")} ${x.ref.n}건${x.ref.complexes ? " · " + x.ref.complexes.slice(0, 2).map(esc).join(", ") : ""}` : "주변 신축 실거래 기준", o.nv, x.ok ? e2(x.nv) : "", "억")}\n    </div></div>\n    ${x.ok ? `<dl class="facts">\n      <div><dt>권리가액</dt><dd>${won(x.right)}<small>감정가 ${won(x.appr)} × 비례율 ${Math.round(x.ratio * 100)}%</small></dd></div>\n      <div><dt>프리미엄 추정</dt><dd>${won(x.prem)}<small>매수가 − 권리가액 (표시값은 반올림)</small></dd></div>\n      <div><dt>취득세</dt><dd>${won(x.tax)}<small>${taxDesc(x)} · '지금 필요한 돈'에 포함</small></dd></div>\n      <div class="fx-loan"><dt>매수 대출</dt><dd>${loanWhy(x)}</dd></div>\n      <div class="fx-ti"><dt>세금·이자 (입주까지)</dt><dd>${ZF.cash(flowParts(x).ti)}<small>${tiParts(x)}</small></dd></div>\n      <div class="fx-tot"><dt>입주까지 들어가는 돈 합계(잔금대출 빼기 전)</dt><dd>${ZF.cash(cashBr(x.needTotal, x.loanEnd).s)}<small>매수가 + 취득세 + 분담금 + 세금·이자(입주까지)</small></dd></div>\n      <div><dt>입주 잔금대출</dt><dd>${ZF.cash(x.loanEnd)}<small>신축 시세 기준 LTV ${Math.round(ltvEnd() * 100)}%·가격구간 한도${P.first ? " (생애최초 70%는 매수 대출에만)" : ""}${r.s >= 6 ? " · 2025.10.15 이전 관리처분인가 구역은 종전 규정 적용 가능(은행 확인)" : ""} · 현행 규제(2025.10.16~) 기준 · 입주 시점 규제에 따라 달라짐</small></dd></div>\n    </dl>\n    <div class="sect"><h3>비례율에 따른 결과 <small>현금 매수 기준 · 나머지 조건 고정</small></h3><table class="sens"><caption class="sr-only">비례율별 입주 때 시세 차이와 분담금</caption><thead><tr><th scope="col">비례율</th><th scope="col">입주 때 시세 차이</th><th scope="col">분담금</th></tr></thead><tbody id="mSens"></tbody></table></div>` : ""}\n    <p class="note">감정가 추정: ${esc(x.apprWhy || "")}. ${r.k === "재건축" ? "재건축초과이익환수 부담금은 미반영. " : ""}실제 감정가·비례율·조합원 분양가는 관리처분계획에서 확정됩니다.</p>\n    <p class="note"><b>포함하지 않은 비용</b> ${MISSING_COSTS}</p>`;
     p.querySelectorAll("[data-nc]").forEach((b) => b.addEventListener("click", () => { const i = $(b.dataset.nc); if (!i) return; i.scrollIntoView({ block: "center", behavior: "smooth" }); setTimeout(() => { try { i.focus({ preventScroll: true }); i.select(); } catch (e) {} }, 300); }));
     const map = { mPrice: "price", mAppr: "appr", mUnit: "unitPrice", mNv: "nv" };
     Object.entries(map).forEach(([id, k]) =>
@@ -5973,7 +5973,30 @@
         });
       });
     }
-    return SN_DIS.get(n) || shortName0m(n);
+    if (!SN_FIX) SN_FIX = snFix();
+    return SN_DIS.get(n) || SN_FIX.get(n) || shortName0m(n);
+  }
+  // 29차: 짧은 이름이 동·구·도시 이름뿐이면(서울 · 상도 · 월계동 · 용답동) 무엇인지 모른다 → 아파트는 '아파트'(도시·구 이름이면 동도),
+  //       괄호 속 진짜 이름('상도 214' · '1구역'), 아니면 '동 지번 사업 종류'를 붙인다. 숫자만 붙은 '천호1·3'은 '구역'까지
+  let SN_FIX = null;
+  function snFix() {
+    const out = new Map(), dongs = new Set(), GU = new Set();
+    R.forEach((r) => { const d = ((r.bj || r.j || "").split(" ")[0] || ""); if (/동$/.test(d)) { dongs.add(d); dongs.add(d.replace(/\d*동$/, "")); } if (r.g) { GU.add(r.g); GU.add(r.g.replace(/구$/, "")); } });
+    const city = (k) => k === "서울" || GU.has(k);
+    const kindW = (n) => (/가로/.test(n) ? "가로주택" : /소규모재건축/.test(n) ? "소규모재건축" : /재건축/.test(n) ? "재건축" : /재개발|도시환경|도시정비형/.test(n) ? "재개발" : "");
+    R.forEach((r) => {
+      if (!r.n || SN_DIS.has(r.n)) return;
+      const k = shortName0m(r.n), par = (/\(([^)]+)\)/.exec(r.n) || [])[1] || "";
+      const d = ((r.bj || r.j || "").split(" ")[0] || ""), jb = ((r.bj || r.j || "").split(" ")[1] || "").replace(/[^\d-]/g, "");
+      if (/^\d+구역$/.test(par.trim()) && !/구역$/.test(k)) { out.set(r.n, k + par.trim()); return; }   // '강동역세권(1구역)' → '강동역세권1구역'
+      if (/^(천호)\d+$/.test(k)) { out.set(r.n, k + "구역"); return; }   // '천호3' → '천호3구역'(천호1과 같은 꼴)
+      if (/\s/.test(k) || !(city(k) || dongs.has(k) || /^[가-힣]{1,3}동$/.test(k))) return;
+      if (/아파트/.test(r.n)) { out.set(r.n, `${city(k) && d ? d.replace(/\d*동$/, "") + " " : ""}${k}아파트${par && !/\d,|,/.test(par) ? " " + par.replace(/^제/, "") : ""}`); return; }
+      if (/[가-힣]+\s*\d/.test(par) && !/,/.test(par)) { out.set(r.n, par.trim()); return; }   // '상도 주택재개발…(상도 214)' → '상도 214'
+      const t = [d || k, jb, kindW(r.n)].filter(Boolean).join(" ");
+      if (t !== k) out.set(r.n, t);
+    });
+    return out;
   }
   // 이름이 '…제'로 끝나는 동(홍제·인제 등) — 지번 주소 첫 낱말에서
   let JE0 = null;
@@ -6035,7 +6058,7 @@
     const coll = x.priceSrc === "complex" ? x.price : Math.min(x.price, x.appr * 1.2);
     const how = `한도 = min(${coll < x.price - 0.005 ? `감정가 추정 ${won(x.appr)} × 1.2` : `매수가 ${won(x.price)}`} × LTV ${Math.round(ltvBuy() * 100)}%, 가격구간 ${bandCap(x.price)}억${num("pIncome") != null ? ", DSR" : ""})`;
     // 28차: '매수 대출 0원'(입주까지 계산에서 고른 금액)만 보여 머리 '대출 6,920만'(지금 필요한 돈에 쓴 한도)과 엇갈리던 것 → 두 금액을 이름 붙여 함께
-    if (part) return `${won(x.loanCap)} <small>지금 필요한 돈에 넣은 대출(한도) · ${how}</small><small>입주까지 현금은 ${x.loanNow ? `이 중 ${won(x.loanNow)}만 받는 것으로` : "매수 대출 없이 사는 것으로"} 계산했어요 · 대출을 덜 받으면 이자가 줄어 입주까지 현금이 가장 적어요</small>`;
+    if (part) return `${won(x.loanCap)} <small>지금 필요한 돈에 넣은 대출(한도) · ${how}</small><small>입주까지 현금은 이 대출을 입주 전에 갚는다고 보고 계산했어요 · ${x.loanNow ? `이자는 ${won(x.loanNow)}에 대해서만 넣었어요` : "그 이자는 넣지 않았어요(일찍 갚을수록 줄어요)"}</small>`;
     return `${won(x.loanNow)} <small>${how} · 한도 전액 · 지금 필요한 돈과 입주까지 현금에 같은 금액</small>`;
   }
   function heroHTML(x) {
@@ -6057,13 +6080,9 @@
     return `<div class="hv ${cls}"><span>${GAIN_LBL()}</span><b>${uI(sg(x.gain))}</b><small>${sub}${x.refund ? " · 환급 추정(조합 추정분담금 확인)" : ""}</small>${isMulti() ? `<small class="mh">${MULTI_NOTE}</small>` : ""}</div>`;
   }
   function flowParts(x) {
-    const r1 = (v) => Math.round(v * 10) / 10;
-    const now = r1(x.needNow),
-      rep = r1(x.loanNow),
-      c = r1(x.contrib),
-      ti = r1(x.origTax + x.interest + x.midInt),
-      le = r1(x.loanEnd);
-    return { now, rep, c, ti, le, sum: r1(now + rep + c + ti - le) };
+    // 29차: 칸마다 화면 타일과 같은 값(원값 → ZF.cash가 표시 단위로 올림) · 합은 원값으로(= 머리 '입주까지 현금')
+    const now = x.needNow, rep = x.loanNow, c = x.contrib, ti = x.origTax + x.interest + x.midInt, le = x.loanEnd;
+    return { now, rep, c, ti, le, sum: x.needTotal };
   }
   function flowLine(x) {
     if (!x.ok)
@@ -6071,16 +6090,19 @@
         ? `지금 ${ZF.cash(x.needNow)} (매수가 ${ZF.cash(x.price)} + 취득세 ${won(x.tax)}${x.loanNow ? ` − 대출 ${ZF.cash(x.loanNow)}` : ""})`
         : "";
     const f = flowParts(x);
+    // 29차: 대출 끼고 — '지금'은 머리와 같은 값(한도만큼 대출) + 그 대출을 입주 전에 갚는 돈(이자는 실제로 넣은 만큼만 말함)
+    const cap = x.loanCap > 0.005 ? x.loanCap : 0;
     const parts = [
-      x.loanNow < x.loanCap - 0.005 ? `매수 때 현금(대출 ${x.loanNow ? won(x.loanNow) : "없이"}) ${ZF.cash(f.now)}` : `지금 ${ZF.cash(f.now)}`,
-      f.rep ? `대출상환 ${ZF.cash(f.rep)}` : null,
+      `지금 ${ZF.cash(cap ? x.needBuy : f.now)}`,
+      cap ? `매수 대출 갚기 ${ZF.exact(cap)}` : null,
       `${f.c < 0 ? "환급 −" + ZF.cash(-f.c) : "분담금 " + ZF.cash(f.c)}`,
       `세금·이자 ${ZF.cash(f.ti)}`,
     ]
       .filter(Boolean)
       .join(" + ")
       .replace("+ 환급 −", "− 환급 ");
-    return f.sum >= f.now ? `${parts} − 잔금대출 ${ZF.cash(f.le)} = ${ZF.cash(f.sum)}` : `지금 ${ZF.cash(f.now)}이 최대 (입주 때는 잔금대출로 충당)`;
+    const tail = `(${cap ? `매수 대출은 입주 전에 갚는다고 보고 계산 · ${x.loanNow ? `이자는 ${won(x.loanNow)}에 대해 넣음` : "그 이자는 넣지 않음"} · ` : ""}금액마다 올림해 보여 합이 조금 다를 수 있어요)`;
+    return x.flow >= x.needNow - 1e-9 ? `${parts} − 잔금대출 ${ZF.cash(f.le)} = ${ZF.cash(f.sum)} ${tail}` : `지금 ${ZF.cash(f.now)}이 최대 (입주 때는 잔금대출로 충당)`;
   }
   // 순위 카드에서만 쓰는 '이름이 겹치는 구역' — 처음 쓸 때 계산(첫 화면 긴 작업 줄이기)
   let DUPN0 = null;
@@ -6697,12 +6719,13 @@
     // 다리 줄·합계·세금이자 칸도 '전세 끼고' 숫자로(위 타임라인 '총'과 같은 값)
     const br = cashBr(g.total, g.x.loanEnd, g), bw = p.querySelector(".cash-brw");
     if (bw) { bw.innerHTML = br.html; bw.hidden = !!p.querySelector(".gpane .cash-br"); }   // 위 타임라인 밑에 이미 있으면 한 번만
-    const ftot = p.querySelector(".fx-tot dd"), fti = p.querySelector(".fx-ti dd");
+    const ftot = p.querySelector(".fx-tot dd"), fti = p.querySelector(".fx-ti dd"), flo = p.querySelector(".fx-loan");
+    if (flo) flo.style.display = "none";   // 29차: 전세 끼고 계산식엔 매수 대출이 없다(지금 = 매수가 + 취득세 − 전세)
     if (ftot && br.s != null) ftot.innerHTML = `${ZF.cash(br.s)}<small>매수가 + 취득세 + 분담금 + 세금·이자(이주비 이자 포함) · 전세 끼고 산 경우</small>`;
     if (fti) fti.innerHTML = `${ZF.cash(g.x.origTax + g.x.midInt + g.intM)}<small>원시취득세 ${won(g.x.origTax)} · 중도금 이자 ${won(g.x.midInt)} · 이주비 대출 이자 ${won(g.intM)} (전세 끼고 산 경우)</small>`;
     const fl = p.querySelector("details.flow");
     if (fl)
-      fl.innerHTML = `<summary><b>계산식 (전세 끼고)</b></summary><p>① 지금 = 매수가 ${ZF.cash(g.x.price)} + 취득세 ${taxT(g.x.tax)} − 전세 ${ZF.cash(g.D)} = ${ZF.cash(g.now)} · ② 이주 = 전세 ${ZF.cash(g.D)} − 이주비 대출 ${ZF.cash(g.M)} = ${ZF.cash(g.reloc)} · ③ ${LBL.cashToMoveIn} = 매수가·취득세 + 분담금 ${ZF.cash(g.x.contrib)} + 원시취득세·중도금 이자·이주비 이자 ${ZF.cash(g.x.origTax + g.x.midInt + g.intM)} − 잔금대출 ${ZF.cash(g.x.loanEnd)} = ${ZF.cash(g.total)} (0.1억 단위 반올림)</p>`;
+      fl.innerHTML = `<summary><b>계산식 (전세 끼고)</b></summary><p>① 지금 = 매수가 ${ZF.cash(g.x.price)} + 취득세 ${taxT(g.x.tax)} − 전세 ${ZF.cash(g.D)} = ${ZF.cash(g.now)} · ② 이주 = 전세 ${ZF.cash(g.D)} − 이주비 대출 ${ZF.cash(g.M)} = ${ZF.cash(g.reloc)} · ③ ${LBL.cashToMoveIn} = 매수가·취득세 + 분담금 ${ZF.cash(g.x.contrib)} + 원시취득세·중도금 이자·이주비 이자 ${ZF.cash(g.x.origTax + g.x.midInt + g.intM)} − 잔금대출 ${ZF.cash(g.x.loanEnd)} = ${ZF.cash(g.total)} (금액마다 올림해 보여 합이 조금 다를 수 있어요)</p>`;
   }
   function gapPaneBind(r) {
     const i = $("gJ");

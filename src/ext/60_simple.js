@@ -128,7 +128,9 @@ const SIMPLE = (() => {
     return { st: "far", need, total };
   }
   // 모자란 돈: 지금 필요한 돈(화면에 보이는 올림 값) − 내 돈 → '+2,000만' · '+0.2억'(ZF 꼴, 1억 아래 만 단위)
-  const shortTxt = (need) => "+" + ZF.short(need - CASH);   // 28차: 정확한 만 원(표시 올림 값끼리 뺀 100만 단위가 아님 · 최소 1만)
+  const shortTxt = (need) => "+" + ZF.short(need - CASH);
+  // 예산 시트 −/+ 한 번에 가는 금액(2억까지 1,000만 · 그 위 5,000만 칸에 맞춤) — 단추 이름(aria-label)도 이 값으로(29차: 2.1억에서 '5,000만 줄이기'인데 1,000만 내려가던 것)
+  const bStepTo = (c0, d) => { let v = d < 0 ? (c0 <= 2 + 1e-9 ? Math.ceil(c0 * 10 - 1e-9) / 10 - 0.1 : Math.ceil(c0 * 2 - 1e-9) / 2 - 0.5) : (c0 <= 2 + 1e-9 ? Math.floor(c0 * 10 + 1e-9) / 10 + 0.1 : Math.floor(c0 * 2 + 1e-9) / 2 + 0.5); return Math.min(15, Math.max(0.5, Math.round(v * 100) / 100)); };   // 28차: 정확한 만 원(표시 올림 값끼리 뺀 100만 단위가 아님 · 최소 1만)
   // 단계 칩: 짧은 이름
   const stgShort = (r) => { let t = ""; try { t = stageName(r) || ""; } catch (e) {} return /주민합의/.test(t) ? "합의체" : /후보지|대상지/.test(t) ? "후보지" : /정비계획/.test(t) ? "정비계획" : /구역\s?지정/.test(t) ? "구역지정" : /추진위|주민대표/.test(t) ? "추진위" : /조합|시행자 지정/.test(t) ? "조합설립" : /사업시행/.test(t) ? "사업시행" : /관리처분/.test(t) ? "관리처분" : /이주|철거/.test(t) ? "이주·철거" : /착공|분양/.test(t) ? "착공" : /준공|입주/.test(t) ? "준공" : t.slice(0, 5); };
   const walkTxt = (r) => { if (!r.st || !r.st.n || !isFinite(r.st.d)) return ""; const m = ZF.walkMin(r.st.d); return m > 30 ? "" : `${String(r.st.n).replace(/역$/, "")}역 ${m}분`; };
@@ -263,8 +265,8 @@ const SIMPLE = (() => {
       // PC: 왼쪽 칸(예산 카드·목록)이 문서 순서로도 지도보다 먼저(Tab이 예산 카드 → 목록 → 지도 버튼 순)
       // 빠른 메뉴 한 줄(#sQuick, 21차): 폰은 지도 밑·목록 머리 위, PC는 왼쪽 칸 맨 아래(목록 밑)
       const qk = $("sQuick");
-      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); const ob = $("onb"); if (ob && ob.parentNode !== list) list.insertBefore(ob, list.firstElementChild); if (gg && (ob ? ob.nextElementSibling : list.firstElementChild) !== gg) { if (ob) ob.after(gg); else list.insertBefore(gg, list.firstElementChild); } if (main.firstElementChild !== right) main.insertBefore(right, main.firstElementChild); const sd = $("sRd"); if (sd && list.firstElementChild !== sd) list.insertBefore(sd, list.firstElementChild); const rd = $("sReads"), ft = document.querySelector("body > .site-foot, #sListW > .site-foot"); if (rd && rd.nextElementSibling !== ft && list.lastElementChild !== rd) list.appendChild(rd); if (qk && qk.nextElementSibling !== rd) list.insertBefore(qk, rd || null); ftPlace(); }
-      else { if (main.lastElementChild !== right) main.appendChild(right); if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); const ob = $("onb"); if (ob && ob.parentNode !== map && sen) sen.before(ob); const sd = $("sRd"), ss = $("sSearch"); if (sd && ss && ss.nextElementSibling !== sd) ss.after(sd); ftPlace(); const lh = list.querySelector(":scope > .s-lh"); if (qk && lh && lh.previousElementSibling !== qk) lh.before(qk); }
+      if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); const ob = $("onb"); if (ob && ob.parentNode !== list) list.insertBefore(ob, list.firstElementChild); if (gg && (ob ? ob.nextElementSibling : list.firstElementChild) !== gg) { if (ob) ob.after(gg); else list.insertBefore(gg, list.firstElementChild); } if (main.firstElementChild !== right) main.insertBefore(right, main.firstElementChild); const sd = $("sRd"), sh = $("sSite"); if (sh) { if (list.firstElementChild !== sh) list.insertBefore(sh, list.firstElementChild); if (sd && sh.nextElementSibling !== sd) sh.after(sd); } else if (sd && list.firstElementChild !== sd) list.insertBefore(sd, list.firstElementChild); const rd = $("sReads"), ft = document.querySelector("body > .site-foot, #sListW > .site-foot"); if (rd && rd.nextElementSibling !== ft && list.lastElementChild !== rd) list.appendChild(rd); if (qk && qk.nextElementSibling !== rd) list.insertBefore(qk, rd || null); ftPlace(); }
+      else { if (main.lastElementChild !== right) main.appendChild(right); if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); const ob = $("onb"); if (ob && ob.parentNode !== map && sen) sen.before(ob); const sd = $("sRd"), ss = $("sSearch"), sh = $("sSite"); if (sh && ss && sh.nextElementSibling !== ss) ss.before(sh); if (sd && ss && ss.nextElementSibling !== sd) ss.after(sd); ftPlace(); const lh = list.querySelector(":scope > .s-lh"); if (qk && lh && lh.previousElementSibling !== qk) lh.before(qk); }
     };
     // 26차: PC 첫 화면(목록 칸이 보일 때)은 웹 푸터를 목록 칸 맨 아래로(붙은 지도가 끝까지) · 도구 화면·폰은 본래 자리(본문 아래)
     function ftPlace() { const ft = document.querySelector(".site-foot"); if (!ft) return; const ab = document.querySelector('.ad-slot[data-slot="bottom"]'); if (matchMedia("(min-width:981px)").matches && !document.documentElement.classList.contains("s-view") && getComputedStyle(list).display !== "none") { if (list.lastElementChild !== ft) list.appendChild(ft); } else if (ab && ab.nextElementSibling !== ft) ab.after(ft); }
@@ -305,7 +307,7 @@ const SIMPLE = (() => {
       new IntersectionObserver((es) => es.forEach((x) => { areaIn = x.isIntersecting; sync(); }), { rootMargin: `-${(HDR() || 56) + 60}px 0px -40% 0px` }).observe(list);
       new IntersectionObserver((es) => es.forEach((x) => { if (x.isIntersecting) { areaIn = true; sync(); } }), { rootMargin: `-${(HDR() || 56) + 60}px 0px 0px 0px` }).observe(map.querySelector(".main"));
     }
-    hero.insertBefore(hero.querySelector('#sSearch'), hero.firstChild);
+    { const ss = hero.querySelector('#sSearch'), sh = $("sSite"); if (sh && sh.parentNode === hero) { if (sh.nextElementSibling !== ss) sh.after(ss); } else if (hero.firstElementChild !== ss) hero.insertBefore(ss, hero.firstChild); }  // 29차: h1(폰) → 검색 → 읽을거리 = 첫 페인트 순서 그대로
     // 모바일 아래 탭바(앱처럼)
     // shell.html이 첫 페인트부터 같은 탭바를 깔아 둔다(섬 단계에서 자리가 비지 않게) → 있으면 그것을 이어 쓴다
     const nav = $("sNav") || document.createElement("nav");
@@ -314,7 +316,7 @@ const SIMPLE = (() => {
       .map(([k, t, d]) => `<button type="button" data-nav="${k}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg><span>${t}</span></button>`).join("");
     if (!nav.isConnected) document.body.appendChild(nav);
     // 넓은 화면: 탭 4개를 머리 오른쪽(.hdr-r)에 · 폰: 화면 아래(body 끝). 머리는 backdrop-filter라 fixed 자식을 품지 못해 자리를 옮긴다
-    const navPlace = () => { const r = document.querySelector("#hdr .hdr-r"); if (matchMedia("(min-width:981px)").matches) { if (r && nav.parentNode !== r) r.appendChild(nav); } else if (nav.parentNode !== document.body) document.body.appendChild(nav); };
+    const navPlace = () => { const r = document.querySelector("#hdr .hdr-r"); if (matchMedia("(min-width:981px)").matches) { if (r && nav.parentNode !== r) r.insertBefore(nav, r.querySelector(".nav-ph")); } else if (nav.parentNode !== document.body) document.body.appendChild(nav); };
     navPlace(); matchMedia("(min-width:981px)").addEventListener("change", navPlace);
     const fx = document.createElement("button");
     fx.type = "button"; fx.className = "s-fullx"; fx.id = "sFullX"; fx.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>목록 보기`;
@@ -794,7 +796,7 @@ const SIMPLE = (() => {
     countTo($("bNB"), all); $("bN").textContent = fmt(all);
     $("bGo").textContent = all ? `${fmt(all)}곳 보기` : "지도에서 보기";
     $$("#bSheet [data-bc]").forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(+b.dataset.bc - c) < 1e-9)));
-    $$("#bSheet [data-bstep]").forEach((b) => { const dn = +b.dataset.bstep < 0; b.disabled = dn ? c <= 0.5 + 1e-9 : c >= 15 - 1e-9; b.setAttribute("aria-label", `${c <= 2 + 1e-9 ? "1,000만" : "5,000만"} ${dn ? "줄이기" : "늘리기"}`); });
+    $$("#bSheet [data-bstep]").forEach((b) => { const dn = +b.dataset.bstep < 0; b.disabled = dn ? c <= 0.5 + 1e-9 : c >= 15 - 1e-9; const dv = Math.abs(bStepTo(c, dn ? -1 : 1) - c); b.setAttribute("aria-label", `${dv > 0.005 ? ZF.cash(dv) : dn ? "1,000만" : "5,000만"} ${dn ? "줄이기" : "늘리기"}`); });
     histData(); scrubPaint(all);
     if (dragging) return;   // 끄는 동안엔 '+0.5억이면'을 다시 세지 않는다(손을 떼면 한 번)
     const m = moreTxt(c, all), el = $("bMore");
@@ -829,7 +831,7 @@ const SIMPLE = (() => {
       if (e.target.closest("[data-bx]")) return sheetClose(false);
       const c = e.target.closest("[data-bc]"); if (c) { setCash(+c.dataset.bc, true); try { navigator.vibrate && navigator.vibrate(8); } catch (er) {} return; }
       // −0.5억 / +0.5억(17차: 시트의 막대 그림 대신) — 1억 아래에서 줄이면 5,000만에서 멈춘다
-      const st = e.target.closest("[data-bstep]"); if (st) { const c0 = +$("pCash").value || 1, d = +st.dataset.bstep; let v = d < 0 ? (c0 <= 2 + 1e-9 ? Math.ceil(c0 * 10 - 1e-9) / 10 - 0.1 : Math.ceil(c0 * 2 - 1e-9) / 2 - 0.5) : (c0 <= 2 + 1e-9 ? Math.floor(c0 * 10 + 1e-9) / 10 + 0.1 : Math.floor(c0 * 2 + 1e-9) / 2 + 0.5); v = Math.min(15, Math.max(0.5, Math.round(v * 100) / 100)); setCash(v, true); return; }   // 27차·28차: 2억까지(2억 포함, +·− 같게)는 1,000만씩(9,000만에 바로 닿게) · 2억 넘으면 5,000만씩
+      const st = e.target.closest("[data-bstep]"); if (st) { const c0 = +$("pCash").value || 1, d = +st.dataset.bstep; const v = bStepTo(c0, d); setCash(v, true); return; }   // 27차·28차: 2억까지(2억 포함, +·− 같게)는 1,000만씩(9,000만에 바로 닿게) · 2억 넘으면 5,000만씩
       if (e.target.closest("#bGo")) sheetClose(true);
     });
     b.addEventListener("keydown", (e) => {
@@ -913,6 +915,7 @@ const SIMPLE = (() => {
   };
   // ---------- 목록 ----------
   let mapDragT = 0;
+  const RMEMO = new Map();
   function render() {
     if (!$("sList")) return;
     const gap = gapMode();
@@ -920,8 +923,11 @@ const SIMPLE = (() => {
     label(Math.min(15, Math.max(0.5, v)), v);
     $$(".s-mode button").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.f === "gap") === gap)));
     gu = mapView === "gu" && mapGu && mapGu === listGu ? mapGu : "";   // 구역을 열며 자동으로 들어간 구는 목록을 거르지 않는다
-    const L = rows();
-    const all = R.filter(okR).length;
+    // 29차: 금액 칸마다 한 번만 셈(막대를 끌며 같은 칸을 오가면 바로) — 조건(사는 방식·금액·구·유형·범위·정렬·내 조건·직접 넣은 값)이 같으면 지난 결과
+    let mk = ""; try { mk = `${gap}|${v}|${gu}|${kind}|${bbF ? JSON.stringify(bbF) : ""}|${sortK}|${condK()}|${JSON.stringify(OV)}`; } catch (e) {}
+    let hit = mk && RMEMO.get(mk);
+    if (!hit) { hit = { L: rows(), all: R.filter(okR).length }; if (mk) { if (RMEMO.size > 60) RMEMO.clear(); RMEMO.set(mk, hit); } }
+    const L = hit.L, all = hit.all;
     $("sN").textContent = fmt(all);   // 글자는 늘 최종 값(검사·화면 읽기) · 보이는 숫자만 CSS 카운터로 굴러간다(countTo)
     const ab = $("sAsm"); if (ab) { ab.hidden = gap; if (!gap) { const t = asmText(); ab.innerHTML = `${t}<i aria-hidden="true">?</i>`; ab.setAttribute("aria-label", `대출 가정: ${t} · 설명 보기`); } }
     const lite = liveNow && (dragging || keyOn);   // 손가락·마우스로 끄는 중: 숫자·제목·이름 줄만 · 목록 줄과 지도는 멈추거나 떼면
@@ -937,8 +943,12 @@ const SIMPLE = (() => {
     }
     // 분모('전세 시세 있는 N곳 중')는 쓰지 않는다(리뉴얼 2단계) — 카드 한 줄 '내 돈 1억 → 갈 수 있는 곳 9곳'
     // 28차: 구를 고른 동안은 머리 숫자(서울 전체)가 무엇인지 + 그 구 곳 수를 한 줄로(목록 '강북구 · 6곳'과 같은 값)
-    { const nl = $("sNL"), t = gu ? `서울 전체 · ${gu} ${fmt(L.length)}곳` : "갈 수 있는 곳"; if (nl.textContent !== t) nl.textContent = t; nl.classList.toggle("bc-gu", !!gu); }
-    countTo($("sNB"), all);
+    // 29차: 구를 고른 동안 큰 숫자 = 그 구 곳 수(목록 '강북구 · 6곳'과 같은 값) · 서울 전체는 그 밑 작은 글자 — '은평구 8곳' 위에 '54곳'이 서던 것
+    { const nl = $("sNL"), t = gu ? `${gu}에서 갈 수 있는 곳` : "갈 수 있는 곳"; if (nl.textContent !== t) nl.textContent = t; nl.classList.toggle("bc-gu", !!gu);
+      if (gu) { const sn = $("sN"), v = fmt(L.length); if (sn.textContent !== v) sn.textContent = v; }
+      let sa = $("sNAll"); if (!sa && gu) { sa = document.createElement("small"); sa.id = "sNAll"; sa.className = "bc-all"; $("sNB").after(sa); }
+      if (sa) { sa.hidden = !gu; const v = gu ? `서울 전체 ${fmt(all)}곳` : ""; if (sa.textContent !== v) sa.textContent = v; } }
+    countTo($("sNB"), gu ? L.length : all);
     $("sCash").setAttribute("aria-valuetext", `${cashTxt(Math.min(15, Math.max(0.5, v)), v)}, ${fmt(all)}곳`);
     SCRS.forEach((x) => { if (x.getAttribute("role") !== "slider") return; x.setAttribute("aria-valuenow", String(Math.min(15, Math.max(0.5, v)))); x.setAttribute("aria-valuetext", `${cashTxt(Math.min(15, Math.max(0.5, v)), v)}, ${fmt(all)}곳`); });
     $("sLT").textContent = gu ? `${gu} · ${fmt(L.length)}곳` : `갈 수 있는 곳 · ${fmt(L.length)}곳`;

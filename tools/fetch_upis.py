@@ -3,6 +3,7 @@
  - upis_uq181.json : 정비구역(layer 64, esri features)
  - upis_uq120.json : 서울시 정비사업 현황(layer 12, GeoJSON) — 모아타운·가로주택·신통 후보지 경계 포함
  - upis_sgg.json   : 자치구(layer 2, esri features)
+ - upis_sgg_hi.json: 자치구(layer 2, 약 1m 정밀도) → public/data/gu_hi.json(확대했을 때 구 경계선)
 """
 import json, os, time, subprocess
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -46,3 +47,4 @@ def esri2geo(g):
     return {'type': 'Polygon', 'coordinates': polys[0]} if len(polys) == 1 else {'type': 'MultiPolygon', 'coordinates': polys}
 save('upis_uq120.json', {'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'properties': f['attributes'], 'geometry': esri2geo(f['geometry'])} for f in f12 if f.get('geometry')]})
 save('upis_sgg.json', layer(2, '*', 0.00015))
+save('upis_sgg_hi.json', layer(2, 'SGG_NM', 0.00001))   # 29차: 확대(줌 12+)에서 쓰는 자치구 경계 원본(약 1m) → geo_slim.py가 data/gu_hi.json으로

@@ -52,8 +52,8 @@ for rel, loc, s in pages():
     elif not o or o.get('m') != h: o = st[rel] = {'m': h, 'd': today}
     urls.append((loc, o['d']))
     # 28차: 구조화 데이터 dateModified = 사이트맵 lastmod(본문 해시가 바뀐 날) — /z 손글 페이지가 10-10, 사이트맵은 10-25로 엇갈리던 것.
-    # JSON-LD는 mainhash에서 빠지는 <script> 안이라 고쳐도 본문 해시는 그대로다
-    s2 = re.sub(r'(<script type="application/ld\+json">.*?</script>)', lambda m: re.sub(r'("dateModified":\s*")\d{4}-\d\d-\d\d(")', lambda q: q.group(1) + o['d'] + q.group(2), m.group(1)), s, flags=re.S)
+    # JSON-LD는 mainhash에서 빠지는 <script> 안이라 고쳐도 본문 해시는 그대로다 · 29차: id가 붙은 JSON-LD(리포트·/years의 id="zp-ld")도
+    s2 = re.sub(r'(<script type="application/ld\+json"[^>]*>.*?</script>)', lambda m: re.sub(r'("dateModified":\s*")\d{4}-\d\d-\d\d(")', lambda q: q.group(1) + o['d'] + q.group(2), m.group(1)), s, flags=re.S)
     if s2 != s: open(os.path.join(PUB, rel), 'w', encoding='utf-8').write(s2); nld = globals().get('nld', 0) + 1; globals()['nld'] = nld
 urls.sort(key=lambda u: (u[0].count('/'), u[0]))
 # 25차: 한글 경로(/gu/강남구)는 퍼센트 인코딩해서 싣는다(그대로 요청하면 307로 한 번 돌아 들어왔다)

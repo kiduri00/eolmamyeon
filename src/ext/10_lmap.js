@@ -66,6 +66,10 @@
       }).catch((e) => { libP = null; throw e; });
       return libP;
     }
+    // 29차: 확대(줌 11.5+)했을 때 구 경계선은 정밀한 자치구 경계(data/gu_hi.json · 서울도시공간포털 약 1m를 3m로 줄임) — 첫 화면에선 받지 않는다
+    let GUHI = null, guHiP = null;
+    const guHiGet = () => guHiP || (guHiP = fetch(`data/gu_hi.json?v=${(D.dv && D.dv.geo) || D.asOf}`).then((r) => (r.ok ? r.json() : null)).then((j) => { GUHI = j && j.gu && j.gu.length === 25 ? j.gu : null; return GUHI; }).catch(() => { guHiP = null; return null; }));
+    const guGeo = () => GUHI || (geo && geo.gu) || [];
     function loadGeo() {
       if (geo) return Promise.resolve(geo);
       if (!geoP) geoP = fetch(`data/geo.json?v=${(D.dv && D.dv.geo) || D.asOf}`).then((r) => (r.ok ? r.json() : null)).then((g) => { geo = g && g.z ? g : null; if (!geo) geoP = null; return geo; }).catch(() => { geoP = null; return null; });
@@ -179,7 +183,9 @@
       const outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
       map.getSource("mask").setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [outer, ...geo.seoul] }, properties: {} });
       map.getSource("seoul").setData({ type: "Feature", geometry: { type: "MultiLineString", coordinates: geo.seoul }, properties: {} });
-      map.getSource("gul").setData(FC(geo.gu.map((g) => ({ type: "Feature", geometry: { type: "MultiLineString", coordinates: g.r }, properties: { n: g.n } }))));
+      const gulSet = () => { if (map.getSource("gul")) map.getSource("gul").setData(FC(guGeo().map((g) => ({ type: "Feature", geometry: { type: "MultiLineString", coordinates: g.r }, properties: { n: g.n } })))); };
+      gulSet();
+      if (!GUHI && !map.__guHi) { map.__guHi = 1; const onZ = () => { if (map.getZoom() < 11.5) return; map.off("zoomend", onZ); guHiGet().then((g) => { if (!g) { map.__guHi = 0; return; } gulSet(); try { guDraw(); } catch (e) {} }); }; map.on("zoomend", onZ); onZ(); }
       map.getSource("stn").setData(FC(D.stations.map((s) => ({ type: "Feature", geometry: { type: "Point", coordinates: [s[2], s[1]] }, properties: { n: s[0].replace(/역$/, ""), c: LINE_COL[(s[3] || [])[0]] || "#7A8594", t: (s[3] || []).length } }))));
       await Y();
       const L = (o) => { if (map.getLayer(o.id)) return; if (STAGE && !(o.layout && o.layout.visibility === "none")) { o = Object.assign({}, o, { layout: Object.assign({}, o.layout, { visibility: "none" }) }); STG.push(o.id); } map.addLayer(o, undefined, { validate: false }); };   // 검증 생략(우리가 쓴 고정 레이어 · 지도 켜는 시간 줄이기)
@@ -1208,7 +1214,7 @@
     }
     function guDraw() {
       if (!map || !ready || !map.getSource("gusel")) return;
-      const g = gu && geo && geo.gu.find((x) => x.n === gu);
+      const g = gu && geo && guGeo().find((x) => x.n === gu);
       guDrawn = g ? gu : null;   // 23차: 지도·경계 자료가 늦게 준비된 딥링크(#map-구)도 layout()이 한 번 더 그린다
       const outer = [[124, 32], [132, 32], [132, 40], [124, 40], [124, 32]];
       map.getSource("gusel").setData(g ? { type: "Feature", geometry: { type: "MultiLineString", coordinates: g.r }, properties: {} } : FC([]));
@@ -1331,6 +1337,8 @@
       zm.addEventListener("click", (e) => { const b = e.target.closest("button[data-z]"); if (!b) return; if (b.dataset.z === "full") { try { SIMPLE.fullMap(); } catch (er) {} return; } if (!map) return; const o = { duration: reduceMotion() ? 0 : 250 }; if (+b.dataset.z > 0) map.zoomIn(o); else map.zoomOut(o); });
       d.appendChild(zm);
       box.appendChild(d);
+      // 29차: 실제 지도의 확대·축소가 생기는 순간 자리 그림(.zp-ph)의 같은 단추는 숨기고 누를 수 없게(걷히기 전 잠깐 두 쌍이 겹쳐 있던 것)
+      document.querySelectorAll(".zp-ph .lm-zoom").forEach((g) => { g.style.visibility = "hidden"; g.setAttribute("aria-hidden", "true"); try { g.inert = true; } catch (er) {} });
       d.querySelector("#lmColor").addEventListener("change", (e) => {
         colorBy = e.target.value; store.set("emr.mapc", colorBy);
         paint();

@@ -30,7 +30,14 @@ CSS = ('.zp-tabs{display:none}'
        'footer.f a{color:var(--text-2,#4e5968);text-decoration:none!important;font-weight:600}footer.f a:hover{color:var(--brand,#1f3a87)}'
        # 링크 사이 '·' 글자는 숨긴다(줄이 바뀌면 줄 머리에 '·'가 오던 것) — 링크마다 여백 있는 글자 버튼이라 구분은 간격으로
        'footer.f p:first-child{display:flex;flex-wrap:wrap;gap:2px 4px;line-height:1.2;font-size:0}footer.f p:first-child a{display:inline-flex;align-items:center;min-height:36px;padding:0 6px;border-radius:8px;font-size:13px}'
-       '@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){footer.f{display:none!important}}')
+       '@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){footer.f{display:none!important}}'
+       # 29차: 브라우저에서도 누를 때 파란 하이라이트 없음(앱과 같게 · 대신 누른 줄은 옅은 바탕) · 머리 로고 링크 높이 40px · 리포트 차례 현재 칸 · 정정 상자 · 오프라인 알약
+       'html,a,button,summary,label{-webkit-tap-highlight-color:transparent}.zl:active,.gl a:active,.rp-toc a:active{background:var(--surface-2,#f2f4f6)}'
+       '.top .logo{min-height:40px}'
+       '.rp-toc a[aria-current="true"]{background:var(--brand,#1f3a87)!important;color:var(--on-brand,#fff)!important;border-color:var(--brand,#1f3a87)!important}'
+       '.rp-fix{margin:18px 0;padding:14px 16px 12px;border:1px solid var(--border,#e5e8eb);border-left:4px solid var(--warn-ink,#8a4b00);border-radius:12px;background:var(--warn-soft,#fff6e8)}'
+       '.rp-fix h2{margin:0 0 6px;font-size:17px}.rp-fix ul{margin:0;padding-left:18px}.rp-fix li{margin:6px 0;line-height:1.65}'
+       '.zp-off{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;padding:6px 12px;border-radius:999px;background:#191f28;color:#fff;font:600 13px/1.2 inherit;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2)}.zp-off[hidden]{display:none}')
 
 
 # 21차: 머리 오른쪽 종(소식) + 'N' 점 + '10.19 갱신' — 앱(63_newb.js)과 같은 키(zp.seen.auc·zp.seen.ntc)·같은 날짜(가장 늦은 경매·고시 날)
@@ -79,10 +86,22 @@ FONTJS = ('<script>(function(){var H=document.documentElement;if(H.classList.con
           'Promise.all(["400","700"].map(function(w){return document.fonts.load(w+" 15px \\"Pretendard Variable\\"",t)})).then(function(){if(performance.now()-t0<250)go()},function(){})}catch(e){go()}})()</script>')
 
 
+# 29차: 리포트 차례(.rp-toc) 지금 읽는 칸 표시(aria-current) · 끊기면 '오프라인 · M.DD 기준' 알약(앱과 같은 말)
+SPYJS = ('<script>(function(){var t=document.querySelector(".rp-toc");if(!t)return;var A=[].slice.call(t.querySelectorAll(\'a[href^="#"]\')),S=A.map(function(a){return document.getElementById(a.getAttribute("href").slice(1))}),cur=-1,q=0;'
+         'function f(){q=0;var y=(t.getBoundingClientRect().bottom||0)+24,k=-1;for(var i=0;i<S.length;i++){if(S[i]&&S[i].getBoundingClientRect().top<=y)k=i}if(k===cur)return;cur=k;A.forEach(function(a,i){if(i===k)a.setAttribute("aria-current","true");else a.removeAttribute("aria-current")});'
+         'if(k>=0){var a=A[k];t.scrollTo({left:Math.max(0,a.offsetLeft-16),behavior:"smooth"})}}'
+         'addEventListener("scroll",function(){if(!q){q=1;requestAnimationFrame(f)}},{passive:true});f()})()</script>')
+# 29차: 홈 '찾기' 첫 화면의 읽을거리 줄(10월 리포트 · 재개발 가이드)에서 온 길이면 아래 탭도 '찾기'에 그대로(누른 곳과 도착한 탭 강조가 엇갈리던 것) · MY에서 온 길은 MY
+TABJS = ('<script>(function(){try{var f=sessionStorage.getItem("zp.from");sessionStorage.removeItem("zp.from");if(f!=="find")return;'
+         'var t=document.querySelector(".zp-tabs");if(!t||!t.querySelector(\'a[aria-current="page"][href="/#my"]\'))return;[].forEach.call(t.querySelectorAll("a"),function(a){if(a.getAttribute("href")==="/")a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")})}catch(e){}})()</script>')
+OFFJS = ('<script>(function(){var d=' + json.dumps(UPD) + ',p;function s(){var off=navigator.onLine===false;if(off&&!p){p=document.createElement("div");p.className="zp-off";p.setAttribute("role","status");p.textContent="오프라인"+(d?" · "+d+" 기준":"");document.body.appendChild(p)}if(p)p.hidden=!off}'
+         'addEventListener("offline",s);addEventListener("online",s);s()})()</script>')
+
+
 def block(cur):
     ac = ' aria-current="page"'
     a = ''.join(f'<a href="{u}"{ac if k == cur else ""}>{SV(d)}<span>{t}</span>{"<i class=\"nb-dot\" aria-hidden=\"true\" hidden>N</i>" if k == "news" else ""}</a>' for k, u, t, d in TABS)
-    return f'<!--zp-tabs--><style>{CSS}{BCSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}{FONTJS}<!--/zp-tabs-->'
+    return f'<!--zp-tabs--><style>{CSS}{BCSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}{FONTJS}{SPYJS}{OFFJS}{TABJS}<!--/zp-tabs-->'
 
 
 RX = re.compile(r'<!--zp-tabs-->.*?<!--/zp-tabs-->', re.S)

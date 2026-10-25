@@ -1,0 +1,14 @@
+/* 29차(애드센스·제품 5차 레드팀) */
+/* 홈 h1 = 이 페이지의 진짜 제목: 첫 페인트부터 제자리(폰: 검색 위 · PC: 왼쪽 칸 맨 위, 읽을거리 줄 위) · 어두운 화면도 본문 글자색 */
+.s-site{margin:0;padding:2px 2px 0;font-size:19px;line-height:26px;height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800;letter-spacing:-.02em;color:var(--text-1,#191f28)}
+@media (max-width:380px){.s-site{font-size:18px;line-height:24px;height:24px;padding:0 2px}}
+@media (min-width:981px){.s-site{font-size:22px;line-height:30px;height:auto;padding:14px 4px 0;margin:0;white-space:normal}html.simple #sListW>.s-site+.s-rd{margin-top:10px}}
+/* 구 화면 머리 숫자: 큰 숫자 = 그 구 곳 수 · 밑에 작은 '서울 전체 N곳' */
+.bc-cnt .bc-all{display:block;margin-top:2px;font-size:12.5px;line-height:16px;font-weight:600;color:var(--text-3,#5c6573);white-space:nowrap}
+.bc-cnt .bc-all[hidden]{display:none}
+/* 오프라인 알약: 화면을 덮는 상세 시트가 열려도 보이게(아래 가운데 · 누름은 통과) */
+@media (max-width:980px){html.sheet-open .off-bar:not([hidden]){display:inline-flex!important;top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);left:50%;right:auto;transform:translateX(-50%);z-index:2147483000;pointer-events:none}}
+/* 소식 기준일: '기준'만 줄 끝에 홀로 떨어지지 않게 */
+.ib-note .nw,.ib-foot .nw{white-space:nowrap}
+/* MY 화면은 웹 푸터 링크를 이미 목록으로 가진다 → 브라우저에서도 MY에선 웹 푸터 숨김 */
+html:has(#my.s-on) .site-foot{display:none!important}

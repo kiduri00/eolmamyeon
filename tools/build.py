@@ -330,6 +330,10 @@ def island():
             'var l=document.getElementById("sList"),m=document.getElementById("sMore");if(!l)return;'
             'var n=6;try{if(matchMedia("(min-width:981px)").matches)n=Math.max(6,Math.min(10,Math.floor((Math.min(innerHeight-79,902)-144)/75)))}catch(e){}'
             'while(l.children.length>n)l.removeChild(l.lastElementChild);'
+            # 29차: 줄 오른쪽 '예산 거의 다 씀 · 예산에서 남는 돈'(island.js fx와 같은 식)도 첫 페인트 전에 — 섬이 붙을 때 줄이 8px씩 자라 PC 첫 화면이 밀리던 것
+            f'var c={json.dumps(P["def"]["c"])},cT=function(v){{var a=Math.abs(v),m=Math.ceil(a*100-1e-6);if(a<0.005)return"0원";if(m<100)return(m*100).toLocaleString("ko-KR")+"만";var u=Math.ceil(a*10-1e-6)/10;return u.toLocaleString("ko-KR",{{maximumFractionDigits:1}})+"억"}};'
+            '[].forEach.call(l.querySelectorAll("li[data-need]"),function(li){var x=+li.getAttribute("data-need"),el=li.querySelector(".s-fx");if(!el||!isFinite(x)||el.firstChild)return;var lf=Math.max(0,Math.round((c-x)*100)/100);'
+            'el.innerHTML=lf<=c*0.1+1e-9?\'<em class="s-fit">예산 거의 다 씀</em>\':lf>=0.01?\'<span class="s-left">예산에서 남는 돈 \'+cT(lf)+"</span>":""});'
             f'var t={tot};if(m&&t>n){{m.hidden=false;m.textContent={json.dumps(more, ensure_ascii=False)}.replace("{{n}}",(t-n).toLocaleString("ko-KR"))}}'
             '})()</script>')
     mv = re.search(r'<script>/\* 넓은 화면: 목록을 지도 오른쪽 칸으로[^<]*</script>', x)

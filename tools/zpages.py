@@ -264,8 +264,8 @@ def glance(r, c, k3):
         else:
             S_.append((0.2, f"최근 12개월 동안 {inb(r)}에서 신고된 거래는 없어요."))
     # 같은 구에서 지금 필요한 돈이 계산되는 곳끼리 순위(금액은 머리 카드에 있으니 다시 쓰지 않는다)
-    if c.get('gapOk') and c.get('gapNow') is not None and not r.get('lc') and r.get('tag') != 'mk':
-        G = sorted((C.get(x['id']) or {}).get('gapNow') for x in R if x['g'] == g and (C.get(x['id']) or {}).get('gapOk') and (C.get(x['id']) or {}).get('gapNow') is not None and not x.get('lc') and x.get('tag') != 'mk')
+    if LISTED(r):
+        G = sorted((C.get(x['id']) or {}).get('gapNow') for x in R if x['g'] == g and LISTED(x))
         if len(G) >= 5:
             k = G.index(c['gapNow']) + 1; md = statistics.median(G)
             w = _rk(k, len(G), '적게 들어요', '많이 들어요')
@@ -454,6 +454,13 @@ def page(r):
     if og: h = h.replace(f'<meta property="og:image" content="{SITE}/og.png">', f'<meta property="og:image" content="{SITE}{og}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:image" content="{SITE}{og}">', 1)
     return h
 R = [r for r in D['recs'] if not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n')]   # 화면의 '진행 중'과 같은 기준
+# 29차: 앱 목록·곳 수와 같은 한 판정 — 전세 끼고 '지금'이 있고, 참고값(lc · 표본이 적거나 구성이 달라 신뢰 낮음)도 같은 구 평균 추정(isEst)도 아니고, 시장 정비(mk)도 아닌 곳
+def LISTED(x):
+    c = C.get(x['id']) or {}
+    return bool(c.get('gapOk') and c.get('gapNow') is not None and not x.get('lc') and not isEst(x, c) and x.get('tag') != 'mk')
+def EXCL(x):   # 숫자는 있지만 신뢰가 낮아 목록에서 빼는 곳(/z '추정 신뢰 낮아 목록에서 뺐어요'와 같은 판정)
+    c = C.get(x['id']) or {}
+    return bool(c.get('gapOk') and c.get('gapNow') is not None and (x.get('lc') or isEst(x, c)))
 _isdone = lambda r: bool(r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7))
 N_DONE = sum(1 for r in D['recs'] if _isdone(r) and r.get('src') != 'moa'); N_MOA = sum(1 for r in D['recs'] if not r.get('dn') and r.get('src') == 'moa')
 CNT_NOTE = f'<p class="meta">진행 중 {len(R):,}곳은 준공·해산된 {N_DONE:,}곳과 모아타운 관리지역 {N_MOA:,}곳을 뺀 숫자예요. 첫 화면·메뉴의 숫자와 같은 기준이에요.</p>'
@@ -591,7 +598,7 @@ def hand_calc(r, h):
     else:
         p.append(f"지금 필요한 돈은 계산 보류예요. {(k.get('basis') or '매수가로 쓸 거래가 없어 계산하지 않아요').rstrip('.')}.")
     cmp_ = []
-    okv = lambda x: (C.get(x['id']) or {}).get('gapOk') and (C.get(x['id']) or {}).get('gapNow') is not None and not x.get('lc') and x.get('tag') != 'mk'
+    okv = LISTED
     mine = c['gapNow'] if gap else None
     oth = sorted((x for x in R if x['g'] == g and x['id'] != rid and okv(x) and (mine is None or C[x['id']]['gapNow'] < mine)), key=lambda x: C[x['id']]['gapNow'])[:3]
     for x in oth:
@@ -723,10 +730,14 @@ def gu_unique(g, L):
     if nt >= 3 and nt / max(1, N) >= max(0.3, _UNQ['th'] + 0.1):   # 서울 전체보다 10%p 넘게 높을 때만 '이 구의 특징'
         return f"{g} 구역 {N}곳 가운데 {nt}곳({round(nt / N * 100)}%)이 토지거래허가를 받아야 해서 전세를 안고 살 수 없어요. 서울 전체로는 {round(_UNQ['th'] * 100)}%예요."
     U = [(x, _units(x)) for x in L if _units(x)]
+    # 29차: 세대수 자료가 있는 곳끼리만 견준다는 걸 문장에 밝히고, 자료 없는 곳 중 면적(구역 면적, 저장소 자료)이 더 큰 곳이 있으면 '가장 많은 곳'이라 하지 않는다(한남3·여의도 시범처럼)
     if U:
         x, u = max(U, key=lambda z: z[1]); rk = _UNQ['units'].index(u) + 1
-        nm = short(x['n'])
-        return f"{g}에서 계획 세대수가 가장 많은 곳은 {nm}{ro(nm)} {int(u):,}세대예요" + (f". 서울 진행 구역 {len(_UNQ['units']):,}곳(세대수 자료 있는 곳) 가운데 {rk}번째로 커요." if rk <= max(20, len(_UNQ['units']) // 10) else '.')
+        ar = lambda y: (y.get('sm') or {}).get('area') or 0
+        if not any(not _units(y) and ar(y) > ar(x) for y in L):
+            nm = short(x['n'])
+            scope = f"{g} 구역 {len(L)}곳 가운데" if len(U) == len(L) else f"{g}에서 계획 세대수 자료가 있는 {len(U)}곳 가운데"
+            return f"{scope} 세대수가 가장 많은 곳은 {nm}{ro(nm)} {int(u):,}세대예요" + (f". 서울 진행 구역 {len(_UNQ['units']):,}곳(세대수 자료 있는 곳) 가운데 {rk}번째로 커요." if rk <= max(20, len(_UNQ['units']) // 10) else '.')
     adv = max(L, key=lambda x: x.get('s', 0), default=None)
     if adv and _stage(adv):
         nm = short(adv['n']); sd = _sdate(adv)
@@ -738,7 +749,7 @@ def gu_note(g, L):
           ② 앞에 센 곳이 없으면 '나머지' 대신 'N곳 모두' ③ 계산되는 곳이 5곳 미만이면 서울 견주기 문장은 쓰지 않음
           ④ 첫 문장(사업 종류) 다음은 그 구에서 서울과 가장 다른 사실부터(문장 순서가 구마다 다름 · 지어내지 않음)"""
     cg = lambda x: C.get(x['id']) or {}
-    okv = lambda x: cg(x).get('gapOk') and cg(x).get('gapNow') is not None and not x.get('lc') and x.get('tag') != 'mk'
+    okv = LISTED
     med = lambda v: statistics.median(v)   # 28차: 짝수 개면 가운데 두 값의 평균(전엔 위쪽 값 · 동대문 4.7억 vs 실제 3.55억)
     SE = _gu_seoul(); N = len(L)
     out = []; blocks = []   # (서울과 다른 정도, 문장)
@@ -792,7 +803,7 @@ def gu_note(g, L):
 def guPage(g, L):
     url = f'{SITE}/gu/{g}'
     c = lambda x: C.get(x['id']) or {}
-    ok = [x for x in L if c(x).get('gapOk') and c(x).get('gapNow') is not None and not x.get('lc') and x.get('tag') != 'mk']   # 참고값(lc)·시장 정비는 '가장 적은 돈' 예시에서 뺀다(사이트 목록과 같음)
+    ok = [x for x in L if LISTED(x)]   # 참고값(lc)·시장 정비는 '가장 적은 돈' 예시에서 뺀다(사이트 목록과 같음)
     cheap = sorted(ok, key=lambda x: c(x)['gapNow'])[:3]
     st = collections.Counter(c(x).get('stage') or x.get('sr') or '' for x in L)
     title = f'{g} 재개발·재건축 {len(L)}곳 · 진행 단계와 필요한 돈 | 집핀'
@@ -809,7 +820,8 @@ def guPage(g, L):
     if cheap: o.append('<p>전세를 안고 살 때 지금 드는 돈이 적은 곳(추정): ' + ', '.join(f'<a href="{x["id"]}">{esc(short(x["n"]))}</a> {eok(c(x)["gapNow"])}' for x in cheap) + f'. <a href="../#map-{esc(g)}">지도에서 내 돈으로 보기 →</a></p>')
     def rowkey(x):   # 숫자가 있는 줄 먼저(전세 끼고 지금 적은 순 → 현금만 있는 줄), 숫자 없는 줄은 뒤에 단계순
         v = c(x)
-        if v.get('gapOk') and v.get('gapNow') is not None: return (0, v['gapNow'], short(x['n']))
+        if LISTED(x): return (0, v['gapNow'], short(x['n']))
+        if EXCL(x): return (0.5, v['gapNow'], short(x['n']))   # 29차: 신뢰 낮은 추정은 목록에 든 곳 뒤로(앱 곳 수에서 빠짐)
         if v.get('cashOk') and v.get('need') is not None: return (1, v['need'], short(x['n']))
         return (2, -x.get('s', 0), short(x['n']))
     def tot(x):   # '전세 끼고 지금' 칸과 같은 방식의 입주까지 현금(앱 5.8억 = 갭 총액) · 전세 못 끼면 현금 매수 총액임을 표시
@@ -830,7 +842,7 @@ def guPage(g, L):
         nm = short(x["n"]); tt = (' title="' + esc(x["n"].strip()) + '"') if nm != x["n"].strip() else ''
         stg = esc(c(x).get("stage") or x.get("sr") or "")
         return (f'<li class="gr"><a href="{x["id"]}"{tt}><span class="gr-l"><b>{esc(nm)}</b><span class="gr-s">{f"<em>{stg}</em>" if stg else ""}{esc(KIND.get(x["k"], x["k"]))}</span></span>'
-                f'<span class="gr-r">{f'<span class="gr-v"><i>지금</i> <b class="gr-now">{nowT(x)}</b></span>' if nowT(x) else f'<span class="gr-v gr-na"><i>전세 끼고</i> <b class="gr-now">{whyT(x)}</b></span>'}{f'<small>입주까지 현금 <b class="gr-tot">{tot(x)}</b></small>' if tot(x) != '–' else '<small class="gr-hold">입주까지 현금 계산 보류</small>'}</span></a></li>')
+                f'<span class="gr-r">{f'<span class="gr-v"><i>지금</i> <b class="gr-now">{nowT(x)}</b></span>' if nowT(x) else f'<span class="gr-v gr-na"><i>전세 끼고</i> <b class="gr-now">{whyT(x)}</b></span>'}{f'<small>입주까지 현금 <b class="gr-tot">{tot(x)}</b></small>' if tot(x) != '–' else '<small class="gr-hold">입주까지 현금 계산 보류</small>'}{'<small class="gr-ex">참고값 · 추정 신뢰 낮아 목록에서 뺐어요</small>' if EXCL(x) else ''}</span></a></li>')
     rows = ''.join(grow(x) for x in sorted(L, key=rowkey))
     GCSS = ('<style>.gl{list-style:none;margin:12px 0;padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden}'
             '.gl li+li{border-top:1px solid var(--border)}.gl a{display:flex;align-items:center;gap:12px;min-height:72px;padding:10px 14px 10px 16px;color:var(--text-1);text-decoration:none!important}'
@@ -838,7 +850,7 @@ def guPage(g, L):
             '.gr-s{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-3);white-space:nowrap;overflow:hidden}.gr-s em{font-style:normal;flex:none;padding:2px 7px;border-radius:6px;background:var(--surface-2);color:var(--text-2);font-weight:600;font-size:12px}'
             '.gr-r{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}.gr-v i{font-style:normal;font-size:12px;color:var(--text-2)}.gr-v b{font-size:18px;font-weight:800;color:var(--brand,#1f3a87);font-variant-numeric:tabular-nums}'
             '.gr-na b{font-size:13px!important;font-weight:600!important;color:var(--text-2)!important}main p a,.eyebrow a{text-decoration:none!important;color:var(--brand,#1f3a87);font-weight:600}'
-            '.gr-r small{font-size:12px;color:var(--text-2)}.gr-r small b{font-weight:700;color:var(--text-1)}.gr-r small small{font-size:11px;color:var(--text-3)}</style>')
+            '.gr-r small{font-size:12px;color:var(--text-2)}.gr-r small.gr-ex{color:var(--warn-ink,#8a4b00);font-weight:600}.gr-r small b{font-weight:700;color:var(--text-1)}.gr-r small small{font-size:11px;color:var(--text-3)}</style>')
     o.append(gu_note(g, L))
     o.append(f'{GCSS}<ol class="gl" aria-label="{esc(g)} 구역 목록 · 전세 끼고 지금 필요한 돈 적은 순">{rows}</ol>')
     o.append('<p class="meta">입주까지 현금(입주 잔금대출 제외): 전세 끼고 갈 수 있는 곳은 <b>전세 끼고 산 경우</b>(앱 첫 화면과 같은 값), 전세를 낄 수 없는 곳은 <b>현금 매수 시</b> 금액이에요.' + (' <sup>*</sup><b>토허제</b> = 토지거래허가구역. 사면 2년 동안 직접 살아야 해서 전세를 끼고 살 수 없어요.' if any((gapWhy(c(x)) or ('',))[0] == '토허제' for x in L) else '') + '</p>')
@@ -856,7 +868,7 @@ print('gu pages', len(byg))
 def gu_compare():
     """25차: 구별 비교 글(자료로만) — 구역 수 · 전세 끼고 지금 필요한 돈이 가장 적은 구 · 단계 분포 · 토지거래허가로 전세를 못 끼는 곳"""
     cg = lambda x: C.get(x['id']) or {}
-    okv = lambda x: cg(x).get('gapOk') and cg(x).get('gapNow') is not None and not x.get('lc') and x.get('tag') != 'mk'
+    okv = LISTED
     cnt = sorted(((g, len(L)) for g, L in byg.items()), key=lambda z: (-z[1], z[0]))
     med = lambda v: statistics.median(v)
     gm = sorted(((g, med([cg(x)['gapNow'] for x in L if okv(x)]), sum(1 for x in L if okv(x))) for g, L in byg.items() if sum(1 for x in L if okv(x)) >= 3), key=lambda z: z[1])
@@ -873,7 +885,8 @@ def gu_compare():
               f"가장 적은 곳은 {cnt[-1][0]}({cnt[-1][1]}곳)와 {cnt[-2][0]}({cnt[-2][1]}곳)예요. 위 세 구만 합쳐도 서울 전체의 {round((cnt[0][1] + cnt[1][1] + cnt[2][1]) / len(R) * 100)}%예요."
               if len(cnt) >= 5 else '')
     if gm:
-        P_.append(f"전세 끼고 지금 필요한 돈이 계산되는 곳은 서울 전체에 {len(allok):,}곳이에요(가운데 값 {eok(med([cg(x)['gapNow'] for x in allok]))}). 이런 곳이 3곳 이상인 구만 놓고 구별 가운데 값을 비교하면 "
+        n15 = sum(1 for x in allok if cg(x)['gapNow'] <= 15 + 1e-9)   # 29차: 첫 화면 막대 끝(15억+)이 세는 곳과 같은 기준을 밝힌다
+        P_.append(f"전세 끼고 지금 필요한 돈이 계산되는 곳은 서울 전체에 {len(allok):,}곳이에요(가운데 값 {eok(med([cg(x)['gapNow'] for x in allok]))}" + (f" · 15억 안쪽은 {n15:,}곳으로 첫 화면 ‘15억+’의 곳 수와 같아요" if n15 != len(allok) else "") + f"). 신뢰가 낮은 참고값은 넣지 않았어요. 이런 곳이 3곳 이상인 구만 놓고 구별 가운데 값을 비교하면 "
                   + ', '.join(f"{g} {eok(v)}({n}곳)" for g, v, n in gm[:3]) + "이 가장 적게 들고, "
                   + ', '.join(f"{g} {eok(v)}" for g, v, n in gm[-2:][::-1]) + "이 가장 많이 들어요. 같은 구 안에서도 구역마다 몇 배씩 차이가 나니 구 이름보다 구역별 숫자를 먼저 보는 게 좋아요.")
     if stc:
@@ -899,7 +912,7 @@ def gu_compare():
     if wg:
         P_.append(f"역까지 걸어서 10분 안(직선거리 기준 추정)인 구역 비율은 {wg[0][0]}가 {round(wg[0][1] / wg[0][2] * 100)}%로 가장 높고, {wg[-1][0]}는 {round(wg[-1][1] / wg[-1][2] * 100)}%로 가장 낮아요. 출퇴근이 중요하다면 구 목록에서 역 거리도 함께 보세요.")
     P_ = [p for p in P_ if p]
-    return '<h2>구별로 견주어 보면</h2>' + ''.join(f'<p>{esc(p)}</p>' for p in P_) + f'<p class="meta">숫자는 {UPD} 자료와 기본 가정(무주택·84㎡·전세 끼고)으로 낸 추정이에요. 구를 누르면 구역별 숫자를 볼 수 있어요.</p>'
+    return '<h2>구별로 견주어 보면</h2>' + ''.join(f'<p>{esc(p)}</p>' for p in P_) + f'<p class="meta">숫자는 {UPD} 자료와 기본 가정(무주택·84㎡·전세 끼고)으로 낸 추정이에요. 구를 누르면 구역별 숫자를 볼 수 있어요. 참고값을 빼는 기준은 <a href="../method#exclude">계산 방법</a>에 있어요.</p>'
 def guIndex():
     url = f'{SITE}/gu/'
     ld = json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": "서울 자치구별 정비사업", "url": url, "inLanguage": "ko",
@@ -912,7 +925,7 @@ def guIndex():
     o.append(CNT_NOTE)
     o.append(gu_compare())
     def card(g):
-        L = byg[g]; ok = [C.get(x['id'], {}).get('gapNow') for x in L if (C.get(x['id']) or {}).get('gapOk') and (C.get(x['id']) or {}).get('gapNow') is not None and not x.get('lc') and x.get('tag') != 'mk']
+        L = byg[g]; ok = [C.get(x['id'], {}).get('gapNow') for x in L if LISTED(x)]
         sub = f"{len(L)}곳" + (f" · 전세 끼고 최소 {eok(min(ok))}" if ok else '')
         return f'<a class="zl" href="{esc(g)}">{esc(g)}<small>{sub}</small></a>'
     o.append('<div class="grid2">' + ''.join(card(g) for g in sorted(byg)) + '</div>')

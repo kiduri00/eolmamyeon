@@ -16,7 +16,8 @@
     // cash → 단위까지 붙인 꼴: 1억 아래는 만 원(100만 단위 · '4,100만'), 1억부터 '1.2억', 0은 '0원' — 화면의 모든 'X억' 금액이 이것 하나(tools/zsample.py cash와 같은 규칙)
     const cash = (v) => { const t = num(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (Math.ceil(a * 100 - 1e-6) < 100) return (v < 0 ? "-" : "") + (Math.ceil(a * 100 - 1e-6) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };
     // 28차: 모자라는 돈('N 부족' · 'N 더 필요해요')은 표시용 올림(0.1억·100만)이 아니라 정확한 만 원으로 — 한 곳에서만 만든다(0원 부족이 나오지 않게 최소 1만)
-    const short = (d) => { let m = Math.ceil((d || 0) * 1e4 - 1e-6); if (!(m >= 1)) m = 1; const a = Math.floor(m / 1e4), b = m % 1e4; return a ? `${a.toLocaleString("ko-KR")}억${b ? ` ${b.toLocaleString("ko-KR")}만` : ""}` : `${b.toLocaleString("ko-KR")}만`; };
+    // 29차: 한 규칙 — 1억 아래는 정확한 만 원('470만'), 1억부터는 0.1억 단위 올림에 '약'('약 16.8억' · 딱 떨어지면 '약' 없이) · 검색·상세·알약 모두 이것 하나
+    const short = (d) => { let m = Math.ceil((d || 0) * 1e4 - 1e-6); if (!(m >= 1)) m = 1; if (m < 1e4) return `${m.toLocaleString("ko-KR")}만`; const t = Math.ceil(m / 1e3 - 1e-9); return `${m % 1e3 ? "약 " : ""}${(t / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억`; };
     // 정확한 만 원 꼴(왜 이 금액? 합계 등): 3억 7,059만
     const exact = (v) => { const m = Math.round((v || 0) * 1e4); if (m <= 0) return "0원"; const a = Math.floor(m / 1e4), b = m % 1e4; return `${a ? `${a.toLocaleString("ko-KR")}억` : ""}${a && b ? " " : ""}${b ? `${b.toLocaleString("ko-KR")}만` : ""}`; };
     const entry = (r) => (r && r.mk && r.mk.entry) || null;

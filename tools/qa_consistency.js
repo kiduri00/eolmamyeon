@@ -66,7 +66,7 @@ const fm = (m) => (!m ? "–" : m.v < 1 ? `${Math.round(m.v * 1e4).toLocaleStrin
 // 억 금액 한 꼴(src/ext/05_facts.js ZF.num·ZF.cash와 같은 규칙): 1억 아래 소수 둘째 자리, 1억부터 첫째 자리
 const zfUp = (x, k) => Math.ceil(x * k - 1e-6) / k;   // 화면 ZF.num과 같은 올림
 const zfNum = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (zfUp(a, 100) < 1) return sg + zfUp(a, 100).toFixed(2).replace(/0$/, ""); return sg + zfUp(a, 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
-const zfShort = (d) => { let m = Math.ceil((d || 0) * 1e4 - 1e-6); if (!(m >= 1)) m = 1; const a = Math.floor(m / 1e4), b = m % 1e4; return a ? `${a.toLocaleString("ko-KR")}억${b ? ` ${b.toLocaleString("ko-KR")}만` : ""}` : `${b.toLocaleString("ko-KR")}만`; };   // 28차: 모자라는 돈은 정확한 만 원(화면 ZF.short)
+const zfShort = (d) => { let m = Math.ceil((d || 0) * 1e4 - 1e-6); if (!(m >= 1)) m = 1; if (m < 1e4) return `${m.toLocaleString("ko-KR")}만`; const t = Math.ceil(m / 1e3 - 1e-9); return `${m % 1e3 ? "약 " : ""}${(t / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억`; };   // 29차: 1억 아래 정확한 만 원 · 1억부터 0.1억 올림 '약 N억'(화면 ZF.short)
 const zfCash = (v) => { const t = zfNum(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (Math.ceil(a * 100 - 1e-6) < 100) return (v < 0 ? "-" : "") + (Math.ceil(a * 100 - 1e-6) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };   // 1억 아래는 만 원(4,100만)
 // WCAG 대비(페이지 안): 글자색(불투명도 곱) vs 조상 배경을 겹쳐 만든 실제 바탕
 const CONTRAST_JS = (rootSel) => {
@@ -75,7 +75,7 @@ const CONTRAST_JS = (rootSel) => {
   const over = (top, bot) => { const a = top[3]; return [top[0] * a + bot[0] * (1 - a), top[1] * a + bot[1] * (1 - a), top[2] * a + bot[2] * (1 - a), 1]; };
   const bgOf = (el) => { const st = []; for (let e = el; e; e = e.parentElement) { const cs = getComputedStyle(e); if (cs.backgroundImage && cs.backgroundImage !== "none") return null; const c = P(cs.backgroundColor); if (c && c[3] > 0) { st.push(c); if (c[3] >= 1) break; } } let b = [255, 255, 255, 1]; if (!st.length || st[st.length - 1][3] < 1) b = P(getComputedStyle(document.body).backgroundColor) || b; for (let i = st.length - 1; i >= 0; i--) b = over(st[i], b); return b; };
   const out = [];
-  for (const root of document.querySelectorAll(rootSel)) for (const el of root.querySelectorAll("*")) {
+  for (const root of document.querySelectorAll(rootSel)) for (const el of [root, ...root.querySelectorAll("*")]) {
     if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
     if (!window.__qc.vis(el) || el.closest("[aria-hidden=true],svg,.sr-only")) continue;
     const cs = getComputedStyle(el); if (cs.clip !== "auto") continue;
@@ -886,7 +886,7 @@ async function r1Lane(browser, api, errs) {
       expect(t.n === 4 && t.inHdr && t.cur.join() === "news", "ui.tabs4", T, `1440 #news: ${t.n} tabs in header ${t.inHdr} current [${t.cur}]`);
       // 24차: 브라우저로 연 앱 화면에서는 웹 푸터(소개·약관·개인정보·문의)가 보여야 하고, 설치 앱(display-mode: standalone)에서만 숨긴다
       expect(t.foot, "ui.tabs4", T, "1440: web footer hidden in browser mode (should be visible; hidden only in standalone)");
-      const sa = await dp.evaluate(() => { const hit = []; const walk = (rs, mq) => { for (const r of rs) { if (r.media && r.cssRules) walk(r.cssRules, r.media.mediaText); else if (r.cssRules && r.conditionText) walk(r.cssRules, r.conditionText); else if (r.selectorText && r.selectorText.split(",").some((x) => /\.site-foot$/.test(x.trim())) && r.style && r.style.display === "none") hit.push(mq || ""); } }; for (const sh of document.styleSheets) { try { walk(sh.cssRules, ""); } catch (e) {} } return hit; });
+      const sa = await dp.evaluate(() => { const hit = []; const walk = (rs, mq) => { for (const r of rs) { if (r.media && r.cssRules) walk(r.cssRules, r.media.mediaText); else if (r.cssRules && r.conditionText) walk(r.cssRules, r.conditionText); else if (r.selectorText && r.selectorText.split(",").some((x) => /\.site-foot$/.test(x.trim()) && !/:has\(#my\.s-on\)/.test(x)) && r.style && r.style.display === "none") hit.push(mq || ""); } }; for (const sh of document.styleSheets) { try { walk(sh.cssRules, ""); } catch (e) {} } return hit; });
       expect(sa.some((m) => /display-mode:\s*standalone/.test(m)), "ui.tabs4", T, "no @media (display-mode: standalone) rule hides .site-foot");
       expect(!sa.some((m) => !/display-mode/.test(m)), "ui.tabs4", T, `.site-foot hidden outside display-mode media: [${sa.filter((m) => !/display-mode/.test(m)).join(" | ")}]`);
       await d.close();
@@ -1202,7 +1202,7 @@ async function r14Lane(browser, api, errs) {
       // 25차: 화면을 덮는 전체 화면 질문 대신 홈 맨 위 카드(한 단계 · '나중에' 닫기) — 목록·읽을거리·푸터가 그대로 보이고 스크롤된다
       const a = await page.evaluate(() => { const o = document.getElementById("onb"), r = o && o.getBoundingClientRect(), cs = o && getComputedStyle(o), rd = document.getElementById("sRd"), H = getComputedStyle(document.documentElement).overflow + getComputedStyle(document.body).overflow;
         return { on: !!o && !o.hidden && r.width > 200 && r.height > 80, inline: !!cs && cs.position !== "fixed" && cs.position !== "absolute" && r.height < innerHeight * 0.6, lock: /hidden/.test(H), later: !!(o && o.querySelector("[data-olater]")), reads: !!rd && rd.getClientRects().length > 0, q: o ? o.innerText : "", chips: o ? [...o.querySelectorAll("[data-oc]")].map((b) => b.textContent.trim()) : [] }; });
-      expect(a.on && a.inline && !a.lock && a.later && a.reads && /지금 쓸 수 있는 현금이 얼마예요\?/.test(a.q) && !/집 있어요/.test(a.q) && a.chips.join(",") === "5,000만,1억,2억,3억,5억,7억,10억,15억+", "ui.onboard", T, `first run: shown ${a.on} · inline ${a.inline} · scroll lock ${a.lock} · 나중에 ${a.later} · reads visible ${a.reads} · chips [${a.chips.join(", ")}]`);
+      expect(a.on && a.inline && !a.lock && a.later && a.reads && /지금 쓸 수 있는 현금을 골라 주세요/.test(a.q) && !/집 있어요/.test(a.q) && a.chips.join(",") === "5,000만,1억,2억,3억,5억,7억,10억,15억+", "ui.onboard", T, `first run: shown ${a.on} · inline ${a.inline} · scroll lock ${a.lock} · 나중에 ${a.later} · reads visible ${a.reads} · chips [${a.chips.join(", ")}]`);
       await page.tap('#onb [data-oc="2"]').catch(() => page.click('#onb [data-oc="2"]'));
       await page.waitForTimeout(250);
       await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.ZP_count === "function", null, { timeout: 20000 }).catch(() => {});
@@ -2043,13 +2043,15 @@ async function r19Lane(browser, api, errs) {
     const TZ = "검색 배지 '내 돈 N 부족'에 0원 없음 · 상세 'N 더 필요해요'와 같은 금액";
     const { ctx, page } = await newPage(browser, mob(390, 844), errs);
     try {
-      for (const q of ["신정", "오목교", "장위"]) {
+      for (const q of ["신정", "오목교", "장위", "한남"]) {
         await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
         await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.ZP_count === "function", null, { timeout: 25000 }).catch(() => {});
         await page.evaluate(() => { const q = document.getElementById("q"); if (!q.offsetWidth) document.getElementById("sSearch").click(); }); await page.waitForTimeout(300);
         await page.fill("#q", q); await page.waitForTimeout(800);
         const rows = await page.evaluate(() => [...document.querySelectorAll("#sugg button[data-id]")].map((b) => ({ id: b.dataset.id, t: ((b.querySelector(".sg-no:not(.sg-na)") || {}).textContent || "") })).filter((x) => /부족/.test(x.t)));
         for (const x of rows) expect(!/(^|\s)0원 부족/.test(x.t), "search.noZeroShort", TZ, `'${q}' ${x.id}: "${x.t}"`);
+        // 29차 한 규칙: 1억 아래 정확한 만 원('470만') · 1억부터 0.1억 올림 '약 16.8억'(딱 떨어지면 '약' 없이) — '16억 7,267만' 같은 섞인 꼴 없음
+        for (const x of rows) { const a = (/내 돈 (.+?) 부족/.exec(x.t) || [])[1] || ""; expect(/^[1-9][\d,]*만$/.test(a) && intOf(a) < 10000 || /^(약 )?\d[\d,]*(\.\d)?억$/.test(a), "search.noZeroShort", TZ + " · 한 규칙(1억 아래 만 원 · 1억부터 '약 N.N억')", `'${q}' ${x.id}: "${x.t}"`); }
         const x = rows[0];
         if (x) {
           await page.evaluate((id) => { const b = document.querySelector(`#sugg button[data-id="${id}"]`); b && b.click(); }, x.id); await page.waitForTimeout(1200);
@@ -2121,7 +2123,7 @@ async function r19Lane(browser, api, errs) {
         if (/(^|[^\d.])0\.\d+억/.test(x.amt)) bad3.push(`${x.id} ${x.amt}(1억 아래는 만)`);
         if (/가능/.test(x.ok) && a.v > 2 + 1e-9) bad3.push(`${x.id} ${x.amt} 가능?`);
         const m = /내 돈 (.+) 부족/.exec(x.ok);
-        if (m) { const d = money(m[1]); if (!(a.v > 2 + 1e-9) || !d || Math.abs(a.v - 2 - d.v) > 0.1 + 1e-6) bad3.push(`${x.id} ${x.amt} / ${m[1]} 부족`); }
+        if (m) { const d = money(m[1].replace(/^약\s*/, "")); if (!(a.v > 2 + 1e-9) || !d || Math.abs(a.v - 2 - d.v) > 0.1 + 1e-6) bad3.push(`${x.id} ${x.amt} / ${m[1]} 부족`); }
       });
       expect(all.length > 100 && nz > 100 && !bad1.length, "search.values", TV, `${all.length} badges · ${nz} vs /z · differ ${bad1.length}: ${bad1.slice(0, 5).join(" ; ")}`);
       expect(!bad2.length, "search.values", TV, `${nl} vs list rows · differ: ${bad2.slice(0, 5).join(" ; ")}`);
@@ -2738,7 +2740,7 @@ async function r27Lane(browser, api, errs) {
         await page.waitForTimeout(2500);
         const r = await page.evaluate(() => { const o = document.getElementById("onb"), s = document.getElementById("sSum"), m = document.getElementById("mapbox"), nav = document.getElementById("sNav"); const R = (e) => (e ? e.getBoundingClientRect() : null); const sr = R(s), mr = R(m), nr = R(nav);
           return { cls: +window.__cls.toFixed(4), src: window.__clsS.slice(0, 3), onb: !!o && !o.hidden && o.offsetHeight > 0, names: s ? s.querySelectorAll(".s-rail3 [data-id]").length : 0, namesIn: !!sr && sr.height > 0 && sr.bottom <= innerHeight, pv: !!document.getElementById("onbPv"), peek: mr && nr ? Math.round(nr.top - mr.top) : null }; });
-        expect(r.cls < 0.02 && r.onb && r.names >= 1 && r.namesIn && !r.pv && (w !== 360 || (r.peek != null && r.peek >= 120)), "fresh.cls", T, `${w}: ${JSON.stringify(r)}`);
+        expect(r.cls < (w === 360 ? 0.005 : 0.02) && r.onb && r.names >= 1 && r.namesIn && !r.pv && (w !== 360 || (r.peek != null && r.peek >= 150)), "fresh.cls", T + " · 29차: 360은 CLS < 0.005 · 지도 150px 이상", `${w}: ${JSON.stringify(r)}`);
       } catch (e) { bad("fresh.cls", T, `${w} crashed: ` + String(e.message || e).split("\n")[0]); }
       finally { await ctx.close().catch(() => {}); }
     }
@@ -2801,6 +2803,95 @@ async function guProse() {
     expect(!errs2.length, "gu.sumProse", T, `${g}: ${errs2.join(" ; ")} · "${p.slice(0, 140)}"`);
   }
 }
+// ================================================================ 29차(애드센스·제품 5차 레드팀)
+async function r29Lane(browser, api, errs) {
+  const mob = (w, h, cs) => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs || "light" });
+  // --- a11y.headContrast: 축 다섯 화면(홈 · 상세 시트 · /z · /gu · MY) 밝게·어둡게 — 보이는 h1·h2 글자 대비 4.5:1(큰 글자 3:1) · axe-core가 있으면 color-contrast 'serious' 0
+  {
+    const T = "홈·상세·/z·/gu·MY(밝게·어둡게): 보이는 h1·h2 글자 대비 4.5:1(큰 글자 3:1) · axe color-contrast 심각 0(axe-core 있을 때) — 5차: 어두운 홈 h1 1.16:1";
+    let AXE = null; try { const ap = process.env.AXE_PATH || require.resolve("axe-core/axe.min.js"); AXE = fs.readFileSync(ap, "utf8"); } catch (e) {}
+    const SCR = [["/", ""], ["/?cash=2&mode=jeonse", "#o337"], ["/z/o916.html", ""], ["/gu/" + "구로구.html", ""], ["/?cash=2", "#my"]];
+    for (const cs of ["light", "dark"]) for (const [u, h] of SCR) {
+      const { ctx, page } = await newPage(browser, mob(390, 844, cs), errs);
+      try {
+        page.__where = `headContrast ${cs} ${u}${h}`;
+        await page.goto(BASE + encodeURI(u) + (u.includes("?") ? "&" : "?") + "qac=" + (++LOADS) + h, { waitUntil: "load", timeout: 30000 });
+        await page.waitForFunction(() => !window.ZP_boot || window.ZP_boot.hyd === 1, null, { timeout: 20000 }).catch(() => {});
+        await page.waitForTimeout(1500);
+        const c = await page.evaluate(CONTRAST_JS, "h1, h2");
+        expect(!c.length, "a11y.headContrast", T, `${cs} ${u}${h}: ${c.length} low: ${c.slice(0, 4).join(" ; ")}`);
+        if (AXE) {
+          await page.addScriptTag({ content: AXE });
+          const v = await page.evaluate(async () => { const r = await window.axe.run(document, { runOnly: { type: "rule", values: ["color-contrast"] }, resultTypes: ["violations"] }); return r.violations.filter((x) => x.impact === "serious" || x.impact === "critical").flatMap((x) => x.nodes.map((n) => n.target.join(" ") + " " + ((n.any[0] || {}).message || "").slice(0, 60))); });
+          const hv = v.filter((t) => /(^|[\s>])h[12]\b|s-site|#sSite/.test(t));
+          expect(!hv.length, "a11y.headContrast", T, `${cs} ${u}${h}: axe ${hv.length}: ${hv.slice(0, 3).join(" ; ")}`);
+          if (v.length) wrn("a11y.headContrast", T, `${cs} ${u}${h}: axe color-contrast (h1·h2 밖) ${v.length}: ${v.slice(0, 2).join(" ; ")}`);
+        } else skip("a11y.headContrast", T, "axe-core 없음(AXE_PATH) — 대비 계산만");
+      } catch (e) { bad("a11y.headContrast", T, `${cs} ${u}${h} crashed: ` + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- home.h1Slot: 홈 h1이 첫 페인트부터 제자리(폰: 검색 위 · PC: 왼쪽 칸 맨 위 · 둘 다 읽을거리 줄 위) · 18~22px · 아래 카드와 겹치지 않음 · 첫 방문 카드 질문이 h1을 되풀이하지 않음
+  {
+    const T = "홈 h1: 읽을거리 줄 위 · 폰 18~20px/PC 22px · 다른 요소와 겹치지 않음 · 첫 방문 카드 질문 ≠ h1 말";
+    for (const [w, h] of [[360, 740], [390, 844], [1440, 900]]) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: w < 900, hasTouch: w < 900, serviceWorkers: "block" });
+      try {
+        await ctx.route(BLOCK, (r) => r.abort());
+        const page = await ctx.newPage();
+        await page.goto(BASE + "/", { waitUntil: "domcontentloaded", timeout: 30000 });
+        const first = await page.evaluate(() => { const a = document.getElementById("sSite"), b = document.getElementById("sRd"); return a && b ? [Math.round(a.getBoundingClientRect().bottom), Math.round(b.getBoundingClientRect().top)] : null; });
+        await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1, null, { timeout: 20000 }).catch(() => {});
+        await page.waitForTimeout(1500);
+        const r = await page.evaluate(() => { const a = document.getElementById("sSite"), b = document.getElementById("sRd"), q = document.getElementById("onbQ1"); if (!a || !b) return null; const A = a.getBoundingClientRect(), B = b.getBoundingClientRect(); const hit = (x, y) => { const e = document.elementFromPoint(x, y); return !e || e === a || a.contains(e); }; return { above: A.bottom <= B.top + 0.5, fs: parseFloat(getComputedStyle(a).fontSize), clear: hit(A.left + 6, A.top + A.height * 0.75) && hit(A.left + Math.min(A.width - 6, 120), A.bottom - 3), q: q ? q.textContent.trim() : "", h1: a.textContent.trim(), first: null }; });
+        const okFs = r && (w > 980 ? r.fs >= 21.5 && r.fs <= 22.5 : r.fs >= 17.5 && r.fs <= 20.5);
+        const rep = r && r.q && /내 돈으로 갈 수 있는/.test(r.q);
+        expect(!!r && r.above && okFs && r.clear && !rep && !!first && first[0] <= first[1] + 0.5, "home.h1Slot", T, `${w}: ${JSON.stringify(r)} first-paint h1.bottom/sRd.top ${JSON.stringify(first)}`);
+      } catch (e) { bad("home.h1Slot", T, `${w} crashed: ` + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- seo.dateAgree: 사이트맵의 모든 주소 — 구조화 데이터 dateModified == 사이트맵 lastmod(한 날짜 출처)
+  {
+    const T = "사이트맵 모든 주소: JSON-LD dateModified == sitemap lastmod (본문 해시가 바뀐 날 하나)";
+    const sm = await get(BASE + "/sitemap.xml");
+    const U = [...(sm.text || "").matchAll(/<loc>([^<]+)<\/loc><lastmod>([^<]+)<\/lastmod>/g)].map((m) => [decodeURIComponent(new URL(m[1]).pathname), m[2]]);
+    if (U.length < 20) bad("seo.dateAgree", T, `sitemap has ${U.length} urls`);
+    let n = 0;
+    for (const [u, d] of U) {
+      const r = await getPage(u);
+      const ds = [...(r.text || "").matchAll(/"dateModified":\s*"(\d{4}-\d\d-\d\d)/g)].map((m) => m[1]);
+      if (!ds.length) continue;
+      n++;
+      const badD = ds.filter((x) => x !== d);
+      expect(!badD.length, "seo.dateAgree", T, `${u}: lastmod ${d} vs dateModified ${[...new Set(ds)].join(",")}`);
+    }
+    if (!n) bad("seo.dateAgree", T, "no page with dateModified");
+  }
+  // --- name.generic: 구역 짧은 이름이 동·구·도시 이름 한 낱말뿐이 아님(서울 · 상도 · 월계동 · 용답동 …)
+  {
+    const T = "구역 짧은 이름(API name = 화면 shortName)이 동·구·도시 이름 한 낱말뿐이 아님";
+    const GU = new Set(), DONG = new Set();
+    for (const z of api.zones) { if (z.gu) { GU.add(z.gu); GU.add(z.gu.replace(/구$/, "")); } const d = String(z.dong || (z.jibun || "").split(" ")[0] || ""); if (/동$/.test(d)) { DONG.add(d); DONG.add(d.replace(/\d*동$/, "")); } }
+    const gen = (n) => !/\s/.test(n) && (n === "서울" || GU.has(n) || DONG.has(n) || /^[가-힣]{1,3}동$/.test(n));
+    const badN = api.zones.filter((z) => z.name && gen(z.name)).map((z) => `${z.id} "${z.name}"`);
+    expect(!badN.length, "name.generic", T, `${badN.length}: ${badN.slice(0, 8).join(", ")}`);
+  }
+  // --- gu.unitsScope: /gu '세대수가 가장 많은 곳' 문장은 '세대수 자료가 있는 N곳 가운데'처럼 범위를 밝힘
+  {
+    const T = "/gu 해설 '세대수가 가장 많은 곳'은 범위(구 전체 N곳 또는 세대수 자료가 있는 N곳)를 밝힘";
+    const idx = await getPage("/gu/");
+    const gus = [...new Set([...(idx.text || "").matchAll(/href="(?:\.\.\/gu\/|\/gu\/|\.\/)?([가-힣]+구)"/g)].map((m) => m[1]))];
+    let seen = 0;
+    for (const g of gus) {
+      const r = await getPage("/gu/" + g);
+      const p = htmlText(((/<p class="gnote">([\s\S]*?)<\/p>/.exec(r.text || "") || [])[1]) || "");
+      const m = /[^.]*세대수가 가장 많은 곳[^.]*\./.exec(p);
+      if (m) { seen++; expect(/자료가 있는 [\d,]+곳 가운데|구역 [\d,]+곳 가운데/.test(m[0]), "gu.unitsScope", T, `${g}: "${m[0]}"`); }
+    }
+    if (!seen) skip("gu.unitsScope", T, `${gus.length}개 구 모두 세대수 문장 없음`);
+  }
+}
 // ================================================================ main
 (async () => {
   // API
@@ -2852,6 +2943,8 @@ async function guProse() {
   if (!ONLY || ONLY === "r26") await timed("r26", r26Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r26Lane crashed: " + e.message)));
   // 27차(첫 방문 밀림 · 구 화면 바탕 이름 · /gu 해설 숫자) — 혼자
   if (!ONLY || ONLY === "r27") await timed("r27", Promise.all([r27Lane(browser, api, errs), guProse()]).catch((e) => bad("runtime", "검사 실행", "r27Lane crashed: " + e.message)));
+  // 29차(h1·h2 대비 · h1 자리 · 날짜 한 출처 · 짧은 이름 · /gu 세대수 범위) — 혼자
+  if (!ONLY || ONLY === "r29") await timed("r29", r29Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r29Lane crashed: " + e.message)));
   // 22차(앱 껍데기 · 모든 구역 열기) — 혼자, 맨 끝(모든 구역을 여는 데 몇 분)
   if (!ONLY || ONLY === "r22") await timed("r22", r22Lane(browser, api, errs, shared).catch((e) => bad("runtime", "검사 실행", "r22Lane crashed: " + e.message)));
   await browser.close();

@@ -104,12 +104,13 @@
     var ANG = [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return (k * Math.PI) / 4 + Math.PI / 2; });
     // 폰: 맨 아래 20px 띠에는 묶음을 두지 않는다(범례·ⓘ는 따로 피함 · 20차)
     var bot = phone ? 20 : 2;
+    var GAP = 4;
     var boxOf = function (g) { var x = g.q.x + g.dx, y = g.q.y + g.dy; return [x - g.w / 2, y - g.h / 2, x + g.w / 2, y + g.h / 2]; };
     // pre = 이미 자리 잡은 묶음(그대로 둔다) · only = 이번에 자리 잡을 구 이름(없으면 전부)
     var run = function (extra, pre, only) {
       var placed = (extra ? [extra] : []).concat((pre || []).map(boxOf)), keep = (pre || []).slice(), left = [];
       // m = 보이는 상자 밖 투명 누름 자리(작은 묶음은 40px 상자 안에 보이는 30·22px) — 그 둘레까지 지도 칸 안에(23차: 위 가장자리 묶음이 칸 밖으로 5px 나가던 것)
-      var free = function (bx, m) { m = m || 0; return bx[0] >= 2 && bx[2] <= w - 2 && bx[1] - m >= 2 && bx[3] + m <= h - bot && !obs.some(function (q) { return hit(q, bx); }) && !placed.some(function (q) { return hit(q, bx); }); };
+      var free = function (bx, m) { m = m || 0; var gx = [bx[0] - GAP, bx[1] - GAP, bx[2] + GAP, bx[3] + GAP]; return bx[0] >= 2 && bx[2] <= w - 2 && bx[1] - m >= 2 && bx[3] + m <= h - bot && !obs.some(function (q) { return hit(q, bx); }) && !placed.some(function (q) { return hit(q, gx); }); };   // 29차: 묶음끼리 최소 4px 띄움(GAP 양쪽 2px씩이 아니라 한쪽 4px — 실제 글자 폭이 어림보다 조금 넓어도 닿지 않게)
       L.forEach(function (g0) {
         if (!g0.c) return;
         if (only && !only[g0.n]) return;
@@ -120,7 +121,7 @@
         for (var s = 0; s < (phone || w < 380 ? 3 : 2) && !got; s++) {
           // 21차: 둥근 네모 두 줄('강북 1곳' / '7,400만~') — 폭 = 글자 폭 + 여백, 높이 40(누르는 자리 · 작게 줄인 것은 보이는 30 + 투명 둘레로 40)
           // 27차: 셋째 단계도 금액 줄('6,700만~')을 지운 한 줄이 아니라 더 작은 두 줄(xs · 보이는 높이 26) — 높은 금액에서 구 묶음 금액 줄이 빠지던 것
-          var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = xs ? Math.max(tw(l1, 10), tw(L2, 8.5)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 9.5)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 10.5)) + 18, bh = xs ? (L2 ? 26 : 20) : sm ? (L2 ? 30 : 22) : 40, d = Math.max(bw, bh);
+          var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = Math.ceil((xs ? Math.max(tw(l1, 10), tw(L2, 8.5)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 9.5)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 10.5)) + 18) * 1.04), bh = xs ? (L2 ? 26 : 20) : sm ? (L2 ? 30 : 22) : 40, d = Math.max(bw, bh);
           var RR = sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05];
           for (var i = 0; i < RR.length && !got; i++) {
             var A = RR[i] ? ANG : [0];

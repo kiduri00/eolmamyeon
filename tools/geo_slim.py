@@ -56,5 +56,14 @@ def main():
         open(OUT, 'w', encoding='utf-8').write(body)
     open(MARK, 'w').write(_md5(OUT))
     print(f'geo.json {os.path.getsize(SRC)} -> {os.path.getsize(OUT)} bytes')
+    # 29차: 확대(줌 12 이상) 구 경계선 — 서울도시공간포털 자치구 경계(약 1m)를 3m 허용 오차로 줄여 따로(첫 화면에선 안 받음)
+    hi = os.path.join(R, 'pipeline', 'cache', 'upis_sgg_hi.json'); ho = os.path.join(R, 'public', 'data', 'gu_hi.json')
+    if os.path.exists(hi):
+        F = json.load(open(hi, encoding='utf-8'))
+        gh = [{'n': f['attributes'].get('SGG_NM'), 'r': [ring(r, TOL) for r in (f.get('geometry') or {}).get('rings') or [] if len(r) >= 4]} for f in F if f.get('geometry')]
+        if len(gh) == 25:
+            b2 = json.dumps({'gu': gh}, ensure_ascii=False, separators=(',', ':'))
+            if not os.path.exists(ho) or open(ho, encoding='utf-8').read() != b2: open(ho, 'w', encoding='utf-8').write(b2)
+            print('gu_hi.json', os.path.getsize(ho), 'bytes', sum(len(r) for x in gh for r in x['r']), 'pts')
 
 if __name__ == '__main__': main()
