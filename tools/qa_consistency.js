@@ -2645,7 +2645,9 @@ async function tappLane(browser, api, errs) {
           tl.push([x.k, x.map ? s.full : s.view && s.on, s.tD === 1, b.home && b.tD === 0]);
         } else {
           const [resp] = await Promise.all([page.waitForNavigation({ timeout: 15000 }).catch(() => null), page.click(sel)]);
-          const st = resp ? resp.status() : 0;
+          let st = resp ? resp.status() : 0;
+          // 로컬 python 서버는 깨끗한 주소(.html 없음)를 못 준다 → 같은 주소를 .html로 받아 200이면 통과(배포 서버는 깨끗한 주소)
+          if (st === 404) { const r2 = await getPage("/" + x.href.replace(/^\//, "")); if (r2.status === 200) st = 200; }
           await page.goBack({ waitUntil: "load" }).catch(() => {});
           await page.waitForFunction(() => document.documentElement.classList.contains("tapp-on"), null, { timeout: 20000 }).catch(() => {});
           tl.push([x.k, st === 200 || st === 304, true, true]);
