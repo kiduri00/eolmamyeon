@@ -43,9 +43,10 @@ function toBase(cb) {
 /* ---------- 2. 아래 탭 5개 ---------- */
 const TAB_VIEW = { fav: "favTop", news: "news", my: "my" };
 const VIEW_TAB = { favTop: "fav", news: "news", my: "my" };
-let lastTab = "home", homeReset = false;
+let lastTab = "home", homeReset = false, tSave = 0;
 function curTab() {
   if (H.classList.contains("s-full")) return "map";
+  if (!H.classList.contains("s-view") && history.state && history.state.tL) return "map";   // 지도 탭 '목록 보기'(지도 탭 안의 목록)
   if (H.classList.contains("s-view")) { const v = T(() => S().cur(), ""); return VIEW_TAB[v] || (lastTab === "map" ? "home" : lastTab); }
   return "home";
 }
@@ -107,7 +108,7 @@ function navBuild() {
 }
 function goTab(k) {
   const now = curTab();
-  if (k === now && k !== "home") { window.scrollTo({ top: 0, behavior: "auto" }); return; }
+  if (k === now && k !== "home" && !(k === "map" && !H.classList.contains("s-full"))) { window.scrollTo({ top: 0, behavior: "auto" }); return; }
   if (k !== "map" && k !== "home") lastTab = k;
   toBase(() => {
     lastTab = k === "map" ? lastTab : k;
@@ -138,6 +139,9 @@ function bindClicks() {
     if (wide) return;
     if (e.target.closest("#hdrBell")) { e.preventDefault(); e.stopImmediatePropagation(); goTab("news"); return; }
     if (!homeReset && e.target.closest("#hdr a.logo")) { e.preventDefault(); e.stopImmediatePropagation(); goTab("home"); return; }
+    // 지도 탭 '목록 보기': 지도 탭 안의 목록(아래 탭 '지도' 그대로 · 목록에서 연 구역을 닫으면 목록으로 · 뒤로 = 홈)
+    if (e.target.closest("#sFullX") && H.classList.contains("s-full")) { try { history.replaceState({ tL: 1, tD: dep() }, "", location.pathname + location.search); } catch (er) {} setTimeout(navMark, 0); return; }
+    if (e.target.closest('#tHome [data-tile="save"]')) tSave = Date.now();
     const tm = e.target.closest("[data-tmap]");
     if (tm) { e.preventDefault(); e.stopImmediatePropagation(); goTab("map"); return; }
     const ta = e.target.closest("[data-talert]");
@@ -147,8 +151,33 @@ function bindClicks() {
       setTimeout(() => { const g = $("myG2"); if (g) window.scrollTo({ top: g.getBoundingClientRect().top + scrollY - ((($("hdr") || {}).offsetHeight) || 56) - 8, behavior: "auto" }); }, 400);
     }
   }, true);
-  addEventListener("zp:view", (e) => { const t = VIEW_TAB[e.detail]; if (t) lastTab = t; navMark(); });
+  addEventListener("zp:view", (e) => { const t = VIEW_TAB[e.detail]; if (t) lastTab = t; navMark(); toolMark(e.detail); });
+  // 도구 화면을 닫으면(뒤로·탭) 앱바·모으면 언제 표시를 끈다
+  try { new MutationObserver(() => { if (!H.classList.contains("s-view") && H.classList.contains("t-tool")) H.classList.remove("t-tool", "t-save"); }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
   addEventListener("popstate", () => setTimeout(navMark, 50));
+}
+
+/* ---------- 2b. 아이콘으로 여는 도구 화면: 로고 머리 대신 맨 위 56px 앱바(← + 제목 · sticky) ---------- */
+const TOOL_T = { planner: "입주 계산", saveTop: "모으면 언제", diagTop: "입주권 나오나", commuteTop: "출퇴근", rankHub: "순위", statsTop: "통계", rulesTop: "매수 전 규정", results: "입주 계산", readsTop: "읽을거리" };
+function barBuild() {
+  if ($("tBar")) return;
+  const b = document.createElement("div");
+  b.id = "tBar"; b.className = "t-bar"; b.setAttribute("role", "banner");
+  b.innerHTML = `<button type="button" class="t-bk" aria-label="뒤로"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><span class="t-bt" id="tBarT"></span>`;
+  document.body.appendChild(b);
+  b.querySelector(".t-bk").addEventListener("click", () => { const s = document.querySelector(".s-on > .s-back"); if (s) s.click(); else history.back(); });
+}
+function toolMark(id) {
+  const tool = H.classList.contains("s-view") && id && !VIEW_TAB[id];
+  H.classList.toggle("t-tool", !!tool);
+  if (!tool) { H.classList.remove("t-save"); return; }
+  barBuild();
+  const save = id === "planner" && (Date.now() - tSave < 3000 || location.hash === "#saveTop");
+  H.classList.toggle("t-save", save);
+  const t = save ? TOOL_T.saveTop : TOOL_T[id] || ((($(id) || document).querySelector(".sec-h h2") || {}).textContent || "").trim();
+  const bt = $("tBarT"); if (bt) bt.textContent = t;
+  if (id === "diagTop") T(() => { const h = $("diagTop").querySelector(".sec-h h2"); if (h && h.textContent !== "입주권 나오나") h.textContent = "입주권 나오나"; });
+  if (save) { tSave = 0; setTimeout(() => { if (H.classList.contains("t-save") && location.hash === "#planner") T(() => history.replaceState(history.state, "", location.pathname + location.search + "#saveTop")); }, 0); [0, 120, 400, 1000].forEach((ms) => setTimeout(() => { if (H.classList.contains("t-save")) window.scrollTo({ top: 0, behavior: "auto" }); }, ms)); }
 }
 
 /* ---------- 3. 첫 화면: 검색 · 아이콘 10개 · 배너 ---------- */
@@ -161,7 +190,7 @@ function tiles() {
     ["map", "지도", "#map", "map"],
     ["calc", "입주 계산", "#planner", "planner"],
     ["commute", "출퇴근", "#commuteTop", "commuteTop"],
-    ["diag", "입주권 나오나", "#diagTop", "diagTop"],
+    ["diag", "입주권", "#diagTop", "diagTop"],
     ["rules", "매수 전 규정", "#rulesTop", "rulesTop"],
     ["rank", "순위", "#rankHub", "rankHub"],
     ["save", "모으면 언제", "#saveTop", "saveTop"],
@@ -178,11 +207,11 @@ function banners() {
   return [
     // 제목 = 리포트 제목 뒷부분 그대로(숫자 포함 · 예: 조합설립인가 3곳, 전세 끼고 3억 안쪽 80곳)
     // 키커에 기간(리포트 기준 기간) — 소식 탭 '단계 변경'(최근 30일)과 숫자 기준이 다름을 밝힌다
-    { k: `${mo ? `${mo[1]}월 리포트` : "월간 리포트"}${no ? ` · ${no[1]}호` : ""}${per ? ` · ${per[1]}` : ""}`, h: m ? m[2].trim() : full || "매달 단계가 바뀐 구역을 원문과 대조해 정리해요", s: m ? m[1].trim() : "", href: (a && a.getAttribute("href")) || "report/", ic: "report" },
+    { k: `${mo ? `${mo[1]}월 리포트` : "월간 리포트"}${no ? ` · ${no[1]}호` : ""}${per ? ` · ${per[1]}` : ""}`, h: m ? m[2].trim().split(", ")[0] : full || "매달 단계가 바뀐 구역을 원문과 대조해 정리해요", /* 2라운드: 첫 줄만 · 둘째 줄은 리포트 본문 날짜 등록·미등록(repDetail) */ s: m ? m[1].trim() : "", href: (a && a.getAttribute("href")) || "report/", ic: "report" },
     // 숫자는 가이드 본문 그대로(관리지역 131곳 · 글 기준 2026.09.26) — qa_consistency tapp.home이 페이지 글과 대조
     { k: "가이드 · 모아타운", h: "모아타운 관리지역 131곳, 진행 단계 한눈에", s: "서울 모아타운 현황과 진행 단계", href: "guide/moatown", ic: "guide" },
     on ? { k: "알림 · 켜져 있어요", h: "알림 종류는 MY에서 골라요", s: "관심 구역 알림 설정", href: "#my", ic: "bell", alert: 1 }
-       : { k: "알림", h: "관심 구역 새 소식, 폰 알림으로 받기", s: "새 실거래·단계·경매 소식", href: "#my", ic: "bell", alert: 1 },
+       : { k: "알림", h: "관심 구역 소식, 폰 알림으로", s: "새 실거래·단계·경매 소식", href: "#my", ic: "bell", alert: 1 },
   ];
 }
 let carT = 0, carPause = false, carTouch = 0, carIdx = 0;
@@ -198,10 +227,26 @@ function homeBuild() {
     `<div class="th-bar"><span class="th-cnt" id="tCarN" aria-hidden="true">1 / ${B.length}</span><button type="button" class="th-pz" id="tCarP" aria-label="배너 자동 넘김 멈추기" aria-pressed="false"><i>${RM() ? PLAY : PAUSE}</i></button></div></div>`;
   sen.before(sec);
   valBuild();
+  setTimeout(repDetail, 1500);
   // 검색 칸 글: 이름·동·지번·역(지금 검색이 찾는 그대로)
   const sb = $("sSearch");
   if (sb) { const tn = [...sb.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim()); if (tn) tn.textContent = "구역 이름·동·지번·역으로 검색"; sb.setAttribute("aria-label", "구역 이름·동·지번·역으로 검색"); }
   carBind();
+}
+// 배너 1 둘째 줄: 리포트 본문의 '단계 바뀐 구역 N곳 · 날짜 등록 a건 · 미등록 b건'을 그대로(소식 탭 '단계 변경'(최근 30일 표시 변경)과 기준이 다름을 바로 알게)
+function repDetail() {
+  const b = document.querySelector("#tHome .th-b.b1"); if (!b || b.dataset.rd) return;
+  const href = b.getAttribute("href"); if (!/^report\//.test(href || "")) return;
+  b.dataset.rd = "1";
+  fetch(href, { credentials: "same-origin" }).then((r) => (r.ok ? r.text() : "")).then((t) => {
+    const m = /날짜 등록\s*(\d+)건\s*·\s*미등록\s*(\d+)건/.exec(String(t).replace(/<[^>]+>/g, " ").replace(/\s+/g, " "));
+    if (!m) return;
+    const h = b.querySelector(".th-bh"); if (!h || h.querySelector(".th-rd")) return;
+    const x = `날짜 등록 ${m[1]} · 미등록 ${m[2]}`;
+    const f = h.querySelector("i"); if (f && !/,$/.test(f.textContent)) f.textContent += ",";
+    h.insertAdjacentHTML("beforeend", ` <i class="th-rd">${esc(x)}</i>`);
+    b.setAttribute("aria-label", b.getAttribute("aria-label").replace(/ \(/, `, ${x} (`));
+  }).catch(() => {});
 }
 // 8 가치 한 줄: '내 돈 N으로 갈 수 있는 재개발·재건축 M곳'(내 돈 카드의 큰 숫자와 같은 값 · 누르면 그 카드로)
 function valBuild() {
@@ -272,10 +317,29 @@ function fSeen() {
 }
 const isNew = (e, s) => e.date > s.at || (e.date === s.at && !s.k.includes(e.k));
 const muted = (t) => T(() => X().inbox().isOff(t), false);
+// 2라운드(리드 결정): 같은 실거래·경매(날짜·종류·문구·구 같음)가 겹친 구역(모아타운과 그 안 사업구역 등)마다 따로 들어온 것을 한 소식으로 —
+// 칩 수·합계·새 소식 수 모두 합친 수. changes.json 원본(구역별 항목) 수 = 합친 소식들의 items 수 합(QA tapp.feed가 확인)
+const MERGE = { trade: 1, auction: 1 };
+let UN = null;
+function units() {
+  if (!CH) return [];
+  if (UN && UN.src === CH) return UN.L;
+  const L = [], m = new Map(), X0 = X();
+  CH.items.filter((e) => TAG[e.type]).forEach((e) => {
+    const k = MERGE[e.type] ? `${e.date}|${e.type}|${e.text}|${e.g || ""}` : `${e.id}|${e.date}|${e.type}|${e.text}`;
+    let u = m.get(k);
+    if (!u) { u = { e, ids: [], items: [] }; m.set(k, u); L.push(u); }
+    u.items.push(e); if (!u.ids.includes(e.id)) u.ids.push(e.id);
+  });
+  // 대표 구역: 모아타운 관리지역보다 안의 실제 구역(사업구역)을 앞에
+  L.forEach((u) => { if (u.ids.length > 1) { const pick = u.items.find((e) => { const r = T(() => X0.byId(e.id), null); return r && r.src !== "moa"; }); if (pick) { u.e = pick; u.ids = [pick.id].concat(u.ids.filter((x) => x !== pick.id)); } } });
+  UN = { src: CH, L }; return L;
+}
+const uNew = (u, s) => u.items.some((e) => isNew(e, s));
 function newCount(type) {
   if (!CH) return 0;
   const s = fSeen();
-  return CH.items.filter((e) => (!type || e.type === type) && TAG[e.type] && isNew(e, s) && !muted(e.type)).length;
+  return units().filter((u) => (!type || u.e.type === type) && uNew(u, s) && !muted(u.e.type)).length;
 }
 function feedLoad() {
   if (CH) return Promise.resolve(CH);
@@ -294,16 +358,10 @@ function badge() {
 }
 function dLabel(d) {
   const t = today(), x = new Date(d + "T00:00:00Z"), md = `${x.getUTCMonth() + 1}.${x.getUTCDate()} (${"일월화수목금토"[x.getUTCDay()]})`;
-  return d === t ? `오늘 · ${md}` : d === dayAdd(t, -1) ? `어제 · ${md}` : md;
+  return `${md} 신고·등록분`;   // 2라운드: 날짜 머리 = 공개 자료에 올라온 날(계약일 아님 · 줄마다 '등록 · 계약' 따로)
 }
 function feedRows() {
-  // 같은 구역·같은 날·같은 글은 한 줄(건수는 그대로 셈)
-  const L = [], m = new Map();
-  CH.items.filter((e) => TAG[e.type] && (!fType || e.type === fType)).forEach((e) => {
-    const k = `${e.id}|${e.date}|${e.type}|${e.text}`;
-    if (m.has(k)) { m.get(k).n++; m.get(k).ks.push(e.k); return; }
-    const r = { e, n: 1, ks: [e.k] }; m.set(k, r); L.push(r);
-  });
+  const L = units().filter((u) => !fType || u.e.type === fType).map((u) => ({ e: u.e, n: u.items.length, ids: u.ids, u }));
   // 날짜 최신순 · 같은 날은 단계 → 고시·공고 → 경매 → 신고가 → 실거래 → 필요한 돈
   const pr = (e) => ({ stage: 0, notice: 1, auction: 2, trade: e.hi ? 3 : 4, price: 5 })[e.type];
   return L.sort((a, b) => (a.e.date < b.e.date ? 1 : a.e.date > b.e.date ? -1 : pr(a.e) - pr(b.e)));
@@ -315,23 +373,25 @@ function rowText(e) {
   if (e.type !== "trade") return t;
   t = t.replace(/\s*·\s*신고가\s*$/, "");
   if ((e.cnt || 1) === 1) t = t.replace(/^새 실거래 1건\s*·\s*/, "");
-  return t.replace(/([\d.,]+㎡)\s+([\d.,]+억|[\d,]+만)\((\d{1,2})\.(\d{1,2}) 계약\)/g, (_, a, p, mo, d) => `${a} · ${p} · ${+mo}월 ${+d}일 계약`);
+  const rd = String(e.date || "").replace(/^\d{4}-(\d\d)-(\d\d)$/, (_, mo, d) => `${+mo}.${+d}`);
+  return t.replace(/([\d.,]+㎡)\s+([\d.,]+억|[\d,]+만)\((\d{1,2})\.(\d{1,2}) 계약\)/g, (_, a, p, mo, d) => `${a} · ${p} · ${rd} 등록 · ${+mo}월 ${+d}일 계약`);
 }
 function feedHTML() {
   if (!CH) return `<p class="tf-empty">소식을 불러오는 중이에요…</p>`;
-  const s = fSeen0 || fSeen(), cnt = (t) => CH.items.filter((e) => TAG[e.type] && (!t || e.type === t)).length;
-  const nw = (t) => CH.items.filter((e) => TAG[e.type] && (!t || e.type === t) && isNew(e, s) && !muted(e.type)).length;
+  const s = fSeen0 || fSeen(), U = units(), cnt = (t) => U.filter((u) => !t || u.e.type === t).length;
+  const nw = (t) => U.filter((u) => (!t || u.e.type === t) && uNew(u, s) && !muted(u.e.type)).length;
   const chips = FT.map(([t, l]) => { const n = nw(t); return `<button type="button" data-ft="${t}" aria-pressed="${t === fType}"${n ? ` aria-label="${l} ${fmtN(cnt(t))}건, 새 소식 ${n}건"` : ""}>${l} <small>${fmtN(cnt(t))}</small>${n && t ? `<i class="tf-n d" aria-hidden="true"></i>` : ""}</button>`; }).join("");
   const R = feedRows(), sh = R.slice(0, fShown);
   const asOf = (CH.asOf || "").replace(/^(\d{4})-(\d\d)-(\d\d)$/, (_, y, mo, d) => `${+mo}.${d}`);
   const by = new Map(); sh.forEach((r) => { if (!by.has(r.e.date)) by.set(r.e.date, []); by.get(r.e.date).push(r); });
   const X0 = X();
-  const row = ({ e, n }) => {
+  const row = ({ e, n, ids, u }) => {
     const r = T(() => X0.byId(e.id), null), nm = String(r ? T(() => (window.ZP_labName ? ZP_labName(r) : X0.name(r.n)), e.n) : e.n).replace(/\s+·/g, "·");
     const [tl, tc] = e.type === "trade" && e.hi ? ["신고가", "hi"] : TAG[e.type];
-    const isN = isNew(e, s) && !muted(e.type);
-    const fs = "feed-" + e.type, ic = tKit(fs) ? `<span class="tf-ic">${tIcon("", 28, "", fs)}</span>` : "";
-    const inner = `${ic}<span class="tf-tx"><b>${esc(nm)}</b><small>${esc(rowText(e))}${n > 1 ? ` · 같은 소식 ${n}건` : ""}</small><span class="tf-meta"><span class="tf-tg ${tc}">${tl}</span><span class="tf-g">${esc(e.g || "")}</span></span></span>${isN ? '<i class="tf-dot" aria-hidden="true"></i>' : ""}`;
+    const isN = uNew(u, s) && !muted(e.type);
+    // 아이콘: 신고가만 노란 태그 ↑ · 그냥 실거래는 회색 태그(↑ 없음) · 단계·고시·경공매·필요한 돈은 각자 키트 그림
+    const fs = e.type === "trade" ? (e.hi ? "feed-trade" : "feed-deal") : "feed-" + e.type, ic = tKit(fs) ? `<span class="tf-ic">${tIcon("", 28, "", fs)}</span>` : "";
+    const inner = `${ic}<span class="tf-tx"><b>${esc(nm)}${ids.length > 1 ? `<span class="tf-more2"> 외 ${ids.length - 1}곳</span>` : ""}</b><small>${esc(rowText(e))}${n > ids.length ? ` · 같은 소식 ${n}건` : ""}</small><span class="tf-meta"><span class="tf-tg ${tc}">${tl}</span><span class="tf-g">${esc(e.g || "")}</span></span></span>${isN ? '<i class="tf-dot" aria-hidden="true"></i>' : ""}`;
     return `<li>${r ? `<button type="button" class="tf-it" data-open="${esc(e.id)}"${isN ? ' aria-describedby="tfNewL"' : ""}>${inner}</button>` : `<a class="tf-it" href="z/${encodeURIComponent(e.id)}">${inner}</a>`}</li>`;
   };
   const list = sh.length ? `<ol class="tf-list">${[...by].map(([d, rs]) => `<li><h3 class="tf-dh">${dLabel(d)}</h3><ul class="tf-dl">${rs.map(row).join("")}</ul></li>`).join("")}</ol>` : `<p class="tf-empty">${tKit("empty-feed") ? tIcon("", 160, "", "empty-feed") : ""}최근 ${CH.days || 30}일 동안 이 종류 소식이 없어요</p>`;
@@ -486,8 +546,24 @@ function myBuild() {
     p.textContent = "집핀은 정부·서울시·공공기관과 관련이 없고 이들을 대표하지 않아요. 숫자는 공개 자료로 낸 추정이에요. 공식 정보는 서울시 정비사업 정보몽땅(cleanup.seoul.go.kr)·국토교통부 실거래가 공개시스템(rt.molit.go.kr) 원문에서 확인하세요.";
     grp.appendChild(p);
   }
-  const deny = () => { const m = $("my"); if (m) m.classList.toggle("t-pdeny", T(() => X().inbox().st().perm === "denied", false)); };
+  // 2라운드: 알림이 막혀 있으면 종류 스위치는 '꺼짐' 모양 + aria-disabled(누를 수 없음) · 흐리게(opacity) 하지 않는다(글자 대비) · 안내는 한 줄
+  const DENY_T = `알림이 막혀 있어요 · 폰 ${/iPhone|iPad|iPod/.test(navigator.userAgent) ? "설정 → 알림 → 집핀" : "설정 → 애플리케이션(또는 앱) → 집핀 → 알림"}에서 허용해 주세요`;
+  let busy = false;
+  T(() => { const a = document.querySelector('#my a[data-menu="diagTop"] .my-t'); if (a) { a.querySelector("b").textContent = "입주권 나오나"; const sm = a.querySelector("small"); if (sm) sm.textContent = "이 매물을 사면 입주권이 나오는지"; } });
+  const deny = () => {
+    if (busy) return; busy = true;
+    try {
+      const m = $("my"); if (!m) return;
+      const d = T(() => X().inbox().st().perm === "denied", false);
+      m.classList.toggle("t-pdeny", d);
+      m.querySelectorAll("#myKinds [data-kind]").forEach((b) => { if (d) { if (b.getAttribute("aria-disabled") !== "true") b.setAttribute("aria-disabled", "true"); } else if (b.hasAttribute("aria-disabled")) b.removeAttribute("aria-disabled"); });
+      const c = $("myKindsC"), h = $("myPermH");
+      if (d) { if (c && c.textContent !== DENY_T) c.textContent = DENY_T; if (h && !h.hidden) h.hidden = true; }
+    } finally { busy = false; }
+  };
   deny(); addEventListener("zp:alerts", deny); addEventListener("zp:view", (e) => { if (e.detail === "my") deny(); });
+  const my = $("my"); if (my) try { new MutationObserver(deny).observe(my, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["hidden", "aria-checked"] }); } catch (e) {}
+  window.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest('#my [data-kind][aria-disabled="true"]'); if (b) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
 }
 // 처음 안내에서 띄운 알림(관심 구역에 추가했어요 등)은 안내가 끝나면 닫는다
 const toastOff = () => { const t = $("pnToast"); if (t) t.classList.remove("on"); };
@@ -513,7 +589,11 @@ function start() {
   if (start.d) return; start.d = 1;
   H.classList.add("is-app");
   patchHistory();
-  navBuild(); bindClicks(); homeBuild(); feedBuild(); emptyDeco(); T(myBuild);
+  navBuild(); bindClicks(); homeBuild();
+  // 21 긴 작업 나누기: 소식·빈 화면 그림·MY 손질은 한가할 때(늦어도 0.8초 안 · 그 전에 소식 탭을 누르면 바로 만든다)
+  const idle = (f) => (window.requestIdleCallback ? requestIdleCallback(() => T(f), { timeout: 800 }) : setTimeout(() => T(f), 120));
+  idle(feedBuild); idle(emptyDeco); idle(myBuild);
+  addEventListener("zp:view", (e) => { if (e.detail === "news" && !$("tFeed")) { T(feedBuild); try { window.dispatchEvent(new CustomEvent("zp:view", { detail: "news" })); } catch (er) {} } }, true);
   H.classList.remove("tapp-wait");
   H.classList.add("tapp-on");
   // 관심 구역·소식 숫자: 자료를 받으면 종·소식 탭에
@@ -523,6 +603,6 @@ function start() {
   if (onbNeed()) setTimeout(onbOpen, 60);
   try { window.dispatchEvent(new Event("zp:tapp")); } catch (e) {}
 }
-window.ZP_TAPP = { goTab, curTab, dep, feedCounts: () => (CH ? CH.items.reduce((o, e) => { o[e.type] = (o[e.type] || 0) + 1; return o; }, {}) : null), newCount, tiles: () => tiles().map((t) => ({ k: t[0], t: t[1], href: t[2], id: t[3] })), onb: () => !!ob, onbOpen };
+window.ZP_TAPP = { goTab, curTab, dep, feedCounts: () => (CH ? units().reduce((o, u) => { o[u.e.type] = (o[u.e.type] || 0) + 1; return o; }, {}) : null), feedUnits: () => units().map((u) => ({ t: u.e.type, n: u.items.length, ids: u.ids })), newCount, tiles: () => tiles().map((t) => ({ k: t[0], t: t[1], href: t[2], id: t[3] })), onb: () => !!ob, onbOpen };
 (function pre(n) { if (early.d) return; if ($("mapTop") && $("sSearch") && $("sGauge") && $("sNav") && tcssOn()) early(); else if (n < 400) setTimeout(() => pre(n + 1), 10); })(0);
 (function wait(n) { if (ready()) start(); else if (n < 600) setTimeout(() => wait(n + 1), 25); else H.classList.remove("tapp-wait"); })(0);

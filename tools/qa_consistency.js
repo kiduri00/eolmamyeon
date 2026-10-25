@@ -2591,7 +2591,9 @@ async function tappLane(browser, api, errs) {
     expect(on, "tapp.on", "설치 앱 검사 레인이 실제로 앱 모드(html.is-tapp · tapp-on)를 켠 뒤 검사한다", `${u}: is-tapp/tapp-on 꺼짐`);
   };
   let CH = null; try { CH = JSON.parse((await get(BASE + "/data/changes.json")).text); } catch (e) {}
-  const EXP = {}; (CH ? CH.items : []).forEach((e) => { EXP[e.type] = (EXP[e.type] || 0) + 1; });
+  // 2라운드(리드 결정): 앱 전체 소식은 같은 실거래·경매(날짜·종류·문구·구 같음)를 겹친 구역끼리 한 소식으로 합쳐 센다 → 칩 수 = 합친 수.
+  // 원본 changes.json 항목 수(RAW) = 합친 소식들이 품은 항목 수의 합 · 단계·고시·필요한 돈은 구역마다 따로(합치지 않음)
+  const RAW = {}, EXP = {}, UK = new Set(); (CH ? CH.items : []).forEach((e) => { RAW[e.type] = (RAW[e.type] || 0) + 1; const k = /^(trade|auction)$/.test(e.type) ? `${e.date}|${e.type}|${e.text}|${e.g || ""}` : `${e.id}|${e.date}|${e.type}|${e.text}`; if (!UK.has(k)) { UK.add(k); EXP[e.type] = (EXP[e.type] || 0) + 1; } });
   // --- tapp.web: 브라우저(웹)에는 앱 화면이 하나도 없다 · 앱 묶음(/b/t.*)도 안 받는다 · 정적 페이지 광고는 예전처럼 받는다
   {
     const T = "브라우저(웹): html.is-tapp·앱 첫 화면·전체 소식·처음 안내 없음 · 아래 탭 4개 그대로 · 앱 묶음(/b/t.*) 안 받음 · 광고 스크립트는 정적 페이지에서 그대로 요청";
@@ -2751,7 +2753,7 @@ async function tappLane(browser, api, errs) {
   }
   // --- tapp.feed: 전체 소식 = data/changes.json(종류별 수 같음) · 칩으로 거르기 · 줄을 누르면 그 구역 · 관심 구역(예전 소식) 칸 그대로
   {
-    const T = "설치 앱 전체 소식: 칩 수 = changes.json 종류별 건수(전체·실거래·경공매·고시·단계·필요한 돈) · 칩 거르기 · 줄 → 구역 열림 · '관심 구역' 칸 = 예전 내 소식";
+    const T = "설치 앱 전체 소식: 칩 수 = changes.json을 같은 거래끼리 합친 종류별 건수(실거래·경공매만 합침 · 합친 소식의 항목 합 = 원본 수) · 칩 거르기 · 줄 → 구역 열림 · '관심 구역' 칸 = 예전 내 소식";
     const { ctx, page } = await appPage(mob(390, 844));
     try {
       await appHome(page);
@@ -2760,8 +2762,10 @@ async function tappLane(browser, api, errs) {
         const ch = {}; document.querySelectorAll("#tFeed [data-ft]").forEach((b) => { ch[b.dataset.ft || "all"] = +(b.querySelector("small").textContent.replace(/,/g, "")); });
         return { ch, rows: document.querySelectorAll("#tFeed .tf-it").length, api: window.ZP_TAPP.feedCounts() };
       });
-      const all = CH ? CH.items.length : -1;
-      const cntOk = f.ch.all === all && ["trade", "auction", "notice", "stage", "price"].every((k) => (f.ch[k] || 0) === (EXP[k] || 0));
+      const all = Object.values(EXP).reduce((a, b) => a + b, 0), raw = CH ? CH.items.length : -1;
+      const un = await page.evaluate(() => window.ZP_TAPP.feedUnits());
+      const sumN = un.reduce((a, u) => a + u.n, 0);
+      const cntOk = f.ch.all === all && ["trade", "auction", "notice", "stage", "price"].every((k) => (f.ch[k] || 0) === (EXP[k] || 0)) && sumN === raw && un.length === all && all <= raw;
       await page.click('#tFeed [data-ft="auction"]'); await page.waitForTimeout(300);
       const au = await page.evaluate(() => [...document.querySelectorAll("#tFeed .tf-it .tf-tg")].map((t) => t.textContent));
       const id = await page.evaluate(() => { const b = document.querySelector("#tFeed .tf-it[data-open]"); return b && b.dataset.open; });
@@ -2770,7 +2774,7 @@ async function tappLane(browser, api, errs) {
       await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(800);
       await page.click("#tSegM"); await page.waitForTimeout(400);
       const mine = await page.evaluate(() => ({ seg: document.getElementById("news").dataset.tseg, mineVis: getComputedStyle(document.querySelector("#news > .nw-mine")).display !== "none", feedVis: getComputedStyle(document.getElementById("tFeed")).display !== "none" }));
-      expect(cntOk && f.rows > 0 && au.length > 0 && au.every((t) => t === "경매") && z.sheet && mine.seg === "mine" && mine.mineVis && !mine.feedVis, "tapp.feed", T, `chips ${JSON.stringify(f.ch)} expect all ${all} ${JSON.stringify(EXP)} · rows ${f.rows} · auction tags ${au.length}/${au.filter((t) => t === "경매").length} · open ${id} ${JSON.stringify(z)} · mine ${JSON.stringify(mine)}`);
+      expect(cntOk && f.rows > 0 && au.length > 0 && au.every((t) => t === "경매") && z.sheet && mine.seg === "mine" && mine.mineVis && !mine.feedVis, "tapp.feed", T, `chips ${JSON.stringify(f.ch)} expect all ${all} ${JSON.stringify(EXP)} (raw ${raw} ${JSON.stringify(RAW)} · 합친 소식 항목 합 ${sumN}) · rows ${f.rows} · auction tags ${au.length}/${au.filter((t) => t === "경매").length} · open ${id} ${JSON.stringify(z)} · mine ${JSON.stringify(mine)}`);
     } catch (e) { bad("runtime", "검사 실행", "tapp.feed crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }

@@ -314,7 +314,11 @@
   /* 17 MY: 제목 28/36 · 제목 아래 24 · 알림이 막혀 있으면 아래 토글 흐리게 */
   html.is-tapp #my>.sec-h h2,html.is-tapp #news>.sec-h h2,html.is-tapp #favTop>.sec-h h2{font-size:28px!important;line-height:36px!important;font-weight:800}
   html.is-tapp #my>.sec-h{margin-bottom:24px!important}
-  html.is-tapp #my.t-pdeny .my-l [role="switch"],html.is-tapp #my.t-pdeny .my-l input[type="checkbox"],html.is-tapp #my.t-pdeny .my-l .sw{opacity:.4}
+  /* 1(2라운드): 알림이 막혀 있으면 종류 스위치 = 꺼짐 모양 + aria-disabled(흐리게 하지 않음 · 글자 대비 유지) */
+  html.is-tapp #my.t-pdeny #myKinds .my-sw .my-t b{color:#8B95A1}
+  html.is-tapp #my.t-pdeny #myKinds .my-sw .my-tg{background:#D1D6DB!important}
+  html.is-tapp #my.t-pdeny #myKinds .my-sw .my-tg::after{transform:none!important}
+  html.is-tapp #my.t-pdeny #myKinds .my-sw{cursor:not-allowed}
 
   /* 19 오프라인 표시가 종을 덮지 않게(종 왼쪽) */
   html.is-tapp .off-bar{right:60px!important}
@@ -338,3 +342,92 @@
   html.is-tapp .tf-seg .tf-n{height:20px;line-height:20px}
   html.is-tapp #mapbox svg text,html.is-tapp #mapbox .zgu span{font-size:12px!important}
 }
+
+/* ===================== 2라운드 레드팀 반영 ===================== */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) html.is-tapp #my.t-pdeny #myKinds .my-sw .my-t b,:root:not([data-theme="light"]) #my.t-pdeny #myKinds .my-sw .my-t b{color:#7E8794}:root:not([data-theme="light"]) #my.t-pdeny #myKinds .my-sw .my-tg{background:#3A3F47!important}}
+:root[data-theme="dark"] #my.t-pdeny #myKinds .my-sw .my-t b{color:#7E8794}:root[data-theme="dark"] #my.t-pdeny #myKinds .my-sw .my-tg{background:#3A3F47!important}
+@media (max-width:980px){
+  /* 2 지도 ⓘ: 그림 한 번(반복 없음) · 40×40 흰 원(다크 #22262E) + 1px 링 · 확대 버튼과 세로 8px */
+  html.is-tapp #mapbox .maplibregl-ctrl-attrib.maplibregl-compact{width:40px!important;height:40px!important;min-height:40px!important;padding:0!important;margin:8px 10px 10px 0!important;border-radius:50%!important;background:var(--t-pg)!important;box-shadow:0 0 0 1px var(--t-line)!important;overflow:hidden}
+  html.is-tapp #mapbox .maplibregl-ctrl-attrib-button{width:40px!important;height:40px!important;border-radius:50%!important;background-color:var(--t-pg)!important;background-repeat:no-repeat!important;background-position:center!important;background-size:20px 20px!important;box-shadow:none!important}
+  html.is-tapp #mapbox .maplibregl-ctrl-attrib.maplibregl-compact-show{width:auto!important;height:auto!important;border-radius:12px!important;padding:4px 36px 4px 8px!important}
+  html.is-tapp #mapbox .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button{position:absolute;right:0;top:0}
+  /* 3 지도 레이어 칩: 웹 세그먼트 ::before 없음 · 36px 알약 · 흰 바탕 + 1px 링(그림자 없음) · 줄 오른쪽 끝까지 가로 스크롤 + 24px 페이드 */
+  html.is-tapp .s-rail button::before{content:none!important;display:none!important}
+  html.is-tapp.s-full #mapbox .s-rail-w{left:var(--t-gut)!important;right:0!important;padding-right:20px;scroll-padding:0 20px;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}
+  html.is-tapp.s-full #mapbox .s-rail{margin-left:0!important;padding-right:20px!important}
+  html.is-tapp.s-full #mapbox .s-rail>button{height:36px!important;min-height:36px!important;padding:0 12px!important;border-radius:18px!important;background:var(--t-pg)!important;box-shadow:0 0 0 1px var(--t-line)!important;border:0!important}
+  html.is-tapp.s-full #mapbox .s-rail>button span{background:transparent!important}
+  /* 4 범례 = 목록 보기 버튼 위 12px · '+N곳' = 범례 위 8px · 높이 32 · 둘 다 왼쪽 20 */
+  html.is-tapp.s-full #mapbox .lm-key{left:var(--t-gut)!important;bottom:calc(var(--t-fxb,64px) + 12px)!important;top:auto!important}
+  html.is-tapp.s-full #mapbox .lm-gumore{left:var(--t-gut)!important;bottom:calc(var(--t-fxb,64px) + 12px + 28px + 8px)!important;top:auto!important}
+  html.is-tapp.s-full #mapbox .lm-gumore-b{height:32px;border-radius:16px}
+  /* 6 첫 화면 숫자 한 번만: 내 돈 카드 윗줄을 작은 한 줄로(이름표 숨김 · 큰 숫자 줄 높이 ↓) */
+  html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge .bc-line{min-height:0!important;height:auto!important;gap:8px!important;align-items:center!important}
+  html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge .bc-line .bc-k{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge .bc-cell{flex-direction:row!important;align-items:center!important;gap:6px!important}
+  html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge .bc-cash{min-height:40px!important;padding:0 10px!important}
+  html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge #sCashV,html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge .bc-num{font-size:22px!important;line-height:28px!important}
+  html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge .bc-num i,html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge #sCashV small{font-size:14px!important}
+  html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge .s-arrow{width:28px!important;height:28px!important}
+  html.is-tapp.simple #mapTop>.s-gauge{padding:14px 18px 12px!important}
+  /* 7 타일 이름 한 줄 · 두 줄 행 높이 같게 */
+  .th-l{white-space:nowrap;-webkit-line-clamp:unset;display:block;max-width:none}
+  .th-t{min-height:80px}
+  /* 8 선택 문법: 칩 선택 = 남색 채움 · 비선택 = 연회색 채움(외곽선 없음) · 세그먼트 = 회색 트랙 + 흰 thumb */
+  html.is-tapp .tf-chips button[aria-pressed="true"],html.is-tapp #news .ichip[aria-pressed="true"],html.is-tapp #news .hub-tabs [aria-selected="true"],html.is-tapp .fchips .ichip[aria-pressed="true"],html.is-tapp .pn-sort button[aria-pressed="true"]{background:#1F3A87!important;color:#fff!important;border-color:transparent!important;box-shadow:none!important}
+  html.is-tapp .tf-chips button[aria-pressed="true"] small{color:#fff!important}
+  html.is-tapp #news .ichip,html.is-tapp .fchips .ichip,html.is-tapp .pn-sort button,html.is-tapp #news .hub-tabs [role="tab"]{background:var(--t-fill)!important;border:0!important;box-shadow:none!important;color:var(--t-lab)}
+  html.is-tapp .s-mini .s-mode,html.is-tapp #sMini [role="radiogroup"],html.is-tapp #sMini .seg{background:var(--t-fill)!important;border:0!important;border-radius:12px!important;padding:2px!important}
+  html.is-tapp #sMini button{position:relative;height:36px!important;min-height:36px!important;border-radius:10px!important}
+  html.is-tapp #sMini button::after{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+  html.is-tapp #sMini button[aria-pressed="true"],html.is-tapp #sMini button[aria-checked="true"]{background:var(--t-pg)!important;color:var(--t-ink)!important;box-shadow:0 1px 2px rgba(15,23,42,.08)!important}
+  /* 12 처음 안내 중에는 담기 토스트 없음(단추 '담았어요'로 충분) · 2장 목록 페이드 75% */
+  html.tob-on #pnToast{display:none!important}
+  .tob-zl{-webkit-mask-image:linear-gradient(#000 75%,transparent);mask-image:linear-gradient(#000 75%,transparent)}
+  /* 14 관심 탭: 카드 안 카드 없음 — 바깥 테두리 없애고 요약은 연회색 면 */
+  html.is-tapp #favTop .pn-panel{border:0!important;box-shadow:none!important;background:none!important;padding-left:0!important;padding-right:0!important}
+  html.is-tapp #favTop .pn-sum{border:0!important;background:var(--t-sec)!important;border-radius:16px!important}
+  /* 15 MY 섹션 이름 왼쪽 20 */
+  html.is-tapp #my .my-gh{padding-left:0!important;margin-left:0!important}
+  /* 16 배너 실측 112 */
+  .th-b{min-height:112px;height:112px;padding-top:14px;padding-bottom:14px}
+  .th-bt{padding:0 0 24px;gap:4px}
+  .th-bh{font-size:16px;line-height:22px}
+  .th-bh i{display:inline}
+  .th-bh .th-rd{display:block;color:var(--t-sub);font-weight:600;font-size:14px;line-height:20px}
+  /* 17 360 내 돈 카드 이름표 높이 맞춤 */
+  html.is-tapp #sGauge .bc-k{line-height:16px!important}
+  /* 18 시트 메타 칩 줄 오른쪽 페이드 · 타임라인 이름표 12px */
+  html.is-tapp #report .where,html.is-tapp #report .ov-wa{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}
+  html.is-tapp #report [class*="tl"] small,html.is-tapp #report .tl span,html.is-tapp #report .ladder small{font-size:12px!important}
+  /* 19 큰 글씨: 목록 이름 두 줄까지 */
+  html.is-tapp #sList .s-nm,html.is-tapp #sList .s-nm b{white-space:normal!important;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;text-overflow:clip}
+  /* 앱바(도구 화면): 로고 머리 숨기고 맨 위 56px · sticky */
+  .t-bar{display:none}
+  html.is-tapp.t-tool #hdr{display:none!important}
+  html.is-tapp.t-tool .t-bar{position:fixed;left:0;right:0;top:0;z-index:55;display:flex;align-items:center;gap:4px;height:calc(56px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) 16px 0 8px;box-sizing:border-box;background:var(--t-pg);box-shadow:0 1px 0 var(--t-line)}
+  html.is-tapp.t-tool .t-bk{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:12px;background:none;color:var(--t-ink);cursor:pointer}
+  html.is-tapp.t-tool .t-bk:focus-visible{outline:2px solid var(--focus,var(--brand));outline-offset:-2px}
+  html.is-tapp.t-tool .t-bt{flex:1 1 auto;min-width:0;color:var(--t-ink);font:700 17px/24px var(--font);letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  html.is-tapp.t-tool main.wrap{padding-top:56px!important}
+  html.is-tapp.t-tool .s-on>.s-back{display:none!important}
+  html.is-tapp.t-tool .s-on:has(>.s-back)>.sec-h h2,html.is-tapp.t-tool #planner.s-on .pl-in>.pl-t{min-height:0!important;padding:8px 0 0!important;font:700 20px/28px var(--font)!important}
+  html.is-tapp.t-tool.t-save #planner{display:none!important}
+  html.is-tapp.t-tool.t-save #saveTop .sec-h h2::before{display:none!important}
+  html.is-tapp.t-tool.t-save #saveTop .panel{border:0!important;box-shadow:none!important;background:var(--t-sec)!important;border-radius:16px!important}
+  html.sheet-open .t-bar{display:none!important}
+}
+.tf-more2{font-weight:500;color:var(--t-sub)}
+:root[data-theme="dark"] html.is-tapp .x{}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tf-chips button[aria-pressed="true"],:root:not([data-theme="light"]) #news .ichip[aria-pressed="true"],:root:not([data-theme="light"]) .pn-sort button[aria-pressed="true"],:root:not([data-theme="light"]) #news .hub-tabs [aria-selected="true"]{background:#8EA8F5!important;color:#10131A!important}:root:not([data-theme="light"]) .tf-chips button[aria-pressed="true"] small{color:#10131A!important}:root:not([data-theme="light"]) .tf-seg{background:#1B1E24}:root:not([data-theme="light"]) .tf-seg button[aria-selected="true"],:root:not([data-theme="light"]) #sMini button[aria-pressed="true"]{background:#2C313A!important;color:#E8EBF0!important}:root:not([data-theme="light"]) #mapbox .maplibregl-ctrl-attrib.maplibregl-compact,:root:not([data-theme="light"]) #mapbox .maplibregl-ctrl-attrib-button{background-color:#22262E!important}:root:not([data-theme="light"]) .s-full #mapbox .s-rail>button{background:#22262E!important;box-shadow:0 0 0 1px #333A45!important}}
+:root[data-theme="dark"] .tf-chips button[aria-pressed="true"]{background:#8EA8F5!important;color:#10131A!important}:root[data-theme="dark"] .tf-seg{background:#1B1E24}:root[data-theme="dark"] .tf-seg button[aria-selected="true"]{background:#2C313A!important}
+@media (max-width:980px){
+  html.is-tapp.s-full #mapbox .s-rail-w{display:block!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none}
+  html.is-tapp.s-full #mapbox .s-rail{overflow:visible!important;width:max-content!important;max-width:none!important;transform:none!important}
+  html.is-tapp #sMini .s-mode button::before{display:none!important}
+  html.is-tapp #sMini .s-mode button{color:var(--t-sub)!important;font-weight:600}
+  html.is-tapp #sMini .s-mode button[aria-pressed="true"]{color:var(--t-ink)!important}
+}
+@media (max-width:980px){html.is-tapp.s-full #mapbox{--t-fxb:56px}}
+@media (max-width:980px){html.is-tapp.s-full #mapbox .lm-zoom{top:auto!important;bottom:58px!important}}
