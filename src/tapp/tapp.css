@@ -4,19 +4,19 @@
    색·간격은 아래 토큰(--t-*) 하나로. 디자인 키트(src/tapp/kit/tokens.css)가 오면 뒤에 붙어 이 값을 덮는다. */
 :root{
   --t-pg:#FFFFFF;--t-fill:#F2F4F6;--t-sec:#F9FAFB;--t-ink:#191F28;--t-lab:#333D4B;--t-sub:#4E5968;--t-mute:#6B7684;--t-line:#E5E8EB;
-  --t-navy:#1F3A87;--t-yel:#F5C33B;--t-badge:#EF5E47;--t-on:#FFFFFF;--t-tint:#EEF2FB;
+  --t-navy:#1F3A87;--t-yel:#F5C33B;--t-badge:#EF5E47;--t-on:#FFFFFF;--t-tint:#EEF2FB;--t-ph:#5F6B7A;
   --t-b1:#EAF0FF;--t-b2:#E2F6F1;--t-b3:#FFF3D6;--t-pill:rgba(25,31,40,.08);--t-pillc:#4E5968;
   --t-r:20px;--t-gut:20px;
   /* 임시 그림(키트 오기 전) 색 */
   --tf:#1F3A87;--ts:#13286A;--tl:#A9BBE8;--th:#F5C33B;--th2:#D6A019;--tp:#FFFFFF}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --t-pg:#101215;--t-fill:#22262E;--t-sec:#17191E;--t-ink:#E8EBF0;--t-lab:#D1D6DB;--t-sub:#B0B8C1;--t-mute:#8B95A1;--t-line:#2A2E36;
-  --t-navy:#8EA8F5;--t-on:#0B1430;--t-badge:#FF7A66;--t-tint:#1E2A47;
+  --t-navy:#8EA8F5;--t-on:#0B1430;--t-badge:#FF7A66;--t-tint:#1E2A47;--t-ph:#9EA7B3;
   --t-b1:#1D2740;--t-b2:#16302B;--t-b3:#352D1B;--t-pill:rgba(255,255,255,.12);--t-pillc:#D1D6DB;
   --tf:#8EA6EC;--ts:#4F67B4;--tl:#3B4C7E;--th:#F5C33B;--th2:#C99A1E;--tp:#E9EEFA}}
 :root[data-theme="dark"]{
   --t-pg:#101215;--t-fill:#22262E;--t-sec:#17191E;--t-ink:#E8EBF0;--t-lab:#D1D6DB;--t-sub:#B0B8C1;--t-mute:#8B95A1;--t-line:#2A2E36;
-  --t-navy:#8EA8F5;--t-on:#0B1430;--t-badge:#FF7A66;--t-tint:#1E2A47;
+  --t-navy:#8EA8F5;--t-on:#0B1430;--t-badge:#FF7A66;--t-tint:#1E2A47;--t-ph:#9EA7B3;
   --t-b1:#1D2740;--t-b2:#16302B;--t-b3:#352D1B;--t-pill:rgba(255,255,255,.12);--t-pillc:#D1D6DB;
   --tf:#8EA6EC;--ts:#4F67B4;--tl:#3B4C7E;--th:#F5C33B;--th2:#C99A1E;--tp:#E9EEFA}
 
@@ -51,7 +51,7 @@
   html.is-tapp #mapTop .pc-ph{display:none!important}
   html.is-tapp:not(.s-view):not(.s-full) #mapTop{padding-top:0!important;margin-top:0!important}
   html.is-tapp.simple .s-hero{margin-bottom:24px!important;gap:0!important;padding-top:0!important}
-  html.is-tapp.simple #sSearch{min-height:52px;margin:6px 0 0;padding:0 16px;gap:10px;border:0!important;background:var(--t-fill)!important;color:var(--t-mute);border-radius:14px;box-shadow:none!important;font:500 15.5px var(--font);letter-spacing:-.02em}
+  html.is-tapp.simple #sSearch{min-height:52px;margin:6px 0 0;padding:0 16px;gap:10px;border:0!important;background:var(--t-fill)!important;color:var(--t-ph)!important;border-radius:14px;box-shadow:none!important;font:500 15.5px var(--font);letter-spacing:-.02em}
   html.is-tapp.simple #sSearch svg{color:var(--t-sub);width:20px;height:20px}
 
   .th{display:block;margin:0 0 28px}
@@ -124,7 +124,7 @@
   .tf-seg button{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border:0;border-radius:11px;background:none;color:var(--t-sub);font:700 15px var(--font);letter-spacing:-.02em;cursor:pointer}
   .tf-seg button[aria-selected="true"]{background:var(--t-pg);color:var(--t-ink);box-shadow:0 1px 2px rgba(15,23,42,.08)}
   .tf-seg button:focus-visible{outline:2px solid var(--focus,var(--brand));outline-offset:-2px}
-  .tf-n{display:inline-block;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--t-badge);color:#fff;font:700 11px/18px var(--font);font-style:normal}
+  .tf-n{display:inline-block;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#D33A2C;color:#fff;font:700 11px/18px var(--font);font-style:normal}
   .tf-n[hidden]{display:none}
   html.is-tapp #news[data-tseg="all"] #tFeed{display:block}
   html.is-tapp #news[data-tseg="all"]>.nw-sec,html.is-tapp #news[data-tseg="all"]>.nw-oh,html.is-tapp #news[data-tseg="all"]>.hub-tabs,html.is-tapp #news[data-tseg="all"]>.hub-lead,html.is-tapp #news[data-tseg="all"]>.hub-pane{display:none!important}

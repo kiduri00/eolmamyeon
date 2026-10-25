@@ -2573,6 +2573,8 @@ async function tappLane(browser, api, errs) {
   const appPage = async (vp, onb) => {
     const r = await newPage(browser, vp, errs);
     await r.ctx.addInitScript(TWA);
+    // 배포 서버처럼 깨끗한 주소(/years · /report/2026-10 · /guide/x)를 .html로(로컬 python 서버는 못 함)
+    await r.ctx.route(/^https?:\/\/[^/]+\/(?:years|report\/\d{4}-\d\d|guide\/[a-z0-9-]+)(?:[?#].*)?$/, (q) => { const u = new URL(q.request().url()); u.pathname += ".html"; return q.continue({ url: u.toString() }); });
     if (!onb) await r.ctx.addInitScript(() => { try { localStorage.setItem("zp.tonb", "1"); } catch (e) {} });
     r.ads = []; r.tReq = [];
     r.page.on("request", (q) => { const u = q.url(); if (ADRX.test(u)) r.ads.push(u); if (/\/b\/t\.[0-9a-f]{10}\.(js|css)/.test(u)) r.tReq.push(u); });
