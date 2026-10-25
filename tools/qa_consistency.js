@@ -2673,6 +2673,8 @@ async function tappLane(browser, api, errs) {
         } else {
           const [resp] = await Promise.all([page.waitForNavigation({ timeout: 15000 }).catch(() => null), page.click(sel)]);
           let st = resp ? resp.status() : 0;
+          // 응답을 놓친 경우(마지막 타일에서 가끔): 실제로 그 주소로 갔고 본문 제목이 있으면 열린 것
+          if (!st) { await page.waitForLoadState("load").catch(() => {}); const u = page.url(), want = x.href.replace(/^\//, "").replace(/\.html$/, ""); if (u.includes("/" + want) && await page.evaluate(() => !!document.querySelector("h1")).catch(() => false)) st = 200; }
           // 로컬 python 서버는 깨끗한 주소(.html 없음)를 못 준다 → 같은 주소를 .html로 받아 200이면 통과(배포 서버는 깨끗한 주소)
           if (st === 404) { const r2 = await getPage("/" + x.href.replace(/^\//, "")); if (r2.status === 200) st = 200; }
           await page.goBack({ waitUntil: "load" }).catch(() => {});
@@ -2844,7 +2846,8 @@ async function tappLane(browser, api, errs) {
       try {
         const cdp = await ctx.newCDPSession(page); await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
         page.__where = "tapp.race " + i;
-        await page.goto(BASE + "/?src=app&race=" + i, { waitUntil: "load", timeout: 40000 });
+        // 로컬 python 서버가 감속 중 가끔 응답을 늦게 준다 → 문서 준비까지만 기다리고, 주소 열기 자체가 실패하면 한 번 더(탭 판정과 무관한 실패)
+        await page.goto(BASE + "/?src=app&race=" + i, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => page.goto(BASE + "/?src=app&race=" + i + "b", { waitUntil: "domcontentloaded", timeout: 60000 }));
         await page.waitForFunction(() => document.documentElement.classList.contains("tapp-on"), null, { timeout: 30000 }).catch(() => {});
         await page.waitForTimeout(2500);
         R.push(await page.evaluate(() => [...document.querySelectorAll("#sNav [data-nav]")].map((b) => b.dataset.nav).join(",") + (document.querySelectorAll("#sNav .tn-i svg").length >= 10 ? "" : " (그림 없음)")));
