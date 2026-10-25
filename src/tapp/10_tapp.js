@@ -162,11 +162,12 @@ function banners() {
   const no = k && /(\d+)호/.exec(k.textContent), mo = /^(\d{1,2})월/.exec(full);
   const on = T(() => X().inbox().st().on, false);
   return [
-    { k: `월간 리포트${no ? ` ${no[1]}호` : ""}`, h: m ? m[1].trim() : full || "월간 리포트", s: m ? m[2].trim() : "매달 단계가 바뀐 구역을 원문과 대조해 정리해요", href: (a && a.getAttribute("href")) || "report/", ic: "report", lab: mo ? `${mo[1]}월 리포트` : "월간 리포트" },
+    // 제목 = 리포트 제목 뒷부분 그대로(숫자 포함 · 예: 조합설립인가 3곳, 전세 끼고 3억 안쪽 80곳)
+    { k: `${mo ? `${mo[1]}월 리포트` : "월간 리포트"}${no ? ` · ${no[1]}호` : ""}`, h: m ? m[2].trim() : full || "매달 단계가 바뀐 구역을 원문과 대조해 정리해요", s: m ? m[1].trim() : "", href: (a && a.getAttribute("href")) || "report/", ic: "report" },
     // 숫자는 가이드 본문 그대로(관리지역 131곳 · 글 기준 2026.09.26) — qa_consistency tapp.home이 페이지 글과 대조
-    { k: "가이드", h: "서울 모아타운 현황과 진행 단계", s: "관리지역 131곳 · 자치구별 분포 · 입주권 기준", href: "guide/moatown", ic: "guide" },
-    on ? { k: "알림", h: "관심 구역 알림이 켜져 있어요", s: "알림 종류는 MY › 알림 설정에서 골라요", href: "#my", ic: "bell", alert: 1 }
-       : { k: "알림", h: "관심 구역 알림 켜기", s: "새 실거래·단계·경매 소식을 폰 알림으로 받아요", href: "#my", ic: "bell", alert: 1 },
+    { k: "가이드 · 모아타운", h: "서울 모아타운 관리지역 131곳, 진행 단계 한눈에", s: "서울 모아타운 현황과 진행 단계", href: "guide/moatown", ic: "guide" },
+    on ? { k: "알림 · 켜져 있어요", h: "알림 종류는 MY에서 골라요", s: "관심 구역 알림 설정", href: "#my", ic: "bell", alert: 1 }
+       : { k: "알림", h: "관심 구역 새 소식, 폰 알림으로 받기", s: "새 실거래·단계·경매 소식", href: "#my", ic: "bell", alert: 1 },
   ];
 }
 let carT = 0, carPause = false, carTouch = 0, carIdx = 0;
@@ -177,8 +178,8 @@ function homeBuild() {
   sec.className = "th"; sec.id = "tHome"; sec.setAttribute("aria-label", "바로가기");
   const B = banners();
   sec.innerHTML =
-    `<nav class="th-grid" aria-label="도구 바로가기">${tiles().map(([ic, t, href, id]) => `<a class="th-t" href="${esc(href)}"${id === "map" ? " data-tmap" : id ? ` data-menu="${id}"` : ""} data-tile="${ic}"><span class="th-ic">${tIcon(ic, 38, "", "grid-" + ic)}</span><span class="th-l">${esc(t)}</span></a>`).join("")}</nav>` +
-    `<div class="th-car" role="region" aria-roledescription="carousel" aria-label="알림판"><div class="th-track" id="tCarT">${B.map((b, i) => `<a class="th-b b${i + 1}" href="${esc(b.href)}"${b.alert ? " data-talert" : ""} role="group" aria-roledescription="slide" aria-label="${i + 1} / ${B.length}: ${esc(b.h)}"><span class="th-bt"><span class="th-bk">${esc(b.k)}</span><span class="th-bh">${esc(b.h)}</span><span class="th-bs">${esc(b.s)}</span></span><span class="th-bi">${tIcon(b.ic, 52, "", ["banner-report", "banner-guide", "banner-alert"][i])}</span></a>`).join("")}</div>` +
+    `<nav class="th-grid" aria-label="도구 바로가기">${tiles().map(([ic, t, href, id]) => `<a class="th-t" href="${esc(href)}"${id === "map" ? " data-tmap" : id ? ` data-menu="${id}"` : ""} data-tile="${ic}"><span class="th-ic">${tIcon(ic, 42, "", "grid-" + ic)}</span><span class="th-l">${esc(t)}</span></a>`).join("")}</nav>` +
+    `<div class="th-car" role="region" aria-roledescription="carousel" aria-label="알림판"><div class="th-track" id="tCarT">${B.map((b, i) => `<a class="th-b b${i + 1}" href="${esc(b.href)}"${b.alert ? " data-talert" : ""} role="group" aria-roledescription="slide" aria-label="${i + 1} / ${B.length}: ${esc(b.k)} · ${esc(b.h)}${b.s ? ` (${esc(b.s)})` : ""}"><span class="th-bt"><span class="th-bk">${esc(b.k)}</span><span class="th-bh">${esc(b.h).split(", ").map((x) => `<i>${x}</i>`).join(",<br>")}</span></span><span class="th-bi">${tIcon(b.ic, 96, "", ["banner-report", "banner-guide", "banner-alert"][i])}</span></a>`).join("")}</div>` +
     `<div class="th-bar"><span class="th-cnt" id="tCarN" aria-hidden="true">1 / ${B.length}</span><button type="button" class="th-pz" id="tCarP" aria-label="배너 자동 넘김 멈추기" aria-pressed="false"><i>${RM() ? PLAY : PAUSE}</i></button></div></div>`;
   sen.before(sec);
   // 검색 칸 글: 이름·동·지번·역(지금 검색이 찾는 그대로)
@@ -285,11 +286,11 @@ function feedHTML() {
     const r = T(() => X0.byId(e.id), null), nm = r ? T(() => (window.ZP_labName ? ZP_labName(r) : X0.name(r.n)), e.n) : e.n;
     const [tl, tc] = e.type === "trade" && e.hi ? ["신고가", "hi"] : TAG[e.type];
     const isN = isNew(e, s) && !muted(e.type);
-    const fs = "feed-" + e.type, ic = tKit(fs) ? `<span class="tf-ic">${tIcon("", 26, "", fs)}</span>` : "";
+    const fs = "feed-" + e.type, ic = tKit(fs) ? `<span class="tf-ic">${tIcon("", 28, "", fs)}</span>` : "";
     const inner = `${ic}<span class="tf-tx"><b>${esc(nm)}</b><small>${esc(e.type === "price" ? e.text.replace(/^필요한 돈\s*/, "") : e.text)}${n > 1 ? ` · 같은 소식 ${n}건` : ""}</small><span class="tf-meta"><span class="tf-tg ${tc}">${tl}</span><span class="tf-g">${esc(e.g || "")}</span></span></span>${isN ? '<i class="tf-dot" aria-hidden="true"></i>' : ""}`;
     return `<li>${r ? `<button type="button" class="tf-it" data-open="${esc(e.id)}"${isN ? ' aria-describedby="tfNewL"' : ""}>${inner}</button>` : `<a class="tf-it" href="z/${encodeURIComponent(e.id)}">${inner}</a>`}</li>`;
   };
-  const list = sh.length ? `<ol class="tf-list">${[...by].map(([d, rs]) => `<li><h3 class="tf-dh">${dLabel(d)}</h3><ul class="tf-dl">${rs.map(row).join("")}</ul></li>`).join("")}</ol>` : `<p class="tf-empty">${tKit("empty-feed") ? tIcon("", 72, "", "empty-feed") : ""}최근 ${CH.days || 30}일 동안 이 종류 소식이 없어요</p>`;
+  const list = sh.length ? `<ol class="tf-list">${[...by].map(([d, rs]) => `<li><h3 class="tf-dh">${dLabel(d)}</h3><ul class="tf-dl">${rs.map(row).join("")}</ul></li>`).join("")}</ol>` : `<p class="tf-empty">${tKit("empty-feed") ? tIcon("", 160, "", "empty-feed") : ""}최근 ${CH.days || 30}일 동안 이 종류 소식이 없어요</p>`;
   const more = R.length > sh.length ? `<button type="button" class="tf-more" data-fmore>더 보기 (${fmtN(R.length - sh.length)}줄)</button>` : "";
   return `<div class="tf-chips" role="group" aria-label="소식 종류">${chips}</div>` +
     `<p class="tf-sum">최근 ${CH.days || 30}일 <b>${fmtN(cnt(fType))}건</b>${nw(fType) ? ` · 새 소식 <b>${fmtN(nw(fType))}건</b>` : ""}${asOf ? ` · ${asOf} 기준` : ""}</p><span class="sr-only" id="tfNewL">새 소식</span>` +

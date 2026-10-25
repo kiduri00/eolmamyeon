@@ -2621,7 +2621,7 @@ async function tappLane(browser, api, errs) {
       await appHome(page);
       const h = await page.evaluate(() => {
         const g = [...document.querySelectorAll("#tHome .th-grid a")].map((a) => ({ k: a.dataset.tile, href: a.getAttribute("href"), menu: a.dataset.menu || "", map: a.hasAttribute("data-tmap"), t: a.textContent.trim() }));
-        const B = [...document.querySelectorAll("#tHome .th-b")].map((a) => ({ href: a.getAttribute("href"), t: a.textContent.trim(), al: a.hasAttribute("data-talert") }));
+        const B = [...document.querySelectorAll("#tHome .th-b")].map((a) => ({ href: a.getAttribute("href"), t: a.textContent.trim(), lab: a.getAttribute("aria-label") || "", al: a.hasAttribute("data-talert") }));
         const bn = document.querySelector("#hdrBell .t-bn");
         return { cls: document.documentElement.classList.contains("is-tapp"), g, B, cnt: (document.getElementById("tCarN") || {}).textContent, bn: bn ? { hid: bn.hidden, t: bn.textContent } : null, nNew: window.ZP_TAPP ? ZP_TAPP.newCount("") : -1,
           gauge: !!document.querySelector("#sGauge #sN"), nav: [...document.querySelectorAll("#sNav [data-nav]")].map((b) => b.dataset.nav).join(","), mapHidden: getComputedStyle(document.querySelector("#mapTop .mapcard")).display === "none", tD: (history.state && history.state.tD) || 0 };
@@ -2629,9 +2629,10 @@ async function tappLane(browser, api, errs) {
       // 아이콘 = 지금 있는 화면만: 앱 화면 id는 문서에 있거나 예전 주소 별칭 · 페이지는 200
       const pg = []; for (const x of h.g.filter((x) => !x.menu && !x.map)) { const r = await getPage("/" + x.href.replace(/^\//, "")); pg.push([x.href, r.status]); }
       const ids = await page.evaluate((L) => L.map((id) => !!document.getElementById(id) || !!(window.ZP_ALIAS && ZP_ALIAS[id])), h.g.filter((x) => x.menu).map((x) => x.menu));
-      const bp = []; for (const b of h.B.filter((b) => !b.al)) { const r = await getPage("/" + b.href.replace(/^\//, "")); bp.push([b.href, r.status]); }
-      expect(h.cls && h.g.length === 10 && ids.every(Boolean) && pg.every((x) => x[1] === 200) && h.g.filter((x) => x.map).length === 1 && h.B.length === 3 && bp.every((x) => x[1] === 200) && h.B.some((b) => b.al) && h.cnt === "1 / 3" && h.bn && (h.bn.hid === !(h.nNew > 0)) && h.gauge && h.mapHidden && !h.g.some((x) => /준비/.test(x.t)),
-        "tapp.home", T, `${JSON.stringify({ g: h.g.map((x) => x.t), ids, pg, bp, cnt: h.cnt, bn: h.bn, nNew: h.nNew, gauge: h.gauge, mapHidden: h.mapHidden })}`);
+      // 배너 글의 숫자 = 그 페이지 글에 그대로 있는 숫자(리포트 호수·곳 수 등)
+      const bp = [], bnum = []; for (const b of h.B.filter((b) => !b.al)) { const r = await getPage("/" + b.href.replace(/^\//, "")); bp.push([b.href, r.status]); const body = String(r.text || "").replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " "); for (const n of (b.lab + " " + b.t).match(/\d[\d,.]*(?:곳|호|억|건|월|년)/g) || []) if (!body.includes(n)) bnum.push(b.href + " " + n); }
+      expect(h.cls && h.g.length === 10 && ids.every(Boolean) && pg.every((x) => x[1] === 200) && h.g.filter((x) => x.map).length === 1 && h.B.length === 3 && bp.every((x) => x[1] === 200) && !bnum.length && h.B.some((b) => b.al) && h.cnt === "1 / 3" && h.bn && (h.bn.hid === !(h.nNew > 0)) && h.gauge && h.mapHidden && !h.g.some((x) => /준비/.test(x.t)),
+        "tapp.home", T, `${JSON.stringify({ g: h.g.map((x) => x.t), ids, pg, bp, bnum, cnt: h.cnt, bn: h.bn, nNew: h.nNew, gauge: h.gauge, mapHidden: h.mapHidden })}`);
       // 아이콘마다 실제로 눌러 본다: 앱 화면은 s-view + 그 칸 s-on(지도는 화면 가득) → 뒤로 = 홈 · 페이지는 200으로 이동 → 뒤로
       const tl = [];
       for (const x of h.g) {
@@ -2650,6 +2651,10 @@ async function tappLane(browser, api, errs) {
           tl.push([x.k, st === 200 || st === 304, true, true]);
         }
       }
+      const kit = await page.evaluate(() => ({ grid: document.querySelectorAll("#tHome .th-ic svg.tk").length, ban: document.querySelectorAll("#tHome .th-bi svg.tk").length, nav: document.querySelectorAll("#sNav .tn-i svg.tk").length }));
+      let man = null; try { man = JSON.parse((await get(BASE + "/manifest.webmanifest")).text); } catch (e) {}
+      const sc = []; for (const x of (man && man.shortcuts) || []) { const i96 = (x.icons || []).find((i) => /^(9[6-9]|1\d\d)x/.test(i.sizes)); const r = i96 ? await getPage(i96.src) : { status: 0 }; sc.push([x.short_name, i96 && i96.src, r.status]); }
+      expect(kit.grid >= 10 && kit.ban >= 3 && kit.nav >= 10 && sc.length === 4 && sc.every((x) => x[2] === 200) && new Set(sc.map((x) => x[1])).size === 4, "tapp.kit", "설치 앱 디자인 키트 v2: 아이콘 10·배너 그림 3·아래 탭 그림(외곽선·채움) · manifest 바로가기 4개 서로 다른 96px+ 아이콘(200)", JSON.stringify({ kit, sc }));
       expect(tl.every((t) => t[1] && t[2] && t[3]), "tapp.home", T, "누름: " + JSON.stringify(tl.filter((t) => !(t[1] && t[2] && t[3]))));
       // 아래 탭
       await appHome(page);

@@ -2,7 +2,7 @@
 /* 설치 앱(안드로이드 TWA·PWA) 아이콘 PNG 만들기 — 한 번 돌려 public/에 둔다(내용이 같으면 다시 쓰지 않음).
    - icon-badge-96.png   : 알림 상태 표시줄 작은 아이콘(sw.js badge) · 흰 모양 + 투명 바탕(안드로이드는 알파만 씀)
    - icon-mono-512.png   : manifest purpose "monochrome"(테마 아이콘) · 같은 모양, 안전 영역 안
-   - sc-*.png (192)      : manifest 바로가기 4개(지도·관심·리포트·구역) — 앱 첫 화면 아이콘과 같은 그림(src/tapp/00_icons.js)
+   - 바로가기 아이콘(sc-*-96/192.png)은 디자인 키트 v2에서 옮긴다(tools/app_kit.py) — 여기서는 만들지 않음
    사용: NODE_PATH=$(npm root -g) node tools/app_icons.js */
 const fs = require("fs"), path = require("path");
 const sharp = require("sharp");
@@ -18,10 +18,6 @@ const SC = (k) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"
 const OUT = [
   ["icon-badge-96.png", GLYPH(4), 96],
   ["icon-mono-512.png", GLYPH(22), 512],
-  ["sc-map-192.png", SC("map"), 192],
-  ["sc-fav-192.png", SC("heart"), 192],
-  ["sc-report-192.png", SC("report"), 192],
-  ["sc-zone-192.png", SC("zone"), 192],
 ];
 (async () => {
   for (const [f, svg, s] of OUT) {
