@@ -2892,6 +2892,269 @@ async function r29Lane(browser, api, errs) {
     if (!seen) skip("gu.unitsScope", T, `${gus.length}개 구 모두 세대수 문장 없음`);
   }
 }
+// ================================================================ 30차(애드센스·제품 6차 레드팀)
+// 계산식 한 줄(대출 끼고 · 전세 끼고 ①②③)을 '보이는 칸'으로 다시 더한다: 괄호 안 설명은 빼고, 마지막 '=' 앞 칸들의 ± 합 == '=' 뒤 값(정확한 만 원)
+function flowSegs(txt) {
+  const out = [];
+  const segs = String(txt || "").replace(/\([^()]*\)/g, " ").split(/\s·\s(?=[①②③])/);
+  for (const sg of segs) {
+    const i = sg.lastIndexOf("=");
+    if (i < 0) continue;
+    const rhs = money(sg.slice(i + 1).trim().split(/\s{2,}/)[0]);
+    let lhs = sg.slice(0, i); const j = lhs.lastIndexOf("="); if (j >= 0) lhs = lhs.slice(j + 1);
+    let sum = 0, n = 0;
+    for (const m of lhs.matchAll(/([+−-])?\s*[^\d+−-]*?((?:\d[\d,]*억(?:\s*[\d,]+만)?)|(?:[\d,]+만)|(?:0원))/g)) { const v = money(m[2]); if (!v) continue; sum += (m[1] === "−" || m[1] === "-" ? -1 : 1) * v.v; n++; }
+    out.push({ seg: sg.trim().slice(0, 160), n, sum: Math.round(sum * 1e4), rhs: rhs ? Math.round(rhs.v * 1e4) : null });
+  }
+  return out;
+}
+async function r30Lane(browser, api, errs) {
+  const mob = (w, h) => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+  const goZone = async (page, id, cash, mode) => {
+    page.__where = `r30 #${id} ${mode} ${cash}`;
+    await page.goto(`${BASE}/?cash=${cash}&mode=${mode}&qac=${++LOADS}#${id}`, { waitUntil: "load", timeout: 30000 });
+    await page.waitForFunction(() => !!document.querySelector("#report .dt-k"), null, { timeout: 20000 }).catch(() => {});
+    await page.waitForTimeout(900);
+  };
+  // --- count.guStrip: 구를 고른 동안 이름 줄 카드 수 + '외 N곳' == 큰 숫자(그 구 곳 수) == 목록 제목 곳 수 (2억 · 1억, 구 여러 개)
+  {
+    const T = "구 화면: 이름 줄 카드 + '외 N곳' == 큰 숫자(그 구 곳 수) == 목록 제목 '구 · N곳' (2억·1억 · 구 4곳까지) — 6차: '구로구 3곳' 밑 '외 51곳'";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      await loadHome(page); await settle(page, 500);
+      let seen = 0;
+      for (const c of [2, 1]) {
+        await setCash(page, c);
+        const gus = await page.evaluate(() => Object.entries(window.ZP_simple.guCounts()).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).map(([g]) => g));
+        let done = 0;
+        for (const g of gus) {
+          if (done >= 4) break;
+          await page.evaluate(() => { const x = document.getElementById("sGuX"); if (x) x.click(); }); await page.waitForTimeout(500);
+          const hit = await page.evaluate((g) => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 70); const b = document.querySelector(`.zgu[data-gu="${g}"]`); if (!b) return false; b.click(); return true; }, g);
+          if (!hit) continue;
+          await page.waitForTimeout(1300); await settle(page, 300);
+          const r = await page.evaluate(() => ({ n: +document.getElementById("sN").textContent.replace(/,/g, ""), lt: document.getElementById("sLT").textContent, cards: document.querySelectorAll("#sSum .s-rail3 li:not(.s-rmore)").length, more: (document.querySelector("#sSum .s-rmore b") || {}).textContent || "", gu: !!document.getElementById("sGuX") && !document.getElementById("sGu").hidden }));
+          if (!r.gu) continue;
+          done++; seen++;
+          const m = intOf(r.more) || 0;
+          expect(r.cards + m === r.n && cntOf(r.lt) === r.n && (r.n > 3 || !r.more), "count.guStrip", T, `${c}억 ${g}: cards ${r.cards} + 외 ${m} vs big ${r.n} · title "${r.lt}"`);
+        }
+      }
+      if (!seen) bad("count.guStrip", T, "구 묶음을 하나도 누르지 못함");
+    } catch (e) { bad("count.guStrip", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- zone.flowSum: 계산식 한 줄(대출 끼고 · 전세 끼고 ①②③)과 '들어가는 돈 합계' 칸 — 보이는 칸을 더하면 보이는 결과(정확한 만 원) · 머리 숫자와는 0.1억 안
+  //     전세 ① 매수가 == 머리(dt-s) 매수가(올려 쓰지 않음) · '합이 조금 다를 수 있어요' 같은 핑계 없음
+  {
+    const T = "계산식 한 줄과 합계 칸: 보이는 칸의 합 == 보이는 결과(만 원까지) · 머리 '입주까지 현금'과 0.1억 안 · 전세 ① 매수가 == 머리 매수가 · '합이 조금 다를' 없음 (두 방식 · 여러 구역)";
+    const pool = api.zones.filter((z) => z.need.gap.total != null && z.need.cash.total != null && z.membership && z.membership.status === "ok").map((z) => z.id);
+    const ids = ["o337", "o332", "o1070"].filter((i) => api.zones.some((z) => z.id === i)).concat(pool.filter((i) => !["o337", "o332", "o1070"].includes(i)).slice(0, 3));
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      for (const id of ids) for (const mode of ["loan", "jeonse"]) {
+        if (over()) { skip("zone.flowSum", T, "time budget"); break; }
+        await goZone(page, id, 2, mode);
+        const r = await page.evaluate(() => {
+          const p = document.getElementById("pane") || document; const fl = p.querySelector("details.flow p");
+          const tot = p.querySelector(".fx-tot dd"), big = p.querySelector(".bigrow .big.cash b");
+          const hero = [...document.querySelectorAll("#report .dt-k .dt-s")].map((e) => e.textContent).join(" | ");
+          return { flow: fl ? fl.textContent.replace(/\s+/g, " ") : "", tot: tot ? [tot.firstChild ? tot.firstChild.textContent : "", (tot.querySelector("small") || {}).textContent || ""] : null, big: big ? big.textContent : "", hero, all: (p.innerText || "") };
+        });
+        if (!r.flow) { wrn("zone.flowSum", T, `${id} ${mode}: no 계산식`); continue; }
+        expect(!/합이 조금 다를/.test(r.all), "zone.flowSum", T, `${id} ${mode}: '합이 조금 다를 수 있어요'`);
+        const S = flowSegs(r.flow);
+        expect(S.length >= (mode === "jeonse" ? 3 : 1), "zone.flowSum", T, `${id} ${mode}: ${S.length} segments in "${r.flow.slice(0, 120)}"`);
+        for (const s of S) expect(s.n >= 2 && s.rhs != null && s.sum === s.rhs, "zone.flowSum", T, `${id} ${mode}: ${s.n} terms sum ${s.sum}만 vs shown ${s.rhs}만 · "${s.seg}"`);
+        const last = S[S.length - 1], head = money(r.big);
+        if (last && head && last.rhs != null) expect(Math.abs(last.rhs / 1e4 - head.v) <= 0.0501 + head.tol, "zone.flowSum", T, `${id} ${mode}: flow total ${last.rhs}만 vs head "${r.big}"`);
+        if (r.tot && r.tot[1]) { const t = flowSegs(r.tot[1].split(" · ")[0] + " = " + r.tot[0])[0]; expect(t && t.sum === t.rhs, "zone.flowSum", T, `${id} ${mode}: 합계 "${r.tot[0]}" vs 칸 "${r.tot[1].slice(0, 100)}"`); }
+        if (mode === "jeonse") { const a = /매수가 ([\d,억만 ]+?)\s*[+−]/.exec(r.flow), b = /매수가 ([\d,억만 ]+?)\s*−/.exec(r.hero); if (a && b) expect(money(a[1]) && money(b[1]) && Math.abs(money(a[1]).v - money(b[1]).v) < 0.00011, "zone.flowSum", T, `${id}: 계산식 매수가 "${a[1]}" vs 머리 "${b[1]}"`); }
+      }
+    } catch (e) { bad("zone.flowSum", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- zone.blockVerdict: 전세 끼고는 못 사는 곳(토허 등)도 대출 끼고 값에 판정 한 줄 · '대출 끼고'를 한 칸에 두 번 쓰지 않음
+  {
+    const T = "전세 끼고 못 사는 곳(전세 모드): '지금' 칸에 판정(더 필요해요/내 돈 안) · 입주까지 칸에 '대출 끼고' 한 번만 — 6차 #o1173";
+    const z = api.zones.filter((x) => x.need.gap.blocked && /^전세 낀 매수 불가/.test(x.need.gap.blocked) && x.need.cash.now != null && x.need.cash.total != null && !x.lowConfidence).slice(0, 2);
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      for (const x of z) {
+        await goZone(page, x.id, 2, "jeonse");
+        const r = await page.evaluate(() => { const g = (k) => document.querySelector(`#report .dt-k .dt-i[data-k="${k}"]`); const n = g("now"), t = g("tot"); return { vd: n ? (n.querySelector(".dt-vd") || {}).textContent || "" : "", tot: t ? t.innerText.replace(/\s+/g, " ") : "" }; });
+        expect(/더 필요해요|내 돈 .* 안이에요/.test(r.vd) && (r.tot.match(/대출 끼고/g) || []).length <= 1 && /더 필요해요|안이에요/.test(r.tot), "zone.blockVerdict", T, `${x.id}: verdict "${r.vd}" · tot "${r.tot}"`);
+      }
+      if (!z.length) skip("zone.blockVerdict", T, "no blocked zone");
+    } catch (e) { bad("zone.blockVerdict", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- term.short: 모자란 돈 말 한 규칙 — 짧은 꼬리표(목록 줄·지도 알약·검색 배지·머리 칸 작은 글)는 'N 부족', 문장(상세 판정 줄)은 'N 더 필요해요'
+  {
+    const T = "모자란 돈: 꼬리표(목록·알약·검색 배지)는 'N 부족' · 상세 판정 문장(.dt-vd)은 'N 더 필요해요' — 섞어 쓰지 않음";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      await loadHome(page); await settle(page, 400); await setCash(page, 1);
+      const L = await page.evaluate(() => [...document.querySelectorAll("#sList li.s-card, .zpill")].map((e) => e.innerText.replace(/\s+/g, " ")).filter((t) => /필요해요|부족/.test(t)));
+      expect(!L.some((t) => /더 필요해요/.test(t)), "term.short", T, `list/pill: ${L.filter((t) => /더 필요해요/.test(t)).slice(0, 2).join(" ; ")}`);
+      await goZone(page, "o337", 1, "loan");
+      const V = await page.evaluate(() => [...document.querySelectorAll("#report .dt-vd")].map((e) => e.textContent));
+      expect(V.length && V.every((t) => !/부족/.test(t)) && V.some((t) => /더 필요해요/.test(t)), "term.short", T, `detail verdicts: ${V.join(" ; ")}`);
+    } catch (e) { bad("term.short", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- ui.r30Layout: 360 '+N곳' 칩이 레이어 막대에 가리지 않음 · 구 묶음 글자 ≥ 11px · 폰 묶음이 제 구 중심에서 48px 넘게 비키지 않음 ·
+  //     '+N곳' 펼친 목록은 적게 드는 구부터, 금액 한 줄 · 상세 시트 붙는 탭 줄과 머리 줄 사이 틈 ≤ 1px · 오프라인 알약이 시트 아래 단추를 가리지 않음
+  {
+    const T = "360 칩 안 가림 · 묶음 글자 ≥11px · 묶음 제자리(≤48px) · +N 목록 싼 순·한 줄 · 시트 탭 틈 ≤1px · 오프라인 알약 ↔ 시트 단추 안 겹침";
+    for (const w of [360, 390]) {
+      const { ctx, page } = await newPage(browser, mob(w, w === 360 ? 740 : 844), errs);
+      try {
+        await loadHome(page); await settle(page, 500);
+        for (const c of [7.5, 15]) {
+          await setCash(page, c);
+          await page.evaluate(() => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 70); });
+          await page.waitForTimeout(2500);
+          const r = await page.evaluate(() => {
+            const fs = [...document.querySelectorAll(".zgu b, .zgu span")].filter((e) => e.getClientRects().length && e.textContent.trim()).map((e) => parseFloat(getComputedStyle(e).fontSize));
+            const offs = window.ZP_lmx && window.ZP_lmx.gus ? window.ZP_lmx.gus().map((g) => [g.n, g.off]) : [];
+            const ch = [...document.querySelectorAll(".lm-gumore")].find((e) => !e.hidden && e.getClientRects().length);
+            let cov = null, list = null;
+            if (ch) {
+              const b = ch.querySelector(".lm-gumore-b").getBoundingClientRect();
+              const pts = [[b.right - 4, b.top + b.height / 2], [b.left + 6, b.top + b.height / 2]];
+              cov = pts.filter(([x, y]) => { const e = document.elementFromPoint(x, y); return !(e && e.closest(".lm-gumore")); }).length;
+              ch.querySelector(".lm-gumore-b").click();
+              const li = [...ch.querySelectorAll(".lm-gumore-l li button")];
+              list = li.map((x) => { const m = x.querySelector(".gm-m"); return { t: x.textContent, h: m ? m.getBoundingClientRect().height : 0, lh: m ? parseFloat(getComputedStyle(m).fontSize) * 1.6 : 99 }; });
+              ch.querySelector(".lm-gumore-b").click();
+            }
+            return { min: fs.length ? Math.min(...fs) : null, offs, cov, list };
+          });
+          if (r.min != null) expect(r.min >= 10.99, "ui.r30Layout", T, `${w} ${c}억: 구 묶음 글자 ${r.min}px`);
+          const far = r.offs.filter(([, o]) => o > 48.5);
+          expect(!far.length, "ui.r30Layout", T, `${w} ${c}억: 제 구에서 먼 묶음 ${far.map(([n, o]) => n + " " + o + "px").join(", ")}`);
+          if (r.cov != null) expect(r.cov === 0, "ui.r30Layout", T, `${w} ${c}억: '+N곳' 칩 가림 ${r.cov}/2 점`);
+          if (r.list && r.list.length) {
+            const v = r.list.map((x) => { const m = /곳\s*([\d,.]+(?:억|만))~/.exec(x.t); return m ? money(m[1]).v : Infinity; });
+            const sorted = v.every((x, i) => !i || x >= v[i - 1] - 1e-9);
+            expect(sorted && r.list.every((x) => x.h <= x.lh), "ui.r30Layout", T, `${w} ${c}억: +N 목록 ${r.list.map((x) => x.t.replace(/\s+/g, " ") + "[" + Math.round(x.h) + "]").join(" / ")}`);
+          }
+        }
+      } catch (e) { bad("ui.r30Layout", T, `${w} crashed: ` + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      await goZone(page, "o332", 2, "jeonse");
+      const g = await page.evaluate(async () => {
+        const sb = document.querySelector("#report .sheet-bar"), tb = document.querySelector("#report .tabs"), sc = document.getElementById("report");
+        if (!sb || !tb) return null; sc.scrollTop = 1600; await new Promise((r) => setTimeout(r, 400));
+        return { gap: Math.round(tb.getBoundingClientRect().top - sb.getBoundingClientRect().bottom), stuck: getComputedStyle(tb).position };
+      });
+      if (g) expect(g.gap <= 1, "ui.r30Layout", T, `시트 탭 줄 틈 ${g.gap}px (${g.stuck})`);
+      await ctx.setOffline(true); await page.evaluate(() => window.dispatchEvent(new Event("offline"))); await page.waitForTimeout(800);
+      const o = await page.evaluate(() => { const a = document.getElementById("offBar"), b = document.querySelector("#report .dt-bar"); if (!a || a.hidden || !a.getClientRects().length || !b) return null; const A = a.getBoundingClientRect(), B = b.getBoundingClientRect(); return { hit: A.left < B.right && B.left < A.right && A.top < B.bottom && B.top < A.bottom, A: [A.top, A.bottom].map(Math.round), B: [B.top, B.bottom].map(Math.round) }; });
+      if (o) expect(!o.hit, "ui.r30Layout", T, `오프라인 알약 ${o.A} ↔ 시트 단추 줄 ${o.B}`); else wrn("ui.r30Layout", T, "오프라인 알약이 시트에서 안 보임");
+      await ctx.setOffline(false);
+    } catch (e) { bad("ui.r30Layout", T, "sheet crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+    // 정적 페이지 누름 자리: /guide/ 제목 링크 높이 · /z 출처 줄 RSS 너비
+    const s = await newPage(browser, mob(390, 844), errs);
+    try {
+      await s.page.goto(BASE + "/guide/", { waitUntil: "load" });
+      const a = await s.page.evaluate(() => [...document.querySelectorAll(".qsum li > a")].map((e) => Math.round(e.getBoundingClientRect().height)));
+      expect(a.length && Math.min(...a) >= 40, "ui.r30Layout", T, `/guide/ 제목 링크 높이 최소 ${Math.min(...a)}px (${a.length})`);
+      await s.page.goto(BASE + "/z/o1059.html", { waitUntil: "load" });
+      const b = await s.page.evaluate(() => [...document.querySelectorAll(".zrow a")].map((e) => [e.textContent.trim(), Math.round(e.getBoundingClientRect().width), Math.round(e.getBoundingClientRect().height)]));
+      const sm = b.filter(([, w, h]) => w < 40 || h < 40);
+      expect(b.length && !sm.length, "ui.r30Layout", T, `/z 출처 줄 작은 링크 ${JSON.stringify(sm)}`);
+    } catch (e) { bad("ui.r30Layout", T, "static crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await s.ctx.close().catch(() => {}); }
+  }
+  // ---------------- 정적(내려받기만) ----------------
+  // --- rep.cross: 리포트 정정이 다른 페이지(가이드·다음 호·목록·RSS·홈 읽을거리)까지 따라옴
+  {
+    const T = "리포트 숫자가 다른 페이지와 맞음: 'N월에는 인가가 X건'·'N월호에 실은 X건'·RSS '인가 X건' == issues.json · 최근 36개월 월평균은 한 쪽 안에서 한 값·창(YYYY.M~) 밝힘 · 2026년 연간 건수 한 값(‘약’ 없이) · /report/ 백분율 = 실제 비율 · 리포트 카드마다 입주까지 줄";
+    const iss = (await get(BASE + "/report/feed.xml")).text || "";
+    let IJ = []; try { IJ = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "pipeline", "report", "issues.json"), "utf8")); } catch (e) {}
+    const N = Object.fromEntries(IJ.map((i) => [+i.ym.slice(5, 7), i.n]));
+    const pages = ["/guide/howto-1", "/guide/howto-2", "/guide/howto-3", "/guide/status", "/report/", "/", ...IJ.map((i) => "/report/" + i.ym)];
+    const y26 = new Set();
+    for (const p of pages) {
+      const r = await getPage(p); const t = htmlText(r.text || "");
+      for (const m of t.matchAll(/(\d{1,2})월에는 인가가 (\d+)건/g)) expect(N[+m[1]] == null || N[+m[1]] === +m[2], "rep.cross", T, `${p}: "${m[0]}" vs ${m[1]}월호 ${N[+m[1]]}건`);
+      for (const m of t.matchAll(/(\d{1,2})월호(?:는|에 실은) (\d+)건/g)) expect(N[+m[1]] == null || N[+m[1]] === +m[2], "rep.cross", T, `${p}: "${m[0]}" vs ${m[1]}월호 ${N[+m[1]]}건`);
+      const av = new Set([...t.matchAll(/최근 36개월(?:\([^)]*\))? (?:월평균\(약? ?|평균이 한 달 약? ?)(\d+)건/g)].map((m) => m[1]));
+      expect(av.size <= 1, "rep.cross", T, `${p}: 최근 36개월 월평균이 여러 값 ${[...av].join("/")}`);
+      if (av.size && p.startsWith("/report/2")) expect(/최근 36개월\(\d{4}\.\d{1,2}~\d{4}\.\d{1,2}\)/.test(t), "rep.cross", T, `${p}: 36개월 창(YYYY.M~YYYY.M)을 밝히지 않음`);
+      for (const m of t.matchAll(/2026년 (?:집계분|9월까지) (약 )?(\d+)건/g)) { y26.add(m[2]); expect(!m[1], "rep.cross", T, `${p}: "${m[0]}" ('약' 없이 한 값)`); }
+      const pc = /모두 (\d+)건[^.]*?그중 (\d+)건\(([\d.]+)%\)/.exec(t);
+      if (pc) { const want = (+pc[2] / +pc[1] * 100); expect(Math.abs(+pc[3] - want) < 0.051, "rep.cross", T, `${p}: ${pc[2]}/${pc[1]} = ${want.toFixed(2)}% vs "${pc[3]}%"`); }
+      if (p.startsWith("/report/2")) {
+        const cards = [...(r.text || "").matchAll(/<article class="zcard">([\s\S]*?)<\/article>/g)].map((m) => m[1]);
+        const miss = cards.filter((c) => !/입주까지/.test(c)).map((c) => ((/<h3>(.*?)<\/h3>/.exec(c) || [])[1] || "?"));
+        expect(!miss.length, "rep.cross", T, `${p}: 입주까지 줄 없는 카드 ${miss.join(", ")}`);
+      }
+    }
+    expect(y26.size <= 1, "rep.cross", T, `2026년 연간 인가 건수가 페이지마다 다름: ${[...y26].join(" / ")}`);
+    for (const m of iss.matchAll(/report\/(\d{4})-(\d{2})<\/link>[\s\S]*?<description>인가 (\d+)건/g)) { const i = IJ.find((x) => x.ym === `${m[1]}-${m[2]}`); if (i) expect(i.n === +m[3], "rep.cross", T, `RSS ${m[1]}-${m[2]}: 인가 ${m[3]}건 vs ${i.n}`); }
+  }
+  // --- rep.zones: 9월호처럼 구역이 적은 호는 3줄 요약이 모든 구역의 처리(계산됨·입주권 없음·보류·참고값)를 밝힘 · 같은 구 시세로 추정한(est) 구역은 리포트에서 금액 대신 계산 보류(/z·/gu와 같은 규칙)
+  {
+    const T = "리포트 3줄 요약이 이 호 구역(≤9곳)을 모두 밝힘 · 구 평균 추정(est) 구역 카드는 '계산 보류'(/gu '자료 부족'과 같은 규칙)";
+    const est = new Set(api.zones.filter((z) => z.priceSample && z.priceSample.source === "est").map((z) => z.id));
+    let IJ = []; try { IJ = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "pipeline", "report", "issues.json"), "utf8")); } catch (e) {}
+    for (const i of IJ.filter((x) => !x.partial)) {
+      const r = await getPage("/report/" + i.ym); const h = r.text || "";
+      const sum = htmlText((/<div class="sum3">([\s\S]*?)<\/div>/.exec(h) || [])[1] || "");
+      const cards = [...h.matchAll(/<article class="zcard">([\s\S]*?)<\/article>/g)].map((m) => m[1]).filter((c) => !/인가 아님/.test(c));
+      if (cards.length <= 9) for (const c of cards) {
+        const nm = htmlText((/<h3>(.*?)<\/h3>/.exec(c) || [])[1] || ""), alt = (/원문 명칭: ([^<]+)/.exec(c) || [])[1] || "";
+        const core = (s) => s.replace(/(아파트|번지 일대|번지|일대)$/g, "").trim();
+        expect(sum.includes(core(nm)) || (alt && sum.includes(alt.trim())), "rep.zones", T, `${i.ym}: 3줄 요약에 '${nm}' 없음`);
+      }
+      for (const c of cards) {
+        const id = (/#(o\d+|s\d+|m\d+)"/.exec(c) || [])[1]; if (!id || !est.has(id)) continue;
+        const v = htmlText(((/입주까지 현금[\s\S]*?<b>([^<]*)<\/b>/.exec(c)) || [])[1] || "");
+        expect(/계산 보류/.test(v), "rep.zones", T, `${i.ym} ${id}(구 평균 추정): 입주까지 "${v}"`);
+      }
+    }
+  }
+  // --- seo.visibleDate: 화면의 '글 고친 날'(time.zp-mod) == JSON-LD dateModified · /about·/years
+  {
+    const T = "화면 '글 고친 날'(time.zp-mod) == JSON-LD dateModified (/about · /years) — 6차: /about 10월 20일 vs 10-25";
+    for (const p of ["/about", "/years"]) {
+      const r = await getPage(p); const h = r.text || "";
+      const t = (/<time class="zp-mod" datetime="(\d{4}-\d\d-\d\d)">/.exec(h) || [])[1], d = (/"dateModified":\s*"(\d{4}-\d\d-\d\d)/.exec(h) || [])[1];
+      expect(t && d && t === d && !/마지막 점검/.test(h), "seo.visibleDate", T, `${p}: 화면 ${t} vs dateModified ${d}`);
+    }
+  }
+  // --- home.rawLabel: JS 전 원본 HTML에 '0곳 보기' 같은 빈 숫자 버튼 없음
+  {
+    const r = await getPage("/");
+    expect(!/>\s*0곳 보기\s*</.test(r.text || ""), "home.rawLabel", "홈 원본 HTML(JS 전)에 '0곳 보기' 없음", "raw index.html has '0곳 보기'");
+  }
+  // --- gu.r30: /gu 범례 '자료 부족' == 표 꼬리표 · 참고값이 섞인 구는 '참고값을 뺀 N곳'을 밝힘 · '가장 앞선 곳은 X 단계인 Y'는 그 단계가 한 곳일 때만 · /method 참고값 규칙에 모호한 '3~5건' 없음
+  {
+    const T = "/gu: 범례 '자료 부족'(‘–는’ 없음) · 참고값 섞이면 '참고값을 뺀 N곳' · '가장 앞선 곳' 문장은 동률 없을 때만 · /method 실제 규칙";
+    const idx = await getPage("/gu/");
+    const gus = [...new Set([...(idx.text || "").matchAll(/href="(?:\.\.\/gu\/|\/gu\/|\.\/)?([가-힣]+구)"/g)].map((m) => m[1]))];
+    for (const g of gus) {
+      const h = (await getPage("/gu/" + g)).text || "";
+      const p = htmlText(((/<p class="gnote">([\s\S]*?)<\/p>/.exec(h) || [])[1]) || "");
+      expect(!/–는 /.test(h), "gu.r30", T, `${g}: 범례 '–는'`);
+      const nd = (h.match(/gr-now">자료 부족</g) || []).length;
+      if (nd) expect(new RegExp(`자료 부족</b>\\(${nd}곳\\)`).test(h), "gu.r30", T, `${g}: 표 '자료 부족' ${nd}줄인데 범례에 없음/다름`);
+      const ex = (h.match(/class="gr-ex"/g) || []).length;
+      if (ex && /나온 곳은/.test(p)) expect(/참고값을 뺀 \d+곳/.test(p), "gu.r30", T, `${g}: 참고값 ${ex}줄인데 '참고값을 뺀 N곳' 없음`);
+      const m = /가장 앞선 곳은 (.+?) 단계인/.exec(p);
+      if (m) { const n = (h.match(new RegExp(`<em>${m[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}</em>`, "g")) || []).length; expect(n <= 1, "gu.r30", T, `${g}: '가장 앞선 곳' 한 곳만 말하는데 ${m[1]} ${n}곳`); }
+    }
+    const me = htmlText((await getPage("/method")).text || "");
+    expect(!/3~5건 미만/.test(me) && /3~4건/.test(me) && /자료 부족/.test(me), "gu.r30", T, "/method 참고값 규칙이 모호함(3~5건 미만) 또는 /gu '자료 부족' 처리를 밝히지 않음");
+  }
+}
 // ================================================================ main
 (async () => {
   // API
@@ -2945,6 +3208,8 @@ async function r29Lane(browser, api, errs) {
   if (!ONLY || ONLY === "r27") await timed("r27", Promise.all([r27Lane(browser, api, errs), guProse()]).catch((e) => bad("runtime", "검사 실행", "r27Lane crashed: " + e.message)));
   // 29차(h1·h2 대비 · h1 자리 · 날짜 한 출처 · 짧은 이름 · /gu 세대수 범위) — 혼자
   if (!ONLY || ONLY === "r29") await timed("r29", r29Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r29Lane crashed: " + e.message)));
+  // 30차(구 화면 이름 줄 · 계산식 합 · 토허 판정 · 모자란 돈 말 · 지도 칩·글자·자리 · 리포트 교차 · 보이는 날짜) — 혼자
+  if (!ONLY || ONLY === "r30") await timed("r30", r30Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r30Lane crashed: " + e.message)));
   // 22차(앱 껍데기 · 모든 구역 열기) — 혼자, 맨 끝(모든 구역을 여는 데 몇 분)
   if (!ONLY || ONLY === "r22") await timed("r22", r22Lane(browser, api, errs, shared).catch((e) => bad("runtime", "검사 실행", "r22Lane crashed: " + e.message)));
   await browser.close();

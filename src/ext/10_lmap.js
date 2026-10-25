@@ -1574,7 +1574,7 @@
       obstacles: () => (map ? obstacles() : []),
       okDots: () => (okdK ? okdK.split(",").length : 0),
       llOf: (id) => (byId[id] ? llOf(byId[id]) : null),
-      gus: () => [...GUS.entries()].map(([n, p]) => ({ n, c: +p.el.dataset.n, t: p.el.textContent, lab: p.el.getAttribute("aria-label") || "" })),
+      gus: () => [...GUS.entries()].map(([n, p]) => { let o = { x: 0, y: 0 }; try { o = p.mk.getOffset(); } catch (e) {} return { n, c: +p.el.dataset.n, t: p.el.textContent, lab: p.el.getAttribute("aria-label") || "", off: Math.round(Math.hypot(o.x || 0, o.y || 0)) }; }),
       // 자리를 못 잡은 구 묶음이 모인 '+N곳' 칩의 곳 수(없으면 0) · 화면 묶음 합 + 이 값 == 홈 숫자
       ghost: () => (window.ZP_G && ZP_G.on() ? { gus: ZP_G.gus(), more: ZP_G.more(), cam: ZP_G.last() } : null),
       attach: () => { gateOpen(); if (mapView === "seoul" && !gu) seoul(); },

@@ -197,3 +197,7 @@ main .rp-tl li a,main .rp-w li a,main .zc-h a,main ul.links>li>a,main .rp-src li
 main .rp-w li,main ul.links>li{margin:0;padding-top:11px;padding-bottom:11px}main .rp-tl li{padding-top:11px;padding-bottom:11px}
 /* 28차: 리포트 차례 — 폰에서는 화면 위에 붙는 한 줄(옆으로 밀기 · 40px 칩) */
 @media (max-width:980px){main .rp-toc{position:sticky;top:0;z-index:5;flex-wrap:nowrap;overflow-x:auto;margin:14px -16px 4px;padding:6px 16px;background:var(--bg);border-bottom:1px solid var(--divider,var(--border));scrollbar-width:none;-webkit-overflow-scrolling:touch}main .rp-toc::-webkit-scrollbar{display:none}main .rp-toc a{flex:none;min-height:40px}main h2[id]{scroll-margin-top:64px}}
+
+/* 30차: 가이드 목록 제목 링크도 누르는 자리 40px · 구역 페이지 출처 줄의 짧은 링크(RSS)도 너비 40px */
+.qsum li>a{display:inline-flex;align-items:center;min-height:40px}
+.zrow a{min-width:40px;justify-content:center}

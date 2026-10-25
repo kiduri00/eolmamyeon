@@ -107,6 +107,7 @@ for _ in range(36):
     if m == 0: y, m = y - 1, 12
     last36.append(allm.get(f'{y}-{m:02d}', 0))
 avg36 = sum(last36) / 36
+W36 = f"{y}.{m}~{Y if M > 1 else Y - 1}.{M - 1 if M > 1 else 12}"   # 30차: 36개월 창을 글에 밝힌다(호마다 창이 한 달씩 밀려 월평균이 12·13으로 달라 보이던 것)
 yearly = [(yy, sum(v for k, v in allm.items() if k.startswith(str(yy)) and (yy < Y or int(k[5:7]) <= M))) for yy in range(2016, Y + 1)]
 # ---- 지난달 늦게 올라온 인가(지난 호 발행 뒤 정보몽땅에 등록) ----
 py, pm = (Y, M - 1) if M > 1 else (Y - 1, 12); PYM = f'{py}-{pm:02d}'
@@ -340,7 +341,7 @@ NOTE_TAG = f'<p class="meta">이 글은 {md(NA)} 자료를 보고 썼어요. 숫
 tl = ''.join(f'<li><span class="rp-d">{md(d) if d else "날짜 미등록"}</span><span><b>{zlink(r["id"])}</b> <small class="meta">{esc(r["g"])} · {esc(re.sub(r"\(모아주택\)", "", r["k"]))}</small><br>{LAB[k]} · {src_of(r, k)[0]}</span></li>'
              for r, k, d in sorted(EVA, key=lambda x: (x[2] is None, x[2] or '')))
 sec_stage = f'''<h2 id="stage">1. 이달 단계가 바뀐 구역</h2>
-<p>{RNG} 사이 정보몽땅 추진경과에 날짜가 붙은 인가는 {len(ev)}건{f"이고, 날짜는 아직 없지만 단계 표시가 바뀐(또는 기사로 확인된) 곳이 {len(evn)}곳이에요" if evn else "이에요"}. 최근 36개월 평균이 한 달 {round(avg36)}건, 2016~2024년 평균이 {round(avg_base)}건이라{f" 달의 {CUT.day}일까지만 센 것을 감안해도" if PARTIAL else ""} {"조용한 편이에요" if n_ev < avg36 * 0.6 else "평소와 비슷해요" if n_ev < avg36 * 1.2 else "많은 편이에요"}. 정보몽땅에는 인가가 몇 주 늦게 올라오는 일이 잦아서, 이 숫자는 다음 갱신 때 늘 수 있어요.</p>
+<p>{RNG} 사이 정보몽땅 추진경과에 날짜가 붙은 인가는 {len(ev)}건{f"이고, 날짜는 아직 없지만 단계 표시가 바뀐(또는 기사로 확인된) 곳이 {len(evn)}곳이에요" if evn else "이에요"}. 최근 36개월({W36}) 평균이 한 달 약 {round(avg36)}건, 2016~2024년 평균이 {round(avg_base)}건이라{f" 달의 {CUT.day}일까지만 센 것을 감안해도" if PARTIAL else ""} {"조용한 편이에요" if n_ev < avg36 * 0.6 else "평소와 비슷해요" if n_ev < avg36 * 1.2 else "많은 편이에요"}. 정보몽땅에는 인가가 몇 주 늦게 올라오는 일이 잦아서, 이 숫자는 다음 갱신 때 늘 수 있어요.</p>
 {f'<ol class="rp-tl">{tl}</ol>' if tl else '<p class="note">기준일까지 정보몽땅에 날짜가 붙은 새 인가가 없어요.</p>'}
 {''.join(f'<div class="mean"><h3>{l} <small>{kinds[k]}건</small></h3><p>{MEAN[k]}{(lambda s: f" 서울 사업장 기록으로는 다음 인가까지 <b>가운데 값 {s["med"]:.1f}년</b>, 5년 안에 닿은 비율 {round(s["reach5y"]["rate"] * 100)}%예요.")(D["stats"]["large"][NEXT[k]]) if NEXT.get(k) in D["stats"]["large"] else ""}</p></div>' for k, l in EV5 if kinds.get(k))}
 <div class="zcards">{''.join(card(r, k, d) for r, k, d in ev)}{''.join(card(r, k, d, s) for r, k, d, s in evn)}</div>
@@ -348,7 +349,7 @@ sec_stage = f'''<h2 id="stage">1. 이달 단계가 바뀐 구역</h2>
 '''
 if late:
     sec_stage += f'''<h3>지난 호 뒤에 늦게 올라온 {pm}월 인가 {len(late)}건</h3>
-<p>{pm}월호는 {_pn or "?"}건으로 냈는데, 그 뒤 정보몽땅에 {pm}월 날짜로 {len(late)}건이 더 올라왔어요. 인가 소식을 정보몽땅만 보고 따라가면 2~4주 늦을 수 있다는 뜻이에요.</p>
+<p>{pm}월호에 실은 {_pn or "?"}건 말고도, 그 호를 낸 뒤 정보몽땅에 {pm}월 날짜로 {len(late)}건이 더 올라왔어요. {pm}월호 숫자는 그대로 두고 여기에 따로 적어요. 인가 소식을 정보몽땅만 보고 따라가면 2~4주 늦을 수 있다는 뜻이에요.</p>
 {tbl([("구역", 0), ("단계", 0), ("인가일(정보몽땅)", 1)], [(f'{zlink(r["id"])} <small class="meta">{esc(r["g"])}</small>', LAB[k], d[5:].replace("-", ".")) for r, k, d in late], f"{pm}월 늦게 등록된 인가", True)}'''
 if proc:
     dd = [x[5] for x in proc]
@@ -604,6 +605,7 @@ if pubs:
         keep = _fx.get(i['ym']) if i.get('manual') else None   # 손으로 낸 호는 그때의 발행 시각·설명 그대로
         pdt = keep[0] if keep else datetime.datetime.fromisoformat(i['pub']).strftime('%a, %d %b %Y 09:00:00 +0900')
         dsc = keep[1] if keep else esc(' '.join(i.get('sum3') or []) or i['title'])
+        if keep and re.fullmatch(r'인가 \d+건 · 원문 확인 \d+건', keep[1]): dsc = f"인가 {i.get('n', 0)}건 · 원문 확인 {i.get('ok', 0)}건"   # 30차: 정정으로 바뀐 건수는 따라간다(9월호 9→8건)
         return f'<item><title>{esc(ftitle(i))}</title><link>{SITE}/report/{i["ym"]}</link><guid>{SITE}/report/{i["ym"]}</guid><pubDate>{pdt}</pubDate><description>{dsc}</description></item>'
     open(os.path.join(ROOT, 'public/report/feed.xml'), 'w', encoding='utf-8').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>집핀 · 서울 정비사업 단계 변경 리포트</title><link>{SITE}/report/</link><description>매달 서울에서 인가 단계가 바뀐 정비사업</description><language>ko</language>{"".join(fitem(i) for i in pubs)}</channel></rss>')
 print(YM, 'no', no, 'cut', CUT, 'partial', PARTIAL, 'events', n_ev, '(dated', len(ev), ')', 'zones', len(zones), 'checked', n_ok, '→', title)

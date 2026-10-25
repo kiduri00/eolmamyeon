@@ -1,0 +1,19 @@
+/* ===== 30차(6차 레드팀) ===== */
+/* 상세 시트의 오프라인 알약: 아래 고정 단추 줄(관심·공유) 위로 — 단추 글자를 가리던 것 */
+@media (max-width:980px){html.sheet-open .off-bar:not([hidden]){bottom:calc(env(safe-area-inset-bottom,0px) + 82px)!important}}
+/* 읽기 쉽게 모드에서도 돈 탭의 대출 한도 근거·합계 칸 내역은 보인다(합계를 눈으로 맞춰 볼 수 있게) */
+html.simple #report .fx-loan dd small,html.simple #report .fx-tot dd small{display:block!important}
+/* 상세 시트: 붙는 탭 줄을 머리 줄 바로 밑에 붙임(머리 52px 뒤 4px 틈으로 아래 글이 비쳐 보이던 것) */
+@media (max-width:980px){#report.sheet .tabs,#report.sheet.dt .tabs{top:calc(51px + env(safe-area-inset-top,0px))}}
+/* 지도 구 묶음 글자 최소 11px(작은 묶음 8.5~10px이던 것) — 자리 잡기(ghost.js place) 폭·높이도 11px로 잰다 */
+.zgu.sm b,.zgu.sm.xs b{font-size:11px;line-height:1.05}.zgu.sm span,.zgu.sm.xs span{font-size:11px;line-height:1.05;margin-top:0}
+.zgu.sm::before{top:4px;bottom:4px}.zgu.sm.xs::before{top:6px;bottom:6px}
+/* 좁은 폰(380px 아래): '+N곳 · N개 구' 칩은 '+N곳'만(오른쪽 레이어 막대 밑으로 들어가 'N개 ㄱ'로 잘리던 것 · 구 수는 aria-label과 펼친 목록에) */
+@media (max-width:379px){.lm-gumore-b small{display:none}}
+/* '+N곳' 칩 펼친 목록: 구 이름 · 곳 수 · 금액 세 칸 줄 맞춤, 금액은 한 줄('3.4억~'의 '~'만 다음 줄로 가던 것) */
+.lm-gumore-l{min-width:196px}
+.lm-gumore-l button{align-items:center}
+.lm-gumore-l button .gm-n{flex:1 1 auto;min-width:0;white-space:nowrap}
+.lm-gumore-l button b{display:inline-flex;gap:8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.lm-gumore-l button b i{font-style:normal;min-width:2.6em;text-align:right}
+.lm-gumore-l button b i.gm-m{min-width:5.4em}

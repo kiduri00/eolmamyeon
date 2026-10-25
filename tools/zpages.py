@@ -180,7 +180,7 @@ def key3_html(r, c, dt, cap=False):
     thref = '#trust' if cls != 'na' else f'../#{rid}'
     return (f'<section class="zk" aria-label="핵심 숫자"><p class="zk-nl"><b>{esc(short(r["n"]))}</b><span>{esc(r["g"])} {esc(dong_of(r))}</span><span class="zk-st">{esc(stage)}</span></p><div class="zk-k">'
             f'<div class="zk-i{" zk-hv" if hv else ""}"><span class="zk-l">지금 필요한 돈</span><b class="zk-v">{k["lnow"] if hv else k["now"]}</b>' + (MODE if hv else '') + ('<span class="zk-s zk-ex">추정 신뢰 낮아 목록에서 뺐어요</span>' if ex else '') + f'<span class="zk-s">{esc(k["basis"])}</span>' + (f'<span class="zk-s zk-alt">{esc(k["alt"])}</span>' if k['alt'] and not hv else '') + f'<a class="zk-my" href="../#{rid}">내 돈으로 보기 ›</a></div>'
-            + (f'<div class="zk-i"><span class="zk-l">{LBL["cashToMoveIn"]}</span><b class="zk-v">{k["ltot"]}</b>{MODE}<span class="zk-s">대출 끼고 산 경우 · 잔금대출 뺀 값</span></div>' if hv and k.get('ltot') else f'<div class="zk-i"><span class="zk-l">{LBL["cashToMoveIn"]}</span><b class="zk-v">{k["tot"]}</b>' + (f'<span class="zk-s">{esc(k["tsub"] or "잔금대출 뺀 값")}</span>' if k["tsub"] or k["tot"] != "계산 보류" else '') + '</div>')
+            + (f'<div class="zk-i"><span class="zk-l">{LBL["cashToMoveIn"]}</span><b class="zk-v">{k["ltot"]}</b>{MODE}<span class="zk-s">잔금대출 뺀 값</span></div>' if hv and k.get('ltot') else f'<div class="zk-i"><span class="zk-l">{LBL["cashToMoveIn"]}</span><b class="zk-v">{k["tot"]}</b>' + (f'<span class="zk-s">{esc(k["tsub"] or "잔금대출 뺀 값")}</span>' if k["tsub"] or k["tot"] != "계산 보류" else '') + '</div>')
             + f'<div class="zk-i"><span class="zk-l">{esc(k.get("elab") or "언제 입주")}</span><b class="zk-v zk-eta">{esc(k["eta"])}</b>{ip}' + (f'<span class="zk-s">{esc(k["esub"])}</span>' if k.get('esub') else '') + '</div></div>' +
             (f'<p class="zk-cap">최신 숫자 · 기본 가정 · 데이터 기준 {UPD}</p>' if cap else '') + (f'<a class="zk-tr {cls}" href="{thref}"><span class="zk-tc">{esc(tc)}</span><span class="zk-tt">{esc(tt)}{f"<b>{esc(lv)}</b>" if lv else ""}{" · 목록에서 뺐어요" if ex and cls != "na" else ""}</span><i aria-hidden="true">›</i></a>' if k['trust'] else '') + '</section>')
 REPORT_P = lambda r: f'<p class="zk-rep"><a class="zk-rb zk-rs" href="{report_href(r)}" data-zp-contact data-kind="error" data-zone="{esc(r["id"])}" data-asof="{UPD}" data-title="이 숫자가 틀렸어요" data-meta="{esc(short(r["n"]))} · 구역 ID {esc(r["id"])} · {UPD} 기준">이 숫자가 틀렸어요</a></p><script src="/cf.js" defer></script>'
@@ -739,10 +739,18 @@ def gu_unique(g, L):
             scope = f"{g} 구역 {len(L)}곳 가운데" if len(U) == len(L) else f"{g}에서 계획 세대수 자료가 있는 {len(U)}곳 가운데"
             return f"{scope} 세대수가 가장 많은 곳은 {nm}{ro(nm)} {int(u):,}세대예요" + (f". 서울 진행 구역 {len(_UNQ['units']):,}곳(세대수 자료 있는 곳) 가운데 {rk}번째로 커요." if rk <= max(20, len(_UNQ['units']) // 10) else '.')
     adv = max(L, key=lambda x: x.get('s', 0), default=None)
+    # 30차: 같은 단계가 여럿이면(동률) 한 곳만 고르지 않고 모두(4곳 넘으면 앞 3곳 + 외 N곳)
+    tie = [x for x in L if adv and x.get('s', 0) == adv.get('s', 0) and _stage(x) == _stage(adv)] if adv else []
+    if adv and _stage(adv) and len(tie) > 1:
+        nms = [short(x['n']) for x in sorted(tie, key=lambda x: (_sdate(x) or '9999'), reverse=True)]
+        lst = '·'.join(nms[:3]) + (f" 외 {len(nms) - 3}곳" if len(nms) > 3 else '')
+        return f"{g}에서 가장 앞선 단계는 {_stage(adv)}{josa(_stage(adv), '이고', '고')}, {len(tie)}곳({lst})이 같은 단계예요."
     if adv and _stage(adv):
         nm = short(adv['n']); sd = _sdate(adv)
         return f"{g}에서 가장 앞선 곳은 {_stage(adv)} 단계인 {nm}{josa(nm, '이에요', '예요')}" + (f" ({sd[:7].replace('-', '.')} 인가·고시)." if sd else '.')
     return ''
+def dsp(v):   # 30차: 가운데 값은 화면에 보이는 값(ZF.cash 올림)끼리 — 짝수 개면 두 보이는 값의 평균을 다시 같은 규칙(올림)으로(양천 1.9·2.0 → 1.95 → 2억)
+    return math.ceil(v * 100 - 1e-6) / 100 if v < 1 else math.ceil(v * 10 - 1e-6) / 10
 def gu_note(g, L):
     """26차: 구 페이지 해설(자료로만 만든 3~6문장) — 사업 종류 · 단계 분포 · 계산되는 곳과 서울 견주기 · 보류 이유 · 거래 · 오래 머문 곳 · 역 거리
     27차: ① '전세 끼고' 칸 내역은 아래 표와 같은 갈래(숫자 있음 / 토허제 · 세입자 없음 · 입주권 없음 · 판정 보류 · 대상 아님 · 자료 부족)로 세어 합이 늘 맞게
@@ -774,11 +782,13 @@ def gu_note(g, L):
         sc = 0.8
     else:
         money = f"전세 끼고 지금 필요한 돈이 나온 곳은 {len(num)}곳이에요."
+        # 30차: 참고값이 섞이면 늘 '참고값을 뺀 N곳'(첫 화면 곳 수에 드는 수)을 밝힌다 — 강동구처럼 5곳 미만이라 견주기 문장이 없을 때도
+        if len(ok) != len(num): money += f" 이 중 참고값을 뺀 {len(ok)}곳이 첫 화면 곳 수에 들어가요."
         sc = 0.3
         if len(ok) >= 5 and allok:
-            gm, sm = med([cg(x)['gapNow'] for x in ok]), med(allok)
+            gm, sm = med([dsp(cg(x)['gapNow']) for x in ok]), med([dsp(v) for v in allok])
             cmpw = '보다 많이 들어요' if gm > sm * 1.05 else '보다 적게 들어요' if gm < sm * 0.95 else '과 비슷해요'
-            money += (f" 참고값을 뺀 {len(ok)}곳의" if len(ok) != len(num) else "") + f" 가운데 값은 {eok(gm)}{ro(eok(gm))}, 서울 전체 가운데 값 {eok(sm)}{cmpw}."
+            money += (f" 그 {len(ok)}곳의" if len(ok) != len(num) else "") + f" 가운데 값은 {eok(gm)}{ro(eok(gm))}, 서울 전체 가운데 값 {eok(sm)}{cmpw}."
             sc = abs(gm / sm - 1) * 2 if sm else 0.3
         if rest: money += f" 나머지 {sum(rest.values())}곳은 아직 계산하지 않았어요: {parts}."
         if rest.get('토허제', 0) >= max(3, N * 0.3): sc = max(sc, 1.2)
@@ -857,7 +867,8 @@ def guPage(g, L):
     why = collections.Counter(gapWhy(c(x))[0] for x in L if not c(x).get('gapOk') and gapWhy(c(x)))
     EXP = {'토허제': '토지거래허가구역이라 사면 2년 실거주해야 해서 전세를 끼고 살 수 없어요', '세입자 없음': '이주·철거가 시작돼 전세를 낄 세입자가 없어요(입주권으로 사야 해요)',
            '입주권 없음': '지금 사면 입주권이 안 나오는 시점이에요(조합설립인가 등 이후 매수분)', '판정 보류': '입주권이 나오는지 판단할 자료가 부족해요', '대상 아님': '상가·업무 중심 사업 등 아파트 입주권 계산 대상이 아니에요'}
-    if why: o.append('<p class="meta">전세 끼고 칸이 비어 있는 이유: ' + ' · '.join(f'<b>{k}</b>({v}곳) {EXP[k]}' for k, v in why.most_common()) + '. –는 매수가·전세 자료가 부족한 곳이에요.</p>')
+    nd = sum(1 for x in L if not c(x).get('gapOk') and not gapWhy(c(x)))
+    if why or nd: o.append('<p class="meta">전세 끼고 칸이 비어 있는 이유: ' + ' · '.join([f'<b>{k}</b>({v}곳) {EXP[k]}' for k, v in why.most_common()] + ([f'<b>자료 부족</b>({nd}곳) 매수가·전세 자료가 부족하거나 같은 구 시세로만 추정한 곳이에요'] if nd else [])) + '.</p>')
     o.append(f'<p class="meta">새 소식 받기: <a href="../feed/gu/{esc(g)}.xml">{esc(g)} RSS</a></p>')
     o.append('<p class="note">무주택·84㎡·시세 상승 0% 같은 기본 가정으로 계산한 추정이에요. 내 조건은 <a href="../">찾기(첫 화면)</a>에서 바꿔 볼 수 있어요. 투자 권유가 아니에요.</p>')
     o.append(FOOT.format(upd=UPD))
@@ -871,7 +882,7 @@ def gu_compare():
     okv = LISTED
     cnt = sorted(((g, len(L)) for g, L in byg.items()), key=lambda z: (-z[1], z[0]))
     med = lambda v: statistics.median(v)
-    gm = sorted(((g, med([cg(x)['gapNow'] for x in L if okv(x)]), sum(1 for x in L if okv(x))) for g, L in byg.items() if sum(1 for x in L if okv(x)) >= 3), key=lambda z: z[1])
+    gm = sorted(((g, med([dsp(cg(x)['gapNow']) for x in L if okv(x)]), sum(1 for x in L if okv(x))) for g, L in byg.items() if sum(1 for x in L if okv(x)) >= 3), key=lambda z: z[1])
     allok = [x for x in R if okv(x)]
     stc = collections.Counter(_stage(x) for x in R if _stage(x))
     early = sum(v for k, v in stc.items() if k in ('정비계획 수립', '정비구역 지정', '추진위원회 승인', '주민합의체·준비위원회'))
@@ -886,7 +897,7 @@ def gu_compare():
               if len(cnt) >= 5 else '')
     if gm:
         n15 = sum(1 for x in allok if cg(x)['gapNow'] <= 15 + 1e-9)   # 29차: 첫 화면 막대 끝(15억+)이 세는 곳과 같은 기준을 밝힌다
-        P_.append(f"전세 끼고 지금 필요한 돈이 계산되는 곳은 서울 전체에 {len(allok):,}곳이에요(가운데 값 {eok(med([cg(x)['gapNow'] for x in allok]))}" + (f" · 15억 안쪽은 {n15:,}곳으로 첫 화면 ‘15억+’의 곳 수와 같아요" if n15 != len(allok) else "") + f"). 신뢰가 낮은 참고값은 넣지 않았어요. 이런 곳이 3곳 이상인 구만 놓고 구별 가운데 값을 비교하면 "
+        P_.append(f"전세 끼고 지금 필요한 돈이 계산되는 곳은 서울 전체에 {len(allok):,}곳이에요(가운데 값 {eok(med([dsp(cg(x)['gapNow']) for x in allok]))}" + (f" · 15억 안쪽은 {n15:,}곳으로 첫 화면 ‘15억+’의 곳 수와 같아요" if n15 != len(allok) else "") + f"). 신뢰가 낮은 참고값은 넣지 않았어요. 이런 곳이 3곳 이상인 구만 놓고 구별 가운데 값을 비교하면 "
                   + ', '.join(f"{g} {eok(v)}({n}곳)" for g, v, n in gm[:3]) + "이 가장 적게 들고, "
                   + ', '.join(f"{g} {eok(v)}" for g, v, n in gm[-2:][::-1]) + "이 가장 많이 들어요. 같은 구 안에서도 구역마다 몇 배씩 차이가 나니 구 이름보다 구역별 숫자를 먼저 보는 게 좋아요.")
     if stc:
@@ -899,8 +910,8 @@ def gu_compare():
         P_.append(f"토지거래허가 때문에 전세를 끼고 살 수 없는 곳은 {sum(th.values()):,}곳이고, " + ', '.join(f"{g} {n}곳" for g, n in t3) + " 순으로 많아요. 이런 구는 목록의 ‘전세 끼고’ 칸이 비어 보이는데, 자료가 없어서가 아니라 사면 2년 동안 직접 살아야 하기 때문이에요.")
     tt = [x for x in allok if cg(x).get('gapTotal') is not None]
     if len(tt) >= 10:
-        tg = sorted(((g, med([cg(x)['gapTotal'] for x in tt if x['g'] == g]), sum(1 for x in tt if x['g'] == g)) for g in byg if sum(1 for x in tt if x['g'] == g) >= 3), key=lambda z: z[1])
-        P_.append(f"계약할 때 드는 돈과 입주할 때까지 드는 돈은 달라요. 전세 끼고 산 뒤 입주까지 들어가는 현금(입주 잔금대출 제외)이 계산되는 {len(tt):,}곳의 가운데 값은 {eok(med([cg(x)['gapTotal'] for x in tt]))}이에요."
+        tg = sorted(((g, med([dsp(cg(x)['gapTotal']) for x in tt if x['g'] == g]), sum(1 for x in tt if x['g'] == g)) for g in byg if sum(1 for x in tt if x['g'] == g) >= 3), key=lambda z: z[1])
+        P_.append(f"계약할 때 드는 돈과 입주할 때까지 드는 돈은 달라요. 전세 끼고 산 뒤 입주까지 들어가는 현금(입주 잔금대출 제외)이 계산되는 {len(tt):,}곳의 가운데 값은 {eok(med([dsp(cg(x)['gapTotal']) for x in tt]))}이에요."
                   + (f" 구별로는 {tg[0][0]}가 {eok(tg[0][1])}{ro(eok(tg[0][1]))} 가장 적고 {tg[-1][0]}가 {eok(tg[-1][1])}{ro(eok(tg[-1][1]))} 가장 많아요." if len(tg) >= 2 else ''))
     kc = collections.Counter(KIND.get(x['k'], x['k']) for x in R)
     rb = sorted(((g, sum(1 for x in L if x['k'] in ('재건축', '소규모재건축')), len(L)) for g, L in byg.items() if len(L) >= 10), key=lambda z: -z[1] / z[2])
@@ -1002,11 +1013,13 @@ if _IJ and os.path.exists(_IX):
         _hi = max(_full, key=lambda x: x.get('n', 0)) if _full else None; _lo = min(_full, key=lambda x: x.get('n', 0)) if _full else None
         _p = []
         if _full:
-            _p.append(f"달 전체 자료로 낸 {len(_full)}개 호({', '.join(_mo(x) for x in _full)})를 합치면 단계가 바뀐 인가는 모두 {_tn}건, 한 달에 평균 {_tn / len(_full):.1f}건이고, 그중 {_tok}건({round(_tok / max(1, _tn) * 100)}%)은 기사나 구청·서울시 고시로 날짜까지 맞춰 봤어요."
+            _p.append(f"달 전체 자료로 낸 {len(_full)}개 호({', '.join(_mo(x) for x in _full)})를 합치면 단계가 바뀐 인가는 모두 {_tn}건, 한 달에 평균 {_tn / len(_full):.1f}건이고, 그중 {_tok}건({(lambda v: f'{v:.1f}'.rstrip('0').rstrip('.'))(_tok / max(1, _tn) * 100)}%)은 기사나 구청·서울시 고시로 날짜까지 맞춰 봤어요."
                       + (f" 가장 많았던 달은 {_mo(_hi)}({_hi['n']}건), 가장 적었던 달은 {_mo(_lo)}({_lo['n']}건)이에요." if _hi and _lo and _hi is not _lo else ''))
         _pt = [x for x in _iss if x.get('partial')]
         for x in _pt:
             _p.append(f"{_mo(x)}호는 {x['asof'][5:7].lstrip('0')}월 {x['asof'][8:10].lstrip('0')}일까지 올라온 자료로 먼저 냈어요. 지금까지 확인한 인가는 {x.get('n', 0)}건(원문 확인 {x.get('ok', 0)}건)이고, 다음 달 초 그달 전체 자료로 같은 주소에서 다시 써요. 그때 늦게 올라온 인가가 더해지면 숫자가 늘 수 있어요.")
+        # 30차: 지난 호 숫자는 그 호를 낸 날 기준 — 늦게 올라온 인가는 다음 호에 따로(합계에 넣지 않음)
+        for x in [x for x in _full if x.get('late')]: _p.append(f"{_mo(x)}호 숫자({x.get('n', 0)}건)를 낸 뒤 정보몽땅에 {_mo(x)} 날짜로 늦게 올라온 인가 {x['late']}건은 그 호 숫자와 위 합계에 넣지 않고 다음 호에 따로 실었어요.")
         if _full:
             _p.append("호마다 원문과 맞춘 비율은 " + ', '.join(f"{x['no']}호({_mo(x)}) {x.get('n', 0)}건 중 {x.get('ok', 0)}건" for x in _full) + "이에요. 원문을 못 찾은 건도 지우지 않고 '원문 미확인'으로 표시해 두고, 나중에 찾으면 그 호에 링크를 붙여요.")
         _p.append("리포트의 금액(1억·2억·3억으로 갈 수 있는 곳 수 등)은 그 호를 낸 날의 자료와 기본 가정(무주택·84㎡)으로 셌어요. 지난 호에 적힌 곳 수는 그 호를 낸 날 숫자라서, 지금 숫자는 찾기 화면에서 보는 게 정확해요.")
