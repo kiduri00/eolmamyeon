@@ -40,12 +40,17 @@ const TNAV = {
 // 그림 자리(slot) → 디자인 키트(TKIT · tools/build.py가 src/tapp/kit/*.svg에서 넣음)가 있으면 키트, 없으면 위 임시 그림(fb = TI 열쇠)
 let tUid = 0;
 const tKit = (slot) => !!(slot && TKIT[slot]);
+const tKitSvg = (svg, sz, c) => {
+  const u = "u" + (++tUid);
+  return svg.replace(/__U__/g, "-" + u + "-").replace(/^<svg\b([^>]*)>/, (m, a) => `<svg${a.replace(/\s(width|height|class|aria-hidden|focusable|role)="[^"]*"/g, "")} class="${c}" width="${sz}" height="${sz}" aria-hidden="true" focusable="false">`);
+};
+// 키트에 '-dark' 짝이 있으면 둘 다 넣고 CSS(.tk-l/.tk-d)가 밝게·어둡게에 맞는 하나만 보인다
 const tIcon = (k, s, cls, slot) => {
   const sz = s || 34, c = cls || "ti";
   const kit = slot && TKIT[slot];
   if (kit) {
-    const u = "u" + (++tUid);
-    return kit.replace(/__U__/g, "-" + u + "-").replace(/^<svg\b([^>]*)>/, (m, a) => `<svg${a.replace(/\s(width|height|class|aria-hidden|focusable)="[^"]*"/g, "")} class="${c} tk" width="${sz}" height="${sz}" aria-hidden="true" focusable="false">`);
+    const dk = TKIT[slot + "-dark"];
+    return dk ? tKitSvg(kit, sz, c + " tk tk-l") + tKitSvg(dk, sz, c + " tk tk-d") : tKitSvg(kit, sz, c + " tk");
   }
   return `<svg class="${c}" width="${sz}" height="${sz}" viewBox="0 0 40 40" aria-hidden="true" focusable="false">${TI[k] || ""}</svg>`;
 };

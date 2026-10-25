@@ -64,7 +64,7 @@ const NAVO = {
 };
 const SV = (b) => `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"`;
 const NAVF = {
-  home: `<path d="${TNAV.home}" fill="currentColor"/><path d="M10 20.5v-4.6a2 2 0 0 1 4 0v4.6" stroke="var(--t-pg)" stroke-width="1.8"/>`,
+  home: `<path d="${TNAV.home}" fill="currentColor"/>`,
   map: `<path d="M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2z" fill="currentColor"/><path d="M9 4.6v13.2M15 6.4v13.2" stroke="var(--t-pg)" stroke-width="1.6"/>`,
   fav: `<path d="${"M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.4 7.2 4.4c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.5 3.1 4.4 6.5-1.6 4.8-9.2 9.4-9.2 9.4z"}" fill="currentColor"/>`,
   news: `<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4z" fill="currentColor"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>`,
