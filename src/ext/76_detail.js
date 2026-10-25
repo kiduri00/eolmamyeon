@@ -32,7 +32,7 @@ const DTL = (() => {
         // 27차: 대출 끼고 사는 값을 칸의 큰 값으로(+ '대출 끼고' 꼬리표) — '계산 보류' 칸과 아래 한 줄이 같은 말을 두 번 하던 것(/z zsample.key3 lnow·ltot와 같은 값)
         if (x && ok(x.needBuy) && !r.lc && r.tag !== "mk") { o.lnow = x.needBuy; if (x.ok && ok(x.needTotal)) o.ltot = x.needTotal; }
       } else if (!g || g.na || !g.x || !ok(g.x.price)) o.basis = noPriceTxt(r);
-      else o.basis = `전세 끼고 · 매수가 ${ZF.manT(g.x.price)} − 전세 ${ZF.manT(Math.round(g.D * 100) / 100)}${g.x.tax >= 0.005 ? " (+취득세)" : ""}`;
+      else o.basis = `전세 끼고 · 매수가 ${ZF.manT(g.x.price)} − 전세 ${ZF.manT(g.D)}${g.x.tax >= 0.005 ? " (+취득세)" : ""}`;
     } else if (!x || !ok(x.needBuy)) o.basis = x && x.price == null ? noPriceTxt(r) : "지금 필요한 돈을 계산하지 못했어요";
     else o.basis = x.loanCap >= 0.005 ? `대출 끼고 · 매수가 ${ZF.manT(x.price)} − 대출 ${ZF.manT(x.loanCap)}${x.tax >= 0.005 ? " (+취득세)" : ""}` : `대출 안 나와요 · 매수가 ${ZF.manT(x.price)}${x.tax >= 0.005 ? " (+취득세)" : ""}`;
     if (o.total == null && !o.why2) o.why2 = x && x.price != null ? ZF.noCalcTxt(r, x) : "입주 시점·신축 시세 자료가 부족해요";

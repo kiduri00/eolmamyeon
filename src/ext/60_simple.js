@@ -957,7 +957,9 @@ const SIMPLE = (() => {
     $("sLS").removeAttribute("title");
     { const t = $("sSortT"); if (t && t.textContent !== sortName()) t.textContent = sortName(); }
     scrubPaint(all);
-    if (lite) { sumR(L, all); return; }
+    // 30차: 구를 고른 동안 이름 줄 '외 N곳'도 그 구 곳 수에서(큰 숫자와 같은 값) — '구로구 3곳' 밑에 '외 51곳'이 서던 것
+    const sumAll = gu ? L.length : all;
+    if (lite) { sumR(L, sumAll); return; }
     const sg = $("sGu");
     sg.hidden = !gu && !bbF;
     if (!gu && bbF) { sg.innerHTML = `<button type="button" class="s-bbx" id="sBbX" aria-label="지도 범위만 보기 해제 · 지금 ${fmt(L.length)}곳">지도 범위만 · ${fmt(L.length)}곳<i aria-hidden="true">✕</i></button>`; $("sBbX").onclick = () => { bbF = null; shown = SHOW0(); render(); const f = $("sList").querySelector("[data-id]"); if (f) f.focus({ preventScroll: true }); }; }
@@ -972,7 +974,7 @@ const SIMPLE = (() => {
     { const gx = $("sGuAll"); if (gx) gx.onclick = () => { const x = $("sGuX"); if (x) x.click(); }; }
     { const bx = $("sBbAll"); if (bx) bx.onclick = () => { bbF = null; render(); }; }
     { const ku = $("sKindUp"); if (ku) ku.onclick = () => { setCash(+ku.dataset.v, true); const f = $("sList").querySelector("[data-id]"); if (f) f.focus({ preventScroll: true }); }; }
-    sumR(L, all);
+    sumR(L, sumAll);
     try { window.ZP_alSlot && window.ZP_alSlot(); } catch (e) {}
     const m = $("sMore");
     m.hidden = L.length <= shown;
