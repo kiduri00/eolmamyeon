@@ -430,13 +430,21 @@ function onbOpen() {
   });
 }
 
+/* ---------- 빈 관심 구역: 키트 그림(empty-fav)으로 ---------- */
+function emptyDeco() {
+  if (!tKit("empty-fav")) return;
+  const run = () => document.querySelectorAll(".pn-empty:not([data-tk])").forEach((e) => { e.dataset.tk = "1"; const sv = e.querySelector(":scope > svg"); const w = document.createElement("span"); w.className = "t-empty"; w.innerHTML = tIcon("", 160, "", "empty-fav"); if (sv) sv.replaceWith(w); else e.prepend(w); });
+  run();
+  const f = $("favTop"); if (f) try { new MutationObserver(run).observe(f, { childList: true, subtree: true }); } catch (e) {}
+}
+
 /* ---------- 시작 ---------- */
 function ready() { return !!(window.ZP_simple && window.ZP_T0 && $("sNav") && H.classList.contains("s-built") && document.body); }
 function start() {
   if (start.d) return; start.d = 1;
   H.classList.add("is-app");
   patchHistory();
-  navBuild(); bindClicks(); homeBuild(); feedBuild();
+  navBuild(); bindClicks(); homeBuild(); feedBuild(); emptyDeco();
   H.classList.remove("tapp-wait");
   H.classList.add("tapp-on");
   // 관심 구역·소식 숫자: 자료를 받으면 종·소식 탭에
