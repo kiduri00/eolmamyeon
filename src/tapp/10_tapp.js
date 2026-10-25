@@ -24,7 +24,7 @@ function patchHistory() {
   const P = history.pushState.bind(history), Rp = history.replaceState.bind(history);
   // tF: 지도 탭(화면 가득 지도) 안에서 쌓은 칸(구 화면·구역 시트·하위 시트) — 뒤로 와도 지도 탭으로(60_simple.js popstate가 읽음)
   const inMap = () => H.classList.contains("s-full");
-  history.pushState = function (s, t, u) { const d = dep() + 1; if (s == null || typeof s === "object") { s = Object.assign({}, s || {}, { tD: d }); if (inMap() && !s.sFull) s.tF = 1; } return P(s, t, u); };
+  history.pushState = function (s, t, u) { const d = dep() + 1; if (s == null || typeof s === "object") { s = Object.assign({}, s || {}, { tD: d }); if (inMap() && !s.sFull && !s.tL) s.tF = 1; } return P(s, t, u); };
   history.replaceState = function (s, t, u) { const d = dep(), f = !!(history.state && history.state.tF) && inMap(); if ((d || f) && (s == null || typeof s === "object")) { s = Object.assign({}, s || {}); if (d) s.tD = d; if (f && !s.sFull) s.tF = 1; } return Rp(s, t, u); };
 }
 // 처음 칸(홈)으로 돌아간 뒤 cb — 열린 화면·시트·전체 지도는 각자의 뒤로 가기(popstate) 처리로 닫힌다
@@ -140,7 +140,8 @@ function bindClicks() {
     if (e.target.closest("#hdrBell")) { e.preventDefault(); e.stopImmediatePropagation(); goTab("news"); return; }
     if (!homeReset && e.target.closest("#hdr a.logo")) { e.preventDefault(); e.stopImmediatePropagation(); goTab("home"); return; }
     // 지도 탭 '목록 보기': 지도 탭 안의 목록(아래 탭 '지도' 그대로 · 목록에서 연 구역을 닫으면 목록으로 · 뒤로 = 홈)
-    if (e.target.closest("#sFullX") && H.classList.contains("s-full")) { try { history.replaceState({ tL: 1, tD: dep() }, "", location.pathname + location.search); } catch (er) {} setTimeout(navMark, 0); return; }
+    // 3라운드: 목록에 기록 한 칸(지도 칸은 그대로) → 목록에서 뒤로 = 지도 탭
+    if (e.target.closest("#sFullX") && H.classList.contains("s-full")) { try { history.pushState({ tL: 1 }, "", location.pathname + location.search); } catch (er) {} setTimeout(navMark, 0); return; }
     if (e.target.closest('#tHome [data-tile="save"]')) tSave = Date.now();
     const tm = e.target.closest("[data-tmap]");
     if (tm) { e.preventDefault(); e.stopImmediatePropagation(); goTab("map"); return; }
@@ -172,12 +173,35 @@ function toolMark(id) {
   H.classList.toggle("t-tool", !!tool);
   if (!tool) { H.classList.remove("t-save"); return; }
   barBuild();
-  const save = id === "planner" && (Date.now() - tSave < 3000 || location.hash === "#saveTop");
+  const save = id === "planner" && (Date.now() - tSave < 3000 || location.hash === "#saveTop" || (window.ZP_H0 === "#saveTop" && !toolMark.d));
+  toolMark.d = 1;
   H.classList.toggle("t-save", save);
   const t = save ? TOOL_T.saveTop : TOOL_T[id] || ((($(id) || document).querySelector(".sec-h h2") || {}).textContent || "").trim();
   const bt = $("tBarT"); if (bt) bt.textContent = t;
   if (id === "diagTop") T(() => { const h = $("diagTop").querySelector(".sec-h h2"); if (h && h.textContent !== "입주권 나오나") h.textContent = "입주권 나오나"; });
+  if (save) T(saveCash);
   if (save) { tSave = 0; setTimeout(() => { if (H.classList.contains("t-save") && location.hash === "#planner") T(() => history.replaceState(history.state, "", location.pathname + location.search + "#saveTop")); }, 0); [0, 120, 400, 1000].forEach((ms) => setTimeout(() => { if (H.classList.contains("t-save")) window.scrollTo({ top: 0, behavior: "auto" }); }, ms)); }
+}
+
+// 3라운드: 모으면 언제(따로 화면) — 숨긴 계산표를 '위'로 가리키던 문구를 바꾸고, 출발 현금 줄 + '바꾸기'(홈과 같은 금액 시트)
+function saveCash() {
+  const sec = $("saveTop"); if (!sec) return;
+  const sub = sec.querySelector(".pl-save-sub");
+  const cash = () => ((($("sCashV") || {}).textContent) || "").replace(/\s+/g, "");
+  const paint = () => {
+    const c = cash();
+    if (sub) { const t = `지금 현금 ${c}에 매달 모으는 돈을 더하면 언제 몇 곳이 되는지 보여 드려요 · 곳 수는 홈 '갈 수 있는 곳'과 같은 기준`; if (sub.textContent !== t) sub.textContent = t; }
+    let r = $("tSvCash");
+    if (!r) {
+      r = document.createElement("p"); r.id = "tSvCash"; r.className = "t-svcash";
+      r.innerHTML = `<span>지금 현금 <b></b></span><button type="button" class="t-svch">바꾸기</button>`;
+      (sec.querySelector(".sec-h") || sec.firstElementChild).after(r);
+      r.querySelector("button").addEventListener("click", () => { const b = $("sCashBtn"); if (b) b.click(); });
+    }
+    const b = r.querySelector("b"); if (b.textContent !== c) b.textContent = c;
+  };
+  paint();
+  if (!saveCash.o) { saveCash.o = 1; const v = $("sCashV"); if (v) try { new MutationObserver(paint).observe(v, { subtree: true, childList: true, characterData: true }); } catch (e) {} }
 }
 
 /* ---------- 3. 첫 화면: 검색 · 아이콘 10개 · 배너 ---------- */
@@ -259,8 +283,9 @@ function valBuild() {
     const n = (($("sN") || {}).textContent || "").trim(), c = ((($("sCashV") || {}).textContent) || "").replace(/\s+/g, "") || T(() => X().ZF().cash(X().cash()), "");   // 내 돈 카드 글 그대로(섬 단계에서도 같은 값)
     if (!/^\d[\d,]*$/.test(n) || !c) { v.hidden = true; return; }
     v.hidden = false;
-    const h = `내 돈 <b>${esc(c)}</b>으로 갈 수 있는 재개발·재건축 <b>${esc(n)}곳</b>`;
-    if (v.innerHTML !== h) { v.innerHTML = h; v.setAttribute("aria-label", `내 돈 ${c}으로 갈 수 있는 재개발·재건축 ${n}곳 · 내 돈 카드로 가기`); }
+    // 3라운드(리드): 숫자 없이 스토어 카피와 같은 한 줄 — 숫자는 바로 아래 내 돈 카드가 맡는다
+    const h = `내 돈으로 갈 수 있는 <b>서울 재개발</b>`;
+    if (v.innerHTML !== h) { v.innerHTML = h; v.setAttribute("aria-label", `내 돈으로 갈 수 있는 서울 재개발 · 지금 ${c}으로 ${n}곳 · 내 돈 카드로 가기`); }
   };
   paint();
   const g = $("sGauge"); if (g) try { new MutationObserver(paint).observe(g, { subtree: true, childList: true, characterData: true }); } catch (e) {}
@@ -356,9 +381,11 @@ function badge() {
   const nb = document.querySelector('#sNav [data-nav="news"]'); if (nb) nb.setAttribute("aria-label", n ? `소식, 새 소식 ${t}건` : "소식");
   const sn = $("tSegN"); if (sn) { sn.hidden = !n; sn.textContent = t; }
 }
+// 3라운드: 날짜 머리 종류별(실거래 신고·등록분 · 경공매 공고분 · 고시 고시일) · 전체 보기는 등록
+const DH = { trade: "신고·등록분", auction: "공고분", notice: "고시일", stage: "등록", price: "계산" };
 function dLabel(d) {
   const t = today(), x = new Date(d + "T00:00:00Z"), md = `${x.getUTCMonth() + 1}.${x.getUTCDate()} (${"일월화수목금토"[x.getUTCDay()]})`;
-  return `${md} 신고·등록분`;   // 2라운드: 날짜 머리 = 공개 자료에 올라온 날(계약일 아님 · 줄마다 '등록 · 계약' 따로)
+  return `${md} ${(fType && DH[fType]) || "등록"}`;   // 2라운드: 날짜 머리 = 공개 자료에 올라온 날(계약일 아님 · 줄마다 '등록 · 계약' 따로)
 }
 function feedRows() {
   const L = units().filter((u) => !fType || u.e.type === fType).map((u) => ({ e: u.e, n: u.items.length, ids: u.ids, u }));
@@ -391,7 +418,7 @@ function feedHTML() {
     const isN = uNew(u, s) && !muted(e.type);
     // 아이콘: 신고가만 노란 태그 ↑ · 그냥 실거래는 회색 태그(↑ 없음) · 단계·고시·경공매·필요한 돈은 각자 키트 그림
     const fs = e.type === "trade" ? (e.hi ? "feed-trade" : "feed-deal") : "feed-" + e.type, ic = tKit(fs) ? `<span class="tf-ic">${tIcon("", 28, "", fs)}</span>` : "";
-    const inner = `${ic}<span class="tf-tx"><b>${esc(nm)}${ids.length > 1 ? `<span class="tf-more2"> 외 ${ids.length - 1}곳</span>` : ""}</b><small>${esc(rowText(e))}${n > ids.length ? ` · 같은 소식 ${n}건` : ""}</small><span class="tf-meta"><span class="tf-tg ${tc}">${tl}</span><span class="tf-g">${esc(e.g || "")}</span></span></span>${isN ? '<i class="tf-dot" aria-hidden="true"></i>' : ""}`;
+    const inner = `${ic}<span class="tf-tx"><b>${esc(nm)}${ids.length > 1 ? `<span class="tf-more2"> 외 ${ids.length - 1}곳</span>` : ""}</b>${ids.length > 1 ? `<span class="tf-oth">함께: ${esc(ids.slice(1).map((i) => { const z = T(() => X0.byId(i), null); return z ? String(T(() => (window.ZP_labName ? ZP_labName(z) : X0.name(z.n)), z.n)).replace(/\s+·/g, "·") : i; }).join(", "))}</span>` : ""}<small>${esc(rowText(e))}${n > ids.length ? ` · 같은 소식 ${n}건` : ""}</small><span class="tf-meta"><span class="tf-tg ${tc}">${tl}</span><span class="tf-g">${esc(e.g || "")}</span></span></span>${isN ? '<i class="tf-dot" aria-hidden="true"></i>' : ""}`;
     return `<li>${r ? `<button type="button" class="tf-it" data-open="${esc(e.id)}"${isN ? ' aria-describedby="tfNewL"' : ""}>${inner}</button>` : `<a class="tf-it" href="z/${encodeURIComponent(e.id)}">${inner}</a>`}</li>`;
   };
   const list = sh.length ? `<ol class="tf-list">${[...by].map(([d, rs]) => `<li><h3 class="tf-dh">${dLabel(d)}</h3><ul class="tf-dl">${rs.map(row).join("")}</ul></li>`).join("")}</ol>` : `<p class="tf-empty">${tKit("empty-feed") ? tIcon("", 160, "", "empty-feed") : ""}최근 ${CH.days || 30}일 동안 이 종류 소식이 없어요</p>`;
@@ -440,20 +467,22 @@ function feedBuild() {
     if (e.target.closest("[data-fmore]")) { fShown += 100; feedRender(); }
   });
   n.dataset.tseg = "all";
-  addEventListener("zp:view", (e) => {
-    if (e.detail !== "news") return;
+  addEventListener("zp:view", (e) => { if (e.detail === "news") newsEnter(); });
+}
+// 소식 탭에 들어올 때(탭 누름·콜드 /#news·정적 페이지 탭·알림 클릭 /#news 모두 이 한 길) — 아직 안 그렸으면 지금 그린다
+function newsEnter() {
+    if (!$("tFeed")) { feedBuild(); if (!$("tFeed")) return; }
     fSeen0 = null;
     // 관심 구역에 새 소식이 있으면 그쪽부터(빨간 숫자를 누르고 들어온 사람) · 아니면 이번에 고른 쪽 · 처음엔 전체 소식
     const mine = T(() => X().inbox().count(), 0);
     feedLoad().then(() => { fSeen0 = fSeen(); segSet(mine > 0 ? "mine" : ssG("zp.tseg") || "all"); });
     segSet(mine > 0 ? "mine" : ssG("zp.tseg") || "all");
-  });
 }
 
 /* ---------- 5. 처음 실행 안내(3장 · 한 번) ---------- */
 const OK = "zp.tonb";
 const CASHES = [[0.5, "5,000만"], [1, "1억"], [2, "2억"], [3, "3억"], [5, "5억"], [7, "7억"], [10, "10억"], [15, "15억"]];
-let ob = null, obStep = 0, obCash = null;
+let ob = null, obStep = 0, obCash = null, obKey = "done";
 function onbNeed() { return lsG(OK) !== "1" && !(location.hash.length > 1); }
 function onbClose(done, pop) {
   if (!ob) return;
@@ -483,7 +512,8 @@ function onbHTML() {
       `<p class="tob-note">지도·목록에서 구역을 열고 ♡를 눌러도 담겨요.</p>`;
     foot = `<button type="button" class="tob-go" data-onext>다음</button>`;
   } else {
-    const st = T(() => X0.inbox().st(), null), can = st && st.can && st.perm !== "denied";
+    // 키를 아직 받는 중이고 온라인이면 켤 수 있는 쪽으로 본다(받기가 끝나면 다시 그림) · 막혔거나 지원 안 하는 기기만 '켤 수 없어요'
+    const st = T(() => X0.inbox().st(), null), can = st && st.perm !== "denied" && st.perm !== "unsupported" && (st.can || (obKey === "pending" && navigator.onLine !== false));
     body = `<span class="tob-art${tKit("onb-3") ? " k" : ""}">${tIcon("bell", 68, "", "onb-3")}</span><p class="tob-k">3 / 3 · 알림</p><h2 id="tobT" tabindex="-1">새 소식을 알림으로 받을까요?</h2><p class="tob-p">관심 구역에 새 실거래·단계·경매 소식이 생기면 매일 아침 한 번 알려 드려요. 종류는 MY › 알림 설정에서 골라요.</p>` +
       (st && st.on ? `<p class="tob-ok" role="status">알림이 켜져 있어요</p>` : can ? `<p class="tob-ok" id="tobMsg" role="status" hidden></p>` : `<p class="tob-ok" role="status">${st && st.perm === "denied" ? "알림이 막혀 있어요 · 폰 설정 → 애플리케이션(또는 앱) → 집핀 → 알림에서 허용할 수 있어요" : "지금은 이 기기에서 폰 알림을 켤 수 없어요 · 새 소식은 소식 탭에 모아 드려요"}</p>`);
     foot = (can && !(st && st.on) ? `<button type="button" class="tob-go" data-oalert>알림 켜기</button><button type="button" class="tob-sub" data-odone>나중에</button>` : `<button type="button" class="tob-go" data-odone>시작하기</button>`);
@@ -503,6 +533,9 @@ function onbOpen() {
   document.querySelectorAll("body > *").forEach((x) => { if (x !== ob && !x.inert && !/^(SCRIPT|STYLE|LINK)$/.test(x.tagName)) { x.inert = true; x.setAttribute("data-tinert", ""); } });
   H.classList.add("tob-on");
   obStep = 0; obCash = null;
+  // 3라운드: 푸시 키(/api/push/key)를 안내를 열 때 미리 받는다 — 전에는 MY를 열어야 받아서 3/3이 늘 '켤 수 없어요'였다 · 도착하면 3/3을 다시 그림
+  obKey = "pending";
+  T(() => Promise.resolve(X().inbox().pushKey()).then(() => { obKey = "done"; if (ob && obStep === 2) onbPaint(false); }, () => { obKey = "done"; }));
   onbPaint(true);
   // 뒤로 가기 = 안내 닫기(건너뛰기와 같음 · 다시 안 뜸)
   T(() => window.ZL && ZL.open("tonb", () => onbClose(false, true)));
@@ -547,7 +580,7 @@ function myBuild() {
     grp.appendChild(p);
   }
   // 2라운드: 알림이 막혀 있으면 종류 스위치는 '꺼짐' 모양 + aria-disabled(누를 수 없음) · 흐리게(opacity) 하지 않는다(글자 대비) · 안내는 한 줄
-  const DENY_T = `알림이 막혀 있어요 · 폰 ${/iPhone|iPad|iPod/.test(navigator.userAgent) ? "설정 → 알림 → 집핀" : "설정 → 애플리케이션(또는 앱) → 집핀 → 알림"}에서 허용해 주세요`;
+  const DENY_T = `폰 ${/iPhone|iPad|iPod/.test(navigator.userAgent) ? "설정 → 알림 → 집핀" : "설정 → 애플리케이션(또는 앱) → 집핀 → 알림"}에서 허용해 주세요`;
   let busy = false;
   T(() => { const a = document.querySelector('#my a[data-menu="diagTop"] .my-t'); if (a) { a.querySelector("b").textContent = "입주권 나오나"; const sm = a.querySelector("small"); if (sm) sm.textContent = "이 매물을 사면 입주권이 나오는지"; } });
   const deny = () => {
@@ -592,8 +625,11 @@ function start() {
   navBuild(); bindClicks(); homeBuild();
   // 21 긴 작업 나누기: 소식·빈 화면 그림·MY 손질은 한가할 때(늦어도 0.8초 안 · 그 전에 소식 탭을 누르면 바로 만든다)
   const idle = (f) => (window.requestIdleCallback ? requestIdleCallback(() => T(f), { timeout: 800 }) : setTimeout(() => T(f), 120));
-  idle(feedBuild); idle(emptyDeco); idle(myBuild);
-  addEventListener("zp:view", (e) => { if (e.detail === "news" && !$("tFeed")) { T(feedBuild); try { window.dispatchEvent(new CustomEvent("zp:view", { detail: "news" })); } catch (er) {} } }, true);
+  // 소식은 바로 만든다(3라운드: idle로 미루니 콜드 /#news·정적 페이지 → 소식 탭이 빈 화면) · 이미 소식 화면이면 들어온 처리까지
+  T(feedBuild); if (newsOn()) T(newsEnter);
+  idle(emptyDeco); idle(myBuild);
+  // 콜드 스타트로 이미 열린 도구 화면(#saveTop·#rankHub …): 앱이 붙기 전에 열려 zp:view를 놓쳤다 → 앱바를 지금
+  if (H.classList.contains("s-view")) T(() => { const v = S().cur(); if (window.ZP_H0 === "#saveTop") tSave = Date.now(); if (v) { navMark(); toolMark(v); } });
   H.classList.remove("tapp-wait");
   H.classList.add("tapp-on");
   // 관심 구역·소식 숫자: 자료를 받으면 종·소식 탭에

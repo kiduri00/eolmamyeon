@@ -54,9 +54,18 @@ const DTL = (() => {
   function moaHTML(r, n) {
     const kids = (r.kids || []).map((id) => byId[id]).filter(Boolean);
     const row = (k) => {
-      let v = ""; try { const m = nums(k); v = m.nt ? "지금 사면 입주권 없음" : m.need != null ? `지금 ${C(m.need)}` : m.lnow != null ? `지금 ${C(m.lnow)} · 대출 끼고` : "계산 보류"; } catch (e) { v = "계산 보류"; }
+      // 3라운드: 값 자리 = 지금 필요한 돈(15/700) · 판정은 12px 보조 줄 · 준공·입주는 '입주 완료' · 단계는 회색 칩 · 오른쪽 ›
+      let v = "", sub = "";
+      try {
+        const m = nums(k), dn = m.done || k.s >= 9 || /준공|입주/.test(stageName(k));
+        if (dn) { v = "입주 완료"; sub = "일반 매매"; }
+        else if (m.nt) { v = "입주권 없음"; sub = "지금 사는 경우"; }
+        else if (m.need != null) { v = C(m.need); sub = upC(m.need) <= CASH + 1e-9 && !(k.lc) ? `내 돈 ${C(CASH)}으로 가능` : `${ZF.short(m.need - CASH)} 더 필요`; }
+        else if (m.lnow != null) { v = C(m.lnow); sub = "대출 끼고"; }
+        else { v = "계산 보류"; sub = ""; }
+      } catch (e) { v = "계산 보류"; }
       let st = ""; try { st = stageName(k); } catch (e) {}
-      return `<li><button type="button" class="dt-kid" data-go="${esc(k.id)}"><span class="dt-kn">${esc(shortName(k.n))}</span><span class="dt-kst">${esc(st)}</span><span class="dt-kv">${esc(v)}</span></button></li>`;
+      return `<li><button type="button" class="dt-kid" data-go="${esc(k.id)}"><span class="dt-kn">${esc(shortName(k.n))}</span><span class="dt-kst">${esc(st)}</span><span class="dt-kv"><b>${esc(v)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span><svg class="dt-kc" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>`;
     };
     return `<section class="dt-k dt-moa" aria-label="핵심 숫자">
       <p class="dt-mg">모아타운은 사업구역마다 금액·입주 시점이 달라요</p>
