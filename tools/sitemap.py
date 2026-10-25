@@ -51,10 +51,14 @@ for rel, loc, s in pages():
     if BF: o = st[rel] = {'m': h, 'd': backfill(rel, h)}
     elif not o or o.get('m') != h: o = st[rel] = {'m': h, 'd': today}
     urls.append((loc, o['d']))
+    # 28차: 구조화 데이터 dateModified = 사이트맵 lastmod(본문 해시가 바뀐 날) — /z 손글 페이지가 10-10, 사이트맵은 10-25로 엇갈리던 것.
+    # JSON-LD는 mainhash에서 빠지는 <script> 안이라 고쳐도 본문 해시는 그대로다
+    s2 = re.sub(r'(<script type="application/ld\+json">.*?</script>)', lambda m: re.sub(r'("dateModified":\s*")\d{4}-\d\d-\d\d(")', lambda q: q.group(1) + o['d'] + q.group(2), m.group(1)), s, flags=re.S)
+    if s2 != s: open(os.path.join(PUB, rel), 'w', encoding='utf-8').write(s2); nld = globals().get('nld', 0) + 1; globals()['nld'] = nld
 urls.sort(key=lambda u: (u[0].count('/'), u[0]))
 # 25차: 한글 경로(/gu/강남구)는 퍼센트 인코딩해서 싣는다(그대로 요청하면 307로 한 번 돌아 들어왔다)
 xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + ''.join(f'<url><loc>{SITE}/{urllib.parse.quote(l, safe="/")}</loc><lastmod>{d}</lastmod></url>\n' for l, d in urls) + '</urlset>\n'
 open(os.path.join(PUB, 'sitemap.xml'), 'w', encoding='utf-8').write(xml)
 json.dump(st, open(STATE, 'w'), separators=(',', ':'))
 comp = collections.Counter((l.split('/')[0] if '/' in l else 'static') for l, _ in urls)
-print('sitemap', len(urls), dict(comp), f"/z share {comp.get('z', 0) / max(1, len(urls)) * 100:.0f}%", 'lastmod', dict(collections.Counter(d for _, d in urls).most_common(6)))
+print('ld dateModified aligned', globals().get('nld', 0)); print('sitemap', len(urls), dict(comp), f"/z share {comp.get('z', 0) / max(1, len(urls)) * 100:.0f}%", 'lastmod', dict(collections.Counter(d for _, d in urls).most_common(6)))

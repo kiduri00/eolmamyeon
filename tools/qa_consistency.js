@@ -66,6 +66,7 @@ const fm = (m) => (!m ? "–" : m.v < 1 ? `${Math.round(m.v * 1e4).toLocaleStrin
 // 억 금액 한 꼴(src/ext/05_facts.js ZF.num·ZF.cash와 같은 규칙): 1억 아래 소수 둘째 자리, 1억부터 첫째 자리
 const zfUp = (x, k) => Math.ceil(x * k - 1e-6) / k;   // 화면 ZF.num과 같은 올림
 const zfNum = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (zfUp(a, 100) < 1) return sg + zfUp(a, 100).toFixed(2).replace(/0$/, ""); return sg + zfUp(a, 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
+const zfShort = (d) => { let m = Math.ceil((d || 0) * 1e4 - 1e-6); if (!(m >= 1)) m = 1; const a = Math.floor(m / 1e4), b = m % 1e4; return a ? `${a.toLocaleString("ko-KR")}억${b ? ` ${b.toLocaleString("ko-KR")}만` : ""}` : `${b.toLocaleString("ko-KR")}만`; };   // 28차: 모자라는 돈은 정확한 만 원(화면 ZF.short)
 const zfCash = (v) => { const t = zfNum(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (Math.ceil(a * 100 - 1e-6) < 100) return (v < 0 ? "-" : "") + (Math.ceil(a * 100 - 1e-6) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };   // 1억 아래는 만 원(4,100만)
 // WCAG 대비(페이지 안): 글자색(불투명도 곱) vs 조상 배경을 겹쳐 만든 실제 바탕
 const CONTRAST_JS = (rootSel) => {
@@ -425,6 +426,34 @@ async function staticLane(api) {
   {
     const past = api.zones.filter((z) => z.completion && z.completion.mid && pastEta(z.completion.mid.replace("-", ".")));
     expect(!past.length, "zone.etaPast", "예상 입주가 과거가 아님(앱·API)", `api: ${past.length} zones with completion.mid in the past: ${past.slice(0, 5).map((z) => z.id + " " + z.completion.mid).join(", ")}`);
+  }
+  // --- 28차: 입주권 없는 곳 등 '입주까지 현금 계산 보류'인 /z 페이지에는 어디에도 '입주까지 현금 N억'이 없음 + 보류 칸 아래 '잔금대출 뺀 값' 없음 + api total null (모든 /z 파일)
+  {
+    const id = "z.boryuConsistent", t = "/z '입주까지 현금 계산 보류'면 본문·api 어디에도 입주까지 현금 N억 없음";
+    const zdir = path.join(PUBLIC_DIR, "z"); let n = 0;
+    for (const f of fs.readdirSync(zdir).filter((x) => /^[a-z]+\d+\.html$/.test(x))) {
+      const h = fs.readFileSync(path.join(zdir, f), "utf8");
+      const m = /<span class="zk-l">입주까지 현금<\/span><b class="zk-v">([^<]*)<\/b>([\s\S]*?)<\/div>/.exec(h);
+      if (!m || m[1] !== "계산 보류") continue;
+      n++; const zid = f.slice(0, -5), txt = htmlText(h), why = [];
+      if (/잔금대출 뺀 값/.test(m[2])) why.push("보류 칸 아래 '잔금대출 뺀 값'");
+      const hit = /입주까지 현금[^.。<]{0,12}?\s[\d,.]+\s*(?:억|만)/.exec(txt.replace(/이야기 속 금액[^.]*\./g, ""));
+      if (hit) why.push(`본문 "${hit[0]}"`);
+      const aj = path.join(PUBLIC_DIR, "api/v1/zones", zid + ".json");
+      if (fs.existsSync(aj)) { const a = JSON.parse(fs.readFileSync(aj, "utf8")); const nd = a.need || {}; if ((nd.cash && nd.cash.total != null && a.membership && a.membership.status === "no") || (nd.gap && nd.gap.total != null)) why.push(`api total ${nd.cash && nd.cash.total}/${nd.gap && nd.gap.total}`); }
+      expect(!why.length, id, t, `/z/${zid}: ${why.join(" ; ")}`);
+    }
+    if (!n) skip(id, t, "no 보류 pages");
+  }
+  // --- 28차: 갱신일이 직전 배포(origin/main)보다 앞서지 않음(UTC로 하루 되돌아가던 것)
+  {
+    const id = "data.dateMonotonic", t = "api updated(갱신일) >= 직전 배포 origin/main 날짜";
+    try {
+      const cur = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, "api/v1/meta.json"), "utf8")).updated;
+      const prev = JSON.parse(require("child_process").execSync("git show origin/main:public/api/v1/meta.json", { cwd: path.join(__dirname, ".."), stdio: ["ignore", "pipe", "ignore"] }).toString()).updated;
+      expect(cur && (!prev || cur >= prev), id, t, `now ${cur} < deployed ${prev}`);
+      const live = (await get(BASE + "/api/v1/meta.json")); if (live && live.status === 200) { const lv = JSON.parse(live.text).updated; expect(lv === cur, id, t, `served ${lv} vs built ${cur}`); }
+    } catch (e) { skip(id, t, "git/meta unavailable: " + String(e).slice(0, 80)); }
   }
   return { zData, liveCounts };
 }
@@ -1549,7 +1578,7 @@ async function r3Lane(browser, errs) {
         for (const p of P) {
           const lab = /지금 필요한 돈/.test(p.lab) && p.lab.length > 12;
           if (p.st === "ok") expect(p.need <= c + 1e-9 && list[p.id] != null && p.t === list[p.id] && p.t === zfCash(p.need) && lab && /가능/.test(p.lab), "map.pills", T, `${where} ${p.id}: pill "${p.t}" list "${list[p.id]}" need ${p.need} label "${p.lab}"`);
-          else if (p.st === "near") { const want = zfCash(Math.max(0.01, Math.ceil(p.need * 100 - 1e-6) / 100 - c)) + " 부족"; /* 모자란 곳은 '5,700만 부족' */ expect(p.need > c && p.need <= c * 1.2 + 1e-9 && p.t === want && list[p.id] == null && /조금 모자람/.test(p.lab), "map.pills", T, `${where} ${p.id}: near pill "${p.t}" want "${want}" need ${p.need} in list ${list[p.id] != null}`); }
+          else if (p.st === "near") { const want = zfShort(p.need - c) + " 부족"; /* 28차: 모자란 곳은 정확한 만 원 '5,636만 부족' */ expect(p.need > c && p.need <= c * 1.2 + 1e-9 && p.t === want && list[p.id] == null && /조금 모자람/.test(p.lab), "map.pills", T, `${where} ${p.id}: near pill "${p.t}" want "${want}" need ${p.need} in list ${list[p.id] != null}`); }
           else bad("map.pills", T, `${where} ${p.id}: pill with state ${p.st}`);
         }
         // 알약끼리 겹치지 않음(보이는 알약 상자)
@@ -2007,6 +2036,29 @@ async function r19Lane(browser, api, errs) {
       await loadHome(page, "#planner"); await page.waitForTimeout(900); await scan("#planner");
       await loadHome(page, "#my"); await page.waitForTimeout(700); await scan("#my");
     } catch (e) { bad("runtime", "검사 실행", "term.money crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- search.noZeroShort(28차): 검색 배지에 '0원 부족' 없음 · 배지 'N 부족' == 상세 'N 더 필요해요'(정확한 만 원 · 오목교역 o332 2억 100만 → '0원 부족'이던 것)
+  {
+    const TZ = "검색 배지 '내 돈 N 부족'에 0원 없음 · 상세 'N 더 필요해요'와 같은 금액";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      for (const q of ["신정", "오목교", "장위"]) {
+        await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+        await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.ZP_count === "function", null, { timeout: 25000 }).catch(() => {});
+        await page.evaluate(() => { const q = document.getElementById("q"); if (!q.offsetWidth) document.getElementById("sSearch").click(); }); await page.waitForTimeout(300);
+        await page.fill("#q", q); await page.waitForTimeout(800);
+        const rows = await page.evaluate(() => [...document.querySelectorAll("#sugg button[data-id]")].map((b) => ({ id: b.dataset.id, t: ((b.querySelector(".sg-no:not(.sg-na)") || {}).textContent || "") })).filter((x) => /부족/.test(x.t)));
+        for (const x of rows) expect(!/(^|\s)0원 부족/.test(x.t), "search.noZeroShort", TZ, `'${q}' ${x.id}: "${x.t}"`);
+        const x = rows[0];
+        if (x) {
+          await page.evaluate((id) => { const b = document.querySelector(`#sugg button[data-id="${id}"]`); b && b.click(); }, x.id); await page.waitForTimeout(1200);
+          const d = await page.evaluate(() => { const e = document.querySelector("#report .dt-vd.no b"); return e ? e.textContent.trim() : ""; });
+          const a = (/내 돈 (.+?) 부족/.exec(x.t) || [])[1], b2 = (/^(.+?) 더 필요해요/.exec(d) || [])[1];
+          if (d) expect(a && b2 && a === b2, "search.noZeroShort", TZ, `'${q}' ${x.id}: badge "${x.t}" vs detail "${d}"`);
+        } else skip("search.noZeroShort", TZ, `'${q}': no 부족 rows`);
+      }
+    } catch (e) { bad("runtime", "검사 실행", "search.noZeroShort crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
   // --- search.badges: 금액이 있는 검색 결과 줄마다 '지금 X' + 내 돈 배지 · 빈 검색창 = 최근 검색·최근 본 구역
@@ -2732,7 +2784,8 @@ async function guProse() {
     if (!kinds || +kinds[1].replace(/,/g, "") !== N) errs2.push(`intro total ${kinds && kinds[1]} vs h1 ${N}`);
     else if (kinds[2]) { const s = [...kinds[2].matchAll(/([\d,]+)곳/g)].reduce((a, m) => a + +m[1].replace(/,/g, ""), 0); if (s !== N) errs2.push(`kinds sum ${s} ≠ ${N}`); }
     if (/나머지/.test(p) && !/나온 곳은/.test(p)) errs2.push("'나머지' without a preceding count");
-    const got = /나온 곳은 ([\d,]+)곳/.exec(p), rest = /나머지 ([\d,]+)곳은 비어 있어요: ([^.]*)\./.exec(p), all = /([\d,]+)곳 모두 전세 끼고 지금 필요한 돈이 비어 있어요: ([^.]*)\./.exec(p);
+    const got = /나온 곳은 ([\d,]+)곳/.exec(p), rest = /나머지 ([\d,]+)곳은 아직 계산하지 않았어요: ([^.]*)\./.exec(p), all = /([\d,]+)곳 모두 전세 끼고 지금 필요한 돈은 아직 계산하지 않았어요: ([^.]*)\./.exec(p);
+    if (/비어 있어요/.test(p)) errs2.push("'비어 있어요' (→ 아직 계산하지 않았어요)");
     const tbl = {}; [...(r.text || "").matchAll(/class="gr-v gr-na"><i>전세 끼고<\/i> <b class="gr-now">([^<]+?)(?:<sup>\*<\/sup>)?<\/b>/g)].forEach((m) => (tbl[m[1]] = (tbl[m[1]] || 0) + 1));
     const tN = Object.values(tbl).reduce((a, b) => a + b, 0);
     const part = (txt) => { const o = {}; [...txt.matchAll(/([^,]+?) ([\d,]+)곳/g)].forEach((m) => { const k = WHY[m[1].trim()] || m[1].trim(); o[k] = (o[k] || 0) + +m[2].replace(/,/g, ""); }); return o; };

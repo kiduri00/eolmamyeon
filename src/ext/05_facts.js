@@ -15,6 +15,10 @@
     const num = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (up(a, 100) < 1) return sg + up(a, 100).toFixed(2).replace(/0$/, ""); return sg + up(a, 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
     // cash → 단위까지 붙인 꼴: 1억 아래는 만 원(100만 단위 · '4,100만'), 1억부터 '1.2억', 0은 '0원' — 화면의 모든 'X억' 금액이 이것 하나(tools/zsample.py cash와 같은 규칙)
     const cash = (v) => { const t = num(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (Math.ceil(a * 100 - 1e-6) < 100) return (v < 0 ? "-" : "") + (Math.ceil(a * 100 - 1e-6) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };
+    // 28차: 모자라는 돈('N 부족' · 'N 더 필요해요')은 표시용 올림(0.1억·100만)이 아니라 정확한 만 원으로 — 한 곳에서만 만든다(0원 부족이 나오지 않게 최소 1만)
+    const short = (d) => { let m = Math.ceil((d || 0) * 1e4 - 1e-6); if (!(m >= 1)) m = 1; const a = Math.floor(m / 1e4), b = m % 1e4; return a ? `${a.toLocaleString("ko-KR")}억${b ? ` ${b.toLocaleString("ko-KR")}만` : ""}` : `${b.toLocaleString("ko-KR")}만`; };
+    // 정확한 만 원 꼴(왜 이 금액? 합계 등): 3억 7,059만
+    const exact = (v) => { const m = Math.round((v || 0) * 1e4); if (m <= 0) return "0원"; const a = Math.floor(m / 1e4), b = m % 1e4; return `${a ? `${a.toLocaleString("ko-KR")}억` : ""}${a && b ? " " : ""}${b ? `${b.toLocaleString("ko-KR")}만` : ""}`; };
     const entry = (r) => (r && r.mk && r.mk.entry) || null;
     const est = (r) => { try { return isEst(r); } catch (e) { return false; } };
     const calc = (r) => { try { return investC(r); } catch (e) { return null; } };
@@ -118,7 +122,7 @@
     const aucAmt = (v) => (v == null || !isFinite(v) || v <= 0 ? "–" : v >= 1e8 ? `${(Math.round(v / 1e7) / 10).toLocaleString("ko-KR")}억` : `${Math.round(v / 1e4).toLocaleString("ko-KR")}만`);
     // 26차: 경계가 없을 때 이유는 자료로 — 구역지정 이후(면적·인가가 있는 곳)는 '경계 도면 자료가 아직 없어', 그 전은 '공식 경계가 없는 곳(후보지 등)'
     const bndTxt = (r, what) => { const a = r && r.sm && r.sm.area; return (r && (r.s >= 2 || a)) ? `구역 면적${a ? `(${Math.round(a).toLocaleString("ko-KR")}㎡)` : ""}은 정보몽땅에 등록돼 있지만 경계 도면(서울도시공간포털)을 아직 받지 못해 ${what}` : `아직 공식 경계가 없는 곳(후보지 등)이라 ${what}`; };
-    return { EXCL: "추정 신뢰 낮아 목록에서 뺐어요", bndTxt, aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
+    return { EXCL: "추정 신뢰 낮아 목록에서 뺐어요", bndTxt, aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, short, exact, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
   })();
   // 정적 HTML(shell.html)의 방식 버튼 글자도 LBL에서: data-lbl="gap|loan|cashToMoveIn"
   { const lbl = () => document.querySelectorAll("[data-lbl]").forEach((e) => { const t = LBL[e.dataset.lbl]; if (t && e.textContent !== t) e.textContent = t; }); document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", lbl) : lbl(); }

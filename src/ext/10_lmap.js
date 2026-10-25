@@ -138,22 +138,24 @@
         ],
       };
       // 첫 붙이기(자리 그림이 덮고 있는 동안): 글자 레이어(symbol)는 처음엔 숨겨 두고 몇 개씩 나눠 켠다(stage) — 한 프레임에 셰이더·타일 그리기가 몰려 긴 작업이 되던 것(19차)
-      if (STAGE) ST.layers.forEach((l) => { if (l.type !== "symbol") return; l.layout = Object.assign({}, l.layout, { visibility: "none" }); STG.push(l.id); });
+      // 28차: 선·면 레이어도 나눠 켠다 — 첫 그림 한 프레임에 셰이더 컴파일(useProgram)이 몰려 340~410ms 작업이 되던 것. 첫 프레임은 바탕·물·공원만
+      if (STAGE) ST.layers.forEach((l) => { if (STAGE0.has(l.id) || (l.layout && l.layout.visibility === "none")) return; l.layout = Object.assign({}, l.layout, { visibility: "none" }); STG.push(l.id); });
       return ST;
     }
     const FC = (f) => ({ type: "FeatureCollection", features: f });
     // 19차: 지도 붙이기를 여러 작업으로 나눈다(긴 작업 하나 대신 짧은 작업 여러 개 + 사이에 쉼) · 금액 막대를 끄는 동안은 쉰다
     let ovTok = 0, STAGE = false, revealing = false;
-    const STG = [];
+    const STG = [], STAGE0 = new Set(["bg", "water", "park"]);
     // 숨겨 둔 레이어를 3개씩 켜고, 지도가 그 프레임을 다 그릴 때(idle)까지 기다린 뒤 다음 묶음 — 긴 작업 하나 대신 짧은 작업 여러 개
     async function reveal() {
       if (revealing || !STG.length) { STAGE = false; return; }
       revealing = true; STAGE = false;
       try {
         while (STG.length && map) {
-          const B = STG.splice(0, 5);
+          const B = STG.splice(0, 7);
           B.forEach((id) => { try { if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible"); } catch (e) {} });
-          await new Promise((ok) => { let d = 0; const f = () => { if (!d) { d = 1; ok(); } }; map.once("idle", f); setTimeout(f, 5000); });
+          // 28차: 한가함(idle)은 글자 페이드(300ms)까지 기다려 묶음마다 ~450ms 쉬었다 → 새로 켠 레이어가 한 번 그려지고 타일이 다 오면 다음 묶음
+          await new Promise((ok) => { let d = 0, n = 0; const f = () => { if (d) return; d = 1; map.off("render", rf); ok(); }; const rf = () => { if (++n >= 2 && map.areTilesLoaded()) f(); }; map.on("render", rf); map.once("idle", f); setTimeout(f, 3000); });
           await yieldT();
         }
       } finally { revealing = false; try { performance.mark("zp-rev"); } catch (e) {} }
@@ -180,7 +182,7 @@
       map.getSource("gul").setData(FC(geo.gu.map((g) => ({ type: "Feature", geometry: { type: "MultiLineString", coordinates: g.r }, properties: { n: g.n } }))));
       map.getSource("stn").setData(FC(D.stations.map((s) => ({ type: "Feature", geometry: { type: "Point", coordinates: [s[2], s[1]] }, properties: { n: s[0].replace(/역$/, ""), c: LINE_COL[(s[3] || [])[0]] || "#7A8594", t: (s[3] || []).length } }))));
       await Y();
-      const L = (o) => { if (map.getLayer(o.id)) return; if (STAGE && o.type === "symbol" && !(o.layout && o.layout.visibility === "none")) { o = Object.assign({}, o, { layout: Object.assign({}, o.layout, { visibility: "none" }) }); STG.push(o.id); } map.addLayer(o, undefined, { validate: false }); };   // 검증 생략(우리가 쓴 고정 레이어 · 지도 켜는 시간 줄이기)
+      const L = (o) => { if (map.getLayer(o.id)) return; if (STAGE && !(o.layout && o.layout.visibility === "none")) { o = Object.assign({}, o, { layout: Object.assign({}, o.layout, { visibility: "none" }) }); STG.push(o.id); } map.addLayer(o, undefined, { validate: false }); };   // 검증 생략(우리가 쓴 고정 레이어 · 지도 켜는 시간 줄이기)
       L({ id: "mask", type: "fill", source: "mask", paint: { "fill-color": dk ? "#0B0F14" : "#ffffff", "fill-opacity": dk ? 0.7 : 0.75 } });
       L({ id: "gu-line", type: "line", source: "gul", paint: { "line-color": dk ? "#3B4656" : "#AEB7C4", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 1.3], "line-dasharray": [2, 2] } });
       L({ id: "seoul-line", type: "line", source: "seoul", paint: { "line-color": P.sub, "line-width": 1.6, "line-opacity": 0.7 } });
@@ -498,7 +500,7 @@
       clearTimeout(fadeT);
       const chk = () => {
         if (!map || !ghostOn()) return;
-        if (ready && !revealing && !STG.length && map.loaded() && map.areTilesLoaded() && !map.isMoving()) { requestAnimationFrame(() => requestAnimationFrame(() => { try { performance.mark("zp-fade"); } catch (e) {} ZP_G.fade(); if (pendZ) { const z = pendZ; pendZ = 0; if (z > 0) map.zoomIn(); else map.zoomOut(); } })); return; }
+        if (ready && !revealing && !STG.length && map.loaded() && map.areTilesLoaded() && !map.isMoving()) { requestAnimationFrame(() => requestAnimationFrame(() => { try { performance.mark("zp-fade"); } catch (e) {} ZP_G.fade(); try { if (cur && !MQ_SHEET.matches && !map.isMoving()) focus("soft"); } catch (e) {}   /* 28차: PC 딥링크(#o…)가 붙는 동안 다른 맞춤(구·서울)에 밀렸으면 자리 그림이 걷힐 때 그 구역으로 */ if (pendZ) { const z = pendZ; pendZ = 0; if (z > 0) map.zoomIn(); else map.zoomOut(); } })); return; }
         map.once("idle", () => { fadeT = setTimeout(chk, 30); });
       };
       fadeT = setTimeout(chk, 30);
@@ -740,12 +742,13 @@
       try { map.getSource("zokp").setData(FC(F)); } catch (e) {}
     }
     let keyRe = false;
-    function pillsLayout() {
+    function pillsLayout(sq) {
       const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight;
       if (W < 50 || H < 50) return null;
       const obs = obstacles(), mine = mineSet(), sel = selId(), named = map.getZoom() >= 14;
       const C = [];
-      for (const r of VIS) { const s = ZS.get(r.id); if (s && (s.st === "ok" || s.st === "near") && s.need != null) C.push([r, s]); }
+      // 28차: 구 안에서는 그 구 구역만 알약(이웃 구 알약이 섞여 '은평구 8곳'인데 알약 9개이던 것 · 이웃 구는 점으로)
+      for (const r of VIS) { const s = ZS.get(r.id); if (s && (s.st === "ok" || s.st === "near") && s.need != null && (!gu || r.g === gu || r.id === selId())) C.push([r, s]); }
       // 23차: 구 안에서는 그 구의 갈 수 있는 곳을 가장 적게 드는 곳부터(알약 = 구 묶음 '~' 금액) · 이웃 구는 그 뒤
       const rank = gu
         ? ([r, s]) => (r.id === sel ? -2e9 : 0) + (mine.has(r.id) ? -1e9 : 0) + (r.g === gu ? 0 : 1e7) + (s.st === "ok" ? s.need : 1e6 + s.need)
@@ -761,7 +764,7 @@
         const t = pillText(s), fav = mine.has(r.id), nm = named ? mapName(r) : "", nw = SIMPLE.isNew(r, s.need);
         // 가까이(줌 15+)는 두 줄 알약: 이름 11/600 위 · 금액 13/800 아래 · 폭 최대 120(17차)
         const w = nm ? Math.min(150, Math.max(measure(t, 13, 800) + (fav ? 14 : 0) + (nw ? 30 : 0), measure(nm, 12, 600)) + 22) : measure(t, 13) + 18 + (fav ? 14 : 0) + (nw ? 30 : 0), h = nm ? 44 : 28;
-        const ins = gu ? 4 : 0, insY = gu ? 1 : 0;   // 구 안: 알약끼리 옆으로는 살짝 붙어도 따로 보이게(+N 묶음을 줄임 · 20차 G4) · 위아래는 글자가 가리지 않게 거의 그대로(23차)
+        const ins = gu && sq ? 4 : 0, insY = gu && sq ? 1 : 0;   // 28차: 구 안에서도 먼저 알약끼리 띄워(4px) 자리 잡고, 그 구 구역이 자리를 못 잡을 때만 예전처럼 살짝 겹치게(아래 다시 잡기)
         // 자리 후보(21차): ① 점 위(오른쪽 '+N' 꼬리 자리까지) ② 점 위(꼬리 자리 없이) ③ 점 아래(꼬리가 위를 가리킴) ④ 옆으로 비켜(꼬리는 그대로 점을 가리킴)
         // → 레일·확대 버튼·구 막대 가장자리에 걸린 '가능' 구역이 점(대략 범위 고리)만 남던 것. 점 자체가 떠 있는 것 밑이면 안 보이는 곳이라 '+N'으로
         const pt = [q.x - 2, q.y - 2, q.x + 2, q.y + 2], under = r.id !== sel && obs.some((o) => hitB(o, pt));
@@ -778,6 +781,7 @@
         if (!got) { if (cnt1) hid.push(q); continue; }
         placed.push(got.bx); P.set(r.id, { r, s, t, fav, nm, nw, sel: r.id === sel, q, more: 0, dx: got.dx, dn: got.dn });
       }
+      if (gu && !sq && hid.some((h) => ![...P.values()].some((v) => Math.abs(v.q.x - h.x) < 28 && Math.abs(v.q.y - h.y) < 28))) return pillsLayout(true);   // 28차: 띄워서는 그 구 곳이 다 안 들어가면(좁은 폰) 살짝 겹치게 다시
       // 자리가 없어 알약을 못 단 '가능' 구역 → 가장 가까운 알약에 '+N' 표시(알약 수 + N 합 == 화면 안 갈 수 있는 곳)
       if (hid.length && P.size) { const V0 = [...P.values()], Vg = gu ? V0.filter((v) => v.r.g === gu && v.s.st === "ok") : [], V = Vg.length ? Vg : V0; hid.forEach((q) => { let b = null, bd = 1e9; V.forEach((v) => { const d = Math.hypot(v.q.x - q.x, v.q.y - q.y); if (d < bd) { bd = d; b = v; } }); if (b) b.more++; }); }
       pillsSet(P);
@@ -834,6 +838,7 @@
     function dotsSet(F) { const k = F.map((f) => f.properties.id + f.properties.t).join(","); if (k === dotK) return; dotK = k; try { map.getSource("zdot").setData(FC(F)); } catch (e) {} }
     function pillsSet(P, noBlk) {
       PILLS.forEach((p, id) => { if (!P.has(id)) { p.mk.remove(); PILLS.delete(id); } });
+      if (ptr) requestAnimationFrame(rowRecheck);
       const B = [];
       P.forEach((v, id) => {
         let p = PILLS.get(id);
@@ -1190,7 +1195,10 @@
     // 목록 줄에 마우스 → 그 구역 알약도 진한 남색(알약이 없으면 경계·점 테두리만)
     function hover(id) { id = id || null; if (id === hovId) return; if (hovId && PILLS.get(hovId)) PILLS.get(hovId).el.classList.remove("hov"); hovId = id; if (id && PILLS.get(id)) PILLS.get(id).el.classList.add("hov"); hovDraw(); }
     // 지도 위 구역에 마우스 → 목록 줄에 .lm-hov
-    let rowHov = null;
+    let rowHov = null, ptr = null;
+    // 28차: 알약이 다시 자리 잡거나(지도 레이어를 나눠 켜는 동안) 새로 만들어져도 마우스 아래 알약과 목록 줄 표시가 맞게 — 마지막 마우스 자리로 다시 본다
+    document.addEventListener("mousemove", (e) => { ptr = e.target && e.target.closest && e.target.closest("#lmap") ? [e.clientX, e.clientY] : null; }, { passive: true });
+    const rowRecheck = () => { if (!ptr) return; const e = document.elementFromPoint(ptr[0], ptr[1]), z = e && e.closest && e.closest("#lmap .zpill[data-zid]"); if (z) rowMark(z.dataset.zid); };
     function rowMark(id) {
       const el = id ? document.querySelector(`#sList [data-id="${CSS.escape(id)}"]`) : null, li = el && (el.closest("li") || el);
       if (li === rowHov) return;

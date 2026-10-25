@@ -1,0 +1,15 @@
+/* 28차(애드센스·제품 4차 레드팀) */
+/* 홈 사이트 제목: 실제로 보이는 h1 한 줄(검색 위 · 작게) — 금액 카드 줄은 h1이 아니다 */
+.s-site{margin:0;padding:2px 2px 0;font-size:15px;line-height:20px;height:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800;letter-spacing:-.01em;color:var(--text,#191f28)}
+html.simple .s-hero{gap:8px}
+@media (min-width:981px){.s-site{font-size:16px;line-height:22px;height:auto;padding:10px 4px 0}}
+/* 구를 고른 동안 머리 숫자 이름표: '서울 전체 · 강북구 6곳'(한 줄 · 넘치면 말줄임) */
+.bc-k.bc-gu{display:block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--brand,#1f3a87)}
+/* 소식 '내 소식' 빈 관심 카드: 여백 줄이기 */
+#nwMine .ib-note.ib-none{margin:4px 0 0}
+#nwMine .ib-sec:last-child{margin-bottom:0}
+/* 좁은 폰(≤380): 제목 줄이 지도 보이는 높이를 먹지 않게 — 제목·간격·읽을거리 줄을 조금씩 줄인다(터치 40px 유지) */
+@media (max-width:380px){.s-site{font-size:14px;line-height:18px;height:18px;padding:0 2px}html.simple .s-hero{gap:5px;margin-bottom:6px}.s-rd,.s-rd a{min-height:40px}}
+@media (max-width:380px){html.simple #sHero>.s-search{margin-bottom:0}html.simple #mapTop{padding-top:12px}}
+@media (max-width:380px){html.onb-on .s-hero,html.simple .s-hero{gap:4px!important;margin-bottom:6px!important}}
+@media (max-width:380px){html.simple #mapTop{padding-top:8px}html.onb-on #onb{margin-bottom:6px}}

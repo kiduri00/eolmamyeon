@@ -98,14 +98,16 @@ const INBOX = (() => {
     if (!P.length) return conds().length ? "" : `<div class="ib-empty">${bellSvg(30)}<p><b>관심 구역 소식을 여기 모아 드려요</b><br>구역에서 '♡ 관심 구역에 추가'를 누르면 새 실거래·단계·경매 소식을 알려 드려요</p><button type="button" class="btn primary sm" data-ibmap>지도에서 구역 고르기</button></div>`;
     if (!CH) return `<p class="ib-note">소식을 불러오는 중이에요…</p>`;
     const E = pinEvents();
-    if (!E.length) return `<section class="ib-sec" aria-labelledby="ibPT"><h4 id="ibPT">관심 구역 소식</h4><p class="ib-note">최근 30일 동안 관심 구역 ${P.length}곳에 새 소식이 없어요</p></section>`;
+    if (!E.length) return `<section class="ib-sec" aria-labelledby="ibPT"><h4 id="ibPT">관심 구역 소식</h4><p class="ib-note ib-none">최근 30일 동안 관심 구역 ${P.length}곳에 새 소식이 없어요${asOfD() ? ` · ${asOfD()} 기준` : ""}</p></section>`;
     const by = new Map(); E.slice(0, 80).forEach((e) => { if (!by.has(e.date)) by.set(e.date, []); by.get(e.date).push(e); });
     return `<section class="ib-sec" aria-labelledby="ibPT"><h4 id="ibPT">관심 구역 소식</h4>${[...by].map(([d, L]) => `<h5 class="ib-d">${dLabel(d)}</h5><ul>${L.map((e) => { const r = byId[e.id], [tl, tc] = TY[e.type], nw = unread(e); return `<li><button type="button" class="ib-it${nw ? " new" : ""}" data-open="${e.id}"><span class="ib-tg ${e.hi ? "hi" : tc}">${e.hi ? "신고가" : tl}</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(e.text)}${e.type === "auction" && overCash(e) ? " · 참고 · 내 돈 초과" : ""}</small></span>${nw ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("")}</ul>`).join("")}</section>`;
   }
   // 핀 구역 경매: 대표 최저가가 지금 내 돈(+10%)을 넘으면 '참고'로 표시
   const overCash = (e) => { let c = null; try { c = CASH; } catch (er) {} return c != null && e.mn > c * 1.1 + 1e-9; };
-  const foot = () => (CH && CH.asOf ? `<p class="ib-foot">최근 ${CH.days || 30}일 · 매일 아침 갱신 · ${CH.asOf.slice(5).replace("-", ".")} 기준</p>` : "");
-  function body() { return `${pushBox()}${condHTML()}${pinHTML()}${foot()}`; }
+  // 28차: 기준일은 앱 머리 'N.NN 갱신'과 같은 한 곳(D.upd)에서 — 알림 자료(changes.json asOf)가 하루 어긋나 '10.24 기준' vs '10.25 갱신'이던 것
+  const asOfD = () => { let u = ""; try { u = String((typeof D !== "undefined" && (D.upd || D.asOf)) || (CH && CH.asOf) || ""); } catch (e) {} const m = /(\d{4})-?(\d\d)-?(\d\d)/.exec(u); return m ? `${+m[2]}.${m[3]}` : ""; };
+  const foot = () => (CH && asOfD() ? `<p class="ib-foot">최근 ${CH.days || 30}일 · 매일 아침 갱신 · ${asOfD()} 기준</p>` : "");
+  function body() { const ph = pinHTML(); return `${pushBox()}${condHTML()}${ph}${/ib-none|ib-empty/.test(ph) && !condHTML() ? "" : foot()}`; }   // 28차: 소식이 없으면 기준일을 그 줄에 붙이고 아래 줄은 뺀다(빈 카드 여백)
   // 소식 화면(#news) 위 칸에 그린다 · 화면을 열면 소식을 받아 다시 그리고 잠시 뒤 읽음 처리
   const box = () => $("nwMine");
   const shown = () => { const s = $("news"); return !!(s && s.classList.contains("s-on")); };

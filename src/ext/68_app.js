@@ -36,7 +36,8 @@
     bar.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 4.2-2.6M10.6 5.1A15 15 0 0 1 22 8.8M5 12.6a10 10 0 0 1 3.4-2M16 10.8a10 10 0 0 1 3 1.8M8.5 16.4a5 5 0 0 1 5.4-.9M12 20h.01M3 3l18 18"/></svg><b>오프라인</b>${d ? ` · ${d} 기준` : ""}<span> · 저장된 자료로 보여요</span>`;
     bar.hidden = !on; H.classList.toggle("off-on", !!on);
   };
-  const goOff = (t) => { H.classList.add("is-offline"); offBar(true); if (t) toast("오프라인이에요 · 저장된 자료로 보여요", 3000); };
+  // 28차: 오프라인 표시는 하나만 — 늘 보이는 띠(오프라인 · N.NN 기준 · 저장된 자료)가 같은 말을 하므로 같은 때 뜨던 토스트는 뺀다
+  const goOff = () => { H.classList.add("is-offline"); offBar(true); };
   // 다시 연결: 최신 첫 화면을 받아 자료 묶음(/b/d.…js) 이름이 바뀌었으면 새 자료 → 열린 시트·입력이 없으면 바로 새로 고침(보던 #화면은 그대로), 아니면 안내
   const refresh = async () => {
     try { const r = await navigator.serviceWorker?.getRegistration?.(); r && r.update && r.update().catch(() => {}); } catch (_) {}

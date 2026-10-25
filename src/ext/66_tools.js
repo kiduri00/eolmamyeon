@@ -109,7 +109,10 @@ const TOOLS = (() => {
   function diagItems(r, redraw) {
     const items = [], pol = (D && D.policy) || {}, LAW = "https://www.law.go.kr/법령/도시및주거환경정비법";
     const w = buyWindow(r);
-    items.push([w.cls === "ok" ? "ok" : w.cls === "no" ? "no" : "warn", "입주권", w.t + (w.due ? ` · ${w.due}` : ""), [LAW + "/제39조", "도정법 제39조"]]);
+    // 28차: 착공 뒤 입주권 거래가 있는 곳(o903 고척4)은 '✕ 입주권 없음'으로 시작하지 않고 길을 함께 — 집(지금 매물)을 사면 없음 · 조합원 입주권은 따로 거래돼요(/z key3 '조합원 입주권을 사야 해요'와 같은 판정)
+    const imT = w.cls === "no" && r.s >= 8 && r.tx && r.tx.im ? r.tx.im : null;
+    if (imT) items.push(["warn", "입주권", `집을 사면 입주권 없음 · 조합원 입주권은 따로 살 수 있어요 · 참고 입주권 시세 ${ZF.eok(imT)}`, [LAW + "/제39조", "도정법 제39조"]]);
+    else items.push([w.cls === "ok" ? "ok" : w.cls === "no" ? "no" : "warn", "입주권", w.t + (w.due ? ` · ${w.due}` : ""), [LAW + "/제39조", "도정법 제39조"]]);
     // 토허: 서울 전역(아파트)·신통·구역 안 허가 기록·구 단위 기록까지 본 뒤에만 말한다(56_toheo.js). 허가 자료가 오면 다시 그림
     let th = null;
     try { th = TOH.lookup(r); } catch (e) {}

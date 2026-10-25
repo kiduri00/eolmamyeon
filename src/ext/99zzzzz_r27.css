@@ -29,10 +29,11 @@
 /* ---- 폰 '+N곳' 칩: 왼쪽 위 · 목록은 아래로 펼침 ---- */
 .lm-gumore.top .lm-gumore-l{top:calc(100% + 6px);bottom:auto}
 /* ---- 목록 2줄 맞춤(60_simple.js rowFit): 역 이름이 잘리면 '가까운 역 N분' → '역 N분' → NEW 칩 숨김 · '분'은 늘 보임 ---- */
-.s-card .s-l2.wf1 .s-wn{display:none}
-.s-card .s-l2.wf1 .s-wm::before{content:"가까운 "}
-.s-card .s-l2.wf2 .s-wm::before{content:none}
-.s-card .s-l2.wf3 .s-b-new{display:none}
+/* 28차: 좁을 때 줄이는 순서 — ① NEW 칩 ② 역 이름 대신 '가까운 역 N분' ③ 단계 칩을 빼서 자리 확보('가까운 역 N분' 유지 · 맨 '역 N분'은 쓰지 않음) */
+.s-card .s-l2.wf1 .s-b-new{display:none}
+.s-card .s-l2.wf2 .s-wn,.s-card .s-l2.wf3 .s-wn{display:none}
+.s-card .s-l2.wf2 .s-wm::before,.s-card .s-l2.wf3 .s-wm::before{content:"가까운 "}
+.s-card .s-l2.wf3 .s-stg{display:none}
 @media (max-width:420px){.s-card button.s-amt small.s-na .s-nah{display:none}}
 /* ---- 폰: 시트(구역 상세 등)가 열린 동안 오프라인 띠는 숨긴다 — 머리 오른쪽 띠가 시트 닫기 ✕를 덮던 것(시트를 닫으면 다시 보임) ---- */
 @media (max-width:980px){html.sheet-open .off-bar,html.menu-open .off-bar,html.cf-on .off-bar{display:none!important}}

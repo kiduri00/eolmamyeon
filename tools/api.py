@@ -11,7 +11,7 @@
 """
 import json, os, re, math, datetime, collections, shutil
 import sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from zsample import smpTxt, trust, isEst, short, eta_adj, set_dup   # /z/ 페이지와 같은 표본 문장·신뢰도 · 입주 시점(가로·소규모 보정 = 화면과 같은 값)
+from zsample import smpTxt, trust, isEst, short, eta_adj, set_dup, noTicket   # /z/ 페이지와 같은 표본 문장·신뢰도 · 입주 시점(가로·소규모 보정 = 화면과 같은 값)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p, d=None: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else d
 D = J('pipeline/data.enriched.json') or J('src/data.json'); P = J('public/premium.json', {}); C = J('pipeline/calc.json', {})
@@ -46,7 +46,8 @@ def summary(r):
         # 시장·상가 정비(tag mk)는 빌라 시세가 상가 지분 값을 대신하지 못해 사이트처럼 값을 내지 않는다(null)
         'need': ({'gap': {'now': None, 'total': None, 'eligible': False, 'blocked': '시장·상가 정비사업이라 계산 전'}, 'cash': {'now': None, 'total': None, 'eligible': False}} if mkz else {  # 단위: 억원 · 무주택·84㎡·기본 가정(사이트 계산기와 같은 엔진)
             'gap': {'now': r2(c.get('gapNow')), 'total': r2(c.get('gapTotal')), 'eligible': bool(c.get('gapOk')), 'blocked': c.get('gapBlock')},
-            'cash': {'now': r2(c.get('now')), 'total': r2(c.get('need')), 'eligible': bool(c.get('cashOk'))},
+            # 지금 사면 입주권이 없는 곳(win no): 입주까지 현금은 계산 보류(사이트 /z·앱 상세와 같은 판정) — total null + held 이유
+            'cash': {'now': r2(c.get('now')), 'total': None if noTicket(r, c) else r2(c.get('need')), 'eligible': bool(c.get('cashOk')) and not noTicket(r, c), **({'held': '입주권 없음'} if noTicket(r, c) else {})},
         }),
         'price': None if mkz else r2(c.get('price')), 'jeonse': None if mkz else r2(c.get('jeonse')),
         # 매수가 표본이 3건 미만·12개월보다 오래됨·구역 안 거래가 1~2건뿐이라 참고값(사이트 '살 수 있는 곳' 목록에서 뺌)

@@ -128,7 +128,7 @@ const SIMPLE = (() => {
     return { st: "far", need, total };
   }
   // 모자란 돈: 지금 필요한 돈(화면에 보이는 올림 값) − 내 돈 → '+2,000만' · '+0.2억'(ZF 꼴, 1억 아래 만 단위)
-  const shortTxt = (need) => "+" + ZF.cash(Math.max(0.01, Math.ceil(need * 100 - 1e-6) / 100 - CASH));
+  const shortTxt = (need) => "+" + ZF.short(need - CASH);   // 28차: 정확한 만 원(표시 올림 값끼리 뺀 100만 단위가 아님 · 최소 1만)
   // 단계 칩: 짧은 이름
   const stgShort = (r) => { let t = ""; try { t = stageName(r) || ""; } catch (e) {} return /주민합의/.test(t) ? "합의체" : /후보지|대상지/.test(t) ? "후보지" : /정비계획/.test(t) ? "정비계획" : /구역\s?지정/.test(t) ? "구역지정" : /추진위|주민대표/.test(t) ? "추진위" : /조합|시행자 지정/.test(t) ? "조합설립" : /사업시행/.test(t) ? "사업시행" : /관리처분/.test(t) ? "관리처분" : /이주|철거/.test(t) ? "이주·철거" : /착공|분양/.test(t) ? "착공" : /준공|입주/.test(t) ? "준공" : t.slice(0, 5); };
   const walkTxt = (r) => { if (!r.st || !r.st.n || !isFinite(r.st.d)) return ""; const m = ZF.walkMin(r.st.d); return m > 30 ? "" : `${String(r.st.n).replace(/역$/, "")}역 ${m}분`; };
@@ -626,6 +626,8 @@ const SIMPLE = (() => {
     const wS = (m) => { if (m <= 0) return "0원"; const e = Math.floor(m / 1e4), r = m % 1e4; return `${e ? `${fmt(e)}억` : ""}${e && r ? " " : ""}${r ? `${fmt(r)}만` : ""}`; };
     const ln = (op, k, m, c) => `<li${c ? ` class="${c}"` : ""}><span>${op ? `<i>${op}</i>` : ""}${k}</span><b>${wS(m)}</b></li>`;
     const sum3 = (a, b, c) => Math.max(0, M(a) - M(b) + M(c));
+    // 28차: 합계는 정확한 만 원, 목록·지도·상세 큰 숫자는 올림 표시 — 둘이 다르면 한 줄로 밝힌다(3억 7,059만 → 3.8억)
+    const rnd = (m) => { const t = eokS(m / 1e4); return m > 0 && t !== wS(m) ? `<li class="s-wbase s-wrnd">화면에는 ${t}으로 보여요 (표시는 ${m < 1e4 ? "100만" : "0.1억"} 단위 올림)</li>` : ""; };
     let rowsH = "", tail = "";
     // 매수가 바로 밑에 표본 한 줄(어떤 거래 몇 건의 가운데 값인지)
     const en = (r.mk || {}).entry || {}, ps = x.priceSrc;
@@ -635,13 +637,13 @@ const SIMPLE = (() => {
       const g = gapOf(r);
       if (g.na) rowsH = `<li class="s-wna">매수가 자료가 아직 없어요</li>`;
       else {
-        rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + srcL + ln("−", `전세${g.userJ ? "" : ` <small>(${Math.round(g.jr)}%)</small>`}`, M(g.D)) + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, g.D, x.tax), "s-wsum");
+        rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + srcL + ln("−", `전세${g.userJ ? "" : ` <small>(${Math.round(g.jr)}%)</small>`}`, M(g.D)) + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, g.D, x.tax), "s-wsum") + rnd(sum3(x.price, g.D, x.tax));
         if (g.total != null) tail = `${LBL.cashToMoveIn} ${eokS(g.total)} · 이주비·분담금 포함, 잔금대출 제외`;
         else tail = `${LBL.cashToMoveIn}은 계산 못 함: 입주 시점·신축 시세 자료 부족`;
       }
     } else if (x.price == null) rowsH = `<li class="s-wna">매수가 자료가 아직 없어요</li>`;
     else {
-      rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + srcL + ln("−", "대출", M(x.loanCap)) + `<li class="s-wbase">${loanBasis(r, x, wS, M)}</li>` + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, x.loanCap, x.tax), "s-wsum");
+      rowsH = ln("", `매수가${est ? " <small>(추정)</small>" : ""}`, M(x.price)) + srcL + ln("−", "대출", M(x.loanCap)) + `<li class="s-wbase">${loanBasis(r, x, wS, M)}</li>` + ln("+", "세금", M(x.tax)) + ln("=", "지금 필요한 돈", sum3(x.price, x.loanCap, x.tax), "s-wsum") + rnd(sum3(x.price, x.loanCap, x.tax));
       if (x.ok && x.needTotal != null) tail = `${LBL.cashToMoveIn} ${eokS(x.needTotal)} · 분담금·이자 포함, 잔금대출 제외`;
       else tail = `${LBL.cashToMoveIn}은 계산 못 함: 입주 시점·신축 시세 자료 부족`;
     }
@@ -792,7 +794,7 @@ const SIMPLE = (() => {
     countTo($("bNB"), all); $("bN").textContent = fmt(all);
     $("bGo").textContent = all ? `${fmt(all)}곳 보기` : "지도에서 보기";
     $$("#bSheet [data-bc]").forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(+b.dataset.bc - c) < 1e-9)));
-    $$("#bSheet [data-bstep]").forEach((b) => { const dn = +b.dataset.bstep < 0; b.disabled = dn ? c <= 0.5 + 1e-9 : c >= 15 - 1e-9; b.setAttribute("aria-label", `${(dn ? c <= 2 + 1e-9 : c < 2 - 1e-9) ? "1,000만" : "5,000만"} ${dn ? "줄이기" : "늘리기"}`); });
+    $$("#bSheet [data-bstep]").forEach((b) => { const dn = +b.dataset.bstep < 0; b.disabled = dn ? c <= 0.5 + 1e-9 : c >= 15 - 1e-9; b.setAttribute("aria-label", `${c <= 2 + 1e-9 ? "1,000만" : "5,000만"} ${dn ? "줄이기" : "늘리기"}`); });
     histData(); scrubPaint(all);
     if (dragging) return;   // 끄는 동안엔 '+0.5억이면'을 다시 세지 않는다(손을 떼면 한 번)
     const m = moreTxt(c, all), el = $("bMore");
@@ -827,7 +829,7 @@ const SIMPLE = (() => {
       if (e.target.closest("[data-bx]")) return sheetClose(false);
       const c = e.target.closest("[data-bc]"); if (c) { setCash(+c.dataset.bc, true); try { navigator.vibrate && navigator.vibrate(8); } catch (er) {} return; }
       // −0.5억 / +0.5억(17차: 시트의 막대 그림 대신) — 1억 아래에서 줄이면 5,000만에서 멈춘다
-      const st = e.target.closest("[data-bstep]"); if (st) { const c0 = +$("pCash").value || 1, d = +st.dataset.bstep; let v = d < 0 ? (c0 <= 2 + 1e-9 ? Math.ceil(c0 * 10 - 1e-9) / 10 - 0.1 : Math.ceil(c0 * 2 - 1e-9) / 2 - 0.5) : (c0 < 2 - 1e-9 ? Math.floor(c0 * 10 + 1e-9) / 10 + 0.1 : Math.floor(c0 * 2 + 1e-9) / 2 + 0.5); v = Math.min(15, Math.max(0.5, Math.round(v * 100) / 100)); setCash(v, true); return; }   // 27차: 2억 아래는 1,000만씩(9,000만에 바로 닿게) · 2억부터 5,000만씩
+      const st = e.target.closest("[data-bstep]"); if (st) { const c0 = +$("pCash").value || 1, d = +st.dataset.bstep; let v = d < 0 ? (c0 <= 2 + 1e-9 ? Math.ceil(c0 * 10 - 1e-9) / 10 - 0.1 : Math.ceil(c0 * 2 - 1e-9) / 2 - 0.5) : (c0 <= 2 + 1e-9 ? Math.floor(c0 * 10 + 1e-9) / 10 + 0.1 : Math.floor(c0 * 2 + 1e-9) / 2 + 0.5); v = Math.min(15, Math.max(0.5, Math.round(v * 100) / 100)); setCash(v, true); return; }   // 27차·28차: 2억까지(2억 포함, +·− 같게)는 1,000만씩(9,000만에 바로 닿게) · 2억 넘으면 5,000만씩
       if (e.target.closest("#bGo")) sheetClose(true);
     });
     b.addEventListener("keydown", (e) => {
@@ -934,7 +936,8 @@ const SIMPLE = (() => {
       $("sMiniM").textContent = area && kn ? `${bbF && !gu ? "범위" : area}·${kn}` : area || kn || (gap ? "전세 끼고" : "대출 끼고");
     }
     // 분모('전세 시세 있는 N곳 중')는 쓰지 않는다(리뉴얼 2단계) — 카드 한 줄 '내 돈 1억 → 갈 수 있는 곳 9곳'
-    $("sNL").textContent = "갈 수 있는 곳";
+    // 28차: 구를 고른 동안은 머리 숫자(서울 전체)가 무엇인지 + 그 구 곳 수를 한 줄로(목록 '강북구 · 6곳'과 같은 값)
+    { const nl = $("sNL"), t = gu ? `서울 전체 · ${gu} ${fmt(L.length)}곳` : "갈 수 있는 곳"; if (nl.textContent !== t) nl.textContent = t; nl.classList.toggle("bc-gu", !!gu); }
     countTo($("sNB"), all);
     $("sCash").setAttribute("aria-valuetext", `${cashTxt(Math.min(15, Math.max(0.5, v)), v)}, ${fmt(all)}곳`);
     SCRS.forEach((x) => { if (x.getAttribute("role") !== "slider") return; x.setAttribute("aria-valuenow", String(Math.min(15, Math.max(0.5, v)))); x.setAttribute("aria-valuetext", `${cashTxt(Math.min(15, Math.max(0.5, v)), v)}, ${fmt(all)}곳`); });
@@ -969,7 +972,7 @@ const SIMPLE = (() => {
     newLoad();
     rowFit();
   }
-  // 27차: 목록 2줄(단계 · 동 · 역 N분)이 좁아 역 이름이 '서울지…'·'미…'처럼 잘리면 — 역 이름 대신 '가까운 역 N분'(1단계) → '역 N분'(2단계) → NEW 칩 숨김(3단계)
+  // 27차·28차: 목록 2줄(단계 · 동 · 역 N분)이 좁아 역 이름이 잘리면 — NEW 칩 숨김(1단계) → 역 이름 대신 '가까운 역 N분'(2단계) → 단계 칩 숨김(3단계) · 맨 '역 N분'은 쓰지 않는다
   // '분'은 늘 다 보인다. 읽기 한 번 → 쓰기 한 번(단계마다 남은 줄만 다시 잰다)
   let rowFitT = 0;
   function rowFit(root) {

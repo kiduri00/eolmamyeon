@@ -92,6 +92,9 @@ PH = '구역·동·지번·역 검색'   # 앱 검색칸과 같은 글
 FORM = f'<form class="tsr" action="/" method="get" role="search"><label class="sr-only" for="tq">구역 검색</label><input id="tq" name="q" type="search" placeholder="{PH}" autocomplete="off" enterkeyhint="search" maxlength="40"></form>'
 
 
+LOGO_SVG = '<svg class="logo-i" width="28" height="28" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M32 61C25.5 52.5 12.5 40.5 12.5 24.5a19.5 19.5 0 0 1 39 0C51.5 40.5 38.5 52.5 32 61z" fill="#1F3A87" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M32 12.6 44.4 23.7h-3.9V35.2H23.5V23.7h-3.9z" fill="#fff" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><rect x="28.6" y="26.6" width="6.8" height="8.6" rx="1.2" fill="#1F3A87"/></svg>'
+
+
 def app_header(h):
     """정적 페이지 머리 = 앱 머리: 웹 메뉴 줄(계산기·월간 리포트·구역별 페이지·가이드)을 빼고 로고 + 검색 알약만."""
     m = HDR.search(h)
@@ -100,6 +103,8 @@ def app_header(h):
     if 'class="tsr"' not in hd: hd = hd.replace('</div></header>', FORM + '</div></header>', 1)
     hd = re.sub(r'<span class="hdr-date"[^>]*>.*?</span><a class="hdr-bell".*?</a>', '', hd, flags=re.S)
     hd = hd.replace('</div></header>', BELL + '</div></header>', 1)
+    # 28차: 로고를 그림 파일 대신 글 속 SVG로(첫 프레임부터 보이게 · 그림 요청을 기다리지 않음)
+    hd = re.sub(r'<img class="logo-i" src="[^"]*icon-small\.svg" width="28" height="28" alt="">', LOGO_SVG, hd)
     hd = re.sub(r'(<input id="tq"[^>]*placeholder=")[^"]*(")', lambda x: x.group(1) + PH + x.group(2), hd)
     # 26차: 400px 아래에선 자리표시가 잘려 '구역·동·:'로 보이던 것 → '검색'
     hd = re.sub(r'<script>(?:innerWidth<400|matchMedia\("\(max-width:399)[^<]*</script>', '', hd)
@@ -131,7 +136,8 @@ def main():
             h = open(fp, encoding='utf-8').read()
             if '</body>' not in h: continue
             # 26차: 리포트·가이드·기간 글은 '찾기'(예전엔 MY가 켜져 있었다 — 읽을거리 입구가 찾기 첫 화면) · 약관·소개·FAQ·문의 = MY
-            cur = 'home' if rel.startswith(('z/', 'gu/', 'report/', 'guide/', 'feed/', 'api/')) or rel in ('404.html', 'years.html') else 'my'
+            # 28차: 읽을거리·안내 페이지(리포트·가이드·기간·소식 구독·FAQ·문의·소개·약관…)는 모두 MY(앱에서 이 링크들이 모인 곳) · 지도에서 이어지는 구역·구 페이지와 404만 '찾기'
+            cur = 'home' if rel.startswith(('z/', 'gu/', 'api/')) or rel == '404.html' else 'my'
             b = block(cur)
             h1 = RX.sub(lambda m: b, h, count=1) if RX.search(h) else h.replace('</body>', b + '\n</body>', 1)
             h1 = app_header(h1)

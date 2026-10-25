@@ -97,7 +97,7 @@ for r in R:
     if r.get('s', 0) >= 9: r['eta'] = {'na': '준공'}
 # 날짜 정리: 오늘 뒤 날짜(원자료 오기, 예: 2033년)는 버리고, 단계 순서가 거꾸로 된 날짜(준공이 착공보다 앞섬 등)는 뒤 단계 쪽을 버린다
 import datetime as _d0
-_today = _d0.date.today().isoformat()
+_today = (_d0.datetime.now(_d0.timezone.utc) + _d0.timedelta(hours=9)).date().isoformat()   # 서울 날짜
 ORDER = ['구역지정', '추진위', '조합설립', '시행자지정', '사업시행', '관리처분', '착공', '준공']
 for pid, pm in PREM.items():
     if not isinstance(pm, dict): continue
@@ -576,7 +576,14 @@ print('eta stale', [(r['id'], r['n'][:14], r['stale']['why']) for r in R if r.ge
 D['jrz'] = TX.get('jrz'); D['txAsOf'] = TX.get('asOf')
 D['rvj'] = TX.get('rvj')
 import datetime as _dt
-D['upd'] = _dt.date.today().isoformat()
+# 갱신일은 서울 날짜(KST)로 — Actions 러너는 UTC라 06:40(서울)에 돌면 전날이 찍혔다(10.25 → 10.24 되돌아감).
+# 직전 빌드·배포된 날짜보다 앞서지 않게 한다(같은 날 두 번 돌거나 시계가 어긋나도 날짜가 뒤로 가지 않음).
+_kst = (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(hours=9)).date().isoformat()
+_prev = []
+for _pp, _kk in (('pipeline/data.enriched.json', 'upd'), ('public/api/v1/meta.json', 'updated')):
+    try: _prev.append(str(json.load(open(os.path.join(ROOT, _pp), encoding='utf-8')).get(_kk) or '')[:10])
+    except Exception: pass
+D['upd'] = max([_kst] + [x for x in _prev if re.match(r'\d{4}-\d\d-\d\d$', x)])
 # ---------- 경사도(tools/slope.py 캐시): 평균 경사로 평지·완만·경사·급경사 ----------
 _SLP = os.path.join(ROOT, 'pipeline/cache/slope.json')
 if os.path.exists(_SLP):

@@ -28,11 +28,11 @@ const DTL = (() => {
       if (g && g.block && g.block !== "계산 대상 아님") {
         // 전세 끼고는 못 사는 곳: 전세 낀 숫자는 내지 않고(머리 '전세 끼고 사기 불가'와 같은 판정) 대출 끼고 사는 길을 한 줄로 — /z 페이지(zsample.key3)와 같은 글
         o.need = null; o.total = null; o.why2 = "전세 끼고는 계산하지 않아요";
-        o.basis = `전세 끼고는 못 사요 · ${String(g.block).replace(/\s*\(.*\)\s*$/, "").replace(/^전세 낀 매수 불가\s*·\s*/, "")}`;
+        o.basis = `전세를 안고는 살 수 없어요 · ${String(g.block).replace(/\s*\(.*\)\s*$/, "").replace(/^전세 낀 매수 불가\s*·\s*/, "")}`;
         // 27차: 대출 끼고 사는 값을 칸의 큰 값으로(+ '대출 끼고' 꼬리표) — '계산 보류' 칸과 아래 한 줄이 같은 말을 두 번 하던 것(/z zsample.key3 lnow·ltot와 같은 값)
         if (x && ok(x.needBuy) && !r.lc && r.tag !== "mk") { o.lnow = x.needBuy; if (x.ok && ok(x.needTotal)) o.ltot = x.needTotal; }
       } else if (!g || g.na || !g.x || !ok(g.x.price)) o.basis = noPriceTxt(r);
-      else o.basis = `전세 끼고 · 매수가 ${ZF.manT(g.x.price)} − 전세 ${ZF.manT(g.D)}${g.x.tax >= 0.005 ? " (+취득세)" : ""}`;
+      else o.basis = `전세 끼고 · 매수가 ${ZF.manT(g.x.price)} − 전세 ${ZF.manT(Math.round(g.D * 100) / 100)}${g.x.tax >= 0.005 ? " (+취득세)" : ""}`;
     } else if (!x || !ok(x.needBuy)) o.basis = x && x.price == null ? noPriceTxt(r) : "지금 필요한 돈을 계산하지 못했어요";
     else o.basis = x.loanCap >= 0.005 ? `대출 끼고 · 매수가 ${ZF.manT(x.price)} − 대출 ${ZF.manT(x.loanCap)}${x.tax >= 0.005 ? " (+취득세)" : ""}` : `대출 안 나와요 · 매수가 ${ZF.manT(x.price)}${x.tax >= 0.005 ? " (+취득세)" : ""}`;
     if (o.total == null && !o.why2) o.why2 = x && x.price != null ? ZF.noCalcTxt(r, x) : "입주 시점·신축 시세 자료가 부족해요";
@@ -56,8 +56,8 @@ const DTL = (() => {
     // 판정 한 줄(가능 · 사는 방법): '✓ 가능'과 '전세 끼고 ✓ 가능' 칩을 따로 두지 않는다
     const how = gapMode() ? "전세 끼고" : "대출 끼고";
     const CK = '<svg class="dt-ck" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const vd1 = n.need == null ? "" : excl && upC(n.need) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>${ZF.EXCL}</b><small> · 숫자는 참고만</small></em>` : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : C(n.need - CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
-    const sub2 = n.total == null ? (n.ltot != null ? "대출 끼고 산 경우 · 잔금대출 뺀 값" : esc(n.why2)) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${C(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
+    const vd1 = n.need == null ? "" : excl && upC(n.need) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>${ZF.EXCL}</b><small> · 숫자는 참고만</small></em>` : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : ZF.short(n.need - CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
+    const sub2 = n.total == null ? (n.ltot != null ? "대출 끼고 산 경우 · 잔금대출 뺀 값" : esc(n.why2)) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.short(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
     let eta = "–"; try { eta = etaShow(r); } catch (e) {}
     // 입주권 없는 곳: 셋째 칸 이름 '입주권' · 이유는 그 아래 한 번 · 착공 뒤처럼 입주권 거래가 있으면 '조합원 입주권을 사야 해요'(참고 시세) — '입주권 없음'과 시세가 부딪치지 않게(20차 G3)
     if (n.nt) eta = n.im ? "조합원 입주권을 사야 해요" : "없음";

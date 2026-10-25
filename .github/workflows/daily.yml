@@ -42,6 +42,7 @@ jobs:
           restore-keys: raw-
       - name: 갱신 · 빌드
         env:
+          TZ: Asia/Seoul
           FORCE_REPORT: ${{ github.event.inputs.report }}
         run: bash tools/daily.sh
       - name: 바뀐 것만 커밋

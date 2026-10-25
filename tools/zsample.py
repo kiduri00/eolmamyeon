@@ -5,6 +5,11 @@ def batchim(w):   # 마지막 글자 받침 유무 — 한글은 음절, 숫자�
     s = re.sub(r'[\s)\]]+$', '', str(w or '')); c = s[-1:] 
     if '가' <= c <= '힣': return (ord(c) - 0xAC00) % 28 != 0
     return c in '013678'
+def ro(w):   # '으로/로': 받침이 있어도 ㄹ 받침(…일·칠·팔, '길'·'동 258')이면 '로'
+    s = re.sub(r'[\s)\]]+$', '', str(w or '')); c = s[-1:]
+    if not batchim(w): return '로'
+    if '가' <= c <= '힣': return '로' if (ord(c) - 0xAC00) % 28 == 8 else '으로'
+    return '로' if c in '178' else '으로'
 def num(v):   # 억 단위 금액 숫자 꼴 — 화면 ZF.num과 같은 규칙: 1억 아래 소수 둘째 자리(0.69), 1억부터 첫째 자리(1.2 · 1)
     if v is None or v != v or v in (float('inf'), float('-inf')): return '–'
     a = abs(v); sg = '-' if v < 0 else ''
@@ -198,7 +203,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         if s >= 8 and t.get('im'): o['eta'] = '조합원 입주권을 사야 해요'; o['esub'] = f"참고 입주권 시세 {eok_m(t['im'])}"; o['im'] = 1
         else: o['eta'] = '없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 알아봐야 해요'
     elif c.get('gapBlock') and c['gapBlock'] not in ('계산 대상 아님', 'na'):   # 'na' = 매수가 자료 없음(아래 마지막 갈래)
-        o['basis'] = '전세 끼고는 못 사요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
+        o['basis'] = '전세를 안고는 살 수 없어요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
         if c.get('now') is not None and not r.get('lc') and r.get('tag') != 'mk':
             o['alt'] = f"대출 끼고 사면 지금 {cash(c['now'])}" + (f" · 입주까지 {cash(c['need'])}" if c.get('need') is not None else '')
             # 27차: 대출 끼고 사는 값을 칸의 큰 값으로(앱 76_detail.js keyHTML과 같은 꼴: 값 + '대출 끼고' 꼬리표) — '계산 보류' 칸과 아래 한 줄이 겹치던 것
@@ -207,7 +212,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         o['tsub'] = '전세 끼고는 계산하지 않아요'
     elif c.get('gapNow') is not None:
         o['now'] = cash(c['gapNow'])
-        o['basis'] = f"전세 끼고 · 매수가 {manT(c['price'])} − 전세 {manT(c['jeonse'])} (+취득세)" if c.get('price') is not None and c.get('jeonse') is not None else '전세 끼고 · 기본 가정'
+        o['basis'] = f"전세 끼고 · 매수가 {manT(c['price'])} − 전세 {manT(round(c['jeonse'] * 100) / 100)} (+취득세)" if c.get('price') is not None and c.get('jeonse') is not None else '전세 끼고 · 기본 가정'
         if c.get('gapTotal') is not None: o['tot'] = cash(c['gapTotal'])
         else: o['tsub'] = '입주 시점·신축 시세 자료가 부족해요'
     else: o['basis'] = '매수가로 쓸 거래가 없어 계산하지 않아요'; o['tsub'] = '매수가가 없어 계산하지 않아요'

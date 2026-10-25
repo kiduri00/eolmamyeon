@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # 매일 데이터 갱신 → 빌드. GitHub Actions(.github/workflows/daily.yml)와 로컬에서 같은 순서로 돈다.
 set -euo pipefail
+# 모든 날짜(갱신일·사이트맵·피드)는 서울 기준 — Actions 러너는 UTC라 아침 실행이 전날로 찍혔다
+export TZ=Asia/Seoul
 cd "$(dirname "$0")/.."
 RAW=pipeline/raw
 mkdir -p "$RAW" pipeline/cache
