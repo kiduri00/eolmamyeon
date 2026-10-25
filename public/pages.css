@@ -205,3 +205,5 @@ main .rp-w li,main ul.links>li{margin:0;padding-top:11px;padding-bottom:11px}mai
 main table td a{min-width:40px;justify-content:center}
 main p.meta a[href*="feed/"],main .zc-a a,main .fq-more a,main .fq-a a,main h2+ul:not([class])>li>a{display:inline-block;min-width:40px;text-align:center;padding:11px 0;margin:-11px 0;line-height:18px}
 main h2+ul:not([class])>li{margin:0;padding-top:11px;padding-bottom:11px}
+/* 설치 앱(홈 화면 앱·안드로이드 TWA = display-mode standalone 등)에서 연 정적 페이지: 아래 탭에 '지금 여기' 표시를 하지 않는다(리포트·가이드를 MY로 표시하던 것) · 새 소식 표시는 앱 첫 화면과 같은 작은 빨간 점 — 브라우저 화면은 그대로 */
+@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){.zp-tabs a[aria-current="page"]{color:var(--text-2,#4e5968)!important;font-weight:600}.zp-tabs .nb-dot{width:8px!important;height:8px!important;top:4px!important;left:calc(50% + 8px)!important;font-size:0!important;color:transparent!important;background:#EF5E47!important}}

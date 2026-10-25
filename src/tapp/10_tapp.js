@@ -206,9 +206,10 @@ function valBuild() {
   const ss = $("sSearch"); if (!ss || $("tVal")) return;
   const v = document.createElement("button");
   v.type = "button"; v.className = "th-val"; v.id = "tVal";
-  ss.before(v);
+  // 숨은 제목(#sSite) 앞에 — 웹 코드가 검색 칸을 제목 바로 뒤로 옮겨도 순서가 '가치 한 줄 → 검색'으로 남게
+  const sh = $("sSite"); if (sh && sh.parentNode === ss.parentNode) sh.before(v); else ss.before(v);
   const paint = () => {
-    const n = (($("sN") || {}).textContent || "").trim(), c = T(() => X().ZF().cash(X().cash()), "");
+    const n = (($("sN") || {}).textContent || "").trim(), c = ((($("sCashV") || {}).textContent) || "").replace(/\s+/g, "") || T(() => X().ZF().cash(X().cash()), "");   // 내 돈 카드 글 그대로(섬 단계에서도 같은 값)
     if (!/^\d[\d,]*$/.test(n) || !c) { v.hidden = true; return; }
     v.hidden = false;
     const h = `내 돈 <b>${esc(c)}</b>으로 갈 수 있는 재개발·재건축 <b>${esc(n)}곳</b>`;
@@ -499,6 +500,13 @@ function emptyDeco() {
 
 /* ---------- 시작 ---------- */
 function ready() { return !!(window.ZP_simple && window.ZP_T0 && $("sNav") && H.classList.contains("s-built") && document.body); }
+// 18 첫 그림 먼저: 미리 그려 둔 첫 화면(섬)에 아이콘·배너·가치 한 줄·5탭을 바로 얹고 가림(tapp-wait)을 푼다 — 웹 코드가 다 붙는 것(start)을 기다리지 않는다
+const tcssOn = () => [...document.styleSheets].some((x) => x.href && /\/b\/t\.[0-9a-f]{10}\.css/.test(x.href));
+function early() {
+  if (early.d) return; early.d = 1;
+  T(homeBuild); T(navBuild);
+  H.classList.remove("tapp-wait");
+}
 function start() {
   if (start.d) return; start.d = 1;
   H.classList.add("is-app");
@@ -514,4 +522,5 @@ function start() {
   try { window.dispatchEvent(new Event("zp:tapp")); } catch (e) {}
 }
 window.ZP_TAPP = { goTab, curTab, dep, feedCounts: () => (CH ? CH.items.reduce((o, e) => { o[e.type] = (o[e.type] || 0) + 1; return o; }, {}) : null), newCount, tiles: () => tiles().map((t) => ({ k: t[0], t: t[1], href: t[2], id: t[3] })), onb: () => !!ob, onbOpen };
+(function pre(n) { if (early.d) return; if ($("mapTop") && $("sSearch") && $("sGauge") && $("sNav") && tcssOn()) early(); else if (n < 400) setTimeout(() => pre(n + 1), 10); })(0);
 (function wait(n) { if (ready()) start(); else if (n < 600) setTimeout(() => wait(n + 1), 25); else H.classList.remove("tapp-wait"); })(0);
