@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Dark-mode splash background (no white flash at launch in night mode).
+    Overrides the light resValue "backgroundColor" (#FFFFFF, app/build.gradle) for the -night
+    configuration only. Matches themeColorDark/navigationColorDark #15181D.
+    Not produced by bubblewrap: re-add after regenerating the project.
+-->
+<resources>
+    <color name="backgroundColor">#15181D</color>
+    <color name="shortcut_background">#2A2E35</color>
+</resources>

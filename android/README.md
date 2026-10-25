@@ -54,6 +54,17 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
 ## 아이콘
 
 - 런처/스플래시: 사이트의 `icon-512.png`, 적응형: `icon-maskable-512.png`
-- 알림(흰색 실루엣): `assets-src/icon-monochrome.svg` → 512px PNG로 만들어 생성기에 넣었습니다(결과는 `res/drawable-*/ic_notification_icon.png`).
-  `twa-manifest.json`의 `monochromeIconUrl`은 사이트에 아직 없는 주소이므로 `bubblewrap update` 전에 사이트에 올리거나 로컬 서버로 바꿔 쓰세요.
+- 알림(흰색 실루엣): `assets-src/icon-monochrome.svg` → `assets-src/icon-monochrome-512.png`(결과는 `res/drawable-*/ic_notification_icon.png`).
+- 바로가기 4개는 각각 다른 아이콘(디자인 킷 `app_kit/png/shortcuts`): `shortcut_0`=지도(map), `shortcut_1`=관심 구역(favorites),
+  `shortcut_2`=월간 리포트(report), `shortcut_3`=구역별 페이지(zone). 원본은 `assets-src/shortcut_*_192.png`, SVG는 `assets-src/shortcuts/`.
+  `res/drawable-{mdpi..xxxhdpi}/shortcut_N.png` = 48/72/96/144/192px.
+- 사이트에는 모노크롬(`/icon-mono-512.png`, `/icon-monochrome-512.png` 둘 다 404)도 바로가기 아이콘도 없습니다.
+  그래서 `twa-manifest.json`의 `monochromeIconUrl`과 바로가기 `chosenIconUrl`은 `http://127.0.0.1:8765/…`(= `assets-src/` 폴더)를 가리킵니다.
+  `bubblewrap update` 전에 `npx http-server android/assets-src -p 8765`처럼 이 폴더를 8765 포트로 띄우세요. 나중에 사이트에 올리면 그 주소로 바꾸면 됩니다.
 - 재생성 스크립트: `assets-src/generate.js` (@bubblewrap/core로 이 폴더를 다시 만듭니다. 서명 설정·gradle.properties 수정은 다시 적용해야 합니다).
+
+## 스플래시 / 다크 모드
+
+- 스플래시 배경: 밝은 모드 `#FFFFFF`(build.gradle `backgroundColor`), 다크 모드 `#15181D`(`res/values-night/colors.xml`, bubblewrap 템플릿 밖 파일).
+  다크 모드에서 흰 화면이 번쩍이지 않게 합니다. 페이드아웃 300ms(`splashScreenFadeOutDuration`).
+- 상태바/내비게이션 바 다크 색: `#15181D`.

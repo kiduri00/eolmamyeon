@@ -44,6 +44,9 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
     fullScopeUrl: REAL + '/',
     webManifestUrl: LOCAL + '/manifest.webmanifest',
   });
+  // Distinct shortcut icons (design kit app_kit/png/shortcuts, copied into this folder).
+  const SC = ['map', 'favorites', 'report', 'zone'];
+  j.shortcuts = (j.shortcuts || []).map((s, i) => ({ ...s, chosenIconUrl: LOCAL + '/shortcut_' + SC[i] + '_192.png' }));
   const tm = new TwaManifest(j);
   const err = tm.validate(); if (err) throw new Error(err);
   await new TwaGenerator().createTwaProject(target, tm, new ConsoleLog('gen'));
@@ -52,12 +55,18 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   const fix = (u) => (typeof u === 'string' ? u.replace(LOCAL, REAL) : u);
   out.webManifestUrl = REAL + '/manifest.webmanifest';
   out.iconUrl = fix(out.iconUrl); out.maskableIconUrl = fix(out.maskableIconUrl);
-  out.monochromeIconUrl = REAL + '/icon-monochrome-512.png';  // NOTE: not on the site yet; local copy in android/assets-src/
-  out.shortcuts = (out.shortcuts || []).map(s => ({ ...s, url: fix(s.url), chosenIconUrl: fix(s.chosenIconUrl), chosenMaskableIconUrl: fix(s.chosenMaskableIconUrl), chosenMonochromeIconUrl: fix(s.chosenMonochromeIconUrl) }));
+  // monochrome + shortcut icons are NOT on the site (icon-mono-512.png / icon-monochrome-512.png both 404),
+  // so they stay pointed at the local helper server that serves android/assets-src/ on :8765.
+  out.monochromeIconUrl = LOCAL + '/icon-monochrome-512.png';
+  out.shortcuts = (out.shortcuts || []).map(s => ({ ...s, url: fix(s.url) }));
   require('fs').writeFileSync(path.join(target, 'twa-manifest.json'), JSON.stringify(out, null, 2) + '\n');
   console.log(JSON.stringify(out, null, 2));
   // Replace any local helper-server URLs that leaked into generated text files
   const walk=(d)=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(d,e.name)):[path.join(d,e.name)]);
-  for (const f of walk(target)) { if (/\.(png|jar|webp)$/.test(f)) continue; const t=fs.readFileSync(f,'utf8'); if (t.includes(LOCAL)) { fs.writeFileSync(f, t.split(LOCAL).join(REAL)); console.log('fixed', f); } }
+  for (const f of walk(target)) { if (/\.(png|jar|webp)$/.test(f) || path.basename(f) === 'twa-manifest.json') continue; const t=fs.readFileSync(f,'utf8'); if (t.includes(LOCAL)) { fs.writeFileSync(f, t.split(LOCAL).join(REAL)); console.log('fixed', f); } }
+  // Dark splash background (values-night) is not part of the bubblewrap template.
+  fs.mkdirSync(path.join(target, 'app/src/main/res/values-night'), { recursive: true });
+  fs.writeFileSync(path.join(target, 'app/src/main/res/values-night/colors.xml'),
+    '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="backgroundColor">#15181D</color>\n    <color name="shortcut_background">#2A2E35</color>\n</resources>\n');
   process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });
