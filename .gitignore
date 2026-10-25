@@ -1,3 +1,16 @@
 __pycache__/
 node_modules/
 pipeline/raw/
+
+# Android (TWA) — never commit keys or build outputs
+*.jks
+*.keystore
+keystore.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.aab
+*.apk
+*.idsig

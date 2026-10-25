@@ -1,0 +1,72 @@
+{
+  "packageId": "kr.alwaysquestions.zippin",
+  "host": "jaegaebal.alwaysquestions.kr",
+  "name": "집핀 - 서울 재개발 지도",
+  "launcherName": "집핀",
+  "display": "standalone",
+  "themeColor": "#FFFFFF",
+  "themeColorDark": "#15181D",
+  "navigationColor": "#FFFFFF",
+  "navigationColorDark": "#15181D",
+  "navigationDividerColor": "#FFFFFF",
+  "navigationDividerColorDark": "#15181D",
+  "backgroundColor": "#FFFFFF",
+  "enableNotifications": true,
+  "startUrl": "/?src=app",
+  "iconUrl": "https://jaegaebal.alwaysquestions.kr/icon-512.png",
+  "maskableIconUrl": "https://jaegaebal.alwaysquestions.kr/icon-maskable-512.png",
+  "monochromeIconUrl": "https://jaegaebal.alwaysquestions.kr/icon-monochrome-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "/home/claude/zippin-keys/zippin-upload.jks",
+    "alias": "upload"
+  },
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "지도로 보기",
+      "shortName": "지도",
+      "url": "https://jaegaebal.alwaysquestions.kr/?src=app#map",
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/icon-192.png"
+    },
+    {
+      "name": "관심 구역",
+      "shortName": "관심 구역",
+      "url": "https://jaegaebal.alwaysquestions.kr/?src=app#favTop",
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/icon-192.png"
+    },
+    {
+      "name": "월간 리포트",
+      "shortName": "리포트",
+      "url": "https://jaegaebal.alwaysquestions.kr/report/?src=app",
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/icon-192.png"
+    },
+    {
+      "name": "구역별 페이지",
+      "shortName": "구역",
+      "url": "https://jaegaebal.alwaysquestions.kr/z/?src=app",
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-core-script",
+  "webManifestUrl": "https://jaegaebal.alwaysquestions.kr/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://jaegaebal.alwaysquestions.kr/",
+  "minSdkVersion": 24,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "1.0.0"
+}
