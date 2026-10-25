@@ -98,36 +98,10 @@ OFFJS = ('<script>(function(){var d=' + json.dumps(UPD) + ',p;function s(){var o
          'addEventListener("offline",s);addEventListener("online",s);s()})()</script>')
 
 
-# 설치 앱(홈 화면 앱·안드로이드 TWA) 알아채기 — 첫 화면(src/shell.html 머리 스크립트)과 같은 규칙 · 같은 sessionStorage 키(zp.tapp)
-# ?src=app 주소만으로는 켜지 않는다(브라우저로 공유될 수 있는 주소). 알아채면 html.is-tapp
-TDET = ('function(){var H=document.documentElement,a=false,m=function(q){try{return matchMedia(q).matches}catch(e){return false}};'
-        'a=m("(display-mode: standalone)")||m("(display-mode: fullscreen)")||m("(display-mode: minimal-ui)")||navigator.standalone===true||/^android-app:\\/\\//.test(document.referrer||"");'
-        'try{if(a)sessionStorage.setItem("zp.tapp","1");else a=sessionStorage.getItem("zp.tapp")==="1"}catch(e){}if(a)H.classList.add("is-tapp");return a}')
-# 광고 스크립트(애드센스): 페이지에 직접 박혀 있던 <script async src=…adsbygoogle.js> 대신 같은 주소·같은 속성(async · crossorigin=anonymous)으로 붙이는 작은 로더.
-# 브라우저에서는 예전과 똑같이 받고, 설치 앱에서는 받지 않는다(앱 안 광고는 따로 정할 때까지 끔). 다시 돌려도 같은 결과(표시 data-zp-ads).
-AD_SRC = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648'
-AD_TAG = f'<script async src="{AD_SRC}" crossorigin="anonymous"></script>'
-AD_LOAD = ('<script data-zp-ads>/* 광고: 브라우저는 그대로 · 설치 앱은 안 받음 */(function(){if((' + TDET + ')())return;'
-           f'var s=document.createElement("script");s.async=true;s.src="{AD_SRC}";s.crossOrigin="anonymous";(document.currentScript&&document.currentScript.parentNode||document.head).insertBefore(s,document.currentScript||null)}})()</script>')
-AD_RX = re.compile(r'<script data-zp-ads>.*?</script>', re.S)
-
-
-def ads(h):
-    h = AD_RX.sub(lambda m: AD_LOAD, h)
-    return h.replace(AD_TAG, AD_LOAD)
-
-
-# 설치 앱에서만: 아래 탭을 앱과 같은 5개(홈·지도·관심·소식·MY)로 — 브라우저 화면은 그대로 4개
-TAPPJS = ('<script>(function(){if(!(' + TDET + ')())return;var t=document.querySelector(".zp-tabs");if(!t||t.dataset.t5)return;t.dataset.t5="1";'
-          'var h=t.querySelector(\'a[href="/"]\');if(!h)return;h.querySelector("span").textContent="홈";h.querySelector("path").setAttribute("d","M4 10.6 12 4l8 6.6V19a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H5.5A1.5 1.5 0 0 1 4 19z");'
-          'var m=h.cloneNode(true);m.removeAttribute("aria-current");m.setAttribute("href","/#map");m.querySelector("span").textContent="지도";m.querySelector("path").setAttribute("d","M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14");h.after(m)})()</script>')
-TCSS = '@media (max-width:980px){html.is-tapp .zp-tabs{grid-template-columns:repeat(5,1fr)}}'
-
-
 def block(cur):
     ac = ' aria-current="page"'
     a = ''.join(f'<a href="{u}"{ac if k == cur else ""}>{SV(d)}<span>{t}</span>{"<i class=\"nb-dot\" aria-hidden=\"true\" hidden>N</i>" if k == "news" else ""}</a>' for k, u, t, d in TABS)
-    return f'<!--zp-tabs--><style>{CSS}{BCSS}{TCSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}{FONTJS}{SPYJS}{OFFJS}{TABJS}{TAPPJS}<!--/zp-tabs-->'
+    return f'<!--zp-tabs--><style>{CSS}{BCSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}{FONTJS}{SPYJS}{OFFJS}{TABJS}<!--/zp-tabs-->'
 
 
 RX = re.compile(r'<!--zp-tabs-->.*?<!--/zp-tabs-->', re.S)
@@ -187,7 +161,6 @@ def main():
             h1 = RX.sub(lambda m: b, h, count=1) if RX.search(h) else h.replace('</body>', b + '\n</body>', 1)
             h1 = app_header(h1)
             h1 = foot_links(h1)
-            h1 = ads(h1)
             # 26차: 글꼴 CSS를 늦게 붙여 봤지만(/z TBT) 나아지지 않아 원래대로(첫 그림부터 같은 글꼴 · CLS 0)
             h1 = re.sub(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/gh/orioncactus/pretendard[^"]+)" media="print" onload="this\.media=\'all\'" crossorigin>', lambda m: f'<link rel="stylesheet" href="{m.group(1)}" crossorigin>', h1)
             # 22차 접근성: 옆으로 밀리는 표 상자(.tw)는 키보드로도 밀 수 있게(초점 + 이름) — axe scrollable-region-focusable

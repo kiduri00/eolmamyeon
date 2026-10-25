@@ -6,7 +6,7 @@
    뒤로 가기(popstate) — 새 state의 zn보다 위에 있는 겹을 위에서부터 closeFn(true)로 닫는다. */
 const ZL = (() => {
   const S = [];
-  const strip = (s) => { if (!s || typeof s !== "object") return "{}"; const o = Object.assign({}, s); delete o.zl; delete o.zn; delete o.zdead; delete o.tD; return JSON.stringify(o); };   // tD = 설치 앱 화면 묶음이 적는 기록 깊이(같은 화면 판정에서 뺀다)
+  const strip = (s) => { if (!s || typeof s !== "object") return "{}"; const o = Object.assign({}, s); delete o.zl; delete o.zn; delete o.zdead; delete o.tD; delete o.tF; return JSON.stringify(o); };   // tD = 설치 앱 화면 묶음이 적는 기록 깊이(같은 화면 판정에서 뺀다)
   let last = { st: history.state, url: location.href }, skipping = false, hold = 0;
   // 다른 코드의 pushState·replaceState도 '지금 칸'으로 기억(빈 칸 건너뛰기 판정용)
   try {

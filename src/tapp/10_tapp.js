@@ -22,8 +22,10 @@ const dep = () => (history.state && typeof history.state === "object" && history
 function patchHistory() {
   if (history.__tD) return; history.__tD = 1;
   const P = history.pushState.bind(history), Rp = history.replaceState.bind(history);
-  history.pushState = function (s, t, u) { const d = dep() + 1; if (s == null || typeof s === "object") s = Object.assign({}, s || {}, { tD: d }); return P(s, t, u); };
-  history.replaceState = function (s, t, u) { const d = dep(); if (d && (s == null || typeof s === "object")) s = Object.assign({}, s || {}, { tD: d }); return Rp(s, t, u); };
+  // tF: 지도 탭(화면 가득 지도) 안에서 쌓은 칸(구 화면·구역 시트·하위 시트) — 뒤로 와도 지도 탭으로(60_simple.js popstate가 읽음)
+  const inMap = () => H.classList.contains("s-full");
+  history.pushState = function (s, t, u) { const d = dep() + 1; if (s == null || typeof s === "object") { s = Object.assign({}, s || {}, { tD: d }); if (inMap() && !s.sFull) s.tF = 1; } return P(s, t, u); };
+  history.replaceState = function (s, t, u) { const d = dep(), f = !!(history.state && history.state.tF) && inMap(); if ((d || f) && (s == null || typeof s === "object")) { s = Object.assign({}, s || {}); if (d) s.tD = d; if (f && !s.sFull) s.tF = 1; } return Rp(s, t, u); };
 }
 // 처음 칸(홈)으로 돌아간 뒤 cb — 열린 화면·시트·전체 지도는 각자의 뒤로 가기(popstate) 처리로 닫힌다
 function toBase(cb) {
@@ -75,8 +77,17 @@ const navIcon = (k) => {
   const f = tKit("tab-" + k + "-on") ? tIcon("", 24, "tn-f", "tab-" + k + "-on") : `${SV()} class="tn-f">${NAVF[k]}</svg>`;
   return `<span class="tn-i">${o}${f}</span>`;
 };
+// 웹 코드(60_simple.js build)가 #sNav를 늦게 다시 그리면(innerHTML) 지도 탭이 사라진다 → 플래그 대신 '지도 탭·그림이 있나'로 판단하고, 다시 그려지면 곧바로 또 만든다
+const navDone = (nav) => !!(nav && nav.querySelector('[data-nav="map"]') && nav.querySelectorAll("[data-nav] .tn-i").length >= 5 && nav.querySelector('[data-nav="news"] .t-bn'));
 function navBuild() {
-  const nav = $("sNav"); if (!nav || nav.dataset.t5) return;
+  const nav = $("sNav"); if (!nav) return;
+  if (!nav.__tmo) {
+    nav.__tmo = 1;
+    // 웹 코드가 aria-current를 다시 붙여도(navMark) 앱 탭 기준으로 고친다 · 탭바가 다시 그려지면(자식이 바뀌면) 5탭을 다시 만든다
+    try { new MutationObserver(navMark).observe(nav, { subtree: true, attributes: true, attributeFilter: ["aria-current"] }); } catch (e) {}
+    try { new MutationObserver(() => { if (!navDone(nav)) navBuild(); }).observe(nav, { childList: true }); } catch (e) {}
+  }
+  if (navDone(nav)) return;
   nav.dataset.t5 = "1";
   const hb = nav.querySelector('[data-nav="home"]');
   if (hb) { hb.innerHTML = "<span>홈</span>"; }
@@ -90,9 +101,8 @@ function navBuild() {
   const nb = nav.querySelector('[data-nav="news"]');
   [nb, $("hdrBell")].forEach((x) => { if (x && !x.querySelector(".t-bn")) { const i = document.createElement("b"); i.className = "t-bn"; i.hidden = true; i.setAttribute("aria-hidden", "true"); x.appendChild(i); } });
   navMark();
-  // 웹 코드가 aria-current를 다시 붙여도(navMark) 앱 탭 기준으로 고친다
-  try { new MutationObserver(navMark).observe(nav, { subtree: true, attributes: true, attributeFilter: ["aria-current"] }); } catch (e) {}
-  try { new MutationObserver(navMark).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
+  if (CH) badge();
+  if (!H.__tmo) { H.__tmo = 1; try { new MutationObserver(() => { navMark(); const n = $("sNav"); if (n && !navDone(n)) navBuild(); }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {} }
 }
 function goTab(k) {
   const now = curTab();

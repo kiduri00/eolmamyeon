@@ -234,7 +234,7 @@ const SIMPLE = (() => {
     try {
       const base = location.pathname + location.search;
       // /#map 으로 바로 들어온 경우(root)는 뒤로 갈 곳이 사이트 밖이라 주소만 지운다
-      if (on && !(history.state && history.state.sFull)) { if (location.hash === "#map") history.replaceState({ sFull: 1, root: 1 }, "", base + "#map"); else history.pushState({ sFull: 1 }, "", base + "#map"); }
+      if (on && !(history.state && (history.state.sFull || history.state.tF))) { if (location.hash === "#map") history.replaceState({ sFull: 1, root: 1 }, "", base + "#map"); else history.pushState({ sFull: 1 }, "", base + "#map"); }
       else if (!on && history.state && history.state.sFull) { if (history.state.root) history.replaceState(null, "", base); else history.back(); }
       else if (!on && location.hash === "#map") history.replaceState(null, "", base);
     } catch (e) {}
@@ -1081,7 +1081,7 @@ const SIMPLE = (() => {
   function init() {
     // 같은 페이지에서 주소의 #도구 이름만 바뀌어도(링크·뒤로가기) 그 도구를 연다
     window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (known(h) && cur !== h) { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (e) {} open(h); } });
-    window.addEventListener("popstate", () => { const on = document.documentElement.classList.contains("s-full"), want = !!(history.state && history.state.sFull) || location.hash === "#map"; if (on && !want) fullMap(false); else if (!on && want && history.state && history.state.sFull) fullMap(true); });
+    window.addEventListener("popstate", () => { const on = document.documentElement.classList.contains("s-full"), want = !!(history.state && (history.state.sFull || history.state.tF)) || location.hash === "#map"; if (on && !want) fullMap(false); else if (!on && want && history.state && (history.state.sFull || history.state.tF)) fullMap(true); });   // tF = 설치 앱 지도 탭 안에서 쌓인 칸(구 화면·구역 시트 · src/tapp가 적음) → 뒤로 와도 지도 탭 그대로 · 웹에는 tF가 없다
     if (P.fund === "cash" && P.basis !== "now") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (e) {} }
     build();
     try { budgetInit(); } catch (e) {}

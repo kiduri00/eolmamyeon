@@ -54,6 +54,10 @@
   html.is-tapp.simple #sSearch{min-height:52px;margin:6px 0 0;padding:0 16px;gap:10px;border:0!important;background:var(--t-fill)!important;color:var(--t-ph)!important;border-radius:14px;box-shadow:none!important;font:500 15.5px var(--font);letter-spacing:-.02em}
   html.is-tapp.simple #sSearch svg{color:var(--t-sub);width:20px;height:20px}
 
+  /* 탭 화면(소식·관심·MY·도구 = s-view)에서 연 구역 시트: 시트(#report)는 숨은 #mapTop 안에 있다 → 시트로 가는 길만 보이게(나머지 홈 내용은 그대로 숨김 · 시트는 화면 가득 fixed) */
+  html.is-tapp.simple.s-view.sheet-open #mapTop{display:block!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:visible!important}
+  html.is-tapp.s-view.sheet-open #mapTop>:not(.main),html.is-tapp.s-view.sheet-open #mapTop>.main>:not(#sRight),html.is-tapp.s-view.sheet-open #sRight>:not(#report){display:none!important}
+  html.is-tapp.s-view.sheet-open #mapTop>.main,html.is-tapp.s-view.sheet-open #sRight{display:block!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important}
   .th{display:block;margin:0 0 28px}
   html.s-view .th{display:none}
   .th-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px 0;margin:0 -6px;padding:0;background:none;border:0}

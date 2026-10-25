@@ -1,7 +1,7 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "74634834"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "e364adf4"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;

@@ -19,7 +19,12 @@ const DTL = (() => {
     const done = (() => { try { return isDone(r); } catch (e) { return false; } })();
     const o = { nt, done, moa: r.src === "moa", need: z && ok(z.need) ? z.need : null, total: z && ok(z.total) ? z.total : null, basis: "", alt: "", why2: "" };
     let x = null; try { x = investC(r); } catch (e) {}
-    if (o.moa) { o.basis = "모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요"; o.why2 = o.basis; return o; }
+    if (o.moa) {
+      o.basis = "모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요"; o.why2 = o.basis;
+      // 설치 앱: 관리지역 평균값은 참고로만(큰 숫자·'가능' 판정·곳 수에 넣지 않음) — 검색 '사업구역별' · 목록·지도 곳 수(모아타운 관리지역 제외)와 한 규칙
+      if (document.documentElement.classList.contains("is-tapp")) { const ref = o.need; o.need = null; o.total = null; o.tm = 1; o.basis = ref != null ? `관리지역 평균 참고값 ${C(ref)} · 안의 사업구역을 열어 보세요` : "안의 사업구역을 열어 보세요"; o.why2 = "입주까지는 안의 사업구역에서 계산해요"; }
+      return o;
+    }
     if (done) { o.basis = "사업이 끝난 곳이에요 · 일반 아파트 매매"; o.why2 = "새 아파트 입주까지 계산 대상이 아니에요"; return o; }
     // 입주권 없는 곳: 입주권 이야기는 '언제 입주' 칸에서 한 번만(지금·입주까지 칸은 '계산 안 해요'만)
     if (nt) { o.need = null; o.total = null; o.basis = ""; o.why2 = ""; const t = r.tx || {}; o.im = r.s >= 8 && t.im ? t.im : null; return o; }
@@ -48,7 +53,7 @@ const DTL = (() => {
   function keyHTML(r) {
     const n = nums(r);
     // 계산하지 않는 칸은 맨 '–' 대신 말로: 23차부터 두 칸 모두 '계산 보류' 하나(목록·/gu·/z·돈 탭과 같은 이름)
-    const v1 = n.need != null ? C(n.need) : n.lnow != null ? C(n.lnow) : "계산 보류", v2 = n.total != null ? C(n.total) : n.ltot != null ? C(n.ltot) : "계산 보류";
+    const v1 = n.tm ? "사업구역별" : n.need != null ? C(n.need) : n.lnow != null ? C(n.lnow) : "계산 보류", v2 = n.tm ? "사업구역별" : n.total != null ? C(n.total) : n.ltot != null ? C(n.ltot) : "계산 보류";
     const MODE = '<em class="dt-mode">대출 끼고</em>';
     // 26차: 목록·곳 수와 같은 판정 하나 — 추정 매수가(같은 구 시세로 채운 값)·참고값(lc)은 곳 수에서 빠지므로 '가능해요'라 하지 않는다
     const excl = (() => { try { return !!(r.lc || estHide(r)); } catch (e) { return !!r.lc; } })();
