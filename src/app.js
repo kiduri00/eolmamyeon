@@ -6418,10 +6418,10 @@
     const M = (v) => Math.round((v || 0) * 1e4), E = (m) => (m <= 0 ? "0원" : ZF.exact(m / 1e4));
     const fl = g ? g.x.price + g.x.tax + g.x.contrib + g.x.origTax + g.x.midInt + g.intM - g.x.loanEnd : 0;
     if (g && g.now + g.reloc > fl + 0.05) { const a = M(g.now), b = M(g.reloc);
-      return { s: null, html: `<p class="cash-br"><span>지금 <b>${E(a)}</b></span><span>+ 이주 때 <b>${E(b)}</b></span><span>= 입주까지 현금 <b>${E(a + b)}</b></span></p>` }; }
+      return { s: null, html: `<p class="cash-br"><span>지금 <b>${E(a)}</b></span><span>+ 이주 때 <b>${E(b)}</b></span><span>= 입주까지 현금 <b>${ZF.cash(g.total)}</b> <small>(${E(a + b)})</small></span></p>` }; }
     const ti = g ? x.origTax + x.midInt + g.intM : x.origTax + x.interest + x.midInt;
     const s = M(x.price) + M(x.tax) + M(x.contrib) + M(ti), l = M(x.loanEnd), t = s - l;
-    return { s: s / 1e4, html: `<p class="cash-br"><span>입주까지 들어가는 돈 <b>${E(s)}</b></span><span>− 입주 잔금대출 <b>${E(l)}</b></span><span>= 입주까지 현금 <b>${E(t)}</b></span></p>` };
+    return { s: s / 1e4, html: `<p class="cash-br"><span>입주까지 들어가는 돈 <b>${E(s)}</b></span><span>− 입주 잔금대출 <b>${E(l)}</b></span><span>= 입주까지 현금 <b>${ZF.cash(g ? g.total : x.needTotal)}</b> <small>(${E(t)} · 0.1억 반올림 전)</small></span></p>` };
   }
   const taxT = (v) => (v != null && isFinite(v) && Math.abs(v) < 0.995 && Math.abs(v) >= 0.00005 ? Math.round(v * 1e4).toLocaleString("ko-KR") + "만" : ZF.cash(v));   // 취득세는 작아 만 원 단위 그대로
   window.__count = (f, c) => {
