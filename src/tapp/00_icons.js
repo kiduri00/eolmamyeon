@@ -37,4 +37,15 @@ const TNAV = {
   home: "M4 10.6 12 4l8 6.6V19a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H5.5A1.5 1.5 0 0 1 4 19z",
   map: "M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14",
 };
-const tIcon = (k, s, cls) => `<svg class="${cls || "ti"}" width="${s || 34}" height="${s || 34}" viewBox="0 0 40 40" aria-hidden="true" focusable="false">${TI[k] || ""}</svg>`;
+// 그림 자리(slot) → 디자인 키트(TKIT · tools/build.py가 src/tapp/kit/*.svg에서 넣음)가 있으면 키트, 없으면 위 임시 그림(fb = TI 열쇠)
+let tUid = 0;
+const tKit = (slot) => !!(slot && TKIT[slot]);
+const tIcon = (k, s, cls, slot) => {
+  const sz = s || 34, c = cls || "ti";
+  const kit = slot && TKIT[slot];
+  if (kit) {
+    const u = "u" + (++tUid);
+    return kit.replace(/__U__/g, "-" + u + "-").replace(/^<svg\b([^>]*)>/, (m, a) => `<svg${a.replace(/\s(width|height|class|aria-hidden|focusable)="[^"]*"/g, "")} class="${c} tk" width="${sz}" height="${sz}" aria-hidden="true" focusable="false">`);
+  }
+  return `<svg class="${c}" width="${sz}" height="${sz}" viewBox="0 0 40 40" aria-hidden="true" focusable="false">${TI[k] || ""}</svg>`;
+};

@@ -281,7 +281,24 @@ c_url = emit('c', css, 'css')
 _TD = os.path.join(R, 'src', 'tapp')
 t_js = ''.join(open(os.path.join(_TD, f), encoding='utf-8').read() for f in sorted(os.listdir(_TD)) if f.endswith('.js'))
 t_css = ''.join(open(os.path.join(_TD, f), encoding='utf-8').read() for f in sorted(os.listdir(_TD)) if f.endswith('.css'))
-t_js = '(function(){"use strict";\n' + t_js + '\n})();'
+# 디자인 키트(src/tapp/kit/*.svg · 자리 이름 = 파일 이름, 예: grid-map.svg · banner-report.svg · onb-1.svg · tab-home.svg/tab-home-on.svg)
+# 있으면 그 그림을 쓰고, 없으면 00_icons.js 임시 그림. 그림 안 id는 '파일이름__U__'로 바꿔 두고(화면에 여러 번 넣을 때 tIcon이 겹치지 않게 번호를 붙임)
+# kit/tokens.css가 있으면 tapp.css 뒤에 붙인다(키트 색·간격 토큰)
+_KD = os.path.join(_TD, 'kit')
+_kit = {}
+if os.path.isdir(_KD):
+    for f in sorted(os.listdir(_KD)):
+        if not f.endswith('.svg'): continue
+        k = f[:-4]
+        s = open(os.path.join(_KD, f), encoding='utf-8').read()
+        s = re.sub(r'<\?xml.*?\?>|<!--.*?-->|<!DOCTYPE[^>]*>', '', s, flags=re.S).strip()
+        s = re.sub(r'\s+', ' ', s)
+        ids = set(re.findall(r'\bid="([^"]+)"', s))
+        for i in sorted(ids, key=len, reverse=True):
+            s = s.replace(f'id="{i}"', f'id="{k}__U__{i}"').replace(f'url(#{i})', f'url(#{k}__U__{i})').replace(f'href="#{i}"', f'href="#{k}__U__{i}"')
+        _kit[k] = s
+    if os.path.exists(os.path.join(_KD, 'tokens.css')): t_css += open(os.path.join(_KD, 'tokens.css'), encoding='utf-8').read()
+t_js = '(function(){"use strict";\nconst TKIT = ' + json.dumps(_kit, ensure_ascii=False) + ';\n' + t_js + '\n})();'
 if ESB and not os.environ.get('NO_MINIFY'): t_js = mini(t_js, 'js'); t_css = mini(t_css, 'css')
 t_url = emit('t', t_js); tc_url = emit('t', t_css, 'css')
 assert shell.count('__TJS__') == 1 and shell.count('__TCSS__') == 1

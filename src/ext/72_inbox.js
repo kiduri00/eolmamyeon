@@ -152,7 +152,7 @@ const INBOX = (() => {
     const perm = Notification.permission;
     if (isOn() && perm === "granted") return `<div class="ib-push on" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림 켜짐</b><small>매일 아침 관심 구역·알림 조건에 새 소식이 있으면 알려 드려요</small></span><button type="button" class="btn text sm" data-iboff>끄기</button></div>`;
     if (perm === "denied") return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>알림이 막혀 있어요</b><small>${TAPP() ? `폰 ${TSET()}에서 허용한 뒤 다시 열어 주세요` : "주소창 왼쪽 자물쇠(사이트 설정) → 알림 허용 뒤 다시 열어 주세요"}</small></span></div>`;
-    if (PMSG === P_FAIL) return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림을 켤 수 없어요</b><small>이 브라우저에선 안 돼요 · 새 소식은 여기 소식 탭에 모아 드려요</small></span></div>`;
+    if (PMSG === P_FAIL) return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림을 켤 수 없어요</b><small>${TAPP() ? "이 기기에선 안 돼요" : "이 브라우저에선 안 돼요"} · 새 소식은 여기 소식 탭에 모아 드려요</small></span></div>`;
     return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>새 소식을 폰 알림으로 받기</b><small>${PMSG ? esc(PMSG) : "새 실거래·단계·경매, 갈 수 있게 된 곳"}</small></span><button type="button" class="btn primary sm" data-ibon>알림 받기</button></div>`;
   }
   const u8 = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
@@ -175,12 +175,13 @@ const INBOX = (() => {
     if (!sub && create) sub = await tmo(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(KEY) }), 8000, "subscribe");
     return sub;
   }
-  const P_FAIL = "이 브라우저에선 폰 알림을 켤 수 없어요 · 소식 탭에 모아 드려요";
+  let P_FAIL = "이 브라우저에선 폰 알림을 켤 수 없어요 · 소식 탭에 모아 드려요";
   // 설치 앱(html.is-tapp · 안드로이드 앱)에는 주소창이 없다 → 폰 설정에서 푸는 길
   const TAPP = () => document.documentElement.classList.contains("is-tapp");
   const TSET = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? "설정 → 알림 → 집핀" : "설정 → 애플리케이션 → 집핀 → 알림");
   let P_DENY = "알림이 막혀 있어요 · 주소창 왼쪽 자물쇠(사이트 설정)에서 알림을 허용해 주세요";
   if (TAPP()) P_DENY = `알림이 막혀 있어요 · 폰 ${TSET()}에서 허용해 주세요`;
+  if (TAPP()) P_FAIL = "이 기기에선 폰 알림을 켤 수 없어요 · 소식 탭에 모아 드려요";
   // 성공은 서버가 구독을 받았다고 답한 뒤에만. 실패하면 버튼을 되돌리고 이유를 보여 준다. 결과 { ok, msg, denied }
   async function subscribe(btn) {
     const lbl = btn ? btn.innerHTML : "";
