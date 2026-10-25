@@ -3193,7 +3193,7 @@ async function r31Lane(browser, api, errs) {
   {
     const T = "토허 구역 상세(밝게·어둡게): 모든 단추에 접근 이름 · '전세 끼고' 불가 칩 이름·글에 이유 · axe critical 0 — 7차: .ov-p.dt-gap button-name(451곳)";
     let AXE = null; try { const ap = process.env.AXE_PATH || require.resolve("axe-core/axe.min.js"); AXE = fs.readFileSync(ap, "utf8"); } catch (e) {}
-    const z = api.zones.find((x) => /토지거래허가/.test(x.need.gap.blocked || "") && x.need.cash.now != null);
+    const z = api.zones.find((x) => /토지거래허가/.test(x.need.gap.blocked || "") && x.need.cash.now != null && x.membership && x.membership.status === "ok");
     if (!z) skip("a11y.r31", T, "토허 구역 없음");
     else for (const cs of ["light", "dark"]) {
       const { ctx, page } = await newPage(browser, mob(390, 844, cs), errs);
@@ -3314,7 +3314,7 @@ async function r31Static(api) {
       if (nk && kp) expect(kp[1].split("·").length === +nk[1], "rep.r31", T, `${i.ym}: 인가 이벤트 칸 '${kp[1]}' vs ${nk[0]}`);
       const dup = /(\d+)곳 가운데 \1곳/.exec(t); expect(!dup, "rep.r31", T, `${i.ym}: '${dup && dup[0]}'`);
       const dead = [];
-      for (const m of h.matchAll(/href="\.\.\/\?from=report#([a-z]\d+)"/g)) { if (ids.has(m[1])) continue; const z = await getPage("/z/" + m[1]); if (z.status !== 200) dead.push(m[1]); }
+      for (const m of h.matchAll(/href="\.\.\/\?from=report#([a-z]\d+)"/g)) { if (ids.has(m[1]) || /^m\d+$/.test(m[1])) continue;   /* m = 모아타운 관리지역(앱에서 열림 · API 구역 목록 밖) */ const z = await getPage("/z/" + m[1]); if (z.status !== 200) dead.push(m[1]); }
       expect(!dead.length, "rep.r31", T, `${i.ym}: 계산기 링크인데 앱 목록·구역 페이지에 없는 구역 ${[...new Set(dead)].join(", ")}`);
       if (i.ym >= "2026-10" && YS) {
         const tb = (/<caption class="sr-only">단계별 걸린 기간<\/caption>([\s\S]*?)<\/table>/.exec(h) || [])[1] || "";
