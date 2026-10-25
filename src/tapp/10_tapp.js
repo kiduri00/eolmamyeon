@@ -433,7 +433,7 @@ function onbOpen() {
 /* ---------- 빈 관심 구역: 키트 그림(empty-fav)으로 ---------- */
 function emptyDeco() {
   if (!tKit("empty-fav")) return;
-  const run = () => document.querySelectorAll(".pn-empty:not([data-tk])").forEach((e) => { e.dataset.tk = "1"; const sv = e.querySelector(":scope > svg"); const w = document.createElement("span"); w.className = "t-empty"; w.innerHTML = tIcon("", 160, "", "empty-fav"); if (sv) sv.replaceWith(w); else e.prepend(w); });
+  const run = () => document.querySelectorAll(".pn-empty:not([data-tk])").forEach((e) => { e.dataset.tk = "1"; const sv = e.querySelector(":scope > .pn-tile, :scope > svg"); const w = document.createElement("span"); w.className = "t-empty"; w.innerHTML = tIcon("", 160, "", "empty-fav"); if (sv) sv.replaceWith(w); else e.prepend(w); });
   run();
   const f = $("favTop"); if (f) try { new MutationObserver(run).observe(f, { childList: true, subtree: true }); } catch (e) {}
 }
