@@ -178,7 +178,7 @@ const INBOX = (() => {
   let P_FAIL = "이 브라우저에선 폰 알림을 켤 수 없어요 · 소식 탭에 모아 드려요";
   // 설치 앱(html.is-tapp · 안드로이드 앱)에는 주소창이 없다 → 폰 설정에서 푸는 길
   const TAPP = () => document.documentElement.classList.contains("is-tapp");
-  const TSET = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? "설정 → 알림 → 집핀" : "설정 → 애플리케이션 → 집핀 → 알림");
+  const TSET = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? "설정 → 알림 → 집핀" : "설정 → 애플리케이션(또는 앱) → 집핀 → 알림");
   let P_DENY = "알림이 막혀 있어요 · 주소창 왼쪽 자물쇠(사이트 설정)에서 알림을 허용해 주세요";
   if (TAPP()) P_DENY = `알림이 막혀 있어요 · 폰 ${TSET()}에서 허용해 주세요`;
   if (TAPP()) P_FAIL = "이 기기에선 폰 알림을 켤 수 없어요 · 소식 탭에 모아 드려요";

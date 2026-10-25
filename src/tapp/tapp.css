@@ -223,3 +223,112 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tf-tg.tr{background:#1E2A4F;color:#C7D4FF}:root:not([data-theme="light"]) .tf-tg.hi{background:#3D3110;color:#FFE08A}:root:not([data-theme="light"]) .tf-tg.au{background:#2C2650;color:#D9CFFF}:root:not([data-theme="light"]) .tf-tg.nt{background:#123A30;color:#A8E6D2}:root:not([data-theme="light"]) .tf-tg.st{background:#8EA6EC;color:#0B1430}:root:not([data-theme="light"]) .tf-tg.pr{background:#262A32;color:#C4CAD3}}
 :root[data-theme="dark"] .tf-tg.tr{background:#1E2A4F;color:#C7D4FF}:root[data-theme="dark"] .tf-tg.hi{background:#3D3110;color:#FFE08A}:root[data-theme="dark"] .tf-tg.au{background:#2C2650;color:#D9CFFF}:root[data-theme="dark"] .tf-tg.nt{background:#123A30;color:#A8E6D2}:root[data-theme="dark"] .tf-tg.st{background:#8EA6EC;color:#0B1430}:root[data-theme="dark"] .tf-tg.pr{background:#262A32;color:#C4CAD3}
 @media print{.th,.tob,.tf-seg{display:none!important}}
+
+/* ===================== 1라운드 레드팀 반영 ===================== */
+@media (max-width:980px){
+  /* 13 좌우 여백 20 하나 · 가로 넘침 막기(소식 칩 줄 음수 여백이 레이아웃 폭을 늘리던 것) */
+  html.is-tapp .wrap{padding-left:var(--t-gut)!important;padding-right:var(--t-gut)!important}
+  html.is-tapp main.wrap{overflow-x:clip}
+  .tf-chips{margin:0 calc(-1 * var(--t-gut)) 12px;padding:2px var(--t-gut) 4px}
+  .th-grid{grid-template-columns:repeat(5,1fr);margin:0;gap:20px 0}
+  @media (max-width:374px){.th-grid{margin:0}}
+  html.is-tapp #sList{margin-left:0;margin-right:0}
+
+  /* 8 첫 화면 순서: 머리 → 가치 한 줄 → 검색 → 내 돈 카드 → 아이콘 → 배너 → 목록 */
+  html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop{display:flex!important;flex-direction:column}
+  html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>*{order:5;min-width:0}
+  html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>#sHero{order:1}
+  html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>.s-sen,html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>#sGauge{order:2}
+  html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>#tHome{order:3}
+  .th-val{display:block;width:100%;margin:2px 0 14px;padding:0;border:0;background:none;color:var(--t-ink);text-align:left;font:700 17px/24px var(--font);letter-spacing:-.02em;cursor:pointer;word-break:keep-all;text-wrap:balance}
+  .th-val b{color:var(--t-navy);font-weight:800}
+  .th-val:focus-visible{outline:2px solid var(--focus,var(--brand));outline-offset:2px;border-radius:8px}
+  html.s-view .th-val,html.s-full .th-val{display:none}
+  html.is-tapp.simple #mapTop>.s-gauge{margin:0 0 28px!important}
+  /* 13 가로 카드(맞춤순 3곳)는 바로 아래 목록과 겹친다 → 앱에서는 목록 하나로 */
+  html.is-tapp .s-gauge #sSum{display:none!important}
+  /* 13 목록 유형 칩: 검은 고리 없이(앱 공통 44px 알약 ::before 하나만) · 선택 = 남색 */
+  html.is-tapp .s-flt button{background:none!important;color:var(--t-lab)}
+  html.is-tapp .s-flt button::before{background:var(--t-fill)!important;border:0!important;box-shadow:none!important}
+  html.is-tapp .s-flt button[aria-pressed="true"]{background:none!important;color:#fff!important}
+  html.is-tapp .s-flt button[aria-pressed="true"]::before{background:#1F3A87!important}
+  html.is-tapp .s-flt button:focus{box-shadow:none!important}
+  /* 12 세그먼트(전세 끼고/대출 끼고) 높이 44 · 글자 15/600 */
+  html.is-tapp .s-gauge .s-mode button{min-height:44px!important;font:600 15px var(--font)!important}
+  html.is-tapp .s-gauge .s-mode button::before{top:0!important;bottom:0!important}
+
+  /* 12 아이콘 이름 두 줄 허용(큰 글씨) · 최소 12px */
+  .th-l{white-space:normal;overflow:visible;text-overflow:clip;text-align:center;word-break:keep-all;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-width:64px}
+  @media (max-width:374px){.th-l{font-size:12px}}
+  /* 12 배너: 높이 112 · 패딩 16/20 · 제목 두 줄(쉼표 앞에서 줄바꿈) · 정지 버튼 누르는 곳 44 */
+  .th-b{min-height:112px;padding:16px 16px 16px 20px}
+  .th-bt{padding:0 0 28px}
+  .th-bk{font:500 13px/1.3 var(--font)}
+  .th-bh{font:700 17px/24px var(--font)}
+  .th-bh i{display:block;overflow:hidden;text-overflow:ellipsis}
+  @media (max-width:374px){.th-bh i{white-space:nowrap}}
+  .th-bi{width:88px;height:88px}
+  .th-bi .ti.tk{width:88px;height:88px}
+  .th-track{scroll-snap-stop:always}
+  .th-b{scroll-snap-stop:always}
+  .th-cnt{font-size:12px}
+  .th-pz{position:relative}
+  .th-pz::after{content:"";position:absolute;inset:-6px}
+  /* 12 아래 탭 이름 12px · 그림은 이름 위(그림 요소는 이름 뒤에 붙음) */
+  html.is-tapp .s-nav button{font-size:12px!important}
+  html.is-tapp .s-nav .tn-i{order:-1}
+  .tf-tg{font-size:12px;height:22px}
+  html.is-tapp .s-nav .pn-nb{font-size:11px}
+
+  /* 9 아이콘으로 들어가는 화면: 56px 앱바(← 44×44 + 제목 17/24 700) · 남색 막대·'← 돌아가기' 알약·테두리 카드 없음 */
+  html.is-tapp.s-view .sec.s-on>.s-back{position:absolute;left:calc(var(--t-gut) - 12px);margin:6px 0 0;width:44px;height:44px;min-height:44px;padding:0;border:0!important;border-radius:12px;background:none!important;box-shadow:none!important;font-size:0!important;color:var(--t-ink);z-index:2}
+  html.is-tapp.s-view .sec.s-on>.s-back::before{content:"";display:block;width:24px;height:24px;margin:auto;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E") center/24px no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E") center/24px no-repeat}
+  html.is-tapp.s-view .sec.s-on>.s-back:focus-visible{outline:2px solid var(--focus,var(--brand));outline-offset:-2px}
+  html.is-tapp.s-view .sec.s-on:has(>.s-back)>.sec-h{margin-top:0!important;padding-top:0!important}
+  html.is-tapp.s-view .sec.s-on:has(>.s-back)>.sec-h h2{display:flex;align-items:center;min-height:56px;margin:0!important;padding:0 0 0 40px!important;font:700 17px/24px var(--font)!important;letter-spacing:-.02em!important}
+  html.is-tapp.s-view .sec.s-on:has(>.s-back)>.sec-h h2::before{display:none!important}
+  html.is-tapp.s-view .sec.s-on:has(>.s-back)>.sec-h p{margin-top:4px}
+  html.is-tapp.s-view .sec.s-on:has(>.s-back) .panel{border:0!important;box-shadow:none!important;background:var(--t-sec)!important;border-radius:16px!important}
+
+  /* 10 앱에서는 웹 바닥글(소개·계산 방법…)을 숨긴다 — 같은 내용은 MY에 있다 */
+  html.is-tapp .site-foot,html.is-tapp footer.f{display:none!important}
+
+  /* 15 지도 탭: 레이어 줄 = 내 돈 카드 아래 8px · 오른쪽 20 · 칩 36 높이 12px 가로 줄 · ⓘ 40×40 · '+N곳'은 범례 위 · '← 서울 전체'는 레이어 줄 아래 */
+  html.is-tapp.s-full #mapbox .s-rail-w{top:108px!important;left:var(--t-gut)!important;right:var(--t-gut)!important;width:auto!important;overflow-x:auto;scrollbar-width:none}
+  html.is-tapp.s-full #mapbox .s-rail-w::-webkit-scrollbar{display:none}
+  html.is-tapp.s-full #mapbox .s-rail{display:flex;gap:6px;width:max-content;margin-left:auto;background:none!important;border:0!important;box-shadow:none!important;padding:0!important}
+  html.is-tapp.s-full #mapbox .s-rail>button{flex-direction:row!important;gap:4px;width:auto!important;height:36px!important;min-height:36px;padding:0 10px!important;border-radius:999px!important;background:var(--t-pg)!important;border:0!important;box-shadow:0 0 0 1px var(--t-line),0 1px 3px rgba(15,23,42,.10)!important}
+  html.is-tapp.s-full #mapbox .s-rail>button span{font:600 12px/1 var(--font)!important;white-space:nowrap}
+  html.is-tapp.s-full #mapbox .s-rail>button svg{width:16px;height:16px}
+  html.is-tapp.s-full #mapbox .s-rail>button[aria-pressed="true"]{background:var(--t-navy)!important;color:var(--t-on)!important}
+  html.is-tapp.s-full .map-bar{top:152px!important;left:var(--t-gut)!important}
+  html.is-tapp.s-full #mapbox .lm-gumore{top:auto!important;bottom:48px!important;left:var(--t-gut)!important}
+  html.is-tapp.s-full #mapbox .lm-key{left:var(--t-gut)}
+  html.is-tapp #mapbox .maplibregl-ctrl-attrib-button{width:40px!important;height:40px!important;border-radius:50%!important;background-color:var(--t-pg)!important;background-size:20px!important;box-shadow:0 0 0 1px var(--t-line)!important}
+  html.is-tapp #mapbox .maplibregl-ctrl-attrib.maplibregl-compact{min-height:40px}
+
+  /* 16 처음 안내: 제목 프로그램 초점 테두리 숨김 · 진행 점 남색 · 2장 목록 아래 페이드 · 줄 균형 */
+  .tob h2:focus:not(:focus-visible){outline:none}
+  .tob h2{text-wrap:balance}
+  .tob-dots i.on{background:var(--t-navy)}
+  .tob-zl{-webkit-mask-image:linear-gradient(#000 82%,transparent);mask-image:linear-gradient(#000 82%,transparent);padding-bottom:12px}
+
+  /* 17 MY: 제목 28/36 · 제목 아래 24 · 알림이 막혀 있으면 아래 토글 흐리게 */
+  html.is-tapp #my>.sec-h h2,html.is-tapp #news>.sec-h h2,html.is-tapp #favTop>.sec-h h2{font-size:28px!important;line-height:36px!important;font-weight:800}
+  html.is-tapp #my>.sec-h{margin-bottom:24px!important}
+  html.is-tapp #my.t-pdeny .my-l [role="switch"],html.is-tapp #my.t-pdeny .my-l input[type="checkbox"],html.is-tapp #my.t-pdeny .my-l .sw{opacity:.4}
+
+  /* 19 오프라인 표시가 종을 덮지 않게(종 왼쪽) */
+  html.is-tapp .off-bar{right:60px!important}
+
+  /* 11 정부 무관 고지(앱 MY) */
+  .t-gov{margin:12px 4px 0;color:var(--t-mute);font:500 12px/1.5 var(--font)}
+  /* 7 소식 기간·기준 */
+  .tf-per{display:none;margin:0 0 12px;color:var(--t-mute);font:500 12px/1.5 var(--font)}
+  html.is-tapp #news[data-tseg="mine"] #tPerM{display:block}
+  /* 14 칩 새 소식 = 빨간 점 · 피드 아이콘 칸 36 */
+  .tf-chips .tf-n.d{display:inline-block;width:6px;height:6px;min-width:0;padding:0;margin:0 0 0 2px;border-radius:50%;font-size:0;vertical-align:middle;background:var(--t-badge)}
+  .tf-ic{width:36px;height:36px;border-radius:12px}
+  .tf-ic .ti{width:26px;height:26px}
+  .tf-it{padding:14px 0;min-height:60px}
+}

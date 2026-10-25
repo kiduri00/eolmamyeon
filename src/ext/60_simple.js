@@ -169,7 +169,8 @@ const SIMPLE = (() => {
     const line2 = nowK ? (z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : `입주까지 <span class="s-nah">현금 </span>계산 보류<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(z.need)}`;
     // 17차: 가능한 곳은 '남는 돈 1,000만'(12/600 회색) · 내 돈의 10% 안으로 딱 맞으면 '딱 맞아요' 작은 꼬리표
     const needR = z.need != null ? Math.ceil(z.need * 100 - 1e-6) / 100 : null, left = z.st === "ok" && nowK && needR != null ? Math.max(0, Math.round((CASH - needR) * 100) / 100) : null;
-    const fit = left != null && left <= CASH * 0.1 + 1e-9;
+    // 설치 앱: '예산 거의 다 씀'은 남는 돈 1,000만 이하일 때만(목록 위 줄마다 붙어 소음이 되던 것) · 웹은 그대로(내 돈의 10%)
+    const fit = left != null && (document.documentElement.classList.contains("is-tapp") ? left <= 0.1 + 1e-9 : left <= CASH * 0.1 + 1e-9);
     const fitH = left == null ? "" : fit ? '<em class="s-fit">예산 거의 다 씀</em>' : left >= 0.01 ? `<span class="s-left">예산에서 남는 돈 ${esc(eokS(left))}</span>` : "";
     const word = ST_WORD[z.st], gapT = z.st === "near" && z.need != null ? `, ${shortTxt(z.need).slice(1)} 더 필요` : "";
     const lab = `${nm}, ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} ${mt}, ${word}${gapT}${z.total != null && nowK ? `, ${LBL.cashToMoveIn} ${eokS(z.total)}` : ""}, ${stg}${tk === "n" ? ", 입주권 안 나옴" : tk === "y" ? ", 입주권 나옴" : ""}${nw ? ", 이번 주 새로 가능" : ""}${left == null ? "" : fit ? ", 예산 거의 다 씀" : left >= 0.01 ? `, 예산에서 남는 돈 ${eokS(left)}` : ""}`;

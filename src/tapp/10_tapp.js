@@ -78,14 +78,14 @@ const navIcon = (k) => {
   return `<span class="tn-i">${o}${f}</span>`;
 };
 // 웹 코드(60_simple.js build)가 #sNav를 늦게 다시 그리면(innerHTML) 지도 탭이 사라진다 → 플래그 대신 '지도 탭·그림이 있나'로 판단하고, 다시 그려지면 곧바로 또 만든다
-const navDone = (nav) => !!(nav && nav.querySelector('[data-nav="map"]') && nav.querySelectorAll("[data-nav] .tn-i").length >= 5 && nav.querySelector('[data-nav="news"] .t-bn'));
+const navDone = (nav) => !!(nav && nav.querySelector('[data-nav="map"]') && nav.querySelectorAll("[data-nav] .tn-i svg").length >= 10 && nav.querySelector('[data-nav="news"] .t-bn'));
 function navBuild() {
   const nav = $("sNav"); if (!nav) return;
   if (!nav.__tmo) {
     nav.__tmo = 1;
     // 웹 코드가 aria-current를 다시 붙여도(navMark) 앱 탭 기준으로 고친다 · 탭바가 다시 그려지면(자식이 바뀌면) 5탭을 다시 만든다
     try { new MutationObserver(navMark).observe(nav, { subtree: true, attributes: true, attributeFilter: ["aria-current"] }); } catch (e) {}
-    try { new MutationObserver(() => { if (!navDone(nav)) navBuild(); }).observe(nav, { childList: true }); } catch (e) {}
+    try { new MutationObserver(() => { if (!navDone(nav)) navBuild(); }).observe(nav, { childList: true, subtree: true }); } catch (e) {}
   }
   if (navDone(nav)) return;
   nav.dataset.t5 = "1";
@@ -97,7 +97,8 @@ function navBuild() {
     if (hb) hb.after(mb); else nav.prepend(mb);
   }
   // 그림만 바꾼다(이름·배지·aria는 그대로)
-  nav.querySelectorAll("[data-nav]").forEach((b) => { const k = b.dataset.nav; if (!NAVO[k]) return; const old = b.querySelector(":scope > svg"); if (old) old.remove(); if (!b.querySelector(".tn-i")) b.insertAdjacentHTML("afterbegin", navIcon(k)); });
+  // 그림은 이름(span) 뒤에 붙이고 CSS order로 위에 — 웹 코드(70_pins relabel)가 '첫 span'·'svg'를 고쳐 쓰므로 관심 탭은 이미 고친 것으로 표시(pin)
+  nav.querySelectorAll("[data-nav]").forEach((b) => { const k = b.dataset.nav; if (!NAVO[k]) return; const old = b.querySelector(":scope > svg"); if (old) old.remove(); if (k === "fav") b.dataset.pin = "1"; if (!b.querySelector(".tn-i")) b.insertAdjacentHTML("beforeend", navIcon(k)); });
   const nb = nav.querySelector('[data-nav="news"]');
   [nb, $("hdrBell")].forEach((x) => { if (x && !x.querySelector(".t-bn")) { const i = document.createElement("b"); i.className = "t-bn"; i.hidden = true; i.setAttribute("aria-hidden", "true"); x.appendChild(i); } });
   navMark();
@@ -154,13 +155,14 @@ function tiles() {
   const rp = document.querySelector('#readsTop .rd-card h3 a[href^="report/"]');
   const rpHref = (rp && rp.getAttribute("href")) || "report/";
   return [
+    // 첫 줄 = 매일 쓰는 것(지도·입주 계산·출퇴근·입주권 나오나·매수 전 규정) · 둘째 줄 = 읽을거리(순위·모으면 언제·통계·월간 리포트·몇 년 걸리나)
     ["map", "지도", "#map", "map"],
-    ["rank", "순위", "#rankHub", "rankHub"],
     ["calc", "입주 계산", "#planner", "planner"],
-    ["save", "모으면 언제", "#saveTop", "saveTop"],
     ["commute", "출퇴근", "#commuteTop", "commuteTop"],
-    ["diag", "매물진단", "#diagTop", "diagTop"],
+    ["diag", "입주권 나오나", "#diagTop", "diagTop"],
     ["rules", "매수 전 규정", "#rulesTop", "rulesTop"],
+    ["rank", "순위", "#rankHub", "rankHub"],
+    ["save", "모으면 언제", "#saveTop", "saveTop"],
     ["stats", "통계", "#statsTop", "statsTop"],
     ["report", "월간 리포트", rpHref, null],
     ["years", "몇 년 걸리나", "years", null],
@@ -168,14 +170,15 @@ function tiles() {
 }
 function banners() {
   const a = document.querySelector('#readsTop .rd-card h3 a[href^="report/"]'), k = a && a.closest(".rd-card") && a.closest(".rd-card").querySelector(".rd-k");
-  const full = (a && a.textContent.trim()) || "", m = /^(.*?)(?:\([^)]*\))?\s*:\s*(.+)$/.exec(full);
+  const full = (a && a.textContent.trim()) || "", m = /^(.*?)(?:\([^)]*\))?\s*:\s*(.+)$/.exec(full), per = /\(([^)]*기준)\)/.exec(full);
   const no = k && /(\d+)호/.exec(k.textContent), mo = /^(\d{1,2})월/.exec(full);
   const on = T(() => X().inbox().st().on, false);
   return [
     // 제목 = 리포트 제목 뒷부분 그대로(숫자 포함 · 예: 조합설립인가 3곳, 전세 끼고 3억 안쪽 80곳)
-    { k: `${mo ? `${mo[1]}월 리포트` : "월간 리포트"}${no ? ` · ${no[1]}호` : ""}`, h: m ? m[2].trim() : full || "매달 단계가 바뀐 구역을 원문과 대조해 정리해요", s: m ? m[1].trim() : "", href: (a && a.getAttribute("href")) || "report/", ic: "report" },
+    // 키커에 기간(리포트 기준 기간) — 소식 탭 '단계 변경'(최근 30일)과 숫자 기준이 다름을 밝힌다
+    { k: `${mo ? `${mo[1]}월 리포트` : "월간 리포트"}${no ? ` · ${no[1]}호` : ""}${per ? ` · ${per[1]}` : ""}`, h: m ? m[2].trim() : full || "매달 단계가 바뀐 구역을 원문과 대조해 정리해요", s: m ? m[1].trim() : "", href: (a && a.getAttribute("href")) || "report/", ic: "report" },
     // 숫자는 가이드 본문 그대로(관리지역 131곳 · 글 기준 2026.09.26) — qa_consistency tapp.home이 페이지 글과 대조
-    { k: "가이드 · 모아타운", h: "서울 모아타운 관리지역 131곳, 진행 단계 한눈에", s: "서울 모아타운 현황과 진행 단계", href: "guide/moatown", ic: "guide" },
+    { k: "가이드 · 모아타운", h: "모아타운 관리지역 131곳, 진행 단계 한눈에", s: "서울 모아타운 현황과 진행 단계", href: "guide/moatown", ic: "guide" },
     on ? { k: "알림 · 켜져 있어요", h: "알림 종류는 MY에서 골라요", s: "관심 구역 알림 설정", href: "#my", ic: "bell", alert: 1 }
        : { k: "알림", h: "관심 구역 새 소식, 폰 알림으로 받기", s: "새 실거래·단계·경매 소식", href: "#my", ic: "bell", alert: 1 },
   ];
@@ -189,13 +192,31 @@ function homeBuild() {
   const B = banners();
   sec.innerHTML =
     `<nav class="th-grid" aria-label="도구 바로가기">${tiles().map(([ic, t, href, id]) => `<a class="th-t" href="${esc(href)}"${id === "map" ? " data-tmap" : id ? ` data-menu="${id}"` : ""} data-tile="${ic}"><span class="th-ic">${tIcon(ic, 42, "", "grid-" + ic)}</span><span class="th-l">${esc(t)}</span></a>`).join("")}</nav>` +
-    `<div class="th-car" role="region" aria-roledescription="carousel" aria-label="알림판"><div class="th-track" id="tCarT">${B.map((b, i) => `<a class="th-b b${i + 1}" href="${esc(b.href)}"${b.alert ? " data-talert" : ""} role="group" aria-roledescription="slide" aria-label="${i + 1} / ${B.length}: ${esc(b.k)} · ${esc(b.h)}${b.s ? ` (${esc(b.s)})` : ""}"><span class="th-bt"><span class="th-bk">${esc(b.k)}</span><span class="th-bh">${esc(b.h).split(", ").map((x) => `<i>${x}</i>`).join(",<br>")}</span></span><span class="th-bi">${tIcon(b.ic, 96, "", ["banner-report", "banner-guide", "banner-alert"][i])}</span></a>`).join("")}</div>` +
+    `<div class="th-car" role="region" aria-roledescription="carousel" aria-label="알림판"><div class="th-track" id="tCarT">${B.map((b, i) => `<a class="th-b b${i + 1}" href="${esc(b.href)}"${b.alert ? " data-talert" : ""} role="group" aria-roledescription="slide" aria-label="${i + 1} / ${B.length}: ${esc(b.k)} · ${esc(b.h)}${b.s ? ` (${esc(b.s)})` : ""}"><span class="th-bt"><span class="th-bk">${esc(b.k)}</span><span class="th-bh">${esc(b.h).split(", ").map((x, j, A) => `<i>${x}${j < A.length - 1 ? "," : ""}</i>`).join(" ")}</span></span><span class="th-bi">${tIcon(b.ic, 96, "", ["banner-report", "banner-guide", "banner-alert"][i])}</span></a>`).join("")}</div>` +
     `<div class="th-bar"><span class="th-cnt" id="tCarN" aria-hidden="true">1 / ${B.length}</span><button type="button" class="th-pz" id="tCarP" aria-label="배너 자동 넘김 멈추기" aria-pressed="false"><i>${RM() ? PLAY : PAUSE}</i></button></div></div>`;
   sen.before(sec);
+  valBuild();
   // 검색 칸 글: 이름·동·지번·역(지금 검색이 찾는 그대로)
   const sb = $("sSearch");
   if (sb) { const tn = [...sb.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim()); if (tn) tn.textContent = "구역 이름·동·지번·역으로 검색"; sb.setAttribute("aria-label", "구역 이름·동·지번·역으로 검색"); }
   carBind();
+}
+// 8 가치 한 줄: '내 돈 N으로 갈 수 있는 재개발·재건축 M곳'(내 돈 카드의 큰 숫자와 같은 값 · 누르면 그 카드로)
+function valBuild() {
+  const ss = $("sSearch"); if (!ss || $("tVal")) return;
+  const v = document.createElement("button");
+  v.type = "button"; v.className = "th-val"; v.id = "tVal";
+  ss.before(v);
+  const paint = () => {
+    const n = (($("sN") || {}).textContent || "").trim(), c = T(() => X().ZF().cash(X().cash()), "");
+    if (!/^\d[\d,]*$/.test(n) || !c) { v.hidden = true; return; }
+    v.hidden = false;
+    const h = `내 돈 <b>${esc(c)}</b>으로 갈 수 있는 재개발·재건축 <b>${esc(n)}곳</b>`;
+    if (v.innerHTML !== h) { v.innerHTML = h; v.setAttribute("aria-label", `내 돈 ${c}으로 갈 수 있는 재개발·재건축 ${n}곳 · 내 돈 카드로 가기`); }
+  };
+  paint();
+  const g = $("sGauge"); if (g) try { new MutationObserver(paint).observe(g, { subtree: true, childList: true, characterData: true }); } catch (e) {}
+  v.addEventListener("click", () => { const c = $("sGauge"); if (!c) return; window.scrollTo({ top: Math.max(0, c.getBoundingClientRect().top + scrollY - ((($("hdr") || {}).offsetHeight) || 56) - 12), behavior: RM() ? "auto" : "smooth" }); const f = c.querySelector("button, [tabindex]"); if (f) T(() => f.focus({ preventScroll: true })); });
 }
 const PAUSE = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2" width="2.4" height="8" rx="1" fill="currentColor"/><rect x="7.1" y="2" width="2.4" height="8" rx="1" fill="currentColor"/></svg>';
 const PLAY = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.2v7.6L10 6z" fill="currentColor"/></svg>';
@@ -222,12 +243,13 @@ function carBind() {
 }
 
 /* ---------- 4. 전체 소식(data/changes.json · 최근 30일) ---------- */
+// 칩 순서: '오늘 무슨 일이 있었나' 먼저(단계 변경 → 고시·공고 → 경공매 → 실거래)
 const FT = [
   ["", "전체"],
-  ["trade", "실거래·신고가"],
-  ["auction", "경공매"],
+  ["stage", "단계 변경"],
   ["notice", "고시·공고"],
-  ["stage", "단계"],
+  ["auction", "경공매"],
+  ["trade", "실거래·신고가"],
   ["price", "필요한 돈"],
 ];
 const TAG = { trade: ["실거래", "tr"], auction: ["경매", "au"], notice: ["고시·공고", "nt"], stage: ["단계", "st"], price: ["필요한 돈", "pr"] };
@@ -283,27 +305,36 @@ function feedRows() {
   const pr = (e) => ({ stage: 0, notice: 1, auction: 2, trade: e.hi ? 3 : 4, price: 5 })[e.type];
   return L.sort((a, b) => (a.e.date < b.e.date ? 1 : a.e.date > b.e.date ? -1 : pr(a.e) - pr(b.e)));
 }
+// 실거래 글: '아파트 44.8㎡ · 2.8억 · 10월 7일 계약'(신고가는 꼬리표로만) — changes.json 글은 그대로 두고 화면에서만
+function rowText(e) {
+  let t = String(e.text || "");
+  if (e.type === "price") return t.replace(/^필요한 돈\s*/, "");
+  if (e.type !== "trade") return t;
+  t = t.replace(/\s*·\s*신고가\s*$/, "");
+  if ((e.cnt || 1) === 1) t = t.replace(/^새 실거래 1건\s*·\s*/, "");
+  return t.replace(/([\d.,]+㎡)\s+([\d.,]+억|[\d,]+만)\((\d{1,2})\.(\d{1,2}) 계약\)/g, (_, a, p, mo, d) => `${a} · ${p} · ${+mo}월 ${+d}일 계약`);
+}
 function feedHTML() {
   if (!CH) return `<p class="tf-empty">소식을 불러오는 중이에요…</p>`;
   const s = fSeen0 || fSeen(), cnt = (t) => CH.items.filter((e) => TAG[e.type] && (!t || e.type === t)).length;
   const nw = (t) => CH.items.filter((e) => TAG[e.type] && (!t || e.type === t) && isNew(e, s) && !muted(e.type)).length;
-  const chips = FT.map(([t, l]) => { const n = nw(t); return `<button type="button" data-ft="${t}" aria-pressed="${t === fType}"${n ? ` aria-label="${l} ${fmtN(cnt(t))}건, 새 소식 ${n}건"` : ""}>${l} <small>${fmtN(cnt(t))}</small>${n && t ? `<i class="tf-n" aria-hidden="true">${n > 99 ? "99+" : n}</i>` : ""}</button>`; }).join("");
+  const chips = FT.map(([t, l]) => { const n = nw(t); return `<button type="button" data-ft="${t}" aria-pressed="${t === fType}"${n ? ` aria-label="${l} ${fmtN(cnt(t))}건, 새 소식 ${n}건"` : ""}>${l} <small>${fmtN(cnt(t))}</small>${n && t ? `<i class="tf-n d" aria-hidden="true"></i>` : ""}</button>`; }).join("");
   const R = feedRows(), sh = R.slice(0, fShown);
   const asOf = (CH.asOf || "").replace(/^(\d{4})-(\d\d)-(\d\d)$/, (_, y, mo, d) => `${+mo}.${d}`);
   const by = new Map(); sh.forEach((r) => { if (!by.has(r.e.date)) by.set(r.e.date, []); by.get(r.e.date).push(r); });
   const X0 = X();
   const row = ({ e, n }) => {
-    const r = T(() => X0.byId(e.id), null), nm = r ? T(() => (window.ZP_labName ? ZP_labName(r) : X0.name(r.n)), e.n) : e.n;
+    const r = T(() => X0.byId(e.id), null), nm = String(r ? T(() => (window.ZP_labName ? ZP_labName(r) : X0.name(r.n)), e.n) : e.n).replace(/\s+·/g, "·");
     const [tl, tc] = e.type === "trade" && e.hi ? ["신고가", "hi"] : TAG[e.type];
     const isN = isNew(e, s) && !muted(e.type);
     const fs = "feed-" + e.type, ic = tKit(fs) ? `<span class="tf-ic">${tIcon("", 28, "", fs)}</span>` : "";
-    const inner = `${ic}<span class="tf-tx"><b>${esc(nm)}</b><small>${esc(e.type === "price" ? e.text.replace(/^필요한 돈\s*/, "") : e.text)}${n > 1 ? ` · 같은 소식 ${n}건` : ""}</small><span class="tf-meta"><span class="tf-tg ${tc}">${tl}</span><span class="tf-g">${esc(e.g || "")}</span></span></span>${isN ? '<i class="tf-dot" aria-hidden="true"></i>' : ""}`;
+    const inner = `${ic}<span class="tf-tx"><b>${esc(nm)}</b><small>${esc(rowText(e))}${n > 1 ? ` · 같은 소식 ${n}건` : ""}</small><span class="tf-meta"><span class="tf-tg ${tc}">${tl}</span><span class="tf-g">${esc(e.g || "")}</span></span></span>${isN ? '<i class="tf-dot" aria-hidden="true"></i>' : ""}`;
     return `<li>${r ? `<button type="button" class="tf-it" data-open="${esc(e.id)}"${isN ? ' aria-describedby="tfNewL"' : ""}>${inner}</button>` : `<a class="tf-it" href="z/${encodeURIComponent(e.id)}">${inner}</a>`}</li>`;
   };
   const list = sh.length ? `<ol class="tf-list">${[...by].map(([d, rs]) => `<li><h3 class="tf-dh">${dLabel(d)}</h3><ul class="tf-dl">${rs.map(row).join("")}</ul></li>`).join("")}</ol>` : `<p class="tf-empty">${tKit("empty-feed") ? tIcon("", 160, "", "empty-feed") : ""}최근 ${CH.days || 30}일 동안 이 종류 소식이 없어요</p>`;
   const more = R.length > sh.length ? `<button type="button" class="tf-more" data-fmore>더 보기 (${fmtN(R.length - sh.length)}줄)</button>` : "";
   return `<div class="tf-chips" role="group" aria-label="소식 종류">${chips}</div>` +
-    `<p class="tf-sum">최근 ${CH.days || 30}일 <b>${fmtN(cnt(fType))}건</b>${nw(fType) ? ` · 새 소식 <b>${fmtN(nw(fType))}건</b>` : ""}${asOf ? ` · ${asOf} 기준` : ""}</p><span class="sr-only" id="tfNewL">새 소식</span>` +
+    `<p class="tf-sum">최근 ${CH.days || 30}일 ${esc((FT.find((x) => x[0] === fType) || ["", ""])[1].replace(/^전체$/, "전체 소식"))} <b>${fmtN(cnt(fType))}건</b>${nw(fType) ? ` · 새 소식 <b>${fmtN(nw(fType))}건</b>` : ""}${asOf ? ` · ${asOf} 기준` : ""}</p><span class="sr-only" id="tfNewL">새 소식</span>` +
     list + more + `<p class="tf-foot">서울시 정비사업 정보몽땅·실거래가 공개 자료·법원 경매 공고에서 매일 아침 모아요. 줄을 누르면 그 구역이 열려요.</p>`;
 }
 function feedRender() { const el = $("tFeed"); if (el) el.innerHTML = feedHTML(); }
@@ -334,6 +365,10 @@ function feedBuild() {
   const p = document.createElement("div");
   p.id = "tFeed"; p.setAttribute("role", "tabpanel"); p.setAttribute("aria-labelledby", "tSegA");
   (h || n.firstElementChild).after(seg); seg.after(p);
+  // 관심 구역 칸: 기간이 다른 두 묶음(관심 구역 소식 30일 · 그 밖 소식 90일)임을 밝힌다
+  const per = document.createElement("p"); per.className = "tf-per"; per.id = "tPerM";
+  per.textContent = `위 '내 소식'은 최근 ${30}일, 아래 '그 밖 소식'은 최근 90일 기록이에요 · 전체 소식 칸은 최근 30일`;
+  p.after(per);
   seg.addEventListener("click", (e) => { const b = e.target.closest("[data-seg]"); if (b) segSet(b.dataset.seg, true); });
   seg.addEventListener("keydown", (e) => { if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return; const v = n.dataset.tseg === "all" ? "mine" : "all"; segSet(v, true); seg.querySelector(`[data-seg="${v}"]`).focus(); e.preventDefault(); });
   p.addEventListener("click", (e) => {
@@ -362,7 +397,7 @@ function onbClose(done, pop) {
   // 단추로 닫으면 안내가 쌓은 기록 한 칸을 되돌린다(빈 칸을 남기면 홈에서 뒤로가 한 번 헛돈다)
   if (!pop && history.state && history.state.zl === "tonb") { try { history.back(); } catch (e) {} }
   lsS(OK, "1"); lsS("zp.onb", "1");
-  ob.remove(); ob = null;
+  ob.remove(); ob = null; toastOff();
   H.classList.remove("tob-on");
   document.querySelectorAll("body > [data-tinert]").forEach((x) => { x.inert = false; x.removeAttribute("data-tinert"); });
   if (done) { const f = $("sCashBtn") || document.querySelector(".th-t"); T(() => f && f.focus({ preventScroll: true })); }
@@ -387,7 +422,7 @@ function onbHTML() {
   } else {
     const st = T(() => X0.inbox().st(), null), can = st && st.can && st.perm !== "denied";
     body = `<span class="tob-art${tKit("onb-3") ? " k" : ""}">${tIcon("bell", 68, "", "onb-3")}</span><p class="tob-k">3 / 3 · 알림</p><h2 id="tobT" tabindex="-1">새 소식을 알림으로 받을까요?</h2><p class="tob-p">관심 구역에 새 실거래·단계·경매 소식이 생기면 매일 아침 한 번 알려 드려요. 종류는 MY › 알림 설정에서 골라요.</p>` +
-      (st && st.on ? `<p class="tob-ok" role="status">알림이 켜져 있어요</p>` : can ? `<p class="tob-ok" id="tobMsg" role="status" hidden></p>` : `<p class="tob-ok" role="status">${st && st.perm === "denied" ? "알림이 막혀 있어요 · 폰 설정 → 애플리케이션 → 집핀 → 알림에서 허용할 수 있어요" : "지금은 이 기기에서 폰 알림을 켤 수 없어요 · 새 소식은 소식 탭에 모아 드려요"}</p>`);
+      (st && st.on ? `<p class="tob-ok" role="status">알림이 켜져 있어요</p>` : can ? `<p class="tob-ok" id="tobMsg" role="status" hidden></p>` : `<p class="tob-ok" role="status">${st && st.perm === "denied" ? "알림이 막혀 있어요 · 폰 설정 → 애플리케이션(또는 앱) → 집핀 → 알림에서 허용할 수 있어요" : "지금은 이 기기에서 폰 알림을 켤 수 없어요 · 새 소식은 소식 탭에 모아 드려요"}</p>`);
     foot = (can && !(st && st.on) ? `<button type="button" class="tob-go" data-oalert>알림 켜기</button><button type="button" class="tob-sub" data-odone>나중에</button>` : `<button type="button" class="tob-go" data-odone>시작하기</button>`);
   }
   return `${top}<div class="tob-body">${body}</div><div class="tob-foot">${foot}</div>`;
@@ -440,6 +475,20 @@ function onbOpen() {
   });
 }
 
+/* ---------- MY: 정부 무관 고지 한 줄(출처·계산 방법 옆) · 알림이 막혀 있으면 알림 종류 토글을 흐리게 ---------- */
+function myBuild() {
+  const g = $("myG6"), grp = g && g.closest(".my-g");
+  if (grp && !$("tGov")) {
+    const p = document.createElement("p"); p.className = "t-gov"; p.id = "tGov";
+    p.textContent = "집핀은 정부·서울시·공공기관과 관련이 없고 이들을 대표하지 않아요. 숫자는 공개 자료로 낸 추정이에요. 공식 정보는 서울시 정비사업 정보몽땅(cleanup.seoul.go.kr)·국토교통부 실거래가 공개시스템(rt.molit.go.kr) 원문에서 확인하세요.";
+    grp.appendChild(p);
+  }
+  const deny = () => { const m = $("my"); if (m) m.classList.toggle("t-pdeny", T(() => X().inbox().st().perm === "denied", false)); };
+  deny(); addEventListener("zp:alerts", deny); addEventListener("zp:view", (e) => { if (e.detail === "my") deny(); });
+}
+// 처음 안내에서 띄운 알림(관심 구역에 추가했어요 등)은 안내가 끝나면 닫는다
+const toastOff = () => { const t = $("pnToast"); if (t) t.classList.remove("on"); };
+
 /* ---------- 빈 관심 구역: 키트 그림(empty-fav)으로 ---------- */
 function emptyDeco() {
   if (!tKit("empty-fav")) return;
@@ -454,7 +503,7 @@ function start() {
   if (start.d) return; start.d = 1;
   H.classList.add("is-app");
   patchHistory();
-  navBuild(); bindClicks(); homeBuild(); feedBuild(); emptyDeco();
+  navBuild(); bindClicks(); homeBuild(); feedBuild(); emptyDeco(); T(myBuild);
   H.classList.remove("tapp-wait");
   H.classList.add("tapp-on");
   // 관심 구역·소식 숫자: 자료를 받으면 종·소식 탭에
