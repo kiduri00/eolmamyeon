@@ -2909,7 +2909,7 @@ async function tappLane(browser, api, errs) {
         return { ys: ["#tVal", "#sSearch", "#sGauge", "#tHome .th-grid", "#tHome .th-car", "#sListW"].map(y), val: v && v.textContent, n: (document.getElementById("sN") || {}).textContent, cash: ((document.getElementById("sCashV") || {}).textContent || "").replace(/\s+/g, ""), tiles: [...document.querySelectorAll("#tHome .th-l")].map((e) => e.textContent).join(","), rail: !!(document.getElementById("sSum") && document.getElementById("sSum").offsetParent), cut: [...document.querySelectorAll("#tHome .th-l")].filter((e) => e.scrollHeight > e.clientHeight + 2).map((e) => e.textContent) };
       });
       const asc = o.ys.every((v, i) => v >= 0 && (i === 0 || v > o.ys[i - 1]));
-      expect(asc && o.val && o.val.includes(o.n + "곳") && o.val.includes(o.cash) && o.tiles === "지도,입주 계산,출퇴근,입주권,매수 전 규정,순위,모으면 언제,통계,월간 리포트,몇 년 걸리나" && !o.rail && !o.cut.length, "tapp.order", "설치 앱 첫 화면 순서: 가치 한 줄(내 돈·곳 수 = 내 돈 카드) → 검색 → 내 돈 카드 → 아이콘(첫 줄 매일 쓰는 것) → 배너 → 목록 · 가로 카드 3장 없음(목록과 중복) · 아이콘 이름 안 잘림", JSON.stringify(o));
+      expect(asc && o.val === "내 돈으로 갈 수 있는 서울 재개발" && o.tiles === "지도,입주 계산,출퇴근,입주권,매수 전 규정,순위,모으면 언제,통계,월간 리포트,몇 년 걸리나" && !o.rail && !o.cut.length, "tapp.order", "설치 앱 첫 화면 순서: 가치 한 줄(내 돈·곳 수 = 내 돈 카드) → 검색 → 내 돈 카드 → 아이콘(첫 줄 매일 쓰는 것) → 배너 → 목록 · 가로 카드 3장 없음(목록과 중복) · 아이콘 이름 안 잘림", JSON.stringify(o));
       // --- tapp.chips(13): '예산 거의 다 씀'은 남는 돈 1,000만 이하만 · 유형 칩 선택 = 남색, 검은 고리 없음
       const ch = await page.evaluate(() => { const L = [...document.querySelectorAll("#sList li.s-card")].map((li) => ({ fit: !!li.querySelector(".s-fit"), left: (li.querySelector(".s-left") || {}).textContent || "" })); const b = document.querySelector('.s-flt button[aria-pressed="true"]'), bs = getComputedStyle(b), be = getComputedStyle(b, "::before"); return { L, bg: bs.backgroundColor, sh: bs.boxShadow, before: be.backgroundColor }; });
       const NAV = await page.evaluate(() => { const c = document.createElement("i"); c.style.color = "#1F3A87"; document.body.appendChild(c); const v = getComputedStyle(c).color; c.remove(); return v; });
@@ -3051,13 +3051,13 @@ async function tappLane(browser, api, errs) {
         const keys = rows.map((r) => (r.querySelector(".tf-tx small") || {}).textContent + "|" + (r.querySelector(".tf-g") || {}).textContent + "|" + r.closest("ul").previousElementSibling.textContent);
         return { trPlain: tr.slice(0, 5).every((r) => /deal_plain/.test(ic(r))), hiYel: hi.slice(0, 5).every((r) => /deal_price/.test(ic(r))), nTr: tr.length, nHi: hi.length, dh: (document.querySelector("#tFeed .tf-dh") || {}).textContent, reg: tr.slice(0, 5).every((r) => /등록 · \d+월 \d+일 계약/.test(r.textContent)), dup: keys.length - new Set(keys).size, sel: sel && getComputedStyle(sel).backgroundColor };
       });
-      expect(fd.nTr > 0 && fd.trPlain && (!fd.nHi || fd.hiYel) && /신고·등록분$/.test(fd.dh || "") && fd.reg && fd.dup === 0 && fd.sel === "rgb(31, 58, 135)", "tapp.feedR2", "설치 앱 소식: 실거래 = 회색 태그(↑ 없음) · 신고가만 노란 태그 ↑ · 날짜 머리 'M.D (요일) 신고·등록분' · 실거래 줄 'M.D 등록 · M월 D일 계약' · 같은 거래 겹친 구역 한 줄 · 선택 칩 남색", JSON.stringify(fd));
+      expect(fd.nTr > 0 && fd.trPlain && (!fd.nHi || fd.hiYel) && / 등록$/.test(fd.dh || "") && fd.reg && fd.dup === 0 && fd.sel === "rgb(31, 58, 135)", "tapp.feedR2", "설치 앱 소식: 실거래 = 회색 태그(↑ 없음) · 신고가만 노란 태그 ↑ · 날짜 머리 'M.D (요일) 신고·등록분' · 실거래 줄 'M.D 등록 · M월 D일 계약' · 같은 거래 겹친 구역 한 줄 · 선택 칩 남색", JSON.stringify(fd));
       // tapp.myDeny(1): 알림이 막혀 있으면 종류 스위치 aria-disabled + 꺼짐 모양(회색 트랙) · 흐리게(opacity) 안 함 · 안내 한 줄 · axe 대비 위반 없음
       await page.click('#sNav [data-nav="my"]'); await page.waitForTimeout(900);
       await page.evaluate(() => { const ib = window.ZP_T0.inbox(), st = ib.st.bind(ib); ib.st = () => Object.assign({}, st(), { perm: "denied" }); window.dispatchEvent(new Event("zp:alerts")); });
       await page.waitForTimeout(500);
       const md = await page.evaluate(() => { const B = [...document.querySelectorAll("#myKinds [data-kind]")]; return { n: B.length, dis: B.every((b) => b.getAttribute("aria-disabled") === "true"), op: B.map((b) => getComputedStyle(b).opacity + getComputedStyle(b.closest("li")).opacity).filter((x) => x !== "11").length, tg: B.length ? getComputedStyle(B[0].querySelector(".my-tg")).backgroundColor : "", lab: B.length ? getComputedStyle(B[0].querySelector("b")).color : "", c: (document.getElementById("myKindsC") || {}).textContent }; });
-      expect(md.n > 0 && md.dis && !md.op && md.tg === "rgb(209, 214, 219)" && md.lab === "rgb(139, 149, 161)" && /^알림이 막혀 있어요 · 폰 설정/.test(md.c || ""), "tapp.myDeny", "설치 앱 MY 알림이 막혔을 때: 종류 스위치 aria-disabled · 꺼짐 모양(회색 트랙 #D1D6DB) · 라벨 #8B95A1 · opacity 없음 · 안내 한 줄", JSON.stringify(md));
+      expect(md.n > 0 && md.dis && !md.op && md.tg === "rgb(209, 214, 219)" && md.lab === "rgb(139, 149, 161)" && /^폰 설정/.test(md.c || ""), "tapp.myDeny", "설치 앱 MY 알림이 막혔을 때: 종류 스위치 aria-disabled · 꺼짐 모양(회색 트랙 #D1D6DB) · 라벨 #8B95A1 · opacity 없음 · 안내 한 줄", JSON.stringify(md));
     } catch (e) { bad("runtime", "검사 실행", "tapp.r2 crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
@@ -3072,6 +3072,182 @@ async function tappLane(browser, api, errs) {
       expect(!!fb && !t, "tapp.onbToast", "설치 앱 처음 안내 2장: 담기를 눌러도 '관심 구역에 추가했어요' 토스트가 뜨지 않음(단추 '담았어요'로 충분)", `fav ${!!fb} toast ${t}`);
     } catch (e) { bad("runtime", "검사 실행", "tapp.onbToast crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
+  }
+  // ================= 3라운드: 고친 것마다 모든 진입 경로·같은 부품 모든 화면 =================
+  const feedOk = (page) => page.evaluate(() => ({ chips: document.querySelectorAll("#tFeed [data-ft]").length, rows: document.querySelectorAll("#tFeed .tf-it").length, seg: (document.getElementById("news") || {}).dataset?.tseg }));
+  // --- tapp.newsEntry(1): 소식 탭 빈 화면 없음 — 콜드 /#news ×10 · 정적 페이지(리포트)에서 아래 '소식' ×5 · 홈에서 탭 · 앱 안에서 주소만 #news(알림 클릭이 여는 길)
+  {
+    const T = "설치 앱 소식 탭: 콜드 /#news ×10 · 정적 페이지 → '소식' 탭 ×5 · 탭 누름 · 알림 클릭 주소(#news) 모두 칩 6개·목록 있음";
+    const R = [];
+    for (let i = 0; i < 10; i++) {
+      const { ctx, page } = await appPage(mob(390, 844));
+      try { page.__where = "tapp.newsEntry cold"; await page.goto(BASE + "/?src=app&n=" + i + "#news", { waitUntil: "domcontentloaded", timeout: 60000 }); await page.waitForFunction(() => document.querySelectorAll("#tFeed .tf-it").length > 0, null, { timeout: 8000 }).catch(() => {}); const f = await feedOk(page); if (!(f.chips === 6 && f.rows > 0)) R.push("cold" + i + JSON.stringify(f)); } catch (e) { R.push("cold" + i + " crash"); } finally { await ctx.close().catch(() => {}); }
+    }
+    for (let i = 0; i < 5; i++) {
+      const { ctx, page } = await appPage(mob(390, 844));
+      try {
+        page.__where = "tapp.newsEntry static";
+        await page.goto(BASE + "/report/2026-10.html", { waitUntil: "load", timeout: 60000 }); await page.waitForTimeout(300);
+        await Promise.all([page.waitForNavigation({ timeout: 30000 }).catch(() => {}), page.click('.zp-tabs a[href="/#news"]')]);
+        await page.waitForFunction(() => document.querySelectorAll("#tFeed .tf-it").length > 0, null, { timeout: 8000 }).catch(() => {});
+        const f = await feedOk(page); if (!(f.chips === 6 && f.rows > 0)) R.push("static" + i + JSON.stringify(f));
+      } catch (e) { R.push("static" + i + " crash " + String(e.message).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    }
+    {
+      const { ctx, page } = await appPage(mob(390, 844));
+      try {
+        await appHome(page);
+        await page.evaluate(() => { location.hash = "news"; }); await page.waitForTimeout(1200);
+        let f = await feedOk(page); if (!(f.chips === 6 && f.rows > 0)) R.push("hash" + JSON.stringify(f));
+        await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(800); await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(1000);
+        f = await feedOk(page); if (!(f.chips === 6 && f.rows > 0)) R.push("tab" + JSON.stringify(f));
+      } catch (e) { R.push("hash crash"); } finally { await ctx.close().catch(() => {}); }
+    }
+    expect(!R.length, "tapp.newsEntry", T, R.join(" ; "));
+  }
+  // --- tapp.onbPush(2): 푸시 키가 200이면 처음 안내 3/3에 '알림 켜기'(MY를 열지 않아도)
+  {
+    const T = "설치 앱 처음 안내 3/3: /api/push/key 200(정상 키)이면 '알림 켜기' 단추가 보임(안내를 열 때 키를 미리 받음)";
+    const { ctx, page } = await appPage(mob(390, 844), true);
+    try {
+      await ctx.grantPermissions(["notifications"]).catch(() => {});
+      const KEY = "B" + "x".repeat(86);
+      let keyReq = 0;
+      await ctx.route(/\/api\/push\/key/, (r) => { keyReq++; return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ key: KEY }) }); });
+      await appHome(page); await page.waitForTimeout(300);
+      await page.click("#tOnb [data-onext]"); await page.waitForTimeout(200);
+      await page.click("#tOnb [data-onext]"); await page.waitForTimeout(600);
+      const o = await page.evaluate(() => ({ cta: !!document.querySelector("#tOnb [data-oalert]"), txt: (document.querySelector("#tOnb .tob-body") || {}).textContent }));
+      expect(o.cta && keyReq >= 1, "tapp.onbPush", T, `key ${keyReq} ${JSON.stringify(o).slice(0, 200)}`);
+    } catch (e) { bad("runtime", "검사 실행", "tapp.onbPush crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- tapp.toolEntry(4·14): 도구 7개 — 타일로 열기 · 콜드 해시(/?src=app#…)로 열기 모두 앱바(제목)·로고 머리 없음·같은 제목 화면에서 숨김(읽어 주기 유지)·앱바 아래 첫 줄 16px 안팎 · 콜드 #saveTop ×6 = 모으면 언제
+  {
+    const T = "설치 앱 도구 화면(순위·출퇴근·입주권 나오나·매수 전 규정·통계·입주 계산·모으면 언제): 타일·콜드 해시 모두 앱바 제목 · 아래 중복 제목은 화면에서 숨김(sr) · 콜드 #saveTop 6번 모두 '모으면 언제'";
+    const TOOLS = [["rank", "#rankHub", "순위"], ["commute", "#commuteTop", "출퇴근"], ["diag", "#diagTop", "입주권 나오나"], ["rules", "#rulesTop", "매수 전 규정"], ["stats", "#statsTop", "통계"], ["calc", "#planner", "입주 계산"], ["save", "#saveTop", "모으면 언제"]];
+    const chk = (page, want) => page.evaluate((want) => { const H = document.documentElement, t = (document.getElementById("tBarT") || {}).textContent, hd = getComputedStyle(document.getElementById("hdr")).display; const sec = document.querySelector(H.classList.contains("t-save") ? "#saveTop" : ".s-on"); const h = sec && sec.querySelector(".sec-h h2, .pl-in > .pl-t"); const hw = h ? h.getBoundingClientRect().width : 0; return { ok: H.classList.contains("t-tool") && t === want && hd === "none" && (!h || hw <= 1), t, hw: Math.round(hw) }; }, want);
+    const R = [];
+    {
+      const { ctx, page } = await appPage(mob(390, 844));
+      try {
+        await appHome(page);
+        for (const [k, , want] of TOOLS) { await page.click('#sNav [data-nav="home"]').catch(() => {}); await page.waitForTimeout(500); await page.click(`#tHome .th-grid a[data-tile="${k}"]`); await page.waitForTimeout(1000); const o = await chk(page, want); if (!o.ok) R.push("tap " + k + JSON.stringify(o)); }
+      } catch (e) { R.push("tap crash " + String(e.message).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    }
+    for (const [k, h, want] of TOOLS) {
+      const { ctx, page } = await appPage(mob(390, 844));
+      try { page.__where = "tapp.toolEntry cold " + h; await page.goto(BASE + "/?src=app" + h, { waitUntil: "load", timeout: 60000 }); await page.waitForFunction(() => document.documentElement.classList.contains("tapp-on"), null, { timeout: 20000 }).catch(() => {}); await page.waitForTimeout(1200); const o = await chk(page, want); if (!o.ok) R.push("cold " + h + JSON.stringify(o)); } catch (e) { R.push("cold crash " + h); } finally { await ctx.close().catch(() => {}); }
+    }
+    for (let i = 0; i < 5; i++) {
+      const { ctx, page } = await appPage(mob(390, 844));
+      try { await page.goto(BASE + "/?src=app&s=" + i + "#saveTop", { waitUntil: "load", timeout: 60000 }); await page.waitForFunction(() => document.documentElement.classList.contains("tapp-on"), null, { timeout: 20000 }).catch(() => {}); await page.waitForTimeout(1000); const o = await page.evaluate(() => ({ h: location.hash, save: document.documentElement.classList.contains("t-save"), t: (document.getElementById("tBarT") || {}).textContent })); if (!(o.h === "#saveTop" && o.save && o.t === "모으면 언제")) R.push("save" + i + JSON.stringify(o)); } catch (e) { R.push("save crash"); } finally { await ctx.close().catch(() => {}); }
+    }
+    expect(!R.length, "tapp.toolEntry", T, R.join(" ; "));
+  }
+  // --- tapp.segAll(5): 단일 선택 모양 하나 — 홈 카드·지도 카드·MY·순위·입주 계산·모으면 언제·출퇴근·소식(전체/관심 · 그 밖 소식) 선택 = 흰 바탕 · 진한 글자 · 트랙 연회색(라이트)
+  for (const cs of ["light", "dark"]) {
+    const { ctx, page } = await appPage(mob(390, 844, cs));
+    try {
+      await appHome(page);
+      const SEL = ".s-mode, .my-seg, .hub-tabs, .seg, .tf-seg";
+      const scan = (tag) => page.evaluate(([tag, SEL]) => [...document.querySelectorAll(SEL)].filter((g) => g.getClientRects().length && g.getBoundingClientRect().width > 0).map((g) => { const s = g.querySelector('[aria-pressed="true"], [aria-checked="true"], [aria-selected="true"]'); if (!s) return null; const c = getComputedStyle(s); return [tag + ":" + (g.id || g.className.split(" ")[0]), getComputedStyle(g).backgroundColor, c.backgroundColor, c.color]; }).filter(Boolean), [tag, SEL]);
+      const L = [...await scan("home")];
+      await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1200); L.push(...await scan("map"));
+      await page.click('#sNav [data-nav="my"]'); await page.waitForTimeout(900); L.push(...await scan("my"));
+      await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(900); L.push(...await scan("news")); await page.click("#tSegM"); await page.waitForTimeout(500); L.push(...await scan("news-mine"));
+      for (const k of ["rank", "calc", "save", "commute"]) { await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(500); await page.click(`#tHome .th-grid a[data-tile="${k}"]`); await page.waitForTimeout(1000); L.push(...await scan(k)); }
+      const want = cs === "light" ? ["rgb(242, 244, 246)", "rgb(255, 255, 255)", "rgb(25, 31, 40)"] : ["rgb(27, 30, 36)", "rgb(44, 49, 58)", "rgb(229, 232, 235)"];
+      const badL = L.filter((x) => x[1] !== want[0] || x[2] !== want[1] || x[3] !== want[2]);
+      const tags = new Set(L.map((x) => x[0].split(":")[0]));
+      expect(!badL.length && ["home", "map", "my", "news", "news-mine", "rank", "calc", "save", "commute"].every((t) => tags.has(t)), "tapp.segAll", "설치 앱 단일 선택(2~4지) 모양 하나: 회색 트랙 + 흰 thumb + 진한 글자(다크 #1B1E24·#2C313A·#E5E8EB) — 홈·지도·MY·소식(두 곳)·순위·입주 계산·모으면 언제·출퇴근", `${cs}: ${JSON.stringify(badL.slice(0, 5))} tags ${[...tags].join(",")}`);
+    } catch (e) { bad("runtime", "검사 실행", "tapp.segAll crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- tapp.r3misc: 가치 한 줄(숫자 없음) · '왜 이 금액?' 시트 뒤로 = 닫힘(앱 안 그대로) · 지도 목록 → 뒤로 = 지도 · 날짜 머리 종류별 · '외 N곳' 함께 이름 · 모아타운 행(› · 입주 완료) · MY 막힘 한 줄(중복 없음) · 모으면 언제 문구·바꾸기
+  {
+    const { ctx, page } = await appPage(mob(390, 844));
+    try {
+      await appHome(page);
+      const o = {};
+      o.val = await page.evaluate(() => (document.getElementById("tVal") || {}).textContent);
+      const wb = await page.$("#sList [data-why]");
+      if (wb) { await wb.click(); await page.waitForTimeout(500); o.whyOpen = await page.evaluate(() => !!document.querySelector(".s-why:not([hidden])")); await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(700); o.whyBack = await page.evaluate(() => ({ closed: !document.querySelector(".s-why:not([hidden])"), home: location.pathname === "/" && document.documentElement.classList.contains("tapp-on") })); }
+      await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1200);
+      await page.click("#sFullX"); await page.waitForTimeout(900);
+      await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(900);
+      o.listBack = await page.evaluate(() => ({ full: document.documentElement.classList.contains("s-full"), cur: (document.querySelector('#sNav [aria-current="page"]') || {}).dataset?.nav }));
+      await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(1000);
+      o.dh = {};
+      for (const t of ["", "trade", "auction", "notice"]) { await page.click(`#tFeed [data-ft="${t}"]`); await page.waitForTimeout(250); o.dh[t || "all"] = await page.evaluate(() => (document.querySelector("#tFeed .tf-dh") || {}).textContent); }
+      await page.click('#tFeed [data-ft=""]'); await page.waitForTimeout(250);
+      o.oth = await page.evaluate(() => { const r = [...document.querySelectorAll("#tFeed .tf-it")].find((x) => x.querySelector(".tf-more2")); return r ? !!(r.querySelector(".tf-oth") && /함께: \S/.test(r.querySelector(".tf-oth").textContent)) : "none"; });
+      await page.evaluate(() => { location.hash = "m10"; }); await page.waitForTimeout(1500);
+      o.moa = await page.evaluate(() => { const k = [...document.querySelectorAll("#report .dt-kid")]; return { n: k.length, chev: k.every((x) => !!x.querySelector(".dt-kc")), done: k.some((x) => /입주 완료/.test(x.textContent)), chip: k.length ? getComputedStyle(k[0].querySelector(".dt-kst")).backgroundColor : "" }; });
+      await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(700);
+      await page.click('#sNav [data-nav="my"]'); await page.waitForTimeout(900);
+      await page.evaluate(() => { const ib = window.ZP_T0.inbox(), st = ib.st.bind(ib); ib.st = () => Object.assign({}, st(), { perm: "denied" }); window.dispatchEvent(new Event("zp:alerts")); }); await page.waitForTimeout(500);
+      o.my = await page.evaluate(() => { const t = (document.getElementById("my").innerText || ""); return (t.match(/막혀 있어요/g) || []).length; });
+      await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(600); await page.click('#tHome .th-grid a[data-tile="save"]'); await page.waitForTimeout(1000);
+      o.save = await page.evaluate(() => ({ sub: (document.querySelector("#saveTop .pl-save-sub") || {}).textContent, row: !!document.querySelector("#tSvCash .t-svch") }));
+      await page.click("#tSvCash .t-svch"); await page.waitForTimeout(700);
+      o.sheet = await page.evaluate(() => { const b = document.getElementById("bSheet"); return !!b && !b.hidden && b.getBoundingClientRect().height > 100; });
+      const ok = /^내 돈으로 갈 수 있는 서울 재개발$/.test(o.val || "") && (o.whyOpen === undefined || (o.whyOpen && o.whyBack.closed && o.whyBack.home)) && o.listBack.full && o.listBack.cur === "map" && /등록$/.test(o.dh.all || "") && /신고·등록분$/.test(o.dh.trade || "") && /공고분$/.test(o.dh.auction || "") && /고시일$/.test(o.dh.notice || "") && o.oth !== false && o.moa.n > 0 && o.moa.chev && o.moa.done && o.moa.chip === "rgb(242, 244, 246)" && o.my <= 1 && /^지금 현금 \S+에 매달/.test(o.save.sub || "") && o.save.row && o.sheet;
+      expect(ok, "tapp.r3misc", "설치 앱: 가치 한 줄 숫자 없음 · '왜 이 금액?' 시트 뒤로 = 닫힘(앱 그대로) · 지도 목록 → 뒤로 = 지도 · 소식 날짜 머리 종류별(등록·신고·등록분·공고분·고시일) · '외 N곳' 함께 이름 · 모아타운 행 ›·입주 완료·회색 단계 칩 · MY '막혀 있어요' 한 번 · 모으면 언제 '지금 현금 N에…'·바꾸기 → 금액 시트", JSON.stringify(o));
+    } catch (e) { bad("runtime", "검사 실행", "tapp.r3misc crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- web.why(6): 브라우저(390)도 '왜 이 금액?' 바텀시트는 뒤로 = 닫힘(페이지를 떠나지 않음)
+  {
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      await ctx.addInitScript(() => { try { localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+      page.__where = "web.why"; await loadHome(page); await settle(page, 400);
+      const wb = await page.$("#sList [data-why]");
+      let o = { found: !!wb };
+      if (wb) { await wb.click(); await page.waitForTimeout(500); o.open = await page.evaluate(() => !!document.querySelector(".s-why:not([hidden])")); await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(700); o.closed = await page.evaluate(() => !document.querySelector(".s-why:not([hidden])") && location.pathname === "/"); }
+      expect(o.found && o.open && o.closed, "web.why", "브라우저(390): '왜 이 금액?' 바텀시트를 연 채 뒤로 = 시트만 닫힘(페이지 그대로)", JSON.stringify(o));
+    } catch (e) { bad("runtime", "검사 실행", "web.why crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- web.wideScroll(R3-2): 넓은 화면(1024·1280·1440) — 관심 아래쪽 줄 → 두 칸 리포트 제목이 화면 안 · 칩 '← 관심 구역' · 뒤로 = 관심(보던 자리 ±40px)
+  for (const W of [1024, 1280, 1440]) {
+    const { ctx, page } = await newPage(browser, { viewport: { width: W, height: 860 } }, errs);
+    try {
+      await ctx.addInitScript(() => { try { localStorage.setItem("jg-fav", JSON.stringify(["o497", "o111", "o144", "o392", "o960", "o337", "o890", "o913", "s21", "s69", "o28", "o58", "o10", "o24"])); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+      page.__where = "web.wideScroll " + W; await loadHome(page); await settle(page, 400);
+      await page.click('#sNav [data-nav="fav"]'); await page.waitForTimeout(1200);
+      const rows = await page.$$("#favTop [data-open]"); const last = rows[rows.length - 1];
+      await last.scrollIntoViewIfNeeded(); await page.waitForTimeout(300);
+      const y0 = await page.evaluate(() => scrollY);
+      await last.click(); await page.waitForTimeout(1500);
+      const o = await page.evaluate(() => { const t = document.getElementById("repTitle").getBoundingClientRect(); return { t: Math.round(t.top), b: Math.round(t.bottom), ih: innerHeight, chip: (document.getElementById("sToList") || {}).textContent }; });
+      await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(1200);
+      const bk = await page.evaluate(() => ({ fav: !!document.querySelector("#favTop.s-on"), y: Math.round(scrollY) }));
+      expect(rows.length > 8 && o.t >= 0 && o.b <= o.ih && o.chip === "← 관심 구역" && bk.fav && Math.abs(bk.y - y0) <= 40, "web.wideScroll", "브라우저 넓은 화면(1024·1280·1440): 관심 아래쪽 줄 → 두 칸 리포트 제목이 화면 안 · 왼쪽 위 칩 '← 관심 구역' · 뒤로 = 관심 탭 보던 자리", `${W}: y0 ${y0} ${JSON.stringify(o)} back ${JSON.stringify(bk)}`);
+    } catch (e) { bad("runtime", "검사 실행", "web.wideScroll crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- tapp.axeAll(3): 앱 모드 모든 화면 axe serious·critical 0 — 라이트·다크 × 홈·지도·관심·소식(전체·관심 구역)·MY·도구 7개·구역 시트·모아타운 시트
+  {
+    let AXE = null; try { const ap = process.env.AXE_PATH || require.resolve("axe-core/axe.min.js"); AXE = fs.readFileSync(ap, "utf8"); } catch (e) {}
+    const T = "설치 앱 axe serious·critical 0 — 라이트·다크 × 홈·지도·관심·소식(전체·관심 구역)·MY·도구 7개·구역 시트·모아타운 시트";
+    if (!AXE) skip("tapp.axeAll", T, "axe-core 없음");
+    else for (const cs of ["light", "dark"]) {
+      const { ctx, page } = await appPage(mob(390, 844, cs));
+      try {
+        await appHome(page);
+        const AX = async (k) => { await page.addScriptTag({ content: AXE }).catch(() => {}); return (await page.evaluate(async () => { const r = await window.axe.run(document, { resultTypes: ["violations"] }); return r.violations.filter((x) => x.impact === "serious" || x.impact === "critical").flatMap((x) => x.nodes.slice(0, 2).map((n) => x.id + " " + n.target.join(" "))); })).map((x) => k + " " + x); };
+        const v = [...await AX("home")];
+        for (const k of ["map", "fav", "news", "my"]) { await page.click(`#sNav [data-nav="${k}"]`); await page.waitForTimeout(1100); v.push(...await AX(k)); if (k === "news") { await page.click("#tSegM"); await page.waitForTimeout(500); v.push(...await AX("news-mine")); } }
+        for (const k of ["rank", "commute", "diag", "rules", "stats", "calc", "save"]) { await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(500); await page.click(`#tHome .th-grid a[data-tile="${k}"]`); await page.waitForTimeout(1100); v.push(...await AX(k)); }
+        await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(500);
+        await page.evaluate(() => { location.hash = "o497"; }); await page.waitForTimeout(1500); v.push(...await AX("sheet"));
+        await page.evaluate(() => { location.hash = "m10"; }); await page.waitForTimeout(1500); v.push(...await AX("moa"));
+        expect(!v.length, "tapp.axeAll", T, `${cs}: ${v.length}: ${v.slice(0, 6).join(" ; ")}`);
+      } catch (e) { bad("runtime", "검사 실행", "tapp.axeAll crashed: " + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
   }
   // --- tapp.files(19·20): SW 미리 저장에서 앱 묶음(/b/t.*) 빼기 · assetlinks.json(JSON · TODO 없음 · 패키지 이름 · SHA-256 지문)
   {

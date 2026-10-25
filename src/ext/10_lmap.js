@@ -412,12 +412,6 @@
         const ov = (sel) => { const e = document.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; const b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
         const m = document.documentElement.classList.contains("s-full") ? ov(".s-mini") : null; if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
         const x = ov(".s-fullx"); if (x) P.bottom = Math.round(cv.bottom - x.top + 6);
-        // 3라운드: 설치 앱 지도 탭 — 좌우 24 · 위 레이어 칩 줄 아래 · 오른쪽 확대 버튼 칸을 비워 그 옆 구역 금액 알약이 숨지 않게(웹은 그대로)
-        if (MQ_SHEET.matches && document.documentElement.classList.contains("is-tapp") && document.documentElement.classList.contains("s-full")) {
-          P.left = Math.max(P.left, 24); P.right = Math.max(P.right, 24);
-          const z = ov("#lmap .lm-zoom"); if (z) P.right = Math.max(P.right, Math.round(cv.right - z.left + 8));
-          const rl = ov("#mapbox .s-rail-w"); if (rl) P.top = Math.max(P.top, Math.round(rl.bottom - cv.top + 8));
-        }
       } catch (e) {}
       return P;
     }

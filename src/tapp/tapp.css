@@ -378,9 +378,9 @@
   .th-l{white-space:nowrap;-webkit-line-clamp:unset;display:block;max-width:none}
   .th-t{min-height:80px}
   /* 8 선택 문법: 칩 선택 = 남색 채움 · 비선택 = 연회색 채움(외곽선 없음) · 세그먼트 = 회색 트랙 + 흰 thumb */
-  html.is-tapp .tf-chips button[aria-pressed="true"],html.is-tapp #news .ichip[aria-pressed="true"],html.is-tapp #news .hub-tabs [aria-selected="true"],html.is-tapp .fchips .ichip[aria-pressed="true"],html.is-tapp .pn-sort button[aria-pressed="true"]{background:#1F3A87!important;color:#fff!important;border-color:transparent!important;box-shadow:none!important}
+  html.is-tapp .tf-chips button[aria-pressed="true"],html.is-tapp #news .ichip[aria-pressed="true"],html.is-tapp .fchips .ichip[aria-pressed="true"],html.is-tapp .pn-sort button[aria-pressed="true"]{background:#1F3A87!important;color:#fff!important;border-color:transparent!important;box-shadow:none!important}
   html.is-tapp .tf-chips button[aria-pressed="true"] small{color:#fff!important}
-  html.is-tapp #news .ichip,html.is-tapp .fchips .ichip,html.is-tapp .pn-sort button,html.is-tapp #news .hub-tabs [role="tab"]{background:var(--t-fill)!important;border:0!important;box-shadow:none!important;color:var(--t-lab)}
+  html.is-tapp #news .ichip,html.is-tapp .fchips .ichip,html.is-tapp .pn-sort button{background:var(--t-fill)!important;border:0!important;box-shadow:none!important;color:var(--t-lab)}
   html.is-tapp .s-mini .s-mode,html.is-tapp #sMini [role="radiogroup"],html.is-tapp #sMini .seg{background:var(--t-fill)!important;border:0!important;border-radius:12px!important;padding:2px!important}
   html.is-tapp #sMini button{position:relative;height:36px!important;min-height:36px!important;border-radius:10px!important}
   html.is-tapp #sMini button::after{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px}
@@ -422,7 +422,7 @@
   html.sheet-open .t-bar{display:none!important}
 }
 .tf-more2{font-weight:500;color:var(--t-sub)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tf-chips button[aria-pressed="true"],:root:not([data-theme="light"]) #news .ichip[aria-pressed="true"],:root:not([data-theme="light"]) .pn-sort button[aria-pressed="true"],:root:not([data-theme="light"]) #news .hub-tabs [aria-selected="true"]{background:#8EA8F5!important;color:#10131A!important}:root:not([data-theme="light"]) .tf-chips button[aria-pressed="true"] small{color:#10131A!important}:root:not([data-theme="light"]) .tf-seg{background:#1B1E24}:root:not([data-theme="light"]) .tf-seg button[aria-selected="true"],:root:not([data-theme="light"]) #sMini button[aria-pressed="true"]{background:#2C313A!important;color:#E8EBF0!important}:root:not([data-theme="light"]) #mapbox .maplibregl-ctrl-attrib.maplibregl-compact,:root:not([data-theme="light"]) #mapbox .maplibregl-ctrl-attrib-button{background-color:#22262E!important}:root:not([data-theme="light"]) .s-full #mapbox .s-rail>button{background:#22262E!important;box-shadow:0 0 0 1px #333A45!important}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tf-chips button[aria-pressed="true"],:root:not([data-theme="light"]) #news .ichip[aria-pressed="true"],:root:not([data-theme="light"]) .pn-sort button[aria-pressed="true"]{background:#8EA8F5!important;color:#10131A!important}:root:not([data-theme="light"]) .tf-chips button[aria-pressed="true"] small{color:#10131A!important}:root:not([data-theme="light"]) .tf-seg{background:#1B1E24}:root:not([data-theme="light"]) .tf-seg button[aria-selected="true"],:root:not([data-theme="light"]) #sMini button[aria-pressed="true"]{background:#2C313A!important;color:#E8EBF0!important}:root:not([data-theme="light"]) #mapbox .maplibregl-ctrl-attrib.maplibregl-compact,:root:not([data-theme="light"]) #mapbox .maplibregl-ctrl-attrib-button{background-color:#22262E!important}:root:not([data-theme="light"]) .s-full #mapbox .s-rail>button{background:#22262E!important;box-shadow:0 0 0 1px #333A45!important}}
 :root[data-theme="dark"] .tf-chips button[aria-pressed="true"]{background:#8EA8F5!important;color:#10131A!important}:root[data-theme="dark"] .tf-seg{background:#1B1E24}:root[data-theme="dark"] .tf-seg button[aria-selected="true"]{background:#2C313A!important}
 @media (max-width:980px){
   html.is-tapp.s-full #mapbox .s-rail-w{display:block!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none}
@@ -450,7 +450,7 @@
   /* 3 입주권 나오나: 출처 링크 밑줄(글 속 링크 구분) */
   html.is-tapp .dg-res small a,html.is-tapp #diagTop small a{text-decoration:underline!important;text-underline-offset:2px}
   /* 4 도구 화면: 앱바 아래 같은 제목은 화면에서 숨김(읽어 주기는 그대로) · 첫 요소 위 16 */
-  html.is-tapp.t-tool .s-on>.sec-h h2,html.is-tapp.t-tool #planner.s-on .pl-in>.pl-t,html.is-tapp.t-tool.t-save #saveTop .sec-h h2{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;padding:0!important;margin:-1px!important}
+  html.is-tapp.t-tool.s-view .sec.s-on:has(>.s-back)>.sec-h h2,html.is-tapp.t-tool.s-view #planner.s-on .pl-in>.pl-t,html.is-tapp.t-tool .s-on>.sec-h h2,html.is-tapp.t-tool #planner.s-on .pl-in>.pl-t,html.is-tapp.t-tool.t-save #saveTop .sec-h h2{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;padding:0!important;margin:-1px!important}
   html.is-tapp.t-tool .s-on>.sec-h,html.is-tapp.t-tool.t-save #saveTop>.sec-h{margin-top:16px!important;padding-top:0!important}
   html.is-tapp.t-tool .s-on>.sec-h p,html.is-tapp.t-tool.t-save #saveTop .sec-h p{margin-top:0!important;padding-left:0!important}
   html.is-tapp.t-tool #planner.s-on .pl-in{padding-top:16px!important}
@@ -477,4 +477,17 @@
   :root:not([data-theme="light"]).is-tapp .s-mode button,:root:not([data-theme="light"]).is-tapp .my-seg button,:root:not([data-theme="light"]).is-tapp .hub-tabs [role="tab"],:root:not([data-theme="light"]).is-tapp .seg button,:root:not([data-theme="light"]).is-tapp .tf-seg button{color:#B0B8C1!important}
   :root:not([data-theme="light"]).is-tapp .s-mode button[aria-pressed="true"],:root:not([data-theme="light"]).is-tapp .my-seg button[aria-pressed="true"],:root:not([data-theme="light"]).is-tapp .my-seg button[aria-checked="true"],:root:not([data-theme="light"]).is-tapp .seg button[aria-pressed="true"],:root:not([data-theme="light"]).is-tapp .seg button[aria-checked="true"],:root:not([data-theme="light"]).is-tapp .hub-tabs [role="tab"][aria-selected="true"],:root:not([data-theme="light"]).is-tapp .tf-seg button[aria-selected="true"]{background:#2C313A!important;color:#E5E8EB!important}
   :root:not([data-theme="light"]).is-tapp #planner .quick button[aria-pressed="true"]{background:#8EA8F5!important;color:#10131A!important}
+}
+
+/* 3라운드 QA 뒤: 단일 선택 규칙을 화면별 예전 규칙보다 세게(같은 부품 모든 화면) */
+@media (max-width:980px){
+  html.is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg){background:#F2F4F6!important;border:0!important;box-shadow:none!important}
+  html.is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is(button,[role="tab"]){background:transparent!important;color:#4E5968!important;box-shadow:none!important;border:0!important}
+  html.is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is([aria-pressed="true"],[aria-checked="true"],[aria-selected="true"]){background:#FFFFFF!important;color:#191F28!important;box-shadow:0 1px 2px rgba(0,0,0,.08)!important}
+  html.is-tapp #mapbox .zgu b{font-size:12px!important}
+}
+@media (max-width:980px) and (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]).is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg){background:#1B1E24!important}
+  :root:not([data-theme="light"]).is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is(button,[role="tab"]){color:#B0B8C1!important}
+  :root:not([data-theme="light"]).is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is([aria-pressed="true"],[aria-checked="true"],[aria-selected="true"]){background:#2C313A!important;color:#E5E8EB!important}
 }
