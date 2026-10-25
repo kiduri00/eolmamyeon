@@ -21,8 +21,8 @@ const DTL = (() => {
     let x = null; try { x = investC(r); } catch (e) {}
     if (o.moa) {
       o.basis = "모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요"; o.why2 = o.basis;
-      // 설치 앱: 관리지역 평균값은 참고로만(큰 숫자·'가능' 판정·곳 수에 넣지 않음) — 검색 '사업구역별' · 목록·지도 곳 수(모아타운 관리지역 제외)와 한 규칙
-      if (document.documentElement.classList.contains("is-tapp")) { const ref = o.need; o.need = null; o.total = null; o.tm = 1; o.basis = ref != null ? `관리지역 평균 참고값 ${C(ref)} · 안의 사업구역을 열어 보세요` : "안의 사업구역을 열어 보세요"; o.why2 = "입주까지는 안의 사업구역에서 계산해요"; }
+      // 관리지역 평균값은 참고로만(웹·앱 같음)(큰 숫자·'가능' 판정·곳 수에 넣지 않음) — 검색 '사업구역별' · 목록·지도 곳 수(모아타운 관리지역 제외)와 한 규칙
+      { const ref = o.need; o.need = null; o.total = null; o.tm = 1; o.basis = ref != null ? `관리지역 평균 참고값 ${C(ref)} · 안의 사업구역을 열어 보세요` : "안의 사업구역을 열어 보세요"; o.why2 = "입주까지는 안의 사업구역에서 계산해요"; }
       return o;
     }
     if (done) { o.basis = "사업이 끝난 곳이에요 · 일반 아파트 매매"; o.why2 = "새 아파트 입주까지 계산 대상이 아니에요"; return o; }

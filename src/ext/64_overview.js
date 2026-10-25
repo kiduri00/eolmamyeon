@@ -67,7 +67,7 @@ const OVX = (() => {
     // 입주권이 안 나오는 구역: 지금 사면 무엇을 사는 건지 맨 위에 한 번(아래 아파트·빌라 시세 카드에 헷갈리지 않게)
     const ip = V.find((x) => x.w && x.c === "no");
     const due = ip ? String(ip.w.due || "").replace(/\s*이후 매수분$/, "") : "";
-    const nb = ip ? `<div class="ov-noip" role="note"><b>지금 사면 새 아파트 입주권이 안 나와요</b><span>${due ? `${esc(due)} 뒤에 산 집은` : "지금 산 집은"} 조합원이 될 수 없어요(예외 매물 빼고). 새 아파트를 원하면 일반분양·분양권을 알아보세요. 아래 시세는 참고용이에요.${document.documentElement.classList.contains("is-tapp") ? " 이미 가진 집(그 전에 산 집)은 해당 없어요." : ""}</span></div>` : "";
+    const nb = ip ? `<div class="ov-noip" role="note"><b>지금 사면 새 아파트 입주권이 안 나와요</b><span>${due ? `${esc(due)} 뒤에 산 집은` : "지금 산 집은"} 조합원이 될 수 없어요(예외 매물 빼고). 새 아파트를 원하면 일반분양·분양권을 알아보세요. 아래 시세는 참고용이에요. 이미 가진 집(그 전에 산 집)은 해당 없어요.</span></div>` : "";
     return `<div class="ov-vd" role="group" aria-label="판정">${V.map((x, i) => `<button type="button" class="ov-p ${x.c}" data-vi="${i}" aria-expanded="false"><span>${esc(x.k)}</span><b>${vdV(x.v)}</b></button>`).join("")}</div><p class="ov-why" hidden></p>${nb}`;
   }
   function vdBind(w, V) {

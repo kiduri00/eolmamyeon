@@ -2618,6 +2618,27 @@ async function tappLane(browser, api, errs) {
       finally { await ctx.close().catch(() => {}); }
     }
   }
+  // --- web.sheetInView(1라운드 · 웹 결함): 폰 브라우저 관심 탭 줄 → 구역 시트가 실제로 보임(높이 > 0) · 뒤로 = 관심 탭 | 모아타운 = 사업구역별·참고값 · 개별 조합 단계 = 시트 칩(웹·앱 같은 규칙)
+  {
+    const T = "브라우저(390): 관심 탭 줄 → 구역 시트 보임(높이 > 0) · 뒤로 = 관심 탭 · 모아타운 시트 큰 숫자 '사업구역별'(평균은 참고값 · '가능해요' 없음) · 개별 조합 목록 단계 = 그 시트 칩";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      await ctx.addInitScript(() => { try { if (!localStorage.getItem("jg-fav")) localStorage.setItem("jg-fav", '["o497"]'); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+      page.__where = "web.sheetInView";
+      await loadHome(page); await settle(page, 400);
+      await page.click('#sNav [data-nav="fav"]'); await page.waitForTimeout(1200);
+      const o = {};
+      const fb = await page.$("#favTop [data-open]");
+      if (fb) { await fb.click(); await page.waitForTimeout(1500); o.vis = await page.evaluate(() => { const r = document.getElementById("report"), b = r.getBoundingClientRect(); return r.classList.contains("sheet") && b.height > innerHeight * 0.6 && document.getElementById("repTitle").getBoundingClientRect().height > 0; }); await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(900); o.back = await page.evaluate(() => !!document.querySelector("#favTop.s-on") && !document.getElementById("report").classList.contains("sheet")); }
+      await page.evaluate(() => { location.hash = "m10"; }); await page.waitForTimeout(1800);
+      o.moa = await page.evaluate(() => ({ v: [...document.querySelectorAll("#report .dt-k .dt-v")].map((x) => x.textContent).slice(0, 2), ok: !!document.querySelector("#report .dt-k .dt-vd.ok"), s: (document.querySelector("#report .dt-k .dt-s") || {}).textContent }));
+      await page.click("#tab-biz").catch(() => {}); await page.waitForTimeout(500);
+      const lab = await page.evaluate(() => { const b = document.querySelector("#report .child[data-go] small"); return b ? [b.closest("[data-go]").dataset.go, b.textContent.split(" · ")[0]] : null; });
+      if (lab) { await page.click(`#report .child[data-go="${lab[0]}"]`); await page.waitForTimeout(1500); o.chip = await page.evaluate(() => (document.querySelector("#report .stg") || {}).textContent); o.lab = lab[1]; }
+      expect(o.vis === true && o.back === true && o.moa.v[0] === "사업구역별" && o.moa.v[1] === "사업구역별" && !o.moa.ok && /참고/.test(o.moa.s || "") && o.lab && (o.chip || "").replace(/ · 확인 중$/, "") === o.lab, "web.sheetInView", T, JSON.stringify(o));
+    } catch (e) { bad("runtime", "검사 실행", "web.sheetInView crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
   // --- tapp.home: 첫 화면(아이콘 10개 = 있는 화면 · 종 배지 · 배너 3장 실제 글) · 아래 탭 5개 · 뒤로 = 홈
   {
     const T = "설치 앱 첫 화면: 아이콘 10개 모두 있는 화면으로 열림(앱 화면·페이지 200) · 종 N 배지 = 새 소식 수 · 배너 3장(실제 링크 · 1 / 3) · 내 돈 카드 그대로";

@@ -562,3 +562,10 @@ html.simple #sTT{margin-bottom:16px}
 /* 20차: 400px 아래 목록 줄은 역·도보만('미아사거리역 9분') — '미아동 · 미…'처럼 둘 다 잘리지 않게 */
 @media (max-width:399px){.s-sub .s-dg.s-dgw{display:none}}
 /* 21차: 둘째 줄을 두 줄로 접던 규칙은 뺐다(줄 높이를 넘어 다음 줄에 겹쳤다) — 98_r21.css */
+
+/* 1라운드(10/26): 탭 화면(관심·소식·MY·도구 = s-view)에서 구역을 열면 시트(#report)가 숨은 #mapTop 안에서 높이 0으로 열리던 것 — 시트로 가는 길만 보이게(나머지 홈 내용은 그대로 숨김 · 시트는 화면 가득 fixed) · 웹·앱 같음 */
+@media (max-width:980px){
+  html.simple.s-view.sheet-open #mapTop{display:block!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:visible!important}
+  html.simple.s-view.sheet-open #mapTop>:not(.main),html.simple.s-view.sheet-open #mapTop>.main>:not(#sRight),html.simple.s-view.sheet-open #sRight>:not(#report){display:none!important}
+  html.simple.s-view.sheet-open #mapTop>.main,html.simple.s-view.sheet-open #sRight{display:block!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important}
+}
