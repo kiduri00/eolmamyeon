@@ -17,7 +17,8 @@
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-mono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "monochrome" }
   ],
   "screenshots": [
     { "src": "/screenshot-home.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "내 돈으로 갈 수 있는 서울 재개발 구역" },
@@ -25,9 +26,9 @@
     { "src": "/screenshot-wide.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide", "label": "넓은 화면: 왼쪽 목록 · 오른쪽 지도" }
   ],
   "shortcuts": [
-    { "name": "지도로 보기", "short_name": "지도", "url": "/?src=app#map", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
-    { "name": "관심 구역", "short_name": "관심 구역", "url": "/?src=app#favTop", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
-    { "name": "월간 리포트", "short_name": "리포트", "url": "/report/?src=app", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
-    { "name": "구역별 페이지", "short_name": "구역", "url": "/z/?src=app", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+    { "name": "지도로 보기", "short_name": "지도", "url": "/?src=app#map", "icons": [{ "src": "/sc-map-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "관심 구역", "short_name": "관심 구역", "url": "/?src=app#favTop", "icons": [{ "src": "/sc-fav-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "월간 리포트", "short_name": "리포트", "url": "/report/?src=app", "icons": [{ "src": "/sc-report-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "구역별 페이지", "short_name": "구역", "url": "/z/?src=app", "icons": [{ "src": "/sc-zone-192.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }

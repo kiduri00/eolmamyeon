@@ -9,7 +9,7 @@
   try { fromApp = new URLSearchParams(location.search).get("src") === "app"; } catch (_) {}
   try { if (fromApp) sessionStorage.setItem("isApp", "1"); else fromApp = sessionStorage.getItem("isApp") === "1"; } catch (_) {}
   const standalone = () => mq("(display-mode: standalone)") || mq("(display-mode: fullscreen)") || mq("(display-mode: minimal-ui)") || navigator.standalone === true;
-  const mark = () => H.classList.toggle("is-app", fromApp || standalone());
+  const mark = () => H.classList.toggle("is-app", fromApp || standalone() || H.classList.contains("is-tapp"));
   mark();
   try { matchMedia("(display-mode: standalone)").addEventListener("change", mark); } catch (_) {}
 

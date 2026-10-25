@@ -6,8 +6,8 @@
    뒤로 가기(popstate) — 새 state의 zn보다 위에 있는 겹을 위에서부터 closeFn(true)로 닫는다. */
 const ZL = (() => {
   const S = [];
-  const strip = (s) => { if (!s || typeof s !== "object") return "{}"; const o = Object.assign({}, s); delete o.zl; delete o.zn; delete o.zdead; return JSON.stringify(o); };
-  let last = { st: history.state, url: location.href }, skipping = false;
+  const strip = (s) => { if (!s || typeof s !== "object") return "{}"; const o = Object.assign({}, s); delete o.zl; delete o.zn; delete o.zdead; delete o.tD; return JSON.stringify(o); };   // tD = 설치 앱 화면 묶음이 적는 기록 깊이(같은 화면 판정에서 뺀다)
+  let last = { st: history.state, url: location.href }, skipping = false, hold = 0;
   // 다른 코드의 pushState·replaceState도 '지금 칸'으로 기억(빈 칸 건너뛰기 판정용)
   try {
     const P = history.pushState.bind(history), Rp = history.replaceState.bind(history);
@@ -40,6 +40,8 @@ const ZL = (() => {
     const n = (st && st.zn) || 0;
     while (S.length > n) { const L = S.pop(); try { L.close(true); } catch (er) {} }
     // 닫힌 겹의 빈 칸과 같은 화면에 닿았으면 한 칸 더(뒤로 → 뒤로, 앞으로 → 앞으로) — 뒤로 가기가 '아무 일 없음'이 되지 않게
+    // noskip(): 여러 칸을 한 번에 돌아갈 때(설치 앱 탭 → 처음 칸) 도착한 칸에서 더 가지 않는다
+    if (hold && Date.now() - hold < 1500) { hold = 0; return; }
     if (prev && prev.url === location.href && strip(prev.st) === strip(st)) {
       const pd = !!(prev.st && prev.st.zdead), nd = !!(st && st.zdead);
       if (pd && !nd) { skipping = true; try { history.back(); } catch (er) {} }
@@ -48,6 +50,6 @@ const ZL = (() => {
   });
   // 모두 닫기(로고·찾기 탭처럼 기록을 새로 시작할 때) — 기록은 건드리지 않는다
   function reset() { while (S.length) { const L = S.pop(); try { L.close(true); } catch (er) {} } }
-  return { open, done, reset, skipping: () => skipping, has: (id) => S.some((x) => x.id === id), top: () => (S.length ? S[S.length - 1].id : null), depth: () => S.length };
+  return { open, done, reset, noskip: () => { hold = Date.now(); }, skipping: () => skipping, has: (id) => S.some((x) => x.id === id), top: () => (S.length ? S[S.length - 1].id : null), depth: () => S.length };
 })();
 window.ZL = ZL;

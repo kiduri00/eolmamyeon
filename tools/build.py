@@ -277,10 +277,19 @@ a_url = emit('a', js)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
 shell = shell.replace('__ZPVER__', '버전 2.0')   # 사용자에게는 버전만(빌드 해시는 /b/ 파일 이름에만)
 c_url = emit('c', css, 'css')
+# 설치 앱 화면 묶음(src/tapp/ → /b/t.*.js · /b/t.*.css): 설치 앱(html.is-tapp)일 때만 첫 화면 머리 스크립트가 받는다 — 웹 묶음(a·c)에는 들어가지 않는다
+_TD = os.path.join(R, 'src', 'tapp')
+t_js = ''.join(open(os.path.join(_TD, f), encoding='utf-8').read() for f in sorted(os.listdir(_TD)) if f.endswith('.js'))
+t_css = ''.join(open(os.path.join(_TD, f), encoding='utf-8').read() for f in sorted(os.listdir(_TD)) if f.endswith('.css'))
+t_js = '(function(){"use strict";\n' + t_js + '\n})();'
+if ESB and not os.environ.get('NO_MINIFY'): t_js = mini(t_js, 'js'); t_css = mini(t_css, 'css')
+t_url = emit('t', t_js); tc_url = emit('t', t_css, 'css')
+assert shell.count('__TJS__') == 1 and shell.count('__TCSS__') == 1
+shell = shell.replace('__TJS__', t_url).replace('__TCSS__', tc_url)
 # 지난 빌드 파일은 이번 것 + 바로 전 것만 남김(배포 직후 옛 화면이 잠깐 참조할 수 있게)
 KEEP = 2
 def prune():
-    for pre, ext in (('d', 'js'), ('a', 'js'), ('c', 'css'), ('h', 'js'), ('r', 'json')):
+    for pre, ext in (('d', 'js'), ('a', 'js'), ('c', 'css'), ('h', 'js'), ('r', 'json'), ('t', 'js'), ('t', 'css')):
         fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.' + ext)], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
         cur = {u.split('/')[-1] for u in d_urls} if pre == 'd' else set()
         for f in [x for x in fs if x not in cur][KEEP * (len(d_urls) if pre == 'd' else 1) - len(cur):]:

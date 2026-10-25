@@ -1,7 +1,7 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "00902b83"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "e38c2605"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
@@ -9,7 +9,7 @@ const CDN = "eolma-cdn-" + V;
 const BUND = "eolma-bund-" + V;
 const PAGES = "eolma-pages"; // 다녀간 구역·구·리포트 페이지(버전과 무관하게 유지 · 오프라인에서 다시 열기)
 const KEEP = [SHELL, DATA, TILE, CDN, BUND, PAGES];
-const PRE = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-small.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/pages.css"];
+const PRE = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-small.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/icon-badge-96.png", "/pages.css"];
 // 구 페이지(목록 + 25개 구)는 설치 때 미리 저장 → 오프라인에서도 구별 구역 목록을 연다
 const GUS = "강남구 강동구 강북구 강서구 관악구 광진구 구로구 금천구 노원구 도봉구 동대문구 동작구 마포구 서대문구 서초구 성동구 성북구 송파구 양천구 영등포구 용산구 은평구 종로구 중구 중랑구".split(" ");
 const PRE_PAGES = ["/gu/"].concat(GUS.map((g) => "/gu/" + encodeURIComponent(g)));
@@ -149,7 +149,7 @@ self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : "" }; }
   const url = typeof d.url === "string" && d.url.startsWith("/") ? d.url : "/#inbox";
-  e.waitUntil(self.registration.showNotification(d.title || "집핀 · 새 소식", { body: d.body || "핀 꽂은 구역에 새 소식이 있어요", icon: "/icon-192.png", badge: "/icon-192.png", tag: d.tag || "zippin", lang: "ko", data: { url } }));
+  e.waitUntil(self.registration.showNotification(d.title || "집핀 · 새 소식", { body: d.body || "핀 꽂은 구역에 새 소식이 있어요", icon: "/icon-192.png", badge: "/icon-badge-96.png", tag: d.tag || "zippin", lang: "ko", data: { url } }));
 });
 // 알림을 누르면: 열린 집핀 창이 있으면 그 창에서 구역을 열고(앱이 메시지를 받아 #id로 이동), 없으면 새 창
 self.addEventListener("notificationclick", (e) => {
@@ -161,6 +161,9 @@ self.addEventListener("notificationclick", (e) => {
     if (/\/admin(\.html)?$/.test(new URL(url).pathname)) { const a = cs.find((x) => /\/admin(\.html)?$/.test(new URL(x.url).pathname)); if (a) { try { await a.focus(); } catch (_) {} return; } await self.clients.openWindow(url); return; }
     const c = cs.find((x) => new URL(x.url).origin === self.location.origin && new URL(x.url).pathname === "/") || null;
     if (c) { try { await c.focus(); } catch (_) {} c.postMessage({ t: "zp-open", url }); return; }
+    // 첫 화면 말고 다른 페이지(/z·리포트…)를 연 창이 있으면 그 창(설치 앱이면 앱 안)을 앞으로 가져와 그 주소로 — 새 브라우저 창을 띄우지 않는다
+    const o = cs.find((x) => new URL(x.url).origin === self.location.origin && "navigate" in x) || null;
+    if (o) { try { await o.focus(); } catch (_) {} try { await o.navigate(url); return; } catch (_) {} }
     await self.clients.openWindow(url);
   })());
 });

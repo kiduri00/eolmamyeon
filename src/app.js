@@ -7150,6 +7150,8 @@
     return null;
   }
   function adRender() {
+    // 설치 앱(html.is-tapp · 안드로이드 앱 등)에서는 광고 칸을 그리지도, adsbygoogle을 부르지도 않는다
+    if (document.documentElement.classList.contains("is-tapp")) return;
     document.querySelectorAll(".ad-slot[data-slot]").forEach((el) => {
       if (el.dataset.done) return;
       el.dataset.done = "1";

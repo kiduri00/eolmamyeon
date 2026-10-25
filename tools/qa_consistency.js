@@ -2564,6 +2564,218 @@ const FORCE_SA = () => {   // (display-mode: standalone) 규칙을 그대로 꺼
   const st = document.createElement("style"); st.id = "qaSA"; st.textContent = css; document.head.appendChild(st);
   return css.length;
 };
+// ================================================================ 설치 앱 화면(안드로이드 TWA·홈 화면 앱 · html.is-tapp)
+// 크롬 헤드리스는 display-mode를 흉내 못 내므로 TWA와 같은 진입(document.referrer = android-app://…)으로 켠다 · 브라우저(웹)는 그대로인지도 같이
+const TWA = () => { try { Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.zippin/" }); } catch (e) {} };
+async function tappLane(browser, api, errs) {
+  const mob = (w, h, cs = "light") => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs });
+  const ADRX = /googlesyndication|adsbygoogle|pagead2/i;
+  const appPage = async (vp, onb) => {
+    const r = await newPage(browser, vp, errs);
+    await r.ctx.addInitScript(TWA);
+    if (!onb) await r.ctx.addInitScript(() => { try { localStorage.setItem("zp.tonb", "1"); } catch (e) {} });
+    r.ads = []; r.tReq = [];
+    r.page.on("request", (q) => { const u = q.url(); if (ADRX.test(u)) r.ads.push(u); if (/\/b\/t\.[0-9a-f]{10}\.(js|css)/.test(u)) r.tReq.push(u); });
+    return r;
+  };
+  const appHome = async (page, u = "/?src=app") => {
+    page.__where = "tapp " + u;
+    await page.goto(BASE + u, { waitUntil: "load", timeout: 30000 });
+    await page.waitForFunction(() => document.documentElement.classList.contains("tapp-on"), null, { timeout: 25000, polling: 100 }).catch(() => {});
+    await page.waitForTimeout(500);
+  };
+  let CH = null; try { CH = JSON.parse((await get(BASE + "/data/changes.json")).text); } catch (e) {}
+  const EXP = {}; (CH ? CH.items : []).forEach((e) => { EXP[e.type] = (EXP[e.type] || 0) + 1; });
+  // --- tapp.web: 브라우저(웹)에는 앱 화면이 하나도 없다 · 앱 묶음(/b/t.*)도 안 받는다 · 정적 페이지 광고는 예전처럼 받는다
+  {
+    const T = "브라우저(웹): html.is-tapp·앱 첫 화면·전체 소식·처음 안내 없음 · 아래 탭 4개 그대로 · 앱 묶음(/b/t.*) 안 받음 · 광고 스크립트는 정적 페이지에서 그대로 요청";
+    for (const [vp, tag] of [[mob(390, 844), "390"], [{ viewport: { width: 1440, height: 900 } }, "1440"]]) {
+      const { ctx, page } = await newPage(browser, vp, errs);
+      const ads = [], tq = [];
+      page.on("request", (q) => { const u = q.url(); if (ADRX.test(u)) ads.push(u); if (/\/b\/t\.[0-9a-f]{10}\./.test(u)) tq.push(u); });
+      try {
+        page.__where = "tapp.web " + tag;
+        await loadHome(page); await settle(page, 400);
+        await page.evaluate(() => { const b = document.querySelector('#sNav [data-nav="news"]'); if (b) b.click(); });
+        await page.waitForTimeout(600);
+        const r = await page.evaluate(() => ({ cls: document.documentElement.className.includes("is-tapp"), home: !!document.getElementById("tHome"), feed: !!document.getElementById("tFeed"), onb: !!document.getElementById("tOnb"), nav: [...document.querySelectorAll("#sNav [data-nav]")].map((b) => b.dataset.nav).join(","), tapi: !!window.ZP_TAPP }));
+        const st = [];
+        for (const u of ["/z/o144.html", "/report/2026-10.html"]) {
+          const n0 = ads.length;
+          await page.goto(BASE + u, { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(300);
+          const x = await page.evaluate(() => ({ cls: document.documentElement.classList.contains("is-tapp"), tabs: document.querySelectorAll(".zp-tabs a").length }));
+          st.push([u, ads.length > n0, x.cls, x.tabs]);
+        }
+        const okSt = st.every(([, ad, cls, tabs]) => ad && !cls && (tag === "1440" || tabs === 4));
+        expect(!r.cls && !r.home && !r.feed && !r.onb && !r.tapi && r.nav === "home,fav,news,my" && !tq.length && okSt, "tapp.web", T, `${tag}: ${JSON.stringify(r)} t-bundle ${tq.length} static ${JSON.stringify(st)}`);
+      } catch (e) { bad("runtime", "검사 실행", "tapp.web crashed: " + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- tapp.home: 첫 화면(아이콘 10개 = 있는 화면 · 종 배지 · 배너 3장 실제 글) · 아래 탭 5개 · 뒤로 = 홈
+  {
+    const T = "설치 앱 첫 화면: 아이콘 10개 모두 있는 화면으로 열림(앱 화면·페이지 200) · 종 N 배지 = 새 소식 수 · 배너 3장(실제 링크 · 1 / 3) · 내 돈 카드 그대로";
+    const T2 = "설치 앱 아래 탭 5개(홈·지도·관심·소식·MY): 누르면 그 화면 · 지도 = 화면 가득 · 탭은 홈 위 한 칸(뒤로 = 홈) · 표시(aria-current) 맞음";
+    const { ctx, page, ads } = await appPage(mob(390, 844));
+    try {
+      await appHome(page);
+      const h = await page.evaluate(() => {
+        const g = [...document.querySelectorAll("#tHome .th-grid a")].map((a) => ({ k: a.dataset.tile, href: a.getAttribute("href"), menu: a.dataset.menu || "", map: a.hasAttribute("data-tmap"), t: a.textContent.trim() }));
+        const B = [...document.querySelectorAll("#tHome .th-b")].map((a) => ({ href: a.getAttribute("href"), t: a.textContent.trim(), al: a.hasAttribute("data-talert") }));
+        const bn = document.querySelector("#hdrBell .t-bn");
+        return { cls: document.documentElement.classList.contains("is-tapp"), g, B, cnt: (document.getElementById("tCarN") || {}).textContent, bn: bn ? { hid: bn.hidden, t: bn.textContent } : null, nNew: window.ZP_TAPP ? ZP_TAPP.newCount("") : -1,
+          gauge: !!document.querySelector("#sGauge #sN"), nav: [...document.querySelectorAll("#sNav [data-nav]")].map((b) => b.dataset.nav).join(","), mapHidden: getComputedStyle(document.querySelector("#mapTop .mapcard")).display === "none", tD: (history.state && history.state.tD) || 0 };
+      });
+      // 아이콘 = 지금 있는 화면만: 앱 화면 id는 문서에 있거나 예전 주소 별칭 · 페이지는 200
+      const pg = []; for (const x of h.g.filter((x) => !x.menu && !x.map)) { const r = await getPage("/" + x.href.replace(/^\//, "")); pg.push([x.href, r.status]); }
+      const ids = await page.evaluate((L) => L.map((id) => !!document.getElementById(id) || !!(window.ZP_ALIAS && ZP_ALIAS[id])), h.g.filter((x) => x.menu).map((x) => x.menu));
+      const bp = []; for (const b of h.B.filter((b) => !b.al)) { const r = await getPage("/" + b.href.replace(/^\//, "")); bp.push([b.href, r.status]); }
+      expect(h.cls && h.g.length === 10 && ids.every(Boolean) && pg.every((x) => x[1] === 200) && h.g.filter((x) => x.map).length === 1 && h.B.length === 3 && bp.every((x) => x[1] === 200) && h.B.some((b) => b.al) && h.cnt === "1 / 3" && h.bn && (h.bn.hid === !(h.nNew > 0)) && h.gauge && h.mapHidden && !h.g.some((x) => /준비/.test(x.t)),
+        "tapp.home", T, `${JSON.stringify({ g: h.g.map((x) => x.t), ids, pg, bp, cnt: h.cnt, bn: h.bn, nNew: h.nNew, gauge: h.gauge, mapHidden: h.mapHidden })}`);
+      // 아이콘마다 실제로 눌러 본다: 앱 화면은 s-view + 그 칸 s-on(지도는 화면 가득) → 뒤로 = 홈 · 페이지는 200으로 이동 → 뒤로
+      const tl = [];
+      for (const x of h.g) {
+        const sel = `#tHome .th-grid a[data-tile="${x.k}"]`;
+        if (x.menu || x.map) {
+          await page.click(sel); await page.waitForTimeout(500);
+          const s = await page.evaluate((id) => { const H = document.documentElement, al = window.ZP_ALIAS && ZP_ALIAS[id], v = al ? al[0] : id; return { view: H.classList.contains("s-view"), full: H.classList.contains("s-full"), on: !!(document.getElementById(v) && document.getElementById(v).classList.contains("s-on")), tD: (history.state && history.state.tD) || 0 }; }, x.menu || "map");
+          await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(500);
+          const b = await page.evaluate(() => ({ home: !document.documentElement.classList.contains("s-view") && !document.documentElement.classList.contains("s-full"), tD: (history.state && history.state.tD) || 0 }));
+          tl.push([x.k, x.map ? s.full : s.view && s.on, s.tD === 1, b.home && b.tD === 0]);
+        } else {
+          const [resp] = await Promise.all([page.waitForNavigation({ timeout: 15000 }).catch(() => null), page.click(sel)]);
+          const st = resp ? resp.status() : 0;
+          await page.goBack({ waitUntil: "load" }).catch(() => {});
+          await page.waitForFunction(() => document.documentElement.classList.contains("tapp-on"), null, { timeout: 20000 }).catch(() => {});
+          tl.push([x.k, st === 200 || st === 304, true, true]);
+        }
+      }
+      expect(tl.every((t) => t[1] && t[2] && t[3]), "tapp.home", T, "누름: " + JSON.stringify(tl.filter((t) => !(t[1] && t[2] && t[3]))));
+      // 아래 탭
+      await appHome(page);
+      const res = [];
+      for (const k of ["map", "fav", "news", "my", "map", "home"]) {
+        await page.click(`#sNav [data-nav="${k}"]`); await page.waitForTimeout(900);
+        res.push(await page.evaluate((k) => {
+          const H = document.documentElement, cur = (document.querySelector('#sNav [aria-current="page"]') || {}).dataset, mb = document.getElementById("mapbox").getBoundingClientRect();
+          const want = { map: H.classList.contains("s-full") && mb.height > innerHeight * 0.6, fav: !!document.querySelector("#favTop.s-on"), news: !!document.querySelector("#news.s-on") && getComputedStyle(document.getElementById("tFeed")).display !== "none", my: !!document.querySelector("#my.s-on"), home: !H.classList.contains("s-view") && !H.classList.contains("s-full") && scrollY < 5 }[k];
+          return [k, want, cur && cur.nav, (history.state && history.state.tD) || 0];
+        }, k));
+      }
+      const tabOk = res.every(([k, w, c, d]) => w && c === k && d === (k === "home" ? 0 : 1));
+      // 뒤로: 소식 → 뒤로 = 홈
+      await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(700);
+      await page.click('#sNav [data-nav="my"]'); await page.waitForTimeout(700);
+      await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(700);
+      const back = await page.evaluate(() => ({ home: !document.documentElement.classList.contains("s-view") && !document.documentElement.classList.contains("s-full"), tD: (history.state && history.state.tD) || 0, cur: (document.querySelector('#sNav [aria-current="page"]') || {}).dataset }));
+      expect(h.nav === "home,map,fav,news,my" && tabOk && back.home && back.tD === 0 && back.cur && back.cur.nav === "home", "tapp.tabs", T2, `${h.nav} ${JSON.stringify(res)} back ${JSON.stringify(back)}`);
+      expect(!ads.length, "tapp.noAds", "설치 앱: 광고 스크립트(adsbygoogle) 요청 없음 — 첫 화면 · /z · 리포트", `index: ${ads.slice(0, 2).join(" ")}`);
+    } catch (e) { bad("runtime", "검사 실행", "tapp.home crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- tapp.noAds: 정적 페이지(/z 광고 있는 손글 · 리포트)도 앱에서는 광고 스크립트를 안 받는다 · 아래 탭 5개
+  {
+    const T = "설치 앱: 광고 스크립트(adsbygoogle) 요청 없음 — 첫 화면 · /z · 리포트";
+    const { ctx, page, ads } = await appPage(mob(390, 844));
+    try {
+      const st = [];
+      for (const u of ["/z/o144.html", "/report/2026-10.html", "/guide/moatown.html"]) {
+        page.__where = "tapp.noAds " + u;
+        await page.goto(BASE + u, { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(600);
+        st.push([u, await page.evaluate(() => ({ cls: document.documentElement.classList.contains("is-tapp"), tabs: [...document.querySelectorAll(".zp-tabs a span")].map((s) => s.textContent).join(",") }))]);
+      }
+      expect(!ads.length && st.every(([, x]) => x.cls && x.tabs === "홈,지도,관심,소식,MY"), "tapp.noAds", T, `ads ${ads.length} ${ads.slice(0, 2).join(" ")} ${JSON.stringify(st)}`);
+    } catch (e) { bad("runtime", "검사 실행", "tapp.noAds crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- tapp.feed: 전체 소식 = data/changes.json(종류별 수 같음) · 칩으로 거르기 · 줄을 누르면 그 구역 · 관심 구역(예전 소식) 칸 그대로
+  {
+    const T = "설치 앱 전체 소식: 칩 수 = changes.json 종류별 건수(전체·실거래·경공매·고시·단계·필요한 돈) · 칩 거르기 · 줄 → 구역 열림 · '관심 구역' 칸 = 예전 내 소식";
+    const { ctx, page } = await appPage(mob(390, 844));
+    try {
+      await appHome(page);
+      await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(1200);
+      const f = await page.evaluate(() => {
+        const ch = {}; document.querySelectorAll("#tFeed [data-ft]").forEach((b) => { ch[b.dataset.ft || "all"] = +(b.querySelector("small").textContent.replace(/,/g, "")); });
+        return { ch, rows: document.querySelectorAll("#tFeed .tf-it").length, api: window.ZP_TAPP.feedCounts() };
+      });
+      const all = CH ? CH.items.length : -1;
+      const cntOk = f.ch.all === all && ["trade", "auction", "notice", "stage", "price"].every((k) => (f.ch[k] || 0) === (EXP[k] || 0));
+      await page.click('#tFeed [data-ft="auction"]'); await page.waitForTimeout(300);
+      const au = await page.evaluate(() => [...document.querySelectorAll("#tFeed .tf-it .tf-tg")].map((t) => t.textContent));
+      const id = await page.evaluate(() => { const b = document.querySelector("#tFeed .tf-it[data-open]"); return b && b.dataset.open; });
+      await page.click("#tFeed .tf-it[data-open]"); await page.waitForTimeout(1500);
+      const z = await page.evaluate(() => ({ sheet: document.documentElement.classList.contains("sheet-open") || document.getElementById("report").classList.contains("sheet"), h: location.hash.slice(1) }));
+      await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(800);
+      await page.click("#tSegM"); await page.waitForTimeout(400);
+      const mine = await page.evaluate(() => ({ seg: document.getElementById("news").dataset.tseg, mineVis: getComputedStyle(document.querySelector("#news > .nw-mine")).display !== "none", feedVis: getComputedStyle(document.getElementById("tFeed")).display !== "none" }));
+      expect(cntOk && f.rows > 0 && au.length > 0 && au.every((t) => t === "경매") && z.sheet && mine.seg === "mine" && mine.mineVis && !mine.feedVis, "tapp.feed", T, `chips ${JSON.stringify(f.ch)} expect all ${all} ${JSON.stringify(EXP)} · rows ${f.rows} · auction tags ${au.length}/${au.filter((t) => t === "경매").length} · open ${id} ${JSON.stringify(z)} · mine ${JSON.stringify(mine)}`);
+    } catch (e) { bad("runtime", "검사 실행", "tapp.feed crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- tapp.onboard: 처음 실행 안내 3장 · 한 번만(건너뛰면 다시 안 뜸) · 뒤로 가기로도 닫힘
+  {
+    const T = "설치 앱 처음 실행 안내: 처음엔 뜸(3장 · 건너뛰기 있음) · 건너뛴 뒤 다시 열면 안 뜸 · 닫은 뒤 홈에서 기록 깊이 0";
+    const { ctx, page } = await appPage(mob(390, 844), true);
+    try {
+      await appHome(page); await page.waitForTimeout(300);
+      const a = await page.evaluate(() => ({ on: !!document.getElementById("tOnb"), skip: !!document.querySelector("#tOnb [data-oskip]"), step: (document.querySelector("#tOnb .tob-k") || {}).textContent }));
+      await page.click("#tOnb [data-onext]"); await page.waitForTimeout(200);
+      await page.click("#tOnb [data-onext]"); await page.waitForTimeout(200);
+      const c = await page.evaluate(() => (document.querySelector("#tOnb .tob-k") || {}).textContent);
+      await page.click("#tOnb [data-oskip]"); await page.waitForTimeout(600);
+      const b = await page.evaluate(() => ({ on: !!document.getElementById("tOnb"), ls: localStorage.getItem("zp.tonb"), tD: (history.state && history.state.tD) || 0 }));
+      await appHome(page, "/?src=app&qac=" + (++LOADS)); await page.waitForTimeout(400);
+      const d = await page.evaluate(() => !!document.getElementById("tOnb"));
+      expect(a.on && a.skip && /^1 \/ 3/.test(a.step || "") && /^3 \/ 3/.test(c || "") && !b.on && b.ls === "1" && b.tD === 0 && !d, "tapp.onboard", T, `${JSON.stringify(a)} step3 ${c} after ${JSON.stringify(b)} again ${d}`);
+    } catch (e) { bad("runtime", "검사 실행", "tapp.onboard crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- tapp.a11y · tapp.overflow · tapp.cls: axe 심각·치명 0(밝게·어둡게: 홈·소식·안내) · 360/390/412 가로 넘침 없음 · 첫 화면 밀림 ≈ 0
+  {
+    const T = "설치 앱 접근성: axe serious·critical 0 — 홈·전체 소식·지도 탭·처음 안내(밝게·어둡게)";
+    const T2 = "설치 앱 가로 넘침 없음(360·390·412): 홈·소식·지도 탭";
+    const T3 = "설치 앱 첫 화면 밀림(CLS) 0.02 미만";
+    let AXE = null; try { const ap = process.env.AXE_PATH || require.resolve("axe-core/axe.min.js"); AXE = fs.readFileSync(ap, "utf8"); } catch (e) {}
+    const AX = async (page) => { await page.addScriptTag({ content: AXE }).catch(() => {}); return page.evaluate(async () => { const r = await window.axe.run(document, { resultTypes: ["violations"] }); return r.violations.filter((x) => x.impact === "serious" || x.impact === "critical").flatMap((x) => x.nodes.slice(0, 3).map((n) => x.id + " " + n.target.join(" "))); }); };
+    for (const cs of ["light", "dark"]) {
+      const { ctx, page } = await appPage(mob(390, 844, cs), true);
+      try {
+        await appHome(page);
+        const v = [];
+        if (AXE) {
+          v.push(...(await AX(page)).map((x) => "onb " + x));
+          await page.click("#tOnb [data-oskip]"); await page.waitForTimeout(500);
+          v.push(...(await AX(page)).map((x) => "home " + x));
+          await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(1200);
+          v.push(...(await AX(page)).map((x) => "news " + x));
+          await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1500);
+          v.push(...(await AX(page)).map((x) => "map " + x));
+          expect(!v.length, "tapp.a11y", T, `${cs}: ${v.length}: ${v.slice(0, 6).join(" ; ")}`);
+        } else skip("tapp.a11y", T, "axe-core 없음(AXE_PATH)");
+      } catch (e) { bad("runtime", "검사 실행", "tapp.a11y crashed: " + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+    for (const w of [360, 390, 412]) {
+      const { ctx, page } = await appPage(mob(w, 800));
+      try {
+        await page.addInitScript(() => { window.__cls = 0; try { new PerformanceObserver((l) => l.getEntries().forEach((e) => { if (!e.hadRecentInput) window.__cls += e.value; })).observe({ type: "layout-shift", buffered: true }); } catch (e) {} });
+        await appHome(page); await page.waitForTimeout(1500);
+        const cls = await page.evaluate(() => window.__cls);
+        const ov = [];
+        const chk = async (k) => { const o = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth); if (o > 1) ov.push(`${k} +${o}px`); };
+        await chk("home");
+        const lab = await page.evaluate(() => [...document.querySelectorAll("#tHome .th-l")].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
+        if (lab.length) ov.push("잘린 아이콘 이름 " + lab.join(","));
+        await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(1000); await chk("news");
+        await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1200); await chk("map");
+        expect(!ov.length, "tapp.overflow", T2, `${w}: ${ov.join(" ; ")}`);
+        expect(cls < 0.02, "tapp.cls", T3, `${w}: CLS ${cls.toFixed(4)}`);
+      } catch (e) { bad("runtime", "검사 실행", "tapp.overflow crashed: " + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+}
 async function r26Lane(browser, api, errs) {
   const mob = (w, h, cs = "light") => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs });
   const WEB = [".s-rd", ".s-reads", ".site-foot", ".ad-slot", ".s-about", ".s-read3", "#sAbout", "#sRead3"];
@@ -3465,6 +3677,8 @@ async function r31Static(api) {
   if (!ONLY || ONLY === "r30") await timed("r30", r30Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r30Lane crashed: " + e.message)));
   // 31차(7차 레드팀: 접근 이름 · Esc 초점 · 바꿔 보기 칸 · 작은 링크 · 정적 글 숫자 한 기준) — 혼자
   if (!ONLY || ONLY === "r31") await timed("r31", Promise.all([r31Lane(browser, api, errs), r31Static(api)]).catch((e) => bad("runtime", "검사 실행", "r31Lane crashed: " + e.message)));
+  // 설치 앱 화면(TWA·홈 화면 앱 · html.is-tapp) — 혼자
+  if (!ONLY || ONLY === "tapp") await timed("tapp", tappLane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "tappLane crashed: " + e.message)));
   // 22차(앱 껍데기 · 모든 구역 열기) — 혼자, 맨 끝(모든 구역을 여는 데 몇 분)
   if (!ONLY || ONLY === "r22") await timed("r22", r22Lane(browser, api, errs, shared).catch((e) => bad("runtime", "검사 실행", "r22Lane crashed: " + e.message)));
   await browser.close();
