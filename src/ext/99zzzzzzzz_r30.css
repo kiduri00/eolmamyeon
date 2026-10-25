@@ -18,3 +18,5 @@ html.simple #report .fx-loan dd small,html.simple #report .fx-tot dd small{displ
 .lm-gumore-l button b i{font-style:normal;min-width:2.6em;text-align:right}
 .lm-gumore-l button b i.gm-m{min-width:5.4em}
 .zgu span{font-size:11px}
+/* 7차: '+N곳' 목록 — 지도 칸 안에 맞춘 높이(10_lmap guMoreFit) · 더 있으면 아래 그림자로 이어짐을 보임 */
+.lm-gumore-l{background:linear-gradient(var(--surface) 30%,transparent) center top/100% 36px no-repeat local,linear-gradient(transparent,var(--surface) 70%) center bottom/100% 36px no-repeat local,radial-gradient(farthest-side at 50% 0,rgba(15,23,42,.22),transparent) center top/100% 12px no-repeat scroll,radial-gradient(farthest-side at 50% 100%,rgba(15,23,42,.22),transparent) center bottom/100% 12px no-repeat scroll,var(--surface);overscroll-behavior:contain}

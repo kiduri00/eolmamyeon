@@ -29,7 +29,7 @@ CSS = ('.zp-tabs{display:none}'
        '.top .tsr input{height:40px!important;border:0!important;background-color:var(--surface-2,#f2f4f6)!important;font-size:15px!important}'
        'footer.f a{color:var(--text-2,#4e5968);text-decoration:none!important;font-weight:600}footer.f a:hover{color:var(--brand,#1f3a87)}'
        # 링크 사이 '·' 글자는 숨긴다(줄이 바뀌면 줄 머리에 '·'가 오던 것) — 링크마다 여백 있는 글자 버튼이라 구분은 간격으로
-       'footer.f p:first-child{display:flex;flex-wrap:wrap;gap:2px 4px;line-height:1.2;font-size:0}footer.f p:first-child a{display:inline-flex;align-items:center;min-height:36px;padding:0 6px;border-radius:8px;font-size:13px}'
+       'footer.f p:first-child{display:flex;flex-wrap:wrap;gap:2px 4px;line-height:1.2;font-size:0}footer.f p:first-child a{display:inline-flex;align-items:center;min-height:40px;padding:0 6px;border-radius:8px;font-size:13px}'
        '@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){footer.f{display:none!important}}'
        # 29차: 브라우저에서도 누를 때 파란 하이라이트 없음(앱과 같게 · 대신 누른 줄은 옅은 바탕) · 머리 로고 링크 높이 40px · 리포트 차례 현재 칸 · 정정 상자 · 오프라인 알약
        'html,a,button,summary,label{-webkit-tap-highlight-color:transparent}.zl:active,.gl a:active,.rp-toc a:active{background:var(--surface-2,#f2f4f6)}'

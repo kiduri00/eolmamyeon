@@ -46,7 +46,7 @@ const MY = (() => {
       if (!c) { c = document.createElement("p"); c.id = "myKindsC"; c.className = "my-kc"; K.before(c); }
       let h;
       if (s.on) h = "켜 둔 소식만 폰 알림으로 보내요";
-      else if (s.perm === "denied") h = "지금은 앱 안 소식에만 적용돼요 · 폰 알림 " + help;
+      else if (s.perm === "denied") h = "지금은 앱 안 소식에만 적용돼요 · 폰 알림은 위 '푸는 법'대로 허용한 뒤 켜져요";   // 7차: 푸는 법은 위 한 곳만(두 문단에 같은 글이던 것)
       else if (!s.can) h = "지금은 앱 안 소식에만 적용돼요";
       else h = "지금은 앱 안 소식에만 적용돼요 · 폰 알림은 위 '알림 받기'로 켜요";   // 26차: '알림 받기' 단추는 위 한 곳만
       if (c.innerHTML !== h) c.innerHTML = h;

@@ -212,7 +212,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         o['tsub'] = '전세 끼고는 계산하지 않아요'
     elif c.get('gapNow') is not None:
         o['now'] = cash(c['gapNow'])
-        o['basis'] = f"전세 끼고 · 매수가 {manT(c['price'])} − 전세 {manT(round(c['jeonse'] * 100) / 100)} (+취득세)" if c.get('price') is not None and c.get('jeonse') is not None else '전세 끼고 · 기본 가정'
+        o['basis'] = f"전세 끼고 · 매수가 {manT(c['price'])} − 전세 {manT(c['jeonse'])} (+취득세)" if c.get('price') is not None and c.get('jeonse') is not None else '전세 끼고 · 기본 가정'
         if c.get('gapTotal') is not None: o['tot'] = cash(c['gapTotal'])
         else: o['tsub'] = '입주 시점·신축 시세 자료가 부족해요'
     else: o['basis'] = '매수가로 쓸 거래가 없어 계산하지 않아요'; o['tsub'] = '매수가가 없어 계산하지 않아요'

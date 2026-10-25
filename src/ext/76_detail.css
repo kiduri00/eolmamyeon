@@ -4,7 +4,8 @@
 /* 이름 줄: 구 동 · 단계 칩 · 역 도보 · 경사 (칩은 보이는 크기 26px · 누르는 자리 40px) */
 #report.dt .rep-head .where.ov-w{gap:4px 6px;margin-top:2px}
 #report .ov-p.dt-stg,#report .ov-p.dt-gap{min-height:40px;padding:0 2px;background:none!important;border:0}
-#report .ov-p.dt-stg span,#report .ov-p.dt-gap span{display:none}
+#report .ov-p.dt-stg>span,#report .ov-p.dt-gap>span{display:none}
+#report .ov-p.dt-gap b .vd-t{display:inline;font-weight:700}
 #report .ov-p.dt-stg b,#report .ov-p.dt-gap b{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;font-size:12.5px;font-weight:700;border:1px solid transparent}
 #report .ov-p.dt-stg b{background:var(--brand-soft,#e8eefc);color:var(--brand)}
 #report .ov-p.dt-gap b::before{content:"전세 끼고 ";font-weight:600;color:var(--text-3);margin-right:3px}

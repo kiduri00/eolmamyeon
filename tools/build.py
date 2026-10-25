@@ -56,7 +56,27 @@ for _f in _iss:
                        lambda m: f'<a class="sr-r" href="report/{_f[:-5]}" id="sReadsRpt">{m.group(1)}<span class="sr-t">{_t.replace("&", "&amp;").replace("<", "&lt;")}</span>', shell, count=1)
         # 25차: 목록 위 '읽을거리' 한 줄의 리포트 링크도 같은 호로(‘10월 리포트’)
         shell = re.sub(r'<a href="report/[^"]*" id="sRdRpt">[^<]*</a>', f'<a href="report/{_f[:-5]}" id="sRdRpt">{int(_f[5:7])}월 리포트</a>', shell, count=1)
+        # 7차: 아래 '읽을거리' 리포트 카드도 같은 호(제목·3줄 요약은 그 호 페이지에서 그대로) — 10월호를 냈는데 카드는 3호(9월)이던 것
+        _s3 = re.search(r'<div class="sum3"><b>3줄 요약</b><ol>(.*?)</ol>', _h, re.S)
+        _no = re.search(r'리포트 · (\d+)호 · ', _h)
+        if _s3 and _no:
+            _li = re.sub(r'<(?!/?li\b)[^>]+>', '', _s3.group(1))
+            _ym = _f[:-5]; _M = int(_ym[5:7])
+            _card = f'<article class="rd-card"><span class="rd-k">월간 리포트 {_no.group(1)}호 · {_ym[:4]}년 {_M}월분</span><h3><a href="report/{_ym}">{_t.replace("&", "&amp;").replace("<", "&lt;")}</a></h3><ol>{_li}</ol><a class="rd-go" href="report/{_ym}">{_M}월 리포트 전체 보기 →</a></article>'
+            shell = re.sub(r'<article class="rd-card"><span class="rd-k">월간 리포트 .*?</article>', lambda m: _card, shell, count=1, flags=re.S)
     break
+# 7차: /about '지금까지 낸 리포트'도 낸 호 전체(새 호가 빠져 3호까지만 있던 것)
+_AB = os.path.join(R, 'public', 'about.html')
+if os.path.exists(_AB):
+    _a = open(_AB, encoding='utf-8').read(); _L = []
+    for _f in _iss:
+        _h = open(os.path.join(_RD, _f), encoding='utf-8').read()
+        if 'name="robots" content="noindex' in _h: continue
+        _m = re.search(r'<h1[^>]*>(.*?)</h1>', _h, re.S); _no = re.search(r'리포트 · (\d+)호 · ', _h)
+        if _m and _no: _L.append(f'<li><a href="report/{_f[:-5]}">{_f[:4]}년 {int(_f[5:7])}월분 ({_no.group(1)}호)</a> — {re.sub(r"<[^>]+>", "", _m.group(1)).strip()}</li>')
+    if _L:
+        _a2 = re.sub(r'(<h2>지금까지 낸 리포트</h2>\n<ul>).*?(</ul>)', lambda m: m.group(1) + ''.join(_L) + m.group(2), _a, count=1, flags=re.S)
+        if _a2 != _a: open(_AB, 'w', encoding='utf-8').write(_a2); print('about: 리포트', len(_L), '호')
 PJ = os.path.join(R, 'public', 'premium.json')
 if os.path.exists(PJ):
     pv = hashlib.md5(open(PJ, 'rb').read()).hexdigest()[:8]

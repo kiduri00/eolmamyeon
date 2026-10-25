@@ -58,7 +58,7 @@ const DTL = (() => {
     const CK = '<svg class="dt-ck" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     const vd1 = n.need == null ? "" : excl && upC(n.need) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>${ZF.EXCL}</b><small> · 숫자는 참고만</small></em>` : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : ZF.short(n.need - CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
     // 30차: 전세 끼고는 못 사는 곳(토허 등) — 대출 끼고 값에도 판정 한 줄(대출 끼고 보기와 같은 말) · '대출 끼고'를 두 번 쓰지 않는다
-    const lv = n.need == null && n.lnow != null && !excl ? (upC(n.lnow) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>대출 끼고 사면 내 돈 ${C(CASH)} 안이에요</b><small> · 전세 끼고 목록엔 없어요</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.lnow).slice(1) : ZF.short(n.lnow - CASH))} 더 필요해요</b><small> · 대출 끼고</small></em>`) : "";
+    const lv = n.need == null && n.lnow != null && !excl ? (upC(n.lnow) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>내 돈 ${C(CASH)} 안이에요</b><small> · 전세 끼고 목록엔 없어요</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.lnow).slice(1) : ZF.short(n.lnow - CASH))} 더 필요해요</b></em>`) : "";
     const sub2 = n.total == null ? (n.ltot != null ? (upC(n.ltot) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.short(n.ltot - CASH)}</b> 더 필요해요 · 잔금대출 뺀 값` : `내 돈 ${C(CASH)} 안이에요 · 잔금대출 뺀 값`) : esc(n.why2)) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.short(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
     let eta = "–"; try { eta = etaShow(r); } catch (e) {}
     // 입주권 없는 곳: 셋째 칸 이름 '입주권' · 이유는 그 아래 한 번 · 착공 뒤처럼 입주권 거래가 있으면 '조합원 입주권을 사야 해요'(참고 시세) — '입주권 없음'과 시세가 부딪치지 않게(20차 G3)
@@ -114,7 +114,7 @@ const DTL = (() => {
     const ipSlot = box.querySelector('[data-slot="ip"]');
     if (bIp && ipSlot) { const s = bIp.querySelector("span"); if (s) s.textContent = "입주권"; bIp.classList.add("dt-ip"); ipSlot.appendChild(bIp); }
     // 전세 끼고 칩: '가능'이면 판정 한 줄이 이미 말한다 → 못 사는 경우(✕·불가)만 남긴다
-    if (bGap && !/가능/.test(bGap.textContent.replace(/불가능/g, ""))) { bGap.classList.add("dt-gap"); box.querySelector('[data-slot="gap"]').appendChild(bGap); }
+    if (bGap && !/가능/.test(bGap.textContent.replace(/불가능/g, ""))) { bGap.classList.add("dt-gap"); { const t = ((bGap.querySelector("b") || bGap).textContent || "").replace(/\s+/g, " ").trim().replace(/^[!✓✕]\s*/, ""); bGap.setAttribute("aria-label", "전세 끼고 " + t); } box.querySelector('[data-slot="gap"]').appendChild(bGap); }
     const why = w && w.querySelector(".ov-vdw .ov-why"); if (why) box.querySelector(".dt-k").after(why);
     // 입주권 없음 설명은 '언제 입주' 칸 아래 한 줄로 합친다(같은 말을 네 번 하지 않게)
     const noip = w && w.querySelector(".ov-noip");

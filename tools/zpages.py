@@ -330,8 +330,8 @@ def page(r):
     k = []
     k.append(('현재 단계', esc(stage), f'{sd} 인가·고시' if sd else ('진행 확인 필요' if stl else '아직 구역지정 전이라 인가일이 없어요' if r.get('s', 0) <= 1 else f'이 단계 인가일 기록 없음 · 직전 {prevd[0]} {prevd[1][:7].replace("-", ".")}' if prevd else '이 단계 인가일 기록 없음')))
     if c.get('gapOk') and c.get('gapTotal') is not None:   # 첫 화면 기본 모드(전세 끼고)와 같은 숫자
-        k.append((f"{LBL['gap']} {LBL['cashToMoveIn']}", eok(c['gapTotal']), f'지금 {eok(c.get("gapNow"))} · 매수가 {manT(c["price"]) if c.get("price") is not None else "–"} = {esc(smpTxt(r, c))}' + (f' · 현금으로 사면 {eok(c["need"])}' if c.get('cashOk') and c.get('need') is not None else '')))
-    elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk' and not noTicket(r, c) and (k3['tot'] != '계산 보류' or k3.get('ltot')): k.append((f"현금 매수 · {LBL['cashToMoveIn']}", eok(c['need']), f'기본 가정 · 매수가 {eok(c.get("price"))} 기준' + (f' · 전세 끼고는 {esc(gapWhy(c)[1])}' if gapWhy(c) else '')))
+        k.append((f"{LBL['gap']} {LBL['cashToMoveIn']}", eok(c['gapTotal']), f'지금 {eok(c.get("gapNow"))} · 매수가 {manT(c["price"]) if c.get("price") is not None else "–"} = {esc(smpTxt(r, c))}' + (f' · 대출 끼고 사면 {eok(c["need"])}' if c.get('cashOk') and c.get('need') is not None else '')))
+    elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk' and not noTicket(r, c) and (k3['tot'] != '계산 보류' or k3.get('ltot')): k.append((f"{LBL['loan']} {LBL['cashToMoveIn']}", eok(c['need']), f'기본 가정 · 매수가 {eok(c.get("price"))} 기준' + (f' · 전세 끼고는 {esc(gapWhy(c)[1])}' if gapWhy(c) else '')))
     elif c.get('winT'):   # 23차: 착공 뒤 입주권 거래가 있으면 머리 칸('조합원 입주권을 사야 해요')과 같은 말 — '입주권 없음'과 부딪치지 않게
         _t = r.get('tx') or {}
         k.append(('입주권', '조합원 입주권 매매로', '지금 사는 집은 입주권 없음 · 기본 가정 판정') if c['winT'] == '입주권 없음' and r.get('s', 0) >= 8 and _t.get('im') else ('입주권', esc(c['winT']), '기본 가정 판정'))
@@ -509,7 +509,7 @@ def hand_live(r, h):
     h = re.sub(r'(<p class="eyebrow">[^<]*?)데이터 기준 ([\d.]+)', r'\1글 기준 \2', h, count=1)
     parts = [f"지금 <strong>{esc(c.get('stage') or r.get('sr') or '')}</strong> 단계"]
     if c.get('gapOk') and c.get('gapTotal') is not None: parts.append(f"{LBL['gap']} {LBL['cashToMoveIn']} <strong>{eok(c['gapTotal'])}</strong> (지금 {eok(c.get('gapNow'))})")
-    elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk' and not noTicket(r, c) and ((_k3 := key3(r, c, (P.get(rid) or {}).get('dt') or {}, D.get('asOf'), D.get('upd')))['tot'] != '계산 보류' or _k3.get('ltot')): parts.append(f"현금 매수 · {LBL['cashToMoveIn']} <strong>{eok(c['need'])}</strong>")
+    elif c.get('need') is not None and r.get('tag') != 'mk' and r.get('nx') != 'mk' and not noTicket(r, c) and ((_k3 := key3(r, c, (P.get(rid) or {}).get('dt') or {}, D.get('asOf'), D.get('upd')))['tot'] != '계산 보류' or _k3.get('ltot')): parts.append(f"{LBL['loan']} · {LBL['cashToMoveIn']} <strong>{eok(c['need'])}</strong>")
     box = f'<div class="hbox" id="zp-live"><b>최신 숫자 · 데이터 기준 {UPD}</b>{" · ".join(parts)} · 기본 가정 · <a href="../#{rid}">입주 계산에서 열기</a></div>'
     # 앱 상세와 같은 3숫자 상자 + 신고 링크(표시 주석 사이 · 매일 다시 씀)
     kb = '<!--zk-->' + key3_html(r, c, (P.get(rid) or {}).get('dt') or {}, cap=True) + '<!--/zk-->'
@@ -533,7 +533,7 @@ def hand_og(r):
     if base not in h and f'/og/z/{rid}.png' not in h: return   # 손으로 다른 카드를 단 페이지는 그대로
     c = C.get(rid) or {}; kind = KIND.get(r['k'], r['k'])
     if c.get('gapOk') and c.get('gapTotal') is not None: ml, mv = f"{LBL['gap']} {LBL['cashToMoveIn']} · 기본 가정", eok(c['gapTotal'])
-    elif c.get('need') is not None and r.get('tag') != 'mk' and not noTicket(r, c): ml, mv = f"현금 매수 · {LBL['cashToMoveIn']} · 기본 가정", eok(c['need'])
+    elif c.get('need') is not None and r.get('tag') != 'mk' and not noTicket(r, c): ml, mv = f"{LBL['loan']} · {LBL['cashToMoveIn']} · 기본 가정", eok(c['need'])
     else: ml, mv = '', ''
     og = zmap.og_card(rid, short(r['n']), f"{r['g']} {r.get('j') or ''} · {kind}".strip(), c.get('stage') or r.get('sr') or '단계 확인 중', ml, mv, None, r['g'], UPD, text_only=True) if OG_OK else (f'/og/z/{rid}.png' if os.path.exists(os.path.join(ROOT, 'public/og/z', rid + '.png')) else None)
     if not og or base not in h: return
@@ -837,7 +837,7 @@ def guPage(g, L):
     def tot(x):   # '전세 끼고 지금' 칸과 같은 방식의 입주까지 현금(앱 5.8억 = 갭 총액) · 전세 못 끼면 현금 매수 총액임을 표시
         v = c(x)
         if v.get('gapOk') and v.get('gapTotal') is not None: return eok(v['gapTotal'])
-        if v.get('cashOk') and v.get('need') is not None: return f'{eok(v["need"])} <small>현금 매수 시</small>'
+        if v.get('cashOk') and v.get('need') is not None: return f'{eok(v["need"])} <small>대출 끼고</small>'
         return '–'
     def nowT(x):
         v = c(x)
@@ -863,7 +863,7 @@ def guPage(g, L):
             '.gr-r small{font-size:12px;color:var(--text-2)}.gr-r small.gr-ex{color:var(--warn-ink,#8a4b00);font-weight:600}.gr-r small b{font-weight:700;color:var(--text-1)}.gr-r small small{font-size:11px;color:var(--text-3)}</style>')
     o.append(gu_note(g, L))
     o.append(f'{GCSS}<ol class="gl" aria-label="{esc(g)} 구역 목록 · 전세 끼고 지금 필요한 돈 적은 순">{rows}</ol>')
-    o.append('<p class="meta">입주까지 현금(입주 잔금대출 제외): 전세 끼고 갈 수 있는 곳은 <b>전세 끼고 산 경우</b>(앱 첫 화면과 같은 값), 전세를 낄 수 없는 곳은 <b>현금 매수 시</b> 금액이에요.' + (' <sup>*</sup><b>토허제</b> = 토지거래허가구역. 사면 2년 동안 직접 살아야 해서 전세를 끼고 살 수 없어요.' if any((gapWhy(c(x)) or ('',))[0] == '토허제' for x in L) else '') + '</p>')
+    o.append('<p class="meta">입주까지 현금(입주 잔금대출 제외): 전세 끼고 갈 수 있는 곳은 <b>전세 끼고 산 경우</b>(앱 첫 화면과 같은 값), 전세를 낄 수 없는 곳은 <b>대출 끼고</b> 산 금액이에요(앱 '대출 끼고'와 같은 값).' + (' <sup>*</sup><b>토허제</b> = 토지거래허가구역. 사면 2년 동안 직접 살아야 해서 전세를 끼고 살 수 없어요.' if any((gapWhy(c(x)) or ('',))[0] == '토허제' for x in L) else '') + '</p>')
     why = collections.Counter(gapWhy(c(x))[0] for x in L if not c(x).get('gapOk') and gapWhy(c(x)))
     EXP = {'토허제': '토지거래허가구역이라 사면 2년 실거주해야 해서 전세를 끼고 살 수 없어요', '세입자 없음': '이주·철거가 시작돼 전세를 낄 세입자가 없어요(입주권으로 사야 해요)',
            '입주권 없음': '지금 사면 입주권이 안 나오는 시점이에요(조합설립인가 등 이후 매수분)', '판정 보류': '입주권이 나오는지 판단할 자료가 부족해요', '대상 아님': '상가·업무 중심 사업 등 아파트 입주권 계산 대상이 아니에요'}

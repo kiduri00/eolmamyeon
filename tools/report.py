@@ -42,6 +42,15 @@ CK = J(f'pipeline/report/checks/{YM}.json', {}) or {}
 CHK = {(c['id'], c['event']): c for c in CK.get('items', [])}
 NOTES = J(f'pipeline/report/notes/{YM}.json', {}) or {}
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 7차: 단계별 걸린 기간은 /years 표와 같은 값 하나(그 페이지의 S 표를 읽는다) — 10월호 부록·카드·본문이 엔진 통계(3.2년 63%)를 써서 /years(4.1년 60%)·가이드·지난 호와 달랐던 것
+def _years_stats():
+    try:
+        t = open(os.path.join(ROOT, 'public/years.html'), encoding='utf-8').read()
+        S = json.loads(re.search(r'const S=(\{.*?\});\n', t).group(1))['large']
+        return {k: {'med': v['km_med'], 'reach5y': {'rate': v['reach5']}, 'p25': v['p25'], 'p75': v['p75']} for k, v in S.items()}
+    except Exception as e:
+        print('!! /years 표를 못 읽어 엔진 통계로:', e); return None
+STG = _years_stats() or D['stats']['large']
 from zsample import batchim   # 받침 규칙 한 곳(숫자 끝 '9구'는 받침 없음)
 def josa(w, a, b): return w + (a if batchim(w) else b)
 esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
@@ -239,7 +248,7 @@ POL = D.get('policy') or {}
 jg_y = collections.Counter(DT[r['id']]['준공'][:4] for r in R if DT[r['id']].get('준공') and DT[r['id']]['준공'] <= CUT.isoformat())
 cg = [r for r in R if r['s'] == 8 and not r.get('dn')]
 cg_y = collections.Counter(((r.get('eta') or {}).get('eMid') or '')[:4] for r in cg)
-mg = [r for r in R if r['s'] in (6, 7) and not r.get('dn')]
+mg = [r for r in R if r['s'] in (6, 7) and not r.get('dn') and not str((CALC.get(r['id']) or {}).get('stage') or r.get('sr') or '').startswith('사업시행')]   # 7차: 소규모 정비의 '사업시행인가'(단계 6)는 빼고 — 72곳이라 했지만 관리처분·이주는 62곳이던 것
 # ---- 첫 줄 요약·제목 ----
 k1 = kinds.most_common(1)[0] if kinds else None
 if not EVA: evs = '새 인가 없음'
@@ -269,9 +278,9 @@ def card(r, k, d, seen=''):
         ck = {**ck, 'note': ' · '.join(x for x in [ck.get('note'), '사업시행인가와 같은 날 인가(소규모 정비는 함께 인가되는 경우가 많아요)'] if x)}
     stn = c.get('st'); ow = c.get('owners')
     meta2 = ' · '.join(x for x in [f"토지등소유자 {ow:,.0f}명" if ow else '', f"{stn['n']} 도보 {max(1, round(stn['d'] * 1.3 / 67))}분" if stn else ''] if x)
-    nk = NEXT.get(k); nx = D['stats']['large'].get(nk) if nk else None
+    nk = NEXT.get(k); nx = STG.get(nk) if nk else None
     kv = []
-    if c.get('price') is not None: kv.append(('지금 매수가(실거래 추정)', f"{c['price']:.1f}억"))
+    if c.get('price') is not None: kv.append(('매수가(발행 당시)', f"{c['price']:.1f}억"))
     # 28차: 지금 사면 입주권이 없는 곳(win no)은 입주까지 현금을 내지 않는다(앱·/z·api와 같은 '계산 보류')
     if c.get('win') == 'no': kv.append(('입주까지 현금 <small>입주권 없음</small>', '계산 보류'))
     elif c.get('need') is not None: kv.append(('입주까지 현금 <small>발행 당시 시세·현금 매수 가정</small>', f"약 {c['need']:.1f}억"))
@@ -343,7 +352,7 @@ tl = ''.join(f'<li><span class="rp-d">{md(d) if d else "날짜 미등록"}</span
 sec_stage = f'''<h2 id="stage">1. 이달 단계가 바뀐 구역</h2>
 <p>{RNG} 사이 정보몽땅 추진경과에 날짜가 붙은 인가는 {len(ev)}건{f"이고, 날짜는 아직 없지만 단계 표시가 바뀐(또는 기사로 확인된) 곳이 {len(evn)}곳이에요" if evn else "이에요"}. 최근 36개월({W36}) 평균이 한 달 약 {round(avg36)}건, 2016~2024년 평균이 {round(avg_base)}건이라{f" 달의 {CUT.day}일까지만 센 것을 감안해도" if PARTIAL else ""} {"조용한 편이에요" if n_ev < avg36 * 0.6 else "평소와 비슷해요" if n_ev < avg36 * 1.2 else "많은 편이에요"}. 정보몽땅에는 인가가 몇 주 늦게 올라오는 일이 잦아서, 이 숫자는 다음 갱신 때 늘 수 있어요.</p>
 {f'<ol class="rp-tl">{tl}</ol>' if tl else '<p class="note">기준일까지 정보몽땅에 날짜가 붙은 새 인가가 없어요.</p>'}
-{''.join(f'<div class="mean"><h3>{l} <small>{kinds[k]}건</small></h3><p>{MEAN[k]}{(lambda s: f" 서울 사업장 기록으로는 다음 인가까지 <b>가운데 값 {s["med"]:.1f}년</b>, 5년 안에 닿은 비율 {round(s["reach5y"]["rate"] * 100)}%예요.")(D["stats"]["large"][NEXT[k]]) if NEXT.get(k) in D["stats"]["large"] else ""}</p></div>' for k, l in EV5 if kinds.get(k))}
+{''.join(f'<div class="mean"><h3>{l} <small>{kinds[k]}건</small></h3><p>{MEAN[k]}{(lambda s: f" 서울 사업장 기록으로는 다음 인가까지 <b>가운데 값 {s["med"]:.1f}년</b>, 5년 안에 닿은 비율 {round(s["reach5y"]["rate"] * 100)}%예요.")(STG[NEXT[k]]) if NEXT.get(k) in STG else ""}</p></div>' for k, l in EV5 if kinds.get(k))}
 <div class="zcards">{''.join(card(r, k, d) for r, k, d in ev)}{''.join(card(r, k, d, s) for r, k, d, s in evn)}</div>
 <p class="meta">카드 숫자는 무주택·현금 매수·84㎡ 신청·비례율 100%로 계산한 추정이에요. 입주권 판정은 사이트 규칙 기준이라 실제 매수 전에는 조합·구청에 꼭 확인하세요.</p>
 '''
@@ -381,7 +390,7 @@ sec_budget = f'''<h2 id="budget">2. 1억·2억·3억으로 갈 수 있는 곳</h
 <div class="chart">{svg_pair([(f'{c}억', bud[c]['gap'], bud[c]['cash']) for c in BUD], '전세 끼고', '대출 끼고', '예산별 갈 수 있는 구역 수')}<p class="rp-lg"><span><i class="b1"></i>전세 끼고</span><span><i class="b2"></i>대출 끼고</span></p></div>
 <p>1억으로는 전세 끼고 {bud[1]['gap']}곳, 대출 끼고 {bud[1]['cash']}곳뿐이에요. 2억이 되면 전세 끼고 {bud[2]['gap']}곳으로 {bud[2]['gap'] - bud[1]['gap']}곳이 늘고, 3억이면 {bud[3]['gap']}곳이에요. 대출 끼고는 2억 {bud[2]['cash']}곳, 3억 {bud[3]['cash']}곳{f"으로 {cross}억부터 전세 끼고보다 많아져요" if cross else "이에요"}. 전세 끼고 칸이 생각보다 작은 이유는 따로 있어요. 계산 대상 구역 중 {n_thb}곳이 토지거래허가(아파트 단지 또는 신속통합기획 후보지)에 걸려 실거주 2년 의무가 붙고, 그래서 전세 낀 매수 자체가 안 돼요.</p>
 {tbl([("전세 끼고 예산", 0), ("갈 수 있는 곳 · 단계 구성", 0)], [(f'{c}억', f"<b>{bud[c]['gap']}곳</b> · 후보지~추진위 {sg[c]['early']} · 조합설립인가 {sg[c]['jo']} · 사업시행인가 이후 {sg[c]['late']}") for c in (1, 2, 3)], '예산별 단계 구성', True)}
-<p>같은 3억 안에서도 단계가 크게 갈려요. 3억 안쪽 {bud[3]['gap']}곳 중 {sg[3]['early']}곳은 아직 후보지·정비계획·추진위 단계예요. 그 {sg[3]['early']}곳 가운데 {early3_lo}곳은 사이트 추정 '10년 안 준공 가능성'이 10%가 안 돼요. 사업시행인가를 넘긴 곳은 {sg[3]['late']}곳뿐이에요. 돈이 맞는 곳을 찾았다면 다음으로 볼 것은 '언제 들어가느냐'예요.</p>
+<p>같은 3억 안에서도 단계가 크게 갈려요. 3억 안쪽 {bud[3]['gap']}곳 중 {sg[3]['early']}곳은 아직 후보지·정비계획·추진위 단계예요. {f"그 {sg[3]['early']}곳 모두" if early3_lo == sg[3]['early'] else f"그 {sg[3]['early']}곳 가운데 {early3_lo}곳은"} 사이트 추정 '10년 안 준공 가능성'이 10%가 안 돼요. 사업시행인가를 넘긴 곳은 {sg[3]['late']}곳뿐이에요. 돈이 맞는 곳을 찾았다면 다음으로 볼 것은 '언제 들어가느냐'예요.</p>
 {f'<p>구별로는 3억 전세 끼고 기준 {", ".join(f"{g} {n}곳" for n, g in budgu[:5])} 순이에요.{" " + josa("·".join(g[:-1] for g in zero4), "은", "는") + " 0곳이에요." if zero4 else ""}</p>' if budgu else ''}
 {pr}
 <p class="cta"><a class="btn" href="/?cash=1&amp;mode=jeonse">1억·전세 끼고 지도</a> <a class="btn" href="/?cash=2&amp;mode=jeonse">2억·전세 끼고 지도</a> <a class="btn" href="/?cash=3&amp;mode=loan">3억·대출 끼고 지도</a></p>
@@ -434,7 +443,7 @@ yrs = [str(y) for y in range(Y - 6, Y + 1)]
 sec_sup = f'''<h2 id="supply">6. 입주 흐름: 착공 {len(cg)}곳이 줄 서 있어요</h2>
 <p>정비사업으로 새 아파트가 나오는 양을 구역 수로 봤어요. 세대수는 구역마다 자료가 들쭉날쭉해서(착공 구역 {len(cg)}곳 중 {sum(1 for r in cg if (r.get("sm") or {}).get("units"))}곳만 있어요) 이번엔 구역 수만 셌어요.</p>
 <div class="chart">{svg_cols([(f"’{y[2:]}", jg_y.get(y, 0)) for y in yrs], "연도별 준공 구역 수", note_last=PARTIAL)}<p class="meta">연도별 준공(정보몽땅 준공인가일) 구역 수, 사이트 자료에 남아 있는 구역 기준. {Y}년은 {RNG.split("–")[1]}까지.</p></div>
-<p>지금 착공 단계인 {len(cg)}곳의 예상 입주 시기(사이트 추정 가운데 값, 착공→준공 서울 가운데 값 {D["stats"]["large"].get("착공>준공", {}).get("med", 0):.1f}년 기준)를 해마다 세면 {", ".join(f"{y}년 {n}곳" for y, n in sorted(cg_y.items()) if y)}이에요. 관리처분인가·이주 단계 {len(mg)}곳은 그 뒤를 이어요. 입주가 몰리는 해에는 주변 전세 공급이 늘어 전세가가 눌리기 쉬운데, 전세 끼고 사는 사람에겐 이게 지금 드는 돈을 늘리는 쪽으로 작용해요. 전세가가 10%p 낮아지면 얼마나 달라지는지는 <a href="/guide/jeonse-ratio">전세가율 가이드</a>에 계산해 뒀어요.</p>
+<p>지금 착공 단계인 {len(cg)}곳의 예상 입주 시기(사이트 추정 가운데 값, 착공→준공 서울 가운데 값 {STG.get("착공>준공", {}).get("med", 0):.1f}년 기준)를 해마다 세면 {", ".join(f"{y}년 {n}곳" for y, n in sorted(cg_y.items()) if y)}이에요. 관리처분인가·이주 단계 {len(mg)}곳은 그 뒤를 이어요. 입주가 몰리는 해에는 주변 전세 공급이 늘어 전세가가 눌리기 쉬운데, 전세 끼고 사는 사람에겐 이게 지금 드는 돈을 늘리는 쪽으로 작용해요. 전세가가 10%p 낮아지면 얼마나 달라지는지는 <a href="/guide/jeonse-ratio">전세가율 가이드</a>에 계산해 뒀어요.</p>
 '''
 # ---- 7. 이달의 구역 ----
 def zbox(i, paras):
@@ -474,7 +483,7 @@ PK = {2: ('구역지정', '구역지정>조합설립'), 3: ('추진위', '추진
 big = sorted([r for r in R if not r.get('dn') and r['s'] < 9 and r.get('src') == 'official' and (r.get('sm') or {}).get('owners')], key=lambda r: -r['sm']['owners'])[:50]
 for r in big:
     if r['s'] not in PK: continue
-    k, sk = PK[r['s']]; d = DT[r['id']].get(k); s0 = D['stats']['large'].get(sk)
+    k, sk = PK[r['s']]; d = DT[r['id']].get(k); s0 = STG.get(sk)
     if not d or not s0: continue
     yrs_ = (CUT - datetime.date.fromisoformat(d)).days / 365.25
     stall.append((yrs_ / s0['med'], yrs_, s0['med'], r, LAB[k]))
@@ -486,9 +495,9 @@ sec_cm = (f'<h2 id="comment">9. 운영자 코멘트</h2>{NOTE_TAG}<div class="rp
 # ---- 부록: 10년 흐름·기간표 ----
 mx = max(v for _, v in yearly) or 1; bw = 390 / len(yearly)
 bars = ''.join(f'<rect class="bar{" hi" if yy == Y else ""}" x="{6 + i * bw + 3:.1f}" y="{174 - v / mx * 154:.1f}" width="{bw - 6:.1f}" height="{v / mx * 154:.1f}" rx="3"><title>{yy}년 {v}건</title></rect><text class="lab" x="{6 + i * bw + bw / 2:.1f}" y="{169 - v / mx * 154:.1f}" text-anchor="middle">{v}</text><text class="ax" x="{6 + i * bw + bw / 2:.1f}" y="192" text-anchor="middle">’{str(yy)[2:]}{"*" if yy == Y else ""}</text>' for i, (yy, v) in enumerate(yearly))
-dur_rows = [(k.replace(">", " → ").replace("추진위", "추진위원회 승인").replace("구역지정", "정비구역 지정").replace("조합설립", "조합설립인가").replace("사업시행", "사업시행인가").replace("관리처분", "관리처분인가"), f'{v["med"]:.1f}년', f'{round(v["reach5y"]["rate"] * 100)}%', f'{v["p25"]:.1f}~{v["p75"]:.1f}년') for k, v in D['stats']['large'].items()]
+dur_rows = [(k.replace(">", " → ").replace("추진위", "추진위원회 승인").replace("구역지정", "정비구역 지정").replace("조합설립", "조합설립인가").replace("사업시행", "사업시행인가").replace("관리처분", "관리처분인가"), f'{v["med"]:.1f}년', f'{round(v["reach5y"]["rate"] * 100)}%', f'{v["p25"]:.1f}~{v["p75"]:.1f}년') for k, v in STG.items()]
 sec_app = f'''<h2 id="flow">부록: 10년 흐름과 단계별 기간</h2>
-<div class="chart"><svg viewBox="0 0 400 200" role="img" aria-label="연도별 인가 5종 건수"><line class="grid" x1="6" x2="396" y1="174" y2="174"/>{bars}</svg><p class="meta">연도별 인가 5종 건수(정보몽땅 날짜). *{Y}년은 1~{M}월{f" {CUT.day}일" if PARTIAL else ""}까지.</p></div>
+<div class="chart"><svg viewBox="0 0 400 200" role="img" aria-label="연도별 인가 5종 건수"><line class="grid" x1="6" x2="396" y1="174" y2="174"/>{bars}</svg><p class="meta">연도별 인가 5종 건수(정보몽땅 날짜). *{Y}년은 1~{M}월{f" {CUT.day}일" if PARTIAL else ""}까지.{(f" {Y}년 막대는 1~{M - 1}월 {yearly[-1][1] - allm.get(YM, 0)}건과 {M}월 {allm.get(YM, 0)}건이에요. " + esc(NOTES["chart_note"])) if NOTES.get("chart_note") and M > 1 else ""}</p></div>
 {tbl([("단계", 0), ("가운데 값", 1), ("5년 안 도달", 1), ("빠른 25%~느린 25%", 1)], dur_rows, '단계별 걸린 기간')}
 <p class="meta">가운데 값·5년 안 도달은 아직 다음 단계에 못 간 구역까지 넣은 생존분석 값이고, 오른쪽 범위는 이미 닿은 구역만 본 값이에요. <a href="../years">우리 동네가 지금 어느 단계인지 고르고 보기 →</a></p>
 '''
@@ -513,7 +522,7 @@ STY = '''<style>.rp-c{width:100%;max-width:560px;height:auto;display:block}main 
 .rp-w{padding-left:18px}.rp-w li{margin:8px 0;line-height:1.7}.rp-cm p{line-height:1.85}.rp-sig{text-align:right;color:var(--text-2)}.rp-src li{margin:4px 0}
 .hbars.w .hb{grid-template-columns:96px 1fr 52px}main h2[id]{scroll-margin-top:72px}</style>'''
 pd_ = datetime.date.fromisoformat(PUB); md_ = TODAY
-by = f"글·정리: 집핀 운영자 · 발행 {pd_.year}년 {pd_.month}월 {pd_.day}일" + (f" · 갱신 {md_.year}년 {md_.month}월 {md_.day}일" if MOD != PUB else '')
+by = f"글·정리: 집핀 운영자 · 발행 {pd_.year}년 {pd_.month}월 {pd_.day}일" + (f' · 글 고친 날 <time class="zp-mod" datetime="{MOD}">{md_.year}년 {md_.month}월 {md_.day}일</time>' if MOD != PUB else '')   # 7차: dateModified와 같은 날(tools/sitemap.py가 맞춤)
 ptxt = (f'<div class="rp-pt"><b>{RNG} 기준이에요.</b> {M}월이 아직 끝나지 않아 {M}월 1일~{CUT.day}일 자료로 썼어요. 11월 초 전체 달 기준으로 갱신해요(같은 주소). 늦게 등록되는 인가와 신고 기한이 남은 실거래가 그때 더해져요.</div>'.replace('11월 초', f'{nm}월 초')
         if PARTIAL else (f'<div class="rp-pt">{M}월 전체 자료로 {md_.month}월 {md_.day}일 갱신했어요. 처음 낸 건 {pd_.month}월 {pd_.day}일({md(OLD.get("asof") or "")} 기준)이에요.</div>' if OLD and OLD.get('partial') else ''))
 ld = {"@context": "https://schema.org", "@type": "Article", "headline": title[:110], "description": desc, "inLanguage": "ko", "datePublished": PUB, "dateModified": MOD,

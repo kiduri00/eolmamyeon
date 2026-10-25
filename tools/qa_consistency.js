@@ -151,7 +151,7 @@ function parseZ(html) {
   m = /매수가 표본 ([\d,]+)건/.exec(t); if (m) o.trustN = intOf(m[1]);
   m = /(전세 끼고|현금으로 사면|대출 끼고) 입주까지 현금\n([\d.,]+억|[\d,]+만|0원)/.exec(t) || /()입주까지 현금\n([\d.,]+억|[\d,]+만|0원)/.exec(t); if (m) { o.ipjuMode = m[1] || ""; o.ipju = money(m[2]); }
   { const k = /<section class="zk"[\s\S]*?<\/section>/.exec(html); if (k) { const kt = htmlText(k[0]); const g = (l) => { const x = new RegExp(l + "\\n([^\\n]+)").exec(kt); return x ? x[1].trim() : null; }; o.key = { now: g("지금 필요한 돈"), tot: g("입주까지 현금"), eta: g([...k[0].matchAll(/class="zk-l">([^<]+)</g)].map((x) => x[1])[2] || "언제 입주"), labs: [...k[0].matchAll(/class="zk-l">([^<]+)</g)].map((x) => x[1].trim()).join("|"), mail: (/href="([^"]+)"[^>]*>이 숫자가 틀렸어요/.exec(html) || [])[1] || "" }; } }
-  m = /현금으로 사면 ([\d.,]+억|[\d,]+만|0원)/.exec(t); if (m) o.cashTotal = money(m[1]);
+  m = /(?:현금으로|대출 끼고) 사면 ([\d.,]+억|[\d,]+만|0원)/.exec(t); if (m) o.cashTotal = money(m[1]);
   m = /데이터 기준 (\d{4}\.\d\d\.\d\d)/.exec(t); if (m) o.asof = m[1];
   return o;
 }
@@ -398,7 +398,7 @@ async function staticLane(api) {
       const zid = (/href="(?:\.\.\/z\/|\/z\/)?([a-z]+\d+)"/.exec(row) || [])[1]; const a = apiById.get(zid); if (!a) continue;
       const tds = gl ? ["", htmlText((/<b class="gr-now">([\s\S]*?)<\/b>/.exec(row) || [])[1] || ""), htmlText(((/<b class="gr-tot">([\s\S]*?)<\/b><\/small>/.exec(row) || [])[1] || "").replace(/ <small>/, "\n<small>"))] : [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => htmlText(m[1]));
       if (tds.length < 3) continue;
-      const now = money(tds[1]), tot = money(tds[2].split("\n")[0]), cashMode = /현금 매수 시/.test(tds[2]);
+      const now = money(tds[1]), tot = money(tds[2].split("\n")[0]), cashMode = /현금 매수 시|대출 끼고/.test(tds[2]);
       const g = a.need.gap, c = a.need.cash;
       if (now && /억|만|원/.test(tds[1]) && !eqApi(now, g.now)) mis.push(`${zid} 전세 끼고 지금 ${tds[1]} vs api ${g.now}`);
       if (tot && /억|만|원/.test(tds[2])) { const ref = cashMode ? c.total : g.total; if (!eqApi(tot, ref)) mis.push(`${zid} 입주까지 ${tds[2].replace(/\n/g, " ")} vs api ${cashMode ? "cash" : "gap"}.total ${ref}`); }
@@ -2958,7 +2958,9 @@ async function r30Lane(browser, api, errs) {
           const p = document.getElementById("pane") || document; const fl = p.querySelector("details.flow p");
           const tot = p.querySelector(".fx-tot dd"), big = p.querySelector(".bigrow .big.cash b");
           const hero = [...document.querySelectorAll("#report .dt-k .dt-s")].map((e) => e.textContent).join(" | ");
-          return { flow: fl ? fl.textContent.replace(/\s+/g, " ") : "", tot: tot ? [tot.firstChild ? tot.firstChild.textContent : "", (tot.querySelector("small") || {}).textContent || ""] : null, big: big ? big.textContent : "", hero, all: (p.innerText || "") };
+          const cards = [...p.querySelectorAll(".bigrow .big")].filter((e) => !e.closest("[hidden]")).map((e) => ({ k: (e.querySelector("span") || {}).textContent || "", b: (e.querySelector("b") || {}).textContent || "", sm: (e.querySelector("small") || {}).textContent || "" }));
+          const br = [...p.querySelectorAll(".cash-brw:not([hidden]) .cash-br, .gpane .cash-br")].map((e) => e.textContent.replace(/\s+/g, " "));
+          return { flow: fl ? fl.textContent.replace(/\s+/g, " ") : "", tot: tot ? [tot.firstChild ? tot.firstChild.textContent : "", (tot.querySelector("small") || {}).textContent || ""] : null, big: big ? big.textContent : "", hero, all: (p.innerText || ""), cards, br };
         });
         if (!r.flow) { wrn("zone.flowSum", T, `${id} ${mode}: no 계산식`); continue; }
         expect(!/합이 조금 다를/.test(r.all), "zone.flowSum", T, `${id} ${mode}: '합이 조금 다를 수 있어요'`);
@@ -2967,6 +2969,14 @@ async function r30Lane(browser, api, errs) {
         for (const s of S) expect(s.n >= 2 && s.rhs != null && s.sum === s.rhs, "zone.flowSum", T, `${id} ${mode}: ${s.n} terms sum ${s.sum}만 vs shown ${s.rhs}만 · "${s.seg}"`);
         const last = S[S.length - 1], head = money(r.big);
         if (last && head && last.rhs != null) expect(Math.abs(last.rhs / 1e4 - head.v) <= 0.0501 + head.tol, "zone.flowSum", T, `${id} ${mode}: flow total ${last.rhs}만 vs head "${r.big}"`);
+        // 7차: 큰 칸(입주까지 현금 · 추가 분담금) == 계산식 칸을 0.1억 반올림한 값(엔진 needTotal·g.total과 같은 규칙) · 그 말도 '반올림' · '지금'은 화면 올림이라 '올림'(맞춘 값이라 쓰지 않음) · 다리 줄 칸의 합 == 결과 == 계산식 결과
+        const r1 = (m) => Math.round(m / 1e3) / 10;
+        expect(!/단위로 맞춘 값|단위 올림\(입주까지/.test(r.flow + " " + r.cards.map((c) => c.sm).join(" ")) && !/입주까지 현금 [^()]*(?<!반)올림한 값/.test(r.flow), "zone.flowSum", T, `${id} ${mode}: 반올림·올림 말이 실제 규칙과 다름 · "${r.flow.slice(-120)}"`);
+        const cc = r.cards.find((c) => /입주까지 현금/.test(c.k));
+        if (cc && last && last.rhs != null) expect([-1, 0, 1].some((d) => zfCash(r1(last.rhs + d)) === cc.b.trim()), "zone.flowSum", T, `${id} ${mode}: 큰 칸 '${cc.k} ${cc.b}' vs 계산식 ${last.rhs}만 반올림 ${zfCash(r1(last.rhs))}`);
+        const cb = r.cards.find((c) => /추가 분담금/.test(c.k)), fc = /분담금 ((?:\d[\d,]*억)?\s*(?:[\d,]+만)?)/.exec(r.flow);
+        if (cb && fc && money(fc[1])) { const v = Math.round(money(fc[1]).v * 1e4), bv = money(cb.b); expect(bv && (v < 1e4 ? Math.abs(bv.v * 1e4 - v) < 0.5 : Math.abs(bv.v - r1(v)) < 1e-6) && (cb.b.replace(/\s/g, "") === fc[1].replace(/\s/g, "") || /반올림/.test(cb.sm)), "zone.flowSum", T, `${id} ${mode}: 추가 분담금 '${cb.b}' (${cb.sm.slice(-50)}) vs 계산식 분담금 ${fc[1]}`); }
+        for (const b of r.br) { const sg = flowSegs(b.replace(/^입주까지 들어가는 돈|^지금/, "").replace(/= 입주까지 현금/, "=").replace(/− 입주 잔금대출/, "−").replace(/\+ 이주 때/, "+"))[0]; expect(sg && sg.n >= 2 && sg.sum === sg.rhs && (!last || last.rhs == null || Math.abs(sg.rhs - last.rhs) <= 2 || /이주 때/.test(b)), "zone.flowSum", T, `${id} ${mode}: 다리 줄 "${b}" 합 ${sg && sg.sum} vs ${sg && sg.rhs} · 계산식 ${last && last.rhs}`); }
         if (r.tot && r.tot[1]) { const t = flowSegs(r.tot[1].split(" · ")[0] + " = " + r.tot[0])[0]; expect(t && t.sum === t.rhs, "zone.flowSum", T, `${id} ${mode}: 합계 "${r.tot[0]}" vs 칸 "${r.tot[1].slice(0, 100)}"`); }
         if (mode === "jeonse") { const a = /매수가 ([\d,억만 ]+?)\s*[+−]/.exec(r.flow), b = /매수가 ([\d,억만 ]+?)\s*−/.exec(r.hero); if (a && b) expect(money(a[1]) && money(b[1]) && Math.abs(money(a[1]).v - money(b[1]).v) < 0.00011, "zone.flowSum", T, `${id}: 계산식 매수가 "${a[1]}" vs 머리 "${b[1]}"`); }
       }
@@ -2981,8 +2991,8 @@ async function r30Lane(browser, api, errs) {
     try {
       for (const x of z) {
         await goZone(page, x.id, 2, "jeonse");
-        const r = await page.evaluate(() => { const g = (k) => document.querySelector(`#report .dt-k .dt-i[data-k="${k}"]`); const n = g("now"), t = g("tot"); return { vd: n ? (n.querySelector(".dt-vd") || {}).textContent || "" : "", tot: t ? t.innerText.replace(/\s+/g, " ") : "" }; });
-        expect(/더 필요해요|내 돈 .* 안이에요/.test(r.vd) && (r.tot.match(/대출 끼고/g) || []).length <= 1 && /더 필요해요|안이에요/.test(r.tot), "zone.blockVerdict", T, `${x.id}: verdict "${r.vd}" · tot "${r.tot}"`);
+        const r = await page.evaluate(() => { const g = (k) => document.querySelector(`#report .dt-k .dt-i[data-k="${k}"]`); const n = g("now"), t = g("tot"); return { vd: n ? (n.querySelector(".dt-vd") || {}).textContent || "" : "", now: n ? n.innerText.replace(/\s+/g, " ") : "", tot: t ? t.innerText.replace(/\s+/g, " ") : "" }; });
+        expect(/더 필요해요|내 돈 .* 안이에요/.test(r.vd) && (r.tot.match(/대출 끼고/g) || []).length <= 1 && (r.now.match(/대출 끼고/g) || []).length <= 1 && /더 필요해요|안이에요/.test(r.tot), "zone.blockVerdict", T, `${x.id}: verdict "${r.vd}" · now "${r.now}" · tot "${r.tot}"`);
       }
       if (!z.length) skip("zone.blockVerdict", T, "no blocked zone");
     } catch (e) { bad("zone.blockVerdict", T, "crashed: " + String(e.message || e).split("\n")[0]); }
@@ -3005,7 +3015,7 @@ async function r30Lane(browser, api, errs) {
   // --- ui.r30Layout: 360 '+N곳' 칩이 레이어 막대에 가리지 않음 · 구 묶음 글자 ≥ 11px · 폰 묶음이 제 구 중심에서 48px 넘게 비키지 않음 ·
   //     '+N곳' 펼친 목록은 적게 드는 구부터, 금액 한 줄 · 상세 시트 붙는 탭 줄과 머리 줄 사이 틈 ≤ 1px · 오프라인 알약이 시트 아래 단추를 가리지 않음
   {
-    const T = "360 칩 안 가림 · 묶음 글자 ≥11px · 묶음 제자리(≤130px · 다른 구 땅으로 안 넘어감) · +N 목록 싼 순·한 줄 · 시트 탭 틈 ≤1px · 오프라인 알약 ↔ 시트 단추 안 겹침";
+    const T = "360 칩 안 가림 · 묶음 글자 ≥11px · 묶음 제자리(≤48px · 다른 구 중심보다 가깝지 않음) · 묶음 사이 ≥2px · 가장 싼 구는 지도에 · +N 목록 싼 순·한 줄·지도 칸 안 · 시트 탭 틈 ≤1px · 오프라인 알약 ↔ 시트 단추 안 겹침 — 7차: 마포 묶음이 강서 땅에";
     for (const w of [360, 390]) {
       const { ctx, page } = await newPage(browser, mob(w, w === 360 ? 740 : 844), errs);
       try {
@@ -3016,7 +3026,13 @@ async function r30Lane(browser, api, errs) {
           await page.waitForTimeout(2500);
           const r = await page.evaluate(() => {
             const fs = [...document.querySelectorAll(".zgu b, .zgu span")].filter((e) => e.getClientRects().length && e.textContent.trim()).map((e) => parseFloat(getComputedStyle(e).fontSize));
-            const offs = window.ZP_lmx && window.ZP_lmx.gus ? window.ZP_lmx.gus().map((g) => [g.n, g.off]) : [];
+            const offs = window.ZP_lmx && window.ZP_lmx.gus ? window.ZP_lmx.gus().map((g) => [g.n, g.off, g.dOther, g.other]) : [];
+            const vis = (e) => { const r = e.getBoundingClientRect(); if (!e.classList.contains("sm")) return r; const cs = getComputedStyle(e, "::before"), w = parseFloat(cs.width) || r.width, h = parseFloat(cs.height) || r.height, cx = r.left + r.width / 2, cy = r.top + r.height / 2; return { left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2 }; };
+            const P = [...document.querySelectorAll("#lmap .zgu")].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden").map((e) => ({ n: e.dataset.gu, r: vis(e), m: +e.dataset.m }));
+            let gap = Infinity, gp = "";
+            for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { const a = P[i].r, b = P[j].r, sep = Math.max(b.left - a.right, a.left - b.right, b.top - a.bottom, a.top - b.bottom); if (sep < gap) { gap = sep; gp = P[i].n + "×" + P[j].n; } }
+            const mapB = document.getElementById("lmap").getBoundingClientRect(), nav = document.getElementById("sNav"), vb = Math.min(mapB.bottom, innerHeight - (nav && nav.offsetHeight && getComputedStyle(nav).position === "fixed" ? nav.offsetHeight : 0));
+            let fit = null;
             const ch = [...document.querySelectorAll(".lm-gumore")].find((e) => !e.hidden && e.getClientRects().length);
             let cov = null, list = null;
             if (ch) {
@@ -3024,19 +3040,23 @@ async function r30Lane(browser, api, errs) {
               const pts = [[b.right - 4, b.top + b.height / 2], [b.left + 6, b.top + b.height / 2]];
               cov = pts.filter(([x, y]) => { const e = document.elementFromPoint(x, y); return !(e && e.closest(".lm-gumore")); }).length;
               ch.querySelector(".lm-gumore-b").click();
+              { const lb = ch.querySelector(".lm-gumore-l").getBoundingClientRect(); fit = [Math.round(lb.top), Math.round(lb.bottom), Math.round(Math.max(mapB.top, 0)), Math.round(vb)]; }
               const li = [...ch.querySelectorAll(".lm-gumore-l li button")];
               list = li.map((x) => { const m = x.querySelector(".gm-m"); return { t: x.textContent, h: m ? m.getBoundingClientRect().height : 0, lh: m ? parseFloat(getComputedStyle(m).fontSize) * 1.6 : 99 }; });
               ch.querySelector(".lm-gumore-b").click();
             }
-            return { min: fs.length ? Math.min(...fs) : null, offs, cov, list };
+            return { min: fs.length ? Math.min(...fs) : null, offs, cov, list, gap: Math.round(gap * 10) / 10, gp, pms: P.map((p) => p.m).filter(isFinite), fit };
           });
           if (r.min != null) expect(r.min >= 10.99, "ui.r30Layout", T, `${w} ${c}억: 구 묶음 글자 ${r.min}px`);
-          const far = r.offs.filter(([, o]) => o > 130.5);
-          expect(!far.length, "ui.r30Layout", T, `${w} ${c}억: 제 구에서 먼 묶음 ${far.map(([n, o]) => n + " " + o + "px").join(", ")}`);
+          const far = r.offs.filter(([, o, dO]) => o > 48.5 || (o > 0 && o > dO + 10.5));
+          expect(!far.length, "ui.r30Layout", T, `${w} ${c}억: 제 구에서 먼(>48px) · 다른 구 중심이 더 가까운 묶음 ${far.map(([n, o, dO, on]) => `${n} ${o}px (${on} ${dO}px)`).join(", ")}`);
+          if (isFinite(r.gap)) expect(r.gap >= 1.95, "ui.r30Layout", T, `${w} ${c}억: 묶음 사이 ${r.gap}px (${r.gp})`);
+          if (r.fit) expect(r.fit[0] >= r.fit[2] - 1 && r.fit[1] <= r.fit[3] + 1, "ui.r30Layout", T, `${w} ${c}억: +N 목록 ${r.fit[0]}–${r.fit[1]} vs 보이는 지도 ${r.fit[2]}–${r.fit[3]}`);
           if (r.cov != null) expect(r.cov === 0, "ui.r30Layout", T, `${w} ${c}억: '+N곳' 칩 가림 ${r.cov}/2 점`);
           if (r.list && r.list.length) {
             const v = r.list.map((x) => { const m = /곳\s*([\d,.]+(?:억|만))~/.exec(x.t); return m ? money(m[1]).v : Infinity; });
             const sorted = v.every((x, i) => !i || x >= v[i - 1] - 1e-9);
+            if (isFinite(v[0])) { const k = r.pms.filter((m) => m <= v[0] + 1e-9).length; expect(k >= Math.min(2, r.pms.length), "ui.r30Layout", T, `${w} ${c}억: '+N'에 숨은 ${r.list[0].t.replace(/\s+/g, " ")}보다 싼 지도 묶음 ${k}개 — 가장 싼 두 구 안에 드는 구가 숨음`); }
             expect(sorted && r.list.every((x) => x.h <= x.lh), "ui.r30Layout", T, `${w} ${c}억: +N 목록 ${r.list.map((x) => x.t.replace(/\s+/g, " ") + "[" + Math.round(x.h) + "]").join(" / ")}`);
           }
         }
@@ -3122,11 +3142,17 @@ async function r30Lane(browser, api, errs) {
   }
   // --- seo.visibleDate: 화면의 '글 고친 날'(time.zp-mod) == JSON-LD dateModified · /about·/years
   {
-    const T = "화면 '글 고친 날'(time.zp-mod) == JSON-LD dateModified (/about · /years) — 6차: /about 10월 20일 vs 10-25";
-    for (const p of ["/about", "/years"]) {
+    const T = "화면 '글 고친 날'·'… 수정' 날짜(<time>) == JSON-LD dateModified(없으면 사이트맵 lastmod) — /about·/years·/method·가이드 모두·10월호 — 6차: /about 10월 20일 vs 10-25 · 7차: 가이드 '2026.10.20 수정' vs 10-25";
+    const sm = (await getPage("/sitemap.xml")).text || "", LM = {};
+    for (const m of sm.matchAll(/<loc>[^<]*?\.kr\/([^<]*)<\/loc><lastmod>([^<]+)<\/lastmod>/g)) LM["/" + decodeURIComponent(m[1])] = m[2];
+    const gd = Object.keys(LM).filter((k) => /^\/guide\//.test(k) && k !== "/guide/rebuild-30y");
+    for (const p of ["/about", "/years", "/method", "/report/2026-10", ...gd]) {
       const r = await getPage(p); const h = r.text || "";
-      const t = (/<time class="zp-mod" datetime="(\d{4}-\d\d-\d\d)">/.exec(h) || [])[1], d = (/"dateModified":\s*"(\d{4}-\d\d-\d\d)/.exec(h) || [])[1];
-      expect(t && d && t === d && !/마지막 점검/.test(h), "seo.visibleDate", T, `${p}: 화면 ${t} vs dateModified ${d}`);
+      const by = (/<p class="byline">([\s\S]*?)<\/p>/.exec(h) || [])[1] || "";
+      const t = (/<time class="zp-mod" datetime="(\d{4}-\d\d-\d\d)">/.exec(h) || [])[1] || (/<time datetime="(\d{4}-\d\d-\d\d)">[^<]*<\/time>\s*수정/.exec(by) || /수정\s*<time datetime="(\d{4}-\d\d-\d\d)">/.exec(by) || [])[1];
+      const shown = (/<time datetime="\d{4}-\d\d-\d\d">(\d{4})\.(\d\d)\.(\d\d)<\/time>\s*수정/.exec(by) || /수정\s*<time datetime="\d{4}-\d\d-\d\d">(\d{4})\.(\d\d)\.(\d\d)/.exec(by));
+      const d = (/"dateModified":\s*"(\d{4}-\d\d-\d\d)/.exec(h) || [])[1] || LM[p];
+      expect(t && d && t === d && (!shown || shown.slice(1).join("-") === t) && !/마지막 점검/.test(h), "seo.visibleDate", T, `${p}: 화면 ${t}${shown ? " (" + shown[0].replace(/<[^>]+>/g, "") + ")" : ""} vs dateModified ${d}`);
     }
   }
   // --- home.rawLabel: JS 전 원본 HTML에 '0곳 보기' 같은 빈 숫자 버튼 없음

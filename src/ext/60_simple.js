@@ -1170,7 +1170,7 @@ const SIMPLE = (() => {
       if (e.key !== "Escape" || typing || H.classList.contains("sheet-open") || H.classList.contains("menu-open") || document.querySelector("dialog[open]") || (whyEl && !whyEl.hidden)) return;
       if (H.classList.contains("s-full")) fullMap(false);
       else if (H.classList.contains("s-rep") && history.state && history.state.det && history.state.gu) { try { history.back(); } catch (er) { H.classList.remove("s-rep"); } }
-      else if (H.classList.contains("s-rep")) { H.classList.remove("s-rep"); const l = $("sList"); if (l) l.focus && l.querySelector("a") && l.querySelector("a").focus({ preventScroll: true }); }
+      else if (H.classList.contains("s-rep")) { const id = (location.hash || "").slice(1); H.classList.remove("s-rep"); const l = $("sList"), rw = l && id && /^[a-z]\d+$/.test(id) ? l.querySelector(`a.s-cm[data-id="${id}"]`) : null; if (rw) rw.focus(); else if (l) l.focus && l.querySelector("a") && l.querySelector("a").focus({ preventScroll: true }); }   // 7차: 연 줄로 돌아간다(첫 줄로 가던 것)
       else if (cur) close(true);
     });
   }

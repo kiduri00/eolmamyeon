@@ -967,7 +967,7 @@
         el.addEventListener("click", (e) => {
           e.stopPropagation();
           const b = e.target.closest("button[data-gu]"); if (b && el.contains(b)) { el.classList.remove("open"); try { enterGu(b.dataset.gu, { hist: true }); } catch (er) {} return; }
-          if (e.target.closest(".lm-gumore-b")) { const o = el.classList.toggle("open"); el.querySelector(".lm-gumore-b").setAttribute("aria-expanded", String(o)); }
+          if (e.target.closest(".lm-gumore-b")) { const o = el.classList.toggle("open"); el.querySelector(".lm-gumore-b").setAttribute("aria-expanded", String(o)); if (o) guMoreFit(el); }
         });
         $("lmap").appendChild(el);
       }
@@ -981,6 +981,15 @@
       el.style.top = Math.max(6, Math.round(M.y || 6)) + "px";
       el.classList.toggle("top", M.y != null && M.y <= 6 && MQ_SHEET.matches);
       el.hidden = false;
+    }
+    // 7차: 펼친 '+N곳' 목록이 보이는 지도 칸 밖으로 나가지 않게(360에서 3줄이 칸 밖·스크롤 표시 없음이던 것)
+    function guMoreFit(el) {
+      try {
+        const l = el.querySelector(".lm-gumore-l"); if (!l) return; l.style.maxHeight = "";
+        const cv = $("lmap").getBoundingClientRect(), b = l.getBoundingClientRect(), tb = document.getElementById("sNav"), vb = Math.min(cv.bottom, innerHeight - (tb && tb.offsetHeight && getComputedStyle(tb).position === "fixed" ? tb.offsetHeight : 0));
+        const av = el.classList.contains("top") || b.top > el.getBoundingClientRect().top ? vb - b.top - 8 : b.bottom - Math.max(cv.top, 0) - 8;
+        if (av < b.height) l.style.maxHeight = Math.max(96, Math.floor(av)) + "px";
+      } catch (e) {}
     }
     function gusSet(keep) {
       const K = new Map(keep.map((g) => [g.n, g]));
@@ -1574,7 +1583,7 @@
       obstacles: () => (map ? obstacles() : []),
       okDots: () => (okdK ? okdK.split(",").length : 0),
       llOf: (id) => (byId[id] ? llOf(byId[id]) : null),
-      gus: () => [...GUS.entries()].map(([n, p]) => { let o = { x: 0, y: 0 }; try { o = p.mk.getOffset(); } catch (e) {} return { n, c: +p.el.dataset.n, t: p.el.textContent, lab: p.el.getAttribute("aria-label") || "", off: Math.round(Math.hypot(o.x || 0, o.y || 0)) }; }),
+      gus: () => { const A = map && GUL ? GUL.map((g) => ({ n: g.n, q: map.project(g.ll) })) : []; return [...GUS.entries()].map(([n, p]) => { let o = { x: 0, y: 0 }; try { o = p.mk.getOffset(); } catch (e) {} const a = A.find((x) => x.n === n), d0 = Math.hypot(o.x || 0, o.y || 0); let dn = Infinity, nn = ""; if (a) A.forEach((b) => { if (b.n === n) return; const d = Math.hypot(a.q.x + (o.x || 0) - b.q.x, a.q.y + (o.y || 0) - b.q.y); if (d < dn) { dn = d; nn = b.n; } }); return { n, c: +p.el.dataset.n, t: p.el.textContent, lab: p.el.getAttribute("aria-label") || "", off: Math.round(d0), other: nn, dOther: Math.round(dn) }; }); },
       // 자리를 못 잡은 구 묶음이 모인 '+N곳' 칩의 곳 수(없으면 0) · 화면 묶음 합 + 이 값 == 홈 숫자
       ghost: () => (window.ZP_G && ZP_G.on() ? { gus: ZP_G.gus(), more: ZP_G.more(), cam: ZP_G.last() } : null),
       attach: () => { gateOpen(); if (mapView === "seoul" && !gu) seoul(); },

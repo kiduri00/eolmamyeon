@@ -199,3 +199,10 @@ G.onchange=f;Z.onchange=f;F.onchange=f;Q.oninput=f;f();}})();
 '''
 open(os.path.join(ROOT, 'public/guide/rebuild-30y.html'), 'w', encoding='utf-8').write(page)
 print('rebuild-30y', len(rows), 'in zone', zN, dict(fill), 'far', sum(1 for r in rows if r['far']))
+# 7차: /guide/ 목록의 이 글 소개도 같은 숫자(목록에 1,077·245로 고정돼 본문 1,058·234와 달랐던 것) · 숫자는 <!--zk--> 덩이라 사이트맵 lastmod를 매일 바꾸지 않는다
+_HP = os.path.join(ROOT, 'public/guide/index.html')
+if os.path.exists(_HP):
+    _h = open(_HP, encoding='utf-8').read()
+    _h2 = re.sub(r'(<a href="/guide/rebuild-30y">준공 30년 넘은 서울 아파트 )(?:<!--zk-->)?[\d,]+(?:<!--/zk-->)?(단지)', lambda m: f'{m.group(1)}<!--zk-->{len(rows):,}<!--/zk-->{m.group(2)}', _h, count=1)
+    _h2 = re.sub(r'(구별로 모았어요\. )(?:<!--zk-->)?[\d,]+(?:<!--/zk-->)?(단지는 이미 정비사업이 진행 중이라)', lambda m: f'{m.group(1)}<!--zk-->{zN:,}<!--/zk-->{m.group(2)}', _h2, count=1)
+    if _h2 != _h: open(_HP, 'w', encoding='utf-8').write(_h2); print('guide hub rebuild-30y', len(rows), zN)

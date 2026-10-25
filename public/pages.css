@@ -201,3 +201,7 @@ main .rp-w li,main ul.links>li{margin:0;padding-top:11px;padding-bottom:11px}mai
 /* 30차: 가이드 목록 제목 링크도 누르는 자리 40px · 구역 페이지 출처 줄의 짧은 링크(RSS)도 너비 40px */
 .qsum li>a{display:inline-flex;align-items:center;min-height:40px}
 .zrow a{min-width:40px;justify-content:center}
+/* 7차: 남은 작은 링크도 누르는 자리 40px — /gu RSS · 리포트 카드 '구역 페이지·내 돈으로 계산' · 표 '원문' 폭 · 가이드 '함께 보면 좋은 질문' · /faq '출처·계산 방법' */
+main table td a{min-width:40px;justify-content:center}
+main p.meta a[href*="feed/"],main .zc-a a,main .fq-more a,main .fq-a a,main h2+ul:not([class])>li>a{display:inline-block;padding:11px 0;margin:-11px 0;line-height:18px}
+main h2+ul:not([class])>li{margin:0;padding-top:11px;padding-bottom:11px}

@@ -99,46 +99,64 @@
   // 구 묶음 자리 잡기(실제 지도 guLayout과 같은 함수): 겹치면 ① 둘레로 비켜 ② 작게 ③ 안 되면(또는 화면 밖) '+N곳' 칩으로
   function place(o) {
     var w = o.W, h = o.H, obs = o.obs || [], phone = o.phone;
-    var L = o.gus.slice().sort(function (a, b) { return b.c - a.c; });
+    // 7차: 자리 잡는 차례 = 가장 적게 드는 구부터(같으면 곳 수 많은 구) — 구로 6,900만~·종로 1.2억~가 '+N'에 숨고 관악 5.2억~·서초가 남던 것 · 노원 18곳(1.4억~)이 숨고 광진 3곳(2.8억~)이 남던 것
+    var L = o.gus.slice().sort(function (a, b) { return (a.m == null ? 1e9 : a.m) - (b.m == null ? 1e9 : b.m) || b.c - a.c; });
     var m = 1; L.forEach(function (x) { if (x.c > m) m = x.c; });
     var ANG = [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return (k * Math.PI) / 4 + Math.PI / 2; });
     // 폰: 맨 아래 20px 띠에는 묶음을 두지 않는다(범례·ⓘ는 따로 피함 · 20차)
     var bot = phone ? 20 : 2;
-    var GAP = 4, MAXOFF = 130, MK = 2.5;
+    var GAP = 6, MAXOFF = 48, MK = 1.0;   // 7차: 폰은 제 구 중심에서 48px 안 · 다른 구 중심보다 가깝지 않은 자리만(130px·2.5배로 풀었더니 마포 묶음이 강서 땅에 서던 것) · 묶음 사이 실제 2px 넘게(어림 폭보다 글자가 조금 넓어 4px 띄움이 1px로 닿던 것)
     // 30차: 비킨 자리가 다른 구 중심에 더 가까우면(그 구 땅 위로 넘어가면) 쓰지 않는다 — 360에서 서대문 묶음이 동대문 남쪽에 서던 것
     var ANC = o.gus.map(function (g) { return { n: g.n, q: o.proj(g.ll) }; });
     var mine = function (g, x, y) { var d0 = Math.hypot(x - g.q0.x, y - g.q0.y); return ANC.every(function (a) { return a.n === g.n || d0 <= Math.hypot(x - a.q.x, y - a.q.y) * MK + 10; }); };
     var boxOf = function (g) { var x = g.q.x + g.dx, y = g.q.y + g.dy; return [x - g.w / 2, y - g.h / 2, x + g.w / 2, y + g.h / 2]; };
     // pre = 이미 자리 잡은 묶음(그대로 둔다) · only = 이번에 자리 잡을 구 이름(없으면 전부)
     var run = function (extra, pre, only) {
-      var placed = (extra ? [extra] : []).concat((pre || []).map(boxOf)), keep = (pre || []).slice(), left = [];
+      // placed = 놓인 상자 {bx, g}(g 없음 = 칩 자리 · fx = 이미 놓인 것이라 옮기지 않음)
+      var placed = (extra ? [{ bx: extra, fx: 1 }] : []).concat((pre || []).map(function (g) { return { bx: boxOf(g), g: g, fx: 1 }; })), keep = (pre || []).slice(), left = [];
       // m = 보이는 상자 밖 투명 누름 자리(작은 묶음은 40px 상자 안에 보이는 30·22px) — 그 둘레까지 지도 칸 안에(23차: 위 가장자리 묶음이 칸 밖으로 5px 나가던 것)
-      var free = function (bx, m) { m = m || 0; var gx = [bx[0] - GAP, bx[1] - GAP, bx[2] + GAP, bx[3] + GAP]; return bx[0] >= 2 && bx[2] <= w - 2 && bx[1] - m >= 2 && bx[3] + m <= h - bot && !obs.some(function (q) { return hit(q, bx); }) && !placed.some(function (q) { return hit(q, gx); }); };   // 29차: 묶음끼리 최소 4px 띄움(GAP 양쪽 2px씩이 아니라 한쪽 4px — 실제 글자 폭이 어림보다 조금 넓어도 닿지 않게)
+      var inb = function (bx, m) { m = m || 0; return bx[0] >= 2 && bx[2] <= w - 2 && bx[1] - m >= 2 && bx[3] + m <= h - bot && !obs.some(function (q) { return hit(q, bx); }); };
+      // 29차: 묶음끼리 최소 GAP 띄움(한쪽 GAP — 실제 글자 폭이 어림보다 조금 넓어도 닿지 않게)
+      var clash = function (bx, skip) { var gx = [bx[0] - GAP, bx[1] - GAP, bx[2] + GAP, bx[3] + GAP]; return placed.filter(function (p) { return p !== skip && hit(p.bx, gx); }); };
+      // 자리 후보(차례대로): 크기 3단계 × 비키는 거리 × 8방향 — 지도 칸·장애물·제 구 땅 조건을 넘는 것만
+      var cands = function (g, q, l1, l2) {
+        var C = [];
+        // 23차: 좁은 폰(380px 아래)은 칩으로 보내기 전에 한 줄('영등포 7곳') 작은 묶음으로 한 번 더(s = 2)
+        for (var s = 0; s < (phone || w < 380 ? 3 : 2); s++) {
+          // 21차: 둥근 네모 두 줄('강북 1곳' / '7,400만~') — 폭 = 글자 폭 + 여백, 높이 40(누르는 자리 · 작게 줄인 것은 보이는 30 + 투명 둘레로 40)
+          // 27차: 셋째 단계도 금액 줄('6,700만~')을 지운 한 줄이 아니라 더 작은 두 줄(xs · 보이는 높이 26) — 높은 금액에서 구 묶음 금액 줄이 빠지던 것
+          var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = Math.ceil((xs ? Math.max(tw(l1, 11), tw(L2, 11)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 11)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 11)) + 18) * 1.04), bh = xs ? (L2 ? 28 : 20) : sm ? (L2 ? 32 : 22) : 40, d = Math.max(bw, bh);
+          var RR = (sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05]).filter(function (r) { return !phone || r <= MAXOFF; });   // 30차: 폰은 제 구 중심에서 MAXOFF px 안에서만 비킨다(못 비키면 '+N곳' 칩으로)
+          for (var i = 0; i < RR.length; i++) {
+            var A = RR[i] ? ANG : [0];
+            for (var j = 0; j < A.length; j++) {
+              var x = q.x + RR[i] * Math.cos(A[j]), y = q.y + RR[i] * Math.sin(A[j]) * (bh / d), bx = [x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2];
+              if (inb(bx, sm ? (40 - bh) / 2 : 0) && (!phone || !RR[i] || mine({ n: g.n, q0: q }, x, y))) C.push({ bx: bx, w: bw, h: bh, sm: sm, xs: xs, one: one, dx: x - q.x, dy: y - q.y });
+            }
+          }
+        }
+        return C;
+      };
+      var put = function (g, got) { g.l2 = got.one ? "" : g.l2o; g.w = Math.ceil(got.w); g.h = got.h; g.sm = got.sm; g.xs = got.xs; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy); };
       L.forEach(function (g0) {
         if (!g0.c) return;
         if (only && !only[g0.n]) return;
         var g = { n: g0.n, ll: g0.ll, c: g0.c, m: g0.m }, q = o.proj(g.ll), sn = g.n.length > 2 ? g.n.replace(/구$/, "") : g.n, l1 = sn + " " + fmt(g.c) + "곳", l2 = g.m != null ? MT(g.m) : "";
         if (q.x < -8 || q.x > w + 8 || q.y < -8 || q.y > h + 8) { left.push(g); return; }
-        var got = null;
-        // 23차: 좁은 폰(380px 아래)은 칩으로 보내기 전에 한 줄('영등포 7곳') 작은 묶음으로 한 번 더(s = 2)
-        for (var s = 0; s < (phone || w < 380 ? 3 : 2) && !got; s++) {
-          // 21차: 둥근 네모 두 줄('강북 1곳' / '7,400만~') — 폭 = 글자 폭 + 여백, 높이 40(누르는 자리 · 작게 줄인 것은 보이는 30 + 투명 둘레로 40)
-          // 27차: 셋째 단계도 금액 줄('6,700만~')을 지운 한 줄이 아니라 더 작은 두 줄(xs · 보이는 높이 26) — 높은 금액에서 구 묶음 금액 줄이 빠지던 것
-          var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = Math.ceil((xs ? Math.max(tw(l1, 11), tw(L2, 11)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 11)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 11)) + 18) * 1.04), bh = xs ? (L2 ? 28 : 20) : sm ? (L2 ? 32 : 22) : 40, d = Math.max(bw, bh);
-          var RR = (sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05]).filter(function (r) { return !phone || r <= MAXOFF; });   // 30차: 폰은 제 구 중심에서 MAXOFF px 안에서만 비킨다(못 비키면 '+N곳' 칩으로) — 360에서 서대문이 동대문 남쪽에 서던 것
-          for (var i = 0; i < RR.length && !got; i++) {
-            var A = RR[i] ? ANG : [0];
-            for (var j = 0; j < A.length; j++) {
-              var x = q.x + RR[i] * Math.cos(A[j]), y = q.y + RR[i] * Math.sin(A[j]) * (bh / d), bx = [x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2];
-              if (free(bx, sm ? (40 - bh) / 2 : 0) && (!phone || !RR[i] || mine({ n: g.n, q0: q }, x, y))) { got = { bx: bx, w: bw, h: bh, sm: sm, xs: xs, one: one, dx: x - q.x, dy: y - q.y }; break; }
-            }
-          }
+        var C = cands(g, q, l1, l2), got = null, k;
+        for (k = 0; k < C.length && !got; k++) if (!clash(C[k].bx).length) got = C[k];
+        // 7차: 폰에서 자리가 없으면 그 자리를 막은 묶음 하나를 제 구 안 다른 자리로 옮겨 본다(성북 묶음이 종로 자리를 막아 종로 1.2억~이 '+N'에 숨던 것)
+        if (!got && phone) for (k = 0; k < C.length && !got; k++) {
+          var cl = clash(C[k].bx); if (cl.length !== 1 || cl[0].fx || !cl[0].g || !cl[0].C) continue;
+          var K = cl[0], cb = C[k].bx, gx = [cb[0] - GAP, cb[1] - GAP, cb[2] + GAP, cb[3] + GAP];
+          for (var t = 0; t < K.C.length; t++) { var kc = K.C[t]; if (hit(kc.bx, gx) || clash(kc.bx, K).length) continue; K.bx = kc.bx; put(K.g, kc); got = C[k]; break; }
         }
         if (!got) { left.push(g); return; }
-        placed.push(got.bx);
-        g.sn = sn; g.l1 = l1; g.l2 = got.one ? "" : l2; g.w = Math.ceil(got.w); g.h = got.h; g.sm = got.sm; g.xs = got.xs; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy); g.t = tier(g.c, m); g.q = q;
+        g.sn = sn; g.l1 = l1; g.l2o = l2; g.t = tier(g.c, m); g.q = q; put(g, got);
+        placed.push({ bx: got.bx, g: g, C: C });
         keep.push(g);
       });
+      keep.forEach(function (g) { delete g.l2o; });
       return { keep: keep, left: left };
     };
     var r = run(null);

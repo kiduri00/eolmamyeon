@@ -56,6 +56,9 @@ for rel, loc, s in pages():
     s2 = re.sub(r'(<script type="application/ld\+json"[^>]*>.*?</script>)', lambda m: re.sub(r'("dateModified":\s*")\d{4}-\d\d-\d\d(")', lambda q: q.group(1) + o['d'] + q.group(2), m.group(1)), s, flags=re.S)
     # 30차: 화면에 보이는 '글 고친 날'(<time class="zp-mod">)도 같은 날짜 — /about '마지막 점검 10월 20일'인데 dateModified 10-25이던 것
     s2 = re.sub(r'<time class="zp-mod" datetime="\d{4}-\d\d-\d\d">[^<]*</time>', lambda m: f'<time class="zp-mod" datetime="{o["d"]}">{int(o["d"][:4])}년 {int(o["d"][5:7])}월 {int(o["d"][8:10])}일</time>', s2)
+    # 7차: 가이드·/method 머리 줄의 '…수정' 날짜(<time datetime>)도 같은 날짜 — 본문을 고쳐 dateModified는 10-25인데 화면엔 '2026.10.20 수정'이던 것
+    _dd = o['d'].replace('-', '.')
+    s2 = re.sub(r'(<p class="byline">)(.*?)(</p>)', lambda m: m.group(1) + re.sub(r'<time datetime="\d{4}-\d\d-\d\d">\d{4}\.\d\d\.\d\d</time>(\s*수정)', lambda q: f'<time datetime="{o["d"]}">{_dd}</time>' + q.group(1), re.sub(r'(수정\s*)<time datetime="\d{4}-\d\d-\d\d">\d{4}\.\d\d\.\d\d</time>', lambda q: q.group(1) + f'<time datetime="{o["d"]}">{_dd}</time>', m.group(2))) + m.group(3), s2, count=1, flags=re.S)
     if s2 != s: open(os.path.join(PUB, rel), 'w', encoding='utf-8').write(s2); nld = globals().get('nld', 0) + 1; globals()['nld'] = nld
 urls.sort(key=lambda u: (u[0].count('/'), u[0]))
 # 25차: 한글 경로(/gu/강남구)는 퍼센트 인코딩해서 싣는다(그대로 요청하면 307로 한 번 돌아 들어왔다)
