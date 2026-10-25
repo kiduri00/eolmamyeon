@@ -80,6 +80,14 @@ for src, slot in MAP.items():
         open(os.path.join(OUT, slot + ('-dark' if suf else '') + '.svg'), 'w', encoding='utf-8').write(s)
         n += 1
 print('kit svg', n)
+# 2라운드: 그냥 실거래(신고가 아님) = 실거래 태그 그림에서 ↑ 원을 빼고 회색으로(feed-deal) — 키트를 다시 가져와도 남게
+for src, dst, c1, c2 in (('feed-trade.svg', 'feed-deal.svg', '#D5DCE8', '#A9B4C6'), ('feed-trade-dark.svg', 'feed-deal-dark.svg', '#5A6478', '#3F4757')):
+    sp = os.path.join(OUT, src)
+    if not os.path.exists(sp): continue
+    s2 = open(sp, encoding='utf-8').read()
+    s2 = re.sub(r'<circle cx="45" cy="46".*?</svg>', '</svg>', s2, flags=re.S).replace('#FFD866', c1).replace('#F5B324', c2)
+    s2 = re.sub(r'<linearGradient id="[^"]*corv".*?</linearGradient>', '', s2, flags=re.S).replace('deal_price', 'deal_plain')
+    open(os.path.join(OUT, dst), 'w', encoding='utf-8').write(s2)
 for k, o in (('map', 'map'), ('favorites', 'fav'), ('report', 'report'), ('zone', 'zone')):
     for sz in (96, 192):
         p = os.path.join(KIT, 'png', 'shortcuts', f'shortcut_{k}_{sz}.png')

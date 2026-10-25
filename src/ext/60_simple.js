@@ -274,8 +274,8 @@ const SIMPLE = (() => {
     try { new MutationObserver(ftPlace).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
     place(); matchMedia("(min-width:981px)").addEventListener("change", place);
     // 상세 위 '← 목록' 단추는 하나: 구 화면에서 열었으면 '← 강북구 · 갈 수 있는 곳 6곳'(같은 목록으로) · 구 화면 기록 칸이면 뒤로 가기와 같은 길
-    $("sToList").onclick = () => { const hs = history.state || {}; if (hs.det && hs.gu) { try { history.back(); return; } catch (e) {} } document.documentElement.classList.remove("s-rep"); };
-    window.ZP_toListLbl = () => { const b = $("sToList"); if (!b) return; const m = /^(.+?) · ([\d,]+)곳$/.exec(($("sLT") && $("sLT").textContent) || ""); const t = mapView === "gu" && mapGu && m && m[1] === mapGu ? `← ${mapGu} · 갈 수 있는 곳 ${m[2]}곳` : "← 갈 수 있는 곳 목록"; if (b.textContent !== t) b.textContent = t; };
+    $("sToList").onclick = () => { if (fromView) { try { history.back(); return; } catch (e) {} } const hs = history.state || {}; if (hs.det && hs.gu) { try { history.back(); return; } catch (e) {} } document.documentElement.classList.remove("s-rep"); };
+    window.ZP_toListLbl = () => { const b = $("sToList"); if (!b) return; if (fromView && FROM_T[fromView]) { const t = `← ${FROM_T[fromView]}`; if (b.textContent !== t) b.textContent = t; return; } const m = /^(.+?) · ([\d,]+)곳$/.exec(($("sLT") && $("sLT").textContent) || ""); const t = mapView === "gu" && mapGu && m && m[1] === mapGu ? `← ${mapGu} · 갈 수 있는 곳 ${m[2]}곳` : "← 갈 수 있는 곳 목록"; if (b.textContent !== t) b.textContent = t; };
     // 스크롤해 지도를 볼 때 게이지가 머리 아래에 작게 붙어 있도록(움직이면 지도가 바로 바뀌는 걸 보며 조절)
     const g = map.querySelector(".s-gauge");
     // 넓은 PC: 게이지 오른쪽 칸 '이 돈이면'(가장 싼 3곳 · 입주까지 현금 범위). 폭이 좁으면 CSS로 숨김
@@ -564,7 +564,7 @@ const SIMPLE = (() => {
   }
   // ---------- '왜 이 금액?' 작은 설명(새 화면 없이) ----------
   let whyEl = null, whyFor = null, whyScr = null;
-  function whyClose() { if (!whyEl || whyEl.hidden) return; whyEl.hidden = true; whyEl.style.transform = ""; if (whyScr) whyScr.hidden = true; const b = whyFor; whyFor = null; if (b && document.contains(b) && whyEl.contains(document.activeElement)) b.focus(); }
+  function whyClose(pop) { if (!whyEl || whyEl.hidden) return; if (pop !== true && window.ZL && ZL.has("why")) ZL.done("why"); whyEl.hidden = true; whyEl.style.transform = ""; if (whyScr) whyScr.hidden = true; const b = whyFor; whyFor = null; if (b && document.contains(b) && whyEl.contains(document.activeElement)) b.focus(); }
   function whyBox() {
     if (!whyEl) {
       whyEl = document.createElement("div"); whyEl.className = "s-why"; whyEl.id = "sWhy"; whyEl.hidden = true;
@@ -596,6 +596,8 @@ const SIMPLE = (() => {
       whyEl.style.left = Math.max(8, Math.min(innerWidth - w - 8, b.right - w)) + "px"; whyEl.style.top = top + "px";
     }
     const xb = whyEl.querySelector("[data-x]"); if (xb) xb.focus({ preventScroll: true });
+    // 3라운드: 폰 바텀시트는 기록 한 칸 → 뒤로 가기 = 시트 닫기(설치 앱이 꺼지거나 페이지를 떠나지 않게) · 다른 바텀시트(금액·정렬)와 같은 ZL
+    if (sheet && window.ZL && !ZL.has("why")) ZL.open("why", () => whyClose(true));
   }
   // 대출 끼고: 어떤 가정으로 대출을 잡았는지(작은 칩 → 설명)
   function asmText() {
@@ -1022,6 +1024,8 @@ const SIMPLE = (() => {
   }
   // ---------- 기능 화면 열기/닫기 ----------
   let cur = "", curT = "";
+  let fromView = null;   // 3라운드: PC 두 칸 리포트를 연 화면(관심·소식·도구) — 왼쪽 위 칩 이름·뒤로
+  const FROM_T = { favTop: "관심 구역", news: "소식", my: "MY", rankHub: "순위", commuteTop: "출퇴근", statsTop: "통계", rulesTop: "매수 전 규정", diagTop: "매물진단", planner: "입주 계산", results: "입주 계산" };
   function open(id, noScroll) {
     // 예전 주소(#txrTop 등) → 합친 화면 + 그 탭(66_tools.js ZP_HUB)
     const from = id, al = ALIAS[id];
@@ -1082,7 +1086,7 @@ const SIMPLE = (() => {
   function init() {
     // 같은 페이지에서 주소의 #도구 이름만 바뀌어도(링크·뒤로가기) 그 도구를 연다
     window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (known(h) && cur !== h) { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (e) {} open(h); } });
-    window.addEventListener("popstate", () => { if (history.state && history.state.sView && matchMedia("(min-width:981px)").matches) document.documentElement.classList.remove("s-rep"); });   // 2라운드: PC에서 화면 안 구역 → 뒤로 = 그 화면(두 칸 리포트 닫음)
+    window.addEventListener("popstate", () => { const st = history.state || {}; if (st.sView && matchMedia("(min-width:981px)").matches) { document.documentElement.classList.remove("s-rep"); if (fromView) { fromView = null; try { window.ZP_toListLbl(); } catch (e) {} } if (st.vY != null) { const y = st.vY; [0, 80, 250, 600].forEach((t) => setTimeout(() => { if (document.documentElement.classList.contains("s-view")) window.scrollTo({ top: y, behavior: "auto" }); }, t)); } } });   // 2라운드: PC에서 화면 안 구역 → 뒤로 = 그 화면(두 칸 리포트 닫음)
     window.addEventListener("popstate", () => { const on = document.documentElement.classList.contains("s-full"), want = !!(history.state && (history.state.sFull || history.state.tF)) || location.hash === "#map"; if (on && !want) fullMap(false); else if (!on && want && history.state && (history.state.sFull || history.state.tF)) fullMap(true); });   // tF = 설치 앱 지도 탭 안에서 쌓인 칸(구 화면·구역 시트 · src/tapp가 적음) → 뒤로 와도 지도 탭 그대로 · 웹에는 tF가 없다
     if (P.fund === "cash" && P.basis !== "now") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (e) {} }
     build();
@@ -1136,12 +1140,15 @@ const SIMPLE = (() => {
     select = function () {
       // 2라운드(10/26): 넓은 화면(PC·태블릿)에서 관심·소식·도구 화면(s-view) 안의 구역을 열면 리포트가 숨은 #mapTop 안에 0×0으로 열리던 것 —
       // 그 화면을 기록 그대로 두고(뒤로 = 그 화면) 두 칸 화면으로 나와 리포트를 연다
-      { const H0 = document.documentElement; if (PCQ() && H0.classList.contains("s-view") && cur) {
+      { const H0 = document.documentElement; if (PCQ() && !H0.classList.contains("s-view") && !H0.classList.contains("s-rep")) fromView = null; if (PCQ() && H0.classList.contains("s-view") && cur) {
         const v = cur;
+        // 3라운드: 보던 자리를 기억(뒤로 오면 되살림) · 두 칸 화면은 맨 위에서 · 왼쪽 위 칩은 '← 그 화면'
+        try { history.replaceState(Object.assign({}, history.state || {}, { vY: Math.round(scrollY) }), ""); } catch (e) {}
         IDS.forEach((x) => { const s = $(x); if (s) s.classList.remove("s-on"); });
         H0.classList.remove("s-view"); lvl(null); cur = ""; navMark();
         try { history.pushState({ fromView: v }, "", location.pathname + location.search + "#" + v); } catch (e) {}
-        keepY = 0;
+        fromView = v; keepY = 0;
+        const top0 = () => window.scrollTo({ top: 0, behavior: "auto" }); requestAnimationFrame(top0); setTimeout(top0, 80); setTimeout(top0, 250);
       } }
       const H = document.documentElement, pc = PCQ(), was = H.classList.contains("s-rep"), y0 = keepY != null ? keepY : scrollY;
       selBusy = true;
