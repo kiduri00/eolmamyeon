@@ -73,5 +73,21 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   fs.mkdirSync(path.join(target, 'app/src/main/res/values-night'), { recursive: true });
   fs.writeFileSync(path.join(target, 'app/src/main/res/values-night/colors.xml'),
     '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="backgroundColor">#15181D</color>\n    <color name="shortcut_background">#2A2E35</color>\n</resources>\n');
+  // Launcher icon = Play icon v5 (#F2F5FC + navy mark, design_tokens.md §7). Not expressible in twa-manifest.json
+  // (bubblewrap would put the maskable PNG on a white background, with no monochrome layer), so copy the committed
+  // resources made by launcher/render-launcher.js from this project and drop bubblewrap's ic_maskable mipmaps.
+  const SRC_RES = path.join(__dirname, '../app/src/main/res'), DST_RES = path.join(target, 'app/src/main/res');
+  const LAUNCHER = ['values/ic_launcher_background.xml', 'drawable/ic_launcher_foreground.xml',
+    'mipmap-anydpi-v26/ic_launcher.xml', 'mipmap-anydpi-v26/ic_launcher_round.xml'];
+  for (const d of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+    for (const n of ['ic_launcher', 'ic_launcher_round', 'ic_launcher_monochrome']) LAUNCHER.push('mipmap-' + d + '/' + n + '.png');
+    fs.rmSync(path.join(DST_RES, 'mipmap-' + d, 'ic_maskable.png'), { force: true });
+  }
+  for (const f of LAUNCHER) { fs.mkdirSync(path.dirname(path.join(DST_RES, f)), { recursive: true }); fs.copyFileSync(path.join(SRC_RES, f), path.join(DST_RES, f)); }
+  const MF = path.join(target, 'app/src/main/AndroidManifest.xml');
+  let mf = fs.readFileSync(MF, 'utf8');
+  if (!mf.includes('android:roundIcon')) mf = mf.replace(/( *)android:icon="@mipmap\/ic_launcher"\n/, (m, sp) => m + sp + 'android:roundIcon="@mipmap/ic_launcher_round"\n');
+  if (!mf.includes('android:roundIcon="@mipmap/ic_launcher_round"')) throw new Error('could not add roundIcon to AndroidManifest.xml');
+  fs.writeFileSync(MF, mf);
   process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });
