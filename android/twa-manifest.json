@@ -15,7 +15,7 @@
   "startUrl": "/?src=app",
   "iconUrl": "https://jaegaebal.alwaysquestions.kr/icon-512.png",
   "maskableIconUrl": "https://jaegaebal.alwaysquestions.kr/icon-maskable-512.png",
-  "monochromeIconUrl": "http://127.0.0.1:8765/icon-monochrome-512.png",
+  "monochromeIconUrl": "https://jaegaebal.alwaysquestions.kr/icon-mono-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "/home/claude/zippin-keys/zippin-upload.jks",
@@ -27,25 +27,25 @@
       "name": "지도로 보기",
       "shortName": "지도",
       "url": "https://jaegaebal.alwaysquestions.kr/?src=app#map",
-      "chosenIconUrl": "http://127.0.0.1:8765/shortcut_map_192.png"
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-map-192.png"
     },
     {
       "name": "관심 구역",
       "shortName": "관심 구역",
       "url": "https://jaegaebal.alwaysquestions.kr/?src=app#favTop",
-      "chosenIconUrl": "http://127.0.0.1:8765/shortcut_favorites_192.png"
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-fav-192.png"
     },
     {
       "name": "월간 리포트",
       "shortName": "리포트",
       "url": "https://jaegaebal.alwaysquestions.kr/report/?src=app",
-      "chosenIconUrl": "http://127.0.0.1:8765/shortcut_report_192.png"
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-report-192.png"
     },
     {
       "name": "구역별 페이지",
       "shortName": "구역",
       "url": "https://jaegaebal.alwaysquestions.kr/z/?src=app",
-      "chosenIconUrl": "http://127.0.0.1:8765/shortcut_zone_192.png"
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-zone-192.png"
     }
   ],
   "generatorApp": "bubblewrap-core-script",

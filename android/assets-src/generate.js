@@ -55,16 +55,21 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   const fix = (u) => (typeof u === 'string' ? u.replace(LOCAL, REAL) : u);
   out.webManifestUrl = REAL + '/manifest.webmanifest';
   out.iconUrl = fix(out.iconUrl); out.maskableIconUrl = fix(out.maskableIconUrl);
-  // monochrome + shortcut icons are NOT on the site (icon-mono-512.png / icon-monochrome-512.png both 404),
-  // so they stay pointed at the local helper server that serves android/assets-src/ on :8765.
-  out.monochromeIconUrl = LOCAL + '/icon-monochrome-512.png';
-  out.shortcuts = (out.shortcuts || []).map(s => ({ ...s, url: fix(s.url) }));
+  // Monochrome + shortcut icons are served by the site since the 2026-10-26 deploy. The generator above
+  // still reads the byte-identical local copies in assets-src/ (bubblewrap's fetch ignores HTTPS_PROXY),
+  // but the saved twa-manifest.json points at the public files so `bubblewrap update` works without :8765.
+  //   shortcut_map/favorites/report/zone_192.png == /sc-map|fav|report|zone-192.png (same md5)
+  //   assets-src/icon-monochrome-512.png != /icon-mono-512.png (site mark has more padding; see README)
+  out.monochromeIconUrl = REAL + '/icon-mono-512.png';
+  const SCPUB = { map: 'map', favorites: 'fav', report: 'report', zone: 'zone' };
+  out.shortcuts = (out.shortcuts || []).map((s, i) => ({ ...s, url: fix(s.url), chosenIconUrl: REAL + '/sc-' + SCPUB[SC[i]] + '-192.png' }));
   require('fs').writeFileSync(path.join(target, 'twa-manifest.json'), JSON.stringify(out, null, 2) + '\n');
   console.log(JSON.stringify(out, null, 2));
   // Replace any local helper-server URLs that leaked into generated text files
   const walk=(d)=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(d,e.name)):[path.join(d,e.name)]);
   for (const f of walk(target)) { if (/\.(png|jar|webp)$/.test(f) || path.basename(f) === 'twa-manifest.json') continue; const t=fs.readFileSync(f,'utf8'); if (t.includes(LOCAL)) { fs.writeFileSync(f, t.split(LOCAL).join(REAL)); console.log('fixed', f); } }
-  // Dark splash background (values-night) is not part of the bubblewrap template.
+  // Dark splash background (values-night) is not part of the bubblewrap template: a manual resource,
+  // written here so a generate.js run keeps it. `bubblewrap update`/`build` (CLI) will NOT recreate it.
   fs.mkdirSync(path.join(target, 'app/src/main/res/values-night'), { recursive: true });
   fs.writeFileSync(path.join(target, 'app/src/main/res/values-night/colors.xml'),
     '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="backgroundColor">#15181D</color>\n    <color name="shortcut_background">#2A2E35</color>\n</resources>\n');

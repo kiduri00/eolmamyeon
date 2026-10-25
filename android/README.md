@@ -58,13 +58,22 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
 - 바로가기 4개는 각각 다른 아이콘(디자인 킷 `app_kit/png/shortcuts`): `shortcut_0`=지도(map), `shortcut_1`=관심 구역(favorites),
   `shortcut_2`=월간 리포트(report), `shortcut_3`=구역별 페이지(zone). 원본은 `assets-src/shortcut_*_192.png`, SVG는 `assets-src/shortcuts/`.
   `res/drawable-{mdpi..xxxhdpi}/shortcut_N.png` = 48/72/96/144/192px.
-- 사이트에는 모노크롬(`/icon-mono-512.png`, `/icon-monochrome-512.png` 둘 다 404)도 바로가기 아이콘도 없습니다.
-  그래서 `twa-manifest.json`의 `monochromeIconUrl`과 바로가기 `chosenIconUrl`은 `http://127.0.0.1:8765/…`(= `assets-src/` 폴더)를 가리킵니다.
-  `bubblewrap update` 전에 `npx http-server android/assets-src -p 8765`처럼 이 폴더를 8765 포트로 띄우세요. 나중에 사이트에 올리면 그 주소로 바꾸면 됩니다.
+- `twa-manifest.json`의 아이콘 주소는 모두 사이트 공개 주소입니다(2026-10-26 사이트 배포 뒤 제공).
+  - `monochromeIconUrl` → `https://jaegaebal.alwaysquestions.kr/icon-mono-512.png`
+  - 바로가기 `chosenIconUrl` → `/sc-map-192.png`, `/sc-fav-192.png`, `/sc-report-192.png`, `/sc-zone-192.png`
+    (`assets-src/shortcut_{map,favorites,report,zone}_192.png`와 바이트까지 같음)
+  - `bubblewrap update` 전에 이 주소들이 200으로 열리는지 확인하세요(배포 전에는 404).
+  - 주의: 사이트 `/icon-mono-512.png`는 지금 AAB의 알림 아이콘 원본(`assets-src/icon-monochrome-512.png`)과 그림이 조금 다릅니다
+    (같은 핀+집 모양, 여백이 더 큼). `bubblewrap update`로 다시 만들면 알림 아이콘이 사이트 그림으로 바뀝니다.
+    지금 모양을 그대로 두려면 `generate.js`를 쓰세요(생성은 `assets-src/` 로컬 사본으로 함).
 - 재생성 스크립트: `assets-src/generate.js` (@bubblewrap/core로 이 폴더를 다시 만듭니다. 서명 설정·gradle.properties 수정은 다시 적용해야 합니다).
 
 ## 스플래시 / 다크 모드
 
 - 스플래시 배경: 밝은 모드 `#FFFFFF`(build.gradle `backgroundColor`), 다크 모드 `#15181D`(`res/values-night/colors.xml`, bubblewrap 템플릿 밖 파일).
+- **재생성 주의**: `values-night/colors.xml`(다크 스플래시 `#15181D`, 바로가기 배경 `#2A2E35`)은 손으로 넣은 리소스입니다.
+  `twa-manifest.json`에는 이 값을 담을 칸이 없어서 `bubblewrap update`/`bubblewrap build`로 프로젝트를 다시 만들면 사라집니다.
+  `assets-src/generate.js`는 이 파일을 다시 써 주므로 그 스크립트로 재생성하면 유지됩니다. 다른 방법으로 재생성했다면 이 파일을 git에서 되살리세요
+  (`git checkout android -- android/app/src/main/res/values-night/colors.xml`).
   다크 모드에서 흰 화면이 번쩍이지 않게 합니다. 페이드아웃 300ms(`splashScreenFadeOutDuration`).
 - 상태바/내비게이션 바 다크 색: `#15181D`.
