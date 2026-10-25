@@ -104,13 +104,15 @@
         return R;
       });
     });
+    RINGS.forEach(function (RS) { var b = [9, 9, -9, -9]; RS.forEach(function (R) { R.forEach(function (p) { if (p[0] < b[0]) b[0] = p[0]; if (p[1] < b[1]) b[1] = p[1]; if (p[0] > b[2]) b[2] = p[0]; if (p[1] > b[3]) b[3] = p[1]; }); }); RS.bb = b; });   // 구 상자로 먼저 거른다(끄는 동안에도 가볍게)
     return RINGS;
   }
-  function inRings(RS, X, Y) { var c = false; RS.forEach(function (R) { for (var i = 0, j = R.length - 1; i < R.length; j = i++) { var a = R[i], b = R[j]; if ((a[1] > Y) !== (b[1] > Y) && X < ((b[0] - a[0]) * (Y - a[1])) / (b[1] - a[1]) + a[0]) c = !c; } }); return c; }
+  function inRings(RS, X, Y) { var c = false, b = RS.bb; if (b && (X < b[0] || X > b[2] || Y < b[1] || Y > b[3])) return false; RS.forEach(function (R) { for (var i = 0, j = R.length - 1; i < R.length; j = i++) { var a = R[i], b = R[j]; if ((a[1] > Y) !== (b[1] > Y) && X < ((b[0] - a[0]) * (Y - a[1])) / (b[1] - a[1]) + a[0]) c = !c; } }); return c; }
   var hit = function (a, b) { return a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]; };
   // 23차: 묶음 색은 한 가지(중간 남색) — 곳 수는 숫자가 말한다. 범례에 없는 '진함 세 단계'를 없앰(뜻 모를 색 없음)
   var tier = function () { return 2; };
   // 구 묶음 자리 잡기(실제 지도 guLayout과 같은 함수): 겹치면 ① 둘레로 비켜 ② 작게 ③ 안 되면(또는 화면 밖) '+N곳' 칩으로
+  var CC = { k: "", m: {}, n: 0 };
   function place(o) {
     var w = o.W, h = o.H, obs = o.obs || [], phone = o.phone;
     // 7차: 자리 잡는 차례 = 가장 적게 드는 구부터(같으면 곳 수 많은 구) — 구로 6,900만~·종로 1.2억~가 '+N'에 숨고 관악 5.2억~·서초가 남던 것 · 노원 18곳(1.4억~)이 숨고 광진 3곳(2.8억~)이 남던 것
@@ -130,6 +132,8 @@
     var RS = phone ? rings() : null, P1 = o.proj([126.9, 37.5]), P2 = o.proj([127.1, 37.6]), X1 = mx(126.9), Y1 = my(37.5), KX = (P2.x - P1.x) / (mx(127.1) - X1), KY = (P2.y - P1.y) / (my(37.6) - Y1);
     var guAt = function (x, y) { if (!RS || !KX || !KY) return -1; var X = X1 + (x - P1.x) / KX, Y = Y1 + (y - P1.y) / KY; for (var i = 0; i < RS.length; i++) if (inRings(RS[i], X, Y)) return i; return -1; };
     var GI = {}; if (GD) GD.gu.forEach(function (g, i) { GI[g[0]] = i; });
+    var ck0 = [w, h, phone ? 1 : 0, P1.x, P1.y, P2.x, P2.y].join(",") + "|" + obs.map(function (b) { return b.join(","); }).join(";");
+    if (CC.k !== ck0) CC = { k: ck0, m: {}, n: 0 };
     // 비킨 자리 허용: 다른 구 땅 위(가운데 점)면 안 됨 · 48px 넘게(띠·버튼에 깔린 구만 72px까지) 비키면 가운데 점이 제 구 땅 안이어야
     // 가운데 점과 그 둘레 3px 네 점 모두 — 경계선 바로 위 가운데 점이 반올림(정수 px)으로 이웃 구에 넘어가던 것
     var okAt = function (n, x, y, far) {
@@ -147,23 +151,27 @@
       var clash = function (bx, skip) { var gx = [bx[0] - GAP, bx[1] - GAP, bx[2] + GAP, bx[3] + GAP]; return placed.filter(function (p) { return p !== skip && hit(p.bx, gx); }); };
       // 자리 후보(차례대로): 크기 3단계 × 비키는 거리 × 8방향 — 지도 칸·장애물·제 구 땅 조건을 넘는 것만
       var cands = function (g, q, l1, l2) {
+        var ck = g.n + "|" + l1 + "|" + l2; if (CC.m[ck]) return CC.m[ck];   // 8차: 같은 카메라·같은 글자면 지난 후보 그대로(끄는 동안 다시 만들지 않음)
         var C = [], b0 = [q.x - 30, q.y - 20, q.x + 30, q.y + 20], lim = phone && (b0[1] < 2 || obs.some(function (o2) { return hit(o2, b0); })) ? MAXOFF2 : MAXOFF;   // 8차: 구 중심이 띠·버튼 밑이면 72px까지
         // 23차: 좁은 폰(380px 아래)은 칩으로 보내기 전에 한 줄('영등포 7곳') 작은 묶음으로 한 번 더(s = 2)
         for (var s = 0; s < (phone || w < 380 ? 3 : 2); s++) {
           // 21차: 둥근 네모 두 줄('강북 1곳' / '7,400만~') — 폭 = 글자 폭 + 여백, 높이 40(누르는 자리 · 작게 줄인 것은 보이는 30 + 투명 둘레로 40)
           // 27차: 셋째 단계도 금액 줄('6,700만~')을 지운 한 줄이 아니라 더 작은 두 줄(xs · 보이는 높이 26) — 높은 금액에서 구 묶음 금액 줄이 빠지던 것
           var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = Math.ceil((xs ? Math.max(tw(l1, 11), tw(L2, 11)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 11)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 11)) + 18) * 1.04), bh = xs ? (L2 ? 28 : 20) : sm ? (L2 ? 32 : 22) : 40, d = Math.max(bw, bh);
-          var RR = (sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05]).concat(phone ? [16, 32, 48, 60, 72] : []).filter(function (r) { return !phone || r <= lim; }).sort(function (a, b) { return a - b; });   // 8차: 폰은 16px 걸음도(다른 구 땅 검사가 생겨 좁은 걸음이 안전)   // 30차: 폰은 제 구 중심에서 MAXOFF px 안에서만 비킨다(못 비키면 '+N곳' 칩으로)
+          var RR = (phone ? [0, d * 0.45, d * 0.75, d * 1.05, 16, 32, 48, 60, 72] : sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05]).filter(function (r) { return !phone || r <= lim; }).sort(function (a, b) { return a - b; });   // 8차: 폰은 16px 걸음(다른 구 땅 검사가 생겨 좁은 걸음이 안전)   // 30차: 폰은 제 구 중심에서 MAXOFF px 안에서만 비킨다(못 비키면 '+N곳' 칩으로)
           for (var i = 0; i < RR.length; i++) {
             var A = RR[i] ? ANG : [0];
             for (var j = 0; j < A.length; j++) {
               var x = q.x + RR[i] * Math.cos(A[j]), y = q.y + RR[i] * Math.sin(A[j]) * (bh / d), bx = [x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2];
-              if (inb(bx, sm ? (40 - bh) / 2 : 0) && (!phone || !RR[i] || (mine({ n: g.n, q0: q }, x, y) || RR[i] > MAXOFF) && okAt(g.n, x, y, RR[i] > MAXOFF))) C.push({ bx: bx, w: bw, h: bh, sm: sm, xs: xs, one: one, dx: x - q.x, dy: y - q.y });
+              if (inb(bx, sm ? (40 - bh) / 2 : 0)) C.push({ bx: bx, w: bw, h: bh, sm: sm, xs: xs, one: one, dx: x - q.x, dy: y - q.y, n: g.n, x: x, y: y, q: q, pc: phone && RR[i] ? (RR[i] > MAXOFF ? 2 : 1) : 0 });   // 구 땅 검사(pc)는 고를 때만(ok)
             }
           }
         }
+        if (++CC.n > 120) { CC.m = {}; CC.n = 1; }   // 끄는 동안 글자 조합이 많이 쌓이면 비움
+        CC.m[ck] = C;
         return C;
       };
+      var ok = function (c) { if (!c.pc) return true; if (c.ok == null) c.ok = (c.pc === 2 || mine({ n: c.n, q0: c.q }, c.x, c.y)) && okAt(c.n, c.x, c.y, c.pc === 2); return c.ok; };   // 폰 비킨 자리: 제 구 중심이 가장 가까움(48px 안) · 구 땅 검사
       var put = function (g, got) { g.l2 = got.one ? "" : g.l2o; g.w = Math.ceil(got.w); g.h = got.h; g.sm = got.sm; g.xs = got.xs; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy); };
       L.forEach(function (g0) {
         if (!g0.c) return;
@@ -171,12 +179,15 @@
         var g = { n: g0.n, ll: g0.ll, c: g0.c, m: g0.m }, q = o.proj(g.ll), sn = g.n.length > 2 ? g.n.replace(/구$/, "") : g.n, l1 = sn + " " + fmt(g.c) + "곳", l2 = g.m != null ? MT(g.m) : "";
         if (q.x < -8 || q.x > w + 8 || q.y < -8 || q.y > h + 8) { left.push(g); return; }
         var C = cands(g, q, l1, l2), got = null, k;
-        for (k = 0; k < C.length && !got; k++) if (!clash(C[k].bx).length) got = C[k];
+        for (k = 0; k < C.length && !got; k++) if (!clash(C[k].bx).length && ok(C[k])) got = C[k];
         // 7차: 폰에서 자리가 없으면 그 자리를 막은 묶음 하나를 제 구 안 다른 자리로 옮겨 본다(성북 묶음이 종로 자리를 막아 종로 1.2억~이 '+N'에 숨던 것)
+        var FK = {};
         if (!got && phone) for (k = 0; k < C.length && !got; k++) {
-          var cl = clash(C[k].bx); if (cl.length !== 1 || cl[0].fx || !cl[0].g || !cl[0].C) continue;
+          var cl = clash(C[k].bx); if (cl.length !== 1 || cl[0].fx || !cl[0].g || !cl[0].C || !ok(C[k])) continue;
           var K = cl[0], cb = C[k].bx, gx = [cb[0] - GAP, cb[1] - GAP, cb[2] + GAP, cb[3] + GAP];
-          for (var t = 0; t < K.C.length; t++) { var kc = K.C[t]; if (hit(kc.bx, gx) || clash(kc.bx, K).length) continue; K.bx = kc.bx; put(K.g, kc); got = C[k]; break; }
+          // 8차: 옮길 자리(다른 묶음과 안 겹치고 제 구 조건을 넘는 K 후보)는 K마다 한 번만 거른다 — 후보가 늘어 끄는 동안 느려지던 것(같은 차례·같은 결과)
+          var fk = FK[K.g.n] || (FK[K.g.n] = K.C.filter(function (kc) { return !clash(kc.bx, K).length && ok(kc); }));
+          for (var t = 0; t < fk.length; t++) { var kc = fk[t]; if (hit(kc.bx, gx)) continue; K.bx = kc.bx; put(K.g, kc); got = C[k]; break; }
         }
         if (!got) { left.push(g); return; }
         g.sn = sn; g.l1 = l1; g.l2o = l2; g.t = tier(g.c, m); g.q = q; put(g, got);
