@@ -47,7 +47,10 @@
   /* ---------- 첫 화면: 검색 → 아이콘 10개 → 배너 → 내 돈 카드 → 목록 ---------- */
   html.is-tapp #sSite{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;padding:0!important;margin:-1px!important}
   html.is-tapp #onb,html.is-tapp .s-rd,html.is-tapp #sQuick{display:none!important}
-  html.is-tapp:not(.s-full) #mapTop .mapcard,html.is-tapp:not(.s-full) #mapTop>.sec-h{display:none!important}
+  html.is-tapp:not(.s-full) #mapTop>.sec-h{display:none!important}
+  /* 지도 칸: 평소엔 숨김 · 지도 탭에서 막 나온 1.5초(t-mapout)만 화면 밖에 크기를 둔다 — 그 사이 지도가 다시 맞추기(fit)를 하다 0×0 캔버스에서 오류 나던 것(2라운드 QA tapp.mapList) */
+  html.is-tapp:not(.s-full):not(.t-mapout) #mapTop .mapcard{display:none!important}
+  html.is-tapp.t-mapout:not(.s-full) #mapTop .mapcard{display:block!important;position:fixed!important;left:-200vw!important;top:0!important;width:100vw!important;height:60vh!important;visibility:hidden!important;pointer-events:none!important;margin:0!important}
   html.is-tapp #mapTop .pc-ph{display:none!important}
   html.is-tapp:not(.s-view):not(.s-full) #mapTop{padding-top:0!important;margin-top:0!important}
   html.is-tapp.simple .s-hero{margin-bottom:24px!important;gap:0!important;padding-top:0!important}

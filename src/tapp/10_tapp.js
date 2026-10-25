@@ -104,7 +104,7 @@ function navBuild() {
   [nb, $("hdrBell")].forEach((x) => { if (x && !x.querySelector(".t-bn")) { const i = document.createElement("b"); i.className = "t-bn"; i.hidden = true; i.setAttribute("aria-hidden", "true"); x.appendChild(i); } });
   navMark();
   if (CH) badge();
-  if (!H.__tmo) { H.__tmo = 1; try { new MutationObserver(() => { navMark(); const n = $("sNav"); if (n && !navDone(n)) navBuild(); }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {} }
+  if (!H.__tmo) { H.__tmo = 1; let wasFull = H.classList.contains("s-full"), moT = 0; try { new MutationObserver(() => { navMark(); const n = $("sNav"); if (n && !navDone(n)) navBuild(); const f = H.classList.contains("s-full"); if (wasFull && !f) { H.classList.add("t-mapout"); clearTimeout(moT); moT = setTimeout(() => H.classList.remove("t-mapout"), 1500); } wasFull = f; }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {} }
 }
 function goTab(k) {
   const now = curTab();

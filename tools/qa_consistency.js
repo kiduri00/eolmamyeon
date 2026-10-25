@@ -2620,25 +2620,45 @@ async function tappLane(browser, api, errs) {
       finally { await ctx.close().catch(() => {}); }
     }
   }
-  // --- web.sheetInView(1라운드 · 웹 결함): 폰 브라우저 관심 탭 줄 → 구역 시트가 실제로 보임(높이 > 0) · 뒤로 = 관심 탭 | 모아타운 = 사업구역별·참고값 · 개별 조합 단계 = 시트 칩(웹·앱 같은 규칙)
-  {
-    const T = "브라우저(390): 관심 탭 줄 → 구역 시트 보임(높이 > 0) · 뒤로 = 관심 탭 · 모아타운 시트 큰 숫자 '사업구역별'(평균은 참고값 · '가능해요' 없음) · 개별 조합 목록 단계 = 그 시트 칩";
-    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+  // --- web.sheetInView(1·2라운드 · 웹 결함): 관심 탭 줄 → 리포트가 실제로 보임 — 폰(390: 시트)·PC/태블릿(1024·1280: 두 칸 리포트) · 뒤로 = 관심 탭
+  //     | 모아타운 관리지역(웹·앱 같음) = 큰 숫자 없이 안내 한 줄 + 안의 사업구역 목록(56px 줄 · 단계) + 참고값 한 줄 · 입주권 판정 없음 · 목록 단계 = 그 구역 시트 칩
+  for (const W of [390, 1024, 1280]) {
+    const T = "브라우저(390·1024·1280): 관심 탭 줄 → 구역 리포트 보임(폰 시트 · PC 두 칸) · 뒤로 = 관심 탭 | 모아타운 관리지역 첫 화면 = 안내 한 줄 + 사업구역 목록 + 참고값('가능'·입주권 판정 없음) · 목록 단계 = 그 시트 칩";
+    const { ctx, page } = await newPage(browser, W < 900 ? mob(W, 844) : { viewport: { width: W, height: 860 } }, errs);
     try {
       await ctx.addInitScript(() => { try { if (!localStorage.getItem("jg-fav")) localStorage.setItem("jg-fav", '["o497"]'); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
-      page.__where = "web.sheetInView";
+      page.__where = "web.sheetInView " + W;
       await loadHome(page); await settle(page, 400);
       await page.click('#sNav [data-nav="fav"]'); await page.waitForTimeout(1200);
-      const o = {};
+      const o = { W };
       const fb = await page.$("#favTop [data-open]");
-      if (fb) { await fb.click(); await page.waitForTimeout(1500); o.vis = await page.evaluate(() => { const r = document.getElementById("report"), b = r.getBoundingClientRect(); return r.classList.contains("sheet") && b.height > innerHeight * 0.6 && document.getElementById("repTitle").getBoundingClientRect().height > 0; }); await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(900); o.back = await page.evaluate(() => !!document.querySelector("#favTop.s-on") && !document.getElementById("report").classList.contains("sheet")); }
-      await page.evaluate(() => { location.hash = "m10"; }); await page.waitForTimeout(1800);
-      o.moa = await page.evaluate(() => ({ v: [...document.querySelectorAll("#report .dt-k .dt-v")].map((x) => x.textContent).slice(0, 2), ok: !!document.querySelector("#report .dt-k .dt-vd.ok"), s: (document.querySelector("#report .dt-k .dt-s") || {}).textContent }));
-      await page.click("#tab-biz").catch(() => {}); await page.waitForTimeout(500);
-      const lab = await page.evaluate(() => { const b = document.querySelector("#report .child[data-go] small"); return b ? [b.closest("[data-go]").dataset.go, b.textContent.split(" · ")[0]] : null; });
-      if (lab) { await page.click(`#report .child[data-go="${lab[0]}"]`); await page.waitForTimeout(1500); o.chip = await page.evaluate(() => (document.querySelector("#report .stg") || {}).textContent); o.lab = lab[1]; }
-      expect(o.vis === true && o.back === true && o.moa.v[0] === "사업구역별" && o.moa.v[1] === "사업구역별" && !o.moa.ok && /참고/.test(o.moa.s || "") && o.lab && (o.chip || "").replace(/ · 확인 중$/, "") === o.lab, "web.sheetInView", T, JSON.stringify(o));
+      if (fb) {
+        await fb.click(); await page.waitForTimeout(1500);
+        o.vis = await page.evaluate(() => { const r = document.getElementById("report"), b = r.getBoundingClientRect(), t = document.getElementById("repTitle"); return b.width > 300 && b.height > 300 && !!t && t.getBoundingClientRect().height > 0 && t.getBoundingClientRect().bottom > 0 && t.getBoundingClientRect().top < innerHeight; });
+        await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(1000);
+        o.back = await page.evaluate(() => !!document.querySelector("#favTop.s-on") && !document.getElementById("report").classList.contains("sheet") && getComputedStyle(document.getElementById("favTop")).display !== "none");
+      }
+      if (W === 390) {
+        await page.evaluate(() => { location.hash = "m10"; }); await page.waitForTimeout(1800);
+        o.moa = await page.evaluate(() => { const k = [...document.querySelectorAll("#report .dt-moa .dt-kid")]; return { moa: !!document.querySelector("#report .dt-moa"), big: document.querySelectorAll("#report .dt-k .dt-v").length, rows: k.length, h: k.length ? Math.round(k[0].getBoundingClientRect().height) : 0, ref: /참고/.test((document.querySelector("#report .dt-ref") || {}).textContent || ""), ok: !!document.querySelector("#report .dt-vd.ok"), ip: !!document.querySelector("#report .dt-top .dt-ip"), lab: k.length ? [k[0].dataset.go, k[0].querySelector(".dt-kst").textContent] : null, inView: k.length ? k[0].getBoundingClientRect().bottom < innerHeight : false }; });
+        if (o.moa.lab) { await page.click(`#report .dt-kid[data-go="${o.moa.lab[0]}"]`); await page.waitForTimeout(1500); o.chip = await page.evaluate(() => (document.querySelector("#report .stg") || {}).textContent); }
+      }
+      const ok = o.vis === true && o.back === true && (W !== 390 || (o.moa.moa && o.moa.big === 0 && o.moa.rows > 0 && o.moa.h >= 56 && o.moa.ref && !o.moa.ok && !o.moa.ip && o.moa.inView && (o.chip || "").replace(/ · 확인 중$/, "") === o.moa.lab[1]));
+      expect(ok, "web.sheetInView", T, JSON.stringify(o));
     } catch (e) { bad("runtime", "검사 실행", "web.sheetInView crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- web.loanPill(2라운드 5): '대출 끼고' 가정 알약 = 실제 계산(아파트 시세·빌라 감정가) — '감정가 40%'만 쓰지 않는다(웹·앱 같음)
+  {
+    const T = "'대출 끼고' 가정 알약: '시세·감정가 N% 대출 가정'(아파트는 시세, 빌라는 감정가 — 계산과 같음)";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      await ctx.addInitScript(() => { try { localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+      page.__where = "web.loanPill"; await loadHome(page); await settle(page, 400);
+      await page.click('#sGauge .s-mode button[data-f="cash"]').catch(() => {}); await page.waitForTimeout(600);
+      const t = await page.evaluate(() => { const a = document.getElementById("sAsm"); return a && !a.hidden ? a.textContent : null; });
+      expect(!!t && /시세·감정가 \d+%/.test(t), "web.loanPill", T, String(t));
+    } catch (e) { bad("runtime", "검사 실행", "web.loanPill crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.home: 첫 화면(아이콘 10개 = 있는 화면 · 종 배지 · 배너 3장 실제 글) · 아래 탭 5개 · 뒤로 = 홈
@@ -2731,7 +2751,7 @@ async function tappLane(browser, api, errs) {
       await page.goto(BASE + "/report/2026-10.html", { waitUntil: "load", timeout: 30000 });
       const before = await page.evaluate(() => { const a = document.querySelector('.zp-tabs a[aria-current="page"]'), b = document.querySelector('.zp-tabs a:not([aria-current])'); return a && b ? [getComputedStyle(a).color, getComputedStyle(b).color] : null; });
       const n = await page.evaluate(FORCE_SA);
-      const r = await page.evaluate(() => { const a = document.querySelector('.zp-tabs a[aria-current="page"]'), b = document.querySelector('.zp-tabs a:not([aria-current])'), d = document.querySelector(".zp-tabs .nb-dot"); if (d) d.hidden = false; const ds = d && getComputedStyle(d); return { cur: a && getComputedStyle(a).color, oth: b && getComputedStyle(b).color, dot: ds ? [ds.width, ds.fontSize] : null }; });
+      const r = await page.evaluate(() => { const a = document.querySelector('.zp-tabs a[aria-current="page"]'), b = document.querySelector('.zp-tabs a:not([aria-current])'), d = document.querySelector(".zp-tabs .nb-dot"); if (d) d.hidden = false; const ds = d && getComputedStyle(d); return { cur: a && getComputedStyle(a).color + getComputedStyle(a).fontWeight, oth: b && getComputedStyle(b).color + getComputedStyle(b).fontWeight, dot: ds ? [ds.width, ds.fontSize] : null }; });
       expect(n > 0 && before && before[0] !== before[1] && r.cur === r.oth && r.dot && r.dot[0] === "8px" && r.dot[1] === "0px", "tapp.staticSA", T, `rules ${n} web ${JSON.stringify(before)} app ${JSON.stringify(r)}`);
     } catch (e) { bad("runtime", "검사 실행", "tapp.staticSA crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
@@ -2889,7 +2909,7 @@ async function tappLane(browser, api, errs) {
         return { ys: ["#tVal", "#sSearch", "#sGauge", "#tHome .th-grid", "#tHome .th-car", "#sListW"].map(y), val: v && v.textContent, n: (document.getElementById("sN") || {}).textContent, cash: ((document.getElementById("sCashV") || {}).textContent || "").replace(/\s+/g, ""), tiles: [...document.querySelectorAll("#tHome .th-l")].map((e) => e.textContent).join(","), rail: !!(document.getElementById("sSum") && document.getElementById("sSum").offsetParent), cut: [...document.querySelectorAll("#tHome .th-l")].filter((e) => e.scrollHeight > e.clientHeight + 2).map((e) => e.textContent) };
       });
       const asc = o.ys.every((v, i) => v >= 0 && (i === 0 || v > o.ys[i - 1]));
-      expect(asc && o.val && o.val.includes(o.n + "곳") && o.val.includes(o.cash) && o.tiles === "지도,입주 계산,출퇴근,입주권 나오나,매수 전 규정,순위,모으면 언제,통계,월간 리포트,몇 년 걸리나" && !o.rail && !o.cut.length, "tapp.order", "설치 앱 첫 화면 순서: 가치 한 줄(내 돈·곳 수 = 내 돈 카드) → 검색 → 내 돈 카드 → 아이콘(첫 줄 매일 쓰는 것) → 배너 → 목록 · 가로 카드 3장 없음(목록과 중복) · 아이콘 이름 안 잘림", JSON.stringify(o));
+      expect(asc && o.val && o.val.includes(o.n + "곳") && o.val.includes(o.cash) && o.tiles === "지도,입주 계산,출퇴근,입주권,매수 전 규정,순위,모으면 언제,통계,월간 리포트,몇 년 걸리나" && !o.rail && !o.cut.length, "tapp.order", "설치 앱 첫 화면 순서: 가치 한 줄(내 돈·곳 수 = 내 돈 카드) → 검색 → 내 돈 카드 → 아이콘(첫 줄 매일 쓰는 것) → 배너 → 목록 · 가로 카드 3장 없음(목록과 중복) · 아이콘 이름 안 잘림", JSON.stringify(o));
       // --- tapp.chips(13): '예산 거의 다 씀'은 남는 돈 1,000만 이하만 · 유형 칩 선택 = 남색, 검은 고리 없음
       const ch = await page.evaluate(() => { const L = [...document.querySelectorAll("#sList li.s-card")].map((li) => ({ fit: !!li.querySelector(".s-fit"), left: (li.querySelector(".s-left") || {}).textContent || "" })); const b = document.querySelector('.s-flt button[aria-pressed="true"]'), bs = getComputedStyle(b), be = getComputedStyle(b, "::before"); return { L, bg: bs.backgroundColor, sh: bs.boxShadow, before: be.backgroundColor }; });
       const NAV = await page.evaluate(() => { const c = document.createElement("i"); c.style.color = "#1F3A87"; document.body.appendChild(c); const v = getComputedStyle(c).color; c.remove(); return v; });
@@ -2946,27 +2966,34 @@ async function tappLane(browser, api, errs) {
       expect(okAll, "tapp.sheets", T, JSON.stringify(out));
       // --- tapp.moa(5·22): 모아타운 시트 = 관리지역 평균은 참고값만(큰 숫자 '사업구역별' · '가능' 판정 없음) · 검색 줄도 '사업구역별'
       await page.evaluate(() => { location.hash = "m10"; }); await page.waitForTimeout(1500);
-      const m = await page.evaluate(() => ({ v: [...document.querySelectorAll("#report .dt-k .dt-v")].map((x) => x.textContent), vd: !!document.querySelector("#report .dt-k .dt-vd.ok"), s: (document.querySelector("#report .dt-k .dt-s") || {}).textContent }));
-      expect(m.v[0] === "사업구역별" && m.v[1] === "사업구역별" && !m.vd && /참고/.test(m.s || ""), "tapp.moa", "설치 앱 모아타운 관리지역: 지금·입주까지 큰 숫자 = '사업구역별'(평균은 '참고값' 한 줄) · '내 돈으로 가능해요' 없음 — 곳 수(모아타운 제외)·검색과 한 규칙", JSON.stringify(m));
+      const m = await page.evaluate(() => ({ moa: !!document.querySelector("#report .dt-moa"), big: document.querySelectorAll("#report .dt-k .dt-v").length, rows: document.querySelectorAll("#report .dt-moa .dt-kid").length, vd: !!document.querySelector("#report .dt-vd.ok"), ip: !!document.querySelector("#report .dt-top .dt-ip"), ref: (document.querySelector("#report .dt-ref") || {}).textContent }));
+      expect(m.moa && !m.big && m.rows > 0 && !m.vd && !m.ip && /참고/.test(m.ref || ""), "tapp.moa", "설치 앱 모아타운 관리지역: 큰 숫자 없이 안내 한 줄 + 사업구역 목록 + 참고값 한 줄 · '가능해요'·입주권 판정 없음 — 곳 수(모아타운 제외)·검색('사업구역별')과 한 규칙", JSON.stringify(m));
     } catch (e) { bad("runtime", "검사 실행", "tapp.sheets crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.appbar(9·10·11·17): 아이콘 화면 = 56px 앱바(← 44×44 · 제목 17px · 남색 막대 없음 · 테두리 카드 없음) · 웹 바닥글 숨김 · MY 정부 무관 고지 · MY 제목 28px · 알림 경로 '(또는 앱)'
   {
-    const T = "설치 앱 아이콘 화면 앱바(← 44×44 · 제목 17px · 남색 막대·테두리 카드 없음) · 홈·관심 웹 바닥글 없음 · MY: 정부 무관 고지 · 제목 28px";
+    const T = "설치 앱 아이콘 화면: 로고 머리 숨김 · 맨 위 56px 앱바(top 0 · 스크롤해도 · ← 44×44 · 제목 17px) · 남색 막대·테두리 카드 없음 · '모으면 언제' 따로 주소(#saveTop)·그 칸 맨 위 · 화면·MY 이름 '입주권 나오나' · 웹 바닥글 없음 · MY 정부 무관 고지 · 제목 28px";
     const { ctx, page } = await appPage(mob(390, 844));
     try {
       await appHome(page);
       const foot = await page.evaluate(() => { const f = document.querySelector(".site-foot"); return !!(f && f.getClientRects().length); });
       const res = [];
-      for (const k of ["commute", "stats", "rank", "diag", "rules", "calc"]) {
+      for (const k of ["commute", "stats", "rank", "diag", "rules", "calc", "save"]) {
         await page.click(`#tHome .th-grid a[data-tile="${k}"]`); await page.waitForTimeout(900);
-        res.push(await page.evaluate((k) => { const b0 = document.querySelector(".s-on > .s-back"), s = b0 && b0.parentElement, b = b0, h = s && s.querySelector(":scope > .sec-h h2, :scope > .pl-in > .pl-t"); if (!b || !h) return k + ":없음"; const br = b.getBoundingClientRect(), hc = getComputedStyle(h), pb = getComputedStyle(h, "::before"), pn = s.querySelector(".panel"); return [k, Math.round(br.width) === 44 && Math.round(br.height) === 44 && parseFloat(getComputedStyle(b).fontSize) === 0, hc.fontSize === "17px", pb.display === "none" || pb.content === "none", !pn || getComputedStyle(pn).borderTopWidth === "0px"].join("/"); }, k));
+        await page.evaluate(() => window.scrollTo(0, 600)); await page.waitForTimeout(150);
+        res.push(await page.evaluate((k) => { const bar = document.getElementById("tBar"), bk = bar && bar.querySelector(".t-bk"), t = document.getElementById("tBarT"), hd = document.getElementById("hdr"); if (!bar || !bk) return k + ":없음"; const br = bar.getBoundingClientRect(), kr = bk.getBoundingClientRect(), s = (document.querySelector(".s-on > .s-back") || {}).parentElement, h = s && s.querySelector(":scope > .sec-h h2, :scope > .pl-in > .pl-t"), pb = h ? getComputedStyle(h, "::before") : null, pn = s && s.querySelector(".panel"); return [k, Math.round(br.top) === 0 && Math.round(br.height) === 56 && Math.round(kr.width) === 44 && Math.round(kr.height) === 44 && getComputedStyle(t).fontSize === "17px" && !!t.textContent.trim(), getComputedStyle(hd).display === "none", !pb || pb.display === "none" || pb.content === "none", !pn || getComputedStyle(pn).borderTopWidth === "0px"].join("/") + ":" + t.textContent; }, k));
         await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(600);
       }
       await page.click('#sNav [data-nav="my"]'); await page.waitForTimeout(1000);
       const my = await page.evaluate(() => ({ gov: ((document.getElementById("tGov") || {}).textContent || "").includes("정부"), h: getComputedStyle(document.querySelector("#my > .sec-h h2")).fontSize }));
-      expect(!foot && res.every((x) => /true\/true\/true\/true$/.test(x)) && my.gov && my.h === "28px", "tapp.appbar", T, JSON.stringify({ foot, res, my }));
+      // 모으면 언제: 따로 주소(#saveTop) · 그 칸 맨 위에서 시작
+      await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(900);
+      await page.click('#tHome .th-grid a[data-tile="save"]'); await page.waitForTimeout(1200);
+      const sv = await page.evaluate(() => ({ h: location.hash, top: Math.round(document.getElementById("saveTop").getBoundingClientRect().top), t: (document.getElementById("tBarT") || {}).textContent }));
+      await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(600);
+      const dg = await page.evaluate(() => ((document.querySelector('#my a[data-menu="diagTop"] b') || {}).textContent || ""));
+      expect(!foot && res.every((x) => /true\/true\/true\/true:/.test(x)) && res.some((x) => /:입주권 나오나$/.test(x)) && res.some((x) => /:모으면 언제$/.test(x)) && sv.h === "#saveTop" && sv.top >= 56 && sv.top <= 90 && sv.t === "모으면 언제" && dg === "입주권 나오나" && my.gov && my.h === "28px", "tapp.appbar", T, JSON.stringify({ foot, res, sv, dg, my }));
     } catch (e) { bad("runtime", "검사 실행", "tapp.appbar crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
@@ -2985,6 +3012,65 @@ async function tappLane(browser, api, errs) {
       const t = await page.evaluate(() => { const x = document.getElementById("pnToast"); return !!(x && x.classList.contains("on")); });
       expect(a.ol === "none" && a.dot === "rgb(31, 58, 135)" && /gradient/.test(m || "") && !t, "tapp.onbPolish", T, JSON.stringify({ a, m, toast: t }));
     } catch (e) { bad("runtime", "검사 실행", "tapp.onbPolish crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // ================= 2라운드 레드팀 수정이 되돌아가지 않게 =================
+  for (const W of [360, 390]) {
+    const { ctx, page } = await appPage(mob(W, 800));
+    try {
+      await appHome(page);
+      // tapp.tileLabel(7): 타일 이름 한 줄(넘침 없음) · 이름 사이 간격 ≥ 8px · 두 줄 행 높이 같음
+      const tl = await page.evaluate(() => { const L = [...document.querySelectorAll("#tHome .th-l")], T = [...document.querySelectorAll("#tHome .th-t")]; const r = L.map((e) => e.getBoundingClientRect()); const gaps = []; for (let i = 0; i < r.length; i++) if (i % 5 !== 4) gaps.push(Math.round(r[i + 1].left - r[i].right)); return { over: L.filter((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().height > 22).map((e) => e.textContent), gap: Math.min(...gaps), h: [...new Set(T.map((t) => Math.round(t.getBoundingClientRect().height)))] }; });
+      expect(!tl.over.length && tl.gap >= 8 && tl.h.length === 1, "tapp.tileLabel", "설치 앱 타일 이름 한 줄 · 이름 사이 8px 이상 · 두 줄 행 높이 같음(360·390)", `${W}: ${JSON.stringify(tl)}`);
+      if (W !== 390) continue;
+      // tapp.mapCtl(2·3·4): 지도 ⓘ 그림 한 번(반복 없음)·40×40·확대 버튼과 8px · 레이어 칩 ::before 없음·36px·6개 이름표·마지막 칩까지 스크롤 · 범례 ↔ 목록 보기 ↔ +N곳 겹치지 않음
+      await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1500);
+      const mc = await page.evaluate(() => {
+        const R = (e) => e && e.getBoundingClientRect(), ab = document.querySelector("#mapbox .maplibregl-ctrl-attrib-button"), as = ab && getComputedStyle(ab), zm = document.querySelector("#mapbox .lm-zoom"), ar = R(ab), zr = R(zm);
+        const ch = [...document.querySelectorAll("#mapbox .s-rail > button")], w = document.querySelector("#mapbox .s-rail-w");
+        const key = R(document.querySelector("#mapbox .lm-key")), fx = R(document.getElementById("sFullX")), gm = R(document.querySelector("#mapbox .lm-gumore-b"));
+        const ov = (a, b) => a && b && a.width && b.width && !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
+        w.scrollLeft = 9999; const last = R(ch[ch.length - 1]); w.scrollLeft = 0;
+        return { rep: as && as.backgroundRepeat, aw: ar && [Math.round(ar.width), Math.round(ar.height)], zgap: zr && zr.height && ar ? Math.round(ar.top - zr.bottom) : 99, before: ch.filter((b) => { const c = getComputedStyle(b, "::before").content; return c && c !== "none" && c !== "normal"; }).length, hs: [...new Set(ch.map((b) => Math.round(R(b).height)))], labels: ch.map((b) => b.textContent.trim()).filter(Boolean).length, lastIn: last.right <= innerWidth, keyFx: ov(key, fx), gmKey: ov(gm, key) };
+      });
+      expect(mc.rep === "no-repeat" && mc.aw && mc.aw[0] === 40 && mc.aw[1] === 40 && mc.zgap >= 8 && mc.before === 0 && mc.hs.length === 1 && mc.hs[0] === 36 && mc.labels === 6 && mc.lastIn && !mc.keyFx && !mc.gmKey, "tapp.mapCtl", "설치 앱 지도 탭: ⓘ 한 번(no-repeat)·40×40·확대 버튼과 8px 이상 · 레이어 칩 겹선(::before) 없음·36px·이름표 6개·마지막 칩까지 스크롤 · 범례·목록 보기·+N곳 안 겹침", JSON.stringify(mc));
+      // tapp.mapList(13): 지도 탭 '목록 보기' = 아래 탭 '지도' 그대로 · 목록에서 연 구역을 닫으면 목록(지도 탭)
+      await page.click("#sFullX"); await page.waitForTimeout(900);
+      const l1 = await page.evaluate(() => ({ cur: (document.querySelector('#sNav [aria-current="page"]') || {}).dataset?.nav, full: document.documentElement.classList.contains("s-full") }));
+      const row = await page.$("#sList a[data-id], #sList [data-id]");
+      if (row) { await row.click(); await page.waitForTimeout(1300); await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(900); }
+      const l2 = await page.evaluate(() => ({ cur: (document.querySelector('#sNav [aria-current="page"]') || {}).dataset?.nav, sheet: document.getElementById("report").classList.contains("sheet"), list: !!document.getElementById("sList").offsetParent }));
+      expect(l1.cur === "map" && !l1.full && l2.cur === "map" && !l2.sheet && l2.list, "tapp.mapList", "설치 앱 지도 탭 '목록 보기': 아래 탭 '지도' 그대로 · 목록에서 연 구역을 닫으면 목록", JSON.stringify({ l1, l2 }));
+      // tapp.feedR2(9·8): 신고가만 노란 태그 그림 · 그냥 실거래는 회색 태그 · 날짜 머리 '신고·등록분' · 실거래 줄 '등록 · 계약' · 겹친 구역 같은 거래 한 줄('외 N곳') · 선택 칩 = 남색
+      await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(1300);
+      const fd = await page.evaluate(() => {
+        const rows = [...document.querySelectorAll("#tFeed .tf-it")];
+        const ic = (r) => (r.querySelector(".tf-ic svg [id]") || {}).id || "";
+        const tr = rows.filter((r) => /실거래/.test((r.querySelector(".tf-tg") || {}).textContent || "")), hi = rows.filter((r) => /신고가/.test((r.querySelector(".tf-tg") || {}).textContent || ""));
+        const sel = document.querySelector("#tFeed [data-ft][aria-pressed=true]");
+        const keys = rows.map((r) => (r.querySelector(".tf-tx small") || {}).textContent + "|" + (r.querySelector(".tf-g") || {}).textContent + "|" + r.closest("ul").previousElementSibling.textContent);
+        return { trPlain: tr.slice(0, 5).every((r) => /deal_plain/.test(ic(r))), hiYel: hi.slice(0, 5).every((r) => /deal_price/.test(ic(r))), nTr: tr.length, nHi: hi.length, dh: (document.querySelector("#tFeed .tf-dh") || {}).textContent, reg: tr.slice(0, 5).every((r) => /등록 · \d+월 \d+일 계약/.test(r.textContent)), dup: keys.length - new Set(keys).size, sel: sel && getComputedStyle(sel).backgroundColor };
+      });
+      expect(fd.nTr > 0 && fd.trPlain && (!fd.nHi || fd.hiYel) && /신고·등록분$/.test(fd.dh || "") && fd.reg && fd.dup === 0 && fd.sel === "rgb(31, 58, 135)", "tapp.feedR2", "설치 앱 소식: 실거래 = 회색 태그(↑ 없음) · 신고가만 노란 태그 ↑ · 날짜 머리 'M.D (요일) 신고·등록분' · 실거래 줄 'M.D 등록 · M월 D일 계약' · 같은 거래 겹친 구역 한 줄 · 선택 칩 남색", JSON.stringify(fd));
+      // tapp.myDeny(1): 알림이 막혀 있으면 종류 스위치 aria-disabled + 꺼짐 모양(회색 트랙) · 흐리게(opacity) 안 함 · 안내 한 줄 · axe 대비 위반 없음
+      await page.click('#sNav [data-nav="my"]'); await page.waitForTimeout(900);
+      await page.evaluate(() => { const ib = window.ZP_T0.inbox(), st = ib.st.bind(ib); ib.st = () => Object.assign({}, st(), { perm: "denied" }); window.dispatchEvent(new Event("zp:alerts")); });
+      await page.waitForTimeout(500);
+      const md = await page.evaluate(() => { const B = [...document.querySelectorAll("#myKinds [data-kind]")]; return { n: B.length, dis: B.every((b) => b.getAttribute("aria-disabled") === "true"), op: B.map((b) => getComputedStyle(b).opacity + getComputedStyle(b.closest("li")).opacity).filter((x) => x !== "11").length, tg: B.length ? getComputedStyle(B[0].querySelector(".my-tg")).backgroundColor : "", lab: B.length ? getComputedStyle(B[0].querySelector("b")).color : "", c: (document.getElementById("myKindsC") || {}).textContent }; });
+      expect(md.n > 0 && md.dis && !md.op && md.tg === "rgb(209, 214, 219)" && md.lab === "rgb(139, 149, 161)" && /^알림이 막혀 있어요 · 폰 설정/.test(md.c || ""), "tapp.myDeny", "설치 앱 MY 알림이 막혔을 때: 종류 스위치 aria-disabled · 꺼짐 모양(회색 트랙 #D1D6DB) · 라벨 #8B95A1 · opacity 없음 · 안내 한 줄", JSON.stringify(md));
+    } catch (e) { bad("runtime", "검사 실행", "tapp.r2 crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // tapp.onbToast(12): 처음 안내 2장에서 담아도 토스트가 안내를 가리지 않음
+  {
+    const { ctx, page } = await appPage(mob(390, 844), true);
+    try {
+      await appHome(page); await page.waitForTimeout(300);
+      await page.click("#tOnb [data-onext]"); await page.waitForTimeout(300);
+      const fb = await page.$("#tOnb [data-fav]"); if (fb) { await fb.click(); await page.waitForTimeout(400); }
+      const t = await page.evaluate(() => { const x = document.getElementById("pnToast"); return !!(x && x.getClientRects().length && getComputedStyle(x).display !== "none" && x.classList.contains("on")); });
+      expect(!!fb && !t, "tapp.onbToast", "설치 앱 처음 안내 2장: 담기를 눌러도 '관심 구역에 추가했어요' 토스트가 뜨지 않음(단추 '담았어요'로 충분)", `fav ${!!fb} toast ${t}`);
+    } catch (e) { bad("runtime", "검사 실행", "tapp.onbToast crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.files(19·20): SW 미리 저장에서 앱 묶음(/b/t.*) 빼기 · assetlinks.json(JSON · TODO 없음 · 패키지 이름 · SHA-256 지문)

@@ -1414,7 +1414,8 @@
               if (!busy && now - lastG < 450) { if (!heldG) { heldG = true; setTimeout(() => { heldG = false; if (map) map.triggerRepaint(); }, 450 - (now - lastG)); } return this; }
               lastG = now;
             }
-            return r0.call(this, t);
+            // 2라운드: 레이어를 나눠 붙이는 중 글자 자리 잡기가 끊기면 maplibre가 placement에서 던진다(TypeError … 'get') — 그 프레임만 건너뛰고 다음 프레임에 다시
+            try { return r0.call(this, t); } catch (er) { if (er instanceof TypeError && /continuePlacement|Placement|reading 'get'/.test(String(er.stack || er.message))) { setTimeout(() => { if (map) map.triggerRepaint(); }, 60); return this; } throw er; }
           };
         }
       } catch (e) {}
