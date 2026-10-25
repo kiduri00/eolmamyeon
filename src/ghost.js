@@ -104,7 +104,10 @@
     var ANG = [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return (k * Math.PI) / 4 + Math.PI / 2; });
     // 폰: 맨 아래 20px 띠에는 묶음을 두지 않는다(범례·ⓘ는 따로 피함 · 20차)
     var bot = phone ? 20 : 2;
-    var GAP = 4, MAXOFF = 48;
+    var GAP = 4, MAXOFF = 130, MK = 2.5;
+    // 30차: 비킨 자리가 다른 구 중심에 더 가까우면(그 구 땅 위로 넘어가면) 쓰지 않는다 — 360에서 서대문 묶음이 동대문 남쪽에 서던 것
+    var ANC = o.gus.map(function (g) { return { n: g.n, q: o.proj(g.ll) }; });
+    var mine = function (g, x, y) { var d0 = Math.hypot(x - g.q0.x, y - g.q0.y); return ANC.every(function (a) { return a.n === g.n || d0 <= Math.hypot(x - a.q.x, y - a.q.y) * MK + 10; }); };
     var boxOf = function (g) { var x = g.q.x + g.dx, y = g.q.y + g.dy; return [x - g.w / 2, y - g.h / 2, x + g.w / 2, y + g.h / 2]; };
     // pre = 이미 자리 잡은 묶음(그대로 둔다) · only = 이번에 자리 잡을 구 이름(없으면 전부)
     var run = function (extra, pre, only) {
@@ -121,13 +124,13 @@
         for (var s = 0; s < (phone || w < 380 ? 3 : 2) && !got; s++) {
           // 21차: 둥근 네모 두 줄('강북 1곳' / '7,400만~') — 폭 = 글자 폭 + 여백, 높이 40(누르는 자리 · 작게 줄인 것은 보이는 30 + 투명 둘레로 40)
           // 27차: 셋째 단계도 금액 줄('6,700만~')을 지운 한 줄이 아니라 더 작은 두 줄(xs · 보이는 높이 26) — 높은 금액에서 구 묶음 금액 줄이 빠지던 것
-          var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = Math.ceil((xs ? Math.max(tw(l1, 11), tw(L2, 11)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 11)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 10.5)) + 18) * 1.04), bh = xs ? (L2 ? 28 : 20) : sm ? (L2 ? 32 : 22) : 40, d = Math.max(bw, bh);
+          var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = Math.ceil((xs ? Math.max(tw(l1, 11), tw(L2, 11)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 11)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 11)) + 18) * 1.04), bh = xs ? (L2 ? 28 : 20) : sm ? (L2 ? 32 : 22) : 40, d = Math.max(bw, bh);
           var RR = (sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05]).filter(function (r) { return !phone || r <= MAXOFF; });   // 30차: 폰은 제 구 중심에서 MAXOFF px 안에서만 비킨다(못 비키면 '+N곳' 칩으로) — 360에서 서대문이 동대문 남쪽에 서던 것
           for (var i = 0; i < RR.length && !got; i++) {
             var A = RR[i] ? ANG : [0];
             for (var j = 0; j < A.length; j++) {
               var x = q.x + RR[i] * Math.cos(A[j]), y = q.y + RR[i] * Math.sin(A[j]) * (bh / d), bx = [x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2];
-              if (free(bx, sm ? (40 - bh) / 2 : 0)) { got = { bx: bx, w: bw, h: bh, sm: sm, xs: xs, one: one, dx: x - q.x, dy: y - q.y }; break; }
+              if (free(bx, sm ? (40 - bh) / 2 : 0) && (!phone || !RR[i] || mine({ n: g.n, q0: q }, x, y))) { got = { bx: bx, w: bw, h: bh, sm: sm, xs: xs, one: one, dx: x - q.x, dy: y - q.y }; break; }
             }
           }
         }

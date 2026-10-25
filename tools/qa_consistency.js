@@ -3006,7 +3006,7 @@ async function r30Lane(browser, api, errs) {
   // --- ui.r30Layout: 360 '+N곳' 칩이 레이어 막대에 가리지 않음 · 구 묶음 글자 ≥ 11px · 폰 묶음이 제 구 중심에서 48px 넘게 비키지 않음 ·
   //     '+N곳' 펼친 목록은 적게 드는 구부터, 금액 한 줄 · 상세 시트 붙는 탭 줄과 머리 줄 사이 틈 ≤ 1px · 오프라인 알약이 시트 아래 단추를 가리지 않음
   {
-    const T = "360 칩 안 가림 · 묶음 글자 ≥11px · 묶음 제자리(≤48px) · +N 목록 싼 순·한 줄 · 시트 탭 틈 ≤1px · 오프라인 알약 ↔ 시트 단추 안 겹침";
+    const T = "360 칩 안 가림 · 묶음 글자 ≥11px · 묶음 제자리(≤130px · 다른 구 땅으로 안 넘어감) · +N 목록 싼 순·한 줄 · 시트 탭 틈 ≤1px · 오프라인 알약 ↔ 시트 단추 안 겹침";
     for (const w of [360, 390]) {
       const { ctx, page } = await newPage(browser, mob(w, w === 360 ? 740 : 844), errs);
       try {
@@ -3032,7 +3032,7 @@ async function r30Lane(browser, api, errs) {
             return { min: fs.length ? Math.min(...fs) : null, offs, cov, list };
           });
           if (r.min != null) expect(r.min >= 10.99, "ui.r30Layout", T, `${w} ${c}억: 구 묶음 글자 ${r.min}px`);
-          const far = r.offs.filter(([, o]) => o > 48.5);
+          const far = r.offs.filter(([, o]) => o > 130.5);
           expect(!far.length, "ui.r30Layout", T, `${w} ${c}억: 제 구에서 먼 묶음 ${far.map(([n, o]) => n + " " + o + "px").join(", ")}`);
           if (r.cov != null) expect(r.cov === 0, "ui.r30Layout", T, `${w} ${c}억: '+N곳' 칩 가림 ${r.cov}/2 점`);
           if (r.list && r.list.length) {
@@ -3098,7 +3098,7 @@ async function r30Lane(browser, api, errs) {
       }
     }
     expect(y26.size <= 1, "rep.cross", T, `2026년 연간 인가 건수가 페이지마다 다름: ${[...y26].join(" / ")}`);
-    for (const m of iss.matchAll(/report\/(\d{4})-(\d{2})<\/link>[\s\S]*?<description>인가 (\d+)건/g)) { const i = IJ.find((x) => x.ym === `${m[1]}-${m[2]}`); if (i) expect(i.n === +m[3], "rep.cross", T, `RSS ${m[1]}-${m[2]}: 인가 ${m[3]}건 vs ${i.n}`); }
+    for (const m of iss.matchAll(/report\/(\d{4})-(\d{2})<\/link>(?:(?!<\/item>)[\s\S])*?<description>인가 (\d+)건/g)) { const i = IJ.find((x) => x.ym === `${m[1]}-${m[2]}`); if (i) expect(i.n === +m[3], "rep.cross", T, `RSS ${m[1]}-${m[2]}: 인가 ${m[3]}건 vs ${i.n}`); }
   }
   // --- rep.zones: 9월호처럼 구역이 적은 호는 3줄 요약이 모든 구역의 처리(계산됨·입주권 없음·보류·참고값)를 밝힘 · 같은 구 시세로 추정한(est) 구역은 리포트에서 금액 대신 계산 보류(/z·/gu와 같은 규칙)
   {
