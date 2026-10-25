@@ -491,3 +491,7 @@
   :root:not([data-theme="light"]).is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is(button,[role="tab"]){color:#B0B8C1!important}
   :root:not([data-theme="light"]).is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is([aria-pressed="true"],[aria-checked="true"],[aria-selected="true"]){background:#2C313A!important;color:#E5E8EB!important}
 }
+/* 13 시트 작은 글자 12px(앱): 타임라인 이름표(지금·매수 …) · 판정 꼬리표 · 표 머리 · 보조 글(차트 그림 안 글자는 제외) */
+@media (max-width:980px){html.is-tapp #report :is(.gt-w,.vd-t,dt,th,small,.if-t,.hjb,.dim,.ov-chn,.auc-k,.auc-f,.auc-s,.ev-s,.s-sp i){font-size:12px!important}}
+/* 13 목록: 꼬리표(NEW·입주권 ✕)가 있는 줄은 역 이름을 빼고 '역 12분'만(이름이 '강…'으로 잘리던 것) */
+@media (max-width:980px){html.is-tapp #sList li:has(.s-b-new,.s-b-no) .s-wn{display:none!important}}
