@@ -3180,6 +3180,175 @@ async function r30Lane(browser, api, errs) {
     expect(!/3~5건 미만/.test(me) && /3~4건/.test(me) && /자료 부족/.test(me), "gu.r30", T, "/method 참고값 규칙이 모호함(3~5건 미만) 또는 /gu '자료 부족' 처리를 밝히지 않음");
   }
 }
+// ================================================================ 31차(7차 레드팀 · 마지막 고침): 접근 이름 · Esc 초점 · 바꿔 보기 칸 · 정적 글 숫자 한 기준 · 작은 링크
+async function r31Lane(browser, api, errs) {
+  const mob = (w, h, cs) => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs || "light" });
+  const goZone = async (page, id, cash, mode) => {
+    page.__where = `r31 #${id} ${mode} ${cash}`;
+    await page.goto(`${BASE}/?cash=${cash}&mode=${mode}&qac=${++LOADS}#${id}`, { waitUntil: "load", timeout: 30000 });
+    await page.waitForFunction(() => !!document.querySelector("#report .dt-k"), null, { timeout: 20000 }).catch(() => {});
+    await page.waitForTimeout(900);
+  };
+  // --- a11y.r31: 토허 구역 상세(밝게·어둡게) — 보이는 단추마다 접근 이름 · '전세 끼고 ✕' 칩은 이유까지 읽힘 · axe 심각(critical) 0(axe-core 있을 때)
+  {
+    const T = "토허 구역 상세(밝게·어둡게): 모든 단추에 접근 이름 · '전세 끼고' 불가 칩 이름·글에 이유 · axe critical 0 — 7차: .ov-p.dt-gap button-name(451곳)";
+    let AXE = null; try { const ap = process.env.AXE_PATH || require.resolve("axe-core/axe.min.js"); AXE = fs.readFileSync(ap, "utf8"); } catch (e) {}
+    const z = api.zones.find((x) => /토지거래허가/.test(x.need.gap.blocked || "") && x.need.cash.now != null);
+    if (!z) skip("a11y.r31", T, "토허 구역 없음");
+    else for (const cs of ["light", "dark"]) {
+      const { ctx, page } = await newPage(browser, mob(390, 844, cs), errs);
+      try {
+        await goZone(page, z.id, 2, "jeonse");
+        const r = await page.evaluate(() => {
+          const nm = (b) => (b.getAttribute("aria-label") || (b.getAttribute("aria-labelledby") || "").split(/\s+/).map((i) => (document.getElementById(i) || {}).textContent || "").join(" ") || b.innerText || b.getAttribute("title") || "").trim();
+          const bs = [...document.querySelectorAll("#report button, #report [role=button]")].filter((b) => b.getClientRects().length && getComputedStyle(b).visibility !== "hidden");
+          const g = document.querySelector("#report .dt-gap");
+          return { none: bs.filter((b) => !nm(b)).map((b) => b.className || b.tagName).slice(0, 5), n: bs.length, gap: g ? { lab: g.getAttribute("aria-label") || "", txt: g.innerText.replace(/\s+/g, " ").trim() } : null };
+        });
+        expect(r.n > 3 && !r.none.length, "a11y.r31", T, `${cs} #${z.id}: 이름 없는 단추 ${r.none.join(", ")}`);
+        expect(!!r.gap && /전세 끼고/.test(r.gap.lab) && /불가/.test(r.gap.lab) && /불가/.test(r.gap.txt), "a11y.r31", T, `${cs} #${z.id}: 전세 끼고 칩 ${JSON.stringify(r.gap)}`);
+        if (AXE) {
+          await page.addScriptTag({ content: AXE });
+          const v = await page.evaluate(async () => { const r = await window.axe.run(document, { resultTypes: ["violations"] }); return r.violations.filter((x) => x.impact === "critical").map((x) => x.id + " " + x.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(";")); });
+          expect(!v.length, "a11y.r31", T, `${cs} #${z.id}: axe critical ${v.join(" | ")}`);
+        } else wrn("a11y.r31", T, "axe-core 없음(AXE_PATH) — 접근 이름만 셈");
+      } catch (e) { bad("a11y.r31", T, `${cs} crashed: ` + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+  }
+  // --- desk.escFocus: PC 목록 줄을 눌러 연 상세를 Esc로 닫으면 그 줄로 초점이 돌아감
+  {
+    const T = "PC: 목록 줄로 연 상세를 Esc로 닫으면 초점이 그 줄(a.s-cm)로 — 7차: 첫 줄로 가던 것";
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: "block" });
+    try {
+      await ctx.route(BLOCK, (r) => r.abort());
+      const page = await ctx.newPage(); page.__where = "r31 desk esc";
+      await loadHome(page); await settle(page, 500);
+      const a = page.locator("#sList a.s-cm").nth(3); const id = await a.getAttribute("data-id");
+      await a.click(); await page.waitForTimeout(1200);
+      await page.keyboard.press("Escape"); await page.waitForTimeout(700);
+      const f = await page.evaluate(() => { const e = document.activeElement; return e ? (e.dataset.id || e.tagName + "." + e.className) : ""; });
+      expect(f === id, "desk.escFocus", T, `연 줄 ${id} · Esc 뒤 초점 ${f}`);
+    } catch (e) { bad("desk.escFocus", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- zone.inputsExact: '숫자 바꿔 보기' 칸에는 계산에 쓴 값 그대로(1.93 · 올린 '2' 아님) · 손대지 않은 칸을 다시 넣어도 계산식이 그대로
+  {
+    const T = "'숫자 바꿔 보기' 칸 = 계산에 쓴 만 원까지 값(합계 칸 매수가와 같음) · 그대로 다시 넣으면 결과 그대로 — 7차: 매수가 '2' vs 1억 9,300만";
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      for (const id of ["o337", "o916"].filter((i) => api.zones.some((z) => z.id === i))) {
+        await goZone(page, id, 2, "loan");
+        const r = await page.evaluate(async () => {
+          const P = document.getElementById("pane"), i = document.getElementById("mPrice"), nv = document.getElementById("mNv"), tot = P.querySelector(".fx-tot dd small"), fl = () => (P.querySelector("details.flow p") || {}).textContent || "";
+          if (!i || !tot) return null;
+          const before = fl(); const nv0 = nv ? nv.value : "";
+          if (nv) { nv.value = nv0; nv.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 500)); }
+          return { v: i.value, tot: tot.textContent, same: fl() === before, nv0 };
+        });
+        if (!r) { wrn("zone.inputsExact", T, `${id}: 칸 없음`); continue; }
+        const m = /매수가 ((?:\d[\d,]*억)?\s*(?:[\d,]+만)?)/.exec(r.tot);
+        expect(m && money(m[1]) && Math.abs(parseFloat(r.v) - money(m[1]).v) < 1e-6 && r.same, "zone.inputsExact", T, `${id}: 칸 '${r.v}' vs 합계 칸 '${m && m[1]}' · 입주 때 시세 '${r.nv0}' 다시 넣은 뒤 계산식 그대로 ${r.same}`);
+      }
+    } catch (e) { bad("zone.inputsExact", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await ctx.close().catch(() => {}); }
+  }
+  // --- ui.r31Targets: 정적 페이지 작은 링크 — /gu RSS · 리포트 카드 링크 · 표 '원문' · 가이드 '함께 보면 좋은 질문' · /faq · 푸터 ≥ 40px
+  {
+    const T = "정적 페이지 누름 자리 ≥ 40px: /gu RSS · 리포트 카드 '구역 페이지·내 돈으로 계산' · 표 '원문' 폭 · 가이드 함께 읽기 · /faq 링크 · 푸터 — 7차";
+    const s = await newPage(browser, mob(390, 844), errs);
+    try {
+      const L = [["/gu/구로구", 'p.meta a[href*="feed/"]'], ["/report/2026-09", ".zc-a a, main table td > a"], ["/guide/status", "main h2 + ul > li > a"], ["/faq", ".fq-more a, .fq-a a"], ["/about", "footer.f p:first-child a"]];
+      for (const [u, sel] of L) {
+        const r0 = await getPage(u); const url = r0.url && /\.html$/.test(r0.url) ? r0.url : BASE + encodeURI(u) + (/\/$/.test(u) ? "" : ".html");
+        await s.page.goto(url, { waitUntil: "load" });
+        if (/^\/faq/.test(u)) await s.page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
+        const sm = await s.page.evaluate((sel) => [...document.querySelectorAll(sel)].filter((a) => a.getClientRects().length).map((a) => { const b = a.getBoundingClientRect(); return [a.textContent.trim().slice(0, 12), Math.round(b.width), Math.round(b.height)]; }), sel);
+        const bad2 = sm.filter(([, w, h]) => w < 40 || h < 39.5);
+        expect(sm.length && !bad2.length, "ui.r31Targets", T, `${u} ${sel}: ${sm.length}개 중 작은 것 ${JSON.stringify(bad2.slice(0, 4))}`);
+      }
+    } catch (e) { bad("ui.r31Targets", T, "crashed: " + String(e.message || e).split("\n")[0]); }
+    finally { await s.ctx.close().catch(() => {}); }
+  }
+}
+async function r31Static(api) {
+  let IJ = []; try { IJ = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "pipeline", "report", "issues.json"), "utf8")); } catch (e) {}
+  const pubs = IJ.filter((i) => !i.draft).sort((a, b) => b.ym.localeCompare(a.ym));
+  // --- home.r31: 홈 가이드 카드 곳 수 한 기준(9.26 · 953 + 모아타운 131 = 1,084) · 읽을거리·/about에 최신 호
+  {
+    const T = "홈 가이드 카드: 진행 중 곳 수 한 기준(9.26)·1,084 = 진행 중 + 모아타운 · 홈 읽을거리와 /about '지금까지 낸 리포트'에 최신 호 — 7차: 956+131≠1,084 · 3호가 최신";
+    const h = (await getPage("/")).text || "";
+    const q = (/<ul class="rd-q">([\s\S]*?)<\/ul>/.exec(h) || [])[1] || "";
+    const ns = [...q.matchAll(/진행 중인?(?: 정비사업)? ([\d,]+)곳/g)].map((m) => +m[1].replace(/,/g, ""));
+    const tot = /([\d,]+)곳\(9\.26 기준 진행 중인 ([\d,]+)곳 \+ 모아타운 ([\d,]+)곳\)/.exec(q);
+    expect(ns.length >= 2 && new Set(ns).size === 1 && tot && +tot[1].replace(/,/g, "") === +tot[2].replace(/,/g, "") + +tot[3].replace(/,/g, "") && +tot[2].replace(/,/g, "") === ns[0] && /9\.26 기준/.test(q), "home.r31", T, `가이드 카드 진행 중 ${ns.join("/")} · ${tot ? tot[0] : "1,084 문장 없음"}`);
+    if (pubs.length) {
+      const ym = pubs[0].ym;
+      expect(new RegExp(`<article class="rd-card"><span class="rd-k">월간 리포트 ${pubs[0].no}호[^<]*</span><h3><a href="report/${ym}"`).test(h), "home.r31", T, `홈 읽을거리 리포트 카드가 최신 ${ym}(${pubs[0].no}호)가 아님`);
+      const ab = (await getPage("/about")).text || "";
+      const li = (/<h2>지금까지 낸 리포트<\/h2>\s*<ul>([\s\S]*?)<\/ul>/.exec(ab) || [])[1] || "";
+      expect(pubs.every((i) => li.includes(`report/${i.ym}"`)) && li.indexOf(`report/${ym}"`) === li.indexOf("report/"), "home.r31", T, `/about 리포트 목록에 ${pubs.map((i) => i.ym).join(",")}가 최신부터 다 있지 않음`);
+    }
+  }
+  // --- guide.hub30y: /guide/ 목록의 '30년 넘은 아파트' 소개 숫자 == 그 글 본문
+  {
+    const T = "/guide/ 목록 rebuild-30y 소개 숫자(단지·이미 진행 중) == /guide/rebuild-30y 제목·본문 — 7차: 1,077·245 vs 1,058·234";
+    const a = htmlText((await getPage("/guide/")).text || ""), b = (await getPage("/guide/rebuild-30y")).text || "";
+    const h1 = (/<h1>준공 30년 넘은 서울 아파트 ([\d,]+)단지<\/h1>/.exec(b) || [])[1], zn = (/이 가운데 <b>([\d,]+)단지<\/b>는 이미 정비사업/.exec(b) || [])[1];
+    const x = /준공 30년 넘은 서울 아파트 ([\d,]+)단지/.exec(a), y = /([\d,]+)단지는 이미 정비사업이 진행 중이라/.exec(a);
+    expect(h1 && zn && x && y && x[1] === h1 && y[1].replace(/,/g, "") === zn.replace(/,/g, ""), "guide.hub30y", T, `목록 ${x && x[1]}·${y && y[1]} vs 글 ${h1}·${zn}`);
+  }
+  // --- rep.r31: 리포트 카드 '매수가(발행 당시)' · 'N종' = 0이 아닌 막대 수 · 'N곳 가운데 N곳' 없음 · 계산기 링크는 열리는 구역만 · 10월호 기간 = /years 표 · 9월호 읽는 법 이어짐 · 염리4 카드 금액 없음
+  {
+    const T = "리포트: 카드 '지금 매수가' 없음 · 요약 'N종' == 0 아닌 인가 종류 수 · 'N곳 가운데 N곳' 없음 · 계산기 링크 구역 == 앱/구역 페이지에 있음 · 10월호 단계 기간 == /years · 9월호 '7곳' 뒤 바로 망원동 · 구 평균 추정 카드 금액 없음 — 7차";
+    const ids = new Set(api.zones.map((z) => z.id));
+    const yh = (await getPage("/years")).text || "";
+    let YS = null; try { YS = JSON.parse((/const S=(\{.*?\});\n/.exec(yh) || [])[1]).large; } catch (e) {}
+    for (const i of IJ.filter((x) => !x.draft)) {
+      const h = (await getPage("/report/" + i.ym)).text || "", t = htmlText(h);
+      expect(!/지금 매수가/.test(h), "rep.r31", T, `${i.ym}: '지금 매수가' 남음`);
+      const s3 = htmlText((/<div class="sum3">([\s\S]*?)<\/div>/.exec(h) || [])[1] || "");
+      const nk = /인가 (\d)종/.exec(s3), bars = /이번 달 어떤 인가가 났나<\/h2>\s*<div class="hbars"[^>]*>([\s\S]*?)<\/div><\/div>\n/.exec(h);
+      if (nk && bars) { const v = [...bars[1].matchAll(/<b>(\d+)<\/b>/g)].map((m) => +m[1]); if (v.length >= 5) expect(+nk[1] === v.filter((x) => x > 0).length, "rep.r31", T, `${i.ym}: 요약 ${nk[0]} vs 막대 ${v.join(",")}`); }
+      const kp = /<span>인가 이벤트<\/span><b>\d+건<\/b><small>([^<]*)<\/small>/.exec(h);
+      if (nk && kp) expect(kp[1].split("·").length === +nk[1], "rep.r31", T, `${i.ym}: 인가 이벤트 칸 '${kp[1]}' vs ${nk[0]}`);
+      const dup = /(\d+)곳 가운데 \1곳/.exec(t); expect(!dup, "rep.r31", T, `${i.ym}: '${dup && dup[0]}'`);
+      const dead = [];
+      for (const m of h.matchAll(/href="\.\.\/\?from=report#([a-z]\d+)"/g)) { if (ids.has(m[1])) continue; const z = await getPage("/z/" + m[1]); if (z.status !== 200) dead.push(m[1]); }
+      expect(!dead.length, "rep.r31", T, `${i.ym}: 계산기 링크인데 앱 목록·구역 페이지에 없는 구역 ${[...new Set(dead)].join(", ")}`);
+      if (i.ym >= "2026-10" && YS) {
+        const tb = (/<caption class="sr-only">단계별 걸린 기간<\/caption>([\s\S]*?)<\/table>/.exec(h) || [])[1] || "";
+        const rows = [...tb.matchAll(/<tr><td class="t"[^>]*>([^<]+)<\/td><td[^>]*>([\d.]+)년<\/td><td[^>]*>(\d+)%<\/td>/g)];
+        const want = Object.values(YS).map((v) => [v.km_med.toFixed(1), String(Math.round(v.reach5 * 100))]);
+        expect(rows.length === want.length && rows.every((m, k) => m[2] === want[k][0] && m[3] === want[k][1]), "rep.r31", T, `${i.ym}: 부록 ${rows.map((m) => m[2] + "/" + m[3]).join(" ")} vs /years ${want.map((w) => w.join("/")).join(" ")}`);
+        const meds = new Set(Object.values(YS).map((v) => v.km_med.toFixed(1)));
+        const cardY = [...h.matchAll(/<span>다음 인가까지 보통<\/span><b>([\d.]+)년<\/b>/g)].map((m) => m[1]);
+        expect(cardY.every((y) => meds.has(y)), "rep.r31", T, `${i.ym}: 카드 '다음 인가까지 보통' ${cardY.join(",")} ∉ /years`);
+      }
+      if (i.ym === "2026-09") expect(/구역으로는 7곳이에요\. 망원동 459번지/.test(t), "rep.r31", T, "9월호 '이번 호를 읽는 법': '7곳이에요' 뒤에 망원동 설명이 바로 오지 않음");
+      for (const c of h.matchAll(/<article class="zcard">([\s\S]*?)<\/article>/g)) {
+        const id = (/#([a-z]\d+)"/.exec(c[1]) || [])[1]; const z = api.zones.find((x) => x.id === id);
+        if (!z || !z.priceSample || z.priceSample.source !== "est") continue;
+        const v = htmlText((/<span>매수가[^<]*<\/span><b>([^<]*)<\/b>/.exec(c[1]) || [])[1] || "");
+        expect(!/[\d.]+억|[\d,]+만/.test(v) && /자료 부족/.test(v), "rep.r31", T, `${i.ym} ${id}(구 평균 추정): 매수가 칸 '${v}'`);
+      }
+    }
+  }
+  // --- seo.r31copy: /method·/faq 매수가 출처 순서 한 문장 · /z·/gu 대출 끼고 이름(현금 매수 시·현금으로 사면 없음) · /z 전세는 만 원까지
+  {
+    const T = "/method·/faq 매수가 출처 순서(구역 안 → 같은 본번 → 반경 → 같은 동 → 같은 구) · /z·/gu '현금 매수 시/현금으로 사면' 없음(= 대출 끼고) · /z 전세 = API 전세(만 원까지) — 7차";
+    for (const p of ["/method", "/faq"]) { const t = htmlText((await getPage(p)).text || ""); expect(/구역 안 → 대표지번과 같은 본번 → 구역 반경 300~800m → 같은 동 → 같은 구/.test(t) && !/구역 반경 300~800m 안 오래된 빌라 실거래의 가운데 값이에요/.test(t), "seo.r31copy", T, `${p}: 매수가 출처 순서 문장 없음`); }
+    const g = (await getPage("/gu/구로구")).text || ""; expect(!/현금 매수 시/.test(g), "seo.r31copy", T, "/gu/구로구: '현금 매수 시'");
+    let n = 0;
+    for (const z of api.zones.filter((x) => x.page && x.jeonse != null).slice(0, 25)) {
+      const h = (await getPage("/z/" + z.id)).text || ""; if (!h) continue; n++;
+      expect(!/현금으로 사면|현금 매수 ·/.test(h), "seo.r31copy", T, `/z/${z.id}: '현금으로 사면·현금 매수' 이름`);
+      const m = /− 전세 ((?:\d[\d,]*억)?\s*(?:[\d,]+만)?) \(\+취득세\)/.exec(h);
+      if (m && money(m[1])) expect(Math.abs(money(m[1]).v - z.jeonse) < 0.0011, "seo.r31copy", T, `/z/${z.id}: 전세 ${m[1]} vs api ${z.jeonse}`);
+    }
+    if (!n) wrn("seo.r31copy", T, "/z 표본 없음");
+  }
+}
 // ================================================================ main
 (async () => {
   // API
@@ -3235,6 +3404,8 @@ async function r30Lane(browser, api, errs) {
   if (!ONLY || ONLY === "r29") await timed("r29", r29Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r29Lane crashed: " + e.message)));
   // 30차(구 화면 이름 줄 · 계산식 합 · 토허 판정 · 모자란 돈 말 · 지도 칩·글자·자리 · 리포트 교차 · 보이는 날짜) — 혼자
   if (!ONLY || ONLY === "r30") await timed("r30", r30Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r30Lane crashed: " + e.message)));
+  // 31차(7차 레드팀: 접근 이름 · Esc 초점 · 바꿔 보기 칸 · 작은 링크 · 정적 글 숫자 한 기준) — 혼자
+  if (!ONLY || ONLY === "r31") await timed("r31", Promise.all([r31Lane(browser, api, errs), r31Static(api)]).catch((e) => bad("runtime", "검사 실행", "r31Lane crashed: " + e.message)));
   // 22차(앱 껍데기 · 모든 구역 열기) — 혼자, 맨 끝(모든 구역을 여는 데 몇 분)
   if (!ONLY || ONLY === "r22") await timed("r22", r22Lane(browser, api, errs, shared).catch((e) => bad("runtime", "검사 실행", "r22Lane crashed: " + e.message)));
   await browser.close();
