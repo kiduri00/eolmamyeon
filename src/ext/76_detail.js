@@ -82,11 +82,12 @@ const DTL = (() => {
     const sub2 = n.total == null ? (n.ltot != null ? (upC(n.ltot) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.short(n.ltot - CASH)}</b> 더 필요해요 · 잔금대출 뺀 값` : `내 돈 ${C(CASH)} 안이에요 · 잔금대출 뺀 값`) : esc(n.why2)) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.short(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
     let eta = "–"; try { eta = etaShow(r); } catch (e) {}
     // 입주권 없는 곳: 셋째 칸 이름 '입주권' · 이유는 그 아래 한 번 · 착공 뒤처럼 입주권 거래가 있으면 '조합원 입주권을 사야 해요'(참고 시세) — '입주권 없음'과 시세가 부딪치지 않게(20차 G3)
-    if (n.nt) eta = n.im ? "조합원 입주권을 사야 해요" : "입주권 없음";   // 2라운드: '지금 사면 / 입주권 없음'(이미 가진 집은 해당 없음 — 아래 한 줄)
+    const TAPP = document.documentElement.classList.contains("is-tapp");
+    if (n.nt) eta = n.im ? "조합원 입주권을 사야 해요" : TAPP ? "입주권 없음" : "없음";   // 웹은 /z 정적 페이지(key3 '입주권 · 없음')와 같은 글 — 정적 페이지는 simple-home과 같게 두므로 앱에서만   // 2라운드: '지금 사면 / 입주권 없음'(이미 가진 집은 해당 없음 — 아래 한 줄)
     return `<section class="dt-k" aria-label="핵심 숫자">
       <div class="dt-i" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b>${n.lnow != null ? MODE : ""}<span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && n.lnow == null && !n.moa && !n.done && !n.im && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1 || lv}<span class="dt-slot" data-slot="gap"></span></span></div>
       <div class="dt-i" data-k="tot"><span class="dt-l">${LBL.cashToMoveIn}</span><b class="dt-v">${v2}</b>${n.ltot != null ? MODE : ""}<span class="dt-s">${sub2}</span></div>
-      <div class="dt-i" data-k="eta"><span class="dt-l">${n.nt ? (n.im ? "입주권" : "지금 사면") : "언제 입주"}</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `${n.im ? `<span class="dt-s dt-alt">참고 입주권 시세 ${ZF.eok(n.im)}</span>` : ""}<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 알아봐야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
+      <div class="dt-i" data-k="eta"><span class="dt-l">${n.nt ? (n.im || !TAPP ? "입주권" : "지금 사면") : "언제 입주"}</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `${n.im ? `<span class="dt-s dt-alt">참고 입주권 시세 ${ZF.eok(n.im)}</span>` : ""}<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 알아봐야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
     </section>`;
   }
   // ---------- 신뢰 한 줄: 추정 칩 하나 · 표본 · 믿을 만함 › (누르면 '돈' 탭의 '이 숫자 믿어도 될까'로) ----------
