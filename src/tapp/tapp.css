@@ -173,7 +173,7 @@
   .t-empty{display:block;margin:0 auto 16px;width:160px;background:none!important}
   html.is-tapp .pn-empty .t-empty svg{display:block;width:160px;height:128px;margin:0;padding:0;background:none!important;border-radius:0!important}
   html.is-tapp #favTop .x-empty{border:0!important;box-shadow:none!important;background:none!important}
-  html.is-tapp #favTop :has(> .pn-empty){border:0!important;box-shadow:none!important;background:none!important}
+  html.is-tapp #favTop .pn-panel:has(.pn-empty){border:0!important;box-shadow:none!important;background:none!important}
   html.is-tapp #favTop .pn-empty{padding-top:8px}
   /* ---------- 처음 실행 안내(3장) ---------- */
   .tob{position:fixed;inset:0;z-index:120;display:flex;flex-direction:column;background:var(--t-pg);color:var(--t-ink);padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
