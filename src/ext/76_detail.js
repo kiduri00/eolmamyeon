@@ -22,7 +22,7 @@ const DTL = (() => {
     if (o.moa) {
       o.basis = "모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요"; o.why2 = o.basis;
       // 관리지역 평균값은 참고로만(웹·앱 같음)(큰 숫자·'가능' 판정·곳 수에 넣지 않음) — 검색 '사업구역별' · 목록·지도 곳 수(모아타운 관리지역 제외)와 한 규칙
-      { const ref = o.need; o.need = null; o.total = null; o.tm = 1; o.basis = ref != null ? `관리지역 평균 참고값 ${C(ref)} · 안의 사업구역을 열어 보세요` : "안의 사업구역을 열어 보세요"; o.why2 = "입주까지는 안의 사업구역에서 계산해요"; }
+      { const ref = o.need; o.ref = ref; o.need = null; o.total = null; o.tm = 1; o.basis = ref != null ? `관리지역 평균 참고값 ${C(ref)} · 안의 사업구역을 열어 보세요` : "안의 사업구역을 열어 보세요"; o.why2 = "입주까지는 안의 사업구역에서 계산해요"; }
       return o;
     }
     if (done) { o.basis = "사업이 끝난 곳이에요 · 일반 아파트 매매"; o.why2 = "새 아파트 입주까지 계산 대상이 아니에요"; return o; }
@@ -50,8 +50,23 @@ const DTL = (() => {
     return L ? `참고 시세 · ${L[0]} 1년 가운데 값 ${ZF.eok(L[1])}` : "";
   }
   const upC = (v) => Math.ceil(v * 100 - 1e-6) / 100;   // 화면 금액(올림)으로 판정 — 목록 '+2,000만'과 같은 셈
+  // 2라운드: 모아타운 관리지역 = 큰 숫자 대신 안내 한 줄 + 안의 사업구역 목록(첫 화면 안 · 각 줄 단계·지금 필요한 돈) + 평균 참고값 한 줄(웹·앱 같음)
+  function moaHTML(r, n) {
+    const kids = (r.kids || []).map((id) => byId[id]).filter(Boolean);
+    const row = (k) => {
+      let v = ""; try { const m = nums(k); v = m.nt ? "지금 사면 입주권 없음" : m.need != null ? `지금 ${C(m.need)}` : m.lnow != null ? `지금 ${C(m.lnow)} · 대출 끼고` : "계산 보류"; } catch (e) { v = "계산 보류"; }
+      let st = ""; try { st = stageName(k); } catch (e) {}
+      return `<li><button type="button" class="dt-kid" data-go="${esc(k.id)}"><span class="dt-kn">${esc(shortName(k.n))}</span><span class="dt-kst">${esc(st)}</span><span class="dt-kv">${esc(v)}</span></button></li>`;
+    };
+    return `<section class="dt-k dt-moa" aria-label="핵심 숫자">
+      <p class="dt-mg">모아타운은 사업구역마다 금액·입주 시점이 달라요</p>
+      ${kids.length ? `<ul class="dt-kids" aria-label="안의 사업구역 ${kids.length}곳">${kids.map(row).join("")}</ul>` : `<p class="dt-mg0">아직 정보몽땅에 등록된 사업구역(개별 조합)이 없어요</p>`}
+      <p class="dt-ref">${n.ref != null ? `관리지역 평균 참고값 ${esc(C(n.ref))} · ` : ""}곳 수와 '가능' 판정에는 넣지 않아요</p>
+    </section>`;
+  }
   function keyHTML(r) {
     const n = nums(r);
+    if (n.tm) return moaHTML(r, n);
     // 계산하지 않는 칸은 맨 '–' 대신 말로: 23차부터 두 칸 모두 '계산 보류' 하나(목록·/gu·/z·돈 탭과 같은 이름)
     const v1 = n.tm ? "사업구역별" : n.need != null ? C(n.need) : n.lnow != null ? C(n.lnow) : "계산 보류", v2 = n.tm ? "사업구역별" : n.total != null ? C(n.total) : n.ltot != null ? C(n.ltot) : "계산 보류";
     const MODE = '<em class="dt-mode">대출 끼고</em>';
@@ -67,11 +82,11 @@ const DTL = (() => {
     const sub2 = n.total == null ? (n.ltot != null ? (upC(n.ltot) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.short(n.ltot - CASH)}</b> 더 필요해요 · 잔금대출 뺀 값` : `내 돈 ${C(CASH)} 안이에요 · 잔금대출 뺀 값`) : esc(n.why2)) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.short(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
     let eta = "–"; try { eta = etaShow(r); } catch (e) {}
     // 입주권 없는 곳: 셋째 칸 이름 '입주권' · 이유는 그 아래 한 번 · 착공 뒤처럼 입주권 거래가 있으면 '조합원 입주권을 사야 해요'(참고 시세) — '입주권 없음'과 시세가 부딪치지 않게(20차 G3)
-    if (n.nt) eta = n.im ? "조합원 입주권을 사야 해요" : "없음";
+    if (n.nt) eta = n.im ? "조합원 입주권을 사야 해요" : "입주권 없음";   // 2라운드: '지금 사면 / 입주권 없음'(이미 가진 집은 해당 없음 — 아래 한 줄)
     return `<section class="dt-k" aria-label="핵심 숫자">
       <div class="dt-i" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b>${n.lnow != null ? MODE : ""}<span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && n.lnow == null && !n.moa && !n.done && !n.im && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1 || lv}<span class="dt-slot" data-slot="gap"></span></span></div>
       <div class="dt-i" data-k="tot"><span class="dt-l">${LBL.cashToMoveIn}</span><b class="dt-v">${v2}</b>${n.ltot != null ? MODE : ""}<span class="dt-s">${sub2}</span></div>
-      <div class="dt-i" data-k="eta"><span class="dt-l">${n.nt ? "입주권" : "언제 입주"}</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `${n.im ? `<span class="dt-s dt-alt">참고 입주권 시세 ${ZF.eok(n.im)}</span>` : ""}<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 알아봐야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
+      <div class="dt-i" data-k="eta"><span class="dt-l">${n.nt ? (n.im ? "입주권" : "지금 사면") : "언제 입주"}</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `${n.im ? `<span class="dt-s dt-alt">참고 입주권 시세 ${ZF.eok(n.im)}</span>` : ""}<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 알아봐야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
     </section>`;
   }
   // ---------- 신뢰 한 줄: 추정 칩 하나 · 표본 · 믿을 만함 › (누르면 '돈' 탭의 '이 숫자 믿어도 될까'로) ----------
@@ -116,6 +131,7 @@ const DTL = (() => {
     const box = document.createElement("div"); box.className = "dt-top";
     box.innerHTML = keyHTML(r);
     (wa || wh || head.querySelector(".rep-t")).after(box);
+    box.querySelectorAll(".dt-kids [data-go]").forEach((b) => (b.onclick = () => { curTab = "money"; select(b.dataset.go); }));
     const ipSlot = box.querySelector('[data-slot="ip"]');
     if (bIp && ipSlot) { const s = bIp.querySelector("span"); if (s) s.textContent = "입주권"; bIp.classList.add("dt-ip"); ipSlot.appendChild(bIp); }
     // 전세 끼고 칩: '가능'이면 판정 한 줄이 이미 말한다 → 못 사는 경우(✕·불가)만 남긴다
@@ -127,7 +143,7 @@ const DTL = (() => {
     const risk = head.querySelector(".lb-risk"); if (risk) box.appendChild(risk);
     // 입주권 없는 곳은 '계산 안 함 · 이유 보기' 줄을 두지 않는다(이유는 셋째 칸에서 한 번 · 20차 G3)
     let ntR = false; try { ntR = noTicket(r); } catch (e) {}
-    if (!ntR) box.insertAdjacentHTML("beforeend", trustLine(r));
+    if (!ntR && r.src !== "moa") box.insertAdjacentHTML("beforeend", trustLine(r));
     // 첫 화면에서 내리는 것: 입지 점수(입지 탭 맨 위에 있음) · 머리 현금 띠(3숫자와 같은 값) · 공식 이름(맨 아래 출처로) · 판정 줄 자리
     head.querySelectorAll(".rep-t > .gb, .cstrip, .hjsum").forEach((e) => e.classList.add("dt-hide"));
     const vdw = w && w.querySelector(".ov-vdw"); if (vdw) vdw.remove();

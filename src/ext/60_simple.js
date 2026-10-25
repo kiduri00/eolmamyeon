@@ -600,7 +600,7 @@ const SIMPLE = (() => {
   // 대출 끼고: 어떤 가정으로 대출을 잡았는지(작은 칩 → 설명)
   function asmText() {
     const inc = num("pIncome");
-    return ltvBuy() ? `감정가 ${Math.round(ltvBuy() * 100)}%${inc != null && inc > 0 ? " · DSR 40%" : " 대출 가정"}` : "대출 없음 가정";
+    return ltvBuy() ? `시세·감정가 ${Math.round(ltvBuy() * 100)}%${inc != null && inc > 0 ? " · DSR 40%" : " 대출 가정"}` : "대출 없음 가정";
   }
   function asm(btn) {
     if (whyEl && !whyEl.hidden && whyFor === btn) return whyClose();
@@ -1082,6 +1082,7 @@ const SIMPLE = (() => {
   function init() {
     // 같은 페이지에서 주소의 #도구 이름만 바뀌어도(링크·뒤로가기) 그 도구를 연다
     window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (known(h) && cur !== h) { try { if ($("report").classList.contains("sheet")) closeSheetNow(); } catch (e) {} open(h); } });
+    window.addEventListener("popstate", () => { if (history.state && history.state.sView && matchMedia("(min-width:981px)").matches) document.documentElement.classList.remove("s-rep"); });   // 2라운드: PC에서 화면 안 구역 → 뒤로 = 그 화면(두 칸 리포트 닫음)
     window.addEventListener("popstate", () => { const on = document.documentElement.classList.contains("s-full"), want = !!(history.state && (history.state.sFull || history.state.tF)) || location.hash === "#map"; if (on && !want) fullMap(false); else if (!on && want && history.state && (history.state.sFull || history.state.tF)) fullMap(true); });   // tF = 설치 앱 지도 탭 안에서 쌓인 칸(구 화면·구역 시트 · src/tapp가 적음) → 뒤로 와도 지도 탭 그대로 · 웹에는 tF가 없다
     if (P.fund === "cash" && P.basis !== "now") { P.basis = "now"; try { setSeg("pBasis", "now"); } catch (e) {} }
     build();
@@ -1133,6 +1134,15 @@ const SIMPLE = (() => {
     let repY = null, selBusy = false, repId = null;
     const repTop = () => { const H = document.documentElement; if (!PCQ() || H.classList.contains("s-full")) return; const w = document.querySelector("#mapTop .main") || $("report"); if (!w) return; const t = Math.max(0, Math.round(w.getBoundingClientRect().top + scrollY - HDR() - 8)); if (Math.abs(scrollY - t) > 2) window.scrollTo({ top: t, behavior: "auto" }); };
     select = function () {
+      // 2라운드(10/26): 넓은 화면(PC·태블릿)에서 관심·소식·도구 화면(s-view) 안의 구역을 열면 리포트가 숨은 #mapTop 안에 0×0으로 열리던 것 —
+      // 그 화면을 기록 그대로 두고(뒤로 = 그 화면) 두 칸 화면으로 나와 리포트를 연다
+      { const H0 = document.documentElement; if (PCQ() && H0.classList.contains("s-view") && cur) {
+        const v = cur;
+        IDS.forEach((x) => { const s = $(x); if (s) s.classList.remove("s-on"); });
+        H0.classList.remove("s-view"); lvl(null); cur = ""; navMark();
+        try { history.pushState({ fromView: v }, "", location.pathname + location.search + "#" + v); } catch (e) {}
+        keepY = 0;
+      } }
       const H = document.documentElement, pc = PCQ(), was = H.classList.contains("s-rep"), y0 = keepY != null ? keepY : scrollY;
       selBusy = true;
       let x; try { x = _sel.apply(this, arguments); } finally { selBusy = false; }
