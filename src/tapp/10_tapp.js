@@ -111,6 +111,8 @@ function goTab(k) {
   if (k !== "map" && k !== "home") lastTab = k;
   toBase(() => {
     lastTab = k === "map" ? lastTab : k;
+    // 다른 탭에서 연 구역 시트가 지도를 그 구로 옮겨 두었으면(기록에 구 칸 없음) 홈·지도 탭은 서울 전체에서 — 구 거르기가 홈 카드·지도 탭에 새지 않게
+    if ((k === "home" || k === "map") && !(history.state && history.state.gu)) T(() => { const mb = $("mapbox"), bk = $("mapBack"); if (mb && mb.dataset.view === "gu" && bk) bk.click(); });
     if (k === "home") {
       // 로고와 같은 '처음으로'(열린 것 모두 닫고 맨 위) — 40_home.js ZP_home을 로고 누르기로 부른다
       const lg = document.querySelector("#hdr a.logo");
