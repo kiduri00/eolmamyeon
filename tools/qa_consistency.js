@@ -2953,7 +2953,6 @@ async function r30Lane(browser, api, errs) {
     const { ctx, page } = await newPage(browser, mob(390, 844), errs);
     try {
       for (const id of ids) for (const mode of ["loan", "jeonse"]) {
-        if (over()) { skip("zone.flowSum", T, "time budget"); break; }
         await goZone(page, id, 2, mode);
         const r = await page.evaluate(() => {
           const p = document.getElementById("pane") || document; const fl = p.querySelector("details.flow p");
