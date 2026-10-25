@@ -406,8 +406,8 @@
           P.left = 40; P.right = Math.max(40, railPad()); P.top = 30; P.bottom = 24 + Math.round(Math.min(cv.height * 0.62, Math.max(0, bot - innerHeight)));
         } else if (!document.documentElement.classList.contains("s-full")) {
           // 27차: 폰 서울 보기 — 위 겹쳐 보기 띠·아래 범례 자리를 비운다(ghost.js padOf와 같은 값 · 자리 그림 = 실제 지도)
-          const rl = $("mapbox") && $("mapbox").querySelector(".s-rail"); if (rl && rl.offsetWidth) { const rb = rl.getBoundingClientRect(); if (rb.top < cv.top + 60 && rb.bottom > cv.top) P.top = Math.max(P.top, Math.round(rb.bottom - cv.top) + 4); }
-          P.bottom = 62;
+          const rl = $("mapbox") && $("mapbox").querySelector(".s-rail"); if (rl && rl.offsetWidth) { const rb = rl.getBoundingClientRect(); if (rb.top < cv.top + 60 && rb.bottom > cv.top) P.top = Math.max(P.top, Math.round(rb.bottom - cv.top) + 4 + (window.ZP_G ? ZP_G.PADB : 0)); }
+          P.bottom = 50;   // 8차: ghost.js padOf와 같은 값(위 +PADB · 아래 62 → 50)
         }
         const ov = (sel) => { const e = document.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; const b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
         const m = document.documentElement.classList.contains("s-full") ? ov(".s-mini") : null; if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
@@ -1583,7 +1583,7 @@
       obstacles: () => (map ? obstacles() : []),
       okDots: () => (okdK ? okdK.split(",").length : 0),
       llOf: (id) => (byId[id] ? llOf(byId[id]) : null),
-      gus: () => { const A = map && GUL ? GUL.map((g) => ({ n: g.n, q: map.project(g.ll) })) : []; return [...GUS.entries()].map(([n, p]) => { let o = { x: 0, y: 0 }; try { o = p.mk.getOffset(); } catch (e) {} const a = A.find((x) => x.n === n), d0 = Math.hypot(o.x || 0, o.y || 0); let dn = Infinity, nn = ""; if (a) A.forEach((b) => { if (b.n === n) return; const d = Math.hypot(a.q.x + (o.x || 0) - b.q.x, a.q.y + (o.y || 0) - b.q.y); if (d < dn) { dn = d; nn = b.n; } }); return { n, c: +p.el.dataset.n, t: p.el.textContent, lab: p.el.getAttribute("aria-label") || "", off: Math.round(d0), other: nn, dOther: Math.round(dn) }; }); },
+      gus: () => { const A = map && GUL ? GUL.map((g) => ({ n: g.n, q: map.project(g.ll) })) : []; return [...GUS.entries()].map(([n, p]) => { let o = { x: 0, y: 0 }; try { o = p.mk.getOffset(); } catch (e) {} const a = A.find((x) => x.n === n), d0 = Math.hypot(o.x || 0, o.y || 0); let dn = Infinity, nn = ""; if (a) A.forEach((b) => { if (b.n === n) return; const d = Math.hypot(a.q.x + (o.x || 0) - b.q.x, a.q.y + (o.y || 0) - b.q.y); if (d < dn) { dn = d; nn = b.n; } }); let at = ""; try { if (a && window.ZP_G && ZP_G.guAt) { const u = map.unproject([a.q.x + (o.x || 0), a.q.y + (o.y || 0)]); at = ZP_G.guAt(u.lng, u.lat); } } catch (e) {} return { n, c: +p.el.dataset.n, t: p.el.textContent, lab: p.el.getAttribute("aria-label") || "", off: Math.round(d0), other: nn, dOther: Math.round(dn), at }; }); },   // at = 묶음 가운데 점이 든 구(8차 qa)
       // 자리를 못 잡은 구 묶음이 모인 '+N곳' 칩의 곳 수(없으면 0) · 화면 묶음 합 + 이 값 == 홈 숫자
       ghost: () => (window.ZP_G && ZP_G.on() ? { gus: ZP_G.gus(), more: ZP_G.more(), cam: ZP_G.last() } : null),
       attach: () => { gateOpen(); if (mapView === "seoul" && !gu) seoul(); },

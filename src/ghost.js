@@ -93,6 +93,20 @@
     try { var mb = Dc.getElementById("mapBar"); if (mb && !mb.hidden && mb.offsetHeight && getComputedStyle(mb).position === "absolute") top = Math.max(top, mb.offsetTop + mb.offsetHeight + 8); } catch (e) {}
     return { top: top, bottom: P.bottom + (phone ? 52 : 18), left: phone ? 16 : 30, right: phone ? 16 : Math.max(30, P.right) };
   }
+  // 8차: 구 경계 고리(GD.gpl 경로 → 웹 메르카토르 0~1 좌표) — 묶음 자리 후보가 다른 구 땅 위인지 점-다각형으로 본다(한 번만 읽음)
+  var RINGS = null;
+  function rings() {
+    if (RINGS || !GD || !GD.gpl) return RINGS;
+    RINGS = GD.gpl.map(function (d) {
+      return d.split("M").filter(Boolean).map(function (sp) {
+        var n = (sp.match(/-?\d+(\.\d+)?/g) || []).map(Number), x = n[0], y = n[1], R = [[(x + GD.o[0]) / GD.S, (y + GD.o[1]) / GD.S]];
+        for (var i = 2; i + 1 < n.length; i += 2) { x += n[i]; y += n[i + 1]; R.push([(x + GD.o[0]) / GD.S, (y + GD.o[1]) / GD.S]); }
+        return R;
+      });
+    });
+    return RINGS;
+  }
+  function inRings(RS, X, Y) { var c = false; RS.forEach(function (R) { for (var i = 0, j = R.length - 1; i < R.length; j = i++) { var a = R[i], b = R[j]; if ((a[1] > Y) !== (b[1] > Y) && X < ((b[0] - a[0]) * (Y - a[1])) / (b[1] - a[1]) + a[0]) c = !c; } }); return c; }
   var hit = function (a, b) { return a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]; };
   // 23차: 묶음 색은 한 가지(중간 남색) — 곳 수는 숫자가 말한다. 범례에 없는 '진함 세 단계'를 없앰(뜻 모를 색 없음)
   var tier = function () { return 2; };
@@ -101,14 +115,27 @@
     var w = o.W, h = o.H, obs = o.obs || [], phone = o.phone;
     // 7차: 자리 잡는 차례 = 가장 적게 드는 구부터(같으면 곳 수 많은 구) — 구로 6,900만~·종로 1.2억~가 '+N'에 숨고 관악 5.2억~·서초가 남던 것 · 노원 18곳(1.4억~)이 숨고 광진 3곳(2.8억~)이 남던 것
     var L = o.gus.slice().sort(function (a, b) { return (a.m == null ? 1e9 : a.m) - (b.m == null ? 1e9 : b.m) || b.c - a.c; });
+    // 8차: 폰은 가장 적게 드는 세 구를 먼저, 나머지는 곳 수 많은 구부터 — 싼 구는 그대로 지도에 두고 '+N곳'에 숨는 곳 수를 줄인다(390 대출 5억~에서 30%대가 칩에 숨던 것)
+    if (phone) { var top3 = L.filter(function (g) { return g.c; }).slice(0, 3); L = top3.concat(L.filter(function (g) { return top3.indexOf(g) < 0; }).sort(function (a, b) { return b.c - a.c; })); }
     var m = 1; L.forEach(function (x) { if (x.c > m) m = x.c; });
-    var ANG = [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return (k * Math.PI) / 4 + Math.PI / 2; });
+    // 8차: 폰은 16방향(바른 8방향 먼저) — 좁은 지도에서 비킬 자리를 더 찾는다
+    var ANG = (phone ? [0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15].map(function (k) { return (k * Math.PI) / 8 + Math.PI / 2; }) : [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return (k * Math.PI) / 4 + Math.PI / 2; }));
     // 폰: 맨 아래 20px 띠에는 묶음을 두지 않는다(범례·ⓘ는 따로 피함 · 20차)
     var bot = phone ? 20 : 2;
-    var GAP = 6, MAXOFF = 48, MK = 1.0;   // 7차: 폰은 제 구 중심에서 48px 안 · 다른 구 중심보다 가깝지 않은 자리만(130px·2.5배로 풀었더니 마포 묶음이 강서 땅에 서던 것) · 묶음 사이 실제 2px 넘게(어림 폭보다 글자가 조금 넓어 4px 띄움이 1px로 닿던 것)
+    var GAP = 6, MAXOFF = 48, MAXOFF2 = 72, MK = 1.0;   // 7차: 폰은 제 구 중심에서 48px 안 · 다른 구 중심보다 가깝지 않은 자리만(130px·2.5배로 풀었더니 마포 묶음이 강서 땅에 서던 것) · 묶음 사이 실제 2px 넘게(어림 폭보다 글자가 조금 넓어 4px 띄움이 1px로 닿던 것)
     // 30차: 비킨 자리가 다른 구 중심에 더 가까우면(그 구 땅 위로 넘어가면) 쓰지 않는다 — 360에서 서대문 묶음이 동대문 남쪽에 서던 것
     var ANC = o.gus.map(function (g) { return { n: g.n, q: o.proj(g.ll) }; });
     var mine = function (g, x, y) { var d0 = Math.hypot(x - g.q0.x, y - g.q0.y); return ANC.every(function (a) { return a.n === g.n || d0 <= Math.hypot(x - a.q.x, y - a.q.y) * MK + 10; }); };
+    // 8차: 화면 점 → 그 점이 든 구 번호(GD.gu 차례 · 없으면 -1). 투영(자리 그림 proj · 실제 지도 map.project)은 메르카토르에 선형이라 두 점으로 거꾸로 푼다
+    var RS = phone ? rings() : null, P1 = o.proj([126.9, 37.5]), P2 = o.proj([127.1, 37.6]), X1 = mx(126.9), Y1 = my(37.5), KX = (P2.x - P1.x) / (mx(127.1) - X1), KY = (P2.y - P1.y) / (my(37.6) - Y1);
+    var guAt = function (x, y) { if (!RS || !KX || !KY) return -1; var X = X1 + (x - P1.x) / KX, Y = Y1 + (y - P1.y) / KY; for (var i = 0; i < RS.length; i++) if (inRings(RS[i], X, Y)) return i; return -1; };
+    var GI = {}; if (GD) GD.gu.forEach(function (g, i) { GI[g[0]] = i; });
+    // 비킨 자리 허용: 다른 구 땅 위(가운데 점)면 안 됨 · 48px 넘게(띠·버튼에 깔린 구만 72px까지) 비키면 가운데 점이 제 구 땅 안이어야
+    // 가운데 점과 그 둘레 3px 네 점 모두 — 경계선 바로 위 가운데 점이 반올림(정수 px)으로 이웃 구에 넘어가던 것
+    var okAt = function (n, x, y, far) {
+      if (!RS) return true; var me = GI[n];
+      return [[0, 0], [3, 0], [-3, 0], [0, 3], [0, -3]].every(function (d) { var k = guAt(x + d[0], y + d[1]); return far ? k === me : k < 0 || k === me; });
+    };
     var boxOf = function (g) { var x = g.q.x + g.dx, y = g.q.y + g.dy; return [x - g.w / 2, y - g.h / 2, x + g.w / 2, y + g.h / 2]; };
     // pre = 이미 자리 잡은 묶음(그대로 둔다) · only = 이번에 자리 잡을 구 이름(없으면 전부)
     var run = function (extra, pre, only) {
@@ -120,18 +147,18 @@
       var clash = function (bx, skip) { var gx = [bx[0] - GAP, bx[1] - GAP, bx[2] + GAP, bx[3] + GAP]; return placed.filter(function (p) { return p !== skip && hit(p.bx, gx); }); };
       // 자리 후보(차례대로): 크기 3단계 × 비키는 거리 × 8방향 — 지도 칸·장애물·제 구 땅 조건을 넘는 것만
       var cands = function (g, q, l1, l2) {
-        var C = [];
+        var C = [], b0 = [q.x - 30, q.y - 20, q.x + 30, q.y + 20], lim = phone && (b0[1] < 2 || obs.some(function (o2) { return hit(o2, b0); })) ? MAXOFF2 : MAXOFF;   // 8차: 구 중심이 띠·버튼 밑이면 72px까지
         // 23차: 좁은 폰(380px 아래)은 칩으로 보내기 전에 한 줄('영등포 7곳') 작은 묶음으로 한 번 더(s = 2)
         for (var s = 0; s < (phone || w < 380 ? 3 : 2); s++) {
           // 21차: 둥근 네모 두 줄('강북 1곳' / '7,400만~') — 폭 = 글자 폭 + 여백, 높이 40(누르는 자리 · 작게 줄인 것은 보이는 30 + 투명 둘레로 40)
           // 27차: 셋째 단계도 금액 줄('6,700만~')을 지운 한 줄이 아니라 더 작은 두 줄(xs · 보이는 높이 26) — 높은 금액에서 구 묶음 금액 줄이 빠지던 것
           var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = Math.ceil((xs ? Math.max(tw(l1, 11), tw(L2, 11)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 11)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 11)) + 18) * 1.04), bh = xs ? (L2 ? 28 : 20) : sm ? (L2 ? 32 : 22) : 40, d = Math.max(bw, bh);
-          var RR = (sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05]).filter(function (r) { return !phone || r <= MAXOFF; });   // 30차: 폰은 제 구 중심에서 MAXOFF px 안에서만 비킨다(못 비키면 '+N곳' 칩으로)
+          var RR = (sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05]).concat(phone ? [16, 32, 48, 60, 72] : []).filter(function (r) { return !phone || r <= lim; }).sort(function (a, b) { return a - b; });   // 8차: 폰은 16px 걸음도(다른 구 땅 검사가 생겨 좁은 걸음이 안전)   // 30차: 폰은 제 구 중심에서 MAXOFF px 안에서만 비킨다(못 비키면 '+N곳' 칩으로)
           for (var i = 0; i < RR.length; i++) {
             var A = RR[i] ? ANG : [0];
             for (var j = 0; j < A.length; j++) {
               var x = q.x + RR[i] * Math.cos(A[j]), y = q.y + RR[i] * Math.sin(A[j]) * (bh / d), bx = [x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2];
-              if (inb(bx, sm ? (40 - bh) / 2 : 0) && (!phone || !RR[i] || mine({ n: g.n, q0: q }, x, y))) C.push({ bx: bx, w: bw, h: bh, sm: sm, xs: xs, one: one, dx: x - q.x, dy: y - q.y });
+              if (inb(bx, sm ? (40 - bh) / 2 : 0) && (!phone || !RR[i] || (mine({ n: g.n, q0: q }, x, y) || RR[i] > MAXOFF) && okAt(g.n, x, y, RR[i] > MAXOFF))) C.push({ bx: bx, w: bw, h: bh, sm: sm, xs: xs, one: one, dx: x - q.x, dy: y - q.y });
             }
           }
         }
@@ -233,6 +260,8 @@
     Dc.querySelectorAll(".s-mini, .s-fullx").forEach(function (e) { if (e.classList.contains("s-mini") && !full) return; if (e.offsetWidth && !e.hidden) add(e.getBoundingClientRect()); });
     return out;
   }
+  // 8차: 폰 서울 보기 카메라 위 여백에 12px 더(아래 범례 쪽 여백은 그만큼 덜) — 맨 북쪽 구 중심(도봉)이 겹쳐 보기 띠 바로 밑에 서서 그 묶음이 띠에 걸려 '+N곳'으로 빠지던 것(390) · 10_lmap.js fitPad도 같은 값
+  var PADB = 12;
   function padOf(el, box) {
     var P = { top: 14, bottom: 14, left: 20, right: 20 };
     try {
@@ -242,8 +271,8 @@
         P.left = 40; P.right = Math.max(40, rp); P.top = 30; P.bottom = 24 + Math.round(Math.min(cv.height * 0.62, Math.max(0, cv.bottom - innerHeight)));
       } else if (!Dc.documentElement.classList.contains("s-full")) {
         // 27차: 폰 서울 보기 — 위 겹쳐 보기 띠·아래 범례 자리를 비워 맞춘다(띠·범례에 걸린 북쪽·남쪽 구 묶음이 '+N곳'으로 빠지던 것 · 10_lmap.js fitPad와 같은 값)
-        var rl = box.querySelector(".s-rail"); if (rl && rl.offsetWidth) { var rb = rl.getBoundingClientRect(); if (rb.top < cv.top + 60 && rb.bottom > cv.top) P.top = Math.max(P.top, Math.round(rb.bottom - cv.top) + 4); }
-        P.bottom = 62;
+        var rl = box.querySelector(".s-rail"); if (rl && rl.offsetWidth) { var rb = rl.getBoundingClientRect(); if (rb.top < cv.top + 60 && rb.bottom > cv.top) P.top = Math.max(P.top, Math.round(rb.bottom - cv.top) + 4 + PADB); }
+        P.bottom = 50;   // 8차: 62 → 50(위에 PADB 12px을 더한 만큼 · 줌은 그대로, 지도를 조금 아래로)
       }
       var ov = function (sel) { var e = Dc.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; var b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
       var m = Dc.documentElement.classList.contains("s-full") ? ov(".s-mini") : null; if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
@@ -383,12 +412,14 @@
   function unhide() { var om = Dc.getElementById("map"); if (om) { om.style.visibility = ""; om.removeAttribute("aria-hidden"); } }
   function drop() { if (S.el) { S.out = true; if (S.ro) { S.ro.disconnect(); S.ro = null; } S.el.remove(); unhide(); } }
   W.ZP_G = {
-    GD: GD, tw: tw, bb: bb, cam: cam, proj: proj, place: place, tier: tier, KEY: KEY, KEY_L: KEY_L, guEl: guEl, guLite: guLite, cash: cash, MT: MT, ZOOM: ZOOM, chipHTML: chipHTML, GU_LBL: GU_LBL,
+    GD: GD, PADB: PADB, tw: tw, bb: bb, cam: cam, proj: proj, place: place, tier: tier, KEY: KEY, KEY_L: KEY_L, guEl: guEl, guLite: guLite, cash: cash, MT: MT, ZOOM: ZOOM, chipHTML: chipHTML, GU_LBL: GU_LBL,
     mount: mount, draw: draw, lite: lite, fade: fade, drop: drop, guCam: guCam, guPad: guPad, zoomGu: zoomGu, dimGu: function () { return S.dim; },
     on: function () { return !!(S.el && S.el.isConnected && !S.out); },
     el: function () { return S.el && S.el.isConnected ? S.el : null; },
     last: function () { return S.last; },
     onTap: function (fn) { S.tap = fn; var p = W.__zgPend; W.__zgPend = null; if (p && fn) try { fn(p); } catch (e) {} },
+    // 8차: 경위도 점이 든 구 이름(없으면 '') — 묶음 자리 검사(qa ui.r30Layout)와 place()가 같은 고리
+    guAt: function (lng, lat) { var R0 = rings(); if (!R0) return ""; for (var i = 0; i < R0.length; i++) if (inRings(R0[i], mx(lng), my(lat))) return GD.gu[i][0]; return ""; },
     gus: function () { return S.el ? [].map.call(S.el.querySelectorAll(".zg-mk .zgu"), function (b) { return { n: b.dataset.gu, c: +b.dataset.n }; }) : []; },
     more: function () { var c = S.el && S.el.querySelector(".lm-gumore"); return c && !c.hidden ? +c.dataset.n || 0 : 0; },
   };

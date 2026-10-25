@@ -43,6 +43,28 @@ if os.path.exists(LT):
         if lt['ym'] > cur.get('ym', ''):
             new = {'ym': lt['ym'], 'no': lt['no'], 'url': lt['url'], 'items': [{'id': i['id'], 'step': i['step'], 'date': i['date'], 'src': ''} for i in lt['items']]}
             shell = shell[:m.start(2)] + json.dumps(new, ensure_ascii=False) + shell[m.end(2):]
+# 8차: latest.json이 없거나(부분 호는 report.py가 안 씀) 그보다 새 호를 냈으면 — 낸 호 목록(issues.json)의 최신 호로 바꾼다.
+# 인가 목록은 그 호 페이지의 '이달 단계가 바뀐 구역' 줄을 읽기만 한다(날짜 미등록은 빈 날짜 · 페이지는 건드리지 않음)
+_IS = os.path.join(R, 'pipeline', 'report', 'issues.json')
+_m0 = re.search(r'(<script type="application/json" id="monthlyData">)(.*?)(</script>)', shell, re.S)
+if _m0 and os.path.exists(_IS):
+    try:
+        _cur = json.loads(_m0.group(2))
+        _pub = [i for i in json.load(open(_IS, encoding='utf-8')) if not i.get('draft')]
+        _top = max(_pub, key=lambda i: i['ym']) if _pub else None
+        _RP = _top and os.path.join(R, 'public', 'report', _top['ym'] + '.html')
+        if _top and _top['ym'] > _cur.get('ym', '') and os.path.exists(_RP):
+            _h = open(_RP, encoding='utf-8').read()
+            _ol = re.search(r'<ol class="rp-tl">(.*?)</ol>', _h, re.S)
+            _L2 = {'추진위원회 승인': '추진위', '정비구역 지정': '구역지정', '조합설립인가': '조합설립', '사업시행인가': '사업시행', '관리처분인가': '관리처분'}
+            _it = []
+            for _li in re.findall(r'<li>(.*?)</li>', _ol.group(1) if _ol else '', re.S):
+                _d = re.search(r'<span class="rp-d">(\d{1,2})\.(\d{1,2})</span>', _li); _z = re.search(r'href="\.\./z/(o\d+)"', _li)
+                _k = next((v for k, v in _L2.items() if '<br>' + k in _li), None)
+                if _z and _k: _it.append({'id': _z.group(1), 'step': _k, 'date': f"{_top['ym'][:4]}-{int(_d.group(1)):02d}-{int(_d.group(2)):02d}" if _d else '', 'src': ''})
+            new = {'ym': _top['ym'], 'no': _top['no'], 'url': f"report/{_top['ym']}", 'items': _it}
+            shell = shell[:_m0.start(2)] + json.dumps(new, ensure_ascii=False) + shell[_m0.end(2):]
+    except Exception as e: print('monthlyData 최신 호 건너뜀:', e)
 # 24차: 첫 화면 '재개발 공부하기' 첫 줄 = 가장 최근에 낸 월간 리포트(색인 안 하는 초안은 건너뜀)
 _RD = os.path.join(R, 'public', 'report')
 _iss = sorted((f for f in (os.listdir(_RD) if os.path.isdir(_RD) else []) if re.match(r'\d{4}-\d{2}\.html$', f)), reverse=True)

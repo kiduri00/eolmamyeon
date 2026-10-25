@@ -3026,7 +3026,7 @@ async function r30Lane(browser, api, errs) {
           await page.waitForTimeout(2500);
           const r = await page.evaluate(() => {
             const fs = [...document.querySelectorAll(".zgu b, .zgu span")].filter((e) => e.getClientRects().length && e.textContent.trim()).map((e) => parseFloat(getComputedStyle(e).fontSize));
-            const offs = window.ZP_lmx && window.ZP_lmx.gus ? window.ZP_lmx.gus().map((g) => [g.n, g.off, g.dOther, g.other]) : [];
+            const offs = window.ZP_lmx && window.ZP_lmx.gus ? window.ZP_lmx.gus().map((g) => [g.n, g.off, g.dOther, g.other, g.at]) : [];
             const vis = (e) => { const r = e.getBoundingClientRect(); if (!e.classList.contains("sm")) return r; const cs = getComputedStyle(e, "::before"), w = parseFloat(cs.width) || r.width, h = parseFloat(cs.height) || r.height, cx = r.left + r.width / 2, cy = r.top + r.height / 2; return { left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2 }; };
             const P = [...document.querySelectorAll("#lmap .zgu")].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden").map((e) => ({ n: e.dataset.gu, r: vis(e), m: +e.dataset.m }));
             let gap = Infinity, gp = "";
@@ -3048,8 +3048,11 @@ async function r30Lane(browser, api, errs) {
             return { min: fs.length ? Math.min(...fs) : null, offs, cov, list, gap: Math.round(gap * 10) / 10, gp, pms: P.map((p) => p.m).filter(isFinite), fit };
           });
           if (r.min != null) expect(r.min >= 10.99, "ui.r30Layout", T, `${w} ${c}억: 구 묶음 글자 ${r.min}px`);
-          const far = r.offs.filter(([, o, dO]) => o > 48.5 || (o > 0 && o > dO + 10.5));
-          expect(!far.length, "ui.r30Layout", T, `${w} ${c}억: 제 구에서 먼(>48px) · 다른 구 중심이 더 가까운 묶음 ${far.map(([n, o, dO, on]) => `${n} ${o}px (${on} ${dO}px)`).join(", ")}`);
+          // 8차: 48px 넘게(띠·버튼 밑 구만 72px까지) 비킨 묶음은 가운데 점이 제 구 땅 안 · 어느 묶음이든 가운데 점이 다른 구 땅 위면 안 됨
+          const far = r.offs.filter(([n, o, dO, , at]) => o > 72.5 || (o > 48.5 && at !== n) || (o > 0 && o <= 48.5 && o > dO + 10.5));
+          expect(!far.length, "ui.r30Layout", T, `${w} ${c}억: 제 구에서 먼(>48px · 72px 안이면 제 구 땅 안) · 다른 구 중심이 더 가까운 묶음 ${far.map(([n, o, dO, on, at]) => `${n} ${o}px (${on} ${dO}px · 가운데 ${at || "서울 밖"})`).join(", ")}`);
+          const onOther = r.offs.filter(([n, , , , at]) => at && at !== n);
+          expect(!onOther.length, "ui.r30Layout", T, `${w} ${c}억: 묶음 가운데 점이 이웃 구 땅 위 ${onOther.map(([n, o, , , at]) => `${n}→${at} ${o}px`).join(", ")}`);
           if (isFinite(r.gap)) expect(r.gap >= 1.95, "ui.r30Layout", T, `${w} ${c}억: 묶음 사이 ${r.gap}px (${r.gp})`);
           if (r.fit) expect(r.fit[0] >= r.fit[2] - 1 && r.fit[1] <= r.fit[3] + 1, "ui.r30Layout", T, `${w} ${c}억: +N 목록 ${r.fit[0]}–${r.fit[1]} vs 보이는 지도 ${r.fit[2]}–${r.fit[3]}`);
           if (r.cov != null) expect(r.cov === 0, "ui.r30Layout", T, `${w} ${c}억: '+N곳' 칩 가림 ${r.cov}/2 점`);
@@ -3061,6 +3064,62 @@ async function r30Lane(browser, api, errs) {
           }
         }
       } catch (e) { bad("ui.r30Layout", T, `${w} crashed: ` + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+    // 8차: 폰 대출 끼고 5·7.5·10·15억 — '+N곳' 칩에 숨은 곳 ≤ 25%(목표 20% 안팎 · 7차 390에서 30–33%) · 가장 적게 드는 두 구는 늘 지도에 · 묶음 가운데 점이 이웃 구 땅 위 아님
+    for (const w of [360, 390]) {
+      const { ctx, page } = await newPage(browser, mob(w, w === 360 ? 740 : 844), errs);
+      try {
+        await loadHome(page); await settle(page, 500); await setMode(page, "cash");
+        for (const c of [5, 7.5, 10, 15]) {
+          await setCash(page, c);
+          await page.evaluate(() => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 70); });
+          await page.waitForTimeout(2500);
+          const r = await page.evaluate(() => {
+            const root = document.querySelector("#lmap .zgu") ? document.getElementById("lmap") : document.querySelector(".zp-ph");
+            if (!root) return null;
+            const B = [...root.querySelectorAll(".zgu")].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden").map((e) => { const sp = e.querySelector("span"); return { n: e.dataset.gu, c: +e.dataset.n || 0, m: sp ? sp.textContent : "" }; });
+            const ch = [...root.querySelectorAll(".lm-gumore")].find((e) => !e.hidden && e.getClientRects().length);
+            const H = ch ? [...ch.querySelectorAll(".lm-gumore-l li button")].map((b) => ({ n: b.dataset.gu, m: (b.querySelector(".gm-m") || {}).textContent || "" })) : [];
+            const offs = window.ZP_lmx && window.ZP_lmx.gus && root.id === "lmap" ? window.ZP_lmx.gus().map((g) => [g.n, g.off, g.at]) : [];
+            return { B, H, more: ch ? +ch.dataset.n || 0 : 0, sN: (document.getElementById("sN") || {}).textContent || "", offs, real: root.id === "lmap" };
+          });
+          if (!r) { wrn("ui.r30Layout", T, `${w} 대출 ${c}억: 지도 묶음 없음`); continue; }
+          const tot = intOf(r.sN), share = tot ? r.more / tot : 0;
+          expect(share <= 0.25, "ui.r30Layout", T, `${w} 대출 ${c}억: '+N곳'에 숨은 곳 ${r.more}/${tot} = ${Math.round(share * 100)}% (> 25%) · 숨은 구 ${r.H.map((x) => x.n).join(", ")}`);
+          const all = r.B.map((x) => ({ n: x.n, v: (money(x.m.replace("~", "")) || { v: Infinity }).v, vis: 1 })).concat(r.H.map((x) => ({ n: x.n, v: (money(x.m.replace("~", "")) || { v: Infinity }).v, vis: 0 }))).filter((x) => isFinite(x.v)).sort((a, b) => a.v - b.v);
+          const hid2 = all.slice(0, 2).filter((x) => !x.vis);
+          expect(!hid2.length, "ui.r30Layout", T, `${w} 대출 ${c}억: 가장 적게 드는 두 구 중 '+N'에 숨은 구 ${hid2.map((x) => x.n + " " + x.v + "억").join(", ")}`);
+          const onO = r.offs.filter(([n, , at]) => at && at !== n);
+          expect(!onO.length, "ui.r30Layout", T, `${w} 대출 ${c}억: 묶음 가운데 점이 이웃 구 땅 위 ${onO.map(([n, o, at]) => `${n}→${at} ${o}px`).join(", ")}`);
+        }
+      } catch (e) { bad("ui.r30Layout", T, `${w} 대출 crashed: ` + String(e.message || e).split("\n")[0]); }
+      finally { await ctx.close().catch(() => {}); }
+    }
+    // 8차 sheet.left: 상세 시트 '남음' = 내 돈 − 보인 필요한 돈(내림) — 보인 필요한 돈 + 남음 ≤ 내 돈('1.2억 · 내 돈 2억 중 8,300만 남음'이던 것 · o337 대출 2억)
+    {
+      const T2 = "상세 시트 '남음'이 보인 필요한 돈과 맞음(필요한 돈 + 남음 ≤ 내 돈) — 8차: 2 − 1.1792를 올려 8,300만";
+      const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+      try {
+        let seen = 0;
+        for (const [id, c] of [["o337", 2], ["o1173", 2], ["o332", 2], ["o1070", 2], ["o337", 5], ["o332", 7.5]]) {
+          await goZone(page, id, c, "loan");
+          const rows = await page.evaluate(() => {
+            const out = [];
+            document.querySelectorAll("#report .cstrip, #report .big.cash, #report .bud, .cstrip").forEach((e) => {
+              const t = e.innerText.replace(/\s+/g, " "); if (!/남음/.test(t)) return;
+              const nb = e.classList.contains("bud") ? e.querySelector(".bl b") : e.querySelector("b");
+              out.push({ need: nb ? nb.firstChild.textContent.trim() : "", left: (/([\d,.]+(?:억|만)) 남음/.exec(t) || [])[1] || "", t: t.slice(0, 90) });
+            });
+            return out;
+          });
+          for (const x of rows) {
+            const n = money(x.need), l = money(x.left); if (!n || !l) continue; seen++;
+            expect(n.v + l.v <= c + 1e-6, "sheet.left", T2, `#${id} 대출 ${c}억: 필요한 돈 ${x.need} + 남음 ${x.left} > 내 돈 ${c}억 · "${x.t}"`);
+          }
+        }
+        expect(seen > 0, "sheet.left", T2, "'남음' 줄을 하나도 못 읽음");
+      } catch (e) { bad("sheet.left", T2, "crashed: " + String(e.message || e).split("\n")[0]); }
       finally { await ctx.close().catch(() => {}); }
     }
     const { ctx, page } = await newPage(browser, mob(390, 844), errs);
