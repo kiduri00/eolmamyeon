@@ -655,8 +655,19 @@ function early() {
   T(homeBuild); T(navBuild);
   H.classList.remove("tapp-wait");
 }
+// 5라운드(주인 요청 A): 시작 덮개(스플래시와 같은 남색 · shell.html 머리)는 첫 무거운 작업(앱 코드 평가 · 첫 plan()·홈 그리기 · 그 뒤 첫 긴 작업)이 끝날 때까지 —
+// 'zp:booted'(app.js boot 끝) 뒤 긴 작업 없이 250ms가 지나면 걷는다(0.28초 페이드) · 앱 홈이 준비된 뒤 2.5초가 상한
+function coverWatch() {
+  if (coverWatch.d || !H.classList.contains("tapp-cover")) return; coverWatch.d = 1;
+  const off = () => { clearInterval(iv); T(() => window.ZP_cover && window.ZP_cover()); try { performance.mark("zp-cover-off"); } catch (e) {} };
+  let lastLT = performance.now();
+  try { new PerformanceObserver((l) => l.getEntries().forEach((e) => { lastLT = Math.max(lastLT, e.startTime + e.duration); })).observe({ type: "longtask", buffered: true }); } catch (e) {}
+  const t0 = performance.now();
+  const iv = setInterval(() => { const now = performance.now(); if (now - t0 > 2500 || (window.ZP_booted && now - lastLT > 250)) { window.ZP_coverWhy = now - t0 > 2500 ? "cap" : "quiet"; off(); } }, 50);
+}
 function start() {
   if (start.d) return; start.d = 1;
+  coverWatch();
   H.classList.add("is-app");
   patchHistory(); coldBase(); coldTop();
   navBuild(); bindClicks(); homeBuild();
@@ -675,10 +686,10 @@ function start() {
   addEventListener("zp:alerts", badge);
   if (onbNeed()) setTimeout(onbOpen, 60);
   try { window.dispatchEvent(new Event("zp:tapp")); } catch (e) {}
-  // 4라운드: 서비스 워커에 '설치 앱 창'이라고 알린다(오프라인 안내를 5탭으로 · sw.js TAPP)
-  const swTell = () => T(() => { const c = navigator.serviceWorker && navigator.serviceWorker.controller; if (c) c.postMessage({ tapp: 1 }); });
-  swTell(); T(() => navigator.serviceWorker && navigator.serviceWorker.addEventListener("controllerchange", swTell)); addEventListener("visibilitychange", () => { if (!document.hidden) swTell(); });
+
 }
 window.ZP_TAPP = { goTab, curTab, dep, feedCounts: () => (CH ? units().reduce((o, u) => { o[u.e.type] = (o[u.e.type] || 0) + 1; return o; }, {}) : null), feedUnits: () => units().map((u) => ({ t: u.e.type, n: u.items.length, ids: u.ids })), newCount, tiles: () => tiles().map((t) => ({ k: t[0], t: t[1], href: t[2], id: t[3] })), onb: () => !!ob, onbOpen };
 (function pre(n) { if (early.d) return; if ($("mapTop") && $("sSearch") && $("sGauge") && $("sNav") && tcssOn()) early(); else if (n < 400) setTimeout(() => pre(n + 1), 10); })(0);
-(function wait(n) { if (ready()) start(); else if (n < 600) setTimeout(() => wait(n + 1), 25); else H.classList.remove("tapp-wait"); })(0);
+// 5라운드: 느린 망에서 웹 묶음이 15초 넘게 걸려도 앱 화면을 붙인다(예전엔 15초에 기다림을 그만둬 웹 화면이 남았다) — 15초 뒤엔 0.1초 간격으로 60초까지 + 앱 코드가 붙는 순간(zp:hydrated)
+(function wait(n) { if (ready()) start(); else if (n < 600) setTimeout(() => wait(n + 1), 25); else if (n < 1050) setTimeout(() => wait(n + 1), 100); else H.classList.remove("tapp-wait"); })(0);
+addEventListener("zp:hydrated", () => setTimeout(() => { if (!start.d && ready()) start(); }, 0));

@@ -263,6 +263,24 @@ async function staticLane(api) {
       expect(/#map\b/.test(sc) && /#favTop\b/.test(sc), id, t, "shortcuts lack #map / #favTop: " + sc);
     } catch (e) { bad(id, t, "manifest unreadable: " + e.message); }
   }
+  // --- seo.shortcuts(5라운드 15): 웹 매니페스트 바로가기 4개 = 안드로이드 앱(AAB) 숏컷(twa-manifest.json 기준) — 주소·이름·아이콘(200)
+  {
+    const T5 = "manifest 바로가기 4개 == 앱(AAB) 숏컷(twa-manifest.json): 주소·이름·아이콘 파일";
+    const tp = process.env.TWA_MANIFEST || "/home/claude/eolmamyeon-android/android/twa-manifest.json";
+    let tw = null; try { tw = JSON.parse(fs.readFileSync(tp, "utf8")); } catch (e) {}
+    if (!tw) skip("seo.shortcuts", T5, "twa-manifest.json 없음: " + tp);
+    else {
+      try {
+        const mj = JSON.parse(man.text), M = mj.shortcuts || [], A = tw.shortcuts || [];
+        const path = (u) => { try { const x = new URL(u, "https://x.kr"); return x.pathname + x.search + x.hash; } catch (e) { return u; } };
+        const bad5 = [];
+        if (M.length !== A.length) bad5.push(`수 ${M.length} ≠ ${A.length}`);
+        for (let i = 0; i < Math.max(M.length, A.length); i++) { const m = M[i] || {}, a = A[i] || {}; if (path(m.url) !== path(a.url) || m.name !== a.name) bad5.push(`${i}: ${m.name} ${m.url} ≠ ${a.name} ${a.url}`); const ic = a.chosenIconUrl ? new URL(a.chosenIconUrl).pathname : null; if (ic && !(m.icons || []).some((x) => x.src === ic)) bad5.push(`${i}: 아이콘 ${ic} 없음`); }
+        for (const m of M) for (const ic of m.icons || []) { const r = await get(BASE + ic.src).catch(() => ({ status: 0 })); if (r.status !== 200) bad5.push(`${ic.src} ${r.status}`); }
+        expect(!bad5.length, "seo.shortcuts", T5, bad5.join(" ; "));
+      } catch (e) { bad("seo.shortcuts", T5, "읽기 실패: " + e.message); }
+    }
+  }
   {
     // 14회차: 섬(첫 페인트) 단계에도 머리 종 자리·아래 탭바·알림 카드(같은 문구)가 있다 — 앱이 붙을 때 자리가 생기며 밀리지 않게
     // 리뉴얼 1단계: 머리 종은 없앴다(소식 탭으로) → 첫 페인트에 아래 탭 4개(찾기·관심·소식·MY)가 그대로 있어야

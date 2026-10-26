@@ -9063,6 +9063,8 @@
     if (hash0 === "report" && !$("report").offsetParent && $("sListW")) setTimeout(() => $("sListW").scrollIntoView({ block: "start" }), 300);
     else if (hash0 && !gu0 && $(hash0)) requestAnimationFrame(() => jumpTo(window.ZP_ALIAS && ZP_ALIAS[hash0] ? (ZP_ALIAS[hash0][1] === "save" ? "saveTop" : ZP_ALIAS[hash0][0]) : hash0));   // 예전 도구 주소는 합친 화면 머리로(60_simple.js ZP_ALIAS)
     refreshFades();
+    // 5라운드: 첫 계산·홈 그리기가 끝났다는 알림(설치 앱 시작 덮개가 이것과 첫 긴 작업이 끝난 뒤 걷힌다 · 웹은 듣는 곳 없음)
+    window.ZP_booted = 1; try { performance.mark("zp-booted"); } catch (e) {} try { window.dispatchEvent(new Event("zp:booted")); } catch (e) {}
   }
   initFold();
   boot();
