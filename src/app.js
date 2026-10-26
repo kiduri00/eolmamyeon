@@ -4568,6 +4568,12 @@
   const needS = (r) => {
     try {
       if (r.s >= 9 || r.dn || r.src === "moa") return null;
+      // after-adsense 1: 검색 줄 금액 = 구역 시트 '지금 필요한 돈'·정적 /z와 같은 함수(DTL.nums) — 전세 끼고 못 사는 곳은 시트처럼 대출 끼고 값(lnow), 따로 셈하던 gapOf/investC가 '계산 보류'를 내던 것(라이브 373곳)
+      if (typeof DTL !== "undefined" && DTL.nums) {
+        const n = DTL.nums(r), tot = !gapMode() && effBasis() === "total";
+        const v = tot ? (n.total != null ? n.total : n.ltot) : n.need != null ? n.need : n.lnow;
+        return v == null || !isFinite(v) ? null : { v, l: tot ? "입주까지" : "지금" };
+      }
       if (gapMode()) { const g = gapOf(r); return g.block || g.na || g.now == null || !isFinite(g.now) ? null : { v: g.now, l: "전세 끼고" }; }
       const x = investC(r), tot = effBasis() === "total";
       const v = tot ? (x.ok ? x.needTotal : null) : x.needBuy;
@@ -4611,11 +4617,26 @@
     zs.filter((r) => r.src === "moa").forEach((mr) => (mr.kids || []).map((id) => byId[id]).filter(Boolean).forEach((r) => add(other, r)));
     return { own, other, dong: hitD, alt: hitD !== pq.dong };
   }
+  // after-adsense 1: 정적 /z 제목 꼴('창신4구역 도시정비형' · '…재개발 진행 단계와 분담금 추정' · '길훈(개봉동)' · '홍제3구역(재건축)')로 찾아도 그 구역 — 원래 검색어로 하나도 안 걸릴 때만 다듬은 말로 다시(걸리던 검색 결과는 그대로)
+  const SG_TW = /^(도시정비형|주택정비형|재개발|재건축|공공|도심공공주택복합|도시재생형|통합|소규모|가로주택|소규모재건축|소규모재개발|자율주택정비|모아타운|역세권|장기전세주택|활성화|시장)$/;
+  const sgClean = (q) => {
+    let s = q.replace(/\s*진행 단계와.*$/, "").replace(/\(([^)]*)\)/g, (m, x) => (SG_TW.test(x.trim()) ? " " : ` ${x} `)).replace(/\s+/g, " ").trim();
+    const w = s.split(" ");
+    while (w.length > 1 && SG_TW.test(w[w.length - 1])) w.pop();
+    return w.join(" ");
+  };
+  const sgAny = (q) => {
+    const vs = qVariants(q.replace(/\s/g, "")), terms = q.split(/\s+/), nq = normQ(q);
+    return idx.some((x) => terms.every((t) => x.t.includes(t)) || vs.some((v) => x.c.includes(v)) || (nq.length >= 2 && vs.some((v) => x.a.includes(normQ(v)))) || sgSn(x, q));
+  };
+  // 화면에 보이는 짧은 이름(강동역세권(1구역) → '강동역세권1구역')으로도 찾게 — 색인 글자는 원래 이름이라 괄호가 낀 이름은 보이는 이름으로 못 찾던 것
+  const sgSn = (x, q) => { const nq = normQ(q.replace(/\s/g, "")); if (nq.length < 2) return false; if (!x.sn) { try { x.sn = normQ(shortName(x.r.n)); } catch (e) { return false; } } return x.sn.includes(nq); };
   function renderSugg() {
-    const q = $("q")
+    let q = $("q")
       .value.trim()
       .toLowerCase()
       .replace(/번지|일대/g, "");
+    if (q.length >= 4 && !sgAny(q)) { const c = sgClean(q); if (c && c !== q && sgAny(c)) q = c; }
     if (q.length < 1) {
       $("sugg").hidden = true;
       $("q").setAttribute("aria-expanded", "false");
@@ -4650,6 +4671,7 @@
           terms.every((t) => x.t.includes(t)) ||
           vs.some((v) => x.c.includes(v)) ||
           (normQ(q).length >= 2 && vs.some((v) => x.a.includes(normQ(v)))) ||
+          sgSn(x, q) ||
           altHit(x),
       )
       .map((x) => ({ ...x, nh: altHit(x) && !nameHit(x) ? ((isCho ? x.cho : x.rom).split("|").some((w) => w.startsWith(qc)) ? 1 : 2) : lvl(x) }))
