@@ -3578,7 +3578,7 @@ async function tappLane(browser, api, errs) {
   }
   // --- search.names(출시 전 검수 B1 · 웹·앱 공통 검색): 구역 956곳을 각자 이름으로 검색 — 라이브가 찾던 곳은 하나도 빠지지 않음(tools/fixtures/search_names_live.json = 라이브 전수 결과) · 이름이 '동 + 번지' 꼴이어도 '구역 밖' 안내로 가리지 않음 · 이름이 똑같은 곳 1위(수유동 310-15 → s43)
   {
-    const T = "이름 전수 검색: 라이브가 찾던 구역은 후보도 전부 찾음(사라진 곳 0) · '동+번지' 꼴 이름도 '구역 밖'으로 안 가림 · 이름 같은 곳 1위";
+    const T = "이름 전수 검색: 라이브가 찾던 구역은 후보도 전부 찾음(사라진 곳 0) · 찾은 줄 금액 = 정적 /z '지금 필요한 돈'(0 불일치) · '동+번지' 꼴 이름도 '구역 밖'으로 안 가림 · 이름 같은 곳 1위";
     const R = []; let n = 0, lost = [];
     const { ctx, page } = await newPage(browser, { viewport: { width: 1280, height: 900 } }, errs);
     try {
@@ -3587,13 +3587,20 @@ async function tappLane(browser, api, errs) {
       await ctx.addInitScript(() => { try { localStorage.setItem("zp.onb", "1"); } catch (e) {} });
       await page.goto(BASE + "/", { waitUntil: "load", timeout: 30000 });
       await page.waitForFunction(() => window.ZP_boot && ZP_boot.hyd === 1, null, { timeout: 30000 }).catch(() => {}); await page.waitForTimeout(1000);
-      for (const x of L) {
+      // after-adsense 1: 956곳 전부 — 라이브가 찾던 곳은 반드시 찾고, 찾은 줄의 금액('지금 X'·'계산 보류') = 정적 /z '지금 필요한 돈'(검색 줄만 '계산 보류'이던 373곳 · 이름 칩으로만 걸리던 곳 없음)
+      const AL = JSON.parse(fs.readFileSync(require("path").join(__dirname, "fixtures", "search_names_live.json"), "utf8")), liveF = new Set(L.map((x) => x.id));
+      const zCell = async (id) => { const z = await getPage("/z/" + id); if (z.status !== 200) return null; const t = String(z.text).slice(String(z.text).indexOf("<body")).replace(/<[^>]+>/g, " | ").replace(/(\s*\|\s*)+/g, " | "); const m = / \| 지금 필요한 돈 \| ([^|]+?) \|/.exec(t); return m ? m[1].trim() : null; };
+      const mis = []; let nv = 0;
+      for (const x of AL) {
         n++;
         await page.fill("#q", ""); await page.fill("#q", x.name);
-        const ok = await page.waitForFunction((id) => !!document.querySelector(`#sugg [data-id="${id}"]`), x.id, { timeout: 2000 }).then(() => true).catch(() => false);
-        if (!ok) lost.push(`${x.id} '${x.name}' ${(await page.evaluate(() => document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 40)))}`);
+        const v = await page.waitForFunction((id) => { const e = document.querySelector(`#sugg [data-id="${id}"]`); if (!e) return false; const c = e.querySelector(".sg-c"); return c ? c.innerText.split("\n")[0].replace(/^지금\s*/, "").trim() : "(칩만)"; }, x.id, { timeout: 2000 }).then((h) => h.jsonValue()).catch(() => null);
+        if (v == null) { if (liveF.has(x.id)) lost.push(`${x.id} '${x.name}' ${(await page.evaluate(() => document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 40)))}`); continue; }
+        const zv = await zCell(x.id); if (zv == null) continue;
+        nv++; if (v !== zv) mis.push(`${x.id} 검색 ${v} · /z ${zv}`);
       }
       if (lost.length) R.push(`사라진 곳 ${lost.length}: ` + lost.slice(0, 6).join(" ; "));
+      if (mis.length || nv < 800) R.push(`금액 다름 ${mis.length}/${nv}: ` + mis.slice(0, 6).join(" ; "));
       for (const [q, want] of [["수유동 310-15", "s43"], ["창동 608", "s51"], ["중화동324", "o6"], ["무교다동4", "s79"]]) {
         await page.fill("#q", ""); await page.fill("#q", q); await page.waitForTimeout(1500);
         const r = await page.evaluate(() => ({ top: (document.querySelector("#sugg [data-id]") || {}).dataset?.id, t: document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 80) }));
