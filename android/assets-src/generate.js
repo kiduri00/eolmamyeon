@@ -24,13 +24,13 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
     startUrl: '/?src=app',
     display: 'standalone',
     orientation: 'default',
-    themeColor: '#FFFFFF',
-    themeColorDark: '#15181D',
+    themeColor: '#1F3A87',      // splash-time status bar (brand navy); site theme-color takes over in app mode
+    themeColorDark: '#13265E',
     navigationColor: '#FFFFFF',
     navigationColorDark: '#15181D',
     navigationDividerColor: '#FFFFFF',
     navigationDividerColorDark: '#15181D',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1F3A87', // splash background (brand navy); night = #13265E below
     enableNotifications: true,
     fallbackType: 'customtabs',
     iconUrl: LOCAL + '/icon-512.png',
@@ -72,7 +72,7 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   // written here so a generate.js run keeps it. `bubblewrap update`/`build` (CLI) will NOT recreate it.
   fs.mkdirSync(path.join(target, 'app/src/main/res/values-night'), { recursive: true });
   fs.writeFileSync(path.join(target, 'app/src/main/res/values-night/colors.xml'),
-    '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="backgroundColor">#15181D</color>\n    <color name="shortcut_background">#2A2E35</color>\n</resources>\n');
+    '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="backgroundColor">#13265E</color>\n    <color name="shortcut_background">#2A2E35</color>\n</resources>\n');
   // Launcher icon = Play icon v5 (#F2F5FC + navy mark, design_tokens.md §7). Not expressible in twa-manifest.json
   // (bubblewrap would put the maskable PNG on a white background, with no monochrome layer), so copy the committed
   // resources made by launcher/render-launcher.js from this project and drop bubblewrap's ic_maskable mipmaps.
@@ -84,8 +84,15 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
     fs.rmSync(path.join(DST_RES, 'mipmap-' + d, 'ic_maskable.png'), { force: true });
   }
   for (const f of LAUNCHER) { fs.mkdirSync(path.dirname(path.join(DST_RES, f)), { recursive: true }); fs.copyFileSync(path.join(SRC_RES, f), path.join(DST_RES, f)); }
+  // Brand splash (1.0.0 r4): vector @drawable/splash (assets-src/splash/render-splash.js) replaces bubblewrap's
+  // splash.png, and LauncherActivity gets Theme.Zippin.Launcher (values-v31 = Android 12+ system splash).
+  for (const f of ['drawable/splash.xml', 'values/themes.xml', 'values-v31/themes.xml']) {
+    fs.mkdirSync(path.dirname(path.join(DST_RES, f)), { recursive: true }); fs.copyFileSync(path.join(SRC_RES, f), path.join(DST_RES, f)); }
+  for (const d of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) fs.rmSync(path.join(DST_RES, 'drawable-' + d, 'splash.png'), { force: true });
   const MF = path.join(target, 'app/src/main/AndroidManifest.xml');
   let mf = fs.readFileSync(MF, 'utf8');
+  if (!mf.includes('Theme.Zippin.Launcher')) mf = mf.replace(/(<activity android:name="LauncherActivity"\n)/, '$1            android:theme="@style/Theme.Zippin.Launcher"\n');
+  if (!mf.includes('android:theme="@style/Theme.Zippin.Launcher"')) throw new Error('could not set the LauncherActivity theme');
   if (!mf.includes('android:roundIcon')) mf = mf.replace(/( *)android:icon="@mipmap\/ic_launcher"\n/, (m, sp) => m + sp + 'android:roundIcon="@mipmap/ic_launcher_round"\n');
   if (!mf.includes('android:roundIcon="@mipmap/ic_launcher_round"')) throw new Error('could not add roundIcon to AndroidManifest.xml');
   fs.writeFileSync(MF, mf);

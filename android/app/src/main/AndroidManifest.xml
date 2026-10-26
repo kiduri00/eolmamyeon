@@ -78,6 +78,7 @@
         
 
         <activity android:name="LauncherActivity"
+            android:theme="@style/Theme.Zippin.Launcher"
             android:alwaysRetainTaskState="true"
             android:label="@string/launcherName"
             android:exported="true">

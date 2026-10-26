@@ -65,7 +65,16 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
   - **재생성 주의**: bubblewrap은 `icon-maskable-512.png`를 흰 배경에 얹은 `ic_maskable`을 만들고 모노크롬 층·roundIcon이 없습니다.
     `generate.js`는 생성 뒤 이 프로젝트의 런처 리소스를 복사하고 `ic_maskable.png`를 지우고 roundIcon을 넣어 주므로 유지됩니다.
     `bubblewrap update`/`build`(CLI)로 다시 만들었다면 위 파일과 AndroidManifest의 roundIcon을 git에서 되살리세요.
-- 스플래시: 사이트의 `icon-512.png`
+- 스플래시(1.0.0 r4, 브랜드형): 화면 전체 남색(라이트 `#1F3A87`, 다크 `values-night` `#13265E`) + 가운데 흰 핀 마크(집은 바탕색으로 뚫림, 노란 문).
+  - 그림 하나(`drawable/splash.xml`, 벡터 240dp, 핀 92dp)를 두 단계에 같이 씁니다.
+    Android 12+ 시스템 스플래시(`values-v31/themes.xml`의 `Theme.Zippin.Launcher`, 아이콘 배경도 남색, 160dp 원 안)와
+    TWA 스플래시(`SPLASH_IMAGE_DRAWABLE`, 배경 `@color/backgroundColor`, 페이드 300ms). API 24~30은 TWA 스플래시만 보입니다.
+  - 상태바: TWA 상태바 색(`themeColor`)을 남색으로 둡니다. 페이지가 검증(Digital Asset Links)되면 Chrome이 사이트의
+    `theme-color`(#FFFFFF / #15181D)를 쓰므로 웹이 뜬 뒤에는 예전 색입니다. 검증 실패 상태(assetlinks에 Play 서명 키가 없을 때)에서는
+    주소창 툴바와 상태바가 남색으로 남습니다.
+  - 내비바: TWA 내비바 색은 기존(#FFFFFF / #15181D) 그대로입니다. Chrome은 웹 쪽 색으로 내비바를 바꾸지 않으므로 남색으로 두면 웹 사용 중에도
+    남색이 됩니다. Android 12+ 시스템 스플래시와 Chrome이 edge-to-edge로 그릴 때(Android 15+)는 남색 바탕이 그대로 보입니다.
+  - 다시 그리기: `NODE_PATH=$(npm root -g) node android/assets-src/splash/render-splash.js [resDir] [preview.png]`
 - 알림(흰색 실루엣): `assets-src/icon-monochrome.svg` → `assets-src/icon-monochrome-512.png`(결과는 `res/drawable-*/ic_notification_icon.png`).
 - 바로가기 4개는 각각 다른 아이콘(디자인 킷 `app_kit/png/shortcuts`): `shortcut_0`=지도(map), `shortcut_1`=관심 구역(favorites),
   `shortcut_2`=월간 리포트(report), `shortcut_3`=구역별 페이지(zone). 원본은 `assets-src/shortcut_*_192.png`, SVG는 `assets-src/shortcuts/`.

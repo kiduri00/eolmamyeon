@@ -26,13 +26,13 @@ def twaManifest = [
     launchUrl: '/?src=app', // The start path for the TWA. Must be relative to the domain.
     name: '집핀 - 서울 재개발 지도', // The application name.
     launcherName: '집핀', // The name shown on the Android Launcher.
-    themeColor: '#FFFFFF', // The color used for the status bar.
-    themeColorDark: '#15181D', // The color used for the dark status bar.
+    themeColor: '#1F3A87', // Status bar while the splash shows (brand navy); the site's theme-color takes over once the page is verified.
+    themeColorDark: '#13265E', // Dark status bar while the splash shows (navy-700).
     navigationColor: '#FFFFFF', // The color used for the navigation bar.
     navigationColorDark: '#15181D', // The color used for the dark navbar.
     navigationDividerColor: '#FFFFFF', // The navbar divider color.
     navigationDividerColorDark: '#15181D', // The dark navbar divider color.
-    backgroundColor: '#FFFFFF', // The color used for the splash screen background.
+    backgroundColor: '#1F3A87', // Splash background (brand navy). Night: values-night/colors.xml #13265E.
     enableNotifications: true, // Set to true to enable notification delegation.
     // Every shortcut must include the following fields:
     // - name: String that will show up in the shortcut.
