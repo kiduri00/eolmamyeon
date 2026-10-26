@@ -140,6 +140,9 @@ function goTab(k) {
   const now = curTab();
   if (k === now && k !== "home" && !(k === "map" && !H.classList.contains("s-full"))) { window.scrollTo({ top: 0, behavior: "auto" }); return; }
   if (k !== "map" && k !== "home") lastTab = k;
+  // tabfix: 홈이 아닌 화면에서 다른 탭으로 갈 때 기록을 되감는 동안(웹 코드가 지금 화면을 닫음) 홈이 몇 프레임 비치던 것 — 본문을 가렸다가 목적 화면을 연 뒤 두 프레임 뒤에 보인다(머리·아래 탭은 그대로)
+  const sw = k !== "home" && dep() > 0;
+  if (sw) { H.classList.add("t-sw"); clearTimeout(goTab.t); goTab.t = setTimeout(() => H.classList.remove("t-sw"), 2000); }
   toBase(() => {
     lastTab = k === "map" ? lastTab : k;
     // 다른 탭에서 연 구역 시트가 지도를 그 구로 옮겨 두었으면(기록에 구 칸 없음) 홈·지도 탭은 서울 전체에서 — 구 거르기가 홈 카드·지도 탭에 새지 않게
@@ -156,6 +159,7 @@ function goTab(k) {
       window.scrollTo({ top: 0, behavior: "auto" });
     }
     navMark();
+    if (sw) requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(goTab.t); H.classList.remove("t-sw"); }));
   });
 }
 function bindClicks() {

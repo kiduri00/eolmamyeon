@@ -2851,6 +2851,60 @@ async function tappLane(browser, api, errs) {
     }
     expect(!R.length, "tapp.toggleDark", T, R.join(" ; "));
   }
+  // --- tapp.noHomeFlash(tabfix): 아래 탭으로 화면을 바꾸는 동안 목적 화면이 아닌 홈 요소(홈 카드·그리드·배너·목록)가 한 프레임도 안 보임 — 4×CPU · 경로마다 5번
+  // 탭끼리 20쌍 · 도구 화면(입주 계산·순위) → 탭 · 구역 시트 → 탭 · 정적 페이지(리포트·/z·가이드·소개) → 탭(새 문서: 덮개는 남색 스플래시가 아니라 탭 바탕) · 콜드 스타트는 그대로 스플래시
+  // 매 프레임(requestAnimationFrame) 화면 여섯 곳에서 맨 위 요소를 집어 홈 요소 안이면 '홈 보임'. 홈에서 떠날 때는 홈이 한 번 가려진 뒤 다시 보이면 셈
+  {
+    const T = "설치 앱 탭 전환 중 홈 비침 없음(4×CPU · 경로마다 5번): 탭 20쌍 · 도구 → 탭 · 시트 → 탭 · 정적 페이지 → 탭(덮개 = 탭 바탕, 남색 스플래시 아님) · 콜드 스타트는 스플래시";
+    const R = []; let nT = 0;
+    const PROBE = () => { window.__fr = []; window.__pr = 0; try { if (sessionStorage.getItem("__prOn") === "1") { window.__pr = 1; sessionStorage.removeItem("__prOn"); } } catch (e) {}
+      const HS = "#tHome,#sGauge,#sListW,#sMini,.th-b", pts = [[0.5, 0.25], [0.5, 0.45], [0.5, 0.65], [0.25, 0.5], [0.75, 0.5], [0.5, 0.85]];
+      const tick = () => { if (window.__pr) { let hit = 0; for (const [x, y] of pts) { const e = document.elementFromPoint(innerWidth * x, innerHeight * y); if (e && e.closest && e.closest(HS)) { hit = 1; break; } } const c = document.documentElement.className; window.__fr.push([hit, /tapp-cover/.test(c) ? 1 : 0, /tapp-tab/.test(c) ? 1 : 0]); } requestAnimationFrame(tick); }; requestAnimationFrame(tick); };
+    const mk = async () => {
+      const r = await newPage(browser, mob(390, 844), errs);
+      await r.ctx.addInitScript(() => { let fs = 0; try { fs = sessionStorage.getItem("__prOn") === "1"; } catch (e) {} if (!fs) try { Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.zippin/" }); } catch (e) {} try { sessionStorage.setItem("zp.tapp", "1"); localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+      await r.ctx.addInitScript(PROBE);
+      await r.ctx.route(/^https?:\/\/[^/]+\/(?:years|report\/\d{4}-\d\d|guide\/[a-z0-9-]+)(?:[?#].*)?$/, (q) => { const u = new URL(q.request().url()); u.pathname += ".html"; return q.continue({ url: u.toString() }); });
+      const cdp = await r.ctx.newCDPSession(r.page); await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+      return r;
+    };
+    const ready = (p) => p.waitForFunction(() => document.documentElement.classList.contains("tapp-on") && !document.documentElement.classList.contains("tapp-cover"), null, { timeout: 40000 }).then(() => p.waitForTimeout(900));
+    const tab = (p, k) => p.evaluate((k) => { const b = document.querySelector(`#sNav [data-nav="${k}"]`); if (b) b.click(); return !!b; }, k);
+    const measure = async (p, act) => { await p.evaluate(() => { window.__fr = []; window.__pr = 1; }); await act(); await p.waitForTimeout(1800); return p.evaluate(() => { window.__pr = 0; return window.__fr; }); };
+    const cnt = (fr, from) => { if (from === "home") { const i = fr.findIndex((f) => !f[0]); return i < 0 ? 0 : fr.slice(i).filter((f) => f[0]).length; } return fr.filter((f) => f[0]).length; };
+    const TABS = ["home", "map", "fav", "news", "my"];
+    try {
+      const RUNS = +process.env.QAC_NHF_RUNS || 5;   // 개발 때만 줄여 돌림 · 게이트는 5
+      for (let run = 0; run < RUNS; run++) {
+        { const { ctx, page } = await mk();
+          try {
+            await page.goto(BASE + "/", { waitUntil: "domcontentloaded", timeout: 40000 }); await ready(page);
+            for (const a of TABS) for (const z of TABS) { if (a === z || z === "home") continue; await tab(page, a); await page.waitForTimeout(900); const fr = await measure(page, () => tab(page, z)); nT++; const n = cnt(fr, a); if (n) R.push(`${a}→${z} ${n}프레임`); }
+            for (const t of ["calc", "rank"]) for (const z of ["map", "fav", "news", "my"]) { await tab(page, "home"); await page.waitForTimeout(700); await page.click(`#tHome .th-grid a[data-tile="${t}"]`); await page.waitForTimeout(1000); const fr = await measure(page, () => tab(page, z)); nT++; const n = cnt(fr, "tool"); if (n) R.push(`도구 ${t}→${z} ${n}프레임`); }
+            for (const a of ["home", "fav", "news"]) for (const z of ["map", "fav", "news", "my"]) { if (a === z) continue; await tab(page, a); await page.waitForTimeout(700); await page.evaluate(() => { location.hash = "o497"; }); await page.waitForTimeout(1200); const fr = await measure(page, () => tab(page, z)); nT++; const n = cnt(fr, "sheet"); if (n) R.push(`시트(${a})→${z} ${n}프레임`); }
+          } catch (e) { R.push("SPA crash " + String(e.message || e).split("\n")[0]); } finally { await ctx.close().catch(() => {}); } }
+        for (const pg of ["/report/2026-10.html", "/z/o144.html", "/guide/moatown.html", "/about.html"]) for (const [lab, z] of [["지도", "map"], ["관심", "fav"], ["소식", "news"], ["MY", "my"]]) {
+          const { ctx, page } = await mk();
+          try {
+            await page.goto(BASE + pg, { waitUntil: "load", timeout: 40000 }); await page.waitForTimeout(500);
+            await page.evaluate(() => sessionStorage.setItem("__prOn", "1"));
+            const a = await page.$(`.zp-tabs a:has(span:text-is("${lab}"))`); if (!a) { R.push(`${pg} '${lab}' 링크 없음`); continue; }
+            await Promise.all([page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 40000 }).catch(() => {}), a.click()]);
+            await page.waitForFunction(() => window.__fr && window.__fr.length > 5 && !document.documentElement.classList.contains("tapp-cover"), null, { timeout: 40000 }).catch(() => {});
+            await page.waitForTimeout(1500);
+            const fr = await page.evaluate(() => window.__fr || []); nT++;
+            const n = fr.filter((f) => f[0] && !f[1]).length, cov = fr.filter((f) => f[1]).length, tabC = fr.filter((f) => f[1] && f[2]).length;
+            if (n) R.push(`${pg}→${z} ${n}프레임`);
+            if (!fr.length) R.push(`${pg}→${z} 프레임 기록 없음`);
+            if (cov && tabC !== cov) R.push(`${pg}→${z} 덮개가 탭 바탕이 아님(${tabC}/${cov})`);
+          } catch (e) { R.push(`${pg}→${z} crash ` + String(e.message || e).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+        }
+      }
+      // 콜드 스타트(앱 아이콘)는 예전 그대로 남색 스플래시(탭 바탕 덮개 아님)
+      { const { ctx, page } = await appPage(mob(390, 844)); try { await page.goto(BASE + "/#news", { waitUntil: "domcontentloaded", timeout: 40000 }); const c = await page.evaluate(() => document.documentElement.className); if (/tapp-tab/.test(c) || !/tapp-cover|tapp-on/.test(c)) R.push("콜드 스타트 덮개 " + c.slice(0, 80)); } finally { await ctx.close().catch(() => {}); } }
+    } catch (e) { R.push("crash " + String(e.message || e).split("\n")[0]); }
+    expect(!R.length && nT >= (+process.env.QAC_NHF_RUNS || 5) * (16 + 8 + 10 + 16), "tapp.noHomeFlash", T, `${nT}번 전환 · ` + R.slice(0, 8).join(" ; "));
+  }
   // --- tapp.feed: 전체 소식 = data/changes.json(종류별 수 같음) · 칩으로 거르기 · 줄을 누르면 그 구역 · 관심 구역(예전 소식) 칸 그대로
   {
     const T = "설치 앱 전체 소식: 칩 수 = changes.json을 같은 거래끼리 합친 종류별 건수(실거래·경공매만 합침 · 합친 소식의 항목 합 = 원본 수) · 칩 거르기 · 줄 → 구역 열림 · '관심 구역' 칸 = 예전 내 소식";

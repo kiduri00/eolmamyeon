@@ -597,3 +597,6 @@ html.is-tapp.t-big .dt-kv{align-items:flex-start;text-align:left}
 @media (max-width:980px){html.is-tapp.s-full .zgu{width:var(--w)!important;min-width:0!important;padding:0 6px!important;overflow:hidden}html.is-tapp.s-full .zgu.tt{padding:0 3px!important}html.is-tapp.s-full .zgu b,html.is-tapp.s-full .zgu span{white-space:nowrap}}
 /* 4 큰 글씨: 검색 결과 머리 줄(x-h)·구역 밖 안내는 줄바꿈(…구역 밖이( 로 잘리던 것) */
 html.is-tapp.t-big #sugg .x-h,html.is-tapp.t-big #sugg .s-none{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;height:auto!important;word-break:keep-all}
+
+/* tabfix: 탭을 바꾸는 동안(기록 되감기 → 목적 화면 열기) 본문을 가려 홈이 비치지 않게 — 바탕(#FFFFFF·다크 #101215)과 머리·아래 탭만 */
+html.is-tapp.t-sw main.wrap{visibility:hidden!important}
