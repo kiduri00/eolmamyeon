@@ -103,6 +103,7 @@ OFFJS = ('<script>(function(){var d=' + json.dumps(UPD) + ',p;function s(){var o
 TDET = ('function(){var H=document.documentElement,a=false,m=function(q){try{return matchMedia(q).matches}catch(e){return false}};'
         'a=m("(display-mode: standalone)")||m("(display-mode: fullscreen)")||m("(display-mode: minimal-ui)")||navigator.standalone===true||/^android-app:\\/\\//.test(document.referrer||"");'
         'try{if(a)sessionStorage.setItem("zp.tapp","1");else a=sessionStorage.getItem("zp.tapp")==="1"}catch(e){}if(a)H.classList.add("is-tapp");return a}')
+# after-adsense(애드센스 승인 뒤 적용 · ads-app-guard 4ebb43340): 정적 페이지 리터럴 광고 태그 → 설치 앱이면 건너뛰는 로더
 # 광고 스크립트(애드센스): 페이지에 직접 박혀 있던 <script async src=…adsbygoogle.js> 대신 같은 주소·같은 속성(async · crossorigin=anonymous)으로 붙이는 작은 로더.
 # 브라우저에서는 예전과 똑같이 받고, 설치 앱에서는 받지 않는다(앱 안 광고는 따로 정할 때까지 끔). 다시 돌려도 같은 결과(표시 data-zp-ads).
 AD_SRC = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648'
@@ -170,7 +171,7 @@ def foot_links(h):
     return RF2.sub(lambda m: m.group(1) + FOOT_P + m.group(2), h, count=1)
 
 
-# after-adsense 3: 리포트 링크 — '지도 열기'는 지도 화면(#map)으로 · 정적 /z에서 '지금 필요한 돈'이 계산 보류인 구역으로 가는 '내 돈으로 계산'은 '구역 보기'(계산할 금액이 없는 곳)
+# pre-adsense 3: 리포트 링크 — '지도 열기'는 지도 화면(#map)으로 · 정적 /z에서 '지금 필요한 돈'이 계산 보류인 구역으로 가는 '내 돈으로 계산'은 '구역 보기'(계산할 금액이 없는 곳)
 _ZHOLD = {}
 def _z_hold(i):
     if i not in _ZHOLD:
@@ -205,8 +206,8 @@ def main():
             h1 = RX.sub(lambda m: b, h, count=1) if RX.search(h) else h.replace('</body>', b + '\n</body>', 1)
             h1 = app_header(h1)
             h1 = foot_links(h1)
-            h1 = ads(h1)
             if rel.startswith('report/'): h1 = report_links(h1)
+            h1 = ads(h1)
             # 26차: 글꼴 CSS를 늦게 붙여 봤지만(/z TBT) 나아지지 않아 원래대로(첫 그림부터 같은 글꼴 · CLS 0)
             h1 = re.sub(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/gh/orioncactus/pretendard[^"]+)" media="print" onload="this\.media=\'all\'" crossorigin>', lambda m: f'<link rel="stylesheet" href="{m.group(1)}" crossorigin>', h1)
             # 22차 접근성: 옆으로 밀리는 표 상자(.tw)는 키보드로도 밀 수 있게(초점 + 이름) — axe scrollable-region-focusable

@@ -686,6 +686,35 @@ const SIMPLE = (() => {
     } finally { CASH = save; }
     return hist;
   }
+  // pre-adsense 5(설치 앱): 첫 화면 뒤 한가할 때 37개 금액 곳 수를 한 작업(4배 느린 CPU에서 ~180ms)이 아니라 몇 칸씩 나눠서 — 결과는 histData()와 같은 표(같은 반복·같은 순서).
+  // 도중에 조건이 바뀌거나 누가 histData()를 바로 부르면(드래그·시트) 그쪽이 그 자리에서 다 셈하고 이 계산은 그만둔다
+  function histSlices() {
+    const k = condK(), kd = kind; if (hist && k === histK && GK === kd) return Promise.resolve();
+    const nowC = new Map(), nowOf = (r) => { if (!nowC.has(r.id)) { let v = null; try { v = needOf(r).now; } catch (e) {} nowC.set(r.id, v != null && isFinite(v) ? v : null); } return nowC.get(r.id); };
+    const H = [], G = [];
+    const step = (i) => new Promise((res) => (window.requestIdleCallback ? requestIdleCallback(() => res(i), { timeout: 400 }) : setTimeout(() => res(i), 0)));
+    const run = async () => {
+      for (let i = 0; i < STOPS.length; i += 6) {
+        await step(i);
+        if (condK() !== k || kind !== kd || (hist && histK === k && GK === kd)) return;
+        const save = CASH;
+        try {
+          for (const c of STOPS.slice(i, i + 6)) {
+            CASH = +c; let n = 0; const cnt = {}, min = {};
+            R.forEach((r) => {
+              if (!okR(r)) return; n++;
+              if (r.lc || (kd && KIND(r) !== kd)) return;
+              cnt[r.g] = (cnt[r.g] || 0) + 1;
+              const v = nowOf(r); if (v != null && (min[r.g] == null || v < min[r.g])) min[r.g] = v;
+            });
+            G.push({ cnt, min }); H.push([c, n]);
+          }
+        } finally { CASH = save; }
+      }
+      if (condK() === k && kind === kd && !(hist && histK === k && GK === kd)) { hist = H; GTAB = G; histK = k; GK = kd; }
+    };
+    return run();
+  }
   // 지금 금액이 표에 있는 금액이면 그 칸(없으면 null → 그 자리에서 셈)
   const guTab = () => { if (!hist || !GTAB || GK !== kind || histK !== condK()) return null; const i = STOPS.indexOf(CASH); return i >= 0 ? GTAB[i] : null; };
   // ---------- 막대로 금액 드래그(홈 카드 · 예산 시트): 막대 어디를 눌러 옆으로 끌어도 금액이 바뀐다 ----------
@@ -769,7 +798,7 @@ const SIMPLE = (() => {
     const k = condK();
     if (!hist || histK !== k) {
       // 처음(첫 화면)·조건이 바뀐 때: 37개 금액 곳 수 계산은 한가한 때에(첫 그리기·LCP를 막지 않게). 시트가 열려 있거나 끄는 중이면 바로
-      if (!bsOpen() && !scr && !histIdle) { histIdle = 1; (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 2500 }) : (f) => setTimeout(f, 600))(() => { histIdle = 0; histData(); scrubPaint(R.filter(okR).length); }); }
+      if (!bsOpen() && !scr && !histIdle) { histIdle = 1; (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 2500 }) : (f) => setTimeout(f, 600))(() => { const fin = () => { histIdle = 0; histData(); scrubPaint(R.filter(okR).length); }; if (document.documentElement.classList.contains("is-tapp")) histSlices().then(fin, fin); else fin(); }); }
       if (bsOpen() || scr) histData();
     }
     const c = +$("pCash").value || 1, H = hist && histK === k ? hist : null, mx = H ? Math.max(1, ...H.map((h) => h[1])) : 1, ps = STOPS.map(toPos);

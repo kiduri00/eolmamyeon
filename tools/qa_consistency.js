@@ -2751,15 +2751,19 @@ async function tappLane(browser, api, errs) {
   }
   // --- tapp.static: (리드 결정 A) 정적 페이지 HTML은 simple-home과 같게 — 광고 태그는 예전 리터럴 그대로(심사 전엔 광고가 안 나옴), 앱 전용 주입 없음
   {
-    const T = "정적 페이지(ads-app-guard): 애드센스는 앱이면 건너뛰는 로더(data-zp-ads · 같은 client id)";
+    const T = "정적 페이지 전수(after-adsense): 리터럴 태그가 있던 페이지(tools/fixtures/ads_tag_pages.json)는 설치 앱이면 건너뛰는 로더 한 번(같은 client id) · 리터럴 태그 없음 · 다른 페이지엔 광고 없음";
     const bad1 = [];
-    for (const u of ["/z/o144.html", "/report/2026-10.html", "/guide/moatown.html", "/about.html"]) {
-      const r = await getPage(u), h = String(r.text || "");
-      // ads-app-guard 브랜치: 리터럴 태그 대신 앱이면 건너뛰는 로더(같은 client id · async · crossorigin)
-      if (h.includes('<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js')) bad1.push(u + " 리터럴 태그 남음");
-      if (!/<script data-zp-ads>/.test(h) || !h.includes("adsbygoogle.js?client=ca-pub-9772652926977648")) bad1.push(u + " 로더 없음");
-    }
-    expect(!bad1.length, "tapp.static", T, bad1.join(" ; "));
+    const TAG = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>';
+    const P = require("path"), PUBD = P.join(__dirname, "..", "public"), want = new Set(JSON.parse(fs.readFileSync(P.join(__dirname, "fixtures", "ads_tag_pages.json"), "utf8")));
+    let nf = 0;
+    const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = P.join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name.endsWith(".html")) { const rel = P.relative(PUBD, f).split(P.sep).join("/"), h = fs.readFileSync(f, "utf8"); nf++;
+      // after-adsense: 리터럴 태그가 있던 페이지(목록)는 앱이면 건너뛰는 로더(data-zp-ads · 같은 client id) 한 번 · 리터럴 태그 없음 · 다른 페이지엔 광고 없음
+      const k = h.split(TAG).length - 1, ld = (h.match(/<script data-zp-ads>/g) || []).length, any = (h.match(/<script[^>]*adsbygoogle/g) || []).length;
+      if (want.has(rel) ? k !== 0 || ld !== 1 || !h.includes("adsbygoogle.js?client=ca-pub-9772652926977648") : any !== 0 || ld !== 0) bad1.push(`${rel} 리터럴 ${k} · 로더 ${ld}`); } } };
+    walk(PUBD);
+    for (const rel of want) if (!fs.existsSync(P.join(PUBD, rel))) bad1.push(rel + " 없음");
+    for (const u of ["/z/o144.html", "/report/2026-10.html", "/guide/moatown.html", "/about.html"]) { const r = await getPage(u), h = String(r.text || ""); if (!/<script data-zp-ads>/.test(h)) bad1.push(u + " 서버 응답에 로더 없음"); }
+    expect(!bad1.length && nf > 900 && want.size > 50, "tapp.static", T, `${nf}쪽 · 태그 ${want.size}쪽 · ` + bad1.slice(0, 6).join(" ; "));
   }
   // --- tapp.staticSA: 앱(display-mode standalone)에서 연 정적 페이지 — 아래 탭 '지금 여기'(MY) 표시 없음 · 새 소식 = 작은 빨간 점 (pages.css display-mode 규칙만 · 브라우저는 그대로)
   {
@@ -2776,8 +2780,9 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.noAds(첫 화면): 앱 첫 화면은 광고 스크립트를 안 받는다(정적 페이지는 결정 A로 리터럴 태그 — 별도 브랜치 ads-app-guard에 로더)
+  // pre-adsense 3: 앱에서 연 정적 페이지 = 아래 탭 5개(홈·지도·관심·소식·MY) · 브라우저는 4개 그대로(광고 태그는 결정 A로 리터럴 그대로라 광고 요청은 여기서 세지 않음)
   {
-    const T = "설치 앱: 광고 스크립트(adsbygoogle) 요청 없음 — /z · 리포트 · 가이드(로더가 건너뜀) · 아래 탭 5개";
+    const T = "설치 앱에서 연 정적 페이지(/z·리포트·가이드): 아래 탭 5개(홈·지도·관심·소식·MY) · 같은 페이지 브라우저는 4개";
     const { ctx, page } = await appPage(mob(390, 844)); const ads = []; page.on("request", (q) => { if (ADRX.test(q.url())) ads.push(q.url()); });
     try {
       const st = [];
@@ -2786,9 +2791,66 @@ async function tappLane(browser, api, errs) {
         await page.goto(BASE + u, { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(600);
         st.push([u, await page.evaluate(() => ({ cls: document.documentElement.classList.contains("is-tapp"), tabs: [...document.querySelectorAll(".zp-tabs a span")].map((s) => s.textContent).join(",") }))]);
       }
-      expect(!ads.length && st.every(([, x]) => x.cls && x.tabs === "홈,지도,관심,소식,MY"), "tapp.noAdsStatic", T, `ads ${ads.length} ${ads.slice(0, 2).join(" ")} ${JSON.stringify(st)}`);
+      const wc = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }); const wp = await wc.newPage(); await wp.goto(BASE + "/report/2026-10.html", { waitUntil: "load", timeout: 30000 }); await wp.waitForTimeout(400);
+      const web = await wp.evaluate(() => [...document.querySelectorAll(".zp-tabs a span")].map((s) => s.textContent).join(",")); await wc.close();
+      expect(st.every(([, x]) => x.cls && x.tabs === "홈,지도,관심,소식,MY") && web.split(",").length === 4, "tapp.static5", T, `web ${web} ${JSON.stringify(st)}`);
+      expect(!ads.length, "tapp.noAdsStatic", "설치 앱에서 연 정적 페이지(/z·리포트·가이드): 광고 스크립트(adsbygoogle) 요청 없음(로더가 건너뜀)", `ads ${ads.length} ${ads.slice(0, 2).join(" ")}`);
     } catch (e) { bad("runtime", "검사 실행", "tapp.noAds crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
+  }
+  // --- tapp.split(pre-adsense 5): 설치 앱은 앱 코드를 덩이로 나눠 도는 판(/b/ta.*.js)만 받고, 웹은 예전 판(/b/a.*.js)만 받는다(파일 수 같음) · 앱은 마지막 덩이까지 돈 뒤 붙음 · 덩이 사이 예약(타이머·프레임) 잡아 두기가 끝나 원래 함수로 돌아옴 · 웹 서비스 워커 미리 받기에 ta 없음
+  {
+    const T = "앱 코드 나눠 실행: 설치 앱 = /b/ta.*.js 하나(a.*.js 안 받음) · 웹 = /b/a.*.js 하나(ta 안 받음 · 받는 파일 수 그대로) · 앱 ZP_aWait 풀린 뒤 zp:hydrated · setTimeout 원래 함수 · sw 미리 받기 정규식에 ta 안 걸림";
+    const R = [];
+    for (const mode of ["app", "web"]) {
+      const { ctx, page } = mode === "app" ? await appPage(mob(390, 844)) : await newPage(browser, mob(390, 844), errs);
+      try {
+        const U = []; page.on("request", (q) => { const m = /\/b\/(t?a)\.[0-9a-f]{10}\.js/.exec(q.url()); if (m) U.push(m[1]); });
+        await page.goto(BASE + "/#map", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(5000);
+        const st = await page.evaluate(async () => ({ aw: !!window.ZP_aWait, done: window.ZP_aWait ? await Promise.race([window.ZP_aWait.then(() => 1), new Promise((r) => setTimeout(() => r(0), 3000))]) : null, hyd: window.ZP_boot && ZP_boot.hyd, booted: window.ZP_booted, st: String(window.setTimeout).includes("[native code]"), raf: String(window.requestAnimationFrame).includes("[native code]") }));
+        const want = mode === "app" ? "ta" : "a";
+        if (U.join(",") !== want) R.push(`${mode} 받은 앱 코드 ${U.join(",") || "없음"}`);
+        if (mode === "app" && (!st.aw || st.done !== 1)) R.push(`app 덩이 끝 ${JSON.stringify(st)}`);
+        if (mode === "web" && st.aw) R.push("web에 ZP_aWait");
+        if (st.hyd !== 1 || st.booted !== 1 || !st.st || !st.raf) R.push(`${mode} ${JSON.stringify(st)}`);
+      } catch (e) { R.push(mode + " crash " + String(e.message || e).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    }
+    const sw = String((await getPage("/sw.js")).text || ""), idx = String((await getPage("/")).text || "");
+    const rx = /\/b\/[a-su-z]\.[0-9a-f]{10}\.(?:js|css|json)/g, pre = [...new Set(idx.match(rx) || [])];
+    if (!/\[a-su-z\]/.test(sw)) R.push("sw.js 미리 받기 정규식이 바뀜");
+    if (pre.some((u) => /\/b\/ta\./.test(u)) || !/\/b\/ta\.[0-9a-f]{10}\.js/.test(idx)) R.push("index의 ta 표기/미리 받기 " + pre.join(","));
+    expect(!R.length, "tapp.split", T, R.join(" ; "));
+  }
+  // --- tapp.toggleDark(pre-adsense · 실기기 다크 모드): MY 알림 스위치 켜짐·꺼짐·막힘 — 계산 색 = 지정 색 · 비텍스트 대비(켜짐 트랙/카드 ≥ 3 · 꺼짐 손잡이/카드 ≥ 3 · 막힘 손잡이/카드 ≥ 3) · 막힘 글자 대비 ≥ 4.5 · 라이트는 예전 색 그대로
+  {
+    const T = "설치 앱 다크 MY 알림 스위치: 켜짐 트랙 #8EA8F5·흰 손잡이 · 꺼짐 트랙 #3A3F47(+1px 밝은 테두리)·손잡이 #B0B8C1 · 막힘 손잡이 #6B7280 · 비텍스트 대비 3:1 이상 · 막힘 글자 4.5:1 이상 · 라이트 켜짐 #1F3A87 그대로";
+    const R = [];
+    for (const cs of ["dark", "light"]) {
+      const { ctx, page } = await appPage({ ...mob(390, 844), colorScheme: cs });
+      try {
+        await page.goto(BASE + "/#my", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(3500);
+        const st = await page.evaluate(async () => {
+          const rgb = (c) => (c.match(/[\d.]+/g) || []).map(Number);
+          const L = (c) => { const [r, g, b] = rgb(c).map((v) => v / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+          const CR = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+          const card = (e) => { while (e) { const c = getComputedStyle(e).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c) && rgb(c)[3] !== 0) return c; e = e.parentElement; } return "rgb(255, 255, 255)"; };
+          const one = (b) => { const t = b.querySelector(".my-tg"), k = getComputedStyle(t, "::after"), bg = card(b.parentElement); const tx = b.querySelector(".my-t b") || b; return { track: getComputedStyle(t).backgroundColor, shadow: getComputedStyle(t).boxShadow, knob: k.backgroundColor, card: bg, crTrack: +CR(getComputedStyle(t).backgroundColor, bg).toFixed(2), crKnob: +CR(k.backgroundColor, bg).toFixed(2), crText: +CR(getComputedStyle(tx).color, bg).toFixed(2) }; };
+          const sw = [...document.querySelectorAll("#myKinds .my-sw")]; if (sw.length < 2) return { n: sw.length };
+          sw.forEach((b) => b.setAttribute("aria-checked", "true"));
+          const w = () => new Promise((r) => setTimeout(r, 400)); await w(); const on2 = one(sw[0]); sw[1].setAttribute("aria-checked", "false"); await w(); const off = one(sw[1]);
+          sw[1].setAttribute("aria-disabled", "true"); document.getElementById("my").classList.add("t-pdeny"); await w(); const dis = one(sw[1]);
+          return { n: sw.length, on: on2, off, dis };
+        });
+        const E = (a, b) => String(a).replace(/\s/g, "") === b;
+        if (!st.on) R.push(`${cs} 스위치 ${st.n}개`);
+        else if (cs === "dark") {
+          if (!E(st.on.track, "rgb(142,168,245)") || !E(st.on.knob, "rgb(255,255,255)") || st.on.crTrack < 3) R.push(`켜짐 ${JSON.stringify(st.on)}`);
+          if (!E(st.off.track, "rgb(58,63,71)") || !E(st.off.knob, "rgb(176,184,193)") || !/rgba\(255, 255, 255, 0\.12\)/.test(st.off.shadow) || st.off.crKnob < 3) R.push(`꺼짐 ${JSON.stringify(st.off)}`);
+          if (!E(st.dis.track, "rgb(58,63,71)") || !E(st.dis.knob, "rgb(107,114,128)") || st.dis.crKnob < 3 || st.dis.crText < 4.5) R.push(`막힘 ${JSON.stringify(st.dis)}`);
+        } else if (!E(st.on.track, "rgb(31,58,135)") || !E(st.on.knob, "rgb(255,255,255)")) R.push(`라이트 켜짐 ${JSON.stringify(st.on)}`);
+      } catch (e) { R.push(cs + " crash " + String(e.message || e).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    }
+    expect(!R.length, "tapp.toggleDark", T, R.join(" ; "));
   }
   // --- tapp.feed: 전체 소식 = data/changes.json(종류별 수 같음) · 칩으로 거르기 · 줄을 누르면 그 구역 · 관심 구역(예전 소식) 칸 그대로
   {
@@ -3256,7 +3318,7 @@ async function tappLane(browser, api, errs) {
       const { ctx, page } = await appPage(mob(390, 844, cs));
       try {
         await appHome(page);
-        const AX = async (k) => { await page.addScriptTag({ content: AXE }).catch(() => {}); return (await page.evaluate(async () => { const r = await window.axe.run(document, { resultTypes: ["violations"] }); return r.violations.filter((x) => x.impact === "serious" || x.impact === "critical").flatMap((x) => x.nodes.slice(0, 2).map((n) => x.id + " " + n.target.join(" "))); })).map((x) => k + " " + x); };
+        const AX = async (k) => { await page.addScriptTag({ content: AXE }).catch(() => {}); return (await page.evaluate(async () => { /* 색이 바뀌는 중(0.18초 전환)에 재면 중간 색으로 대비를 잼 — 돌고 있는 CSS 전환이 끝난 뒤(최대 1.5초) */ await new Promise((res) => { const t0 = performance.now(); (function f() { const a = (document.getAnimations ? document.getAnimations() : []).filter((x) => x.playState === "running" && x.constructor && x.constructor.name === "CSSTransition"); if (!a.length || performance.now() - t0 > 1500) return res(); setTimeout(f, 50); })(); }); const r = await window.axe.run(document, { resultTypes: ["violations"] }); return r.violations.filter((x) => x.impact === "serious" || x.impact === "critical").flatMap((x) => x.nodes.slice(0, 2).map((n) => x.id + " " + n.target.join(" "))); })).map((x) => k + " " + x); };
         const v = [...await AX("home")];
         for (const k of ["map", "fav", "news", "my"]) { await page.click(`#sNav [data-nav="${k}"]`); await page.waitForTimeout(1100); v.push(...await AX(k)); if (k === "news") { await page.click("#tSegM"); await page.waitForTimeout(500); v.push(...await AX("news-mine")); } }
         for (const k of ["rank", "commute", "diag", "rules", "stats", "calc", "save"]) { await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(500); await page.click(`#tHome .th-grid a[data-tile="${k}"]`); await page.waitForTimeout(1100); v.push(...await AX(k)); }

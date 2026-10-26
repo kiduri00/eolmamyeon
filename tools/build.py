@@ -162,6 +162,33 @@ EXT = os.path.join(R, 'src', 'ext')
 ext_js = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))
 ext_css = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.css'))
 js = S('app.js'); assert js.count('/*EXT*/') == 1; js = js.replace('/*EXT*/', ext_js.strip() + '\n')
+# pre-adsense 5: 앱 코드(a.js) 첫 실행을 몇 덩이로 — 4배 느린 CPU에서 a.js 실행 한 덩이(350~420ms)가 첫 화면 가장 긴 작업이었다.
+# 확장 모듈이 app.js 닫힘 범위를 함께 써서 파일로 나누면 모듈 구조를 다 바꿔야 하므로, 같은 파일 안에서 실행만 나눈다:
+# 함수 전체를 async로 두고 /*Y*/ 자리(맨 위 문장 경계)와 큰 확장 모듈 사이에서 scheduler.yield()로 한 번씩 쉰다.
+# 설치 앱(html.is-tapp)이고 scheduler.yield가 있을 때만 쉰다 — 웹·다른 브라우저는 await가 한 번도 없어 예전처럼 한 번에 끝까지(동작 그대로).
+# 다 돌면 window.ZP_aWait가 풀리고, boot.js는 그 뒤에 '붙음(zp:hydrated)'을 낸다. 웹 묶음(a.*.js)은 쉬는 자리 없는 예전 그대로이고, 나눠 도는 판은 설치 앱 전용 묶음(ta.*.js)으로 따로 낸다(웹은 받지 않음).
+_Y = 'if (__Y) await __Y();'
+js_y = js
+js = js.replace('  /*Y*/\n', '').replace('/*Y*/', '')   # 웹 묶음(a): 쉬는 자리 없이 예전 그대로(한 번에 끝까지)
+for _m in ('10_lmap.js', '20_zone.js', '60_simple.js', '64_overview.js', '70_pins.js'):
+    _src = open(os.path.join(EXT, _m), encoding='utf-8').read().strip()
+    assert js_y.count(_src) == 1, _m
+    js_y = js_y.replace(_src, _src + '\n' + _Y, 1)
+assert js_y.count('/*Y*/') >= 8
+js_y = js_y.replace('/*Y*/', _Y)
+assert js_y.startswith('(function () {\n  "use strict";\n') and js_y.rstrip().endswith('})();')
+js_y = ('(async function () {\n  "use strict";\n'
+      '  const __Y = document.documentElement.classList.contains("is-tapp") && window.scheduler && typeof scheduler.yield === "function" ? () => scheduler.yield() : null;\n'
+      '  if (__Y) window.ZP_aWait = new Promise((r) => (window.ZP_aDone = r));\n'
+      # 덩이 사이에 끼어들 수 있는 예약(setTimeout·setInterval·requestAnimationFrame)은 실행이 다 끝날 때까지 잡아 두었다가 같은 순서·남은 시간으로 — 한 번에 돌던 예전과 같은 차례(뒤 덩이 정의를 앞서 부르지 않게)
+      '  if (__Y) { const W = window, st = W.setTimeout, ct = W.clearTimeout, si = W.setInterval, ci = W.clearInterval, ra = W.requestAnimationFrame, ca = W.cancelAnimationFrame, q = [], m = new Map(); let n = 0, on = 1;\n'
+      '    const hold = (k, real) => function (f, d, ...a) { if (!on || typeof f !== "function") return real.apply(W, arguments); const id = -(++n); q.push({ k, id, f, d: +d || 0, a, at: performance.now() }); return id; };\n'
+      '    const drop = (real) => function (id) { if (typeof id === "number" && id < 0) { if (m.has(id)) return real.call(W, m.get(id)); const i = q.findIndex((x) => x.id === id); if (i >= 0) q.splice(i, 1); return; } return real.apply(W, arguments); };\n'
+      '    W.setTimeout = hold("t", st); W.setInterval = hold("i", si); W.requestAnimationFrame = hold("r", ra); W.clearTimeout = drop(ct); W.clearInterval = drop(ci); W.cancelAnimationFrame = drop(ca);\n'
+      '    W.ZP_aRel = () => { if (!on) return; on = 0; W.setTimeout = st; W.setInterval = si; W.requestAnimationFrame = ra; const now = performance.now(); for (const x of q) m.set(x.id, x.k === "r" ? ra.call(W, x.f) : (x.k === "t" ? st : si).call(W, x.f, x.k === "t" ? Math.max(0, x.d - (now - x.at)) : x.d, ...x.a)); q.length = 0; }; }\n'
+      + js_y[len('(function () {\n  "use strict";\n'):].rstrip()[:-len('})();')]
+      + '\n  if (window.ZP_aRel) window.ZP_aRel(); if (window.ZP_aDone) window.ZP_aDone();\n})().catch((e) => { try { window.ZP_aRel && window.ZP_aRel(); window.ZP_aDone && window.ZP_aDone(); } catch (x) {} setTimeout(() => { throw e; }, 0); });\n')
+
 # 21차: 새 소식 'N' 점의 기준 날짜(경매 물건이 처음 보인 날 · 고시·공고 기록 날 중 가장 늦은 날) — 63_newb.js · 정적 페이지(static_tabs.py)가 같은 값
 def newd():
     o = {}
@@ -177,7 +204,7 @@ def newd():
     except Exception as e: print('newd notice', e)
     return o
 NEWD = newd()
-assert js.count('/*NEWD*/ null') == 1; js = js.replace('/*NEWD*/ null', json.dumps(NEWD))
+assert js.count('/*NEWD*/ null') == 1; js = js.replace('/*NEWD*/ null', json.dumps(NEWD)); js_y = js_y.replace('/*NEWD*/ null', json.dumps(NEWD))
 assert shell.count('/*NEWD0*/{}') == 1; shell = shell.replace('/*NEWD0*/{}', json.dumps(NEWD))   # 23차: 첫 페인트 N 점(shell.html 작은 스크립트)
 _ud = _md(D.get('upd') or D.get('asOf'))
 _uf = (lambda m: f'{m.group(1)}.{m.group(2)}.{m.group(3)}' if m else '')(re.search(r'(\d{4})-?(\d\d)-?(\d\d)', str(D.get('upd') or D.get('asOf') or '')))   # 23차: 문의 보낼 때 자료 기준일(contact.js pageAsOf)
@@ -186,12 +213,12 @@ shell = shell.replace('<span class="hdr-date" id="hdrDate"></span>', f'<span cla
 import ghost_geo
 GHOST_JS = S('ghost.js'); assert GHOST_JS.count('/*GHOST*/ null') == 1
 GHOST_JS = GHOST_JS.replace('/*GHOST*/ null', json.dumps(ghost_geo.build(D), ensure_ascii=False, separators=(',', ':')))
-js = GHOST_JS + js
+js = GHOST_JS + js; js_y = GHOST_JS + js_y
 # 문의하기 양식(src/contact.js): 앱 묶음에 넣고, 정적 페이지(/contact · /faq · /z)용으로 public/cf.js 로도 낸다(같은 코드)
 CONTACT_JS = S('contact.js')
-js = CONTACT_JS + js
+js = CONTACT_JS + js; js_y = CONTACT_JS + js_y
 # 22차: 자료 받기 시간 제한·다시 받기 + 잡히지 않은 오류 알림(src/net.js) — 앱 묶음 맨 앞
-js = S('net.js') + js
+js = S('net.js') + js; js_y = S('net.js') + js_y
 css = S('app.css') + ext_css
 # 22차: 죽은 CSS 규칙 빼기 — 선택자에 꼭 있어야 하는 class·id가 앱 코드·첫 화면 HTML·생성기 어디에도 없는 규칙(21번의 덧칠로 남은 옛 화면 규칙).
 # 한 낱말이라도 남아 있거나("pre-" + x 처럼 이어 붙이는 앞부분 포함) 확신이 없는 선택자(\ 이스케이프·:is·:where 안)는 그대로 둔다.
@@ -244,7 +271,7 @@ if ESB and not os.environ.get('NO_MINIFY'):
         if r.returncode: raise SystemExit('esbuild 실패: ' + r.stderr[:500])
         return r.stdout
     js0, css0 = len(js), len(css)
-    js = mini(js, 'js'); css = mini(css, 'css'); CONTACT_JS = mini(CONTACT_JS, 'js')
+    js = mini(js, 'js'); js_y = mini(js_y, 'js'); css = mini(css, 'css'); CONTACT_JS = mini(CONTACT_JS, 'js')
     print(f'minify js {js0}->{len(js)} css {css0}->{len(css)}')
     if not os.environ.get('NO_CSS_PRUNE'):
         c1 = len(css); css = prune_css(css); print(f'css prune {c1}->{len(css)}')
@@ -274,6 +301,7 @@ _parts[-1] += '(function(){var p=window.__ZPDp,D=p[0];D.recs=[].concat.apply([],
 d_urls = [emit('d', x) for x in _parts]
 d_url = d_urls[0]
 a_url = emit('a', js)
+aa_url = emit('ta', js_y)   # pre-adsense 5: 설치 앱 전용(덩이로 나눠 실행) — 이름이 't'로 시작해 웹 서비스 워커의 미리 받기(/b/[a-su-z].*)에 안 걸린다(웹 방문자는 받지 않음)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
 shell = shell.replace('__ZPVER__', '버전 2.0')   # 사용자에게는 버전만(빌드 해시는 /b/ 파일 이름에만)
 c_url = emit('c', css, 'css')
@@ -306,7 +334,7 @@ shell = shell.replace('__TJS__', t_url).replace('__TCSS__', tc_url)
 # 지난 빌드 파일은 이번 것 + 바로 전 것만 남김(배포 직후 옛 화면이 잠깐 참조할 수 있게)
 KEEP = 2
 def prune():
-    for pre, ext in (('d', 'js'), ('a', 'js'), ('c', 'css'), ('h', 'js'), ('r', 'json'), ('t', 'js'), ('t', 'css')):
+    for pre, ext in (('d', 'js'), ('a', 'js'), ('ta', 'js'), ('c', 'css'), ('h', 'js'), ('r', 'json'), ('t', 'js'), ('t', 'css')):
         fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.' + ext)], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
         cur = {u.split('/')[-1] for u in d_urls} if pre == 'd' else set()
         for f in [x for x in fs if x not in cur][KEEP * (len(d_urls) if pre == 'd' else 1) - len(cur):]:
@@ -360,7 +388,7 @@ def island():
     PJ = dict(P); PJ['rows'] = None; PJ['ru'] = emit('r', json.dumps(rows_all, ensure_ascii=False, separators=(',', ':')), 'json')
     h_url = emit('h', 'window.__ZPH=' + json.dumps(PJ, ensure_ascii=False, separators=(',', ':')) + ';\n' + isl)
     font = re.search(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/[^"]*pretendard[^"]*)"', shell)
-    boot = boot.replace('__A__', a_url).replace('__D__', ','.join(d_urls)).replace('__C__', c_url).replace('__F__', font.group(1) if font else '')
+    boot = boot.replace('__AA__', aa_url).replace('__A__', a_url).replace('__D__', ','.join(d_urls)).replace('__C__', c_url).replace('__F__', font.group(1) if font else '')
     x = shell
     def rep(old, new, cnt=1, rx=False):
         nonlocal x
