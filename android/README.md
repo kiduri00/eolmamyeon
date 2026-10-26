@@ -55,9 +55,10 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
 
 - 런처 아이콘 = Play 아이콘(v5 틴트, `brand_v5/play_icon_512.png`)과 같은 그림. 디자인 노트 `app_kit/design_tokens.md` §7.
   - 적응형(Android 8+, `mipmap-anydpi-v26/ic_launcher.xml`·`ic_launcher_round.xml`): 배경 `@color/ic_launcher_background` = `#F2F5FC`
-    (`values/ic_launcher_background.xml`), 전경 `drawable/ic_launcher_foreground.xml`(벡터, 108dp 캔버스에 남색 핀+집 마크 54.8dp,
-    66dp 안전 원 안), 모노크롬 `mipmap-*/ic_launcher_monochrome.png`(Android 13 테마 아이콘, `assets-src/icon-monochrome.svg` 모양).
+    (`values/ic_launcher_background.xml`), 전경 `drawable/ic_launcher_foreground.xml`(벡터, 108dp 캔버스에 남색 핀+집 마크 51.5dp,
+    Play 아이콘 비율의 94% — 1.0.0 r3에서 원형 마스크가 꽉 차 보이지 않게 6% 축소, 66dp 안전 원 안), 모노크롬 `mipmap-*/ic_launcher_monochrome.png`(Android 13 테마 아이콘, `assets-src/icon-monochrome.svg` 모양).
   - 레거시(Android 7 이하): `mipmap-{mdpi..xxxhdpi}/ic_launcher.png`(둥근 사각) · `ic_launcher_round.png`(원), 48/72/96/144/192px, `#F2F5FC` 바탕.
+    mdpi·hdpi는 노란 문을 픽셀 격자에 맞춰 1px 키운 힌팅 버전(r3, 48px에서도 문이 보이게). xhdpi 이상은 Play 아이콘과 같은 그림.
     매니페스트에 `android:roundIcon="@mipmap/ic_launcher_round"`.
   - 다시 그리기: `NODE_PATH=$(npm root -g) node android/assets-src/launcher/render-launcher.js [resDir] [preview.png]`
     (playwright + Chromium). 위 파일을 모두 다시 쓰고 미리보기 시트(마스크 4종·테마 아이콘·레거시)를 만듭니다.
