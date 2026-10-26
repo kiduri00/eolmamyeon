@@ -170,6 +170,24 @@ def foot_links(h):
     return RF2.sub(lambda m: m.group(1) + FOOT_P + m.group(2), h, count=1)
 
 
+# after-adsense 3: 리포트 링크 — '지도 열기'는 지도 화면(#map)으로 · 정적 /z에서 '지금 필요한 돈'이 계산 보류인 구역으로 가는 '내 돈으로 계산'은 '구역 보기'(계산할 금액이 없는 곳)
+_ZHOLD = {}
+def _z_hold(i):
+    if i not in _ZHOLD:
+        fp = os.path.join(PUB, 'z', i + '.html'); v = False
+        if os.path.exists(fp):
+            t = open(fp, encoding='utf-8').read(); t = t[t.find('<body'):]
+            t = re.sub(r'(\s*\|\s*)+', ' | ', re.sub(r'<[^>]+>', ' | ', t))
+            m = re.search(r' \| 지금 필요한 돈 \| ([^|]+?) \|', t); v = bool(m and m.group(1).strip() == '계산 보류')
+        _ZHOLD[i] = v
+    return _ZHOLD[i]
+
+
+def report_links(h):
+    h = re.sub(r'(<a class="btn primary" href="/\?cash=[^"#]*?from=report)(">[^<]*지도 열기</a>)', r'\1#map\2', h)
+    return re.sub(r'<a href="(\.\./\?from=report#([\w-]+))">(내 돈으로 계산|구역 보기)</a>', lambda m: f'<a href="{m.group(1)}">{"구역 보기" if _z_hold(m.group(2)) else "내 돈으로 계산"}</a>', h)
+
+
 def main():
     n = 0
     for root, _, files in os.walk(PUB):
@@ -188,6 +206,7 @@ def main():
             h1 = app_header(h1)
             h1 = foot_links(h1)
             h1 = ads(h1)
+            if rel.startswith('report/'): h1 = report_links(h1)
             # 26차: 글꼴 CSS를 늦게 붙여 봤지만(/z TBT) 나아지지 않아 원래대로(첫 그림부터 같은 글꼴 · CLS 0)
             h1 = re.sub(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/gh/orioncactus/pretendard[^"]+)" media="print" onload="this\.media=\'all\'" crossorigin>', lambda m: f'<link rel="stylesheet" href="{m.group(1)}" crossorigin>', h1)
             # 22차 접근성: 옆으로 밀리는 표 상자(.tw)는 키보드로도 밀 수 있게(초점 + 이름) — axe scrollable-region-focusable
