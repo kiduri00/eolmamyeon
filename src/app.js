@@ -4578,6 +4578,28 @@
   };
   // 23차: 검색 배지 금액 = 목록·알약·상세·/z와 같은 꼴(ZF.cash: 0.1억 올림 · 1억 아래 만) — 따로 반올림하던 e1S("0.6억"·"1억" vs 1.1억)는 없앰
   const e1S = (v) => ZF.cash(Math.max(0, v));
+  // 5라운드 16: 구역 안 필지 지번 검색 — 검색어가 '동 + 번지'일 때만 그 동의 색인 파일 하나(public/pcli/hNN.json · tools/pcli.py)를 받는다(첫 화면·긴 작업과 무관)
+  // 받는 꼴: '면목동 86-15' · '면목동86-15' · '중랑구 면목동 86-15' · '면목동 86'(본번만 → 그 본번 필지 전부) · '면목동 산 2-25'·'산2-25' · '86 - 15'(띄어쓰기) · '번지'·'일대' 글자는 앞에서 지움
+  const PCLI = {};
+  const pcliH = (d) => { let n = 0; for (const c of d) n += c.charCodeAt(0); return n % 32; };
+  const pcliQ = (q) => {
+    const m = /^(?:([가-힣]+구)\s*)?([가-힣]+(?:동|로)(?:\d+가)?|[가-힣]+\d*가)\s*(산)?\s*(\d+)(?:\s*-\s*(\d+))?$/.exec(String(q).trim().replace(/\s+/g, " "));
+    return m ? { gu: m[1] || "", dong: m[2], san: !!m[3], bon: m[4], bu: m[5] || "" } : null;
+  };
+  const pcliLoad = (dong) => { const h = pcliH(dong); if (PCLI[h] === undefined) { PCLI[h] = fetch(`pcli/h${String(h).padStart(2, "0")}.json?v=${(D.dv && D.dv.tx) || D.asOf || ""}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((j) => (PCLI[h] = j || {})); } return Promise.resolve(PCLI[h]); };
+  function pcliHits(pq) {
+    const B = PCLI[pcliH(pq.dong)];
+    if (!B || typeof B.then === "function") return null;   // 아직 받는 중
+    const m = B[pq.dong] || {}, pre = (pq.san ? "산" : "") + pq.bon, ids = [];
+    for (const k in m) if (pq.bu ? k === `${pre}-${pq.bu}` : k === pre || k.startsWith(pre + "-")) [].concat(m[k]).forEach((id) => { if (!ids.includes(id)) ids.push(id); });
+    let zs = ids.map((id) => byId[id]).filter((r) => r && (!pq.gu || r.g === pq.gu));
+    // 모아타운: 필지가 든 사업구역(하위 조합)을 먼저, 그다음 관리지역, 그다음 같은 관리지역의 다른 사업구역 · 같은 구역은 한 번만
+    const own = zs.filter((r) => r.src !== "moa"), moa = zs.filter((r) => r.src === "moa"), out = [];
+    const add = (r) => { if (r && !out.includes(r)) out.push(r); };
+    own.sort((a, b) => (isDone(a) ? 1 : 0) - (isDone(b) ? 1 : 0)).forEach(add); moa.forEach(add);
+    moa.forEach((mr) => (mr.kids || []).map((id) => byId[id]).filter(Boolean).forEach(add));
+    return out;
+  }
   function renderSugg() {
     const q = $("q")
       .value.trim()
@@ -4644,9 +4666,14 @@
     const moaJ = new Set(R.filter((r) => r.src === "moa" && r.j).map(pk));
     // 이름·지번이 같은 줄(같은 곳이 두 자료에 따로 실린 것: 행당동 300-1)은 한 줄만 — 먼저 나온 것(역 주변·가까운 것)을 남긴다
     const lk = (r) => `${shortName(r.n)}|${(r.j || "").replace(/\s+/g, "")}`, seenL = new Set();
-    const hits = stnZ
-      .map((r) => ({ r, near: true }))
-      .concat(all.filter((x) => !stnSet.has(x.r.id) && !(x.r.src === "moa" && x.r.j && zoneJ.has(pk(x.r)))))
+    // 5라운드 16: 지번 검색 — 그 필지가 든 구역을 맨 위에 · 구역 밖이면 안내 한 줄 + 같은 동 구역('근처 구역') · 엉뚱한 구역을 맨 위에 두지 않는다
+    const pq = !stn && !gu ? pcliQ(q) : null;
+    let pcl = null, pclOut = false;
+    if (pq) { pcl = pcliHits(pq); if (pcl === null) pcliLoad(pq.dong).then(() => { if (pcliQ($("q").value.trim().toLowerCase().replace(/번지|일대/g, ""))) renderSugg(); }); else if (!pcl.length) { pclOut = true; pcl = R.filter((r) => !isDone(r) && (!pq.gu || r.g === pq.gu) && String(r.j || "").split(" ")[0] === pq.dong).slice(0, 6); } }
+    const pclIds = new Set((pcl || []).map((r) => r.id));
+    const hits = (pcl || []).map((r) => ({ r, pcl: true }))
+      .concat(pclOut ? [] : stnZ.map((r) => ({ r, near: true })))
+      .concat(pclOut ? [] : all.filter((x) => !pclIds.has(x.r.id) && !stnSet.has(x.r.id) && !(x.r.src === "moa" && x.r.j && zoneJ.has(pk(x.r)))))
       .filter((x) => { const k = lk(x.r); if (seenL.has(k)) return false; seenL.add(k); return true; })
       .slice(0, 20);
     sIdx = -1;
@@ -4680,7 +4707,10 @@
         ? hits.map((h, i) => {
             // 역 주변 목록 뒤: 이름이 실제로 맞는 곳만 "이름에 'q'", 주소·역 글자로 걸린 곳은 "주변 더 보기"
             let hd = "";
-            if (h.near && i === 0) hd = `<div class="x-h" role="presentation" data-walk="${stnAll.length}">${esc(ZF.walkLbl(stn[0], stnAll.length))}${stnAll.length > stnZ.length ? ` (가까운 ${stnZ.length}곳)` : ""}${stnMoa ? ` · 모아타운 관리지역 ${stnMoa}곳 따로` : ""}</div>`;
+            const pj = pq ? `${pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : ""}` : "";
+            if (h.pcl && i === 0) hd = pclOut ? `<div class="x-h" role="presentation">${esc(pj)} · 이 지번은 집핀이 아는 재개발 구역 밖이에요</div><div class="x-h" role="presentation">근처 구역(${esc(pq.dong)})</div>` : (pq.bu ? `<div class="x-h" role="presentation">${esc(pj)} → ${esc(shortName(h.r.n))} 안 필지</div>` : `<div class="x-h" role="presentation">${esc(pj)}번지 → 이 번지 필지가 든 구역(안 필지)</div>`);
+            else if (!h.pcl && i > 0 && hits[i - 1].pcl && !pclOut) hd = `<div class="x-h" role="presentation">다른 검색 결과</div>`;
+            else if (h.near && i === 0) hd = `<div class="x-h" role="presentation" data-walk="${stnAll.length}">${esc(ZF.walkLbl(stn[0], stnAll.length))}${stnAll.length > stnZ.length ? ` (가까운 ${stnZ.length}곳)` : ""}${stnMoa ? ` · 모아타운 관리지역 ${stnMoa}곳 따로` : ""}</div>`;
             else if (!h.near && stnZ.length) {
               const grp = (x) => (x && !x.near && x.nh <= 2 ? "n" : "m");
               if (i === stnZ.length || grp(hits[i - 1]) !== grp(h))
@@ -4691,12 +4721,14 @@
           (all.length > hits.length
             ? `<div class="more-hits" role="presentation">외 ${all.length - hits.length}곳 · 지번이나 구 이름을 더 넣어 좁혀 보세요</div>`
             : "")
-        : stn || gu
-          ? ""
-          : noneHTML());
+        : pclOut
+          ? `<div class="s-none" role="presentation"><b>${esc(`${pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : ""}`)} · 이 지번은 집핀이 아는 재개발 구역 밖이에요</b></div>`
+          : stn || gu
+            ? ""
+            : noneHTML());
     $("sugg").hidden = false;
     $("q").setAttribute("aria-expanded", "true");
-    $("suggLive").textContent = hits.length ? `${all.length}곳 찾음` : stn ? `${stn[0]} 찾음` : gu ? `${gu} 찾음` : "일치하는 사업장 없음";
+    $("suggLive").textContent = pclOut ? "이 지번은 재개발 구역 밖이에요" : pcl && pcl.length ? `${shortName(pcl[0].n)} 안 필지` : hits.length ? `${all.length}곳 찾음` : stn ? `${stn[0]} 찾음` : gu ? `${gu} 찾음` : "일치하는 사업장 없음";
     $("sugg")
       .querySelectorAll("button[data-id]")
       .forEach((b) => ((b.onmousedown = (e) => e.preventDefault()), (b.onclick = () => pickSugg(b.dataset.id))));

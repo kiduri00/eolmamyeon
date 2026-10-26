@@ -3539,6 +3539,25 @@ async function tappLane(browser, api, errs) {
     } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); }
     expect(!R.length, "tapp.r5misc", T, R.join(" ; "));
   }
+  // --- search.parcel(5라운드 16 · 웹·앱): 구역 안 필지 지번 → 그 구역 1위(모아타운 하위 조합 먼저) · 구역 밖 지번 → '구역 밖' 안내 · 기존 검색어(이름·동·역·구·초성·로마자) 상위 6줄 = 지번 검색 넣기 전(tools/fixtures/search_base.json) · 색인은 지번 꼴일 때만 받음
+  {
+    const T = "지번 검색(웹·앱): 구역 안 필지 5개 → 그 구역 1위(모아타운은 필지가 든 사업구역 먼저) · 구역 밖 3개 → '구역 밖' 안내 · 기존 검색 상위 6줄 그대로 · 첫 화면에서 색인(pcli) 안 받음";
+    const R = [];
+    const { ctx, page } = await newPage(browser, { viewport: { width: 1280, height: 900 } }, errs);
+    try {
+      const pcliReq = []; page.on("request", (q) => { if (/\/pcli\//.test(q.url())) pcliReq.push(q.url()); });
+      await ctx.addInitScript(() => { try { localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+      await page.goto(BASE + "/", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(3500);
+      if (pcliReq.length) R.push("첫 화면에서 색인 받음 " + pcliReq.join(","));
+      const run = async (q) => { await page.evaluate((q) => { const i = document.getElementById("q"); i.value = q; i.dispatchEvent(new Event("input", { bubbles: true })); }, q); await page.waitForTimeout(700); await page.waitForFunction(() => !document.getElementById("sugg").hidden, null, { timeout: 4000 }).catch(() => {}); await page.waitForTimeout(500); return page.evaluate(() => ({ ids: [...document.querySelectorAll("#sugg [data-id],#sugg [data-stn],#sugg [data-gu]")].slice(0, 6).map((b) => b.dataset.id || "S:" + (b.dataset.stn || b.dataset.gu)), t: document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 200) })); };
+      for (const [q, want] of [["면목동 86-15", "o58"], ["면목동86-15", "o58"], ["중랑구 면목동 86-15", "o58"], ["행당동 128-417", "o498"], ["신림동 412-88", "o960"], ["성수동2가 344-7", "o509"], ["한남동 647-10번지", "o151"], ["개봉동 270-13", "m46"]]) { const r = await run(q); if (r.ids[0] !== want || !/안 필지/.test(r.t)) R.push(`${q} → ${r.ids[0]}(${want}) ${r.t.slice(0, 60)}`); }
+      for (const q of ["면목동 700", "행당동 1", "신림동 1-1"]) { const r = await run(q); if (!/구역 밖/.test(r.t)) R.push(`${q} 구역 밖 안내 없음: ${r.t.slice(0, 80)}`); }
+      let base = null; try { base = JSON.parse(fs.readFileSync(require("path").join(__dirname, "fixtures", "search_base.json"), "utf8")); } catch (e) {}
+      if (base) for (const q of Object.keys(base)) { const r = await run(q); if (JSON.stringify(r.ids) !== JSON.stringify(base[q])) R.push(`회귀 ${q}: ${base[q].join(",")} → ${r.ids.join(",")}`); }
+      else R.push("search_base.json 없음");
+    } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    expect(!R.length, "search.parcel", T, R.join(" ; "));
+  }
   // --- tapp.files(19·20): SW 미리 저장에서 앱 묶음(/b/t.*) 빼기 · assetlinks.json(JSON · TODO 없음 · 패키지 이름 · SHA-256 지문)
   {
     const sw = String((await getPage("/sw.js")).text || ""), al = await get(BASE + "/.well-known/assetlinks.json").catch(() => ({ text: "" }));

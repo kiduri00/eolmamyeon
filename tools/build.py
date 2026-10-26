@@ -426,6 +426,10 @@ if os.environ.get('ZP_ISLAND', '1') != '0':
     except Exception as e:
         print('island 건너뜀:', e)
 prune()
+# 5라운드 16: 구역 안 필지 지번 검색 색인(public/pcli · 검색창에 동+번지를 칠 때만 받음)
+try:
+    import pcli; pcli.main()
+except Exception as e: print('pcli 건너뜀:', e)
 # 정적 페이지(/z·/gu·가이드·리포트·약관·404 …): 폰에서 앱과 같은 아래 탭 4개(찾기·관심·소식·MY)로 앱에 돌아가게.
 # 생성기마다 틀이 달라서(zpages·report·손으로 쓴 페이지) 빌드 끝에 한 번에 넣는다(표시 사이를 통째로 바꿔 몇 번 돌려도 같음)
 try:
