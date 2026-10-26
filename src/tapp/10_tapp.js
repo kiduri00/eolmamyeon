@@ -69,11 +69,12 @@ function coldTop() {
 /* ---------- 2. 아래 탭 5개 ---------- */
 const TAB_VIEW = { fav: "favTop", news: "news", my: "my" };
 const VIEW_TAB = { favTop: "fav", news: "news", my: "my" };
-let lastTab = "home", homeReset = false, tSave = 0;
+let lastTab = "home", homeReset = false, tSave = 0, sheetTab = "", mapOff = 0;   // sheetTab: 지도 탭에서 연 구역 시트('map') — 시트가 열려 있는 동안 아래 탭 '지도' 그대로(4라운드 13)
 function curTab() {
   if (H.classList.contains("s-full")) return "map";
   if (!H.classList.contains("s-view") && history.state && history.state.tL) return "map";
-  if (!H.classList.contains("s-view") && history.state && history.state.tF) return "map";   // 4라운드: 지도 탭에서 연 구역 시트·구 화면 — 아래 탭 '지도' 그대로(aria-current가 '홈'으로 바뀌던 것)   // 지도 탭 '목록 보기'(지도 탭 안의 목록)
+  if (!H.classList.contains("s-view") && history.state && history.state.tF) return "map";
+  if (!H.classList.contains("s-view") && sheetTab === "map" && (H.classList.contains("sheet-open") || H.classList.contains("s-rep"))) return "map";   // 4라운드: 지도 탭에서 연 구역 시트·구 화면 — 아래 탭 '지도' 그대로(aria-current가 '홈'으로 바뀌던 것)   // 지도 탭 '목록 보기'(지도 탭 안의 목록)
   if (H.classList.contains("s-view")) { const v = T(() => S().cur(), ""); return VIEW_TAB[v] || (lastTab === "map" ? "home" : lastTab); }
   return "home";
 }
@@ -131,7 +132,7 @@ function navBuild() {
   [nb, $("hdrBell")].forEach((x) => { if (x && !x.querySelector(".t-bn")) { const i = document.createElement("b"); i.className = "t-bn"; i.hidden = true; i.setAttribute("aria-hidden", "true"); x.appendChild(i); } });
   navMark();
   if (CH) badge();
-  if (!H.__tmo) { H.__tmo = 1; let wasFull = H.classList.contains("s-full"), moT = 0; try { new MutationObserver(() => { navMark(); const n = $("sNav"); if (n && !navDone(n)) navBuild(); const f = H.classList.contains("s-full"); if (wasFull && !f) { H.classList.add("t-mapout"); clearTimeout(moT); moT = setTimeout(() => H.classList.remove("t-mapout"), 1500); } wasFull = f; }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {} }
+  if (!H.__tmo) { H.__tmo = 1; let wasFull = H.classList.contains("s-full"), moT = 0; try { new MutationObserver(() => { const f = H.classList.contains("s-full"), so = H.classList.contains("sheet-open") || H.classList.contains("s-rep"); if (wasFull && !f) mapOff = Date.now(); if (so && !sheetTab) sheetTab = f || Date.now() - mapOff < 1500 ? "map" : "-"; else if (!so) sheetTab = ""; navMark(); const n = $("sNav"); if (n && !navDone(n)) navBuild(); if (wasFull && !f) { H.classList.add("t-mapout"); clearTimeout(moT); moT = setTimeout(() => H.classList.remove("t-mapout"), 1500); } wasFull = f; }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {} }
 }
 function goTab(k) {
   const now = curTab();

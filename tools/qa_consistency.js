@@ -3249,6 +3249,212 @@ async function tappLane(browser, api, errs) {
       finally { await ctx.close().catch(() => {}); }
     }
   }
+  // --- tapp.entry(4라운드 진입 경로 매트릭스): 콜드 해시(소식·inbox·지도·관심·MY·도구 7개·#oID) · 숏컷(/?src=app#map·#favTop) · 정적 페이지 → 탭 · 앱 안 알림(zp-open) × 390·1280
+  //   (a) 그 화면이 뜬다 (b) scrollY 0(1.5초·3.5초 · 넓은 화면 두 칸 리포트는 제목도 화면 안) (c) 뒤로 1번 = 홈(앱 안 알림은 누르기 전 탭) · 홈에서 뒤로 = 앱 닫힘
+  {
+    const T = "설치 앱 진입 경로 매트릭스(콜드 해시·숏컷·정적 페이지 → 탭·앱 안 알림 × 390·1280): 화면이 뜨고 맨 위(scrollY 0)에서 열리며, 뒤로 1번 = 홈(알림은 원래 탭) · 홈에서 뒤로 = 앱 닫힘";
+    const SCR = { news: "#news", inbox: "#news", favTop: "#favTop", my: "#my", rankHub: "#rankHub", commuteTop: "#commuteTop", diagTop: "#diagTop", rulesTop: "#rulesTop", statsTop: "#statsTop", planner: "#planner", saveTop: "#saveTop" };
+    const ENT = ["#news", "#inbox", "#map", "#favTop", "#my", "#rankHub", "#planner", "#saveTop", "#commuteTop", "#diagTop", "#rulesTop", "#statsTop", "#o890", "src#map", "src#favTop", "static", "zpopen"];
+    const st = (page) => page.evaluate(() => { const H = document.documentElement, c = (k) => H.classList.contains(k), on = document.querySelector("main .s-on, .sec.s-on, #planner.s-on"), rt = document.getElementById("repTitle"); return { u: location.pathname + location.hash, h: location.hash, y: Math.round(scrollY), view: c("s-view"), full: c("s-full"), sheet: c("sheet-open"), rep: c("s-rep"), on: on ? on.id : "", save: c("t-save"), rt: rt && c("s-rep") ? Math.round(rt.getBoundingClientRect().top) : null, ih: innerHeight, tab: ((document.querySelector("#sNav [aria-current=page]") || {}).dataset || {}).nav || "" }; }).catch(() => null);
+    const shows = (e, s, wide) => { if (!s) return false; const k = e.replace(/^src/, "").replace(/^#/, ""); if (k === "map") return s.full; if (/^o\d+$/.test(k)) return wide ? s.rep : s.sheet; if (k === "saveTop") return s.view && (wide || s.save); if (SCR[k]) return s.view && "#" + s.on === (k === "inbox" ? "#news" : k === "saveTop" ? "#planner" : SCR[k]); return true; };
+    const topOk = (e, s, wide) => s.y === 0 && (/^#o\d+$/.test(e) && wide ? s.rt != null && s.rt >= 0 && s.rt < s.ih - 120 : true);   // 넓은 화면 두 칸 리포트: 맨 위 + 제목이 화면 안
+    const isHome = (s) => !!s && !s.h && !s.view && !s.full && !s.sheet && !s.rep;
+    const R = []; let n = 0;
+    for (const [W, H] of [[390, 844], [1280, 800]]) {
+      const wide = W > 980;
+      for (const e of ENT) {
+        const { ctx, page } = await appPage(wide ? { viewport: { width: W, height: H } } : mob(W, H));
+        try {
+          page.__where = "tapp.entry " + W + " " + e; n++;
+          let s1, s2, s3, sb;
+          if (e === "static") {
+            await page.goto(BASE + "/about.html", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(500);
+            await page.evaluate(() => { location.href = "/#news"; });
+            await page.waitForFunction(() => document.documentElement.classList.contains("tapp-on"), null, { timeout: 25000 }).catch(() => {}); await page.waitForTimeout(1500);
+            s1 = await st(page); await page.waitForTimeout(2000); s2 = await st(page);
+            await page.goBack({ timeout: 8000 }).catch(() => {}); await page.waitForTimeout(1000);
+            sb = page.url();
+            const back1 = /about\.html/.test(sb) ? "static" : isHome(await st(page)) ? "home" : "bad:" + sb;
+            if (!shows("#news", s1, wide) || s1.y !== 0 || s2.y !== 0 || back1.startsWith("bad")) R.push(`${W} static→소식 ${JSON.stringify({ s1, y2: s2 && s2.y, back1 })}`);
+            continue;
+          }
+          if (e === "zpopen") {
+            await appHome(page); await page.click('#sNav [data-nav="my"]').catch(() => {}); await page.waitForTimeout(1200);
+            if (wide) await page.evaluate(() => { location.hash = "#my"; }).catch(() => {});
+            await page.waitForTimeout(400);
+            const ok = await page.evaluate(() => { if (!navigator.serviceWorker) return false; navigator.serviceWorker.dispatchEvent(new MessageEvent("message", { data: { t: "zp-open", url: location.origin + "/#inbox" } })); return true; });
+            await page.waitForTimeout(1800); s1 = await st(page);
+            await page.goBack({ timeout: 8000 }).catch(() => {}); await page.waitForTimeout(1000); s3 = await st(page);
+            if (ok && (!shows("#news", s1, wide) || s1.y !== 0 || !(s3 && s3.view && s3.on === "my"))) R.push(`${W} zp-open MY→inbox ${JSON.stringify({ s1, s3 })}`);
+            continue;
+          }
+          const u = e.startsWith("src") ? "/?src=app" + e.slice(3) : "/" + e;
+          await page.goto(BASE + u, { waitUntil: "load", timeout: 30000 });
+          await page.waitForFunction(() => document.documentElement.classList.contains("tapp-on"), null, { timeout: 25000 }).catch(() => {});
+          await page.waitForTimeout(1500); s1 = await st(page); await page.waitForTimeout(2000); s2 = await st(page);
+          await page.goBack({ timeout: 8000 }).catch(() => {}); await page.waitForTimeout(1200); s3 = await st(page);
+          await page.goBack({ timeout: 8000 }).catch(() => {}); await page.waitForTimeout(800); sb = page.url();
+          const k = e.replace(/^src/, "");
+          if (!shows(k, s1, wide) || !topOk(k, s1, wide) || !topOk(k, s2, wide) || !isHome(s3) || sb !== "about:blank") R.push(`${W} ${e} ${JSON.stringify({ s1, y2: s2 && s2.y, back: s3 && s3.u + (s3.view ? "{view}" : "") + (s3.full ? "{full}" : "") + (s3.sheet ? "{sheet}" : "") + (s3.rep ? "{rep}" : ""), exit: sb })}`);
+        } catch (er) { R.push(`${W} ${e} crash ${String(er.message || er).split("\n")[0]}`); }
+        finally { await ctx.close().catch(() => {}); }
+      }
+    }
+    expect(!R.length, "tapp.entry", T, `${n}경로 · ` + R.slice(0, 6).join(" ; "));
+  }
+  // --- tapp.coldTop(4라운드 1): 도구 7개 콜드 해시 × 390·412 — 1.5초·3.5초·8초 모두 scrollY 0(앱바 아래 첫 블록 · 48px 내려가던 것)
+  {
+    const T = "설치 앱 도구 7개 콜드 해시(390·412): 1.5·3.5·8초 모두 scrollY 0";
+    const R = [];
+    const H = ["#rankHub", "#planner", "#saveTop", "#commuteTop", "#diagTop", "#rulesTop", "#statsTop"];
+    for (const W of [390, 412]) {
+      await Promise.all(H.map(async (h) => {
+        const { ctx, page } = await appPage(mob(W, 844));
+        try {
+          page.__where = "tapp.coldTop " + W + h;
+          await page.goto(BASE + "/" + h, { waitUntil: "load", timeout: 40000 });
+          const ys = []; let t = 0; for (const at of [1500, 3500, 8000]) { await page.waitForTimeout(at - t); t = at; ys.push(await page.evaluate(() => Math.round(scrollY))); }
+          if (ys.some((y) => y !== 0)) R.push(`${W}${h} ${ys.join("/")}`);
+        } catch (er) { R.push(`${W}${h} crash`); } finally { await ctx.close().catch(() => {}); }
+      }));
+    }
+    expect(!R.length, "tapp.coldTop", T, R.join(" ; "));
+  }
+  // --- tapp.cashBack(4라운드 3 · 웹도 web.cashBack): 금액 시트에서 고른 뒤 뒤로·×·'N곳 보기' — 주소 ?cash = 화면 금액 · 홈에서 뒤로 = 닫힘 · 모으면 언제 '바꾸기'도
+  {
+    const T = "금액 시트에서 고른 뒤 닫기(뒤로·×·N곳 보기): 주소 cash = 화면 금액 · 그다음 뒤로 = 앱 닫힘(홈) / 도구 '바꾸기'는 그 도구 화면 그대로";
+    const R = [];
+    for (const app of [true, false]) for (const how of ["back", "x", "go"]) {
+      const r = app ? await appPage(mob(390, 844)) : await newPage(browser, mob(390, 844), errs);
+      const { ctx, page } = r;
+      try {
+        page.__where = "cashBack " + (app ? "app " : "web ") + how;
+        await ctx.addInitScript(() => { try { localStorage.setItem("zp.onb", "1"); localStorage.setItem("zp.tonb", "1"); } catch (e) {} });
+        await page.goto(BASE + "/?cash=2&mode=jeonse", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(2200);
+        await page.click("#sCashBtn"); await page.waitForTimeout(500);
+        await page.click('#bSheet [data-bc="3"]'); await page.waitForTimeout(500);
+        if (how === "back") await page.goBack().catch(() => {}); else if (how === "x") await page.click("#bSheet button.bs-x"); else await page.click("#bGo");
+        await page.waitForTimeout(900);
+        const s = await page.evaluate(() => ({ q: new URLSearchParams(location.search).get("cash"), v: (document.getElementById("pCash") || {}).value, open: !document.getElementById("bSheet").hidden }));
+        await page.goBack().catch(() => {}); await page.waitForTimeout(700);
+        const ex = page.url();
+        if (s.q !== "3" || String(s.v) !== "3" || s.open || ex !== "about:blank") R.push(`${app ? "app" : "web"} ${how} ${JSON.stringify(s)} → ${ex}`);
+      } catch (er) { R.push(`${app ? "app" : "web"} ${how} crash ${String(er.message || er).split("\n")[0]}`); } finally { await ctx.close().catch(() => {}); }
+    }
+    for (const W of [390, 1280]) {
+      const { ctx, page } = await appPage(W > 980 ? { viewport: { width: W, height: 800 } } : mob(W, 844));
+      try {
+        page.__where = "cashBack save " + W;
+        await page.goto(BASE + "/#saveTop", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(2500);
+        await page.click("#tSvCash button"); await page.waitForTimeout(500);
+        await page.click('#bSheet [data-bc="3"]'); await page.waitForTimeout(400); await page.click("#bSheet button.bs-x"); await page.waitForTimeout(900);
+        const s = await page.evaluate(() => ({ q: new URLSearchParams(location.search).get("cash"), h: location.hash, view: document.documentElement.classList.contains("s-view") }));
+        await page.goBack().catch(() => {}); await page.waitForTimeout(900);
+        const b = await page.evaluate(() => ({ h: location.hash, view: document.documentElement.classList.contains("s-view") })).catch(() => null);
+        if (s.q !== "3" || s.h !== "#saveTop" || !s.view || !b || b.h || b.view) R.push(`save ${W} ${JSON.stringify({ s, b })}`);
+      } catch (er) { R.push(`save ${W} crash ${String(er.message || er).split("\n")[0]}`); } finally { await ctx.close().catch(() => {}); }
+    }
+    expect(!R.length, "tapp.cashBack", T, R.join(" ; "));
+  }
+  // --- tapp.mapMin(4라운드 5): 앱 지도 탭 첫 화면 360·390·412 × 1·2·3·5억 × 전세·대출 — 화면 안 구 묶음 최저 = 홈 최저 · 묶음이 화면 가장자리 8px 안 · 화면 밖 묶음 없음 · '+N곳' 칩에 최저가
+  {
+    const T = "설치 앱 지도 탭 첫 화면(360·390·412 × 1·2·3·5억 × 전세·대출): 보이는 최저 = 홈 최저 · 묶음은 가장자리 8px 안 · 화면 밖 묶음 없음 · '+N곳 · 금액~' · 묶음 합 + 칩 = 홈 곳 수";
+    const R = []; let n = 0;
+    await Promise.all([360, 390, 412].map(async (W) => {
+      const { ctx, page } = await appPage(mob(W, W === 360 ? 780 : 844));
+      try {
+        for (const m of ["jeonse", "loan"]) for (const c of [1, 2, 3, 5]) {
+          page.__where = `tapp.mapMin ${W} ${m} ${c}`; n++;
+          await page.goto(BASE + `/?cash=${c}&mode=${m}`, { waitUntil: "load", timeout: 40000 }); await page.waitForTimeout(1800);
+          await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(3800);
+          const r = await page.evaluate(() => {
+            const mins = ZP_simple.guMins(), cnt = ZP_simple.guCounts(); let hm = 1e9, tot = 0; for (const k in mins) if (cnt[k]) hm = Math.min(hm, mins[k]); for (const k in cnt) tot += cnt[k];
+            const W = innerWidth, H = innerHeight, vis = [], off = [];
+            document.querySelectorAll("#lmap .zgu").forEach((e) => { const r = e.getBoundingClientRect(); (r.left >= 0 && r.right <= W && r.top >= 0 && r.bottom <= H ? vis : off).push({ g: e.dataset.gu, m: +e.dataset.m, n: +e.dataset.n, l: Math.round(r.left), r: Math.round(W - r.right) }); });
+            const mo = document.getElementById("lmGuMore"), mb = mo && !mo.hidden ? mo.querySelector(".lm-gumore-b") : null;
+            const vm = vis.length ? Math.min(...vis.map((v) => v.m)) : null;
+            return { hm, vm, tot, sum: vis.reduce((a, v) => a + v.n, 0) + (mb ? +mo.dataset.n : 0), more: mb ? mb.textContent.replace(/\s+/g, " ").trim() : "", moreVis: mb ? getComputedStyle(mb.querySelector("small")).display !== "none" : true, edge: vis.filter((v) => v.l < 8 || v.r < 8).map((v) => v.g), off: off.map((v) => v.g) };
+          });
+          if (Math.abs(r.vm - r.hm) > 1e-9 || r.edge.length || r.off.length || r.sum !== r.tot || (r.more && (!/만~|억~/.test(r.more) || !r.moreVis))) R.push(`${W} ${m} ${c}억 ${JSON.stringify(r)}`);
+        }
+      } catch (er) { R.push(`${W} crash ${String(er.message || er).split("\n")[0]}`); } finally { await ctx.close().catch(() => {}); }
+    }));
+    expect(!R.length, "tapp.mapMin", T, `${n}경우 · ` + R.slice(0, 5).join(" ; "));
+  }
+  // --- tapp.bigFont(4라운드 레인 2): 360 · 글자 1.3배(모든 요소 글자 크기 ×1.3 — 안드로이드 글꼴 크게) × 라이트·다크 — 홈 목록·아이콘 이름·관심 행·구역 시트: 겹침 없음 · 단어 중간 끊김 없음 · 가로 넘침 없음
+  {
+    const T = "큰 글씨(360 · 글자 1.3배 · 라이트·다크): 홈 목록 행(이름 ↔ 금액)·아이콘 이름·관심 행·구역 시트 머리가 겹치지 않고 이름이 단어 중간에서 끊기지 않음 · 가로 넘침 0";
+    const grow = (page) => page.evaluate(() => { const els = [...document.querySelectorAll("body *")]; const v = els.map((e) => { const s = getComputedStyle(e); return [parseFloat(s.fontSize), s.lineHeight]; }); els.forEach((e, i) => { if (e.dataset.g13) return; e.dataset.g13 = 1; e.style.setProperty("font-size", v[i][0] * 1.3 + "px", "important"); if (/px/.test(v[i][1])) e.style.setProperty("line-height", parseFloat(v[i][1]) * 1.3 + "px", "important"); }); });
+    const probe = (page, tag) => page.evaluate((tag) => {
+      const out = [], hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1, vis = (r) => r.width && r.bottom > 0 && r.top < innerHeight;
+      // 단어 중간 줄바꿈: 글자마다 줄(top)을 보고, 줄이 바뀐 자리 앞뒤가 둘 다 공백·구두점이 아니면 끊김
+      const midBreak = (el) => { const t = el.firstChild && el.firstChild.nodeType === 3 ? el.firstChild : null; if (!t) return false; const s = t.textContent, rg = document.createRange(); let prev = null; for (let i = 0; i < s.length; i++) { rg.setStart(t, i); rg.setEnd(t, i + 1); const r = rg.getClientRects()[0]; if (!r) continue; if (prev != null && r.top > prev + 4 && !/[\s·(\-/,]/.test(s[i - 1]) && !/[\s·)]/.test(s[i])) return true; prev = r.top; } return false; };
+      document.querySelectorAll("#sList li.s-card").forEach((li) => { const a = li.querySelector(".s-nm b"), m = li.querySelector(".s-amt"); if (!a || !m) return; const ra = a.getBoundingClientRect(), rm = m.getBoundingClientRect(); if (!vis(ra)) return; if (hit(ra, rm)) out.push(tag + " 목록 겹침 " + a.textContent.slice(0, 8)); if (midBreak(a)) out.push(tag + " 목록 끊김 " + a.textContent.slice(0, 10)); });
+      document.querySelectorAll(".pn-row").forEach((rw) => { const a = rw.querySelector(".pn-nm > b"), m = rw.querySelector(".pn-r"); if (!a || !m || !a.offsetParent) return; if (hit(a.getBoundingClientRect(), m.getBoundingClientRect())) out.push(tag + " 관심 겹침 " + a.textContent.slice(0, 8)); if (midBreak(a)) out.push(tag + " 관심 끊김 " + a.textContent.slice(0, 10)); });
+      const L = [...document.querySelectorAll("#tHome .th-l")].filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect()); for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) if (hit(L[i], L[j])) out.push(tag + " 아이콘 이름 겹침 " + i + "/" + j);
+      const b1 = document.querySelector("#tHome .th-b.b1 .th-bt"), bar = document.querySelector("#tHome .th-bar"); if (b1 && bar && b1.offsetParent) { const tx = [...b1.querySelectorAll(".th-bh,.th-rd")].map((e) => e.getBoundingClientRect()); if (tx.some((r) => hit(r, bar.getBoundingClientRect()))) out.push(tag + " 배너 글 ↔ 1/3 겹침"); }
+      if (document.documentElement.scrollWidth > innerWidth + 1) out.push(tag + " 가로 넘침 " + document.documentElement.scrollWidth);
+      return out;
+    }, tag);
+    const R = [];
+    for (const cs of ["light", "dark"]) {
+      const { ctx, page } = await appPage(mob(360, 780, cs));
+      try {
+        await ctx.addInitScript(() => { try { localStorage.setItem("jg-fav", '["o497","o111","o890"]'); } catch (e) {} });
+        page.__where = "tapp.bigFont " + cs;
+        await appHome(page, "/?src=app&cash=2"); await page.waitForTimeout(1500); await grow(page); await page.waitForTimeout(400);
+        R.push(...(await probe(page, cs + " 홈")));
+        await page.evaluate(() => { const l = document.getElementById("sList"); if (l) window.scrollTo(0, l.getBoundingClientRect().top + scrollY - 120); }); await page.waitForTimeout(400); await grow(page); await page.waitForTimeout(300);
+        R.push(...(await probe(page, cs + " 목록")));
+        await page.click('#sNav [data-nav="fav"]'); await page.waitForTimeout(1500); await grow(page); await page.waitForTimeout(400);
+        R.push(...(await probe(page, cs + " 관심")));
+        await page.click("#favTop .pn-main"); await page.waitForTimeout(1500); await grow(page); await page.waitForTimeout(400);
+        R.push(...(await probe(page, cs + " 시트")));
+      } catch (er) { R.push(cs + " crash " + String(er.message || er).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    }
+    expect(!R.length, "tapp.bigFont", T, R.slice(0, 8).join(" ; "));
+  }
+  // --- tapp.r4misc: 넓은 화면 #tVal 숨김 · 지도 ⓘ 44 · 경매 범례 ↔ 서울 전체 막대 안 겹침 · 지도 탭 시트 aria-current 지도 · 소식 칩 aria 전부 같은 꼴 · '내 구역만' · 배너 1 쉼표 없음 · 통계 '이주·철거' · 입주권 문구 · 다크 세그먼트 #3A404B·굵기 700/500 · 넓은 화면 순위 보조 글 대비 · 넓은 화면 소식 세그먼트 흰 thumb
+  {
+    const T = "설치 앱 4라운드 마감: 넓은 화면 #tVal 숨김 · 지도 ⓘ 44×44 · 경매 범례 ↔ '서울 전체' 안 겹침 · 지도 탭 시트에도 aria-current=지도 · 소식 칩 aria 같은 꼴 · '내 구역만' · 배너 1 쉼표 없음 · 통계 '이주·철거' · 입주권 '원칙적으로 없음'(!) · 다크 세그먼트 · 넓은 화면 순위 보조 글 대비";
+    const R = [];
+    try {
+      { const { ctx, page } = await appPage({ viewport: { width: 1280, height: 800 } }); try { await appHome(page); const o = await page.evaluate(() => { const v = document.getElementById("tVal"); return !v || getComputedStyle(v).display === "none"; }); if (!o) R.push("tVal 1280 보임"); await page.goto(BASE + "/#rankHub", { waitUntil: "load" }); await page.waitForTimeout(2000); const c = await page.evaluate(() => { const s = document.querySelector('#rankHub .hub-tabs [aria-selected="true"] small'); return s ? getComputedStyle(s).color : "none"; }); if (!/255, 255, 255|rgba\(255|srgb 1 1 1/.test(c) && c !== "none") R.push("순위 보조 글 " + c); await page.goto(BASE + "/#news", { waitUntil: "load" }); await page.waitForTimeout(2000); const ns = await page.evaluate(() => { const b = document.querySelector('#news .tf-seg [aria-selected="true"]'); return b ? getComputedStyle(b).backgroundColor : "none"; }); if (ns !== "rgb(255, 255, 255)" && ns !== "none") R.push("넓은 소식 세그먼트 " + ns); } finally { await ctx.close().catch(() => {}); } }
+      { const { ctx, page } = await appPage(mob(390, 844)); try {
+        await appHome(page, "/?src=app&cash=1");
+        const ban = await page.evaluate(() => new Promise((r) => setTimeout(() => { const h = document.querySelector("#tHome .th-b.b1 .th-bh"); r(h ? h.textContent : ""); }, 2200)));
+        if (/,\s*날짜|,\s*$/.test(ban.split("날짜")[0].trim() + (ban.includes("날짜") ? " 날짜" : ""))) R.push("배너 1 쉼표 " + ban);
+        await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(3500);
+        const ib = await page.evaluate(() => { const a = document.querySelector("#mapbox .maplibregl-ctrl-attrib-button"); if (!a) return null; const r = a.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; });
+        if (ib && (ib[0] < 44 || ib[1] < 44)) R.push("ⓘ " + ib);
+        await page.evaluate(() => { location.hash = "#o890"; }); await page.waitForTimeout(1800);
+        const ac = await page.evaluate(() => ((document.querySelector("#sNav [aria-current=page]") || {}).dataset || {}).nav || "");
+        if (ac !== "map") R.push("지도 탭 시트 aria-current " + ac);
+        await page.goBack(); await page.waitForTimeout(2200);
+        const ov = await page.evaluate(() => { const a = document.getElementById("lmAucLg"), b = document.getElementById("mapBack"); if (!a || !b || a.hidden || !b.offsetParent) return null; const x = a.getBoundingClientRect(), y = b.getBoundingClientRect(); return x.left < y.right && y.left < x.right && x.top < y.bottom && y.top < x.bottom; });
+        if (ov) R.push("경매 범례 ↔ 서울 전체 겹침");
+        await page.goto(BASE + "/#news", { waitUntil: "load" }); await page.waitForTimeout(2500);
+        const ch = await page.evaluate(() => [...document.querySelectorAll("#tFeed .tf-chips button, #news .tf-chips button")].filter((b) => b.offsetParent).map((b) => b.getAttribute("aria-label") || ""));
+        if (!ch.length || ch.some((l) => !/^\S.* [\d,]+건, 새 소식 [\d,]+건$/.test(l))) R.push("소식 칩 aria " + JSON.stringify(ch));
+        await page.click("#tSegM").catch(() => {}); await page.waitForTimeout(1200);
+        const fc = await page.evaluate(() => { const c = document.querySelector('#ntcF [data-c="fav"]'); return c ? c.textContent.replace(/N$/, "").trim() : "none"; });
+        if (fc !== "내 구역만" && fc !== "none") R.push("관심 구역 칩 " + fc);
+        await page.goto(BASE + "/#statsTop", { waitUntil: "load" }); await page.waitForTimeout(2500);
+        const sk = await page.evaluate(() => document.getElementById("statsTop").textContent);
+        if (/이주·착공/.test(sk)) R.push("통계 '이주·착공' 남음");
+        await page.goto(BASE + "/#diagTop", { waitUntil: "load" }); await page.waitForTimeout(2500);
+        const dg = await page.evaluate(() => { const li = [...document.querySelectorAll("#dgR li")].find((l) => /입주권/.test(l.textContent) && !/지위양도/.test(l.textContent)); return li ? [li.className, li.textContent.replace(/\s+/g, " ").slice(0, 80)] : null; });
+        if (dg && /관리처분인가 이후 매수분/.test(dg[1])) R.push("입주권 문구 " + dg[1]);
+        if (dg && /원칙적으로 없음/.test(dg[1]) && dg[0] !== "warn") R.push("입주권 표시 " + dg[0]);
+      } finally { await ctx.close().catch(() => {}); } }
+      { const { ctx, page } = await appPage(mob(390, 844, "dark")); try {
+        await appHome(page, "/?src=app#my"); await page.waitForTimeout(1500);
+        const sg = await page.evaluate(() => { const on = document.querySelector('#my :is(.my-seg,.seg) :is([aria-pressed="true"],[aria-checked="true"])'), off = document.querySelector('#my :is(.my-seg,.seg) :is([aria-pressed="false"],[aria-checked="false"])'); return on && off ? [getComputedStyle(on).backgroundColor, getComputedStyle(on).fontWeight, getComputedStyle(off).fontWeight] : null; });
+        if (sg && (sg[0] !== "rgb(58, 64, 75)" || +sg[1] < 700 || +sg[2] > 500)) R.push("다크 세그먼트 " + sg);
+      } finally { await ctx.close().catch(() => {}); } }
+    } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); }
+    expect(!R.length, "tapp.r4misc", T, R.join(" ; "));
+  }
   // --- tapp.files(19·20): SW 미리 저장에서 앱 묶음(/b/t.*) 빼기 · assetlinks.json(JSON · TODO 없음 · 패키지 이름 · SHA-256 지문)
   {
     const sw = String((await getPage("/sw.js")).text || ""), al = await get(BASE + "/.well-known/assetlinks.json").catch(() => ({ text: "" }));
