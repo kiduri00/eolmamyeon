@@ -665,9 +665,19 @@ function coverWatch() {
   const t0 = performance.now();
   const iv = setInterval(() => { const now = performance.now(); if (now - t0 > 2500 || (window.ZP_booted && now - lastLT > 250)) { window.ZP_coverWhy = now - t0 > 2500 ? "cap" : "quiet"; off(); } }, 50);
 }
+// 5라운드: 지도 탭 '+N곳' 칩은 범례의 실제 높이 위에(큰 글씨에서 범례가 두 줄로 자라 칩을 덮던 것 · CSS는 한 줄 28px로 가정)
+function chipLift() {
+  if (!H.classList.contains("s-full")) return;
+  document.querySelectorAll(".lm-gumore").forEach((c) => {
+    const box = c.parentElement, k = box && box.querySelector(":scope > .lm-key"); if (!k || !k.offsetHeight || c.hidden) return;
+    const kb = k.getBoundingClientRect(), bb = box.getBoundingClientRect(), v = Math.round(bb.bottom - kb.top + 8) + "px";
+    if (c.style.getPropertyValue("bottom") !== v) c.style.setProperty("bottom", v, "important");
+  });
+}
 function start() {
   if (start.d) return; start.d = 1;
   coverWatch();
+  setInterval(() => T(chipLift), 400);
   H.classList.add("is-app");
   patchHistory(); coldBase(); coldTop();
   navBuild(); bindClicks(); homeBuild();

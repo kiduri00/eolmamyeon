@@ -124,7 +124,7 @@
     // 8차: 폰은 16방향(바른 8방향 먼저) — 좁은 지도에서 비킬 자리를 더 찾는다
     var ANG = (phone ? [0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15].map(function (k) { return (k * Math.PI) / 8 + Math.PI / 2; }) : [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return (k * Math.PI) / 4 + Math.PI / 2; }));
     // 폰: 맨 아래 20px 띠에는 묶음을 두지 않는다(범례·ⓘ는 따로 피함 · 20차)
-    var bot = phone ? 20 : 2, EX = phone && appFull() ? 8 : 2;   // 4라운드: 앱 지도 탭은 묶음이 화면 가장자리 8px 안으로(양천 묶음이 왼쪽 끝 2px에 반쯤 잘려 보이던 것)
+    var bot = phone ? 20 : 2, EX = phone && appFull() ? 8 : 2, AF36 = phone && appFull();   // 4라운드: 앱 지도 탭은 묶음이 화면 가장자리 8px 안으로(양천 묶음이 왼쪽 끝 2px에 반쯤 잘려 보이던 것)
     var GAP = 6, MAXOFF = 48, MAXOFF2 = 72, MK = 1.0;   // 7차: 폰은 제 구 중심에서 48px 안 · 다른 구 중심보다 가깝지 않은 자리만(130px·2.5배로 풀었더니 마포 묶음이 강서 땅에 서던 것) · 묶음 사이 실제 2px 넘게(어림 폭보다 글자가 조금 넓어 4px 띄움이 1px로 닿던 것)
     // 30차: 비킨 자리가 다른 구 중심에 더 가까우면(그 구 땅 위로 넘어가면) 쓰지 않는다 — 360에서 서대문 묶음이 동대문 남쪽에 서던 것
     var ANC = o.gus.map(function (g) { return { n: g.n, q: o.proj(g.ll) }; });
@@ -158,7 +158,7 @@
         for (var s = 0; s < (phone || w < 380 ? 3 : 2); s++) {
           // 21차: 둥근 네모 두 줄('강북 1곳' / '7,400만~') — 폭 = 글자 폭 + 여백, 높이 40(누르는 자리 · 작게 줄인 것은 보이는 30 + 투명 둘레로 40)
           // 27차: 셋째 단계도 금액 줄('6,700만~')을 지운 한 줄이 아니라 더 작은 두 줄(xs · 보이는 높이 26) — 높은 금액에서 구 묶음 금액 줄이 빠지던 것
-          var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = Math.ceil((xs ? Math.max(tw(l1, 11), tw(L2, 11)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 11)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 11)) + 18) * 1.04), bh = xs ? (L2 ? 28 : 20) : sm ? (L2 ? 32 : 22) : 40, d = Math.max(bw, bh);
+          var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = Math.ceil((xs ? Math.max(tw(l1, 11), tw(L2, 11)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 11)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 11)) + 18) * 1.04), bh = xs ? (L2 ? 28 : 20) : sm ? (L2 ? 32 : 22) : AF36 ? 36 : 40, d = Math.max(bw, bh);   // 5라운드: 앱 지도 탭 큰 묶음 36(서울을 더 크게 · 묶음 줄임)
           var RR = (phone ? [0, d * 0.45, d * 0.75, d * 1.05, 16, 32, 48, 60, 72] : sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05]).filter(function (r) { return !phone || r <= lim; }).sort(function (a, b) { return a - b; });   // 8차: 폰은 16px 걸음(다른 구 땅 검사가 생겨 좁은 걸음이 안전)   // 30차: 폰은 제 구 중심에서 MAXOFF px 안에서만 비킨다(못 비키면 '+N곳' 칩으로)
           for (var i = 0; i < RR.length; i++) {
             var A = RR[i] ? ANG : [0];
@@ -222,7 +222,7 @@
     // 4라운드(앱 지도 탭): 숨은 곳의 가장 적은 금액을 칩에 — '+7곳 · 6,700만~'(보이는 최저보다 싼 곳이 칩 안에 있어도 첫눈에 보이게)
     var mn = null; L.forEach(function (g) { if (g.m != null && (mn == null || g.m < mn)) mn = g.m; });
     var am = appFull() && mn != null;
-    return '<button type="button" class="lm-gumore-b" aria-expanded="false" aria-label="지도에 다 못 보인 ' + L.length + "개 구, 갈 수 있는 곳 " + fmt(c) + "곳" + (am ? ", 가장 적게 드는 곳 " + cash(mn) : "") + ' 더 보기">+' + fmt(c) + "곳 <small>· " + (am ? MT(mn) : L.length + "개 구") + '</small></button><ul class="lm-gumore-l">' + L.slice().sort(function (a, b) { return (a.m == null ? 1e9 : a.m) - (b.m == null ? 1e9 : b.m) || b.c - a.c; }).map(function (g) { return '<li><button type="button" data-gu="' + esc(g.n) + '"><span class="gm-n">' + esc(g.n) + '</span> <b><i>' + fmt(g.c) + "곳</i>" + (g.m != null ? '<i class="gm-m">' + MT(g.m) + "</i>" : "") + "</b></button></li>"; }).join("") + "</ul>";   // 30차: 펼친 목록은 적게 드는 구부터 · 곳 수·금액 두 칸을 줄 맞춤(금액 '~'가 따로 줄바꿈되던 것)
+    return '<button type="button" class="lm-gumore-b" aria-expanded="false" aria-label="' + (appFull() ? "지도에 이름이 안 보인 갈 수 있는 곳 " + fmt(c) + "곳(" + L.length + "개 구)" + (am ? ", 가장 적게 드는 곳 " + cash(mn) : "") + ", 목록 보기" : "지도에 다 못 보인 " + L.length + "개 구, 갈 수 있는 곳 " + fmt(c) + "곳 더 보기") + '">+' + fmt(c) + "곳 <small>· " + (am ? MT(mn) : L.length + "개 구") + '</small></button><ul class="lm-gumore-l">' + L.slice().sort(function (a, b) { return (a.m == null ? 1e9 : a.m) - (b.m == null ? 1e9 : b.m) || b.c - a.c; }).map(function (g) { return '<li><button type="button" data-gu="' + esc(g.n) + '"><span class="gm-n">' + esc(g.n) + '</span> <b><i>' + fmt(g.c) + "곳</i>" + (g.m != null ? '<i class="gm-m">' + MT(g.m) + "</i>" : "") + "</b></button></li>"; }).join("") + "</ul>";   // 30차: 펼친 목록은 적게 드는 구부터 · 곳 수·금액 두 칸을 줄 맞춤(금액 '~'가 따로 줄바꿈되던 것)
   }
   var ZOOM = '<button type="button" data-z="full" class="lm-fs" aria-label="지도 크게 보기" aria-pressed="false" title="지도 크게 보기"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" data-z="1" aria-label="확대"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button><button type="button" data-z="-1" aria-label="축소"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>';
   var GU_LBL = function (n, c, m) { return n + ", 내 돈으로 갈 수 있는 곳 " + fmt(c) + "곳" + (m != null ? ", 가장 적게 드는 곳 " + cash(m) : "") + ", 눌러서 " + n + " 보기"; };
@@ -238,7 +238,7 @@
   var S = { el: null, box: null, st: null, tap: null, ro: null, last: null, out: false, dim: null };
   // 4라운드: 설치 앱 지도 탭(폰 · 화면 가득 지도) — 첫 카메라·묶음 가장자리·'+N곳' 최저가를 앱만 따로(웹 지도 픽셀 그대로)
   var appFull = function () { var c = Dc.documentElement.classList; return c.contains("is-tapp") && c.contains("s-full") && phoneQ(); };
-  var APAD = { left: 16, right: 56, top: 200, bottom: 170 };
+  var APAD = { left: 16, right: 32, top: 150, bottom: 130 };   // 5라운드: 200·170·56 → 150·130·32(서울을 더 크게 · 묶음 줄임)
   var phoneQ = function () { try { return matchMedia("(max-width:980px)").matches; } catch (e) { return true; } };
   function short(box) { var fs = Dc.documentElement.classList.contains("s-full"), sh = !fs && box.clientHeight > 0 && box.clientHeight < 400; if (sh !== box.classList.contains("lm-short")) box.classList.toggle("lm-short", sh); }
   function mount(box) {
@@ -358,7 +358,7 @@
     var ch = el.querySelector(".lm-gumore"), c = S.dim ? 0 : R.left.reduce(function (a, g) { return a + g.c; }, 0);
     ch.hidden = !c;
     if (S.dim) [].forEach.call(mk.children, function (b) { b.classList.add("zg-busy"); });
-    if (c) { var kk = R.left.map(function (g) { return g.n + g.c; }).join(","); if (ch.dataset.k !== kk) { ch.dataset.k = kk; ch.innerHTML = chipHTML(R.left, c); ch.classList.remove("open"); } ch.dataset.n = String(c); ch.style.top = (ctop ? 6 : Math.max(6, Math.round(ky - 40))) + "px"; ch.classList.toggle("top", !!ctop); }
+    if (c) { var kk = R.left.map(function (g) { return g.n + g.c + ":" + g.m; }).join(",") + (appFull() ? "f" : ""); /* 5라운드: 지도 탭이 된 뒤 다시 그려 최저가를 붙인다(실제 지도 칩과 같은 글) */ if (ch.dataset.k !== kk) { ch.dataset.k = kk; ch.innerHTML = chipHTML(R.left, c); ch.classList.remove("open"); } ch.dataset.n = String(c); ch.style.top = (ctop ? 6 : Math.max(6, Math.round(ky - 40))) + "px"; ch.classList.toggle("top", !!ctop); }
     // 바탕: 땅 · 한강 · 구 경계(점선) · 서울 밖 옅게 · 서울 경계 · 묶음 없는 구 이름
     var txt = "", used = R.keep.map(function (g) { var x = g.q.x + g.dx, y = g.q.y + g.dy; return [x - g.w / 2, y - g.h / 2, x + g.w / 2, y + g.h / 2]; }).concat(obsOf(el, box));
     var fs = C.z <= 10 ? 10.5 : C.z >= 12.5 ? 12.5 : 10.5 + (C.z - 10) * 0.8;

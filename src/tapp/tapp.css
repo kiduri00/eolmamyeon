@@ -576,3 +576,10 @@ html.is-tapp #statsTop{--st-1:#E4E7EC;--st-2:#AAB8D5;--st-3:#7088BE;--st-4:#4A63
 /* 22 당겨서 새로고침 막기(앱만 · 웹은 그대로): 문서 전체 overscroll 없음(첫 그림부터는 shell.html 머리 style) · 안에서 스크롤되는 칸(구역 시트·금액·정렬 시트·'+N곳' 목록·검색 결과)은 끝에서 바깥으로 번지지 않게 · 지도 핀치·끌기는 지도 캔버스가 따로 받는다 */
 html.is-tapp,html.is-tapp body{overscroll-behavior-y:none}
 html.is-tapp #report.sheet,html.is-tapp .bsheet .bs-card,html.is-tapp .lm-gumore-l,html.is-tapp #sResults,html.is-tapp .srch-r,html.is-tapp #tOnb{overscroll-behavior:contain}
+/* ===================== 5라운드 ===================== */
+/* 2 지도 ⓘ: 첫 화면에 실제로 보이는 것은 자리 그림(.zp-ph)의 가짜 아이콘 — 실제 버튼과 같은 44px 원 · 외곽선 i · 그림자 · 같은 자리(앱만 · 웹 지도 그대로) */
+@media (max-width:980px){
+  html.is-tapp .zp-ph .zg-attr{width:44px!important;height:44px!important;right:10px!important;bottom:10px!important;border-radius:50%!important;background:var(--t-pg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234E5968' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%234E5968'/%3E%3C/svg%3E") center/22px 22px no-repeat!important;box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 1px var(--t-line)!important}
+}
+@media (max-width:980px) and (prefers-color-scheme:dark){:root:not([data-theme="light"]).is-tapp .zp-ph .zg-attr{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B0B8C1' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%23B0B8C1'/%3E%3C/svg%3E")!important}}
+@media (max-width:980px){:root[data-theme="dark"].is-tapp .zp-ph .zg-attr{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B0B8C1' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%23B0B8C1'/%3E%3C/svg%3E")!important}}
