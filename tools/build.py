@@ -240,7 +240,7 @@ import shutil, subprocess
 ESB = os.environ.get('ESBUILD') or shutil.which('esbuild') or next((x for x in (os.path.join(R, 'node_modules/.bin/esbuild'), '/tmp/esb/node_modules/.bin/esbuild') if os.path.exists(x)), None)
 if ESB and not os.environ.get('NO_MINIFY'):
     def mini(src, loader):
-        r = subprocess.run([ESB, f'--loader={loader}', '--minify', '--target=es2020,chrome90,safari14', '--log-level=error'], input=src, capture_output=True, text=True)
+        r = subprocess.run([ESB, f'--loader={loader}', '--minify', '--charset=utf8', '--target=es2020,chrome90,safari14', '--log-level=error'], input=src, capture_output=True, text=True)
         if r.returncode: raise SystemExit('esbuild 실패: ' + r.stderr[:500])
         return r.stdout
     js0, css0 = len(js), len(css)
