@@ -2751,12 +2751,13 @@ async function tappLane(browser, api, errs) {
   }
   // --- tapp.static: (리드 결정 A) 정적 페이지 HTML은 simple-home과 같게 — 광고 태그는 예전 리터럴 그대로(심사 전엔 광고가 안 나옴), 앱 전용 주입 없음
   {
-    const T = "정적 페이지(리포트·가이드·/z·소개): 애드센스 리터럴 태그 그대로 · 앱 전용 로더(data-zp-ads)·앱 탭 주입 없음 · 웹 아래 탭 4개";
+    const T = "정적 페이지(ads-app-guard): 애드센스는 앱이면 건너뛰는 로더(data-zp-ads · 같은 client id)";
     const bad1 = [];
     for (const u of ["/z/o144.html", "/report/2026-10.html", "/guide/moatown.html", "/about.html"]) {
       const r = await getPage(u), h = String(r.text || "");
-      if (!h.includes('<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>')) bad1.push(u + " 리터럴 태그 없음");
-      if (/data-zp-ads|zp\.tapp|is-tapp/.test(h)) bad1.push(u + " 앱 주입 있음");
+      // ads-app-guard 브랜치: 리터럴 태그 대신 앱이면 건너뛰는 로더(같은 client id · async · crossorigin)
+      if (h.includes('<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js')) bad1.push(u + " 리터럴 태그 남음");
+      if (!/<script data-zp-ads>/.test(h) || !h.includes("adsbygoogle.js?client=ca-pub-9772652926977648")) bad1.push(u + " 로더 없음");
     }
     expect(!bad1.length, "tapp.static", T, bad1.join(" ; "));
   }
@@ -2775,9 +2776,9 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.noAds(첫 화면): 앱 첫 화면은 광고 스크립트를 안 받는다(정적 페이지는 결정 A로 리터럴 태그 — 별도 브랜치 ads-app-guard에 로더)
-  if (0) {
-    const T = "설치 앱: 광고 스크립트(adsbygoogle) 요청 없음 — 첫 화면 · /z · 리포트";
-    const { ctx, page, ads } = await appPage(mob(390, 844));
+  {
+    const T = "설치 앱: 광고 스크립트(adsbygoogle) 요청 없음 — /z · 리포트 · 가이드(로더가 건너뜀) · 아래 탭 5개";
+    const { ctx, page } = await appPage(mob(390, 844)); const ads = []; page.on("request", (q) => { if (ADRX.test(q.url())) ads.push(q.url()); });
     try {
       const st = [];
       for (const u of ["/z/o144.html", "/report/2026-10.html", "/guide/moatown.html"]) {
@@ -2785,7 +2786,7 @@ async function tappLane(browser, api, errs) {
         await page.goto(BASE + u, { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(600);
         st.push([u, await page.evaluate(() => ({ cls: document.documentElement.classList.contains("is-tapp"), tabs: [...document.querySelectorAll(".zp-tabs a span")].map((s) => s.textContent).join(",") }))]);
       }
-      expect(!ads.length && st.every(([, x]) => x.cls && x.tabs === "홈,지도,관심,소식,MY"), "tapp.noAds", T, `ads ${ads.length} ${ads.slice(0, 2).join(" ")} ${JSON.stringify(st)}`);
+      expect(!ads.length && st.every(([, x]) => x.cls && x.tabs === "홈,지도,관심,소식,MY"), "tapp.noAdsStatic", T, `ads ${ads.length} ${ads.slice(0, 2).join(" ")} ${JSON.stringify(st)}`);
     } catch (e) { bad("runtime", "검사 실행", "tapp.noAds crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
