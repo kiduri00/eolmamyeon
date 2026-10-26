@@ -541,6 +541,7 @@
   window.ZP_fresh = (() => { const md = (s) => { const m = /(\d{4})-?(\d\d)-?(\d\d)/.exec(s || ""); return m ? `${+m[2]}.${m[3]}` : ""; }; const t = D.txAsOf && md(D.txAsOf.sale), u = md(D.upd || D.asOf); return t ? `실거래 ${t} 신고분까지${u ? ` · ${u} 갱신` : ""}` : `${u} 갱신`; })();
   const LADDER = D.ladder;
   const R = D.recs;
+  /*Y*/
   /*EXT*/
   const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const smooth = () => (reduceMotion() ? "auto" : "smooth");
@@ -2064,6 +2065,7 @@
     o316: 2092,
     o331: 2076,
   };
+  /*Y*/
   const IS_MOBILE =
     /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "") ||
     (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || ""));
@@ -3011,6 +3013,7 @@
     if (!opts.keepReport) renderGuPanel();
     else renderGuPanel(true);
   }
+  /*Y*/
   let REP_HOME = null,
     GLBOX_HOME = null;
   function guZonesHTML(g) {
@@ -4042,6 +4045,7 @@
       markNewWin(rp);
     });
   }
+  /*Y*/
   function hjSummary(r) {
     const hs = nearHojae(r);
     if (!hs.length) return "";
@@ -5046,6 +5050,7 @@
       refreshFades();
     }, "#rank tbody tr[data-id], #rankSub");
   }
+  /*Y*/
   function rankEmpty(f) {
     const cash = `현금 ${ZF.cash(CASH)}으로`,
       basisTxt = P.basis === "total" ? "입주까지" : "지금 매수";
@@ -6011,6 +6016,7 @@
       }
     }),
   );
+  /*Y*/
   function cashNote(t) {
     $("cashNote").textContent = t;
     $("cashNote").hidden = !t;
@@ -7210,6 +7216,7 @@
     bindCards($("planList"));
     refreshFades();
   }
+  /*Y*/
   function condText() {
     const homes = { 0: "무주택", 1: "1채·팔 거예요", 3: "1채 유지", 2: "2채 이상" }[P.homes];   // 23차: 첫 실행 질문과 같은 말(채)
     const adv =
@@ -8074,6 +8081,7 @@
       };
     introPaint(1);
   }
+  /*Y*/
   function introPaint(c) {
     if (!INTRO_DOTS || !HOOK || !HOOK[c]) return;
     const set = HOOK[c],
@@ -8997,6 +9005,7 @@
       xl.hidden = true;
     });
   }
+  /*Y*/
   let svW = 0;
   window.addEventListener("resize", () => {
     const o = $("svOut");

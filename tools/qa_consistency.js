@@ -2797,6 +2797,29 @@ async function tappLane(browser, api, errs) {
     } catch (e) { bad("runtime", "검사 실행", "tapp.noAds crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
+  // --- tapp.split(pre-adsense 5): 설치 앱은 앱 코드를 덩이로 나눠 도는 판(/b/ta.*.js)만 받고, 웹은 예전 판(/b/a.*.js)만 받는다(파일 수 같음) · 앱은 마지막 덩이까지 돈 뒤 붙음 · 덩이 사이 예약(타이머·프레임) 잡아 두기가 끝나 원래 함수로 돌아옴 · 웹 서비스 워커 미리 받기에 ta 없음
+  {
+    const T = "앱 코드 나눠 실행: 설치 앱 = /b/ta.*.js 하나(a.*.js 안 받음) · 웹 = /b/a.*.js 하나(ta 안 받음 · 받는 파일 수 그대로) · 앱 ZP_aWait 풀린 뒤 zp:hydrated · setTimeout 원래 함수 · sw 미리 받기 정규식에 ta 안 걸림";
+    const R = [];
+    for (const mode of ["app", "web"]) {
+      const { ctx, page } = mode === "app" ? await appPage(mob(390, 844)) : await newPage(browser, mob(390, 844), errs);
+      try {
+        const U = []; page.on("request", (q) => { const m = /\/b\/(t?a)\.[0-9a-f]{10}\.js/.exec(q.url()); if (m) U.push(m[1]); });
+        await page.goto(BASE + "/#map", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(5000);
+        const st = await page.evaluate(async () => ({ aw: !!window.ZP_aWait, done: window.ZP_aWait ? await Promise.race([window.ZP_aWait.then(() => 1), new Promise((r) => setTimeout(() => r(0), 3000))]) : null, hyd: window.ZP_boot && ZP_boot.hyd, booted: window.ZP_booted, st: String(window.setTimeout).includes("[native code]"), raf: String(window.requestAnimationFrame).includes("[native code]") }));
+        const want = mode === "app" ? "ta" : "a";
+        if (U.join(",") !== want) R.push(`${mode} 받은 앱 코드 ${U.join(",") || "없음"}`);
+        if (mode === "app" && (!st.aw || st.done !== 1)) R.push(`app 덩이 끝 ${JSON.stringify(st)}`);
+        if (mode === "web" && st.aw) R.push("web에 ZP_aWait");
+        if (st.hyd !== 1 || st.booted !== 1 || !st.st || !st.raf) R.push(`${mode} ${JSON.stringify(st)}`);
+      } catch (e) { R.push(mode + " crash " + String(e.message || e).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    }
+    const sw = String((await getPage("/sw.js")).text || ""), idx = String((await getPage("/")).text || "");
+    const rx = /\/b\/[a-su-z]\.[0-9a-f]{10}\.(?:js|css|json)/g, pre = [...new Set(idx.match(rx) || [])];
+    if (!/\[a-su-z\]/.test(sw)) R.push("sw.js 미리 받기 정규식이 바뀜");
+    if (pre.some((u) => /\/b\/ta\./.test(u)) || !/\/b\/ta\.[0-9a-f]{10}\.js/.test(idx)) R.push("index의 ta 표기/미리 받기 " + pre.join(","));
+    expect(!R.length, "tapp.split", T, R.join(" ; "));
+  }
   // --- tapp.toggleDark(pre-adsense · 실기기 다크 모드): MY 알림 스위치 켜짐·꺼짐·막힘 — 계산 색 = 지정 색 · 비텍스트 대비(켜짐 트랙/카드 ≥ 3 · 꺼짐 손잡이/카드 ≥ 3 · 막힘 손잡이/카드 ≥ 3) · 막힘 글자 대비 ≥ 4.5 · 라이트는 예전 색 그대로
   {
     const T = "설치 앱 다크 MY 알림 스위치: 켜짐 트랙 #8EA8F5·흰 손잡이 · 꺼짐 트랙 #3A3F47(+1px 밝은 테두리)·손잡이 #B0B8C1 · 막힘 손잡이 #6B7280 · 비텍스트 대비 3:1 이상 · 막힘 글자 4.5:1 이상 · 라이트 켜짐 #1F3A87 그대로";

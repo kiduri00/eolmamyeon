@@ -7,6 +7,9 @@
 (function () {
   var B = (window.ZP_boot = { a: "__A__", d: "__D__", c: "__C__", f: "__F__", st: 0, hyd: 0 });
   var H = document.documentElement, W = window;
+  // pre-adsense 5: 설치 앱(html.is-tapp · scheduler.yield 있음)은 같은 앱 코드를 몇 덩이로 나눠 도는 판(ta.*.js)을 받는다 — 웹은 예전 a.*.js 그대로(받을 때 고른다: 앱 표시는 머리 스크립트가 붙임)
+  var isApp = function () { if (H.classList.contains("is-tapp")) return true; var m = function (q) { try { return W.matchMedia(q).matches; } catch (e) { return false; } }; if (m("(display-mode: standalone)") || m("(display-mode: fullscreen)") || m("(display-mode: minimal-ui)") || navigator.standalone === true || /^android-app:\/\//.test(document.referrer || "")) return true; try { return sessionStorage.getItem("zp.tapp") === "1"; } catch (e) { return false; } };   // 머리 스크립트(shell.html 설치 앱 알아채기)와 같은 규칙 — 주소 #로 바로 받을 때는 그 스크립트보다 먼저 돈다
+  var aPick = function () { try { if (isApp() && W.scheduler && typeof W.scheduler.yield === "function" && /^\/b\/ta\./.test("__AA__")) B.a = "__AA__"; } catch (e) {} };
   // 설치 창 신호는 앱 코드(69_install)가 붙기 전에 올 수 있다 → 받아 두었다가 넘긴다
   W.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); W.__bip = e; });
   var ls = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -60,7 +63,7 @@
   };
   B.full = function (why) {
     if (B.st || ls("zp_nohyd") === "1") return;
-    B.st = 1; B.why = why;
+    B.st = 1; B.why = why; aPick();
     var DS = String(B.d).split(",");
     DS.concat([B.a]).forEach(function (u) { document.head.appendChild(add("link", { rel: "preload", as: "script", href: u })); });
     var run = function () {
@@ -72,6 +75,8 @@
       var ds = DS.map(function (u) { var x = add("script", { src: u }); x.async = false; return x; }), a = add("script", { src: B.a });
       a.async = false;
       a.onload = function () {
+        // pre-adsense 5: 설치 앱은 a.js 실행을 몇 덩이로 나눠 돈다 — 마지막 덩이까지 끝난 뒤(ZP_aWait)에 '붙음'(웹은 ZP_aWait 없음 = 예전 그대로)
+        if (W.ZP_aWait && !a.w8) { a.w8 = 1; var once = function () { if (once.d) return; once.d = 1; a.onload(); }; W.ZP_aWait.then(once, once); setTimeout(once, 20000); return; }
         // 확장 모듈 init(setTimeout 0)들이 먼저 돌고 난 다음
         setTimeout(function () { requestAnimationFrame(function () { try { performance.mark("zp-hyd"); } catch (e) {} B.hyd = 1; H.classList.remove("zp-wait"); try { W.dispatchEvent(new Event("zp:hydrated")); } catch (e) {} setTimeout(B.font, 300); }); }, 60);
       };
