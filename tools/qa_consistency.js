@@ -3455,6 +3455,17 @@ async function tappLane(browser, api, errs) {
     } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); }
     expect(!R.length, "tapp.r4misc", T, R.join(" ; "));
   }
+  // --- tapp.overscroll(4라운드 22): 앱 모드 html·body overscroll-behavior-y = none/contain(당겨서 새로고침 없음) · 첫 그림 덮개 남색(#1F3A87·다크 #13265E) · 브라우저는 auto 그대로(덮개 없음)
+  {
+    const T = "당겨서 새로고침: 설치 앱 html·body overscroll-behavior-y none/contain · 첫 그림 덮개는 스플래시 남색 · 브라우저(웹)는 auto 그대로";
+    const R = [];
+    for (const cs of ["light", "dark"]) {
+      const { ctx, page } = await appPage(mob(390, 844, cs));
+      try { await appHome(page); const o = await page.evaluate(() => { const H = document.documentElement; return [getComputedStyle(H).overscrollBehaviorY, getComputedStyle(document.body).overscrollBehaviorY, getComputedStyle(H, "::after").backgroundColor, getComputedStyle(H, "::after").opacity]; }); const nv = cs === "light" ? "rgb(31, 58, 135)" : "rgb(19, 38, 94)"; if (!/none|contain/.test(o[0]) || !/none|contain/.test(o[1]) || o[2] !== nv || o[3] !== "0") R.push("app " + cs + " " + JSON.stringify(o)); } catch (er) { R.push("app crash"); } finally { await ctx.close().catch(() => {}); }
+    }
+    { const { ctx, page } = await newPage(browser, mob(390, 844), errs); try { await page.goto(BASE + "/", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(800); const o = await page.evaluate(() => [getComputedStyle(document.documentElement).overscrollBehaviorY, getComputedStyle(document.body).overscrollBehaviorY, getComputedStyle(document.documentElement, "::after").content]); if (o[0] !== "auto" || o[1] !== "auto" || (o[2] !== "none" && o[2] !== "normal")) R.push("web " + JSON.stringify(o)); } catch (er) { R.push("web crash"); } finally { await ctx.close().catch(() => {}); } }
+    expect(!R.length, "tapp.overscroll", T, R.join(" ; "));
+  }
   // --- tapp.files(19·20): SW 미리 저장에서 앱 묶음(/b/t.*) 빼기 · assetlinks.json(JSON · TODO 없음 · 패키지 이름 · SHA-256 지문)
   {
     const sw = String((await getPage("/sw.js")).text || ""), al = await get(BASE + "/.well-known/assetlinks.json").catch(() => ({ text: "" }));

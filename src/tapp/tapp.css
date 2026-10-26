@@ -573,3 +573,6 @@
 html.is-tapp #statsTop{--st-1:#E4E7EC;--st-2:#AAB8D5;--st-3:#7088BE;--st-4:#4A63A6;--st-5:#263F87;--st-6:#0E1B45}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]).is-tapp #statsTop{--st-1:#2E3440;--st-2:#46577E;--st-3:#6378AE;--st-4:#8A9FD0;--st-5:#B3C3EA;--st-6:#DDE5F8}}
 :root[data-theme="dark"].is-tapp #statsTop{--st-1:#2E3440;--st-2:#46577E;--st-3:#6378AE;--st-4:#8A9FD0;--st-5:#B3C3EA;--st-6:#DDE5F8}
+/* 22 당겨서 새로고침 막기(앱만 · 웹은 그대로): 문서 전체 overscroll 없음(첫 그림부터는 shell.html 머리 style) · 안에서 스크롤되는 칸(구역 시트·금액·정렬 시트·'+N곳' 목록·검색 결과)은 끝에서 바깥으로 번지지 않게 · 지도 핀치·끌기는 지도 캔버스가 따로 받는다 */
+html.is-tapp,html.is-tapp body{overscroll-behavior-y:none}
+html.is-tapp #report.sheet,html.is-tapp .bsheet .bs-card,html.is-tapp .lm-gumore-l,html.is-tapp #sResults,html.is-tapp .srch-r,html.is-tapp #tOnb{overscroll-behavior:contain}

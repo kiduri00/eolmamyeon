@@ -3705,7 +3705,7 @@
       sheetBg = outsideOf(rp);
       setInert(sheetBg, true);
       // 4라운드(설치 앱): 리포트의 '내 돈으로 계산'(?from=report#oID)은 같은 문서에 홈 칸을 끼우지 않는다 → 뒤로 = 리포트 · × = 홈(칸은 그대로 바꿔 씀)
-      const fromRep = opts.deep && document.documentElement.classList.contains("is-tapp") && /[?&]from=report(&|$)/.test(location.search);
+      const fromRep = opts.deep && document.documentElement.classList.contains("is-tapp") && /[?&]from=report(&|$)/.test(window.ZP_Q0 || location.search);   // ZP_Q0 = 첫 주소(머리 스크립트) — ?from=은 boot 도중 지워진다
       if (fromRep) replSt({ sheet: cur.id, rootR: 1 }, cur.id);
       else if (opts.deep) {
         replSt(null, "");

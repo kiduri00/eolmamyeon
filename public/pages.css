@@ -190,6 +190,8 @@ main>figure,main>table,main>.ov,main>ul.steps,main>h2~nav,footer.f,main>details,
 main table td a,main table th a{display:inline-flex;align-items:center;min-height:40px}
 /* 27차: 설치한 앱(standalone)으로 연 정적 페이지는 누를 때 파란 하이라이트 없음(앱 화면과 같게) */
 @media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){html,a,button,summary,label{-webkit-tap-highlight-color:transparent}}
+/* 설치 앱에서 연 정적 페이지: Chrome '당겨서 새로고침' 막기(웹처럼 보이던 것 · 브라우저는 그대로) */
+@media (display-mode:standalone),(display-mode:fullscreen),(display-mode:minimal-ui){html,body{overscroll-behavior-y:none}}
 /* 27차 성능: 웹 글꼴 조각이 다 오기 전에는 같은 크기로 맞춘 대체 글꼴로(조각마다 페이지를 다시 배치하지 않게) · 다 오면 html.fo(static_tabs.py FONTJS) */
 html:not(.fo){--font:"Pretendard Fallback",-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif}
 /* 28차: 리포트·목록 속 링크도 터치 높이 40px(표 밖 · 시간표·구역 카드 제목·읽을거리 목록) */
