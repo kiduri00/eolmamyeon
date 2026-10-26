@@ -3703,7 +3703,10 @@
       rp.setAttribute("aria-labelledby", "repTitle");
       sheetBg = outsideOf(rp);
       setInert(sheetBg, true);
-      if (opts.deep) {
+      // 4라운드(설치 앱): 리포트의 '내 돈으로 계산'(?from=report#oID)은 같은 문서에 홈 칸을 끼우지 않는다 → 뒤로 = 리포트 · × = 홈(칸은 그대로 바꿔 씀)
+      const fromRep = opts.deep && document.documentElement.classList.contains("is-tapp") && /[?&]from=report(&|$)/.test(location.search);
+      if (fromRep) replSt({ sheet: cur.id, rootR: 1 }, cur.id);
+      else if (opts.deep) {
         replSt(null, "");
         pushSt({ sheet: cur.id }, cur.id);
       } else if (!opts.noHistory) {
@@ -3753,7 +3756,8 @@
     if (back) back.focus({ preventScroll: true });
   }
   function closeSheet() {
-    if (history.state && history.state.sheet) history.back();
+    if (history.state && history.state.sheet && history.state.rootR) { replSt(null, ""); closeSheetNow(); }
+    else if (history.state && history.state.sheet) history.back();
     else closeSheetNow();
   }
   MQ_SHEET.addEventListener("change", () => {
@@ -7459,6 +7463,8 @@
       } catch (e) {}
     }, 250);
   }
+  // 4라운드: 뒤로 가기로 돌아간 칸의 주소(?cash=…)는 그 칸을 쌓을 때의 조건 → 지금 조건으로 다시 맞춘다(새로고침·앱 복원 때 고른 금액이 사라지지 않게)
+  addEventListener("popstate", () => syncURL());
   function restoreURL() {
     let qs = location.search;
     if (!/[?&](cash|mode|fund|inc|income)=/.test(qs)) {
@@ -7619,6 +7625,8 @@
     }
     const t = $(id);
     if (!t) return;
+    // 4라운드(설치 앱): 도구·탭 화면 자체로 가는 이동(콜드 해시 #rankHub 등)은 맨 위 — 앱바 아래 첫 블록이 바로 보이게(머리 높이 48px 내려가던 것)
+    { const R = document.documentElement; if (R.classList.contains("is-tapp") && (t.classList.contains("s-on") || id === "saveTop" || "#" + id === window.ZP_H0)) { window.scrollTo({ top: 0, behavior: "auto" }); return; } }
     const want = () => t.getBoundingClientRect().top + window.scrollY - HDR() + (t.classList.contains("sec") && !t.classList.contains("s-on") && !document.documentElement.classList.contains("s-view") ? SEC_GAP() - 24 : -8); // 도구 화면(s-on·입주 계산 아래 칸)은 SIMPLE.open과 같은 자리로
     window.scrollTo({ top: want(), behavior: smooth() });
     const y0 = window.scrollY;

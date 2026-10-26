@@ -816,7 +816,15 @@ const SIMPLE = (() => {
   }
   function sheetClose(go, pop) {
     const b = $("bSheet"); if (!b || b.hidden) return;
-    const hp = pop === true ? null : ZL.done("budget");
+    // 4라운드: × · 'N곳 보기'로 닫을 때 시트 칸이 맨 위면 뒤로 가기로 지운다(빈 칸을 남기면 그 칸 주소만 새 금액 → 뒤로 = 옛 금액 주소·화면 그대로) · 주소 금액은 popstate 뒤 syncURL
+    let hp = null;
+    if (pop !== true) {
+      const hs = history.state || {};
+      if (hs.zl === "budget" && ZL.top() === "budget") {
+        hp = new Promise((res) => { const on = () => { removeEventListener("popstate", on); res(true); }; addEventListener("popstate", on); setTimeout(() => { removeEventListener("popstate", on); res(false); }, 900); });
+        try { history.back(); } catch (e) {}
+      } else hp = ZL.done("budget");
+    }
     b.classList.remove("in"); b.hidden = true; document.documentElement.classList.remove("bs-on");
     $("sCashBtn").setAttribute("aria-expanded", "false");
     if (go) {
@@ -1111,7 +1119,7 @@ const SIMPLE = (() => {
     addEventListener("popstate", fromHash);
     fromHash();
     // 딥링크: 브라우저 앵커 이동이 끝난 뒤 다시 맞춘다
-    const fix = () => { if (cur) { const el = $(curT) || $(cur); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } };
+    const fix = () => { if (cur && document.documentElement.classList.contains("is-tapp")) { window.scrollTo({ top: 0, behavior: "auto" }); return; } if (cur) { const el = $(curT) || $(cur); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - HDR() - 8, behavior: "auto" }); } };
     if (document.readyState === "complete") setTimeout(fix, 60); else addEventListener("load", () => setTimeout(fix, 60), { once: true });
     // #saveTop(입주 계산 아래 칸)은 위 계산기 답이 늦게 채워지며 밀리므로 한 번 더(그 사이 사용자가 스크롤했으면 두지 않음)
     if (curT === "saveTop") { let touched = false; const t = () => (touched = true); ["pointerdown", "wheel", "touchstart", "keydown"].forEach((k) => addEventListener(k, t, { once: true, passive: true })); [400, 1000].forEach((ms) => setTimeout(() => { if (curT === "saveTop" && !touched) fix(); }, ms)); }

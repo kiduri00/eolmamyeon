@@ -495,3 +495,14 @@
 @media (max-width:980px){html.is-tapp #report :is(.gt-w,.vd-t,dt,th,small,.if-t,.hjb,.dim,.ov-chn,.auc-k,.auc-f,.auc-s,.ev-s,.s-sp i){font-size:12px!important}}
 /* 13 목록: 꼬리표(NEW·입주권 ✕)가 있는 줄은 역 이름을 빼고 '역 12분'만(이름이 '강…'으로 잘리던 것) */
 @media (max-width:980px){html.is-tapp #sList li:has(.s-b-new,.s-b-no) .s-wn{display:none!important}}
+/* ===================== 4라운드 ===================== */
+/* 4 넓은 화면(1024·1280): 가치 한 줄(#tVal)은 폰 첫 화면 전용 → 숨김(스타일 없는 회색 버튼으로 나오던 것) */
+@media (min-width:981px){html.is-tapp .th-val{display:none!important}}
+/* 3 넓은 화면 모으면 언제: '지금 현금 · 바꾸기' 줄 모양 + 금액 시트가 숨은 #mapTop 안에서도 뜨게(폰과 같은 규칙) */
+@media (min-width:981px){
+  html.is-tapp .t-svcash{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:12px 16px;border-radius:14px;background:var(--t-sec);color:var(--t-sub);font:600 15px/1.4 var(--font)}
+  html.is-tapp .t-svcash b{color:var(--t-ink);font-weight:800}
+  html.is-tapp .t-svch{position:relative;min-height:36px;padding:0 14px;border:0;border-radius:10px;background:var(--t-fill);color:var(--t-ink);font:700 14px var(--font);cursor:pointer}
+  html.is-tapp.simple.s-view.bs-on #mapTop{display:block!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important}
+  html.is-tapp.s-view.bs-on #mapTop>:not(#bSheet){display:none!important}
+}

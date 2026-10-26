@@ -40,6 +40,32 @@ function toBase(cb) {
   setTimeout(fin, 900);
 }
 
+// 4라운드: 콜드 해시 진입(숏컷·꺼진 앱 알림·공유 링크·앱 복원 — #news #map #favTop #my 도구 넓은 화면 #oID)에도 '홈 위 한 칸'
+// 첫 칸을 홈(해시 없음)으로 바꿔 쓰고 지금 화면을 그 위에 한 칸 쌓는다 → 뒤로 = 홈, 홈에서 뒤로 = 앱 닫힘
+// 같은 사이트의 다른 페이지(정적 글·리포트)에서 왔거나 ?from=report면 끼우지 않는다(뒤로 = 그 페이지)
+function coldBase(n) {
+  if (coldBase.d) return;
+  const h = location.hash, st = history.state;
+  if (!window.ZP_H0 || !h || h === "#" || dep() > 0 || (st && (st.sheet || st.tD))) return;
+  if (/[?&]from=report(&|$)/.test(window.ZP_Q0 || "")) return;
+  try { if (window.ZP_R0 && new URL(window.ZP_R0).origin === location.origin) return; } catch (e) {}
+  const wide = T(() => matchMedia("(min-width:981px)").matches, false);
+  let top = null;
+  if (H.classList.contains("s-full")) top = { sFull: 1 };
+  else if (H.classList.contains("s-view")) { const v = T(() => S().cur(), ""); if (v) top = { sView: v }; }
+  else if (wide && H.classList.contains("s-rep") && /^#[a-z]\d+$/.test(h)) top = { det: h.slice(1) };
+  if (!top) { n = (n || 0) + 1; if (n < 40) setTimeout(() => coldBase(n), 75); return; }   // 화면이 아직 안 열렸으면(웹 묶음이 늦게 붙음) 3초까지 기다린다
+  coldBase.d = 1;
+  try { history.replaceState(null, "", location.pathname + location.search); history.pushState(top, "", location.pathname + location.search + h); } catch (e) {}
+}
+// 콜드 해시 진입은 맨 위(앱바·시트 첫 블록이 바로 보이게) — 웹의 앵커 맞춤(머리 높이만큼 내림)이 늦게 와도 사용자가 만지기 전이면 0으로
+function coldTop() {
+  if (!window.ZP_H0) return;
+  let touched = false; const t = () => (touched = true);
+  ["pointerdown", "wheel", "touchstart", "keydown"].forEach((k) => addEventListener(k, t, { once: true, passive: true }));
+  [0, 150, 400, 900, 1600, 2600].forEach((ms) => setTimeout(() => { if (!touched && scrollY && (H.classList.contains("s-view") || H.classList.contains("s-full") || H.classList.contains("sheet-open"))) window.scrollTo({ top: 0, behavior: "auto" }); }, ms));
+}
+
 /* ---------- 2. 아래 탭 5개 ---------- */
 const TAB_VIEW = { fav: "favTop", news: "news", my: "my" };
 const VIEW_TAB = { favTop: "fav", news: "news", my: "my" };
@@ -155,7 +181,11 @@ function bindClicks() {
   addEventListener("zp:view", (e) => { const t = VIEW_TAB[e.detail]; if (t) lastTab = t; navMark(); toolMark(e.detail); });
   // 도구 화면을 닫으면(뒤로·탭) 앱바·모으면 언제 표시를 끈다
   try { new MutationObserver(() => { if (!H.classList.contains("s-view") && H.classList.contains("t-tool")) H.classList.remove("t-tool", "t-save"); }).observe(H, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
-  addEventListener("popstate", () => setTimeout(navMark, 50));
+  addEventListener("popstate", () => {
+    // 넓은 화면 콜드 #oID → 뒤로(홈 칸) = 두 칸 리포트를 닫고 목록
+    if (!location.hash && dep() <= 0 && H.classList.contains("s-rep") && T(() => matchMedia("(min-width:981px)").matches, false)) H.classList.remove("s-rep");
+    setTimeout(navMark, 50);
+  });
 }
 
 /* ---------- 2b. 아이콘으로 여는 도구 화면: 로고 머리 대신 맨 위 56px 앱바(← + 제목 · sticky) ---------- */
@@ -621,7 +651,7 @@ function early() {
 function start() {
   if (start.d) return; start.d = 1;
   H.classList.add("is-app");
-  patchHistory();
+  patchHistory(); coldBase(); coldTop();
   navBuild(); bindClicks(); homeBuild();
   // 21 긴 작업 나누기: 소식·빈 화면 그림·MY 손질은 한가할 때(늦어도 0.8초 안 · 그 전에 소식 탭을 누르면 바로 만든다)
   const idle = (f) => (window.requestIdleCallback ? requestIdleCallback(() => T(f), { timeout: 800 }) : setTimeout(() => T(f), 120));
