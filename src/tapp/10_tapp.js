@@ -49,6 +49,8 @@ function coldBase(n) {
   if (!window.ZP_H0 || !h || h === "#" || dep() > 0 || (st && (st.sheet || st.tD))) return;
   if (/[?&]from=report(&|$)/.test(window.ZP_Q0 || "")) return;
   try { if (window.ZP_R0 && new URL(window.ZP_R0).origin === location.origin) return; } catch (e) {}
+  // 5라운드: 같은 사이트 페이지(리포트·가이드) 바로 다음 칸이면(Navigation API — 같은 출처 칸만 센다) 홈을 끼우지 않는다 — referrer가 비어도(뒤로 = 그 페이지)
+  try { const N = window.navigation; if (N && N.currentEntry && N.currentEntry.index > 0) { const pv = N.entries()[N.currentEntry.index - 1]; if (pv && pv.url && new URL(pv.url).pathname !== location.pathname) return; } } catch (e) {}
   const wide = T(() => matchMedia("(min-width:981px)").matches, false);
   let top = null;
   if (H.classList.contains("s-full")) top = { sFull: 1 };
@@ -674,8 +676,17 @@ function chipLift() {
     if (c.style.getPropertyValue("bottom") !== v) c.style.setProperty("bottom", v, "important");
   });
 }
+// 5라운드: 큰 글씨(안드로이드 글꼴 크게) 알아채기 — 목록 이름(기본 15px)의 계산된 크기·실제 글자 폭이 1.15배 넘으면 html.t-big
+function bigCheck() {
+  const e = document.querySelector("#sList .s-nm b"); if (!e) return;
+  const fs = parseFloat(getComputedStyle(e).fontSize) || 15;
+  let k = fs / 15;
+  if (k < 1.15) { const p = document.createElement("span"); p.textContent = "가가가가"; p.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font-size:inherit"; e.appendChild(p); const w = p.getBoundingClientRect().width; p.remove(); if (w > fs * 4 * 1.15) k = w / (fs * 4); }
+  H.classList.toggle("t-big", k >= 1.15);
+}
 function start() {
   if (start.d) return; start.d = 1;
+  setInterval(() => T(bigCheck), 1000); T(bigCheck);
   coverWatch();
   setInterval(() => T(chipLift), 400);
   H.classList.add("is-app");

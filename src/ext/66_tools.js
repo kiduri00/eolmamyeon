@@ -128,7 +128,10 @@ const TOOLS = (() => {
     items.push(["warn", "여러 채 보유(다물권)", "한 구역에 여러 채면 원칙적으로 입주권 1개(세대원 합산) · 1+1 분양은 종전 가격·주거전용면적 범위 안에서만(추가 1채는 60㎡ 이하·3년 전매 제한) · 투기과열지구 재건축은 다주택 조합원도 1주택만", [LAW + "/제76조", "도정법 제76조"]]);
     items.push(["warn", "재당첨 제한", "투기과열지구 정비사업에서 조합원 분양을 받은 세대는 5년 동안 다른 투기과열지구 정비사업 분양신청 불가(세대원 포함)", [LAW + "/제72조", "도정법 제72조"]]);
     const rb = /재건축/.test(r.k), lock = rb ? r.s >= 4 : r.s >= 6;
-    items.push([lock ? "no" : "ok", "조합원 지위양도", `${rb ? "재건축은 조합설립인가" : "재개발은 관리처분인가"} 뒤 매수는 조합원 승계 불가(10년 보유·5년 거주 1주택 등 예외 매물만) · ${lock ? "지금 이 단계라 예외 매물만" : "지금은 아직 그 전"}`, [LAW + "/제39조", "도정법 제39조"]]);
+    // 5라운드: 위 '입주권' 줄과 같은 규정(도정법 39조) — 같은 표시(!)·같은 말투('원칙적으로 … 예외 매물만')
+    items.push([lock ? "warn" : "ok", "조합원 지위양도", `${rb ? "재건축은 조합설립인가" : "재개발은 관리처분인가"} 뒤 매수는 원칙적으로 승계 불가 · 예외 매물(10년 보유·5년 거주 1주택 등)만 승계 · ${lock ? "지금 이 단계라 예외 매물만" : "지금은 아직 그 전"}`, [LAW + "/제39조", "도정법 제39조"]]);
+    // 5라운드(설치 앱): 날짜 꼴 하나(YYYY.M.D) — '2009.10.01'·'2026.09.23' → '2009.10.1'·'2026.9.23'
+    if (document.documentElement.classList.contains("is-tapp")) items.forEach((it) => { it[2] = String(it[2]).replace(/\b(\d{4})\.(\d{1,2})\.(\d{1,2})\b/g, (m, y, a, b) => `${y}.${+a}.${+b}`); });
     return items;
   }
   const dgLi = ([c, k, v, src]) => `<li class="${c}"><i aria-hidden="true">${c === "ok" ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : c === "no" ? "✕" : c === "na" ? "?" : "!"}</i><span><b>${k}</b><small>${esc(v)}${src ? ` <a href="${esc(src[0])}" target="_blank" rel="noopener">${esc(src[1])} ↗</a>` : ""}</small></span></li>`;

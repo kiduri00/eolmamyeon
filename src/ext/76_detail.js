@@ -59,7 +59,8 @@ const DTL = (() => {
       try {
         const m = nums(k), dn = m.done || k.s >= 9 || /준공|입주/.test(stageName(k));
         if (dn) { v = "입주 완료"; sub = "일반 매매"; }
-        else if (m.nt) { v = "입주권 없음"; sub = "지금 사는 경우"; }
+        // 5라운드: 단정('입주권 없음') 대신 입주권 화면과 같은 말투 · 지금 사는 경우 금액이 이미 계산돼 있으면 값 자리에 '일반 매매 · N'(새 계산 없음)
+        else if (m.nt) { let zn = null; try { const z = SIMPLE.zstate(k); zn = z && typeof z.need === "number" && isFinite(z.need) ? z.need : null; } catch (e) {} if (zn != null) { v = `일반 매매 · ${C(zn)}`; sub = "입주권 원칙적으로 없음 · 예외 매물만"; } else { v = "원칙적으로 없음"; sub = "입주권 · 예외 매물만 승계"; } }
         else if (m.need != null) { v = C(m.need); sub = upC(m.need) <= CASH + 1e-9 && !(k.lc) ? `내 돈 ${C(CASH)}으로 가능` : `${ZF.short(m.need - CASH)} 더 필요`; }
         else if (m.lnow != null) { v = C(m.lnow); sub = "대출 끼고"; }
         else { v = "계산 보류"; sub = ""; }

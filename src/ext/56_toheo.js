@@ -2,7 +2,10 @@
 const TOH = (() => {
   let T = null, P = null;
   const load = () => (T ? Promise.resolve(T) : P || (P = fetch(`data/toheo.json?v=${(D.dv && D.dv.toheo) || D.upd || ""}`).then((r) => (r.ok ? r.json() : null)).then((j) => (T = j)).catch(() => ((P = null), null))));
-  const ymd = (d) => d.replaceAll("-", ".");
+  // 5라운드(설치 앱): 같은 화면 날짜 꼴 하나 — YYYY.M.D(앞자리 0 없음 · 26.08.18 같은 두 자리 해 없음) · 웹은 예전 꼴
+  const T5 = () => document.documentElement.classList.contains("is-tapp");
+  const ymd = (d) => (T5() ? String(d).replace(/^(\d{4})-(\d\d)-(\d\d)$/, (m, y, a, b) => `${y}.${+a}.${+b}`) : d.replaceAll("-", "."));
+  const yy = (d) => (T5() ? ymd(d) : ymd(d).slice(2));
   function html(r, T) {
     const z = T.z[r.id], gu = T.gu[r.g];
     const head = `<h3>토지거래허가 최근 내역 <small>서울부동산정보광장(국토부 K-Geo 연계) · ${ymd(T.since)}~${ymd(T.asOf)} · 매일 수집</small></h3>`;
@@ -34,7 +37,7 @@ const TOH = (() => {
     if (z && z.res) return { cls: "no", t: `구역 안 주거용 필지 허가 ${fmt(z.res)}건(${zl}${ymd(T1.since)}부터 집계) · 허가구역 필지가 있어요 · 사면 2년 실거주` };
     if (z && z.n) return { cls: "warn", t: `구역 안 필지 허가 ${fmt(z.n)}건(${zl}${ymd(T1.since)}부터 집계, 주거용 아님) · 매물 필지 지정 여부 구청 확인` };
     if (r.src === "moa" || /가로|모아/.test(r.k || "")) return { cls: "warn", t: "모아타운은 도로 지목만 지정되는 경우가 많아요 · 빌라·단독은 서울 전역 지정(아파트만)에서 빠져요 · 구청 확인" };
-    if (T1 && !z) return { cls: "warn", t: `구역 안 허가 0건(${ymd(T1.since).slice(2)}~${ymd(T1.asOf).slice(2)}) · 빌라·단독은 서울 전역 지정(아파트만)에서 빠져요 · 개별 지정은 구청 확인` };   // 구 전체 허가 건수는 아래 '최근 내역'에 한 번(20차 G9)
+    if (T1 && !z) return { cls: "warn", t: `구역 안 허가 0건(${yy(T1.since)}~${yy(T1.asOf)}) · 빌라·단독은 서울 전역 지정(아파트만)에서 빠져요 · 개별 지정은 구청 확인` };   // 구 전체 허가 건수는 아래 '최근 내역'에 한 번(20차 G9)
     return { cls: "warn", t: `빌라·단독은 서울 전역 지정(아파트만)에서 빠져요${gu ? ` · ${r.g} 최근 허가 ${fmt(gu[0])}건` : ""} · 개별 지정은 구청 확인` };
   }
   window.ZP_toheo = (r) => lookup(r);

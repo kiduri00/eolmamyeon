@@ -3484,6 +3484,61 @@ async function tappLane(browser, api, errs) {
     { const { ctx, page } = await newPage(browser, mob(390, 844), errs); try { await page.goto(BASE + "/", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(800); const o = await page.evaluate(() => [getComputedStyle(document.documentElement).overscrollBehaviorY, getComputedStyle(document.body).overscrollBehaviorY, getComputedStyle(document.documentElement, "::after").content]); if (o[0] !== "auto" || o[1] !== "auto" || (o[2] !== "none" && o[2] !== "normal")) R.push("web " + JSON.stringify(o)); } catch (er) { R.push("web crash"); } finally { await ctx.close().catch(() => {}); } }
     expect(!R.length, "tapp.overscroll", T, R.join(" ; "));
   }
+  // --- tapp.cover(5라운드 A·B): 시작 덮개 = 스플래시 마크(흰 핀·노란 문 · data URI · 240px 칸 · 가운데) · 첫 무거운 작업 뒤 걷힘(앱이 붙은 뒤 2.5초 안) · 덮개 동안 theme-color 남색, 걷으면 되돌림 · 해시 진입도 같음 · 웹은 덮개 없음
+  {
+    const T = "설치 앱 시작 덮개: 스플래시와 같은 마크(흰 핀·노란 문, 인라인)·가운데 · 첫 계산·홈 그리기 뒤 걷힘(앱 붙은 뒤 ≤2.5초) · 덮개 동안 theme-color 남색 → 걷으면 원래 값 · 걷은 뒤 앱 5탭(웹 화면 노출 없음) · 웹은 덮개 없음";
+    const R = [];
+    for (const [u, cs] of [["/?src=app", "light"], ["/#news", "dark"], ["/#map", "light"], ["/#o497", "light"]]) {
+      const { ctx, page } = await appPage(mob(390, 844, cs));
+      try {
+        page.__where = "tapp.cover " + u;
+        await page.goto(BASE + u, { waitUntil: "commit", timeout: 30000 });
+        await page.waitForFunction(() => document.documentElement && document.documentElement.classList.contains("is-tapp"), null, { timeout: 15000 }).catch(() => {});
+        const a = await page.evaluate(() => { const H = document.documentElement, s = getComputedStyle(H, "::after"); return { cov: H.classList.contains("tapp-cover"), bg: s.backgroundImage.slice(0, 40), mark: /F5C33B/i.test(decodeURIComponent(s.backgroundImage)), pos: s.backgroundPosition, size: s.backgroundSize, tc: [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => m.content).join(",") }; }).catch(() => null);
+        const t = await page.waitForFunction(() => !document.documentElement.classList.contains("tapp-cover"), null, { timeout: 30000, polling: 50 }).then(() => page.evaluate(() => { const m = performance.getEntriesByName("zp-cover-off")[0], h = performance.getEntriesByName("zp-hyd")[0]; return { off: m ? Math.round(m.startTime) : null, hyd: h ? Math.round(h.startTime) : null, why: window.ZP_coverWhy, on: document.documentElement.classList.contains("tapp-on"), nav: document.querySelectorAll("#sNav [data-nav]").length, tc: [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => m.content).join(",") }; })).catch(() => null);
+        if (!a || !a.cov || !/^url\("data:image\/svg/.test(a.bg) || !a.mark || !/50% 50%/.test(a.pos) || a.size !== "240px 240px" || !/#1F3A87|#13265E/i.test(a.tc)) R.push(u + " 덮개 " + JSON.stringify(a));
+        if (!t || !t.on || t.nav !== 5 || t.off == null || (t.hyd != null && t.off - t.hyd > 2500 + 600) || /#1F3A87|#13265E/i.test(t.tc)) R.push(u + " 걷힘 " + JSON.stringify(t));
+      } catch (er) { R.push(u + " crash " + String(er.message || er).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    }
+    { const { ctx, page } = await newPage(browser, mob(390, 844), errs); try { await page.goto(BASE + "/", { waitUntil: "load", timeout: 30000 }); const w = await page.evaluate(() => ({ cov: document.documentElement.classList.contains("tapp-cover"), c: getComputedStyle(document.documentElement, "::after").content, tc: [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => m.content).join(",") })); if (w.cov || (w.c !== "none" && w.c !== "normal") || w.tc !== "#FFFFFF,#15181D") R.push("web " + JSON.stringify(w)); } catch (er) { R.push("web crash"); } finally { await ctx.close().catch(() => {}); } }
+    expect(!R.length, "tapp.cover", T, R.join(" ; "));
+  }
+  // --- tapp.r5misc(5라운드): 오프라인 안내 = 페이지 안 판단(서비스 워커 전역 값 없음) · 시트 열린 채 새로고침해도 기록 안 늘어남 · 리포트 → 하단 탭 → 뒤로 = 리포트 · 지위양도 ! · 날짜 YYYY.M.D · 모아타운 행 단정 없음 · 자리 그림 ⓘ 44 · 홈 → 흰 원 없음 · 390 '갈 수 있는 곳' 제목 아래 탭 위 · 메타 줄 한 줄(기본 글씨)
+  {
+    const T = "설치 앱 5라운드 마감: 오프라인 탭 판단이 페이지 안 · 시트 새로고침 기록 불어남 없음 · 정적→탭→뒤로 = 그 페이지 · 지위양도 !·말투 · 날짜 YYYY.M.D · 모아타운 행 '원칙적으로' · 지도 자리 그림 ⓘ 44 · 홈 → 흰 원 없음 · 제목 접힘선 위 · 목록 메타 한 줄";
+    const R = [];
+    try {
+      const sw = String((await getPage("/sw.js")).text || "");
+      if (/\bTAPP\b/.test(sw) || !/sessionStorage\.getItem\("zp\.tapp"\)/.test(sw)) R.push("sw.js 오프라인 판단");
+      { const { ctx, page } = await appPage(mob(390, 844)); try {
+        await page.goto(BASE + "/#o497", { waitUntil: "load" }); await page.waitForTimeout(2500); const h0 = await page.evaluate(() => history.length);
+        await page.reload({ waitUntil: "load" }); await page.waitForTimeout(2500); await page.reload({ waitUntil: "load" }); await page.waitForTimeout(2500);
+        const h1 = await page.evaluate(() => history.length); if (h1 !== h0) R.push(`시트 새로고침 기록 ${h0}→${h1}`);
+      } finally { await ctx.close().catch(() => {}); } }
+      { const { ctx, page } = await appPage(mob(390, 844)); try {
+        await page.goto(BASE + "/report/2026-10.html", { waitUntil: "load" }); await page.waitForTimeout(800);
+        await page.evaluate(() => { location.href = "/#favTop"; }); await page.waitForFunction(() => document.documentElement.classList.contains("tapp-on"), null, { timeout: 25000 }).catch(() => {}); await page.waitForTimeout(1500);
+        await page.goBack().catch(() => {}); await page.waitForTimeout(1200); if (!/report\/2026-10/.test(page.url())) R.push("정적→탭→뒤로 " + page.url());
+      } finally { await ctx.close().catch(() => {}); } }
+      { const { ctx, page } = await appPage(mob(390, 844)); try {
+        await appHome(page, "/?src=app&cash=3");
+        const hm = await page.evaluate(() => { const a = document.querySelector("#sGauge .s-arrow"), h = [...document.querySelectorAll("h2")].find((x) => /^갈 수 있는 곳 ·/.test(x.textContent.trim())), nav = document.getElementById("sNav"); const meta = [...document.querySelectorAll("#sList li.s-card .s-mt")].slice(0, 8).map((m) => Math.round(m.getBoundingClientRect().height)); return { arrBg: a ? getComputedStyle(a).backgroundColor : "", t: h ? Math.round(h.getBoundingClientRect().bottom) : 0, n: Math.round(nav.getBoundingClientRect().top), meta, big: document.documentElement.classList.contains("t-big") }; });
+        if (hm.arrBg !== "rgba(0, 0, 0, 0)" || hm.t > hm.n || hm.big || hm.meta.some((x) => x > 22)) R.push("홈 " + JSON.stringify(hm));
+        await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(2500);
+        const ib = await page.evaluate(() => { const e = document.querySelector(".zp-ph .zg-attr"); if (!e || !e.offsetWidth) return "none"; const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), /stroke/.test(decodeURIComponent(getComputedStyle(e).backgroundImage))]; });
+        if (ib !== "none" && (ib[0] !== 44 || ib[1] !== 44 || !ib[2])) R.push("자리 그림 ⓘ " + ib);
+        await page.goto(BASE + "/#diagTop", { waitUntil: "load" }); await page.waitForTimeout(2500);
+        const dg = await page.evaluate(() => [...document.querySelectorAll("#dgR li")].map((l) => [l.className, l.textContent.replace(/\s+/g, " ")]));
+        const tr = dg.find((x) => /조합원 지위양도/.test(x[1])); if (tr && /승계 불가\(/.test(tr[1])) R.push("지위양도 문구 " + tr[1].slice(0, 60));
+        if (tr && /지금 이 단계/.test(tr[1]) && tr[0] !== "warn") R.push("지위양도 표시 " + tr[0]);
+        const bd = dg.map((x) => x[1]).join(" ").match(/\b\d{4}\.(0\d|\d{1,2}\.0\d)\b|\b\d\d\.\d\d\.\d\d\b/g); if (bd) R.push("날짜 꼴 " + bd.join(","));
+        await page.goto(BASE + "/#m10", { waitUntil: "load" }); await page.waitForTimeout(3000);
+        const mo = await page.evaluate(() => [...document.querySelectorAll("#report .dt-kid")].map((b) => b.textContent.replace(/\s+/g, " ")));
+        if (mo.some((t) => /입주권 없음/.test(t))) R.push("모아타운 행 단정 " + mo.join(" / ").slice(0, 120));
+      } finally { await ctx.close().catch(() => {}); } }
+    } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); }
+    expect(!R.length, "tapp.r5misc", T, R.join(" ; "));
+  }
   // --- tapp.files(19·20): SW 미리 저장에서 앱 묶음(/b/t.*) 빼기 · assetlinks.json(JSON · TODO 없음 · 패키지 이름 · SHA-256 지문)
   {
     const sw = String((await getPage("/sw.js")).text || ""), al = await get(BASE + "/.well-known/assetlinks.json").catch(() => ({ text: "" }));

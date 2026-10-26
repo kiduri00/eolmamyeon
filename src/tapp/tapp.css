@@ -525,8 +525,9 @@
   html.is-tapp #sList li.s-card>.s-amt{flex:none;min-width:0}
   html.is-tapp #sList li.s-card>.s-amt small{white-space:normal;text-align:right}
   html.is-tapp #sList .s-nm b{word-break:keep-all;overflow-wrap:break-word}   /* anywhere는 최소 폭을 0으로 만들어 단어 중간에서 끊긴다 → break-word(넘칠 때만) */
-  html.is-tapp #sList .s-l2,html.is-tapp #sList .s-mt{flex-wrap:wrap;row-gap:2px;min-width:0}
-  html.is-tapp #sList .s-mt{height:auto;min-height:20px}
+  /* 5라운드: 메타 줄 줄바꿈은 큰 글씨(html.t-big · 10_tapp.js bigCheck)일 때만 — 기본 글씨는 예전처럼 한 줄 + 말줄임(행 높이 3줄/4줄 섞이던 것) */
+  html.is-tapp.t-big #sList .s-l2,html.is-tapp.t-big #sList .s-mt{flex-wrap:wrap;row-gap:2px;min-width:0}
+  html.is-tapp.t-big #sList .s-mt{height:auto;min-height:20px}
   html.is-tapp #sList .s-sub{min-width:0;max-width:100%}
   html.is-tapp .pn-main{min-width:0;flex-wrap:wrap;row-gap:6px}
   html.is-tapp .pn-nm{flex:1 1 0;min-width:min-content}
@@ -537,7 +538,7 @@
   html.is-tapp #report .rep-head .ov-w{padding-right:24px;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}
   html.is-tapp .th-l{font-size:min(13px,3.4vw);white-space:normal;overflow:visible;text-overflow:clip;word-break:keep-all;text-align:center;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-width:calc(100% - 8px)}   /* 이름 사이 8px 이상(이웃 칸과 붙어 '월간 리포트몇 년 걸리나'로 읽히던 것) */
   html.is-tapp .th-b{height:auto!important}
-  html.is-tapp .th-bt{padding-bottom:30px}
+  html.is-tapp.t-big .th-bt{padding-bottom:30px}   /* 5라운드: 기본 글씨는 예전 높이(배너가 5px 커져 '갈 수 있는 곳' 제목이 접힘선에 걸리던 것) */
 }
 /* 8 단일 선택(세그먼트): 굵기로도 구별 — 선택 700 / 비선택 500(라이트·다크) · 다크 선택 칸 #3A404B + 1px 링(트랙 #1B1E24와 대비 1.3:1이던 것) */
 @media (max-width:980px){
@@ -583,3 +584,7 @@ html.is-tapp #report.sheet,html.is-tapp .bsheet .bs-card,html.is-tapp .lm-gumore
 }
 @media (max-width:980px) and (prefers-color-scheme:dark){:root:not([data-theme="light"]).is-tapp .zp-ph .zg-attr{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B0B8C1' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%23B0B8C1'/%3E%3C/svg%3E")!important}}
 @media (max-width:980px){:root[data-theme="dark"].is-tapp .zp-ph .zg-attr{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B0B8C1' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%23B0B8C1'/%3E%3C/svg%3E")!important}}
+/* 11 기본 글씨 390·412: 배너 아래를 6px 줄여 '갈 수 있는 곳' 제목이 아래 탭 위로 다 보이게(4px 걸리던 것) */
+@media (max-width:980px){html.is-tapp:not(.t-big) #tHome .th-car{margin-bottom:-6px}}
+/* 12 홈 카드 'N억 → M곳'의 → : 흰 원(누르는 버튼처럼 보이던 것) 없이 글자만 */
+@media (max-width:980px){html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge .s-arrow{background:none!important;box-shadow:none!important;border:0!important}}

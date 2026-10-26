@@ -3707,6 +3707,8 @@
       // 4라운드(설치 앱): 리포트의 '내 돈으로 계산'(?from=report#oID)은 같은 문서에 홈 칸을 끼우지 않는다 → 뒤로 = 리포트 · × = 홈(칸은 그대로 바꿔 씀)
       const fromRep = opts.deep && document.documentElement.classList.contains("is-tapp") && /[?&]from=report(&|$)/.test(window.ZP_Q0 || location.search);   // ZP_Q0 = 첫 주소(머리 스크립트) — ?from=은 boot 도중 지워진다
       if (fromRep) replSt({ sheet: cur.id, rootR: 1 }, cur.id);
+      // 5라운드: 시트가 열린 채 새로고침·앱 복원(기록 칸에 이미 시트 표시가 있음)이면 그 칸을 바꿔 쓴다 — 매번 홈 칸 + 시트 칸을 새로 쌓아 뒤로를 헛누르던 것(웹도)
+      else if (opts.deep && history.state && history.state.sheet) replSt(Object.assign({}, history.state, { sheet: cur.id }), cur.id);
       else if (opts.deep) {
         replSt(null, "");
         pushSt({ sheet: cur.id }, cur.id);
