@@ -545,7 +545,7 @@ body = f'''<main><script type="application/ld+json" id="zp-ld">{json.dumps(ld, e
 {sec_stage}{sec_budget}{sec_tx}{sec_auc}{sec_th}{sec_sup}{sec_zone}{sec_next}{sec_cm}{sec_app}
 <h2>함께 읽기</h2>
 <ul class="links"><li><a href="/guide/gap-after-permit">토지거래허가 이후, 전세 끼고 갈 수 있는 정비구역은 얼마나 남았나</a></li><li><a href="/guide/ipjugwon">조합설립인가 뒤에 사도 입주권이 나오나</a></li><li><a href="/guide/jungong">재개발 단계별로 10년 안에 준공될 확률</a></li><li><a href="/guide/bundamgeum">서울 재개발 분담금, 실제로 얼마나 나오나</a></li><li><a href="/guide/gu-cash">자치구별로 입주까지 현금은 얼마나 다를까</a></li><li><a href="/years">재개발 단계별로 몇 년 걸리나</a></li><li><a href="/report/">지난 월간 리포트 모두 보기</a></li></ul>
-<div class="cta"><a class="btn primary" href="/?cash=2&amp;mode=jeonse&amp;from=report">2억·전세 끼고로 지도 열기</a><a class="btn" href="/?cash=3&amp;mode=loan&amp;from=report">3억·대출 끼고로 보기</a></div>
+<div class="cta"><a class="btn primary" href="/?cash=2&amp;mode=jeonse&amp;from=report#map">2억·전세 끼고로 지도 열기</a><a class="btn" href="/?cash=3&amp;mode=loan&amp;from=report">3억·대출 끼고로 보기</a></div>
 {sec_src}
 <h2>인용하실 때</h2>
 <p class="note">"출처: 집핀 월간 리포트({Y}년 {M}월분{f', {RNG} 기준' if PARTIAL else ''})"로 적고 이 페이지 링크를 붙여 주세요. 숫자 오류는 <a href="../contact">문의하기</a>로 알려 주시면 고쳐요.</p>

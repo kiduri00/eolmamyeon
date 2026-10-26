@@ -2751,14 +2751,19 @@ async function tappLane(browser, api, errs) {
   }
   // --- tapp.static: (리드 결정 A) 정적 페이지 HTML은 simple-home과 같게 — 광고 태그는 예전 리터럴 그대로(심사 전엔 광고가 안 나옴), 앱 전용 주입 없음
   {
-    const T = "정적 페이지(리포트·가이드·/z·소개): 애드센스 리터럴 태그 그대로 · 앱 전용 로더(data-zp-ads)·앱 탭 주입 없음 · 웹 아래 탭 4개";
+    const T = "정적 페이지 전수: 애드센스 리터럴 태그 그대로(심사 기준 · tools/fixtures/ads_tag_pages.json의 페이지마다 한 번 · 바이트 같음) · 앱 전용 광고 로더(data-zp-ads) 없음 · 다른 페이지엔 광고 태그 없음";
     const bad1 = [];
-    for (const u of ["/z/o144.html", "/report/2026-10.html", "/guide/moatown.html", "/about.html"]) {
-      const r = await getPage(u), h = String(r.text || "");
-      if (!h.includes('<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>')) bad1.push(u + " 리터럴 태그 없음");
-      if (/data-zp-ads|zp\.tapp|is-tapp/.test(h)) bad1.push(u + " 앱 주입 있음");
-    }
-    expect(!bad1.length, "tapp.static", T, bad1.join(" ; "));
+    const TAG = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>';
+    const P = require("path"), PUBD = P.join(__dirname, "..", "public"), want = new Set(JSON.parse(fs.readFileSync(P.join(__dirname, "fixtures", "ads_tag_pages.json"), "utf8")));
+    let nf = 0;
+    const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = P.join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name.endsWith(".html")) { const rel = P.relative(PUBD, f).split(P.sep).join("/"), h = fs.readFileSync(f, "utf8"); nf++;
+      const k = h.split(TAG).length - 1, any = (h.match(/<script[^>]*adsbygoogle/g) || []).length;
+      if (want.has(rel) ? k !== 1 || any !== 1 : any !== 0) bad1.push(`${rel} 태그 ${k}/${any}`);
+      if (/data-zp-ads/.test(h)) bad1.push(rel + " 광고 로더 있음"); } } };
+    walk(PUBD);
+    for (const rel of want) if (!fs.existsSync(P.join(PUBD, rel))) bad1.push(rel + " 없음");
+    for (const u of ["/z/o144.html", "/report/2026-10.html", "/guide/moatown.html", "/about.html"]) { const r = await getPage(u), h = String(r.text || ""); if (!h.includes(TAG)) bad1.push(u + " 서버 응답에 리터럴 태그 없음"); }
+    expect(!bad1.length && nf > 900 && want.size > 50, "tapp.static", T, `${nf}쪽 · 태그 ${want.size}쪽 · ` + bad1.slice(0, 6).join(" ; "));
   }
   // --- tapp.staticSA: 앱(display-mode standalone)에서 연 정적 페이지 — 아래 탭 '지금 여기'(MY) 표시 없음 · 새 소식 = 작은 빨간 점 (pages.css display-mode 규칙만 · 브라우저는 그대로)
   {
@@ -2775,9 +2780,10 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.noAds(첫 화면): 앱 첫 화면은 광고 스크립트를 안 받는다(정적 페이지는 결정 A로 리터럴 태그 — 별도 브랜치 ads-app-guard에 로더)
-  if (0) {
-    const T = "설치 앱: 광고 스크립트(adsbygoogle) 요청 없음 — 첫 화면 · /z · 리포트";
-    const { ctx, page, ads } = await appPage(mob(390, 844));
+  // pre-adsense 3: 앱에서 연 정적 페이지 = 아래 탭 5개(홈·지도·관심·소식·MY) · 브라우저는 4개 그대로(광고 태그는 결정 A로 리터럴 그대로라 광고 요청은 여기서 세지 않음)
+  {
+    const T = "설치 앱에서 연 정적 페이지(/z·리포트·가이드): 아래 탭 5개(홈·지도·관심·소식·MY) · 같은 페이지 브라우저는 4개";
+    const { ctx, page } = await appPage(mob(390, 844)); const ads = [];
     try {
       const st = [];
       for (const u of ["/z/o144.html", "/report/2026-10.html", "/guide/moatown.html"]) {
@@ -2785,7 +2791,9 @@ async function tappLane(browser, api, errs) {
         await page.goto(BASE + u, { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(600);
         st.push([u, await page.evaluate(() => ({ cls: document.documentElement.classList.contains("is-tapp"), tabs: [...document.querySelectorAll(".zp-tabs a span")].map((s) => s.textContent).join(",") }))]);
       }
-      expect(!ads.length && st.every(([, x]) => x.cls && x.tabs === "홈,지도,관심,소식,MY"), "tapp.noAds", T, `ads ${ads.length} ${ads.slice(0, 2).join(" ")} ${JSON.stringify(st)}`);
+      const wc = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }); const wp = await wc.newPage(); await wp.goto(BASE + "/report/2026-10.html", { waitUntil: "load", timeout: 30000 }); await wp.waitForTimeout(400);
+      const web = await wp.evaluate(() => [...document.querySelectorAll(".zp-tabs a span")].map((s) => s.textContent).join(",")); await wc.close();
+      expect(st.every(([, x]) => x.cls && x.tabs === "홈,지도,관심,소식,MY") && web.split(",").length === 4, "tapp.static5", T, `web ${web} ${JSON.stringify(st)}`);
     } catch (e) { bad("runtime", "검사 실행", "tapp.noAds crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
