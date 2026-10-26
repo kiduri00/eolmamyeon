@@ -159,7 +159,7 @@ def st_fix(D):
 st_fix(D)
 data = json.dumps(D, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
 EXT = os.path.join(R, 'src', 'ext')
-ext_js = ''.join((f'performance.mark("ext:{f}");' if os.environ.get('MARKS') else '') + open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))
+ext_js = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))
 ext_css = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.css'))
 js = S('app.js'); assert js.count('/*EXT*/') == 1; js = js.replace('/*EXT*/', ext_js.strip() + '\n')
 # 21차: 새 소식 'N' 점의 기준 날짜(경매 물건이 처음 보인 날 · 고시·공고 기록 날 중 가장 늦은 날) — 63_newb.js · 정적 페이지(static_tabs.py)가 같은 값

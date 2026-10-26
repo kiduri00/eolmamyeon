@@ -16,129 +16,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="집핀">
 <meta name="application-name" content="집핀">
-<link rel="stylesheet" href="/b/c.f0dfafeb00.css">
-<script>/* 첫 화면 로더(빌드가 index.html <head>에 그대로 넣는다 · __X__ 자리는 빌드가 채움).
-   첫 페인트 = 미리 그린 HTML + 첫 페인트용 CSS + 작은 섬(h.*.js: 게이지·사는 방식·목록·'이 돈이면'·지도 자리 점).
-   전체 앱(d: 데이터, a: 앱 코드, c: 전체 CSS, 글꼴)은 아래 때만 불러 붙인다(hydrate):
-   - 사용자가 처음 손댈 때(누르기·키·스크롤·휠·마우스 움직임·입력·주소 #바뀜)
-   - 바로: 주소에 #(구역·도구 딥링크), 저장된 가정이 기본값과 다를 때, 내 핀이 있을 때, 서비스 워커가 붙은 재방문, 빠른 연결(유휴 시간에)
-   전체 앱이 붙으면 window 'zp:hydrated' 이벤트. 섬이 받아 둔 누르기는 그때 다시 눌러 준다. */
-(function () {
-  var B = (window.ZP_boot = { a: "/b/a.04c91587e7.js", d: "/b/d.5160acbc72.js,/b/d.8587d1dfdc.js,/b/d.7bcd0359e2.js,/b/d.ce44d63640.js", c: "/b/c.f0dfafeb00.css", f: "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css", st: 0, hyd: 0 });
-  var H = document.documentElement, W = window;
-  // 설치 창 신호는 앱 코드(69_install)가 붙기 전에 올 수 있다 → 받아 두었다가 넘긴다
-  W.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); W.__bip = e; });
-  var ls = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
-  var add = function (t, o) { var e = document.createElement(t); for (var k in o) e[k] = o[k]; return e; };
-  var css = function (u, cb, co) { var l = add("link", { rel: "stylesheet", href: u }); if (co) l.crossOrigin = "anonymous"; if (cb) l.onload = l.onerror = cb; document.head.appendChild(l); };
-  // 글꼴: 받는 동안은 대체 글꼴 그대로 → 이 화면 글자에 필요한 조각이 다 오면 html.fo 한 번으로 바꾼다(조각마다 화면을 다시 짜던 4~5번의 긴 작업 → 1번).
-  // 바꾸는 순간은 브라우저가 한가할 때(첫 화면 긴 작업과 겹치지 않게)
-  // 조용해진 뒤에 할 일: 전체 앱이 붙은 다음 긴 작업 없이 5.5초가 지나거나(= 첫 화면이 반응할 수 있게 된 뒤), 사람이 처음 손댈 때(먼저 오는 쪽) 한 번.
-  // 첫 화면 숫자·목록이 다 뜬 뒤 무거운 일(지도 그리기 · 글꼴 바꿔 다시 짜기)이 첫 화면 반응을 막지 않게(18차 성능)
-  var QF = [], qOn = false, qT = 0;
-  var qFire = function () { if (qOn) return; qOn = true; clearTimeout(qT); QUI.forEach(function (t) { W.removeEventListener(t, qEv, true); }); var L = QF.splice(0); for (var i = 0; i < L.length; i++) try { L[i](); } catch (e) {} };
-  // 금액 막대를 끄기 시작한 손길은 '조용해짐'으로 치지 않는다 — 글꼴 바꾸기(화면 다시 짜기)가 끄는 숫자를 늦추지 않게 손을 뗀 뒤로 미룬다(19차)
-  var qEv = function (e) {
-    var t = e.target;
-    if (e.type !== "keydown" && e.type !== "scroll" && t && t.closest && t.closest("#sScrub,#sCash,#sMiniR,.scrub")) {
-      if (!qEv.w) { qEv.w = 1; W.addEventListener("pointerup", function () { setTimeout(qFire, 700); }, { once: true, capture: true }); W.addEventListener("touchend", function () { setTimeout(qFire, 700); }, { once: true, capture: true }); }
-      return;
-    }
-    qFire();
-  };
-  var QUI = ["pointerdown", "touchstart", "keydown", "wheel", "scroll", "input", "focusin"];
-  QUI.forEach(function (t) { W.addEventListener(t, qEv, { capture: true, passive: true }); });
-  var qArm = function () { clearTimeout(qT); qT = setTimeout(qFire, 5500); };
-  try { new PerformanceObserver(function () { if (B.hyd && !qOn) qArm(); }).observe({ type: "longtask" }); } catch (e) {}
-  B.quiet = function (fn) { if (qOn) { fn(); return; } QF.push(fn); };
-  B.quietNow = qFire;
-  W.addEventListener("zp:hydrated", function () { qArm(); setTimeout(qFire, 30000); });
-  B.font = function () {
-    if (B.fo) return; B.fo = 1;
-    // 23차: 웹글꼴로 바꾸기를 몇 조각으로(한 번에 html.fo → 문서 전체 스타일 다시 계산 · 4배 느린 CPU에서 300~500ms 긴 작업 하나였던 것).
-    //       맨 위 칸들(머리·지도 칸 아이들·나머지)에 .fp(--font = 웹글꼴)를 한가할 때 하나씩 — 뿌리(html·body)는 건드리지 않는다. 나중에 붙는 칸(시트·알림)도 .fp
-    var FP = ["#hdr,#sNav", "#sGauge,#sListW", "#mapbox>*", "#mapTop .main>*", "#mapTop>*", "main.wrap>*:not(#mapTop)", "body>*:not(main):not(#hdr):not(#sNav):not(script):not(style)"];
-    var fpAdd = function (e) { if (e && e.nodeType === 1 && e.classList && !/^(SCRIPT|STYLE|LINK)$/.test(e.tagName)) e.classList.add("fp"); };
-    var fpStep = function (i) {
-      if (i >= FP.length) {
-        try { var mo = new MutationObserver(function (L) { L.forEach(function (m) { [].forEach.call(m.addedNodes, fpAdd); }); }); [document.body, document.querySelector("main.wrap"), document.getElementById("mapTop")].forEach(function (x) { if (x) mo.observe(x, { childList: true }); }); } catch (e) {}
-        B.fp = 1; return;
-      }
-      // 조각마다 그 자리에서 스타일·배치를 끝내고(offsetHeight) 다음 프레임 뒤 한가할 때 다음 조각 — 여러 조각이 한 프레임에 몰려 다시 긴 작업 하나가 되지 않게
-      (W.requestIdleCallback || setTimeout)(function () { [].forEach.call(document.querySelectorAll(FP[i]), fpAdd); void document.body.offsetHeight; requestAnimationFrame(function () { setTimeout(function () { fpStep(i + 1); }, 0); }); }, { timeout: 1500 });
-    };
-    var on = function () { if (on.d) return; on.d = 1; B.quiet(function () { fpStep(0); }); };
-    css(B.f, function () {
-      try {
-        var t = ((document.body && document.body.innerText) || "").replace(/\s+/g, ""), u = {}, x = "";
-        for (var i = 0; i < t.length && x.length < 1500; i++) if (!u[t[i]]) { u[t[i]] = 1; x += t[i]; }
-        document.fonts.load('16px "Pretendard Variable"', x + "0123456789억만곳").then(on, on);
-      } catch (e) { on(); }
-      setTimeout(on, 10000);
-    }, 1);
-  };
-  B.full = function (why) {
-    if (B.st || ls("zp_nohyd") === "1") return;
-    B.st = 1; B.why = why;
-    var DS = String(B.d).split(",");
-    DS.concat([B.a]).forEach(function (u) { document.head.appendChild(add("link", { rel: "preload", as: "script", href: u })); });
-    var run = function () {
-      if (run.d) return;
-      if (document.readyState === "loading") return document.addEventListener("DOMContentLoaded", run);
-      run.d = 1;
-      try { performance.mark("zp-hyd0"); } catch (e) {}
-      // 자료 조각들 → 앱 코드 순서대로(각 조각은 따로 실행 = 짧은 작업 여러 개)
-      var ds = DS.map(function (u) { var x = add("script", { src: u }); x.async = false; return x; }), a = add("script", { src: B.a });
-      a.async = false;
-      a.onload = function () {
-        // 확장 모듈 init(setTimeout 0)들이 먼저 돌고 난 다음
-        setTimeout(function () { requestAnimationFrame(function () { try { performance.mark("zp-hyd"); } catch (e) {} B.hyd = 1; H.classList.remove("zp-wait"); try { W.dispatchEvent(new Event("zp:hydrated")); } catch (e) {} setTimeout(B.font, 300); }); }, 60);
-      };
-      a.onerror = function () { B.st = 0; H.classList.remove("zp-wait"); try { W.ZP_cover && W.ZP_cover(); } catch (e) {} };   // 6라운드: 앱 코드를 못 받으면 설치 앱 시작 덮개도 바로 걷음
-      ds.forEach(function (x) { x.onerror = function () { try { W.ZP_cover && W.ZP_cover(); } catch (e) {} }; });
-      ds.forEach(function (x) { document.body.appendChild(x); }); document.body.appendChild(a);
-    };
-    // 전체 CSS가 먼저 붙어야 앱이 만드는 요소(탭바·타일 등)가 맨몸으로 보이지 않는다
-    css(B.c, run);
-    setTimeout(run, 15000);
-  };
-  var EV = ["pointerdown", "touchstart", "keydown", "wheel", "mousemove", "scroll", "click", "input", "change", "focusin"];
-  var on = function (e) { EV.forEach(function (t) { W.removeEventListener(t, on, true); }); W.removeEventListener("hashchange", on); B.full(e.type); };
-  EV.forEach(function (t) { W.addEventListener(t, on, { capture: true, passive: true }); });
-  W.addEventListener("hashchange", on);
-  // 바로 붙일 때
-  // 첫 화면 섬이 그대로 그릴 수 있는 조건(금액이 막대 칸 · 전세 끼고/대출 끼고 기본 기준)이면 전체 앱을 바로 받지 않는다(19차 · 첫 화면 JS를 섬 하나로)
-  var islOk = function (qs) {
-    try {
-      var p = new URLSearchParams(qs || ""), m = p.get("mode"), b = p.get("basis");
-      if (["homes", "first", "unit", "inc", "income", "kind", "jr", "fund"].some(function (k) { return p.has(k); })) return false;
-      if (m && m !== "jeonse" && m !== "loan") return false;
-      if (b && b !== (m === "loan" ? "now" : "total")) return false;
-      if (!p.has("cash")) return true;
-      var c = +p.get("cash"), e = 1e-6;
-      return c >= 0.5 && c <= 15 && (c < 2 ? Math.abs(c * 10 - Math.round(c * 10)) < e : c < 10 ? Math.abs(c * 2 - Math.round(c * 2)) < e : Math.abs(c - Math.round(c)) < e);
-    } catch (e) { return false; }
-  };
-  var now = "";
-  try {
-    var q = location.search, fav = ls("jg-fav"), so = ls("emr.sort");
-    if (ls("zp_full") === "1") now = "flag";
-    else if (location.hash.length > 1) now = "hash";
-    else if ((/[?&](cash|mode|homes|first|unit|inc|income|basis|kind|fund|jr)=/.test(q) || ls("jg-cond")) && !islOk(/[?&](cash|mode|fund|inc|income)=/.test(q) ? q : ls("jg-cond") || "")) now = "cond";
-    else if (so && so !== "fit") now = "sort";
-    else if (fav && fav !== "[]") now = "pins";
-    else if (navigator.serviceWorker && navigator.serviceWorker.controller) now = "sw";
-  } catch (e) { now = "err"; }
-  B.now = now;
-  var c = navigator.connection, fast = !!(c && c.effectiveType === "4g" && c.rtt && c.rtt < 150 && !c.saveData) && ls("zp_slow") !== "1";
-  B.fast = fast;
-  if (fast || now === "sw") B.font();
-  if (now) B.full(now);
-  // 손대지 않아도: 첫 화면이 다 뜬 뒤 브라우저가 한가할 때 전체 앱(지도 포함)을 붙인다 — 느린 연결은 조금 더 기다렸다가
-  else W.addEventListener("load", function () { setTimeout(function () { (W.requestIdleCallback || setTimeout)(function () { B.full("idle"); }, { timeout: fast ? 2000 : 4000 }); }, fast ? 0 : 2500); });
-})();
+<link rel="stylesheet" href="/b/c.ffef792ec2.css">
+<script>(function(){var r=window.ZP_boot={a:"/b/a.b9d48394dc.js",d:"/b/d.5160acbc72.js,/b/d.8587d1dfdc.js,/b/d.7bcd0359e2.js,/b/d.ce44d63640.js",c:"/b/c.ffef792ec2.css",f:"https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",st:0,hyd:0},_=document.documentElement,i=window;i.addEventListener("beforeinstallprompt",function(e){e.preventDefault(),i.__bip=e});var f=function(e){try{return localStorage.getItem(e)}catch{return null}},v=function(e,n){var a=document.createElement(e);for(var o in n)a[o]=n[o];return a},T=function(e,n,a){var o=v("link",{rel:"stylesheet",href:e});a&&(o.crossOrigin="anonymous"),n&&(o.onload=o.onerror=n),document.head.appendChild(o)},b=[],m=!1,E=0,l=function(){if(!m){m=!0,clearTimeout(E),L.forEach(function(a){i.removeEventListener(a,p,!0)});for(var e=b.splice(0),n=0;n<e.length;n++)try{e[n]()}catch{}}},p=function(e){var n=e.target;if(e.type!=="keydown"&&e.type!=="scroll"&&n&&n.closest&&n.closest("#sScrub,#sCash,#sMiniR,.scrub")){p.w||(p.w=1,i.addEventListener("pointerup",function(){setTimeout(l,700)},{once:!0,capture:!0}),i.addEventListener("touchend",function(){setTimeout(l,700)},{once:!0,capture:!0}));return}l()},L=["pointerdown","touchstart","keydown","wheel","scroll","input","focusin"];L.forEach(function(e){i.addEventListener(e,p,{capture:!0,passive:!0})});var k=function(){clearTimeout(E),E=setTimeout(l,5500)};try{new PerformanceObserver(function(){r.hyd&&!m&&k()}).observe({type:"longtask"})}catch{}r.quiet=function(e){if(m){e();return}b.push(e)},r.quietNow=l,i.addEventListener("zp:hydrated",function(){k(),setTimeout(l,3e4)}),r.font=function(){if(!r.fo){r.fo=1;var e=["#hdr,#sNav","#sGauge,#sListW","#mapbox>*","#mapTop .main>*","#mapTop>*","main.wrap>*:not(#mapTop)","body>*:not(main):not(#hdr):not(#sNav):not(script):not(style)"],n=function(t){t&&t.nodeType===1&&t.classList&&!/^(SCRIPT|STYLE|LINK)$/.test(t.tagName)&&t.classList.add("fp")},a=function(t){if(t>=e.length){try{var c=new MutationObserver(function(s){s.forEach(function(d){[].forEach.call(d.addedNodes,n)})});[document.body,document.querySelector("main.wrap"),document.getElementById("mapTop")].forEach(function(s){s&&c.observe(s,{childList:!0})})}catch{}r.fp=1;return}(i.requestIdleCallback||setTimeout)(function(){[].forEach.call(document.querySelectorAll(e[t]),n),document.body.offsetHeight,requestAnimationFrame(function(){setTimeout(function(){a(t+1)},0)})},{timeout:1500})},o=function(){o.d||(o.d=1,r.quiet(function(){a(0)}))};T(r.f,function(){try{for(var t=(document.body&&document.body.innerText||"").replace(/\s+/g,""),c={},s="",d=0;d<t.length&&s.length<1500;d++)c[t[d]]||(c[t[d]]=1,s+=t[d]);document.fonts.load('16px "Pretendard Variable"',s+"0123456789\uC5B5\uB9CC\uACF3").then(o,o)}catch{o()}setTimeout(o,1e4)},1)}},r.full=function(e){if(!(r.st||f("zp_nohyd")==="1")){r.st=1,r.why=e;var n=String(r.d).split(",");n.concat([r.a]).forEach(function(o){document.head.appendChild(v("link",{rel:"preload",as:"script",href:o}))});var a=function(){if(!a.d){if(document.readyState==="loading")return document.addEventListener("DOMContentLoaded",a);a.d=1;try{performance.mark("zp-hyd0")}catch{}var o=n.map(function(c){var s=v("script",{src:c});return s.async=!1,s}),t=v("script",{src:r.a});t.async=!1,t.onload=function(){setTimeout(function(){requestAnimationFrame(function(){try{performance.mark("zp-hyd")}catch{}r.hyd=1,_.classList.remove("zp-wait");try{i.dispatchEvent(new Event("zp:hydrated"))}catch{}setTimeout(r.font,300)})},60)},t.onerror=function(){r.st=0,_.classList.remove("zp-wait");try{i.ZP_cover&&i.ZP_cover()}catch{}},o.forEach(function(c){c.onerror=function(){try{i.ZP_cover&&i.ZP_cover()}catch{}}}),o.forEach(function(c){document.body.appendChild(c)}),document.body.appendChild(t)}};T(r.c,a),setTimeout(a,15e3)}};var q=["pointerdown","touchstart","keydown","wheel","mousemove","scroll","click","input","change","focusin"],y=function(e){q.forEach(function(n){i.removeEventListener(n,y,!0)}),i.removeEventListener("hashchange",y),r.full(e.type)};q.forEach(function(e){i.addEventListener(e,y,{capture:!0,passive:!0})}),i.addEventListener("hashchange",y);var P=function(e){try{var n=new URLSearchParams(e||""),a=n.get("mode"),o=n.get("basis");if(["homes","first","unit","inc","income","kind","jr","fund"].some(function(s){return n.has(s)})||a&&a!=="jeonse"&&a!=="loan"||o&&o!==(a==="loan"?"now":"total"))return!1;if(!n.has("cash"))return!0;var t=+n.get("cash"),c=1e-6;return t>=.5&&t<=15&&(t<2?Math.abs(t*10-Math.round(t*10))<c:t<10?Math.abs(t*2-Math.round(t*2))<c:Math.abs(t-Math.round(t))<c)}catch{return!1}},u="";try{var w=location.search,S=f("jg-fav"),C=f("emr.sort");f("zp_full")==="1"?u="flag":location.hash.length>1?u="hash":(/[?&](cash|mode|homes|first|unit|inc|income|basis|kind|fund|jr)=/.test(w)||f("jg-cond"))&&!P(/[?&](cash|mode|fund|inc|income)=/.test(w)?w:f("jg-cond")||"")?u="cond":C&&C!=="fit"?u="sort":S&&S!=="[]"?u="pins":navigator.serviceWorker&&navigator.serviceWorker.controller&&(u="sw")}catch{u="err"}r.now=u;var h=navigator.connection,g=!!(h&&h.effectiveType==="4g"&&h.rtt&&h.rtt<150&&!h.saveData)&&f("zp_slow")!=="1";r.fast=g,(g||u==="sw")&&r.font(),u?r.full(u):i.addEventListener("load",function(){setTimeout(function(){(i.requestIdleCallback||setTimeout)(function(){r.full("idle")},{timeout:g?2e3:4e3})},g?0:2500)})})();
 </script>
-<script defer src="/b/h.dc98cd8f51.js"></script>
+<script defer src="/b/h.f671da433a.js"></script>
 
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"집핀","alternateName":["ZIPPIN","얼마면 재개발"],"url":"https://jaegaebal.alwaysquestions.kr/","inLanguage":"ko"},{"@type":"Organization","name":"집핀","url":"https://jaegaebal.alwaysquestions.kr/","sameAs":["https://blog.naver.com/always_questions","https://www.instagram.com/jaegaebal.ok/"]}]}</script>
 <meta property="og:title" content="집핀 Zippin · 내 돈으로 갈 수 있는 서울 재개발"><meta property="og:site_name" content="집핀">
@@ -160,7 +41,7 @@
 <script>/* 광고 스크립트는 페이지가 다 뜨고 사용자가 처음 손댄 뒤, 한가할 때 불러온다 · 광고 칸(adsCfg slots)이 하나도 없으면 안 불러온다(자동 광고 iframe이 google.com frame-ancestors 콘솔 오류를 냈다 · 계정 확인은 meta로 충분) */(function(){var L=0,T=0,D=0,ev=["pointerdown","keydown","scroll","touchstart"];function go(){if(D||!L||!T)return;D=1;if(document.documentElement.classList.contains("is-tapp"))return;try{var c=JSON.parse(document.getElementById("adsCfg").textContent).adsense.slots,k;for(k in c)if(c[k])break;if(!k||!c[k])return}catch(e){return}var f=function(){var s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";s.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648";document.head.appendChild(s)};window.requestIdleCallback?requestIdleCallback(f,{timeout:4000}):setTimeout(f,1500)}function on(){T=1;ev.forEach(function(e){removeEventListener(e,on,true)});go()}ev.forEach(function(e){addEventListener(e,on,{capture:true,passive:true})});addEventListener("load",function(){L=1;go()})})();</script>
 <script>/* 첫 방문 질문 카드(25차): 화면을 덮지 않는 홈 맨 위 카드 · 보일지는 첫 페인트 전에 정해 둔다(자리가 처음부터 잡혀 밀림 없음) */(function(){try{var ls=function(k){try{return localStorage.getItem(k)}catch(e){return null}},q=location.search,cond=ls("jg-cond"),fav=ls("jg-fav");
 if(ls("zp.onb")||location.hash.length>1||/[?&](cash|mode|fund|homes|q|fav)=/.test(q)||!/^\/(index\.html)?$/.test(location.pathname)||(cond&&/(^|[?&])cash=/.test(cond))||(fav&&fav!=="[]"))return;document.documentElement.classList.add("onb-on")}catch(e){}})()</script>
-<script>/* 설치 앱(홈 화면 앱 · 안드로이드 TWA)일 때만: html.is-tapp + 앱 화면 묶음(/b/t.*) · 이 탭에서 한 번 알아채면 sessionStorage로 기억(앱 안에서 다른 페이지로 갔다 와도) · ?src=app 주소만으로는 켜지 않는다 · 브라우저에서는 아무 일도 하지 않는다 */(function(){var H=document.documentElement,a=false,m=function(q){try{return matchMedia(q).matches}catch(e){return false}};a=m("(display-mode: standalone)")||m("(display-mode: fullscreen)")||m("(display-mode: minimal-ui)")||navigator.standalone===true||/^android-app:\/\//.test(document.referrer||"");try{if(a)sessionStorage.setItem("zp.tapp","1");else a=sessionStorage.getItem("zp.tapp")==="1"}catch(e){}if(!a)return;window.ZP_H0=location.hash;window.ZP_Q0=location.search;window.ZP_R0=document.referrer||"";H.classList.add("is-tapp","is-app","tapp-wait","tapp-cover");try{[].forEach.call(document.querySelectorAll('meta[name="theme-color"]'),function(m){m.setAttribute("data-tc",m.content);m.content=/dark/.test(m.media||"")?"#13265E":"#1F3A87"})}catch(e){}window.ZP_cover=function(){if(!H.classList.contains("tapp-cover"))return;window.ZP_coverAt=Date.now();if(!H.classList.contains("tapp-on")&&!H.classList.contains("tapp-early"))H.classList.add("tapp-bare");H.classList.remove("tapp-cover","tapp-slow");var g=document.getElementById("tcMsg");if(g)g.remove();try{[].forEach.call(document.querySelectorAll("meta[data-tc]"),function(m){m.content=m.getAttribute("data-tc")})}catch(e){}};setTimeout(function(){if(H.classList.contains("tapp-cover"))H.classList.add("tapp-slow")},5000);setTimeout(function(){if(!H.classList.contains("tapp-cover"))return;var g=document.createElement("div");g.id="tcMsg";g.setAttribute("role","status");g.textContent="처음 실행이라 자료를 받고 있어요";H.appendChild(g)},10000);setTimeout(window.ZP_cover,25000);H.classList.remove("onb-on");var l=document.createElement("link");l.rel="stylesheet";l.href="/b/t.660a1983ba.css";document.head.appendChild(l);var go=function(){if(go.d)return;go.d=1;var s=document.createElement("script");s.src="/b/t.08c66c3092.js";s.async=true;s.onerror=function(){H.classList.remove("tapp-wait");window.ZP_cover()};document.head.appendChild(s)};go();document.addEventListener("DOMContentLoaded",function(){try{if(window.ZP_boot&&!ZP_boot.st)ZP_boot.full("tapp")}catch(e){}});setTimeout(function(){H.classList.remove("tapp-wait")},6000)})()</script>
+<script>/* 설치 앱(홈 화면 앱 · 안드로이드 TWA)일 때만: html.is-tapp + 앱 화면 묶음(/b/t.*) · 이 탭에서 한 번 알아채면 sessionStorage로 기억(앱 안에서 다른 페이지로 갔다 와도) · ?src=app 주소만으로는 켜지 않는다 · 브라우저에서는 아무 일도 하지 않는다 */(function(){var H=document.documentElement,a=false,m=function(q){try{return matchMedia(q).matches}catch(e){return false}};a=m("(display-mode: standalone)")||m("(display-mode: fullscreen)")||m("(display-mode: minimal-ui)")||navigator.standalone===true||/^android-app:\/\//.test(document.referrer||"");try{if(a)sessionStorage.setItem("zp.tapp","1");else a=sessionStorage.getItem("zp.tapp")==="1"}catch(e){}if(!a)return;window.ZP_H0=location.hash;window.ZP_Q0=location.search;window.ZP_R0=document.referrer||"";H.classList.add("is-tapp","is-app","tapp-wait","tapp-cover");try{[].forEach.call(document.querySelectorAll('meta[name="theme-color"]'),function(m){m.setAttribute("data-tc",m.content);m.content=/dark/.test(m.media||"")?"#13265E":"#1F3A87"})}catch(e){}window.ZP_cover=function(){if(!H.classList.contains("tapp-cover"))return;window.ZP_coverAt=Date.now();if(!H.classList.contains("tapp-on")&&!H.classList.contains("tapp-early"))H.classList.add("tapp-bare");H.classList.remove("tapp-cover","tapp-slow");var g=document.getElementById("tcMsg");if(g)g.remove();try{[].forEach.call(document.querySelectorAll("meta[data-tc]"),function(m){m.content=m.getAttribute("data-tc")})}catch(e){}};setTimeout(function(){if(H.classList.contains("tapp-cover"))H.classList.add("tapp-slow")},5000);setTimeout(function(){if(!H.classList.contains("tapp-cover"))return;var g=document.createElement("div");g.id="tcMsg";g.setAttribute("role","status");g.textContent="처음 실행이라 자료를 받고 있어요";H.appendChild(g)},10000);setTimeout(window.ZP_cover,25000);H.classList.remove("onb-on");var l=document.createElement("link");l.rel="stylesheet";l.href="/b/t.f9b8489d8c.css";document.head.appendChild(l);var go=function(){if(go.d)return;go.d=1;var s=document.createElement("script");s.src="/b/t.09e3076c4b.js";s.async=true;s.onerror=function(){H.classList.remove("tapp-wait");window.ZP_cover()};document.head.appendChild(s)};go();document.addEventListener("DOMContentLoaded",function(){try{if(window.ZP_boot&&!ZP_boot.st)ZP_boot.full("tapp")}catch(e){}});setTimeout(function(){H.classList.remove("tapp-wait")},6000)})()</script>
 <style>html.tapp-wait body{visibility:hidden}html.is-tapp,html.is-tapp body{overscroll-behavior-y:none}html.is-tapp::after{content:"";position:fixed;inset:0;z-index:2147483646;pointer-events:none;background:#1F3A87 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240'%3E%3Cg transform='translate(52.6007 55.5495) scale(2.10623)'%3E%3Cg transform='translate(7.04 4.86) scale(.78)'%3E%3Cpath fill='%23fff' d='M32 61C25.5 52.5 12.5 40.5 12.5 24.5a19.5 19.5 0 0 1 39 0C51.5 40.5 38.5 52.5 32 61z'/%3E%3Cpath fill='%231F3A87' stroke='%231F3A87' stroke-width='1.8' stroke-linejoin='round' d='M32 12.6 44.4 23.7h-3.9V35.2H23.5V23.7h-3.9z'/%3E%3Cpath fill='%23F5C33B' d='M30 27.4h4a1 1 0 0 1 1 1v5.8a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-5.8a1 1 0 0 1 1-1z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") center/240px 240px no-repeat;opacity:0;visibility:hidden;transition:opacity .28s ease,visibility 0s linear .28s}html.tapp-cover::after{opacity:1;visibility:visible;transition:none;pointer-events:auto}#tcMsg{position:fixed;left:16px;right:16px;top:calc(50% + 118px);z-index:2147483647;text-align:center;color:rgba(255,255,255,.7);font:500 13px/1.4 system-ui,sans-serif;pointer-events:none}html:not(.tapp-cover) #tcMsg{display:none}html.tapp-bare #hdr,html.tapp-bare #sNav{visibility:hidden}@media (prefers-reduced-motion:reduce){html.tapp-cover.tapp-slow::before{animation:none;border-color:rgba(255,255,255,.7)}}html.tapp-cover.tapp-slow::before{content:"";position:fixed;left:50%;top:calc(50% + 84px);width:22px;height:22px;margin-left:-11px;border:2.5px solid rgba(255,255,255,.28);border-top-color:#fff;border-radius:50%;z-index:2147483647;pointer-events:none;animation:tcSpin .9s linear infinite}@keyframes tcSpin{to{transform:rotate(360deg)}}@media (prefers-color-scheme:dark){html.is-tapp::after{background:#13265E url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240'%3E%3Cg transform='translate(52.6007 55.5495) scale(2.10623)'%3E%3Cg transform='translate(7.04 4.86) scale(.78)'%3E%3Cpath fill='%23fff' d='M32 61C25.5 52.5 12.5 40.5 12.5 24.5a19.5 19.5 0 0 1 39 0C51.5 40.5 38.5 52.5 32 61z'/%3E%3Cpath fill='%2313265E' stroke='%2313265E' stroke-width='1.8' stroke-linejoin='round' d='M32 12.6 44.4 23.7h-3.9V35.2H23.5V23.7h-3.9z'/%3E%3Cpath fill='%23F5C33B' d='M30 27.4h4a1 1 0 0 1 1 1v5.8a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-5.8a1 1 0 0 1 1-1z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") center/240px 240px no-repeat}}</style>
 <style>
 .onb{display:none;margin:0 0 12px;padding:16px 16px 14px;border:1px solid var(--border,#e5e8eb);border-radius:16px;background:var(--surface,#fff);color:var(--text-1,#191f28);box-shadow:0 1px 2px rgba(20,30,60,.04)}

@@ -2797,6 +2797,37 @@ async function tappLane(browser, api, errs) {
     } catch (e) { bad("runtime", "검사 실행", "tapp.noAds crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
+  // --- tapp.toggleDark(pre-adsense · 실기기 다크 모드): MY 알림 스위치 켜짐·꺼짐·막힘 — 계산 색 = 지정 색 · 비텍스트 대비(켜짐 트랙/카드 ≥ 3 · 꺼짐 손잡이/카드 ≥ 3 · 막힘 손잡이/카드 ≥ 3) · 막힘 글자 대비 ≥ 4.5 · 라이트는 예전 색 그대로
+  {
+    const T = "설치 앱 다크 MY 알림 스위치: 켜짐 트랙 #8EA8F5·흰 손잡이 · 꺼짐 트랙 #3A3F47(+1px 밝은 테두리)·손잡이 #B0B8C1 · 막힘 손잡이 #6B7280 · 비텍스트 대비 3:1 이상 · 막힘 글자 4.5:1 이상 · 라이트 켜짐 #1F3A87 그대로";
+    const R = [];
+    for (const cs of ["dark", "light"]) {
+      const { ctx, page } = await appPage({ ...mob(390, 844), colorScheme: cs });
+      try {
+        await page.goto(BASE + "/#my", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(3500);
+        const st = await page.evaluate(async () => {
+          const rgb = (c) => (c.match(/[\d.]+/g) || []).map(Number);
+          const L = (c) => { const [r, g, b] = rgb(c).map((v) => v / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+          const CR = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+          const card = (e) => { while (e) { const c = getComputedStyle(e).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c) && rgb(c)[3] !== 0) return c; e = e.parentElement; } return "rgb(255, 255, 255)"; };
+          const one = (b) => { const t = b.querySelector(".my-tg"), k = getComputedStyle(t, "::after"), bg = card(b.parentElement); const tx = b.querySelector(".my-t b") || b; return { track: getComputedStyle(t).backgroundColor, shadow: getComputedStyle(t).boxShadow, knob: k.backgroundColor, card: bg, crTrack: +CR(getComputedStyle(t).backgroundColor, bg).toFixed(2), crKnob: +CR(k.backgroundColor, bg).toFixed(2), crText: +CR(getComputedStyle(tx).color, bg).toFixed(2) }; };
+          const sw = [...document.querySelectorAll("#myKinds .my-sw")]; if (sw.length < 2) return { n: sw.length };
+          sw.forEach((b) => b.setAttribute("aria-checked", "true"));
+          const w = () => new Promise((r) => setTimeout(r, 400)); await w(); const on2 = one(sw[0]); sw[1].setAttribute("aria-checked", "false"); await w(); const off = one(sw[1]);
+          sw[1].setAttribute("aria-disabled", "true"); document.getElementById("my").classList.add("t-pdeny"); await w(); const dis = one(sw[1]);
+          return { n: sw.length, on: on2, off, dis };
+        });
+        const E = (a, b) => String(a).replace(/\s/g, "") === b;
+        if (!st.on) R.push(`${cs} 스위치 ${st.n}개`);
+        else if (cs === "dark") {
+          if (!E(st.on.track, "rgb(142,168,245)") || !E(st.on.knob, "rgb(255,255,255)") || st.on.crTrack < 3) R.push(`켜짐 ${JSON.stringify(st.on)}`);
+          if (!E(st.off.track, "rgb(58,63,71)") || !E(st.off.knob, "rgb(176,184,193)") || !/rgba\(255, 255, 255, 0\.12\)/.test(st.off.shadow) || st.off.crKnob < 3) R.push(`꺼짐 ${JSON.stringify(st.off)}`);
+          if (!E(st.dis.track, "rgb(58,63,71)") || !E(st.dis.knob, "rgb(107,114,128)") || st.dis.crKnob < 3 || st.dis.crText < 4.5) R.push(`막힘 ${JSON.stringify(st.dis)}`);
+        } else if (!E(st.on.track, "rgb(31,58,135)") || !E(st.on.knob, "rgb(255,255,255)")) R.push(`라이트 켜짐 ${JSON.stringify(st.on)}`);
+      } catch (e) { R.push(cs + " crash " + String(e.message || e).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    }
+    expect(!R.length, "tapp.toggleDark", T, R.join(" ; "));
+  }
   // --- tapp.feed: 전체 소식 = data/changes.json(종류별 수 같음) · 칩으로 거르기 · 줄을 누르면 그 구역 · 관심 구역(예전 소식) 칸 그대로
   {
     const T = "설치 앱 전체 소식: 칩 수 = changes.json을 같은 거래끼리 합친 종류별 건수(실거래·경공매만 합침 · 합친 소식의 항목 합 = 원본 수) · 칩 거르기 · 줄 → 구역 열림 · '관심 구역' 칸 = 예전 내 소식";
