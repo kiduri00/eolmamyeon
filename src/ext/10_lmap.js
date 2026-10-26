@@ -451,7 +451,8 @@
     function whenNear(fn) {
       if (isNear() || typeof IntersectionObserver !== "function") return true;
       if (!nearIO) {
-        nearIO = new IntersectionObserver((es) => { if (!es.some((e) => e.isIntersecting)) return; nearIO.disconnect(); nearIO = null; fn(); }, { rootMargin: "400px 0px" });
+        // 4라운드(설치 앱): 지도 탭을 누른 직후 자리 그림 그리기(~80ms@4×CPU)가 탭 전환 첫 그림을 막던 것 → 다음 그림 뒤로(INP)
+        nearIO = new IntersectionObserver((es) => { if (!es.some((e) => e.isIntersecting)) return; nearIO.disconnect(); nearIO = null; if (document.documentElement.classList.contains("is-tapp")) requestAnimationFrame(() => setTimeout(fn, 0)); else fn(); }, { rootMargin: "400px 0px" });
         nearIO.observe($("mapbox"));
       }
       return false;

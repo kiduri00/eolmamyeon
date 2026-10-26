@@ -29,9 +29,10 @@ const TOH = (() => {
     const T1 = T0 || T, lp = landPermit(r);
     if (lp) return { cls: "no", t: lp.t };
     const z = T1 && T1.z && T1.z[r.id], gu = T1 && T1.gu && T1.gu[r.g];
-    const zl = z && z.r && z.r[0] ? ` · 최근 ${ymd(z.r[0][0]).slice(2)}` : "";
-    if (z && z.res) return { cls: "no", t: `구역 안 주거용 필지 허가 ${fmt(z.res)}건(${ymd(T1.since).slice(2)}~${zl}) · 허가구역 필지가 있어요 · 사면 2년 실거주` };
-    if (z && z.n) return { cls: "warn", t: `구역 안 필지 허가 ${fmt(z.n)}건(${ymd(T1.since).slice(2)}~${zl}, 주거용 아님) · 매물 필지 지정 여부 구청 확인` };
+    // 4라운드: 괄호 안 날짜가 무엇인지 주어를 넣는다 — '최근 허가 2026.09.23 · 2026.08.18부터 집계'(집계 시작일을 허가구역 지정일로 읽던 것)
+    const zl = z && z.r && z.r[0] ? `최근 허가 ${ymd(z.r[0][0])} · ` : "";
+    if (z && z.res) return { cls: "no", t: `구역 안 주거용 필지 허가 ${fmt(z.res)}건(${zl}${ymd(T1.since)}부터 집계) · 허가구역 필지가 있어요 · 사면 2년 실거주` };
+    if (z && z.n) return { cls: "warn", t: `구역 안 필지 허가 ${fmt(z.n)}건(${zl}${ymd(T1.since)}부터 집계, 주거용 아님) · 매물 필지 지정 여부 구청 확인` };
     if (r.src === "moa" || /가로|모아/.test(r.k || "")) return { cls: "warn", t: "모아타운은 도로 지목만 지정되는 경우가 많아요 · 빌라·단독은 서울 전역 지정(아파트만)에서 빠져요 · 구청 확인" };
     if (T1 && !z) return { cls: "warn", t: `구역 안 허가 0건(${ymd(T1.since).slice(2)}~${ymd(T1.asOf).slice(2)}) · 빌라·단독은 서울 전역 지정(아파트만)에서 빠져요 · 개별 지정은 구청 확인` };   // 구 전체 허가 건수는 아래 '최근 내역'에 한 번(20차 G9)
     return { cls: "warn", t: `빌라·단독은 서울 전역 지정(아파트만)에서 빠져요${gu ? ` · ${r.g} 최근 허가 ${fmt(gu[0])}건` : ""} · 개별 지정은 구청 확인` };

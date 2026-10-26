@@ -261,7 +261,8 @@
       go({ bg: 1 });
     });
     d.addEventListener("pointerdown", function () { go({ touch: 1 }); }, { passive: true });
-    if (W.ResizeObserver) { S.ro = new ResizeObserver(function () { if (S.st && !S.out) draw(S.st); }); S.ro.observe(box); }
+    // 4라운드(설치 앱): 지도 탭으로 바뀌며 칸 크기가 변할 때 다시 그리기(~55ms@4×CPU)를 첫 그림 뒤로 — 탭 전환 INP
+    if (W.ResizeObserver) { var roT = 0; S.ro = new ResizeObserver(function () { if (!(S.st && !S.out)) return; if (!Dc.documentElement.classList.contains("is-tapp")) { draw(S.st); return; } if (roT) return; roT = 1; requestAnimationFrame(function () { setTimeout(function () { roT = 0; if (S.st && !S.out) draw(S.st); }, 0); }); }); S.ro.observe(box); }
     return d;
   }
   function go(a) { if (S.tap) { try { S.tap(a); } catch (e) {} } else if (!a.touch) { W.__zgPend = a; } }

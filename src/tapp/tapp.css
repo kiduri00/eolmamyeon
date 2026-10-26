@@ -538,3 +538,37 @@
   html.is-tapp .th-b{height:auto!important}
   html.is-tapp .th-bt{padding-bottom:30px}
 }
+/* 8 단일 선택(세그먼트): 굵기로도 구별 — 선택 700 / 비선택 500(라이트·다크) · 다크 선택 칸 #3A404B + 1px 링(트랙 #1B1E24와 대비 1.3:1이던 것) */
+@media (max-width:980px){
+  html.is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is(button,[role="tab"]){font-weight:500!important}
+  html.is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is([aria-pressed="true"],[aria-checked="true"],[aria-selected="true"]){font-weight:700!important}
+  html.is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is(button,[role="tab"]) :is(b,strong,span){font-weight:inherit!important}
+}
+@media (max-width:980px) and (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]).is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is([aria-pressed="true"],[aria-checked="true"],[aria-selected="true"]){background:#3A404B!important;box-shadow:0 0 0 1px rgba(255,255,255,.08)!important}
+}
+@media (max-width:980px){
+  :root[data-theme="dark"].is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg){background:#1B1E24!important}
+  :root[data-theme="dark"].is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is(button,[role="tab"]){color:#B0B8C1!important}
+  :root[data-theme="dark"].is-tapp :is(#sGauge,#sMini,#my,#news,#rankHub,#planner,#saveTop,#commuteTop,#statsTop,#diagTop,#rulesTop) :is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg):is(.s-mode,.my-seg,.hub-tabs,.seg,.tf-seg) :is([aria-pressed="true"],[aria-checked="true"],[aria-selected="true"]){background:#3A404B!important;color:#E5E8EB!important;box-shadow:0 0 0 1px rgba(255,255,255,.08)!important}
+}
+/* 11 넓은 화면 소식 세그먼트(전체 소식 | 관심 구역): 폰과 같은 회색 트랙 + 흰 thumb(남색 채움이던 것 · 앱만) */
+@media (min-width:981px){
+  html.is-tapp #news .tf-seg{background:#F2F4F6!important;border:0!important;box-shadow:none!important}
+  html.is-tapp #news .tf-seg button{background:transparent!important;color:#4E5968!important;box-shadow:none!important;border:0!important;font-weight:500!important}
+  html.is-tapp #news .tf-seg button[aria-selected="true"]{background:#FFFFFF!important;color:#191F28!important;box-shadow:0 1px 2px rgba(0,0,0,.08)!important;font-weight:700!important}
+}
+@media (min-width:981px) and (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]).is-tapp #news .tf-seg{background:#1B1E24!important}
+  :root:not([data-theme="light"]).is-tapp #news .tf-seg button{color:#B0B8C1!important}
+  :root:not([data-theme="light"]).is-tapp #news .tf-seg button[aria-selected="true"]{background:#3A404B!important;color:#E5E8EB!important;box-shadow:0 0 0 1px rgba(255,255,255,.08)!important}
+}
+@media (min-width:981px){
+  :root[data-theme="dark"].is-tapp #news .tf-seg{background:#1B1E24!important}
+  :root[data-theme="dark"].is-tapp #news .tf-seg button{color:#B0B8C1!important}
+  :root[data-theme="dark"].is-tapp #news .tf-seg button[aria-selected="true"]{background:#3A404B!important;color:#E5E8EB!important;box-shadow:0 0 0 1px rgba(255,255,255,.08)!important}
+}
+/* 15 통계 단계 색(앱): 회색 3단계가 막대 안에서 구별되지 않던 것 → 연회색 → 연남색 → 남색 램프(인접 명도 차 약 15) */
+html.is-tapp #statsTop{--st-1:#E4E7EC;--st-2:#AAB8D5;--st-3:#7088BE;--st-4:#4A63A6;--st-5:#263F87;--st-6:#0E1B45}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]).is-tapp #statsTop{--st-1:#2E3440;--st-2:#46577E;--st-3:#6378AE;--st-4:#8A9FD0;--st-5:#B3C3EA;--st-6:#DDE5F8}}
+:root[data-theme="dark"].is-tapp #statsTop{--st-1:#2E3440;--st-2:#46577E;--st-3:#6378AE;--st-4:#8A9FD0;--st-5:#B3C3EA;--st-6:#DDE5F8}

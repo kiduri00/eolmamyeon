@@ -981,7 +981,8 @@
   const grpOf = (r) => (r.dn || r.s >= 9 ? 4 : r.s <= 2 ? 0 : r.s <= 4 ? 1 : r.s <= 6 ? 2 : 3);
   const st6 = (r) => (isDone(r) ? 0 : r.s <= 2 ? 1 : r.s === 3 ? 2 : r.s === 4 ? 3 : r.s === 5 ? 4 : r.s === 6 ? 5 : 6);
   const STCOL = (i) => (i ? `var(--st-${i})` : "var(--st-done)");
-  const ST_LAB = ["완료", "후보지·계획·지정", "추진위", "조합설립", "사업시행", "관리처분", "이주·착공"];
+  // 4라운드(설치 앱): 칩·입주권 화면과 같은 '이주·철거'(웹은 그대로)
+  const ST_LAB = ["완료", "후보지·계획·지정", "추진위", "조합설립", "사업시행", "관리처분", document.documentElement.classList.contains("is-tapp") ? "이주·철거" : "이주·착공"];
   const GRCOL = { S: "var(--gr-S)", A: "var(--gr-A)", B: "var(--gr-B)", C: "var(--gr-C)", D: "var(--gr-D)" };
   const ICON = {
     filter:
@@ -9028,7 +9029,11 @@
     // 전세 끼고 계산(gapOf)을 150곳씩 나눠 미리 — plan()·첫 목록이 한 번에 1,300곳을 계산하는 긴 작업(300ms+)을 잘게(결과는 같은 캐시)
     // 예전 첫 화면 소개(#intro)는 간단 화면에서 숨겨져 있다 → 그 숫자(1·2·3억이면 N곳) 계산은 건너뛴다(18차 성능)
     if (!document.documentElement.classList.contains("simple") || ($("intro") && $("intro").getClientRects().length)) { initIntro(); await yieldT(); }
+    // 4라운드(설치 앱): 미리 나눠 계산하기 전에 조건(AV)을 읽어 둔다 — 안 읽으면 계산 캐시 열쇠(condKey)가 plan()에서 바뀌어 미리 한 계산을 버리고 1,300곳을 한 번에 다시(긴 작업 ~150ms@4×CPU)
+    if (document.documentElement.classList.contains("is-tapp")) try { readAV(); } catch (e) {}
     if (gapMode()) { const L = baseList(); for (let i = 0; i < L.length; i += 150) { for (let j = i; j < Math.min(L.length, i + 150); j++) try { gapOf(L[j]); } catch (e) {} await yieldT(); } }
+    // 4라운드(설치 앱): 짧은 이름 표(1,300곳 · 첫 호출 ~130ms@4×CPU)를 plan() 앞의 따로 된 작업으로 — plan() 한 작업이 290~430ms이던 것을 나눔
+    if (document.documentElement.classList.contains("is-tapp")) { try { if (R[0]) shortName(R[0].n); } catch (e) {} await yieldT(); }
     plan();
     if (!hash0) initReveal();
     mbInit();

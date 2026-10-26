@@ -72,7 +72,8 @@ const VIEW_TAB = { favTop: "fav", news: "news", my: "my" };
 let lastTab = "home", homeReset = false, tSave = 0;
 function curTab() {
   if (H.classList.contains("s-full")) return "map";
-  if (!H.classList.contains("s-view") && history.state && history.state.tL) return "map";   // 지도 탭 '목록 보기'(지도 탭 안의 목록)
+  if (!H.classList.contains("s-view") && history.state && history.state.tL) return "map";
+  if (!H.classList.contains("s-view") && history.state && history.state.tF) return "map";   // 4라운드: 지도 탭에서 연 구역 시트·구 화면 — 아래 탭 '지도' 그대로(aria-current가 '홈'으로 바뀌던 것)   // 지도 탭 '목록 보기'(지도 탭 안의 목록)
   if (H.classList.contains("s-view")) { const v = T(() => S().cur(), ""); return VIEW_TAB[v] || (lastTab === "map" ? "home" : lastTab); }
   return "home";
 }
@@ -297,7 +298,7 @@ function repDetail() {
     if (!m) return;
     const h = b.querySelector(".th-bh"); if (!h || h.querySelector(".th-rd")) return;
     const x = `날짜 등록 ${m[1]} · 미등록 ${m[2]}`;
-    const f = h.querySelector("i"); if (f && !/,$/.test(f.textContent)) f.textContent += ",";
+    // 4라운드: 첫 줄 끝 쉼표를 붙이지 않는다(둘째 줄은 따로 한 줄 · '조합설립인가 3곳,'로 끝나 보이던 것)
     h.insertAdjacentHTML("beforeend", ` <i class="th-rd">${esc(x)}</i>`);
     b.setAttribute("aria-label", b.getAttribute("aria-label").replace(/ \(/, `, ${x} (`));
   }).catch(() => {});
@@ -437,7 +438,8 @@ function feedHTML() {
   if (!CH) return `<p class="tf-empty">소식을 불러오는 중이에요…</p>`;
   const s = fSeen0 || fSeen(), U = units(), cnt = (t) => U.filter((u) => !t || u.e.type === t).length;
   const nw = (t) => U.filter((u) => (!t || u.e.type === t) && uNew(u, s) && !muted(u.e.type)).length;
-  const chips = FT.map(([t, l]) => { const n = nw(t); return `<button type="button" data-ft="${t}" aria-pressed="${t === fType}"${n ? ` aria-label="${l} ${fmtN(cnt(t))}건, 새 소식 ${n}건"` : ""}>${l} <small>${fmtN(cnt(t))}</small>${n && t ? `<i class="tf-n d" aria-hidden="true"></i>` : ""}</button>`; }).join("");
+  // 4라운드: 모든 칩에 같은 꼴의 이름('단계 변경 1건, 새 소식 0건') — 새 소식이 있는 칩에만 붙던 것
+  const chips = FT.map(([t, l]) => { const n = nw(t); return `<button type="button" data-ft="${t}" aria-pressed="${t === fType}" aria-label="${l} ${fmtN(cnt(t))}건, 새 소식 ${fmtN(n || 0)}건">${l} <small>${fmtN(cnt(t))}</small>${n && t ? `<i class="tf-n d" aria-hidden="true"></i>` : ""}</button>`; }).join("");
   const R = feedRows(), sh = R.slice(0, fShown);
   const asOf = (CH.asOf || "").replace(/^(\d{4})-(\d\d)-(\d\d)$/, (_, y, mo, d) => `${+mo}.${d}`);
   const by = new Map(); sh.forEach((r) => { if (!by.has(r.e.date)) by.set(r.e.date, []); by.get(r.e.date).push(r); });
@@ -467,6 +469,7 @@ function feedMarkSeen() {
 }
 const newsOn = () => { const s = $("news"); return !!(s && s.classList.contains("s-on")); };
 function segSet(v, user) {
+  T(ntcRename);
   const n = $("news"); if (!n) return;
   n.dataset.tseg = v; if (user) ssS("zp.tseg", v);
   n.querySelectorAll(".tf-seg [role=tab]").forEach((b) => { const on = b.dataset.seg === v; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
@@ -500,7 +503,10 @@ function feedBuild() {
   addEventListener("zp:view", (e) => { if (e.detail === "news") newsEnter(); });
 }
 // 소식 탭에 들어올 때(탭 누름·콜드 /#news·정적 페이지 탭·알림 클릭 /#news 모두 이 한 길) — 아직 안 그렸으면 지금 그린다
+// 4라운드: 소식 > 관심 구역 안의 거르기 칩 '관심 구역' → '내 구역만'(바깥 '관심 구역' 탭과 이름이 겹치던 것 · 앱만)
+function ntcRename() { const c = document.querySelector('#ntcF [data-c="fav"]'); if (!c) return; const tn = [...c.childNodes].find((x) => x.nodeType === 3 && x.textContent.trim()); if (tn && tn.textContent.trim() !== "내 구역만") tn.textContent = "내 구역만"; }
 function newsEnter() {
+  T(ntcRename);
     if (!$("tFeed")) { feedBuild(); if (!$("tFeed")) return; }
     fSeen0 = null;
     // 관심 구역에 새 소식이 있으면 그쪽부터(빨간 숫자를 누르고 들어온 사람) · 아니면 이번에 고른 쪽 · 처음엔 전체 소식
@@ -668,6 +674,9 @@ function start() {
   addEventListener("zp:alerts", badge);
   if (onbNeed()) setTimeout(onbOpen, 60);
   try { window.dispatchEvent(new Event("zp:tapp")); } catch (e) {}
+  // 4라운드: 서비스 워커에 '설치 앱 창'이라고 알린다(오프라인 안내를 5탭으로 · sw.js TAPP)
+  const swTell = () => T(() => { const c = navigator.serviceWorker && navigator.serviceWorker.controller; if (c) c.postMessage({ tapp: 1 }); });
+  swTell(); T(() => navigator.serviceWorker && navigator.serviceWorker.addEventListener("controllerchange", swTell)); addEventListener("visibilitychange", () => { if (!document.hidden) swTell(); });
 }
 window.ZP_TAPP = { goTab, curTab, dep, feedCounts: () => (CH ? units().reduce((o, u) => { o[u.e.type] = (o[u.e.type] || 0) + 1; return o; }, {}) : null), feedUnits: () => units().map((u) => ({ t: u.e.type, n: u.items.length, ids: u.ids })), newCount, tiles: () => tiles().map((t) => ({ k: t[0], t: t[1], href: t[2], id: t[3] })), onb: () => !!ob, onbOpen };
 (function pre(n) { if (early.d) return; if ($("mapTop") && $("sSearch") && $("sGauge") && $("sNav") && tcssOn()) early(); else if (n < 400) setTimeout(() => pre(n + 1), 10); })(0);
