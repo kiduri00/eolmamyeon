@@ -19,6 +19,7 @@
   function bb(okLL, cnt, phone) {
     var a = CORE[0][0], b = CORE[0][1], c = CORE[1][0], d = CORE[1][1];
     var P = okLL || [];
+    if (phone && P.length && appFull()) { a = c = P[0][1]; b = d = P[0][0]; }   // 앱 지도 탭: 서울 가운데 대신 갈 수 있는 곳 전체 상자(+ 그 구 묶음 자리)
     if (P.length) {
       var la = P.map(function (x) { return x[0]; }).sort(function (x, y) { return x - y; }), lo = P.map(function (x) { return x[1]; }).sort(function (x, y) { return x - y; });
       var q = function (A, f) { return A[Math.max(0, Math.min(A.length - 1, Math.round((A.length - 1) * f)))]; };
@@ -38,7 +39,7 @@
     var ws = 512 * Math.pow(2, z), ox = (pad.left - pad.right) / 2, oy = (pad.top - pad.bottom) / 2;
     var cx = (x0 + x1) / 2 - ox / ws, cy = (y0 + y1) / 2 - oy / ws;
     var H = h - pad.top - pad.bottom, hh = (y1 - y0) * ws;
-    if (phone && H > w * 1.15 && hh > 0 && H / hh > 1.3) z += Math.min(0.45, Math.log2(H / hh) * 0.5);
+    if (phone && !appFull() && H > w * 1.15 && hh > 0 && H / hh > 1.3) z += Math.min(0.45, Math.log2(H / hh) * 0.5);
     z = Math.max(MINZ, Math.min(MAXZ, Math.min(z, maxZ + 0.75)));
     return { c: [lx(cx), ly(cy)], z: z };
   }
@@ -123,7 +124,7 @@
     // 8차: 폰은 16방향(바른 8방향 먼저) — 좁은 지도에서 비킬 자리를 더 찾는다
     var ANG = (phone ? [0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15].map(function (k) { return (k * Math.PI) / 8 + Math.PI / 2; }) : [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return (k * Math.PI) / 4 + Math.PI / 2; }));
     // 폰: 맨 아래 20px 띠에는 묶음을 두지 않는다(범례·ⓘ는 따로 피함 · 20차)
-    var bot = phone ? 20 : 2;
+    var bot = phone ? 20 : 2, EX = phone && appFull() ? 8 : 2;   // 4라운드: 앱 지도 탭은 묶음이 화면 가장자리 8px 안으로(양천 묶음이 왼쪽 끝 2px에 반쯤 잘려 보이던 것)
     var GAP = 6, MAXOFF = 48, MAXOFF2 = 72, MK = 1.0;   // 7차: 폰은 제 구 중심에서 48px 안 · 다른 구 중심보다 가깝지 않은 자리만(130px·2.5배로 풀었더니 마포 묶음이 강서 땅에 서던 것) · 묶음 사이 실제 2px 넘게(어림 폭보다 글자가 조금 넓어 4px 띄움이 1px로 닿던 것)
     // 30차: 비킨 자리가 다른 구 중심에 더 가까우면(그 구 땅 위로 넘어가면) 쓰지 않는다 — 360에서 서대문 묶음이 동대문 남쪽에 서던 것
     var ANC = o.gus.map(function (g) { return { n: g.n, q: o.proj(g.ll) }; });
@@ -146,7 +147,7 @@
       // placed = 놓인 상자 {bx, g}(g 없음 = 칩 자리 · fx = 이미 놓인 것이라 옮기지 않음)
       var placed = (extra ? [{ bx: extra, fx: 1 }] : []).concat((pre || []).map(function (g) { return { bx: boxOf(g), g: g, fx: 1 }; })), keep = (pre || []).slice(), left = [];
       // m = 보이는 상자 밖 투명 누름 자리(작은 묶음은 40px 상자 안에 보이는 30·22px) — 그 둘레까지 지도 칸 안에(23차: 위 가장자리 묶음이 칸 밖으로 5px 나가던 것)
-      var inb = function (bx, m) { m = m || 0; return bx[0] >= 2 && bx[2] <= w - 2 && bx[1] - m >= 2 && bx[3] + m <= h - bot && !obs.some(function (q) { return hit(q, bx); }); };
+      var inb = function (bx, m) { m = m || 0; return bx[0] >= EX && bx[2] <= w - EX && bx[1] - m >= 2 && bx[3] + m <= h - bot && !obs.some(function (q) { return hit(q, bx); }); };
       // 29차: 묶음끼리 최소 GAP 띄움(한쪽 GAP — 실제 글자 폭이 어림보다 조금 넓어도 닿지 않게)
       var clash = function (bx, skip) { var gx = [bx[0] - GAP, bx[1] - GAP, bx[2] + GAP, bx[3] + GAP]; return placed.filter(function (p) { return p !== skip && hit(p.bx, gx); }); };
       // 자리 후보(차례대로): 크기 3단계 × 비키는 거리 × 8방향 — 지도 칸·장애물·제 구 땅 조건을 넘는 것만
@@ -218,7 +219,10 @@
   var MT = function (m) { return cash(m) + "~"; };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   function chipHTML(L, c) {
-    return '<button type="button" class="lm-gumore-b" aria-expanded="false" aria-label="지도에 다 못 보인 ' + L.length + "개 구, 갈 수 있는 곳 " + fmt(c) + '곳 더 보기">+' + fmt(c) + "곳 <small>· " + L.length + '개 구</small></button><ul class="lm-gumore-l">' + L.slice().sort(function (a, b) { return (a.m == null ? 1e9 : a.m) - (b.m == null ? 1e9 : b.m) || b.c - a.c; }).map(function (g) { return '<li><button type="button" data-gu="' + esc(g.n) + '"><span class="gm-n">' + esc(g.n) + '</span> <b><i>' + fmt(g.c) + "곳</i>" + (g.m != null ? '<i class="gm-m">' + MT(g.m) + "</i>" : "") + "</b></button></li>"; }).join("") + "</ul>";   // 30차: 펼친 목록은 적게 드는 구부터 · 곳 수·금액 두 칸을 줄 맞춤(금액 '~'가 따로 줄바꿈되던 것)
+    // 4라운드(앱 지도 탭): 숨은 곳의 가장 적은 금액을 칩에 — '+7곳 · 6,700만~'(보이는 최저보다 싼 곳이 칩 안에 있어도 첫눈에 보이게)
+    var mn = null; L.forEach(function (g) { if (g.m != null && (mn == null || g.m < mn)) mn = g.m; });
+    var am = appFull() && mn != null;
+    return '<button type="button" class="lm-gumore-b" aria-expanded="false" aria-label="지도에 다 못 보인 ' + L.length + "개 구, 갈 수 있는 곳 " + fmt(c) + "곳" + (am ? ", 가장 적게 드는 곳 " + cash(mn) : "") + ' 더 보기">+' + fmt(c) + "곳 <small>· " + (am ? MT(mn) : L.length + "개 구") + '</small></button><ul class="lm-gumore-l">' + L.slice().sort(function (a, b) { return (a.m == null ? 1e9 : a.m) - (b.m == null ? 1e9 : b.m) || b.c - a.c; }).map(function (g) { return '<li><button type="button" data-gu="' + esc(g.n) + '"><span class="gm-n">' + esc(g.n) + '</span> <b><i>' + fmt(g.c) + "곳</i>" + (g.m != null ? '<i class="gm-m">' + MT(g.m) + "</i>" : "") + "</b></button></li>"; }).join("") + "</ul>";   // 30차: 펼친 목록은 적게 드는 구부터 · 곳 수·금액 두 칸을 줄 맞춤(금액 '~'가 따로 줄바꿈되던 것)
   }
   var ZOOM = '<button type="button" data-z="full" class="lm-fs" aria-label="지도 크게 보기" aria-pressed="false" title="지도 크게 보기"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" data-z="1" aria-label="확대"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button><button type="button" data-z="-1" aria-label="축소"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>';
   var GU_LBL = function (n, c, m) { return n + ", 내 돈으로 갈 수 있는 곳 " + fmt(c) + "곳" + (m != null ? ", 가장 적게 드는 곳 " + cash(m) : "") + ", 눌러서 " + n + " 보기"; };
@@ -232,6 +236,9 @@
   }
   // ---------------------------------------------------------------- 자리 그림 DOM
   var S = { el: null, box: null, st: null, tap: null, ro: null, last: null, out: false, dim: null };
+  // 4라운드: 설치 앱 지도 탭(폰 · 화면 가득 지도) — 첫 카메라·묶음 가장자리·'+N곳' 최저가를 앱만 따로(웹 지도 픽셀 그대로)
+  var appFull = function () { var c = Dc.documentElement.classList; return c.contains("is-tapp") && c.contains("s-full") && phoneQ(); };
+  var APAD = { left: 16, right: 56, top: 200, bottom: 170 };
   var phoneQ = function () { try { return matchMedia("(max-width:980px)").matches; } catch (e) { return true; } };
   function short(box) { var fs = Dc.documentElement.classList.contains("s-full"), sh = !fs && box.clientHeight > 0 && box.clientHeight < 400; if (sh !== box.classList.contains("lm-short")) box.classList.toggle("lm-short", sh); }
   function mount(box) {
@@ -288,6 +295,7 @@
       var ov = function (sel) { var e = Dc.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; var b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
       var m = Dc.documentElement.classList.contains("s-full") ? ov(".s-mini") : null; if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
       var x = ov(".s-fullx"); if (x) P.bottom = Math.round(cv.bottom - x.top + 6);
+      if (appFull()) P = { left: APAD.left, right: APAD.right, top: Math.max(P.top, APAD.top), bottom: Math.max(P.bottom, APAD.bottom) };
     } catch (e) {}
     return P;
   }
@@ -423,7 +431,7 @@
   function unhide() { var om = Dc.getElementById("map"); if (om) { om.style.visibility = ""; om.removeAttribute("aria-hidden"); } }
   function drop() { if (S.el) { S.out = true; if (S.ro) { S.ro.disconnect(); S.ro = null; } S.el.remove(); unhide(); } }
   W.ZP_G = {
-    GD: GD, PADB: PADB, tw: tw, bb: bb, cam: cam, proj: proj, place: place, tier: tier, KEY: KEY, KEY_L: KEY_L, guEl: guEl, guLite: guLite, cash: cash, MT: MT, ZOOM: ZOOM, chipHTML: chipHTML, GU_LBL: GU_LBL,
+    GD: GD, PADB: PADB, appFull: appFull, APAD: APAD, tw: tw, bb: bb, cam: cam, proj: proj, place: place, tier: tier, KEY: KEY, KEY_L: KEY_L, guEl: guEl, guLite: guLite, cash: cash, MT: MT, ZOOM: ZOOM, chipHTML: chipHTML, GU_LBL: GU_LBL,
     mount: mount, draw: draw, lite: lite, fade: fade, drop: drop, guCam: guCam, guPad: guPad, zoomGu: zoomGu, dimGu: function () { return S.dim; },
     on: function () { return !!(S.el && S.el.isConnected && !S.out); },
     el: function () { return S.el && S.el.isConnected ? S.el : null; },

@@ -506,3 +506,14 @@
   html.is-tapp.simple.s-view.bs-on #mapTop{display:block!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important}
   html.is-tapp.s-view.bs-on #mapTop>:not(#bSheet){display:none!important}
 }
+@media (max-width:980px){
+  /* 5 '+N곳' 칩: 앱 지도 탭은 숨은 곳 최저가를 보인다('+7곳 · 6,700만~' — 좁은 폰에서 작은 글을 숨기던 웹 규칙을 앱만 되돌림) */
+  html.is-tapp.s-full #mapbox .lm-gumore-b small{display:inline!important}
+  /* 6 구에 들어가면 '경매 물건' 범례가 '← 서울 전체' 막대를 덮던 것 → 구 화면에서는 칩 줄 아래 오른쪽 끝으로 */
+  html.is-tapp.s-full #mapbox[data-view="gu"] #lmAucLg{margin-left:auto;margin-right:28px}
+  /* 12 지도 ⓘ: 44×44 · 그림자 0 1px 3px · 외곽선 i(#4E5968 · 다크 #B0B8C1) */
+  html.is-tapp #mapbox .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show){width:44px!important;height:44px!important;min-height:44px!important;box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 1px var(--t-line)!important}
+  html.is-tapp #mapbox .maplibregl-ctrl-attrib-button{width:44px!important;height:44px!important;background-size:22px 22px!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234E5968' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%234E5968'/%3E%3C/svg%3E")!important}
+}
+@media (max-width:980px) and (prefers-color-scheme:dark){:root:not([data-theme="light"]).is-tapp #mapbox .maplibregl-ctrl-attrib-button{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B0B8C1' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%23B0B8C1'/%3E%3C/svg%3E")!important}}
+@media (max-width:980px){:root[data-theme="dark"].is-tapp #mapbox .maplibregl-ctrl-attrib-button{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B0B8C1' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%23B0B8C1'/%3E%3C/svg%3E")!important}}

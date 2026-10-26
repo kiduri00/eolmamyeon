@@ -412,6 +412,7 @@
         const ov = (sel) => { const e = document.querySelector(sel); if (!e || e.hidden || !e.offsetWidth) return null; const b = e.getBoundingClientRect(); return b.bottom > cv.top && b.top < cv.bottom && b.right > cv.left && b.left < cv.right ? b : null; };
         const m = document.documentElement.classList.contains("s-full") ? ov(".s-mini") : null; if (m && m.width > cv.width * 0.6 && m.top <= cv.top + 40) P.top = Math.round(m.bottom - cv.top + 10);
         const x = ov(".s-fullx"); if (x) P.bottom = Math.round(cv.bottom - x.top + 6);
+        if (window.ZP_G && ZP_G.appFull && ZP_G.appFull()) { const A = ZP_G.APAD; return { left: A.left, right: A.right, top: Math.max(P.top, A.top), bottom: Math.max(P.bottom, A.bottom) }; }   // 4라운드: 앱 지도 탭 첫 카메라 여백(ghost.js padOf와 같은 값)
       } catch (e) {}
       return P;
     }
@@ -761,6 +762,7 @@
         : ([r, s]) => (r.id === sel ? -2e9 : 0) + (mine.has(r.id) ? -1e9 : 0) + (s.st === "ok" ? Math.abs(CASH - s.need) : 1e6 + s.need);
       C.sort((a, b) => rank(a) - rank(b));
       const placed = [], P = new Map(), hid = [];
+      const few = !!gu && document.documentElement.classList.contains("is-tapp") && C.filter(([r, s]) => s.st === "ok" && r.g === gu).length <= 3;
       for (const [r, s] of C) {
         const ll = llOf(r); if (!ll) continue;
         const q = map.project(ll);
@@ -784,6 +786,8 @@
           got = { bx, dx: Math.round(dx), dn }; break;
         }
         if (!got && r.id === sel) got = { bx: [q.x - w / 2, q.y - h, q.x + w / 2, q.y], dx: 0, dn: 0 };
+        // 4라운드(설치 앱): 구 안 갈 수 있는 곳이 3곳 이하면 묶지 않는다 — 양천 3곳에서 9,600만이 '+1'에 숨던 것(겹쳐도 다 보이게 · 아래쪽 후보 먼저)
+        if (!got && cnt1 && gu && few) { const bx = [q.x - w / 2, q.y - 1, q.x + w / 2, q.y + h + 2]; got = { bx, dx: 0, dn: 1 }; }
         if (!got) { if (cnt1) hid.push(q); continue; }
         placed.push(got.bx); P.set(r.id, { r, s, t, fav, nm, nw, sel: r.id === sel, q, more: 0, dx: got.dx, dn: got.dn });
       }
@@ -971,7 +975,7 @@
         });
         $("lmap").appendChild(el);
       }
-      const k = M.L.map((g) => g.n + g.c).join(",");
+      const k = M.L.map((g) => g.n + g.c + ":" + g.m).join(",") + (document.documentElement.classList.contains("s-full") ? "f" : "");
       if (el.dataset.k !== k) {
         el.dataset.k = k;
         el.innerHTML = ZP_G.chipHTML(M.L, M.c);
