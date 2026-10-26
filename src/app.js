@@ -4686,12 +4686,14 @@
       else if (pr.own.length) { pcl = pr.own; pclOther = pr.other; }
       else if (!pr.dong && pcliAdm(pq.dong)) { pclOut = true; pclAdm = true; pcl = []; }
       else { pclOut = true; const dd = pr.dong || pq.dong; pcl = R.filter((r) => !isDone(r) && (!pq.gu || r.g === pq.gu) && String(r.j || "").split(" ")[0] === dd).slice(0, 6); }
+      // 출시 전 검수 B1: 필지 매칭이 없어도 기존 이름·주소 검색에 걸린 곳이 있으면(구역 이름이 '수유동 310-15' 꼴) '구역 밖' 안내 대신 기존 결과 · 이름이 똑같은 곳이 1위
+      if (pclOut && all.some((x) => !jb(x.r))) { pclOut = false; pclAdm = false; pcl = null; }
     }
     const pclIds = new Set((pcl || []).concat(pclOther).map((r) => r.id));
     const hits = (pcl || []).map((r) => ({ r, pcl: true }))
       .concat(pclOther.map((r) => ({ r, pclo: true })))
       .concat(pclOut ? [] : stnZ.map((r) => ({ r, near: true })))
-      .concat(pclOut ? [] : all.filter((x) => !pclIds.has(x.r.id) && !stnSet.has(x.r.id) && !(x.r.src === "moa" && x.r.j && zoneJ.has(pk(x.r)))))
+      .concat(pclOut ? [] : (pq ? all.filter((x) => x.nh === 0).concat(all.filter((x) => x.nh !== 0)) : all).filter((x) => !pclIds.has(x.r.id) && !stnSet.has(x.r.id) && !(x.r.src === "moa" && x.r.j && zoneJ.has(pk(x.r)))))
       .filter((x) => { const k = lk(x.r); if (seenL.has(k)) return false; seenL.add(k); return true; })
       .slice(0, 20);
     sIdx = -1;

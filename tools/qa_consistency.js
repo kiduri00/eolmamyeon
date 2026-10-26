@@ -3576,6 +3576,34 @@ async function tappLane(browser, api, errs) {
     } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
     expect(!R.length, "search.parcel", T, R.join(" ; "));
   }
+  // --- search.names(출시 전 검수 B1 · 웹·앱 공통 검색): 구역 956곳을 각자 이름으로 검색 — 라이브가 찾던 곳은 하나도 빠지지 않음(tools/fixtures/search_names_live.json = 라이브 전수 결과) · 이름이 '동 + 번지' 꼴이어도 '구역 밖' 안내로 가리지 않음 · 이름이 똑같은 곳 1위(수유동 310-15 → s43)
+  {
+    const T = "이름 전수 검색: 라이브가 찾던 구역은 후보도 전부 찾음(사라진 곳 0) · '동+번지' 꼴 이름도 '구역 밖'으로 안 가림 · 이름 같은 곳 1위";
+    const R = []; let n = 0, lost = [];
+    const { ctx, page } = await newPage(browser, { viewport: { width: 1280, height: 900 } }, errs);
+    try {
+      const L = JSON.parse(fs.readFileSync(require("path").join(__dirname, "fixtures", "search_names_live.json"), "utf8")).filter((x) => x.s != null);
+      if (L.length < 800) R.push("기준 자료가 너무 적음 " + L.length);
+      await ctx.addInitScript(() => { try { localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+      await page.goto(BASE + "/", { waitUntil: "load", timeout: 30000 });
+      await page.waitForFunction(() => window.ZP_boot && ZP_boot.hyd === 1, null, { timeout: 30000 }).catch(() => {}); await page.waitForTimeout(1000);
+      for (const x of L) {
+        n++;
+        await page.fill("#q", ""); await page.fill("#q", x.name);
+        const ok = await page.waitForFunction((id) => !!document.querySelector(`#sugg [data-id="${id}"]`), x.id, { timeout: 2000 }).then(() => true).catch(() => false);
+        if (!ok) lost.push(`${x.id} '${x.name}' ${(await page.evaluate(() => document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 40)))}`);
+      }
+      if (lost.length) R.push(`사라진 곳 ${lost.length}: ` + lost.slice(0, 6).join(" ; "));
+      for (const [q, want] of [["수유동 310-15", "s43"], ["창동 608", "s51"], ["중화동324", "o6"], ["무교다동4", "s79"]]) {
+        await page.fill("#q", ""); await page.fill("#q", q); await page.waitForTimeout(1500);
+        const r = await page.evaluate(() => ({ top: (document.querySelector("#sugg [data-id]") || {}).dataset?.id, t: document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 80) }));
+        if (/구역 밖/.test(r.t)) R.push(`${q}: '구역 밖' 안내 ${r.t}`);
+        if (q === "수유동 310-15" && r.top !== want) R.push(`${q} 1위 ${r.top}(${want})`);
+        else if (!(await page.$(`#sugg [data-id="${want}"]`))) R.push(`${q}: ${want} 없음`);
+      }
+    } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    expect(!R.length, "search.names", T, `${n}곳 · ` + R.join(" ; "));
+  }
   // --- moa.rows(6라운드 1 · 웹): 모아타운 관리지역(m1~m140) 하위 행 전부 — 행 값 = 그 구역 시트 '지금 필요한 돈' = 정적 /z 같은 칸(전수 · 0 불일치) · 입주권 없는 행은 '계산 보류' + '입주권 원칙적으로 없음 · 예외 매물만'
   {
     const T = "모아타운 하위 행 값 = 시트 '지금 필요한 돈' = 정적 /z(전수) · 입주권 없는 행은 '계산 보류'·'원칙적으로 없음'(웹)";
