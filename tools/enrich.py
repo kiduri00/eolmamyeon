@@ -15,6 +15,10 @@ D = json.loads(_s)
 from junk import is_junk   # 시험 등록(이름이 'test'·'테스트'·'임시'뿐) 제외 — 화면·정적 페이지·API 모두 이 파일을 쓴다
 _JUNK = {r['id'] for r in D['recs'] if is_junk(r)}
 D['recs'] = [r for r in D['recs'] if r['id'] not in _JUNK]; R = D['recs']
+# after-adsense 4: 원자료 이름에 '-'가 '대시'로 적힌 것(o734 '사당동 206대시 1번지 일원') → 지번 '206-1'
+import re as _re_n
+for _r in R:
+    if isinstance(_r.get('n'), str) and '대시' in _r['n']: _r['n'] = _re_n.sub(r'(\d)\s*대시\s*(\d)', r'\1-\2', _r['n'])
 # 같은 곳이 두 자료에 따로 실린 것(짧은 이름 + 지번이 같음: 행당동 300-1 s41/s42 · 문래국화 o288/o289) → 더 많이 아는 쪽 하나만.
 # 버린 id는 D['alias'](버린 id → 남긴 id)로 남겨 옛 링크·핀·/z 페이지가 남긴 구역으로 간다(zpages.py가 옮김 페이지를 만든다).
 from zsample import short0 as _short0
