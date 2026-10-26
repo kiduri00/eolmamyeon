@@ -657,7 +657,7 @@ const tcssOn = () => [...document.styleSheets].some((x) => x.href && /\/b\/t\.[0
 function early() {
   if (early.d) return; early.d = 1;
   T(homeBuild); T(navBuild);
-  H.classList.remove("tapp-wait");
+  H.classList.remove("tapp-wait"); H.classList.add("tapp-early");   // 앱 첫 화면 골격(아이콘·배너·5탭)이 그려짐 — 덮개를 먼저 걷어도 웹 머리·4탭이 아니라 이 골격이 보인다
   setTimeout(() => T(() => window.ZP_cover && window.ZP_cover()), 8000);   // 6라운드: 홈 골격을 그린 뒤 덮개 상한 8초
 }
 // 5라운드(주인 요청 A): 시작 덮개(스플래시와 같은 남색 · shell.html 머리)는 첫 무거운 작업(앱 코드 평가 · 첫 plan()·홈 그리기 · 그 뒤 첫 긴 작업)이 끝날 때까지 —

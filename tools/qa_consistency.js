@@ -3551,12 +3551,93 @@ async function tappLane(browser, api, errs) {
       if (pcliReq.length) R.push("첫 화면에서 색인 받음 " + pcliReq.join(","));
       const run = async (q) => { await page.evaluate((q) => { const i = document.getElementById("q"); i.value = q; i.dispatchEvent(new Event("input", { bubbles: true })); }, q); await page.waitForTimeout(700); await page.waitForFunction(() => !document.getElementById("sugg").hidden, null, { timeout: 4000 }).catch(() => {}); await page.waitForTimeout(500); return page.evaluate(() => ({ ids: [...document.querySelectorAll("#sugg [data-id],#sugg [data-stn],#sugg [data-gu]")].slice(0, 6).map((b) => b.dataset.id || "S:" + (b.dataset.stn || b.dataset.gu)), t: document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 200) })); };
       for (const [q, want] of [["면목동 86-15", "o58"], ["면목동86-15", "o58"], ["중랑구 면목동 86-15", "o58"], ["행당동 128-417", "o498"], ["신림동 412-88", "o960"], ["성수동2가 344-7", "o509"], ["한남동 647-10번지", "o151"], ["개봉동 270-13", "m46"]]) { const r = await run(q); if (r.ids[0] !== want || !/안 필지/.test(r.t)) R.push(`${q} → ${r.ids[0]}(${want}) ${r.t.slice(0, 60)}`); }
+      // 6라운드: 표기 변형(서울·서울특별시·붙여 쓰기·전각/엔대시·N번지 M·N번지M호·N의M·'한강로 3가'·성수2가) · 행정동 → 법정동 · 압구정동(구 이름 오인 없음) · 묶음 머리 줄
+      for (const [q, want, hd] of [["서울 중랑구 면목동 86-15", "o58"], ["서울특별시 중랑구 면목동 86-15", "o58"], ["중랑구면목동86-15", "o58"], ["면목동 86－15", "o58"], ["면목동 86–15", "o58"], ["면목동 86번지 15", "o58"], ["면목동 86번지15호", "o58"], ["면목동 86의15", "o58"], ["면목본동 86-15", "o58", /법정동/], ["면목2동 86-15", "o58", /법정동/], ["한강로 3가 40-10", "o159"], ["압구정동 480", null, /압구정동 480번지 →/], ["자양동 799", "m78", /다른 검색 결과/]]) {
+        const r = await run(q); const top = r.ids[0];
+        if ((want && top !== want) || (hd && !hd.test(r.t)) || /정동 480 ·/.test(r.t)) R.push(`변형 ${q} → ${top}(${want}) ${r.t.slice(0, 70)}`);
+      }
+      { const r = await run("성수2가 300"); if (!/성수동2가/.test(r.t)) R.push("성수2가 → 성수동2가 " + r.t.slice(0, 60)); }
+      { const r = await run("면목3동 99999"); if (!/구역 밖|법정동 이름/.test(r.t)) R.push("행정동 구역 밖 " + r.t.slice(0, 60)); }
       for (const q of ["면목동 700", "행당동 1", "신림동 1-1"]) { const r = await run(q); if (!/구역 밖/.test(r.t)) R.push(`${q} 구역 밖 안내 없음: ${r.t.slice(0, 80)}`); }
+      // 6라운드: 전수 — 필지 자료가 있는 모든 구역(739곳)마다 그 구역에만 든 필지 하나를 검색하면 그 구역이 1위(모아타운 관리지역은 그 안 사업구역이 먼저 나와도 같은 묶음이면 통과)
+      { const P = require("path"), dir = P.join(__dirname, "..", "public", "pcli"), byz = {};
+        for (const f of fs.readdirSync(dir).filter((x) => /\.json$/.test(x)).sort()) { const J = JSON.parse(fs.readFileSync(P.join(dir, f), "utf8")); for (const d of Object.keys(J).sort()) for (const k of Object.keys(J[d]).sort()) { const v = J[d][k]; if (typeof v === "string" && !byz[v] && !/^산/.test(k) && /-/.test(k)) byz[v] = [d, k]; } }
+        const ent = Object.entries(byz); let ok = 0; const bad = [];
+        for (const [id, [d, k]] of ent) {
+          let r = await page.evaluate((q) => { const i = document.getElementById("q"); i.value = q; i.dispatchEvent(new Event("input", { bubbles: true })); return new Promise((res) => setTimeout(() => res([...document.querySelectorAll("#sugg [data-id]")].slice(0, 4).map((b) => b.dataset.id).concat([document.getElementById("sugg").innerText.slice(0, 60)])), 260)); }, `${d} ${k}`);
+          if (r[0] !== id && !(r.indexOf(id) > 0 && /^m/.test(id))) { await page.waitForTimeout(600); r = await page.evaluate(() => [...document.querySelectorAll("#sugg [data-id]")].slice(0, 4).map((b) => b.dataset.id)); }
+          if (r[0] === id || (/^m/.test(id) && r.slice(0, 3).includes(id))) ok++; else bad.push(`${id} ${d} ${k}→${r[0]}`);
+        }
+        if (bad.length || ent.length < 650) R.push(`전수 ${ok}/${ent.length} ` + bad.slice(0, 5).join(","));
+      }
       let base = null; try { base = JSON.parse(fs.readFileSync(require("path").join(__dirname, "fixtures", "search_base.json"), "utf8")); } catch (e) {}
       if (base) for (const q of Object.keys(base)) { const r = await run(q); if (JSON.stringify(r.ids) !== JSON.stringify(base[q])) R.push(`회귀 ${q}: ${base[q].join(",")} → ${r.ids.join(",")}`); }
       else R.push("search_base.json 없음");
     } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
     expect(!R.length, "search.parcel", T, R.join(" ; "));
+  }
+  // --- moa.rows(6라운드 1 · 웹): 모아타운 관리지역(m1~m140) 하위 행 전부 — 행 값 = 그 구역 시트 '지금 필요한 돈' = 정적 /z 같은 칸(전수 · 0 불일치) · 입주권 없는 행은 '계산 보류' + '입주권 원칙적으로 없음 · 예외 매물만'
+  {
+    const T = "모아타운 하위 행 값 = 시트 '지금 필요한 돈' = 정적 /z(전수) · 입주권 없는 행은 '계산 보류'·'원칙적으로 없음'(웹)";
+    const R = []; let nRow = 0;
+    const { ctx, page } = await newPage(browser, mob(390, 844), errs);
+    try {
+      await ctx.addInitScript(() => { try { localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+      await page.goto(BASE + "/", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(3000);
+      const rows = {};
+      for (let i = 1; i <= 140; i++) {
+        await page.evaluate((m) => { location.hash = m; }, "m" + i); await page.waitForTimeout(380);
+        const r = await page.evaluate(() => [...document.querySelectorAll("#report .dt-kid")].map((x) => [x.dataset.go, x.querySelector(".dt-kv b").textContent.trim(), (x.querySelector(".dt-kv small") || {}).textContent || ""]));
+        r.forEach((x) => { rows[x[0]] = rows[x[0]] || x; });
+        await page.evaluate(() => history.back()); await page.waitForTimeout(150);
+      }
+      for (const [id, v, sub] of Object.values(rows)) {
+        if (v === "입주 완료") continue;
+        nRow++;
+        await page.evaluate((id) => { location.hash = id; }, id); await page.waitForTimeout(450);
+        const sv = await page.evaluate(() => { const b = document.querySelector('#report [data-k="now"] .dt-v'); return b ? b.textContent.trim() : null; });
+        await page.evaluate(() => history.back()); await page.waitForTimeout(150);
+        const z = await getPage("/z/" + id); let zv = null;
+        if (z.status === 200) { const t = String(z.text).slice(String(z.text).indexOf("<body")).replace(/<[^>]+>/g, " | ").replace(/(\s*\|\s*)+/g, " | "); const m = / \| 지금 필요한 돈 \| ([^|]+?) \|/.exec(t); zv = m ? m[1].trim() : null; }
+        if (sv !== v || (zv != null && zv !== v)) R.push(`${id}: 행 ${v} · 시트 ${sv} · /z ${zv}`);
+        if (v === "계산 보류" && /입주권/.test(sub) && !/원칙적으로 없음/.test(sub)) R.push(`${id}: 보조 줄 ${sub}`);
+        if (/일반 매매/.test(v)) R.push(`${id}: 일반 매매 값`);
+      }
+    } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
+    expect(!R.length && nRow > 50, "moa.rows", T, `${nRow}행 · ` + R.slice(0, 6).join(" ; "));
+  }
+  // --- tapp.coverSafe(6라운드 5): 덮개 안전장치 — 덮개가 있는 동안 아래로 터치가 새지 않음(pointer-events) · 앱 코드(a.js) 실패 → 바로 걷고 웹 머리·4탭 숨김 · 느린 앱 코드(11초) → 10초 안내 한 줄 · 배너 자동 넘김은 덮개를 걷은 뒤
+  {
+    const T = "설치 앱 덮개 안전장치: 덮개 동안 터치 막힘 · 앱 코드 실패 땐 바로 걷고 웹 머리·4탭 숨김 · 10초 넘으면 안내 한 줄 · 배너 자동 넘김은 걷은 뒤";
+    const R = [];
+    const twaPage = async () => { const r = await newPage(browser, mob(390, 844), []); await r.ctx.addInitScript(TWA); await r.ctx.addInitScript(() => { try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} }); return r; };   // 일부러 막는 요청의 콘솔 오류는 전체 오류 검사(err.console)에 넣지 않는다
+    { const { ctx, page } = await twaPage(); try {
+      await ctx.route(/\/b\/t\.[0-9a-f]+\.(js|css)/, (q) => setTimeout(() => q.continue().catch(() => {}), 11500));
+      await page.goto(BASE + "/?src=app", { waitUntil: "commit", timeout: 30000 }); await page.waitForTimeout(1500);
+      const pe = await page.evaluate(() => getComputedStyle(document.documentElement, "::after").pointerEvents);
+      if (pe !== "auto") R.push("덮개 pointer-events " + pe);
+      await page.waitForTimeout(9200);
+      const m = await page.evaluate(() => { const e = document.getElementById("tcMsg"); return e ? [e.textContent, getComputedStyle(e).display, document.documentElement.classList.contains("tapp-slow")] : null; });
+      if (!m || !/처음 실행이라/.test(m[0]) || m[1] === "none" || !m[2]) R.push("10초 안내 " + JSON.stringify(m));
+      await page.waitForFunction(() => !document.documentElement.classList.contains("tapp-cover"), null, { timeout: 25000 }).catch(() => {});
+      await page.waitForTimeout(1500);
+      const o = await page.evaluate(() => ({ on: document.documentElement.classList.contains("tapp-on"), msg: !!document.getElementById("tcMsg") && getComputedStyle(document.getElementById("tcMsg")).display !== "none" }));
+      if (!o.on || o.msg) R.push("느린 앱 묶음 뒤 " + JSON.stringify(o));
+    } catch (er) { R.push("slow crash"); } finally { await ctx.close().catch(() => {}); } }
+    { const { ctx, page } = await twaPage(); try {
+      await ctx.route(/\/b\/t\.[0-9a-f]+\.js/, (q) => q.abort());
+      await page.goto(BASE + "/?src=app", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(2500);
+      const o = await page.evaluate(() => ({ cov: document.documentElement.classList.contains("tapp-cover"), bare: document.documentElement.classList.contains("tapp-bare"), hdr: getComputedStyle(document.getElementById("hdr")).visibility, nav: getComputedStyle(document.getElementById("sNav")).visibility }));
+      if (o.cov || !o.bare || o.hdr !== "hidden" || o.nav !== "hidden") R.push("앱 묶음 실패 " + JSON.stringify(o));
+    } catch (er) { R.push("t fail crash"); } finally { await ctx.close().catch(() => {}); } }
+    { const { ctx, page } = await twaPage(); try {
+      await ctx.route(/\/b\/a\.[0-9a-f]+\.js/, (q) => q.abort());
+      await page.goto(BASE + "/?src=app", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(2500);
+      const o = await page.evaluate(() => ({ cov: document.documentElement.classList.contains("tapp-cover"), hdr: getComputedStyle(document.getElementById("hdr")).visibility, nav: document.querySelectorAll("#sNav [data-nav]").length, navV: getComputedStyle(document.getElementById("sNav")).visibility }));
+      if (o.cov || !(o.hdr === "hidden" || o.nav === 5)) R.push("앱 코드 실패 " + JSON.stringify(o));
+    } catch (er) { R.push("a fail crash"); } finally { await ctx.close().catch(() => {}); } }
+    try { const sh = String((await get(BASE + "/")).text || ""); if (!/prefers-reduced-motion:reduce\)\{html\.tapp-cover\.tapp-slow::before\{animation:none/.test(sh)) R.push("진행 링 움직임 줄이기 없음"); if (!/setTimeout\(window\.ZP_cover,25000\)/.test(sh)) R.push("전체 상한 25초 아님"); } catch (e) {}
+    expect(!R.length, "tapp.coverSafe", T, R.join(" ; "));
   }
   // --- tapp.files(19·20): SW 미리 저장에서 앱 묶음(/b/t.*) 빼기 · assetlinks.json(JSON · TODO 없음 · 패키지 이름 · SHA-256 지문)
   {

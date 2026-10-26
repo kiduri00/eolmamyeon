@@ -595,3 +595,5 @@ html.is-tapp.t-big .dt-kn{white-space:normal;word-break:keep-all;overflow-wrap:b
 html.is-tapp.t-big .dt-kv{align-items:flex-start;text-align:left}
 /* 9 지도 탭 묶음: 높이 36 한 가지 · 좁은 자리용(tt)은 글씨는 같고 여백만 좁게 · 폭은 자리 잡기 값 그대로(실제 글자 폭이 어림보다 넓어 이웃과 0~3px로 붙던 것) */
 @media (max-width:980px){html.is-tapp.s-full .zgu{width:var(--w)!important;min-width:0!important;padding:0 6px!important;overflow:hidden}html.is-tapp.s-full .zgu.tt{padding:0 3px!important}html.is-tapp.s-full .zgu b,html.is-tapp.s-full .zgu span{white-space:nowrap}}
+/* 4 큰 글씨: 검색 결과 머리 줄(x-h)·구역 밖 안내는 줄바꿈(…구역 밖이( 로 잘리던 것) */
+html.is-tapp.t-big #sugg .x-h,html.is-tapp.t-big #sugg .s-none{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;height:auto!important;word-break:keep-all}
