@@ -148,3 +148,9 @@ html.simple #report #pane .sect.toh>h3,html.simple #report #pane .sect.acheck>h3
 .dt-kv small{font-size:12px;font-weight:500;line-height:16px;color:var(--text-2)}
 .dt-kc{grid-area:c;color:#B0B8C1}
 .dt-ref{margin:8px 0 0;color:var(--text-3);font-size:12px;line-height:16px}
+/* 6라운드: 하위 행 이름은 다 보이게(이름 칸 = 글자 폭) · 값 칸 보조 줄('입주권 원칙적으로 없음 · 예외 매물만')은 남는 폭에서 낱말 단위로 줄바꿈 */
+.dt-kid{grid-template-columns:max-content minmax(0,1fr) 20px}
+.dt-kn{overflow:visible;text-overflow:clip}
+.dt-kv{min-width:0;white-space:normal;text-align:right}
+.dt-kv b{white-space:nowrap}
+.dt-kv small{word-break:keep-all;overflow-wrap:break-word}

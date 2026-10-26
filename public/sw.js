@@ -1,7 +1,7 @@
 /* 집핀 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "ab9def18"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "cce9c100"; // tools/build.py가 빌드 해시로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
 const TILE = "eolma-tile-" + V;
@@ -162,9 +162,7 @@ self.addEventListener("notificationclick", (e) => {
     if (/\/admin(\.html)?$/.test(new URL(url).pathname)) { const a = cs.find((x) => /\/admin(\.html)?$/.test(new URL(x.url).pathname)); if (a) { try { await a.focus(); } catch (_) {} return; } await self.clients.openWindow(url); return; }
     const c = cs.find((x) => new URL(x.url).origin === self.location.origin && new URL(x.url).pathname === "/") || null;
     if (c) { try { await c.focus(); } catch (_) {} c.postMessage({ t: "zp-open", url }); return; }
-    // 첫 화면 말고 다른 페이지(/z·리포트…)를 연 창이 있으면 그 창(설치 앱이면 앱 안)을 앞으로 가져와 그 주소로 — 새 브라우저 창을 띄우지 않는다
-    const o = cs.find((x) => new URL(x.url).origin === self.location.origin && "navigate" in x) || null;
-    if (o) { try { await o.focus(); } catch (_) {} try { await o.navigate(url); return; } catch (_) {} }
+    // 6라운드: 첫 화면 말고 다른 페이지 창을 그 주소로 옮기던 것(navigate)은 뺌 — 그 창이 앱인지 브라우저 탭인지 서비스 워커가 알 수 없어(정적 페이지는 답할 코드가 없음) 브라우저 탭을 옮길 수 있었다 · 라이브와 같이 새 창
     await self.clients.openWindow(url);
   })());
 });

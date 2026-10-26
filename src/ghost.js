@@ -125,7 +125,7 @@
     var ANG = (phone ? [0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15].map(function (k) { return (k * Math.PI) / 8 + Math.PI / 2; }) : [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return (k * Math.PI) / 4 + Math.PI / 2; }));
     // 폰: 맨 아래 20px 띠에는 묶음을 두지 않는다(범례·ⓘ는 따로 피함 · 20차)
     var bot = phone ? 20 : 2, EX = phone && appFull() ? 8 : 2, AF36 = phone && appFull();   // 4라운드: 앱 지도 탭은 묶음이 화면 가장자리 8px 안으로(양천 묶음이 왼쪽 끝 2px에 반쯤 잘려 보이던 것)
-    var GAP = 6, MAXOFF = 48, MAXOFF2 = 72, MK = 1.0;   // 7차: 폰은 제 구 중심에서 48px 안 · 다른 구 중심보다 가깝지 않은 자리만(130px·2.5배로 풀었더니 마포 묶음이 강서 땅에 서던 것) · 묶음 사이 실제 2px 넘게(어림 폭보다 글자가 조금 넓어 4px 띄움이 1px로 닿던 것)
+    var GAP = AF36 ? 4 : 6, MAXOFF = 48, MAXOFF2 = 72, MK = 1.0;   // 7차: 폰은 제 구 중심에서 48px 안 · 다른 구 중심보다 가깝지 않은 자리만(130px·2.5배로 풀었더니 마포 묶음이 강서 땅에 서던 것) · 묶음 사이 실제 2px 넘게(어림 폭보다 글자가 조금 넓어 4px 띄움이 1px로 닿던 것)
     // 30차: 비킨 자리가 다른 구 중심에 더 가까우면(그 구 땅 위로 넘어가면) 쓰지 않는다 — 360에서 서대문 묶음이 동대문 남쪽에 서던 것
     var ANC = o.gus.map(function (g) { return { n: g.n, q: o.proj(g.ll) }; });
     var mine = function (g, x, y) { var d0 = Math.hypot(x - g.q0.x, y - g.q0.y); return ANC.every(function (a) { return a.n === g.n || d0 <= Math.hypot(x - a.q.x, y - a.q.y) * MK + 10; }); };
@@ -155,16 +155,16 @@
         var ck = g.n + "|" + l1 + "|" + l2; if (CC.m[ck]) return CC.m[ck];   // 8차: 같은 카메라·같은 글자면 지난 후보 그대로(끄는 동안 다시 만들지 않음)
         var C = [], b0 = [q.x - 30, q.y - 20, q.x + 30, q.y + 20], lim = phone && (b0[1] < 2 || obs.some(function (o2) { return hit(o2, b0); })) ? MAXOFF2 : MAXOFF;   // 8차: 구 중심이 띠·버튼 밑이면 72px까지
         // 23차: 좁은 폰(380px 아래)은 칩으로 보내기 전에 한 줄('영등포 7곳') 작은 묶음으로 한 번 더(s = 2)
-        for (var s = 0; s < (phone || w < 380 ? 3 : 2); s++) {
+        for (var s = 0; s < (AF36 ? 2 : phone || w < 380 ? 3 : 2); s++) {   /* 6라운드: 앱 지도 탭은 높이 36 한 가지 — 둘째 단계는 작은 글씨(40 칸) 대신 같은 글씨에 좁은 여백(tt) */
           // 21차: 둥근 네모 두 줄('강북 1곳' / '7,400만~') — 폭 = 글자 폭 + 여백, 높이 40(누르는 자리 · 작게 줄인 것은 보이는 30 + 투명 둘레로 40)
           // 27차: 셋째 단계도 금액 줄('6,700만~')을 지운 한 줄이 아니라 더 작은 두 줄(xs · 보이는 높이 26) — 높은 금액에서 구 묶음 금액 줄이 빠지던 것
-          var xs = s === 2, one = false, L2 = l2, sm = s >= 1, bw = Math.ceil((xs ? Math.max(tw(l1, 11), tw(L2, 11)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 11)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 11)) + 18) * 1.04), bh = xs ? (L2 ? 28 : 20) : sm ? (L2 ? 32 : 22) : AF36 ? 36 : 40, d = Math.max(bw, bh);   // 5라운드: 앱 지도 탭 큰 묶음 36(서울을 더 크게 · 묶음 줄임)
+          var tt = AF36 && s === 1, xs = s === 2, one = false, L2 = l2, sm = s >= 1 && !tt, bw = tt ? Math.ceil((Math.max(tw(l1, 12.5), tw(L2, 11)) + 8) * 1.06) : Math.ceil((xs ? Math.max(tw(l1, 11), tw(L2, 11)) + 8 : sm ? Math.max(tw(l1, 11), tw(L2, 11)) + 12 : Math.max(tw(l1, 12.5), tw(L2, 11)) + 18) * (AF36 ? 1.06 : 1.04)), bh = xs ? (L2 ? 28 : 20) : sm ? (L2 ? 32 : 22) : AF36 ? 36 : 40, d = Math.max(bw, bh);   // 5라운드: 앱 지도 탭 큰 묶음 36(서울을 더 크게 · 묶음 줄임)
           var RR = (phone ? [0, d * 0.45, d * 0.75, d * 1.05, 16, 32, 48, 60, 72] : sm ? [0, d * 0.45, d * 0.75, d * 1.05, d * 1.4, d * 1.8] : [0, d * 0.45, d * 0.75, d * 1.05]).filter(function (r) { return !phone || r <= lim; }).sort(function (a, b) { return a - b; });   // 8차: 폰은 16px 걸음(다른 구 땅 검사가 생겨 좁은 걸음이 안전)   // 30차: 폰은 제 구 중심에서 MAXOFF px 안에서만 비킨다(못 비키면 '+N곳' 칩으로)
           for (var i = 0; i < RR.length; i++) {
             var A = RR[i] ? ANG : [0];
             for (var j = 0; j < A.length; j++) {
               var x = q.x + RR[i] * Math.cos(A[j]), y = q.y + RR[i] * Math.sin(A[j]) * (bh / d), bx = [x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2];
-              if (inb(bx, sm ? (40 - bh) / 2 : 0)) C.push({ bx: bx, w: bw, h: bh, sm: sm, xs: xs, one: one, dx: x - q.x, dy: y - q.y, n: g.n, x: x, y: y, q: q, pc: phone && RR[i] ? (RR[i] > MAXOFF ? 2 : 1) : 0 });   // 구 땅 검사(pc)는 고를 때만(ok)
+              if (inb(bx, sm ? (40 - bh) / 2 : 0)) C.push({ bx: bx, w: bw, h: bh, sm: sm, xs: xs, tt: tt, one: one, dx: x - q.x, dy: y - q.y, n: g.n, x: x, y: y, q: q, pc: phone && RR[i] ? (RR[i] > MAXOFF ? 2 : 1) : 0 });   // 구 땅 검사(pc)는 고를 때만(ok)
             }
           }
         }
@@ -173,7 +173,7 @@
         return C;
       };
       var ok = function (c) { if (!c.pc) return true; if (c.ok == null) c.ok = (c.pc === 2 || mine({ n: c.n, q0: c.q }, c.x, c.y)) && okAt(c.n, c.x, c.y, c.pc === 2); return c.ok; };   // 폰 비킨 자리: 제 구 중심이 가장 가까움(48px 안) · 구 땅 검사
-      var put = function (g, got) { g.l2 = got.one ? "" : g.l2o; g.w = Math.ceil(got.w); g.h = got.h; g.sm = got.sm; g.xs = got.xs; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy); };
+      var put = function (g, got) { g.l2 = got.one ? "" : g.l2o; g.w = Math.ceil(got.w); g.h = got.h; g.sm = got.sm; g.xs = got.xs; g.tt = got.tt; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy); };
       L.forEach(function (g0) {
         if (!g0.c) return;
         if (only && !only[g0.n]) return;
@@ -228,7 +228,7 @@
   var GU_LBL = function (n, c, m) { return n + ", 내 돈으로 갈 수 있는 곳 " + fmt(c) + "곳" + (m != null ? ", 가장 적게 드는 곳 " + cash(m) : "") + ", 눌러서 " + n + " 보기"; };
   // 구 묶음 한 개의 마크업(실제 지도 gusSet도 이 함수) — 두 줄: '강북 1곳' / '7,400만~'
   function guEl(el, g) {
-    el.className = "zgu t" + g.t + (g.sm ? " sm" : "") + (g.xs ? " xs" : "") + (g.l2 ? "" : " one");
+    el.className = "zgu t" + g.t + (g.sm ? " sm" : "") + (g.xs ? " xs" : "") + (g.tt ? " tt" : "") + (g.l2 ? "" : " one");
     el.dataset.n = String(g.c); el.dataset.gu = g.n;
     el.style.setProperty("--w", g.w + "px"); el.style.setProperty("--h", g.h + "px");
     el.innerHTML = "<b>" + esc(g.l1) + "</b>" + (g.l2 ? "<span>" + esc(g.l2) + "</span>" : "");
@@ -238,7 +238,7 @@
   var S = { el: null, box: null, st: null, tap: null, ro: null, last: null, out: false, dim: null };
   // 4라운드: 설치 앱 지도 탭(폰 · 화면 가득 지도) — 첫 카메라·묶음 가장자리·'+N곳' 최저가를 앱만 따로(웹 지도 픽셀 그대로)
   var appFull = function () { var c = Dc.documentElement.classList; return c.contains("is-tapp") && c.contains("s-full") && phoneQ(); };
-  var APAD = { left: 16, right: 32, top: 150, bottom: 130 };   // 5라운드: 200·170·56 → 150·130·32(서울을 더 크게 · 묶음 줄임)
+  var APAD = { left: 26, right: 32, top: 150, bottom: 130 };   /* 6라운드: 서쪽 +10(강서 끝 잘림) */   // 5라운드: 200·170·56 → 150·130·32(서울을 더 크게 · 묶음 줄임)
   var phoneQ = function () { try { return matchMedia("(max-width:980px)").matches; } catch (e) { return true; } };
   function short(box) { var fs = Dc.documentElement.classList.contains("s-full"), sh = !fs && box.clientHeight > 0 && box.clientHeight < 400; if (sh !== box.classList.contains("lm-short")) box.classList.toggle("lm-short", sh); }
   function mount(box) {

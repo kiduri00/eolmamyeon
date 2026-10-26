@@ -342,6 +342,8 @@ function carBind() {
   try { new IntersectionObserver((es) => es.forEach((x) => { vis = x.isIntersecting; }), { threshold: 0.6 }).observe(tr); } catch (e) {}
   clearInterval(carT);
   carT = setInterval(() => {
+    // 6라운드: 배너 자동 넘김은 시작 덮개를 걷고 5초 뒤부터(덮개 아래에서 돌던 것)
+    if (H.classList.contains("tapp-cover") || !window.ZP_coverAt || Date.now() - window.ZP_coverAt < 5000) return;
     if (carPause || !vis || document.hidden || H.classList.contains("s-view") || H.classList.contains("s-full") || H.classList.contains("tob-on") || Date.now() - carTouch < 8000) return;
     if (tr.contains(document.activeElement)) return;
     const i = (idx() + 1) % N;
@@ -656,6 +658,7 @@ function early() {
   if (early.d) return; early.d = 1;
   T(homeBuild); T(navBuild);
   H.classList.remove("tapp-wait");
+  setTimeout(() => T(() => window.ZP_cover && window.ZP_cover()), 8000);   // 6라운드: 홈 골격을 그린 뒤 덮개 상한 8초
 }
 // 5라운드(주인 요청 A): 시작 덮개(스플래시와 같은 남색 · shell.html 머리)는 첫 무거운 작업(앱 코드 평가 · 첫 plan()·홈 그리기 · 그 뒤 첫 긴 작업)이 끝날 때까지 —
 // 'zp:booted'(app.js boot 끝) 뒤 긴 작업 없이 250ms가 지나면 걷는다(0.28초 페이드) · 앱 홈이 준비된 뒤 2.5초가 상한
@@ -686,6 +689,7 @@ function bigCheck() {
 }
 function start() {
   if (start.d) return; start.d = 1;
+  H.classList.remove("tapp-bare");   // 덮개가 먼저 걷혀 웹 머리·4탭을 숨겨 두었으면(전체 상한) 앱이 붙는 지금 푼다
   setInterval(() => T(bigCheck), 1000); T(bigCheck);
   coverWatch();
   setInterval(() => T(chipLift), 400);

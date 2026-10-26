@@ -966,6 +966,9 @@
     function guMoreDraw() {
       let el = $("lmGuMore");
       const M = GUMORE;
+      // 6라운드(설치 앱 지도 탭): 카메라가 움직이는 동안(금액·방식을 바꿔 다시 맞추는 0.7초)은 칩을 숨기고 멈춘 뒤 한 번만 센다 — '+13곳'이 '+16곳'으로 바뀌어 보이던 것
+      if (el && map && document.documentElement.classList.contains("is-tapp") && document.documentElement.classList.contains("s-full") && map.isMoving()) { el.style.visibility = "hidden"; map.once("moveend", () => setTimeout(() => { el.style.visibility = ""; layout(); }, 40)); return; }
+      if (el && el.style.visibility) el.style.visibility = "";
       if (!M.c || !lastCity || mapView === "gu" || gu) { if (el) { el.hidden = true; el.classList.remove("open"); } return; }
       if (!el) {
         el = document.createElement("div"); el.id = "lmGuMore"; el.className = "lm-gumore";
@@ -1009,7 +1012,7 @@
           p = { el, key: "", mk: new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(g.ll).addTo(map) };
           GUS.set(n, p);
         }
-        const key = [g.c, g.m, g.t, g.w, g.h, g.dx, g.dy, g.sm].join("|");
+        const key = [g.c, g.m, g.t, g.w, g.h, g.dx, g.dy, g.sm, g.tt].join("|");
         if (p.key === key) return;
         p.key = key;
         p.mk.setOffset([g.dx || 0, g.dy || 0]);

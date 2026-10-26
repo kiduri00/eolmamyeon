@@ -75,7 +75,8 @@
         // 확장 모듈 init(setTimeout 0)들이 먼저 돌고 난 다음
         setTimeout(function () { requestAnimationFrame(function () { try { performance.mark("zp-hyd"); } catch (e) {} B.hyd = 1; H.classList.remove("zp-wait"); try { W.dispatchEvent(new Event("zp:hydrated")); } catch (e) {} setTimeout(B.font, 300); }); }, 60);
       };
-      a.onerror = function () { B.st = 0; H.classList.remove("zp-wait"); };
+      a.onerror = function () { B.st = 0; H.classList.remove("zp-wait"); try { W.ZP_cover && W.ZP_cover(); } catch (e) {} };   // 6라운드: 앱 코드를 못 받으면 설치 앱 시작 덮개도 바로 걷음
+      ds.forEach(function (x) { x.onerror = function () { try { W.ZP_cover && W.ZP_cover(); } catch (e) {} }; });
       ds.forEach(function (x) { document.body.appendChild(x); }); document.body.appendChild(a);
     };
     // 전체 CSS가 먼저 붙어야 앱이 만드는 요소(탭바·타일 등)가 맨몸으로 보이지 않는다

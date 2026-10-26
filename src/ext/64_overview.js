@@ -281,7 +281,7 @@ const OVX = (() => {
       if (ma != null && ma > 6) why.push("마지막 거래 6개월 넘음");
     }
     const [lv, cls] = low ? ["낮음", "lo"] : why.length ? ["보통", "md"] : ["높음", "hi"];
-    const rows = [["매수가 표본", n ? `${nearL}${n}건` : "–"], [nearL ? "표본 마지막 거래" : "마지막 거래", last ? esc(last) : "–"], ...(en.p25 && en.p75 && en.p75 > en.p25 ? [["가운데 50%", `${eok(en.p25)}~${eok(en.p75)}`]] : []), ...n12];
+    const rows = [["매수가 표본", n ? `${nearL}${n}건` : "–"], [nearL ? "표본 마지막 거래" : "마지막 거래", last ? esc(document.documentElement.classList.contains("is-tapp") && /^\d\d\.\d\d(\.\d\d)?$/.test(last) ? last.replace(/^(\d\d)\.(\d\d)(?:\.(\d\d))?$/, (m, y, a, b) => `20${y}.${+a}${b ? "." + +b : ""}`) : last) : "–"], ...(en.p25 && en.p75 && en.p75 > en.p25 ? [["가운데 50%", `${eok(en.p25)}~${eok(en.p75)}`]] : []), ...n12];
     return H(lv, cls, rows, why.length ? why.join(" · ") + (low ? " · 계약 전 매물 시세로 꼭 확인" : "") : "구역 안 최근 거래가 충분해요");
   }
   function txHTML(t, r, d) {

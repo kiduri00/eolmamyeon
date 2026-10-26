@@ -588,3 +588,10 @@ html.is-tapp #report.sheet,html.is-tapp .bsheet .bs-card,html.is-tapp .lm-gumore
 @media (max-width:980px){html.is-tapp:not(.t-big) #tHome .th-car{margin-bottom:-6px}}
 /* 12 홈 카드 'N억 → M곳'의 → : 흰 원(누르는 버튼처럼 보이던 것) 없이 글자만 */
 @media (max-width:980px){html.is-tapp.simple:not(.s-view):not(.s-full) #sGauge .s-arrow{background:none!important;box-shadow:none!important;border:0!important}}
+/* ===================== 6라운드 ===================== */
+/* 큰 글씨(설치 앱 html.is-tapp.t-big)에서는 단계 칩·값·보조 줄을 이름 아래 줄로(겹침 없이) */
+html.is-tapp.t-big .dt-kid{grid-template-columns:minmax(0,1fr) 20px;grid-template-areas:"n c" "s c" "v c";row-gap:4px}
+html.is-tapp.t-big .dt-kn{white-space:normal;word-break:keep-all;overflow-wrap:break-word}
+html.is-tapp.t-big .dt-kv{align-items:flex-start;text-align:left}
+/* 9 지도 탭 묶음: 높이 36 한 가지 · 좁은 자리용(tt)은 글씨는 같고 여백만 좁게 · 폭은 자리 잡기 값 그대로(실제 글자 폭이 어림보다 넓어 이웃과 0~3px로 붙던 것) */
+@media (max-width:980px){html.is-tapp.s-full .zgu{width:var(--w)!important;min-width:0!important;padding:0 6px!important;overflow:hidden}html.is-tapp.s-full .zgu.tt{padding:0 3px!important}html.is-tapp.s-full .zgu b,html.is-tapp.s-full .zgu span{white-space:nowrap}}

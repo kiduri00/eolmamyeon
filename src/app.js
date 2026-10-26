@@ -4582,23 +4582,34 @@
   // 받는 꼴: '면목동 86-15' · '면목동86-15' · '중랑구 면목동 86-15' · '면목동 86'(본번만 → 그 본번 필지 전부) · '면목동 산 2-25'·'산2-25' · '86 - 15'(띄어쓰기) · '번지'·'일대' 글자는 앞에서 지움
   const PCLI = {};
   const pcliH = (d) => { let n = 0; for (const c of d) n += c.charCodeAt(0); return n % 32; };
-  const pcliQ = (q) => {
-    const m = /^(?:([가-힣]+구)\s*)?([가-힣]+(?:동|로)(?:\d+가)?|[가-힣]+\d*가)\s*(산)?\s*(\d+)(?:\s*-\s*(\d+))?$/.exec(String(q).trim().replace(/\s+/g, " "));
-    return m ? { gu: m[1] || "", dong: m[2], san: !!m[3], bon: m[4], bu: m[5] || "" } : null;
-  };
   const pcliLoad = (dong) => { const h = pcliH(dong); if (PCLI[h] === undefined) { PCLI[h] = fetch(`pcli/h${String(h).padStart(2, "0")}.json?v=${(D.dv && D.dv.tx) || D.asOf || ""}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((j) => (PCLI[h] = j || {})); } return Promise.resolve(PCLI[h]); };
+  // 6라운드: 구 이름은 서울 25개 구 목록으로만(압구정동 480 → '압구' 구 + '정동'으로 잘리던 것) · 표기 정규화(문자열만) · 행정동 → 법정동 다시 찾기
+  const GU25 = ["종로구", "중구", "용산구", "성동구", "광진구", "동대문구", "중랑구", "성북구", "강북구", "도봉구", "노원구", "은평구", "서대문구", "마포구", "양천구", "강서구", "구로구", "금천구", "영등포구", "동작구", "관악구", "서초구", "강남구", "송파구", "강동구"];
+  const pcliQ = (raw) => {
+    let t = String(raw || "").trim().replace(/[－–—]/g, "-").replace(/\s+/g, " ").replace(/^서울(특별시|시)?\s*/, "");
+    t = t.replace(/(\d+)\s*번지\s*(\d+)\s*호?/g, "$1-$2").replace(/(\d+)\s*의\s*(\d+)/g, "$1-$2").replace(/번지|일대/g, "").replace(/([가-힣]+로)\s+(\d+가)/g, "$1$2").trim();
+    let gu = "";
+    for (const g of GU25) if (t.startsWith(g + " ") || (t.startsWith(g) && /[가-힣]/.test(t.charAt(g.length)) && !/^(동|가|로)/.test(t.slice(g.length)))) { gu = g; t = t.slice(g.length).trim(); break; }
+    const m = /^([가-힣][가-힣0-9]*?(?:동|가|로)(?:\d+가)?)\s*(산)?\s*(\d+)(?:\s*-\s*(\d+))?$/.exec(t);
+    return m ? { gu, dong: m[1], san: !!m[2], bon: m[3], bu: m[4] || "" } : null;
+  };
+  // 법정동 후보: 그대로 → 행정동 꼴(면목본동·면목2동·면목제2동 → 면목동) → '성수2가' → '성수동2가'
+  const pcliAlt = (d) => { const o = [d]; const a = d.replace(/본동$/, "동").replace(/제?\d+동$/, "동"); if (a !== d) o.push(a); const b = /^([가-힣]+?)(\d+가)$/.exec(d); if (b && !/동$/.test(b[1])) o.push(b[1] + "동" + b[2]); return o; };
+  const pcliAdm = (d) => /본동$|\d+동$/.test(d);
   function pcliHits(pq) {
-    const B = PCLI[pcliH(pq.dong)];
-    if (!B || typeof B.then === "function") return null;   // 아직 받는 중
-    const m = B[pq.dong] || {}, pre = (pq.san ? "산" : "") + pq.bon, ids = [];
+    const C = pcliAlt(pq.dong); let miss = false, hitD = null, m = null;
+    for (const d of C) { const B = PCLI[pcliH(d)]; if (!B || typeof B.then === "function") { miss = true; pcliLoad(d); continue; } if (B[d]) { hitD = d; m = B[d]; break; } }
+    if (!hitD && miss) return null;   // 아직 받는 중
+    if (!hitD) return { own: [], other: [], dong: null, alt: false };
+    const pre = (pq.san ? "산" : "") + pq.bon, ids = [];
     for (const k in m) if (pq.bu ? k === `${pre}-${pq.bu}` : k === pre || k.startsWith(pre + "-")) [].concat(m[k]).forEach((id) => { if (!ids.includes(id)) ids.push(id); });
-    let zs = ids.map((id) => byId[id]).filter((r) => r && (!pq.gu || r.g === pq.gu));
-    // 모아타운: 필지가 든 사업구역(하위 조합)을 먼저, 그다음 관리지역, 그다음 같은 관리지역의 다른 사업구역 · 같은 구역은 한 번만
-    const own = zs.filter((r) => r.src !== "moa"), moa = zs.filter((r) => r.src === "moa"), out = [];
-    const add = (r) => { if (r && !out.includes(r)) out.push(r); };
-    own.sort((a, b) => (isDone(a) ? 1 : 0) - (isDone(b) ? 1 : 0)).forEach(add); moa.forEach(add);
-    moa.forEach((mr) => (mr.kids || []).map((id) => byId[id]).filter(Boolean).forEach(add));
-    return out;
+    const zs = ids.map((id) => byId[id]).filter((r) => r && (!pq.gu || r.g === pq.gu));
+    // 필지가 든 구역(사업구역 먼저) + 그 모아타운 관리지역 = 한 묶음 · 같은 관리지역의 다른 사업구역은 '다른 검색 결과' 맨 앞 · 같은 구역은 한 번만
+    const own = [], other = [], add = (L, r) => { if (r && !own.includes(r) && !other.includes(r)) L.push(r); };
+    zs.filter((r) => r.src !== "moa").sort((a, b) => (isDone(a) ? 1 : 0) - (isDone(b) ? 1 : 0)).forEach((r) => add(own, r));
+    zs.filter((r) => r.src === "moa").forEach((r) => add(own, r));
+    zs.filter((r) => r.src === "moa").forEach((mr) => (mr.kids || []).map((id) => byId[id]).filter(Boolean).forEach((r) => add(other, r)));
+    return { own, other, dong: hitD, alt: hitD !== pq.dong };
   }
   function renderSugg() {
     const q = $("q")
@@ -4667,11 +4678,18 @@
     // 이름·지번이 같은 줄(같은 곳이 두 자료에 따로 실린 것: 행당동 300-1)은 한 줄만 — 먼저 나온 것(역 주변·가까운 것)을 남긴다
     const lk = (r) => `${shortName(r.n)}|${(r.j || "").replace(/\s+/g, "")}`, seenL = new Set();
     // 5라운드 16: 지번 검색 — 그 필지가 든 구역을 맨 위에 · 구역 밖이면 안내 한 줄 + 같은 동 구역('근처 구역') · 엉뚱한 구역을 맨 위에 두지 않는다
-    const pq = !stn && !gu ? pcliQ(q) : null;
-    let pcl = null, pclOut = false;
-    if (pq) { pcl = pcliHits(pq); if (pcl === null) pcliLoad(pq.dong).then(() => { if (pcliQ($("q").value.trim().toLowerCase().replace(/번지|일대/g, ""))) renderSugg(); }); else if (!pcl.length) { pclOut = true; pcl = R.filter((r) => !isDone(r) && (!pq.gu || r.g === pq.gu) && String(r.j || "").split(" ")[0] === pq.dong).slice(0, 6); } }
-    const pclIds = new Set((pcl || []).map((r) => r.id));
+    const pq = !stn && !gu ? pcliQ($("q").value) : null;
+    let pr = null, pcl = null, pclOut = false, pclAdm = false, pclOther = [];
+    if (pq) {
+      pr = pcliHits(pq);
+      if (pr === null) Promise.all(pcliAlt(pq.dong).map(pcliLoad)).then(() => { if (pcliQ($("q").value)) renderSugg(); });
+      else if (pr.own.length) { pcl = pr.own; pclOther = pr.other; }
+      else if (!pr.dong && pcliAdm(pq.dong)) { pclOut = true; pclAdm = true; pcl = []; }
+      else { pclOut = true; const dd = pr.dong || pq.dong; pcl = R.filter((r) => !isDone(r) && (!pq.gu || r.g === pq.gu) && String(r.j || "").split(" ")[0] === dd).slice(0, 6); }
+    }
+    const pclIds = new Set((pcl || []).concat(pclOther).map((r) => r.id));
     const hits = (pcl || []).map((r) => ({ r, pcl: true }))
+      .concat(pclOther.map((r) => ({ r, pclo: true })))
       .concat(pclOut ? [] : stnZ.map((r) => ({ r, near: true })))
       .concat(pclOut ? [] : all.filter((x) => !pclIds.has(x.r.id) && !stnSet.has(x.r.id) && !(x.r.src === "moa" && x.r.j && zoneJ.has(pk(x.r)))))
       .filter((x) => { const k = lk(x.r); if (seenL.has(k)) return false; seenL.add(k); return true; })
@@ -4694,6 +4712,10 @@
     const guRow = gu
       ? `<div class="sg-gu" role="presentation"><button type="button" role="option" id="sgG" aria-selected="false" data-gu="${esc(gu)}" tabindex="-1" class="sg-stn"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>${esc(gu)}<small>진행 중 구역 ${fmt(guN)}곳 · 지도에서 보기</small></span><em>지도 →</em></button><a class="sg-gup" role="option" id="sgGp" aria-selected="false" tabindex="-1" href="/gu/${encodeURIComponent(gu)}">구 페이지</a></div>`
       : "";
+    // 6라운드: 구역 밖 안내 = 빈 화면 문법(그림 · 14px 본문 · 설명 한 줄)
+    const outHTML = () => pclAdm
+      ? `<div class="s-none sg-out" role="presentation"><b>법정동 이름(예: 면목동)으로 찾아 주세요</b><br>지번은 행정동(면목본동·면목2동)이 아니라 법정동 이름으로 찾아요.</div>`
+      : `<div class="s-none sg-out" role="presentation"><b>이 지번은 집핀이 아는 재개발 구역 밖이에요</b><br>${esc(pq ? `${(pr && pr.dong) || pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : ""}` : "")} · 정비구역·모아타운 경계 안 필지만 찾아요.</div>`;
     const noneHTML = () => {
       const near = qc.length >= 2 ? idx.filter((x) => !(x.r.s >= 9) && x.r.src !== "moa" && shortName(x.r.n).includes(qc.slice(0, 2))).slice(0, 4).map((x) => x.r) : [];
       const pop = R.filter((r) => r.tx && r.tx.n3 && !(r.s >= 9) && r.src !== "moa" && !near.includes(r)).sort((a, b) => b.tx.n3 - a.tx.n3).slice(0, 6);
@@ -4707,8 +4729,9 @@
         ? hits.map((h, i) => {
             // 역 주변 목록 뒤: 이름이 실제로 맞는 곳만 "이름에 'q'", 주소·역 글자로 걸린 곳은 "주변 더 보기"
             let hd = "";
-            const pj = pq ? `${pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : ""}` : "";
-            if (h.pcl && i === 0) hd = pclOut ? `<div class="x-h" role="presentation">${esc(pj)} · 이 지번은 집핀이 아는 재개발 구역 밖이에요</div><div class="x-h" role="presentation">근처 구역(${esc(pq.dong)})</div>` : (pq.bu ? `<div class="x-h" role="presentation">${esc(pj)} → ${esc(shortName(h.r.n))} 안 필지</div>` : `<div class="x-h" role="presentation">${esc(pj)}번지 → 이 번지 필지가 든 구역(안 필지)</div>`);
+            const pj = pq ? `${pr && pr.dong ? pr.dong : pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : "번지"}` : "";
+            const altT = pr && pr.alt ? ` · ${esc(pr.dong)}(법정동)으로 찾았어요` : "";
+            if (h.pcl && i === 0) hd = pclOut ? `${outHTML()}<div class="x-h" role="presentation">같은 동(${esc((pr && pr.dong) || pq.dong)}) 구역</div>` : `<div class="x-h" role="presentation">${esc(pj)} → ${esc(shortName(h.r.n))}${pcl.length > 1 ? ` 외 ${pcl.length - 1}곳` : ""} 안 필지${altT}</div>`;
             else if (!h.pcl && i > 0 && hits[i - 1].pcl && !pclOut) hd = `<div class="x-h" role="presentation">다른 검색 결과</div>`;
             else if (h.near && i === 0) hd = `<div class="x-h" role="presentation" data-walk="${stnAll.length}">${esc(ZF.walkLbl(stn[0], stnAll.length))}${stnAll.length > stnZ.length ? ` (가까운 ${stnZ.length}곳)` : ""}${stnMoa ? ` · 모아타운 관리지역 ${stnMoa}곳 따로` : ""}</div>`;
             else if (!h.near && stnZ.length) {
@@ -4722,13 +4745,13 @@
             ? `<div class="more-hits" role="presentation">외 ${all.length - hits.length}곳 · 지번이나 구 이름을 더 넣어 좁혀 보세요</div>`
             : "")
         : pclOut
-          ? `<div class="s-none" role="presentation"><b>${esc(`${pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : ""}`)} · 이 지번은 집핀이 아는 재개발 구역 밖이에요</b></div>`
+          ? outHTML()
           : stn || gu
             ? ""
             : noneHTML());
     $("sugg").hidden = false;
     $("q").setAttribute("aria-expanded", "true");
-    $("suggLive").textContent = pclOut ? "이 지번은 재개발 구역 밖이에요" : pcl && pcl.length ? `${shortName(pcl[0].n)} 안 필지` : hits.length ? `${all.length}곳 찾음` : stn ? `${stn[0]} 찾음` : gu ? `${gu} 찾음` : "일치하는 사업장 없음";
+    $("suggLive").textContent = pclAdm ? "법정동 이름으로 찾아 주세요" : pclOut ? "이 지번은 재개발 구역 밖이에요" : pcl && pcl.length ? `${shortName(pcl[0].n)} 안 필지` : hits.length ? `${all.length}곳 찾음` : stn ? `${stn[0]} 찾음` : gu ? `${gu} 찾음` : "일치하는 사업장 없음";
     $("sugg")
       .querySelectorAll("button[data-id]")
       .forEach((b) => ((b.onmousedown = (e) => e.preventDefault()), (b.onclick = () => pickSugg(b.dataset.id))));

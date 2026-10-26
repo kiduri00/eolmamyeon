@@ -59,8 +59,8 @@ const DTL = (() => {
       try {
         const m = nums(k), dn = m.done || k.s >= 9 || /준공|입주/.test(stageName(k));
         if (dn) { v = "입주 완료"; sub = "일반 매매"; }
-        // 5라운드: 단정('입주권 없음') 대신 입주권 화면과 같은 말투 · 지금 사는 경우 금액이 이미 계산돼 있으면 값 자리에 '일반 매매 · N'(새 계산 없음)
-        else if (m.nt) { let zn = null; try { const z = SIMPLE.zstate(k); zn = z && typeof z.need === "number" && isFinite(z.need) ? z.need : null; } catch (e) {} if (zn != null) { v = `일반 매매 · ${C(zn)}`; sub = "입주권 원칙적으로 없음 · 예외 매물만"; } else { v = "원칙적으로 없음"; sub = "입주권 · 예외 매물만 승계"; } }
+        // 6라운드: 입주권 없는 하위 구역 = 시트·정적 /z와 같은 '계산 보류'(5라운드의 '일반 매매 · N'은 다른 화면과 숫자가 달라 뺌) · 보조 줄은 입주권 화면 말투
+        else if (m.nt) { v = "계산 보류"; sub = "입주권 원칙적으로 없음 · 예외 매물만"; }
         else if (m.need != null) { v = C(m.need); sub = upC(m.need) <= CASH + 1e-9 && !(k.lc) ? `내 돈 ${C(CASH)}으로 가능` : `${ZF.short(m.need - CASH)} 더 필요`; }
         else if (m.lnow != null) { v = C(m.lnow); sub = "대출 끼고"; }
         else { v = "계산 보류"; sub = ""; }
@@ -93,7 +93,7 @@ const DTL = (() => {
     let eta = "–"; try { eta = etaShow(r); } catch (e) {}
     // 입주권 없는 곳: 셋째 칸 이름 '입주권' · 이유는 그 아래 한 번 · 착공 뒤처럼 입주권 거래가 있으면 '조합원 입주권을 사야 해요'(참고 시세) — '입주권 없음'과 시세가 부딪치지 않게(20차 G3)
     const TAPP = document.documentElement.classList.contains("is-tapp");
-    if (n.nt) eta = n.im ? "조합원 입주권을 사야 해요" : TAPP ? "입주권 없음" : "없음";   // 웹은 /z 정적 페이지(key3 '입주권 · 없음')와 같은 글 — 정적 페이지는 simple-home과 같게 두므로 앱에서만   // 2라운드: '지금 사면 / 입주권 없음'(이미 가진 집은 해당 없음 — 아래 한 줄)
+    if (n.nt) eta = n.im ? "조합원 입주권을 사야 해요" : TAPP ? "입주권 원칙적으로 없음" : "없음";   /* 6라운드 7: 앱만 입주권 화면 말투 */   // 웹은 /z 정적 페이지(key3 '입주권 · 없음')와 같은 글 — 정적 페이지는 simple-home과 같게 두므로 앱에서만   // 2라운드: '지금 사면 / 입주권 없음'(이미 가진 집은 해당 없음 — 아래 한 줄)
     return `<section class="dt-k" aria-label="핵심 숫자">
       <div class="dt-i" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b>${n.lnow != null ? MODE : ""}<span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && n.lnow == null && !n.moa && !n.done && !n.im && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1 || lv}<span class="dt-slot" data-slot="gap"></span></span></div>
       <div class="dt-i" data-k="tot"><span class="dt-l">${LBL.cashToMoveIn}</span><b class="dt-v">${v2}</b>${n.ltot != null ? MODE : ""}<span class="dt-s">${sub2}</span></div>
