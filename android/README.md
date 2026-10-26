@@ -77,12 +77,14 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
   - 다시 그리기: `NODE_PATH=$(npm root -g) node android/assets-src/splash/render-splash.js [resDir] [preview.png]`
 - 알림(흰색 실루엣): `assets-src/icon-monochrome.svg` → `assets-src/icon-monochrome-512.png`(결과는 `res/drawable-*/ic_notification_icon.png`).
 - 바로가기 4개는 각각 다른 아이콘(디자인 킷 `app_kit/png/shortcuts`): `shortcut_0`=지도(map), `shortcut_1`=관심 구역(favorites),
-  `shortcut_2`=월간 리포트(report), `shortcut_3`=구역별 페이지(zone). 원본은 `assets-src/shortcut_*_192.png`, SVG는 `assets-src/shortcuts/`.
+  `shortcut_2`=소식(news, `/?src=app#news`), `shortcut_3`=입주 계산(planner, `/?src=app#planner`). 원본은 `assets-src/shortcut_*_192.png`, SVG는 `assets-src/shortcuts/`.
   `res/drawable-{mdpi..xxxhdpi}/shortcut_N.png` = 48/72/96/144/192px.
+  - 1.0.0 r5: 예전 3·4번(월간 리포트 `/report/`, 구역별 페이지 `/z/`)은 정적 페이지라 뒤로 한 번에 앱이 닫혀서 SPA 화면으로 바꿨습니다.
+    웹 매니페스트(`public/manifest.webmanifest`)의 shortcuts는 아직 report/z이므로 `generate.js`가 앱용 목록을 직접 넣습니다.
 - `twa-manifest.json`의 아이콘 주소는 모두 사이트 공개 주소입니다(2026-10-26 사이트 배포 뒤 제공).
   - `monochromeIconUrl` → `https://jaegaebal.alwaysquestions.kr/icon-mono-512.png`
-  - 바로가기 `chosenIconUrl` → `/sc-map-192.png`, `/sc-fav-192.png`, `/sc-report-192.png`, `/sc-zone-192.png`
-    (`assets-src/shortcut_{map,favorites,report,zone}_192.png`와 바이트까지 같음)
+  - 바로가기 `chosenIconUrl` → `/sc-map-192.png`, `/sc-fav-192.png`, `/sc-news-192.png`, `/sc-planner-192.png`
+    (`assets-src/shortcut_{map,favorites,news,planner}_192.png`와 같은 그림이어야 함. **news·planner 두 파일은 아직 사이트에 없음**)
   - `bubblewrap update` 전에 이 주소들이 200으로 열리는지 확인하세요(배포 전에는 404).
   - 주의: 사이트 `/icon-mono-512.png`는 지금 AAB의 알림 아이콘 원본(`assets-src/icon-monochrome-512.png`)과 그림이 조금 다릅니다
     (같은 핀+집 모양, 여백이 더 큼). `bubblewrap update`로 다시 만들면 알림 아이콘이 사이트 그림으로 바뀝니다.

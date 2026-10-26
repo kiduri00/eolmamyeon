@@ -36,16 +36,16 @@
       "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-fav-192.png"
     },
     {
-      "name": "월간 리포트",
-      "shortName": "리포트",
-      "url": "https://jaegaebal.alwaysquestions.kr/report/?src=app",
-      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-report-192.png"
+      "name": "소식",
+      "shortName": "소식",
+      "url": "https://jaegaebal.alwaysquestions.kr/?src=app#news",
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-news-192.png"
     },
     {
-      "name": "구역별 페이지",
-      "shortName": "구역",
-      "url": "https://jaegaebal.alwaysquestions.kr/z/?src=app",
-      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-zone-192.png"
+      "name": "입주 계산",
+      "shortName": "입주 계산",
+      "url": "https://jaegaebal.alwaysquestions.kr/?src=app#planner",
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-planner-192.png"
     }
   ],
   "generatorApp": "bubblewrap-core-script",

@@ -45,8 +45,16 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
     webManifestUrl: LOCAL + '/manifest.webmanifest',
   });
   // Distinct shortcut icons (design kit app_kit/png/shortcuts, copied into this folder).
-  const SC = ['map', 'favorites', 'report', 'zone'];
-  j.shortcuts = (j.shortcuts || []).map((s, i) => ({ ...s, chosenIconUrl: LOCAL + '/shortcut_' + SC[i] + '_192.png' }));
+  // 1.0.0 r5: the app's shortcuts 3-4 are SPA views (소식 #news, 입주 계산 #planner) instead of the static
+  // /report/ and /z/ pages (back closed the app there). The web manifest still lists report/z, so set them here.
+  const SC = ['map', 'favorites', 'news', 'planner'];
+  const APP_SC = [
+    { name: '지도로 보기', shortName: '지도', url: REAL + '/?src=app#map' },
+    { name: '관심 구역', shortName: '관심 구역', url: REAL + '/?src=app#favTop' },
+    { name: '소식', shortName: '소식', url: REAL + '/?src=app#news' },
+    { name: '입주 계산', shortName: '입주 계산', url: REAL + '/?src=app#planner' },
+  ];
+  j.shortcuts = APP_SC.map((s, i) => ({ ...s, chosenIconUrl: LOCAL + '/shortcut_' + SC[i] + '_192.png' }));
   const tm = new TwaManifest(j);
   const err = tm.validate(); if (err) throw new Error(err);
   await new TwaGenerator().createTwaProject(target, tm, new ConsoleLog('gen'));
@@ -58,10 +66,11 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   // Monochrome + shortcut icons are served by the site since the 2026-10-26 deploy. The generator above
   // still reads the byte-identical local copies in assets-src/ (bubblewrap's fetch ignores HTTPS_PROXY),
   // but the saved twa-manifest.json points at the public files so `bubblewrap update` works without :8765.
-  //   shortcut_map/favorites/report/zone_192.png == /sc-map|fav|report|zone-192.png (same md5)
+  //   shortcut_map/favorites_192.png == /sc-map|fav-192.png (same md5). /sc-news-192.png and /sc-planner-192.png
+  //   are NOT on the site yet (r5): copy assets-src/shortcut_news|planner_192.png there before `bubblewrap update`.
   //   assets-src/icon-monochrome-512.png != /icon-mono-512.png (site mark has more padding; see README)
   out.monochromeIconUrl = REAL + '/icon-mono-512.png';
-  const SCPUB = { map: 'map', favorites: 'fav', report: 'report', zone: 'zone' };
+  const SCPUB = { map: 'map', favorites: 'fav', news: 'news', planner: 'planner' };
   out.shortcuts = (out.shortcuts || []).map((s, i) => ({ ...s, url: fix(s.url), chosenIconUrl: REAL + '/sc-' + SCPUB[SC[i]] + '-192.png' }));
   require('fs').writeFileSync(path.join(target, 'twa-manifest.json'), JSON.stringify(out, null, 2) + '\n');
   console.log(JSON.stringify(out, null, 2));

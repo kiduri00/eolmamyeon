@@ -39,7 +39,7 @@ def twaManifest = [
     // - short_name: Shorter string used if |name| is too long.
     // - url: Absolute path of the URL to launch the app with (e.g '/create').
     // - icon: Name of the resource in the drawable folder to use as an icon.
-    shortcuts: [[name:'지도로 보기', short_name:'지도', url:'https://jaegaebal.alwaysquestions.kr/?src=app#map', icon:'shortcut_0'],[name:'관심 구역', short_name:'관심 구역', url:'https://jaegaebal.alwaysquestions.kr/?src=app#favTop', icon:'shortcut_1'],[name:'월간 리포트', short_name:'리포트', url:'https://jaegaebal.alwaysquestions.kr/report/?src=app', icon:'shortcut_2'],[name:'구역별 페이지', short_name:'구역', url:'https://jaegaebal.alwaysquestions.kr/z/?src=app', icon:'shortcut_3']],
+    shortcuts: [[name:'지도로 보기', short_name:'지도', url:'https://jaegaebal.alwaysquestions.kr/?src=app#map', icon:'shortcut_0'],[name:'관심 구역', short_name:'관심 구역', url:'https://jaegaebal.alwaysquestions.kr/?src=app#favTop', icon:'shortcut_1'],[name:'소식', short_name:'소식', url:'https://jaegaebal.alwaysquestions.kr/?src=app#news', icon:'shortcut_2'],[name:'입주 계산', short_name:'입주 계산', url:'https://jaegaebal.alwaysquestions.kr/?src=app#planner', icon:'shortcut_3']],
     // The duration of fade out animation in milliseconds to be played when removing splash screen.
     splashScreenFadeOutDuration: 300,
     generatorApp: 'bubblewrap-core-script', // Application that generated the Android Project

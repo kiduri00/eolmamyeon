@@ -8,11 +8,11 @@
         <categories android:name='android.intent.category.LAUNCHER' />
     </shortcut>
     <shortcut android:shortcutId='shortcut2' android:enabled='true' android:icon='@drawable/shortcut_2' android:shortcutShortLabel='@string/shortcut_short_name_2' android:shortcutLongLabel='@string/shortcut_name_2'>
-        <intent android:action='android.intent.action.MAIN' android:targetPackage='kr.alwaysquestions.zippin' android:targetClass='kr.alwaysquestions.zippin.LauncherActivity' android:data='https://jaegaebal.alwaysquestions.kr/report/?src=app' />
+        <intent android:action='android.intent.action.MAIN' android:targetPackage='kr.alwaysquestions.zippin' android:targetClass='kr.alwaysquestions.zippin.LauncherActivity' android:data='https://jaegaebal.alwaysquestions.kr/?src=app#news' />
         <categories android:name='android.intent.category.LAUNCHER' />
     </shortcut>
     <shortcut android:shortcutId='shortcut3' android:enabled='true' android:icon='@drawable/shortcut_3' android:shortcutShortLabel='@string/shortcut_short_name_3' android:shortcutLongLabel='@string/shortcut_name_3'>
-        <intent android:action='android.intent.action.MAIN' android:targetPackage='kr.alwaysquestions.zippin' android:targetClass='kr.alwaysquestions.zippin.LauncherActivity' android:data='https://jaegaebal.alwaysquestions.kr/z/?src=app' />
+        <intent android:action='android.intent.action.MAIN' android:targetPackage='kr.alwaysquestions.zippin' android:targetClass='kr.alwaysquestions.zippin.LauncherActivity' android:data='https://jaegaebal.alwaysquestions.kr/?src=app#planner' />
         <categories android:name='android.intent.category.LAUNCHER' />
     </shortcut>
 </shortcuts>

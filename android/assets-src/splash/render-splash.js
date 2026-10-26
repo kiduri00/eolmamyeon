@@ -63,27 +63,30 @@ async function preview(out) {
     .replace(/<path([^>]*)\/>/g, (_, a) => `<path d="${attr(a, 'pathData')}" fill="${attr(a, 'fillColor') || 'none'}" stroke="${attr(a, 'strokeColor') || 'none'}" stroke-width="${attr(a, 'strokeWidth') || 0}" stroke-linejoin="${attr(a, 'strokeLineJoin') || 'miter'}"/>`)
     .split('@color/backgroundColor').join(bg);
   const W = 412, H = 915, SB = 32, NB = 48;
-  const bars = (fg) => `<div style="position:absolute;left:0;right:0;top:0;height:${SB}px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;color:${fg};font:600 14px system-ui">
+  // navBg: the nav bar colour actually shown. The Android 12 system splash draws navy under it; in the TWA stage the
+  // nav bar is the TWA navigation colour (#FFFFFF / #15181D) on API < 35 (fitted). Only Chrome's edge-to-edge
+  // mode (Android 15+) shows the navy splash through a transparent bar.
+  const bars = (navBg) => `<div style="position:absolute;left:0;right:0;top:0;height:${SB}px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;color:#fff;font:600 14px system-ui">
       <span>12:06</span><span style="letter-spacing:3px">▾ ◢ ▮</span></div>
-    <div style="position:absolute;left:0;right:0;bottom:0;height:${NB}px;display:flex;align-items:center;justify-content:space-around;color:${fg};opacity:.85;font:20px system-ui"><span>|||</span><span>◯</span><span>‹</span></div>`;
-  const phone = (bg, kind) => {
+    <div style="position:absolute;left:0;right:0;bottom:0;height:${NB}px;background:${navBg || 'transparent'};display:flex;align-items:center;justify-content:space-around;color:${navBg === '#FFFFFF' ? '#3C4350' : '#fff'};opacity:.9;font:20px system-ui"><span>|||</span><span>◯</span><span>‹</span></div>`;
+  const phone = (bg, kind, navBg) => {
     const mask = kind === 'a12'
       ? `<circle cx="120" cy="120" r="${MASK_D / 2}" fill="none" stroke="#FFFFFF" stroke-opacity=".45" stroke-width="1" stroke-dasharray="4 4"/>` : '';
     const clip = kind === 'a12' ? `<defs><clipPath id="c${bg.slice(1)}"><circle cx="120" cy="120" r="${MASK_D / 2}"/></clipPath></defs>` : '';
     return `<div style="position:relative;width:${W}px;height:${H}px;background:${bg};border-radius:28px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.15)">
-      ${bars('#fff')}
+      ${bars(navBg)}
       <svg width="${CANVAS}" height="${CANVAS}" viewBox="0 0 ${CANVAS} ${CANVAS}" style="position:absolute;left:${(W - CANVAS) / 2}px;top:${(H - CANVAS) / 2}px">
         ${clip}<g ${kind === 'a12' ? `clip-path="url(#c${bg.slice(1)})"` : ''}><rect width="240" height="240" fill="${bg}"/>${mark(bg)}</g>${mask}</svg></div>`;
   };
   const col = (title, sub, inner) => `<div><div style="font:700 15px system-ui;color:#191F28;margin:0 0 4px">${title}</div><div style="font:12px system-ui;color:#6B7684;margin:0 0 10px">${sub}</div>${inner}</div>`;
   const html = `<body style="margin:0;background:#E9EDF3"><div style="padding:24px 28px;display:flex;gap:24px">
     ${col('Light · Android 12+ system splash', `bg ${NAVY} · icon bg ${NAVY} · dashed = ${MASK_D}dp mask`, phone(NAVY, 'a12'))}
-    ${col('Light · TWA splash (all API 24+)', `@drawable/splash on ${NAVY} · fade 300ms`, phone(NAVY, 'twa'))}
+    ${col('Light · TWA splash (all API 24+)', `@drawable/splash on ${NAVY} · nav bar #FFFFFF below API 35`, phone(NAVY, 'twa', '#FFFFFF'))}
     ${col('Dark · Android 12+ system splash', `values-night ${NAVY_NIGHT}`, phone(NAVY_NIGHT, 'a12'))}
-    ${col('Dark · TWA splash', `@drawable/splash on ${NAVY_NIGHT}`, phone(NAVY_NIGHT, 'twa'))}
+    ${col('Dark · TWA splash', `@drawable/splash on ${NAVY_NIGHT} · nav bar #15181D below API 35`, phone(NAVY_NIGHT, 'twa', '#15181D'))}
   </div><div style="padding:0 28px 22px;font:12px/1.6 system-ui;color:#4E5968">
     상태바: 스플래시 동안 TWA 상태바 색 ${NAVY} / ${NAVY_NIGHT} → 페이지 검증 뒤 사이트 theme-color(#FFFFFF / #15181D).
-    내비바: Android 12+ 시스템 스플래시와 Chrome edge-to-edge(Android 15+)에서는 남색 바탕이 보이고, 그 밖에는 기존 TWA 내비바 색(#FFFFFF / #15181D)입니다.
+    내비바: Android 12+ 시스템 스플래시는 남색. TWA 단계는 API 35 미만에서 기존 TWA 내비바 색(#FFFFFF / #15181D, 그림대로)이고, Chrome이 edge-to-edge로 그리는 Android 15+에서만 남색 바탕이 비쳐 보입니다. 페이드 300ms.
     워드마크 없음(두 단계가 같은 모양이 되도록).</div></body>`;
   const exe = process.env.CHROME || ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome'].find((p) => fs.existsSync(p));
   const br = await chromium.launch(exe ? { executablePath: exe, args: ['--no-sandbox'] } : { args: ['--no-sandbox'] });
