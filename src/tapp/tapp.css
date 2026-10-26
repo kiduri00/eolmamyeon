@@ -511,6 +511,7 @@
   html.is-tapp.s-full #mapbox .lm-gumore-b small{display:inline!important}
   /* 6 구에 들어가면 '경매 물건' 범례가 '← 서울 전체' 막대를 덮던 것 → 구 화면에서는 칩 줄 아래 오른쪽 끝으로 */
   html.is-tapp.s-full #mapbox[data-view="gu"] #lmAucLg{margin-left:auto;margin-right:28px}
+  html.is-tapp.s-full #mapbox .lm-zoom{bottom:62px!important}   /* ⓘ가 44로 커진 만큼 확대 버튼을 올려 세로 8px */
   /* 12 지도 ⓘ: 44×44 · 그림자 0 1px 3px · 외곽선 i(#4E5968 · 다크 #B0B8C1) */
   html.is-tapp #mapbox .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show){width:44px!important;height:44px!important;min-height:44px!important;box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 1px var(--t-line)!important}
   html.is-tapp #mapbox .maplibregl-ctrl-attrib-button{width:44px!important;height:44px!important;background-size:22px 22px!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234E5968' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%234E5968'/%3E%3C/svg%3E")!important}
@@ -534,7 +535,7 @@
   html.is-tapp .pn-r small{white-space:normal!important;text-align:right;word-break:keep-all}
   /* 시트 머리 칩 줄(구·단계·역): 가로로 밀리는 줄 끝을 페이드 — 잘린 것이 아니라 더 있다는 표시 */
   html.is-tapp #report .rep-head .ov-w{padding-right:24px;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}
-  html.is-tapp .th-l{font-size:min(13px,3.4vw);white-space:normal;overflow:visible;text-overflow:clip;word-break:keep-all;text-align:center;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-width:100%;padding:0 2px}
+  html.is-tapp .th-l{font-size:min(13px,3.4vw);white-space:normal;overflow:visible;text-overflow:clip;word-break:keep-all;text-align:center;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-width:calc(100% - 8px)}   /* 이름 사이 8px 이상(이웃 칸과 붙어 '월간 리포트몇 년 걸리나'로 읽히던 것) */
   html.is-tapp .th-b{height:auto!important}
   html.is-tapp .th-bt{padding-bottom:30px}
 }

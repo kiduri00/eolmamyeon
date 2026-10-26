@@ -3020,8 +3020,8 @@ async function tappLane(browser, api, errs) {
     try {
       await appHome(page);
       // tapp.tileLabel(7): 타일 이름 한 줄(넘침 없음) · 이름 사이 간격 ≥ 8px · 두 줄 행 높이 같음
-      const tl = await page.evaluate(() => { const L = [...document.querySelectorAll("#tHome .th-l")], T = [...document.querySelectorAll("#tHome .th-t")]; const r = L.map((e) => e.getBoundingClientRect()); const gaps = []; for (let i = 0; i < r.length; i++) if (i % 5 !== 4) gaps.push(Math.round(r[i + 1].left - r[i].right)); return { over: L.filter((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().height > 22).map((e) => e.textContent), gap: Math.min(...gaps), h: [...new Set(T.map((t) => Math.round(t.getBoundingClientRect().height)))] }; });
-      expect(!tl.over.length && tl.gap >= 8 && tl.h.length === 1, "tapp.tileLabel", "설치 앱 타일 이름 한 줄 · 이름 사이 8px 이상 · 두 줄 행 높이 같음(360·390)", `${W}: ${JSON.stringify(tl)}`);
+      const tl = await page.evaluate(() => { const L = [...document.querySelectorAll("#tHome .th-l")], T = [...document.querySelectorAll("#tHome .th-t")]; const r = L.map((e) => e.getBoundingClientRect()); const gaps = []; for (let i = 0; i < r.length; i++) if (i % 5 !== 4) gaps.push(Math.round(r[i + 1].left - r[i].right)); return { over: L.filter((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().height > 36).map((e) => e.textContent), gap: Math.min(...gaps), h: [...new Set(T.map((t) => Math.round(t.getBoundingClientRect().height)))] }; });
+      expect(!tl.over.length && tl.gap >= 8 && tl.h.length === 1, "tapp.tileLabel", "설치 앱 타일 이름 두 줄까지(넘침 없음 · 4라운드 큰 글씨) · 이름 사이 8px 이상 · 두 줄 행 높이 같음(360·390)", `${W}: ${JSON.stringify(tl)}`);
       if (W !== 390) continue;
       // tapp.mapCtl(2·3·4): 지도 ⓘ 그림 한 번(반복 없음)·40×40·확대 버튼과 8px · 레이어 칩 ::before 없음·36px·6개 이름표·마지막 칩까지 스크롤 · 범례 ↔ 목록 보기 ↔ +N곳 겹치지 않음
       await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1500);
@@ -3033,7 +3033,7 @@ async function tappLane(browser, api, errs) {
         w.scrollLeft = 9999; const last = R(ch[ch.length - 1]); w.scrollLeft = 0;
         return { rep: as && as.backgroundRepeat, aw: ar && [Math.round(ar.width), Math.round(ar.height)], zgap: zr && zr.height && ar ? Math.round(ar.top - zr.bottom) : 99, before: ch.filter((b) => { const c = getComputedStyle(b, "::before").content; return c && c !== "none" && c !== "normal"; }).length, hs: [...new Set(ch.map((b) => Math.round(R(b).height)))], labels: ch.map((b) => b.textContent.trim()).filter(Boolean).length, lastIn: last.right <= innerWidth, keyFx: ov(key, fx), gmKey: ov(gm, key) };
       });
-      expect(mc.rep === "no-repeat" && mc.aw && mc.aw[0] === 40 && mc.aw[1] === 40 && mc.zgap >= 8 && mc.before === 0 && mc.hs.length === 1 && mc.hs[0] === 36 && mc.labels === 6 && mc.lastIn && !mc.keyFx && !mc.gmKey, "tapp.mapCtl", "설치 앱 지도 탭: ⓘ 한 번(no-repeat)·40×40·확대 버튼과 8px 이상 · 레이어 칩 겹선(::before) 없음·36px·이름표 6개·마지막 칩까지 스크롤 · 범례·목록 보기·+N곳 안 겹침", JSON.stringify(mc));
+      expect(mc.rep === "no-repeat" && mc.aw && mc.aw[0] === 44 && mc.aw[1] === 44 && mc.zgap >= 8 && mc.before === 0 && mc.hs.length === 1 && mc.hs[0] === 36 && mc.labels === 6 && mc.lastIn && !mc.keyFx && !mc.gmKey, "tapp.mapCtl", "설치 앱 지도 탭: ⓘ 한 번(no-repeat)·44×44(4라운드)·확대 버튼과 8px 이상 · 레이어 칩 겹선(::before) 없음·36px·이름표 6개·마지막 칩까지 스크롤 · 범례·목록 보기·+N곳 안 겹침", JSON.stringify(mc));
       // tapp.mapList(13): 지도 탭 '목록 보기' = 아래 탭 '지도' 그대로 · 목록에서 연 구역을 닫으면 목록(지도 탭)
       await page.click("#sFullX"); await page.waitForTimeout(900);
       const l1 = await page.evaluate(() => ({ cur: (document.querySelector('#sNav [aria-current="page"]') || {}).dataset?.nav, full: document.documentElement.classList.contains("s-full") }));
@@ -3157,10 +3157,10 @@ async function tappLane(browser, api, errs) {
       await page.click('#sNav [data-nav="my"]'); await page.waitForTimeout(900); L.push(...await scan("my"));
       await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(900); L.push(...await scan("news")); await page.click("#tSegM"); await page.waitForTimeout(500); L.push(...await scan("news-mine"));
       for (const k of ["rank", "calc", "save", "commute"]) { await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(500); await page.click(`#tHome .th-grid a[data-tile="${k}"]`); await page.waitForTimeout(1000); L.push(...await scan(k)); }
-      const want = cs === "light" ? ["rgb(242, 244, 246)", "rgb(255, 255, 255)", "rgb(25, 31, 40)"] : ["rgb(27, 30, 36)", "rgb(44, 49, 58)", "rgb(229, 232, 235)"];
+      const want = cs === "light" ? ["rgb(242, 244, 246)", "rgb(255, 255, 255)", "rgb(25, 31, 40)"] : ["rgb(27, 30, 36)", "rgb(58, 64, 75)", "rgb(229, 232, 235)"];
       const badL = L.filter((x) => x[1] !== want[0] || x[2] !== want[1] || x[3] !== want[2]);
       const tags = new Set(L.map((x) => x[0].split(":")[0]));
-      expect(!badL.length && ["home", "map", "my", "news", "news-mine", "rank", "calc", "save", "commute"].every((t) => tags.has(t)), "tapp.segAll", "설치 앱 단일 선택(2~4지) 모양 하나: 회색 트랙 + 흰 thumb + 진한 글자(다크 #1B1E24·#2C313A·#E5E8EB) — 홈·지도·MY·소식(두 곳)·순위·입주 계산·모으면 언제·출퇴근", `${cs}: ${JSON.stringify(badL.slice(0, 5))} tags ${[...tags].join(",")}`);
+      expect(!badL.length && ["home", "map", "my", "news", "news-mine", "rank", "calc", "save", "commute"].every((t) => tags.has(t)), "tapp.segAll", "설치 앱 단일 선택(2~4지) 모양 하나: 회색 트랙 + 흰 thumb + 진한 글자(다크 #1B1E24·#3A404B(4라운드)·#E5E8EB) — 홈·지도·MY·소식(두 곳)·순위·입주 계산·모으면 언제·출퇴근", `${cs}: ${JSON.stringify(badL.slice(0, 5))} tags ${[...tags].join(",")}`);
     } catch (e) { bad("runtime", "검사 실행", "tapp.segAll crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
