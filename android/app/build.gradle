@@ -21,7 +21,7 @@ plugins {
 }
 
 def twaManifest = [
-    applicationId: 'kr.alwaysquestions.zippin',
+    applicationId: 'kr.alwaysquestions.jaegaepick',
     hostName: 'jaegaebal.alwaysquestions.kr', // The domain being opened in the TWA.
     launchUrl: '/?src=app', // The start path for the TWA. Must be relative to the domain.
     name: '재개픽 - 서울 재개발 지도', // The application name.
@@ -52,9 +52,9 @@ def twaManifest = [
 
 android {
     compileSdkVersion 36
-    namespace "kr.alwaysquestions.zippin"
+    namespace "kr.alwaysquestions.jaegaepick"
     defaultConfig {
-        applicationId "kr.alwaysquestions.zippin"
+        applicationId "kr.alwaysquestions.jaegaepick"
         minSdkVersion 24
         targetSdkVersion 36
         versionCode 1
@@ -150,10 +150,12 @@ android {
 
         
     }
-    // Upload-key signing. Keys are NOT in git. Point ZIPPIN_KEYSTORE_PROPERTIES at a
-    // keystore.properties file (storeFile, storePassword, keyAlias, keyPassword);
-    // default: /home/claude/zippin-keys/keystore.properties. Without it, release is unsigned.
-    def keystorePropsFile = file(System.getenv('ZIPPIN_KEYSTORE_PROPERTIES') ?: '/home/claude/zippin-keys/keystore.properties')
+    // Upload-key signing. Keys are NOT in git. Point JAEGAEPICK_KEYSTORE_PROPERTIES at a
+    // keystore.properties file (storeFile, storePassword, keyAlias, keyPassword); the old
+    // ZIPPIN_KEYSTORE_PROPERTIES name still works. Default: /home/claude/zippin-keys/keystore.properties
+    // (the key folder keeps its original name; same upload key, fingerprint CA:7E:87:...:0F:9B).
+    // Without it, release is unsigned.
+    def keystorePropsFile = file(System.getenv('JAEGAEPICK_KEYSTORE_PROPERTIES') ?: System.getenv('ZIPPIN_KEYSTORE_PROPERTIES') ?: '/home/claude/zippin-keys/keystore.properties')
     def keystoreProps = new Properties()
     if (keystorePropsFile.exists()) {
         keystorePropsFile.withInputStream { keystoreProps.load(it) }

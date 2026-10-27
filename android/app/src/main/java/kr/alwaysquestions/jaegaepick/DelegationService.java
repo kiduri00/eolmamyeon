@@ -1,4 +1,4 @@
-package kr.alwaysquestions.zippin;
+package kr.alwaysquestions.jaegaepick;
 
 
 

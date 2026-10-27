@@ -2,7 +2,7 @@
 
 https://jaegaebal.alwaysquestions.kr 를 그대로 띄우는 TWA 래퍼입니다. 웹사이트 코드는 건드리지 않습니다.
 
-- packageId: `kr.alwaysquestions.zippin`
+- packageId: `kr.alwaysquestions.jaegaepick`
 - 시작 URL: `https://jaegaebal.alwaysquestions.kr/?src=app`
 - fallback: `customtabs` (WebView 금지 — AdSense는 TWA/Custom Tabs 프레임만 허용)
 - 알림 위임(notification delegation) 켜짐, Android 13+ POST_NOTIFICATIONS 권한 요청
@@ -18,10 +18,19 @@ https://jaegaebal.alwaysquestions.kr 를 그대로 띄우는 TWA 래퍼입니다
 /home/claude/zippin-keys/keystore.properties      # storeFile, storePassword, keyAlias, keyPassword
 ```
 
-다른 위치면 `ZIPPIN_KEYSTORE_PROPERTIES=/path/to/keystore.properties` 환경 변수로 지정합니다.
+다른 위치면 `JAEGAEPICK_KEYSTORE_PROPERTIES=/path/to/keystore.properties` 환경 변수로 지정합니다(예전 이름 `ZIPPIN_KEYSTORE_PROPERTIES`도 됩니다).
+키 폴더·파일 이름은 처음 만든 그대로 둡니다. 패키지를 바꿔도 같은 업로드 키를 씁니다(SHA-256 `CA:7E:87:…:0F:9B`, 아래 assetlinks 참고).
 파일이 없으면 release 빌드는 서명되지 않은 채로 나옵니다. `*.jks`, `*.keystore`, `keystore.properties`는 `.gitignore`에 있습니다.
 
 업로드 키를 잃어버려도 Play App Signing을 쓰면 Play Console에서 업로드 키 재설정을 요청할 수 있습니다. 그래도 백업은 꼭 해 두세요.
+
+## 패키지 이름 변경 (1.0.0 jp1)
+
+- 집핀 시절 패키지(`kr.alwaysquestions.zippin`)는 Play 첫 업로드 전에 바꿨습니다(Play App Signing 지문이 아직 없음 = 업로드 전). 첫 업로드부터 `kr.alwaysquestions.jaegaepick`입니다.
+- 바꾼 곳: `app/build.gradle`(applicationId·namespace·twaManifest.applicationId), `AndroidManifest.xml` package,
+  `java/kr/alwaysquestions/jaegaepick/`(3개 파일 package 선언), `res/xml/shortcuts.xml`(빌드 때 다시 생성),
+  `twa-manifest.json` packageId, 런처 테마 이름 `Theme.Jaegaepick.Launcher`, `res/raw/web_app_manifest.json`(사이트 매니페스트 사본).
+- 패키지 이름은 Play에 처음 올린 뒤에는 바꿀 수 없습니다.
 
 ## 다시 빌드하기
 
@@ -67,7 +76,7 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
     `bubblewrap update`/`build`(CLI)로 다시 만들었다면 위 파일과 AndroidManifest의 roundIcon을 git에서 되살리세요.
 - 스플래시(1.0.0 r4, 브랜드형): 화면 전체 남색(라이트 `#1F3A87`, 다크 `values-night` `#13265E`) + 가운데 흰 핀 마크(집은 바탕색으로 뚫림, 노란 문).
   - 그림 하나(`drawable/splash.xml`, 벡터 240dp, 핀 92dp)를 두 단계에 같이 씁니다.
-    Android 12+ 시스템 스플래시(`values-v31/themes.xml`의 `Theme.Zippin.Launcher`, 아이콘 배경도 남색, 160dp 원 안)와
+    Android 12+ 시스템 스플래시(`values-v31/themes.xml`의 `Theme.Jaegaepick.Launcher`, 아이콘 배경도 남색, 160dp 원 안)와
     TWA 스플래시(`SPLASH_IMAGE_DRAWABLE`, 배경 `@color/backgroundColor`, 페이드 300ms). API 24~30은 TWA 스플래시만 보입니다.
   - 상태바: TWA 상태바 색(`themeColor`)을 남색으로 둡니다. 페이지가 검증(Digital Asset Links)되면 Chrome이 사이트의
     `theme-color`(#FFFFFF / #15181D)를 쓰므로 웹이 뜬 뒤에는 예전 색입니다. 검증 실패 상태(assetlinks에 Play 서명 키가 없을 때)에서는
@@ -81,14 +90,13 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
   `res/drawable-{mdpi..xxxhdpi}/shortcut_N.png` = 48/72/96/144/192px.
   - 1.0.0 r5: 예전 3·4번(월간 리포트 `/report/`, 구역별 페이지 `/z/`)은 정적 페이지라 뒤로 한 번에 앱이 닫혀서 SPA 화면으로 바꿨습니다.
     웹 매니페스트(`public/manifest.webmanifest`)의 shortcuts는 아직 report/z이므로 `generate.js`가 앱용 목록을 직접 넣습니다.
-- `twa-manifest.json`의 아이콘 주소는 모두 사이트 공개 주소입니다(2026-10-26 사이트 배포 뒤 제공).
-  - `monochromeIconUrl` → `https://jaegaebal.alwaysquestions.kr/icon-mono-512.png`
+- `twa-manifest.json`의 아이콘 주소는 모두 사이트 공개 주소입니다(1.0.0 jp1, 재개픽 v7 아이콘).
+  - `iconUrl` → `/icons/icon-512.png`, `maskableIconUrl` → `/icons/icon-maskable-512.png`, `monochromeIconUrl` → `/icons/icon-monochrome-512.png`
+    (사이트의 옛 `/icon-512.png`·`/icon-maskable-512.png`·`/icon-mono-512.png`는 이전 마크라 쓰지 않습니다.)
   - 바로가기 `chosenIconUrl` → `/sc-map-192.png`, `/sc-fav-192.png`, `/sc-news-192.png`, `/sc-planner-192.png`
-    (`assets-src/shortcut_{map,favorites,news,planner}_192.png`와 같은 그림이어야 함. **news·planner 두 파일은 아직 사이트에 없음**)
-  - `bubblewrap update` 전에 이 주소들이 200으로 열리는지 확인하세요(배포 전에는 404).
-  - 주의: 사이트 `/icon-mono-512.png`는 지금 AAB의 알림 아이콘 원본(`assets-src/icon-monochrome-512.png`)과 그림이 조금 다릅니다
-    (같은 핀+집 모양, 여백이 더 큼). `bubblewrap update`로 다시 만들면 알림 아이콘이 사이트 그림으로 바뀝니다.
-    지금 모양을 그대로 두려면 `generate.js`를 쓰세요(생성은 `assets-src/` 로컬 사본으로 함).
+  - `/icons/*`는 리뉴얼 배포 뒤에 라이브에 생깁니다. `bubblewrap update` 전에 이 주소들이 200으로 열리는지 확인하세요.
+  - 런처·스플래시·알림 아이콘은 이미 v7 리소스로 커밋돼 있습니다. `bubblewrap update`로 다시 만들면 이 리소스가 덮어써지므로
+    `generate.js`를 쓰거나 git에서 되살리세요.
 - 재생성 스크립트: `assets-src/generate.js` (@bubblewrap/core로 이 폴더를 다시 만듭니다. 서명 설정·gradle.properties 수정은 다시 적용해야 합니다).
 
 ## 스플래시 / 다크 모드

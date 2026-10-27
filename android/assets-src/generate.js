@@ -1,6 +1,6 @@
 // Regenerates the TWA Gradle project with @bubblewrap/core (npm i @bubblewrap/core@1.27.0).
-// Before running, download into this folder: manifest.webmanifest, icon-512.png,
-// icon-maskable-512.png, icon-192.png from https://jaegaebal.alwaysquestions.kr/ (they are served
+// Before running, download into this folder: manifest.webmanifest and /icons/icon-512.png,
+// /icons/icon-maskable-512.png, /icons/icon-192.png from https://jaegaebal.alwaysquestions.kr/ (they are served
 // to the generator from a local helper server because bubblewrap's fetch ignores HTTPS_PROXY).
 // Usage: node android/assets-src/generate.js /tmp/out   (then diff/copy into android/, and re-apply
 // the signingConfigs block in app/build.gradle, minSdk 24, gradle.properties, mavenCentral()).
@@ -17,7 +17,7 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   const base = TwaManifest.fromWebManifestJson(new URL(LOCAL + '/manifest.webmanifest'), webManifest);
   const j = base.toJson();
   Object.assign(j, {
-    packageId: 'kr.alwaysquestions.zippin',
+    packageId: 'kr.alwaysquestions.jaegaepick',
     host: 'jaegaebal.alwaysquestions.kr',
     name: '재개픽 - 서울 재개발 지도',
     launcherName: '재개픽',
@@ -62,14 +62,15 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   const out = tm.toJson();
   const fix = (u) => (typeof u === 'string' ? u.replace(LOCAL, REAL) : u);
   out.webManifestUrl = REAL + '/manifest.webmanifest';
-  out.iconUrl = fix(out.iconUrl); out.maskableIconUrl = fix(out.maskableIconUrl);
+  // 1.0.0 jp1 (재개픽): the brand v7 icons live under /icons/ on the site (the old /icon-*.png are the previous mark).
+  out.iconUrl = REAL + '/icons/icon-512.png'; out.maskableIconUrl = REAL + '/icons/icon-maskable-512.png';
   // Monochrome + shortcut icons are served by the site since the 2026-10-26 deploy. The generator above
   // still reads the byte-identical local copies in assets-src/ (bubblewrap's fetch ignores HTTPS_PROXY),
   // but the saved twa-manifest.json points at the public files so `bubblewrap update` works without :8765.
   //   shortcut_map/favorites_192.png == /sc-map|fav-192.png (same md5). /sc-news-192.png and /sc-planner-192.png
   //   are NOT on the site yet (r5): copy assets-src/shortcut_news|planner_192.png there before `bubblewrap update`.
-  //   assets-src/icon-monochrome-512.png != /icon-mono-512.png (site mark has more padding; see README)
-  out.monochromeIconUrl = REAL + '/icon-mono-512.png';
+  //   the notification icon is generated from assets-src/icon-monochrome-512.png (local copy, v7)
+  out.monochromeIconUrl = REAL + '/icons/icon-monochrome-512.png';
   const SCPUB = { map: 'map', favorites: 'fav', news: 'news', planner: 'planner' };
   out.shortcuts = (out.shortcuts || []).map((s, i) => ({ ...s, url: fix(s.url), chosenIconUrl: REAL + '/sc-' + SCPUB[SC[i]] + '-192.png' }));
   require('fs').writeFileSync(path.join(target, 'twa-manifest.json'), JSON.stringify(out, null, 2) + '\n');
@@ -94,14 +95,14 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   }
   for (const f of LAUNCHER) { fs.mkdirSync(path.dirname(path.join(DST_RES, f)), { recursive: true }); fs.copyFileSync(path.join(SRC_RES, f), path.join(DST_RES, f)); }
   // Brand splash (1.0.0 r4): vector @drawable/splash (assets-src/splash/render-splash.js) replaces bubblewrap's
-  // splash.png, and LauncherActivity gets Theme.Zippin.Launcher (values-v31 = Android 12+ system splash).
+  // splash.png, and LauncherActivity gets Theme.Jaegaepick.Launcher (values-v31 = Android 12+ system splash).
   for (const f of ['drawable/splash.xml', 'values/themes.xml', 'values-v31/themes.xml']) {
     fs.mkdirSync(path.dirname(path.join(DST_RES, f)), { recursive: true }); fs.copyFileSync(path.join(SRC_RES, f), path.join(DST_RES, f)); }
   for (const d of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) fs.rmSync(path.join(DST_RES, 'drawable-' + d, 'splash.png'), { force: true });
   const MF = path.join(target, 'app/src/main/AndroidManifest.xml');
   let mf = fs.readFileSync(MF, 'utf8');
-  if (!mf.includes('Theme.Zippin.Launcher')) mf = mf.replace(/(<activity android:name="LauncherActivity"\n)/, '$1            android:theme="@style/Theme.Zippin.Launcher"\n');
-  if (!mf.includes('android:theme="@style/Theme.Zippin.Launcher"')) throw new Error('could not set the LauncherActivity theme');
+  if (!mf.includes('Theme.Jaegaepick.Launcher')) mf = mf.replace(/(<activity android:name="LauncherActivity"\n)/, '$1            android:theme="@style/Theme.Jaegaepick.Launcher"\n');
+  if (!mf.includes('android:theme="@style/Theme.Jaegaepick.Launcher"')) throw new Error('could not set the LauncherActivity theme');
   if (!mf.includes('android:roundIcon')) mf = mf.replace(/( *)android:icon="@mipmap\/ic_launcher"\n/, (m, sp) => m + sp + 'android:roundIcon="@mipmap/ic_launcher_round"\n');
   if (!mf.includes('android:roundIcon="@mipmap/ic_launcher_round"')) throw new Error('could not add roundIcon to AndroidManifest.xml');
   fs.writeFileSync(MF, mf);

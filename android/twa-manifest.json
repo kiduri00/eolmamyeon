@@ -1,5 +1,5 @@
 {
-  "packageId": "kr.alwaysquestions.zippin",
+  "packageId": "kr.alwaysquestions.jaegaepick",
   "host": "jaegaebal.alwaysquestions.kr",
   "name": "재개픽 - 서울 재개발 지도",
   "launcherName": "재개픽",
@@ -13,9 +13,9 @@
   "backgroundColor": "#1F3A87",
   "enableNotifications": true,
   "startUrl": "/?src=app",
-  "iconUrl": "https://jaegaebal.alwaysquestions.kr/icon-512.png",
-  "maskableIconUrl": "https://jaegaebal.alwaysquestions.kr/icon-maskable-512.png",
-  "monochromeIconUrl": "https://jaegaebal.alwaysquestions.kr/icon-mono-512.png",
+  "iconUrl": "https://jaegaebal.alwaysquestions.kr/icons/icon-512.png",
+  "maskableIconUrl": "https://jaegaebal.alwaysquestions.kr/icons/icon-maskable-512.png",
+  "monochromeIconUrl": "https://jaegaebal.alwaysquestions.kr/icons/icon-monochrome-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "/home/claude/zippin-keys/zippin-upload.jks",

@@ -2,5 +2,5 @@
 <!-- LauncherActivity theme. Same as the bubblewrap default (translucent, so Chrome can take over seamlessly);
      values-v31 adds the Android 12+ system splash (navy + white mark), identical to the TWA splash. -->
 <resources>
-    <style name="Theme.Zippin.Launcher" parent="@android:style/Theme.Translucent.NoTitleBar" />
+    <style name="Theme.Jaegaepick.Launcher" parent="@android:style/Theme.Translucent.NoTitleBar" />
 </resources>
