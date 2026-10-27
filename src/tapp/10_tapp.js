@@ -116,12 +116,14 @@ function navBuild() {
     nav.__tmo = 1;
     // 웹 코드가 aria-current를 다시 붙여도(navMark) 앱 탭 기준으로 고친다 · 탭바가 다시 그려지면(자식이 바뀌면) 5탭을 다시 만든다
     try { new MutationObserver(navMark).observe(nav, { subtree: true, attributes: true, attributeFilter: ["aria-current"] }); } catch (e) {}
-    try { new MutationObserver(() => { if (!navDone(nav)) navBuild(); }).observe(nav, { childList: true, subtree: true }); } catch (e) {}
+    // tabfix: 다시 만들기는 한 프레임에 한 번(rAF로 모음) — 웹 탭바가 아직 덜 그려져(소식 단추 없음 등) navDone이 거짓인 동안 navBuild ↔ 이 감시가 동기로 서로 부르며 끝없이 돌던 것(렌더러 100% · 덮개 뒤에서 앱 멈춤)
+    try { new MutationObserver(() => { if (navDone(nav) || nav.__tq) return; nav.__tq = 1; requestAnimationFrame(() => { nav.__tq = 0; if (!navDone(nav)) navBuild(); }); }).observe(nav, { childList: true, subtree: true }); } catch (e) {}
   }
   if (navDone(nav)) return;
   nav.dataset.t5 = "1";
   const hb = nav.querySelector('[data-nav="home"]');
-  if (hb) { hb.innerHTML = "<span>홈</span>"; }
+  // tabfix: 홈 단추는 웹 그림·이름이 남아 있을 때만 고쳐 쓴다(이미 앱 모양이면 건드리지 않음 — 매번 innerHTML로 바꿔 자식이 바뀌면 감시가 다시 부르던 것)
+  if (hb && (hb.querySelector(":scope > svg") || (hb.querySelector(":scope > span") || {}).textContent !== "홈")) { hb.innerHTML = "<span>홈</span>"; }
   if (!nav.querySelector('[data-nav="map"]')) {
     const mb = document.createElement("button");
     mb.type = "button"; mb.dataset.nav = "map"; mb.innerHTML = "<span>지도</span>";
