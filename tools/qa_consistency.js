@@ -382,6 +382,15 @@ async function staticLane(api) {
     }
     if (a && z.cashTotal && a.need && a.need.cash && a.need.cash.total != null) expect(eqApi(z.cashTotal, a.need.cash.total), "z.api", "/z 입주까지 현금 == /api/v1 같은 방식 값", `${where}: 현금으로 사면 ${fm(z.cashTotal)} vs api cash.total ${a.need.cash.total}`);
     if (z.asof && updDot) expect(z.asof === updDot, "seo.dates", "정적 페이지 '데이터 기준' 날짜 == api updated", `${where}: ${z.asof} vs ${updDot}`);
+    // 리뉴얼 A1(z.zv): 손글 분석 글 속 숫자(data-zv) == /api/v1 같은 항목(앱 시트와 같은 값) — tools/zhand_check.py가 나머지 키까지 대조
+    { const ZV = [...r.text.matchAll(/<b class="zv" data-zv="(\w+)">([^<]*)<\/b>/g)].map((m) => [m[1], m[2]]);
+      if (a && ZV.length) {
+        const near = (v) => (v == null ? [] : [v - 0.0005, v, v + 0.00049].map(zfCash));
+        const want = { gapNow: near(a.need.gap.now), gapTotal: near(a.need.gap.total), cnow: near(a.need.cash.now), need: near(a.need.cash.total),
+          stage: [a.stage && a.stage.label], owners: a.owners ? [a.owners.toLocaleString("en-US")] : [], n12: a.trades && a.trades.n12 != null ? [String(a.trades.n12)] : [] };
+        const mis = ZV.filter(([k, t]) => want[k] && !want[k].includes(t)).map(([k, t]) => `${k} "${t}" vs api ${JSON.stringify(want[k])}`);
+        expect(!mis.length, "z.zv", "손글 분석 글 속 숫자(data-zv) == /api/v1 같은 값(지금 필요한 돈·입주까지 현금·단계·소유자·12개월 거래)", `${where}: ${mis.slice(0, 3).join(" ; ")}`);
+      } }
     if (z.og) ogList.push([zid, z.og]); else bad("seo.og", "/z og:image 있고 200", `${where}: no og:image`);
   }
   // og:image 실제 파일

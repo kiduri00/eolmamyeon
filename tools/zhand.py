@@ -17,6 +17,7 @@ ADTAG = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsb
 esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 PH = re.compile(r'\{\{([a-zA-Z0-9_]+)\}\}')
 HANDSET = set()
+HOOKS = json.load(open(os.path.join(ROOT, 'content/z_hooks.json'), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, 'content/z_hooks.json')) else {}
 FAILED = []   # 그날 렌더하지 못한 글(값 없음) — save_cache가 함께 남긴다
 CACHE = {'z': {}, 'gu': {}}   # 글에 쓴 값(키 → 글자) — tools/zhand_check.py가 페이지 글자·/api/v1과 대조
 def save_cache():
@@ -258,7 +259,7 @@ CSS = ('<style>'
        '.zh-nc{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text-1);text-decoration:none!important;min-width:0}'
        '.zh-nc:hover{border-color:var(--brand)}.zh-nc b{font-size:15.5px}.zh-nc em{font-style:normal;margin-left:6px;padding:1px 6px;border-radius:6px;background:var(--brand-soft,#e8edf9);color:var(--brand);font-size:11.5px;vertical-align:2px}'
        '.zh-nc span{font-size:12.5px;color:var(--text-3)}.zh-nc small{font-size:13px;color:var(--text-2);font-weight:600}'
-       'b.zv{font-weight:700;font-variant-numeric:tabular-nums}'
+       'b.zv{font-weight:700;font-variant-numeric:tabular-nums}.zh-hook{font-size:17px;line-height:1.75;font-weight:600;color:var(--text-1);margin:14px 0 8px;word-break:keep-all}'
        '@media (max-width:420px){.zh-tl li{grid-template-columns:6.4em 1fr}.zh-sv{font-size:20px}}'
        '</style>')
 
@@ -419,7 +420,9 @@ def enhance_hand(X, r, h):
             hid = f'zh-s{next(k)}'; tag = tag.replace('<h2>', f'<h2 id="{hid}">', 1)
         if hid != 'zh-nx': hs.append((hid, txt))
         return tag
-    body = re.sub(r'<!--zt-->.*?<!--/zt-->|<!--zx-->.*?<!--/zx-->', '', m.group(1), flags=re.S)
+    body = re.sub(r'<!--zt-->.*?<!--/zt-->|<!--zx-->.*?<!--/zx-->|<!--zh-hook-->.*?<!--/zh-hook-->', '', m.group(1), flags=re.S)
+    hk = (HOOKS or {}).get(r['id'])   # 첫 두 문장 질문(content/z_hooks.json · 손으로 씀 · 숫자는 그 페이지 본문에 있는 것만)
+    if hk and '<p class="lede">' in body: body = body.replace('<p class="lede">', f'<!--zh-hook--><p class="zh-hook">{esc(hk)}</p><!--/zh-hook--><p class="lede">', 1)
     body = re.sub(r'<h2(?: id="[^"]*")?>(.*?)</h2>', addid, body, flags=re.S)
     toc = ('<!--zt--><nav class="zh-toc" aria-label="이 글의 차례"><p>이 글의 차례</p><ol>' + ''.join(f'<li><a href="#{a}">{esc(b)}</a></li>' for a, b in hs) + '</ol></nav><!--/zt-->') if len(hs) >= 3 else ''
     if toc:
