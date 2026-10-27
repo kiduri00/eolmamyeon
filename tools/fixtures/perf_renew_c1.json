@@ -1,0 +1,158 @@
+{
+ "base": "http://localhost:8783",
+ "at": "2026-10-27T12:03:42.859Z",
+ "runs": 3,
+ "cpu": 4,
+ "viewport": "390x844@2",
+ "observeMs": 9000,
+ "loadavg": [
+  2.33,
+  4.55,
+  7.94
+ ],
+ "pages": {
+  "home": {
+   "path": "/",
+   "lcp": 364,
+   "fcp": 196,
+   "tbt": 4335,
+   "longMs": 547,
+   "nLong": 31,
+   "kb": 5945,
+   "jsKb": 1013,
+   "jsWireKb": 3457,
+   "reqs": 34
+  },
+  "map": {
+   "path": "/#map",
+   "lcp": 440,
+   "fcp": 252,
+   "tbt": 6825,
+   "longMs": 510,
+   "nLong": 38,
+   "kb": 5946,
+   "jsKb": 1013,
+   "jsWireKb": 3457,
+   "reqs": 35
+  },
+  "z": {
+   "path": "/z/o1176",
+   "lcp": 712,
+   "fcp": 712,
+   "tbt": 216,
+   "longMs": 194,
+   "nLong": 2,
+   "kb": 465,
+   "jsKb": 6,
+   "jsWireKb": 17,
+   "reqs": 20
+  }
+ },
+ "raw": {
+  "home": [
+   {
+    "lcp": 364,
+    "fcp": 196,
+    "longMs": 614,
+    "tbt": 4562,
+    "nLong": 31,
+    "kb": 5949,
+    "jsWireKb": 3457,
+    "jsKb": 1013,
+    "reqs": 34
+   },
+   {
+    "lcp": 196,
+    "fcp": 176,
+    "longMs": 547,
+    "tbt": 2726,
+    "nLong": 22,
+    "kb": 5807,
+    "jsWireKb": 3456,
+    "jsKb": 1013,
+    "reqs": 33
+   },
+   {
+    "lcp": 552,
+    "fcp": 264,
+    "longMs": 485,
+    "tbt": 4335,
+    "nLong": 31,
+    "kb": 5945,
+    "jsWireKb": 3457,
+    "jsKb": 1013,
+    "reqs": 34
+   }
+  ],
+  "map": [
+   {
+    "lcp": 440,
+    "fcp": 272,
+    "longMs": 516,
+    "tbt": 7105,
+    "nLong": 40,
+    "kb": 5946,
+    "jsWireKb": 3457,
+    "jsKb": 1013,
+    "reqs": 35
+   },
+   {
+    "lcp": 340,
+    "fcp": 244,
+    "longMs": 506,
+    "tbt": 6623,
+    "nLong": 38,
+    "kb": 5950,
+    "jsWireKb": 3456,
+    "jsKb": 1013,
+    "reqs": 35
+   },
+   {
+    "lcp": 468,
+    "fcp": 252,
+    "longMs": 510,
+    "tbt": 6825,
+    "nLong": 36,
+    "kb": 5946,
+    "jsWireKb": 3457,
+    "jsKb": 1013,
+    "reqs": 35
+   }
+  ],
+  "z": [
+   {
+    "lcp": 528,
+    "fcp": 528,
+    "longMs": 194,
+    "tbt": 284,
+    "nLong": 4,
+    "kb": 461,
+    "jsWireKb": 17,
+    "jsKb": 6,
+    "reqs": 20
+   },
+   {
+    "lcp": 712,
+    "fcp": 712,
+    "longMs": 180,
+    "tbt": 174,
+    "nLong": 2,
+    "kb": 465,
+    "jsWireKb": 17,
+    "jsKb": 6,
+    "reqs": 20
+   },
+   {
+    "lcp": 1000,
+    "fcp": 1000,
+    "longMs": 225,
+    "tbt": 216,
+    "nLong": 2,
+    "kb": 465,
+    "jsWireKb": 17,
+    "jsKb": 6,
+    "reqs": 20
+   }
+  ]
+ }
+}
