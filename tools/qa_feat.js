@@ -115,8 +115,69 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
     check(!bad.length, "feat.render", bad.slice(0, 6).join(" ; "));
     check(!perr2.length, "feat.errors2", perr2.slice(0, 3).join(" | "));
     }
+    // ---------- 5) F1 매물진단: 신축 쪼개기 위험 = 필지 준공연도·거래 직접 셈(파이썬 기준식) · 화면 줄 글자 = 셈 결과 · 규정 펼치기 · 지번 찾기 ----------
+    if (!ONLY || ONLY === "diag") {
+      const c5 = await b.newContext({ viewport: { width: 390, height: 844 } });
+      await c5.route("**/*", (r) => (/^http:\/\/localhost/.test(r.request().url()) ? r.continue() : r.abort()));
+      const p5 = await c5.newPage(); const perr5 = []; p5.on("pageerror", (e) => perr5.push(e.message));
+      await wd(p5.goto(BASE + "/#map", { waitUntil: "domcontentloaded" }), 60000, "goto");
+      await wd(p5.waitForFunction(() => window.ZP_boot && ZP_boot.hyd === 1 && window.ZP_feat, null, { timeout: 60000 }), 61000, "hyd");
+      const got5 = await wd(p5.evaluate(async () => {
+        const F = await ZP_feat.load(), ctx = ZP_feat.ctx(), T = await ctx.tx(), o = {}, rd = {};
+        for (const r of ctx.R) { if (r.src === "moa" || r.s >= 9) continue; const rt = ctx.rights(r), pc = r.pcl ? await ctx.pcl(r.id) : null; const x = F.split(pc, T[r.id], rt); rd[r.id] = x.set ? x.rd : null; o[r.id] = [x.n, x.after, x.same, x.txn, x.txf, x.pct]; }
+        return { o, rd };
+      }), 300000, "split");
+      const ref5 = JSON.parse(execFileSync("python3", [path.join(__dirname, "qa_feat_split.py")], { input: JSON.stringify(got5.rd), maxBuffer: 1 << 26 }).toString());
+      const bad5 = Object.keys(got5.o).filter((id) => JSON.stringify(got5.o[id]) !== JSON.stringify(ref5[id])).map((id) => `${id} ${JSON.stringify(got5.o[id])} vs ${JSON.stringify(ref5[id])}`);
+      const nz = Object.keys(got5.o).length, nA = Object.values(got5.o).filter((v) => v[1] > 0).length, nF = Object.values(got5.o).filter((v) => v[4] > 0).length;
+      check(!bad5.length, "feat.split", `${bad5.length}곳 · ${bad5.slice(0, 4).join(" ; ")}`); log(`  split ${nz}곳 · 기준일 뒤 준공 필지 있음 ${nA} · 쪼개기 의심 거래 있음 ${nF}`);
+      // 화면: 매물진단에서 구역 몇 곳을 골라 줄 글자·규정 펼치기 · 지번 찾기(필지 색인)
+      const ZD = Object.keys(got5.o).filter((id) => got5.o[id][1] > 0).slice(0, 3).concat(Object.keys(got5.o).filter((id) => got5.rd[id] && got5.o[id][0] && !got5.o[id][1]).slice(0, 2));
+      const bad6 = [];
+      for (const [mode, cs] of [["web", "light"], ["app", "dark"]]) {
+        const c6 = await b.newContext({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true, colorScheme: cs });
+        await c6.addInitScript((m) => { if (m === "app") Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.jaegaegak/" }); try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} }, mode);
+        await c6.route("**/*", (r) => (/^http:\/\/localhost/.test(r.request().url()) ? r.continue() : r.abort()));
+        const pg = await c6.newPage(); pg.on("pageerror", (e) => perr5.push(`${mode}: ${e.message}`));
+        await wd(pg.goto(BASE + "/#diagTop", { waitUntil: "domcontentloaded" }), 60000, "goto");
+        await wd(pg.waitForFunction(() => document.querySelector("#dgR .dg-l") && window.ZP_feat, null, { timeout: 30000 }), 31000, "diag");
+        for (const id of ZD) {
+          const s = await wd(pg.evaluate(async (id) => {
+            const ctx = ZP_feat.ctx(), r = ctx.byId[id], q = document.getElementById("dgQ");
+            q.value = ctx.shortName(r.n); q.dispatchEvent(new Event("input"));
+            const b = [...document.querySelectorAll("#dgS [data-d]")].find((x) => x.dataset.d === id); if (!b) return { miss: 1 };
+            b.click();
+            for (let i = 0; i < 60 && !document.querySelector('#dgR [data-f="split"]'); i++) await new Promise((r) => setTimeout(r, 100));
+            const li = document.querySelector('#dgR [data-f="split"]'), dt = document.querySelector('#dgR [data-f="rules"]');
+            const ov = [...document.querySelectorAll("#dgR, #dgR *")].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).length;
+            const F = window.ZPF, pc = await ctx.pcl(id), T = await ctx.tx(), exp = F.splitItem(F.split(pc, T[id], ctx.rights(r)), ctx);
+            const prevLabel = li && li.previousElementSibling ? li.previousElementSibling.textContent : "";
+            return { txt: li ? li.querySelector("small").textContent : null, exp: exp ? exp.t : null, cls: li && li.className, ecls: exp && exp.cls, rules: !!(dt && dt.querySelector(".rules-g")), dupId: dt ? dt.querySelectorAll("[id]").length : -1, ov, prevOk: /권리산정기준일/.test(prevLabel) };
+          }, id), 30000, "pick");
+          if (s.miss) { bad6.push(`${mode} ${id} 검색에 안 나옴`); continue; }
+          if (!s.txt || !s.txt.startsWith(s.exp) || s.cls !== s.ecls || !s.prevOk) bad6.push(`${mode} ${id} 줄 ${s.cls}/${s.ecls} '${(s.txt || "").slice(0, 60)}' 위치 ${s.prevOk}`);
+          if (!s.rules || s.dupId) bad6.push(`${mode} ${id} 규정 펼치기 ${s.rules} 아이디 ${s.dupId}`);
+          if (s.ov) bad6.push(`${mode} ${id} 가로 넘침 ${s.ov}`);
+        }
+        // 지번 찾기: 필지 목록의 첫 지번 → 그 구역이 결과에 있어야
+        const id0 = ZD[0];
+        const j = await wd(pg.evaluate(async (id) => {
+          const ctx = ZP_feat.ctx(), pc = await ctx.pcl(id); if (!pc || !pc.p.length) return { skip: 1 };
+          const x = pc.p[0], qv = `${pc.d[x[0]]} ${x[1]}`, q = document.getElementById("dgQ");
+          q.value = qv; q.dispatchEvent(new Event("input"));
+          for (let i = 0; i < 50 && !document.querySelector("#dgS [data-d]") && !/밖이에요/.test(document.getElementById("dgS").textContent); i++) await new Promise((r) => setTimeout(r, 100));
+          return { qv, ids: [...document.querySelectorAll("#dgS [data-d]")].map((b) => b.dataset.d) };
+        }, id0), 20000, "jibun");
+        if (!j.skip && !j.ids.includes(id0)) bad6.push(`${mode} 지번 '${j.qv}' → ${j.ids} (${id0} 없음)`);
+        await pg.screenshot({ path: `${process.env.QAF_SHOTS || "/tmp"}/f1_${mode}_${cs}.png` }).catch(() => {});
+        await c6.close();
+      }
+      check(!bad6.length, "feat.diag", bad6.slice(0, 5).join(" ; "));
+      check(!perr5.length, "feat.errors5", perr5.slice(0, 3).join(" | "));
+      await c5.close();
+    }
     // ---------- 4) F9 알림 세부 설정(MY): 구역별·조건별 끄기 → 소식·배지·폰 알림 목록(서버로 보내는 것)에서 빠짐 · 미리 보기 수 = 소식 자료 직접 셈 ----------
-    {
+    if (!ONLY || ONLY === "alerts") {
       const CH = JSON.parse(require("fs").readFileSync(path.join(__dirname, "..", "public", "data", "changes.json"), "utf8"));
       const day = () => new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
       const addDay = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };

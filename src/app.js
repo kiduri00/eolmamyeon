@@ -4145,7 +4145,7 @@
     nums: (r) => DTL.nums(r), pace: (r) => ZX.pace(r), rights: (r) => ZX.rights(r), tx: () => ZX.loadTx(), shape: (r) => shapeOf(r), SHAPE,
     cash: () => CASH, gap: () => gapMode(), tapp: () => document.documentElement.classList.contains("is-tapp"),
     open: (id) => { curTab = "money"; select(id, true, false, { scroll: true }); },
-    brand: BRAND, etaShow: (r) => etaShow(r), cur: () => cur, tab: () => curTab, areaBad: (r) => areaSuspect(r), ok: (r) => !!(window.ZP_ok && window.ZP_ok(r)),
+    brand: BRAND, etaShow: (r) => etaShow(r), pcl: (id) => ZX.loadPcl(id), rules: () => { const el = $("rules"); if (el && !el.innerHTML.trim()) drawRules(); }, cur: () => cur, tab: () => curTab, areaBad: (r) => areaSuspect(r), ok: (r) => !!(window.ZP_ok && window.ZP_ok(r)),
   });
   const featHook = (tab, r) => {
     if (!["biz", "tx", "loc"].includes(tab) || !r || r.src === "moa") return;
@@ -5385,7 +5385,7 @@
         }),
       );
     $("rules").innerHTML =
-      `<h3 class="rules-g">매수 전에 확인할 것 <small>지위양도·재당첨·대출·세금</small></h3><div class="rules-col">${buyer.join("")}</div><h3 class="rules-g">사업 진행 요건 <small>구역지정·동의율·모아타운</small></h3><div class="rules-col">${biz.join("")}</div>`;
+      `<p class="rules-dg" data-rules-dg><a href="#diagTop" data-menu="diagTop">구역을 골라 입주권·토지거래허가·신축 쪼개기 위험까지 한 번에 보기 → 매물진단</a></p><h3 class="rules-g">매수 전에 확인할 것 <small>지위양도·재당첨·대출·세금</small></h3><div class="rules-col">${buyer.join("")}</div><h3 class="rules-g">사업 진행 요건 <small>구역지정·동의율·모아타운</small></h3><div class="rules-col">${biz.join("")}</div>`;
     markNewWin($("rules"));
     drawSources();
   }

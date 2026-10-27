@@ -102,3 +102,18 @@ html.is-tapp .zpx-seg button[aria-pressed="true"]{background:var(--t-pg)}
 .zal-n{font-weight:700;color:var(--zf-ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .zal-x{grid-column:1 / -1;color:var(--zf-sub);word-break:keep-all;overflow-wrap:anywhere}
 .zal-s{margin:8px 0 0;font:500 12px/17px var(--font,inherit);color:var(--zf-mute);word-break:keep-all}
+/* F1 매물진단: 신축 쪼개기 위험 줄 · 매수 전 규정 펼치기 */
+.dg-l .zdg-est{display:inline-block;width:auto;margin-left:4px;padding:1px 6px;border-radius:999px;background:var(--warn-soft,#FFF4E5);color:var(--warn-ink,#8A4B00);font:600 11px/16px var(--font,inherit);font-style:normal;vertical-align:1px}
+.dg-l .zdg-src{display:block;margin-top:3px;font-size:11.5px;color:var(--text-3,#6B7684)}
+.zdg-rules{margin:14px 0 0;border:1px solid var(--divider,#E5E8EB);border-radius:16px;background:var(--surface,#fff)}
+.zdg-rules>summary{display:flex;flex-direction:column;gap:2px;min-height:48px;justify-content:center;padding:10px 40px 10px 16px;cursor:pointer;list-style:none;position:relative}
+.zdg-rules>summary::-webkit-details-marker{display:none}
+.zdg-rules>summary::after{content:"";position:absolute;right:18px;top:50%;width:8px;height:8px;border-right:2px solid var(--text-3,#6B7684);border-bottom:2px solid var(--text-3,#6B7684);transform:translateY(-70%) rotate(45deg);transition:transform .15s}
+.zdg-rules[open]>summary::after{transform:translateY(-30%) rotate(-135deg)}
+.zdg-rules>summary b{font-size:15px;color:var(--text-1,#191F28)}
+.zdg-rules>summary small{font-size:12.5px;color:var(--text-3,#6B7684)}
+.zdg-rb{padding:0 16px 14px;min-width:0;overflow-wrap:anywhere}
+html.is-tapp .zdg-rules{border-color:var(--t-line,#E5E8EB);background:none}html.is-tapp .zdg-rules>summary b{color:var(--t-ink)}html.is-tapp .zdg-rules>summary small{color:var(--t-mute)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dg-l .zdg-est{background:rgba(255,170,60,.16);color:#FFC37A}}
+:root[data-theme="dark"] .dg-l .zdg-est{background:rgba(255,170,60,.16);color:#FFC37A}
+@media (prefers-reduced-motion:reduce){.zdg-rules>summary::after{transition:none}}
