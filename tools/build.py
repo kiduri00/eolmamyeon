@@ -480,6 +480,9 @@ try:
     import trust; trust.main()
 except Exception as e: print('trust 건너뜀:', e)
 try:
+    import og_site; og_site.main()   # 사이트 대표 공유 그림(이름: tools/brand.py)
+except Exception as e: print('og_site 건너뜀:', e)
+try:
     import static_tabs; static_tabs.main()
 except Exception as e: print('static tabs 건너뜀:', e)
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)

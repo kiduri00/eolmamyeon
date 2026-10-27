@@ -5,6 +5,7 @@
 - 숫자는 화면 계산기와 같은 엔진(calc.json)에서만 가져온다. 없으면 싣지 않는다.
 """
 import json, statistics, os, re, html, math, datetime, collections
+from brand import BRAND, BRAND_EN
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p, d=None: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else d
 D = J('pipeline/data.enriched.json') or J('src/data.json'); TH = J('public/data/toheo.json', {}) or {}; P = J('public/premium.json', {}); C = J('pipeline/calc.json', {}); S = J('public/data/sang.json')
@@ -74,7 +75,7 @@ def zt(r):
             base = t[: -len(k)].rstrip() if t.endswith(k) else t
             t = f"{base}({q2[0]}) {k}".strip(); q = [x for x in q if x != q2[0]]
     return t, q
-def ztitle_s(r): return f"{zt(r)[0]} | 단계·실거래·입주 현금 | 집핀"
+def ztitle_s(r): return f"{zt(r)[0]} | 단계·실거래·입주 현금 | {BRAND}"
 EVK = {'조합설립인가': '조합설립', '사업시행인가': '사업시행', '관리처분인가': '관리처분', '정비구역지정': '구역지정', '조합설립추진위원회승인': '추진위', '사업시행자지정': '시행자지정', '준공인가': '준공'}
 def evtext(dt, d, sec, t):
     """정보몽땅 원문 '[(변경)인가] 동의율 : 89.85' → '변경인가 · 동의율 89.85%' (src/ext/20_zone.js evText와 같은 규칙)"""
@@ -114,7 +115,7 @@ def gapWhy(c):   # 전세 끼고 계산이 안 되는 이유(화면 gapBlock과 
 def dist(a, b, c, d):
     k = math.pi / 180; x = (d - b) * k * math.cos((a + c) / 2 * k); y = (c - a) * k
     return math.sqrt(x * x + y * y) * 6371000
-HEAD = '''<!doctype html>
+HEAD = ('''<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -125,7 +126,7 @@ HEAD = '''<!doctype html>
 <meta name="description" content="{desc}">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="{url}">
-<meta property="og:site_name" content="집핀"><meta property="og:title" content="{title}">
+<meta property="og:site_name" content="''' + BRAND + '''"><meta property="og:title" content="{title}">
 <meta property="og:description" content="{desc}">
 <meta property="og:url" content="{url}">
 <meta name="twitter:card" content="summary_large_image">
@@ -141,15 +142,15 @@ HEAD = '''<!doctype html>
 <script type="application/ld+json">{ld}</script>
 </head>
 <body>
-<header class="top"><div class="in"><a class="logo" href="/" aria-label="집핀 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><span class="logo-en" lang="en">Zippin</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/" aria-current="page">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav><form class="tsr" action="/" method="get" role="search"><label class="sr-only" for="tq">구역 검색</label><input id="tq" name="q" type="search" placeholder="구역·동·역 검색" autocomplete="off" enterkeyhint="search" maxlength="40"></form><script>matchMedia("(max-width:399.98px)").matches&&(document.getElementById("tq").placeholder="검색")</script></div></header>
+<header class="top"><div class="in"><a class="logo" href="/" aria-label="''' + BRAND + ''' 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">''' + BRAND + '''</span><span class="logo-en" lang="en">''' + BRAND_EN + '''</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/" aria-current="page">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav><form class="tsr" action="/" method="get" role="search"><label class="sr-only" for="tq">구역 검색</label><input id="tq" name="q" type="search" placeholder="구역·동·역 검색" autocomplete="off" enterkeyhint="search" maxlength="40"></form><script>matchMedia("(max-width:399.98px)").matches&&(document.getElementById("tq").placeholder="검색")</script></div></header>
 <main>
-'''
-FOOT = '''</main>
-<footer class="f"><p><a href="../report/">월간 리포트</a> · <a href="../z/">구역별 페이지</a> · <a href="../guide/">가이드·분석</a> · <a href="../years">몇 년 걸리나</a> · <a href="../about">소개</a> · <a href="../contact">문의하기</a> · <a href="../method">출처·계산 방법</a> · <a href="../terms">이용약관</a> · <a href="../privacy"><b>개인정보처리방침</b></a> · <a href="https://blog.naver.com/always_questions" rel="noopener">블로그</a></p><p class="f-c">© 2026 집핀 · 데이터 기준 {upd}</p></footer>
+''')
+FOOT = ('''</main>
+<footer class="f"><p><a href="../report/">월간 리포트</a> · <a href="../z/">구역별 페이지</a> · <a href="../guide/">가이드·분석</a> · <a href="../years">몇 년 걸리나</a> · <a href="../about">소개</a> · <a href="../contact">문의하기</a> · <a href="../method">출처·계산 방법</a> · <a href="../terms">이용약관</a> · <a href="../privacy"><b>개인정보처리방침</b></a> · <a href="https://blog.naver.com/always_questions" rel="noopener">블로그</a></p><p class="f-c">© 2026 ''' + BRAND + ''' · 데이터 기준 {upd}</p></footer>
 <script>/* 오프라인에서도 다시 열 수 있게: 서비스 워커를 붙이고 이 페이지를 저장해 달라고 알린다 */if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname==="localhost"))addEventListener("load",function(){{navigator.serviceWorker.register("/sw.js",{{scope:"/"}}).then(function(){{return navigator.serviceWorker.ready}}).then(function(r){{r.active&&r.active.postMessage({{t:"keep",u:[location.pathname]}})}}).catch(function(){{}})}});</script>
 </body>
 </html>
-'''
+''')
 def is_hand(rid):
     f = os.path.join(ZD, rid + '.html')
     return os.path.exists(f) and os.path.getsize(f) > 0 and 'name="emr-auto"' not in open(f, encoding='utf-8').read(3000)   # 빈 파일은 자동 페이지로 다시 만든다
@@ -308,7 +309,7 @@ def page(r):
     desc = f"{r['g']} {tnm}{'(' + ' · '.join(tq) + ')' if tq else ''}: 지금 {stage} 단계. 구역 안 실거래, 노후도, 권리산정기준일, 정비사업 정보몽땅 추진경과, 기본 가정의 지금 필요한 돈과 입주까지 현금 추정. 데이터 기준 {UPD}."
     url = f"{SITE}/z/{rid}"
     ld0 = {"@type": "Article", "headline": f"{nmk} 진행 단계와 입주까지 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
-           "mainEntityOfPage": url, "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "집핀", "url": SITE}}
+           "mainEntityOfPage": url, "author": {"@type": "Person", "name": (BRAND + " 운영자"), "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE}}
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld='@@LD@@').replace('<link rel="canonical"', f'<link rel="alternate" type="application/rss+xml" title="{esc(nmk)} 소식" href="../feed/z/{rid}.xml">\n<link rel="canonical"', 1)]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or r.get("dg") or "")} · {esc(kind)} · 데이터 기준 {UPD}</p>')
     o.append(f'<h1>{esc(nmk)} 진행 단계와 입주까지 현금</h1>')
@@ -448,7 +449,7 @@ def page(r):
         og = zmap.og_card(rid, nm, f"{r['g']} {r.get('j') or ''} · {kind}".strip(), stage or '단계 확인 중', mk[0] if mk else '', re.sub(r'<[^>]+>', '', mk[1]) if mk else '', (r['ll'][1], r['ll'][0]) if r.get('ll') else (tuple(zg['l']) if zg.get('l') else None), r['g'], UPD)
     elif os.path.exists(os.path.join(ROOT, 'public/og/z', rid + '.png')): og = f'/og/z/{rid}.png'   # 글꼴·PIL이 없는 곳에서 돌 때는 있던 카드를 그대로
     if og: ld0["image"] = SITE + og
-    graph = [ld0, crumbs(("집핀", SITE + "/"), ("구역별 페이지", f"{SITE}/z/"), (r['g'], f"{SITE}/gu/{r['g']}"), (nm, url))]
+    graph = [ld0, crumbs(((BRAND), SITE + "/"), ("구역별 페이지", f"{SITE}/z/"), (r['g'], f"{SITE}/gu/{r['g']}"), (nm, url))]
     graph.append(place_ld(r, url))
     h = plain(''.join(o)).replace('@@LD@@', json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False).replace('</', '<\\/'), 1)
     if og: h = h.replace(f'<meta property="og:image" content="{SITE}/og.png">', f'<meta property="og:image" content="{SITE}{og}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:image" content="{SITE}{og}">', 1)
@@ -474,7 +475,7 @@ for _a, _k in (D.get('alias') or {}).items():
     if _k not in _LIVE or is_hand(_a): continue
     _u = f"{SITE}/z/{_k}"
     open(os.path.join(ZD, _a + '.html'), 'w', encoding='utf-8').write(f'''<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="emr-auto" content="1"><meta name="robots" content="noindex,follow">
-<title>{esc(short(_BY[_k]['n']))} | 집핀</title><link rel="canonical" href="{_u}"><meta http-equiv="refresh" content="0; url=./{_k}"><script>location.replace("./{_k}"+location.search+location.hash)</script></head>
+<title>{esc(short(_BY[_k]['n']))} | {BRAND}</title><link rel="canonical" href="{_u}"><meta http-equiv="refresh" content="0; url=./{_k}"><script>location.replace("./{_k}"+location.search+location.hash)</script></head>
 <body style="font-family:system-ui,sans-serif;padding:24px"><p>같은 구역이 한 페이지로 합쳐졌어요. <a href="./{_k}">{esc(short(_BY[_k]['n']))} 페이지로 가기</a></p></body></html>
 ''')
     print('  alias page', _a, '->', _k)
@@ -502,7 +503,7 @@ def plain(h):
 def term_fix(h):
     for a, b in TERM_FIX: h = a.sub(b, h)
     h = plain(h)
-    return re.sub(r'(<p class="f-c">© \d{4} 집핀 · 데이터 기준 )[\d.]+', lambda m: m.group(1) + UPD, h)
+    return re.sub((r'(<p class="f-c">© \d{4} ' + BRAND + r' · 데이터 기준 )[\d.]+'), lambda m: m.group(1) + UPD, h)
 def hand_live(r, h):
     """손으로 쓴 구역 페이지: 글 속 숫자는 쓴 날 기준이라 머리 날짜를 '글 기준'으로 밝히고, 바로 밑에 오늘 숫자 상자(자동 페이지와 같은 값)를 끼운다."""
     rid = r['id']; c = C.get(rid) or {}
@@ -540,7 +541,7 @@ def hand_og(r):
     h = h.replace(base, f'<meta property="og:image" content="{SITE}{og}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:image" content="{SITE}{og}">', 1)
     open(f, 'w', encoding='utf-8').write(h)
 def hand_seo(r, h):
-    """손으로 쓴 구역 글: 본문은 두고 머리만 자동 페이지와 같게 — 제목 '<짧은 이름> 재개발 | 단계·실거래·입주 현금 | 집핀', 구조화 데이터(글 + 이동 경로 + 장소)."""
+    ("""손으로 쓴 구역 글: 본문은 두고 머리만 자동 페이지와 같게 — 제목 '<짧은 이름> 재개발 | 단계·실거래·입주 현금 | """ + BRAND + """', 구조화 데이터(글 + 이동 경로 + 장소).""")
     rid = r['id']; nm = short(r['n']); kind = KIND.get(r['k'], r['k']); url = f"{SITE}/z/{rid}"
     t = ztitle_s(r)
     h = re.sub(r'<title>.*?</title>', lambda m: f'<title>{esc(t)}</title>', h, count=1, flags=re.S)
@@ -549,7 +550,7 @@ def hand_seo(r, h):
     try: obj = json.loads(m.group(1)) if m else {}
     except ValueError: obj = {}
     art = next((x for x in obj.get('@graph', []) if x.get('@type') == 'Article'), None) if '@graph' in obj else ({k: v for k, v in obj.items() if k != '@context'} if obj.get('@type') else None)
-    graph = ([art] if art else []) + [crumbs(("집핀", SITE + "/"), ("구역별 페이지", f"{SITE}/z/"), (r['g'], f"{SITE}/gu/{r['g']}"), (nm, url)), place_ld(r, url)]
+    graph = ([art] if art else []) + [crumbs(((BRAND), SITE + "/"), ("구역별 페이지", f"{SITE}/z/"), (r['g'], f"{SITE}/gu/{r['g']}"), (nm, url)), place_ld(r, url)]
     tag = '<script type="application/ld+json">' + json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False).replace('</', '<\\/') + '</script>'
     return h[:m.start()] + tag + h[m.end():] if m else h.replace('</head>', tag + '\n</head>', 1)
 # 모든 정적 페이지 공통: 머리 검색(좁은 화면 포함) · 다크 theme-color를 앱과 같게(#15181D) · '정보몽땅' 첫 언급은 '정비사업 정보몽땅'
@@ -684,8 +685,8 @@ hand = [r for r in D['recs'] if is_hand(r['id'])]
 byg = collections.defaultdict(list)
 for r in R: byg[r['g']].append(r)
 li = lambda x: f'<a class="zl" href="{x["id"]}">{esc(short(x["n"]))}<small>{esc(KIND.get(x["k"], x["k"]))} · {esc((C.get(x["id"]) or {}).get("stage") or x.get("sr") or "")}</small></a>'
-idx = [HEAD.format(title='서울 정비사업 구역별 페이지 | 집핀 - 서울 재개발 지도', desc=f'서울 진행 중 정비사업 {len(R)}곳의 구역별 진행 단계·실거래·노후도·입주까지 현금. 데이터 기준 {UPD}.', url=f'{SITE}/z/', site=SITE,
-                  ld=json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": "서울 정비사업 구역별 페이지", "url": f"{SITE}/z/", "inLanguage": "ko"}, crumbs(("집핀", SITE + "/"), ("구역별 페이지", f"{SITE}/z/"))]}, ensure_ascii=False)).replace('<meta name="emr-auto" content="1">\n', '')]
+idx = [HEAD.format(title=('서울 정비사업 구역별 페이지 | ' + BRAND + ' - 서울 재개발 지도'), desc=f'서울 진행 중 정비사업 {len(R)}곳의 구역별 진행 단계·실거래·노후도·입주까지 현금. 데이터 기준 {UPD}.', url=f'{SITE}/z/', site=SITE,
+                  ld=json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": "서울 정비사업 구역별 페이지", "url": f"{SITE}/z/", "inLanguage": "ko"}, crumbs(((BRAND), SITE + "/"), ("구역별 페이지", f"{SITE}/z/"))]}, ensure_ascii=False)).replace('<meta name="emr-auto" content="1">\n', '')]
 idx.append(f'<p class="eyebrow">구역별 페이지 · 데이터 기준 {UPD}</p><h1>서울 정비사업 구역별 페이지</h1><p class="lede">서울에서 진행 중인 재개발·재건축·가로주택 {len(R)}곳을 구역마다 한 페이지로 정리했어요. 진행 단계와 인가 이력, 구역 안 실거래, 노후도, 권리산정기준일, 기본 가정의 지금 필요한 돈과 입주까지 현금이 있어요. 매일 자동 갱신돼요.</p>')
 idx.append(CNT_NOTE)
 if hand: idx.append('<h2>기사·고시로 대조해 정리한 구역</h2><p>규모가 커서 확인할 거리가 많은 구역은 기사·고시와 정비사업 정보몽땅 등록값을 대조한 이야기를 붙였어요.</p><div class="grid2">' + ''.join(li(x) for x in hand if x['id'] in {y['id'] for y in R}) + '</div>')
@@ -816,13 +817,13 @@ def guPage(g, L):
     ok = [x for x in L if LISTED(x)]   # 참고값(lc)·시장 정비는 '가장 적은 돈' 예시에서 뺀다(사이트 목록과 같음)
     cheap = sorted(ok, key=lambda x: c(x)['gapNow'])[:3]
     st = collections.Counter(c(x).get('stage') or x.get('sr') or '' for x in L)
-    title = f'{g} 재개발·재건축 {len(L)}곳 · 진행 단계와 필요한 돈 | 집핀'
+    title = f'{g} 재개발·재건축 {len(L)}곳 · 진행 단계와 필요한 돈 | {BRAND}'
     desc = f'{g}에서 진행 중인 정비사업 {len(L)}곳. ' + (f'전세를 안고 살 때 지금 드는 돈이 가장 적은 곳은 {short(cheap[0]["n"])}(추정 {eok(c(cheap[0])["gapNow"])}). ' if cheap else '') + f'데이터 기준 {UPD}.'
     gc = next((x.get('c') for x in (GEO.get('gu') or []) if x['n'] == g), None)
     area = {"@type": "AdministrativeArea", "name": f"서울특별시 {g}", "url": url, "address": {"@type": "PostalAddress", "addressCountry": "KR", "addressRegion": "서울특별시", "addressLocality": g}}
     if gc: area["geo"] = {"@type": "GeoCoordinates", "latitude": round(gc[1], 5), "longitude": round(gc[0], 5)}
     ld = json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": f"{g} 정비사업", "url": url, "inLanguage": "ko", "about": {"@id": url + "#gu"}},
-                     crumbs(("집핀", SITE + "/"), ("자치구별", f"{SITE}/gu/"), (g, url)), {**area, "@id": url + "#gu"}]}, ensure_ascii=False)
+                     crumbs(((BRAND), SITE + "/"), ("자치구별", f"{SITE}/gu/"), (g, url)), {**area, "@id": url + "#gu"}]}, ensure_ascii=False)
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace(' aria-current="page"', '').replace('<link rel="canonical"', f'<link rel="alternate" type="application/rss+xml" title="{esc(g)} 정비사업 새 소식" href="../feed/gu/{esc(g)}.xml">\n<link rel="canonical"', 1)]
     o.append(f'<p class="eyebrow"><a href="./">구역별 페이지</a> · <a href="../gu/">자치구별</a> · 데이터 기준 {UPD}</p><h1>{esc(g)} 재개발·재건축 {len(L)}곳</h1>')
     top = [(k, v) for k, v in st.most_common() if k][:5]; rest = len(L) - sum(v for _, v in top)   # 단계 합이 머리글 곳 수와 꼭 맞게: 나머지는 '기타'
@@ -928,8 +929,8 @@ def guIndex():
     url = f'{SITE}/gu/'
     ld = json.dumps({"@context": "https://schema.org", "@graph": [{"@type": "CollectionPage", "name": "서울 자치구별 정비사업", "url": url, "inLanguage": "ko",
                      "mainEntity": {"@type": "ItemList", "numberOfItems": len(byg), "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": g, "url": f"{SITE}/gu/{g}"} for i, g in enumerate(sorted(byg))]}},
-                     crumbs(("집핀", SITE + "/"), ("자치구별", url))]}, ensure_ascii=False)
-    title = f'서울 자치구별 재개발·재건축 {len(byg)}개 구 | 집핀'
+                     crumbs(((BRAND), SITE + "/"), ("자치구별", url))]}, ensure_ascii=False)
+    title = f'서울 자치구별 재개발·재건축 {len(byg)}개 구 | {BRAND}'
     desc = f'서울 {len(byg)}개 자치구의 진행 중 정비사업 {len(R)}곳을 구별로 모았어요. 구를 누르면 구역마다 진행 단계와 필요한 돈을 볼 수 있어요. 데이터 기준 {UPD}.'
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld=ld).replace('<meta name="emr-auto" content="1">\n', '').replace(' aria-current="page"', '').replace('<base href="/z/">', '<base href="/gu/">')]
     o.append(f'<p class="eyebrow">자치구별 페이지 · 데이터 기준 {UPD}</p><h1>서울 자치구별 재개발·재건축</h1><p class="lede">서울에서 진행 중인 정비사업 {len(R)}곳을 {len(byg)}개 구로 나눴어요. 구를 고르면 그 구의 구역을 전세 끼고 지금 필요한 돈 순으로 볼 수 있어요.</p>')
@@ -972,7 +973,7 @@ def _ld_put(fp, obj):
 def _meta(h, name):
     m = re.search(r'<title>(.*?)</title>', h, re.S) if name == 'title' else re.search(r'<meta name="description" content="([^"]*)"', h)
     return html.unescape(m.group(1)).strip() if m else ''
-_pub = {"@type": "Organization", "name": "집핀", "url": SITE, "logo": f"{SITE}/icon-512.png"}
+_pub = {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icon-512.png"}
 RD = os.path.join(ROOT, 'public/report')
 if os.path.isdir(RD):
     iss = sorted((f for f in os.listdir(RD) if re.match(r'\d{4}-\d{2}\.html$', f)), reverse=True)
@@ -989,7 +990,7 @@ if os.path.isdir(RD):
         if hd1 != hd0: open(os.path.join(RD, f), 'w', encoding='utf-8').write(hd1 + h[len(hd0):])
         _ld_put(os.path.join(RD, f), {"@context": "https://schema.org", "@type": "Article", "headline": re.sub(r'<[^>]+>', '', h1m.group(1)).strip()[:110] if h1m else _meta(h, 'title'),
                  "description": _meta(h, 'desc'), "inLanguage": "ko", "datePublished": pubd, "dateModified": modd, "url": f"{SITE}/report/{ym}", "mainEntityOfPage": f"{SITE}/report/{ym}",
-                 "image": f"{SITE}/og.png", "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": _pub})
+                 "image": f"{SITE}/og.png", "author": {"@type": "Person", "name": (BRAND + " 운영자"), "url": f"{SITE}/about"}, "publisher": _pub})
     ix = os.path.join(RD, 'index.html')
     if os.path.exists(ix):
         h = open(ix, encoding='utf-8').read()
@@ -1000,7 +1001,7 @@ if os.path.exists(YF):
     h = open(YF, encoding='utf-8').read()
     _ld_put(YF, {"@context": "https://schema.org", "@type": "Article", "headline": _meta(h, 'title').split(' | ')[0], "description": _meta(h, 'desc'), "inLanguage": "ko",
                  "dateModified": UPD.replace('.', '-'), "url": f"{SITE}/years", "mainEntityOfPage": f"{SITE}/years", "image": f"{SITE}/og.png",
-                 "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": _pub})
+                 "author": {"@type": "Person", "name": (BRAND + " 운영자"), "url": f"{SITE}/about"}, "publisher": _pub})
 # 26차(애드센스 2차): /report/ 목록에 지난 호들을 이어 읽는 해설(issues.json 숫자로만) — report.py가 목록을 다시 써도 매일 다시 끼운다
 _IJ = J('pipeline/report/issues.json', []) or []
 _IX = os.path.join(ROOT, 'public/report/index.html')

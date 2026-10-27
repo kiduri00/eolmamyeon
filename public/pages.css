@@ -115,7 +115,7 @@ dl.gl div{margin:3px 0}
 .zc-bw.no b{background:var(--risk-soft);color:var(--risk-ink)}
 .shot-txt{margin:12px 0;padding:10px 12px;border-left:3px solid var(--brand);background:color-mix(in srgb,var(--brand) 6%,transparent);font-size:14px;line-height:1.6}.shot-txt b{margin-right:6px}
 
-/* 집핀 로고(앱 헤더와 같은 모양) */
+/* 재개각 로고(앱 헤더와 같은 모양) */
 .logo{display:inline-flex;align-items:center;gap:8px;text-decoration:none!important}.logo-i{width:28px;height:28px;border-radius:7px;flex:none}.logo .logo-t{font-size:19px;font-weight:800;letter-spacing:-.04em;color:var(--text-1)}.logo .logo-s{font-size:12px;font-weight:600;color:var(--text-3);letter-spacing:-.01em}.logo .logo-en{margin-left:-3px;font-size:13px;font-weight:700;letter-spacing:.03em;color:var(--brand);align-self:center;line-height:1;padding-top:2px}@media (max-width:640px){.logo-i{width:26px;height:26px}.logo .logo-s{font-size:11.5px;white-space:nowrap}}
 
 /* 문단·목록 안 링크는 밑줄(색만으로 구분하지 않게 · axe link-in-text-block) */

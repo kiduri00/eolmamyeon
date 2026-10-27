@@ -13,6 +13,7 @@
       pipeline/report/budget/YYYY-MM.json(다음 호가 견줄 '갈 수 있는 곳' 스냅숏)
 """
 import json, os, sys, re, html, argparse, datetime, collections, calendar, statistics as st
+from brand import BRAND, BRAND_EN
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def J(p, d=None):
     fp = os.path.join(ROOT, p)
@@ -436,7 +437,7 @@ if th_ok:
 {tbl([("구", 0), (f"{M}월 1~{th_day}일 · {pm}월 같은 기간 · 차이", 0)], [(g, f"<b>{th_gc.get(g, 0):,}건</b> · {th_gp.get(g, 0):,}건 · " + (pct((th_gc.get(g, 0) / th_gp[g] - 1) * 100) if th_gp.get(g) else "–")) for g in thg[:10]], '구별 토지거래허가 건수', True)}
 <p class="meta">허가 건수 상위 10개 구. 허가 1건 = 접수번호별 대표 지번 1개(원자료 기준), 결과가 '허가'인 건만 셌어요.</p>
 <p>정비구역 경계 안 필지로 좁히면 {M}월 1~{th_day}일 허가는 {sum(th_z.values())}건, 구역으로는 {len(th_z)}곳이에요. 많은 곳은 {", ".join(f"{zlink(z)} {n}건" for z, n in th_z.most_common(5))}이에요.</p>
-<p>{f"이달 새 규제 발표: " + " · ".join(esc(a["t"]) for a in newpol) if newpol else f"집핀이 따로 정리해 두는 규제 자료(투기과열지구·토지거래허가·신통/모아타운 허가구역)에는 {M}월에 새로 바뀐 내용이 없어요. 가장 최근 변경은 {lz[-1]['d'][:4] if lz else ''}년 {md(lz[-1]['d']).replace('.', '월 ') + '일' if lz else ''} 발표된 내용이에요({esc(lz[-1]['t']) if lz else ''})."} {f"재개발 조합설립 동의율을 75%에서 70%로 낮추는 도시정비법 개정안은 자료 확인일({cb.get('asOf', '').replace('-', '.')}) 기준 국회 발의 단계라 아직 시행 전이에요." if cb.get('status') else ''}</p>
+<p>{f"이달 새 규제 발표: " + " · ".join(esc(a["t"]) for a in newpol) if newpol else f"{BRAND}이 따로 정리해 두는 규제 자료(투기과열지구·토지거래허가·신통/모아타운 허가구역)에는 {M}월에 새로 바뀐 내용이 없어요. 가장 최근 변경은 {lz[-1]['d'][:4] if lz else ''}년 {md(lz[-1]['d']).replace('.', '월 ') + '일' if lz else ''} 발표된 내용이에요({esc(lz[-1]['t']) if lz else ''})."} {f"재개발 조합설립 동의율을 75%에서 70%로 낮추는 도시정비법 개정안은 자료 확인일({cb.get('asOf', '').replace('-', '.')}) 기준 국회 발의 단계라 아직 시행 전이에요." if cb.get('status') else ''}</p>
 '''
 # ---- 6. 입주 흐름 ----
 yrs = [str(y) for y in range(Y - 6, Y + 1)]
@@ -491,7 +492,7 @@ stall.sort(key=lambda x: -x[0])
 if stall: watch.append('<b>오래 머문 큰 구역</b> · 토지등소유자가 많은 50곳 중 지금 단계에 가장 오래 머문 곳: ' + ', '.join(f'{zlink(r["id"])}({lab} {yy:.1f}년째, 보통 {mm:.1f}년)' for _, yy, mm, r, lab in stall[:3]) + '.')
 sec_next = '<h2 id="next">8. 다음 달에 볼 것</h2><ul class="rp-w">' + ''.join(f'<li>{w}</li>' for w in watch if w) + '</ul>'
 # ---- 9. 운영자 코멘트 ----
-sec_cm = (f'<h2 id="comment">9. 운영자 코멘트</h2>{NOTE_TAG}<div class="rp-cm">{notes_block("comment")}<p class="rp-sig">— 집핀 운영자</p></div>' if NOTES.get('comment') else '')
+sec_cm = (f'<h2 id="comment">9. 운영자 코멘트</h2>{NOTE_TAG}<div class="rp-cm">{notes_block("comment")}<p class="rp-sig">— {BRAND} 운영자</p></div>' if NOTES.get('comment') else '')
 # ---- 부록: 10년 흐름·기간표 ----
 mx = max(v for _, v in yearly) or 1; bw = 390 / len(yearly)
 bars = ''.join(f'<rect class="bar{" hi" if yy == Y else ""}" x="{6 + i * bw + 3:.1f}" y="{174 - v / mx * 154:.1f}" width="{bw - 6:.1f}" height="{v / mx * 154:.1f}" rx="3"><title>{yy}년 {v}건</title></rect><text class="lab" x="{6 + i * bw + bw / 2:.1f}" y="{169 - v / mx * 154:.1f}" text-anchor="middle">{v}</text><text class="ax" x="{6 + i * bw + bw / 2:.1f}" y="192" text-anchor="middle">’{str(yy)[2:]}{"*" if yy == Y else ""}</text>' for i, (yy, v) in enumerate(yearly))
@@ -508,7 +509,7 @@ srcs = [('서울시 정비사업 정보몽땅 · 추진경과·고시공고', 'h
         ('대한민국 법원 법원경매정보', 'https://www.courtauction.go.kr/', f'{md(AU.get("asOf") or "")} 확인'),
         ('서울부동산정보광장 · 토지거래허가 내역', 'https://land.seoul.go.kr/land/other/contractStatus.do', f'{th_end[4:6].lstrip("0")}.{th_end[6:8].lstrip("0")}까지' if th_end else ''),
         ('정책브리핑 · 10·15 주택시장 안정화 대책(투기과열지구·토지거래허가)', lp.get('src') or sp.get('src') or 'https://www.korea.kr', '2025.10.15 발표'),
-        ('집핀 계산 엔진(첫 화면·API와 같은 숫자)', '/method', f'{asof_cash} 기준')]
+        ((BRAND + ' 계산 엔진(첫 화면·API와 같은 숫자)'), '/method', f'{asof_cash} 기준')]
 srcs += [(c.get('title') or '원문', c['url'], c.get('checked') or '') for c in CK.get('items', []) if c.get('url') and c.get('title')]
 sec_src = '<h2 id="sources">자료와 기준일</h2><ul class="links rp-src">' + ''.join(f'<li><a href="{esc(u)}"{" rel=\"noopener\"" if u.startswith("http") else ""}>{esc(t)}</a>{f" <small class=\"meta\">{esc(d)}</small>" if d else ""}</li>' for t, u, d in srcs) + '</ul>'
 toc = ''.join(f'<a href="#{a}">{b}</a>' for a, b in [('stage', '단계 변경'), ('budget', '1억·2억·3억'), ('trade', '실거래'), ('auction', '경매'), ('permit', '토허·규제'), ('supply', '입주 흐름'), ('zones', '이달의 구역'), ('next', '다음 달'), ('comment', '운영자 코멘트')]
@@ -522,12 +523,12 @@ STY = '''<style>.rp-c{width:100%;max-width:560px;height:auto;display:block}main 
 .rp-w{padding-left:18px}.rp-w li{margin:8px 0;line-height:1.7}.rp-cm p{line-height:1.85}.rp-sig{text-align:right;color:var(--text-2)}.rp-src li{margin:4px 0}
 .hbars.w .hb{grid-template-columns:96px 1fr 52px}main h2[id]{scroll-margin-top:72px}</style>'''
 pd_ = datetime.date.fromisoformat(PUB); md_ = TODAY
-by = f"글·정리: 집핀 운영자 · 발행 {pd_.year}년 {pd_.month}월 {pd_.day}일" + (f' · 글 고친 날 <time class="zp-mod" datetime="{MOD}">{md_.year}년 {md_.month}월 {md_.day}일</time>' if MOD != PUB else '')   # 7차: dateModified와 같은 날(tools/sitemap.py가 맞춤)
+by = f"글·정리: {BRAND} 운영자 · 발행 {pd_.year}년 {pd_.month}월 {pd_.day}일" + (f' · 글 고친 날 <time class="zp-mod" datetime="{MOD}">{md_.year}년 {md_.month}월 {md_.day}일</time>' if MOD != PUB else '')   # 7차: dateModified와 같은 날(tools/sitemap.py가 맞춤)
 ptxt = (f'<div class="rp-pt"><b>{RNG} 기준이에요.</b> {M}월이 아직 끝나지 않아 {M}월 1일~{CUT.day}일 자료로 썼어요. 11월 초 전체 달 기준으로 갱신해요(같은 주소). 늦게 등록되는 인가와 신고 기한이 남은 실거래가 그때 더해져요.</div>'.replace('11월 초', f'{nm}월 초')
         if PARTIAL else (f'<div class="rp-pt">{M}월 전체 자료로 {md_.month}월 {md_.day}일 갱신했어요. 처음 낸 건 {pd_.month}월 {pd_.day}일({md(OLD.get("asof") or "")} 기준)이에요.</div>' if OLD and OLD.get('partial') else ''))
 ld = {"@context": "https://schema.org", "@type": "Article", "headline": title[:110], "description": desc, "inLanguage": "ko", "datePublished": PUB, "dateModified": MOD,
       "url": f"{SITE}/report/{YM}", "mainEntityOfPage": f"{SITE}/report/{YM}", "image": f"{SITE}/og.png",
-      "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": "집핀", "url": SITE, "logo": f"{SITE}/icon-512.png"}}
+      "author": {"@type": "Person", "name": (BRAND + " 운영자"), "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icon-512.png"}}
 body = f'''<main><script type="application/ld+json" id="zp-ld">{json.dumps(ld, ensure_ascii=False).replace("</", "<\\/")}</script>{STY}
 <p class="eyebrow">서울 재개발 월간 리포트 · {no}호 · {Y}년 {M}월분{f" ({RNG} 기준)" if PARTIAL else ""}</p>
 <h1>{esc(title)}</h1>
@@ -548,14 +549,14 @@ body = f'''<main><script type="application/ld+json" id="zp-ld">{json.dumps(ld, e
 <div class="cta"><a class="btn primary" href="/?cash=2&amp;mode=jeonse&amp;from=report#map">2억·전세 끼고로 지도 열기</a><a class="btn" href="/?cash=3&amp;mode=loan&amp;from=report">3억·대출 끼고로 보기</a></div>
 {sec_src}
 <h2>인용하실 때</h2>
-<p class="note">"출처: 집핀 월간 리포트({Y}년 {M}월분{f', {RNG} 기준' if PARTIAL else ''})"로 적고 이 페이지 링크를 붙여 주세요. 숫자 오류는 <a href="../contact">문의하기</a>로 알려 주시면 고쳐요.</p>
+<p class="note">"출처: {BRAND} 월간 리포트({Y}년 {M}월분{f', {RNG} 기준' if PARTIAL else ''})"로 적고 이 페이지 링크를 붙여 주세요. 숫자 오류는 <a href="../contact">문의하기</a>로 알려 주시면 고쳐요.</p>
 <p class="disc">투자 권유가 아닌 공개 자료 정리예요. 인가일은 정보몽땅 등록 기준이고, 원문 링크는 운영자가 기사·고시로 확인한 건에만 붙였어요. 필요한 돈·준공 가능성은 공개 자료와 기본 가정으로 낸 추정이고 예측이 아니에요. 경매 자료에는 사람 이름을 싣지 않아요.</p>
 </main>'''
 # ---- 머리·꼬리(지난 호 틀) ----
 _tf = sorted(f for f in os.listdir(os.path.join(ROOT, 'public/report')) if re.match(r'\d{4}-\d{2}\.html$', f) and f[:7] != YM)
 tpl = open(os.path.join(ROOT, 'public/report', _tf[-1] if _tf else '2026-09.html'), encoding='utf-8').read()
 head = tpl[:tpl.index('<main>')]; foot = tpl[tpl.index('</main>') + 7:]
-T_ = f'{Y}년 {M}월 서울 재개발 리포트{f"({RNG} 기준)" if PARTIAL else ""} | 집핀 - 서울 재개발 지도'
+T_ = f'{Y}년 {M}월 서울 재개발 리포트{f"({RNG} 기준)" if PARTIAL else ""} | {BRAND} - 서울 재개발 지도'
 head = re.sub(r'<title>.*?</title>', lambda m: f'<title>{esc(T_)}</title>', head)
 head = re.sub(r'(name="description" content=")[^"]*', lambda m: m.group(1) + esc(desc), head)
 head = re.sub(r'(property="og:description" content=")[^"]*', lambda m: m.group(1) + esc(desc), head)
@@ -585,8 +586,8 @@ if pubs:
                   open(os.path.join(ROOT, 'pipeline/report/latest.json'), 'w', encoding='utf-8'), ensure_ascii=False)
     idx = open(os.path.join(ROOT, 'public/report/index.html'), encoding='utf-8').read()
     a, b = idx.index('<main>'), idx.index('</main>')
-    ixld = {"@context": "https://schema.org", "@type": "CollectionPage", "name": "서울 정비사업 단계 변경 리포트 | 집핀 - 서울 재개발 지도", "description": "매달 서울 정비사업 중 인가 단계가 바뀐 구역을 원문 링크와 함께 정리합니다.",
-            "url": f"{SITE}/report/", "inLanguage": "ko", "publisher": {"@type": "Organization", "name": "집핀", "url": SITE, "logo": f"{SITE}/icon-512.png"},
+    ixld = {"@context": "https://schema.org", "@type": "CollectionPage", "name": ("서울 정비사업 단계 변경 리포트 | " + BRAND + " - 서울 재개발 지도"), "description": "매달 서울 정비사업 중 인가 단계가 바뀐 구역을 원문 링크와 함께 정리합니다.",
+            "url": f"{SITE}/report/", "inLanguage": "ko", "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icon-512.png"},
             "mainEntity": {"@type": "ItemList", "itemListElement": [{"@type": "ListItem", "position": n + 1, "url": f"{SITE}/report/{i['ym']}"} for n, i in enumerate(pubs)]}}
     sub = lambda i: f"인가 {i['n']}건 · 원문 확인 {i['ok']}건" + (f" · {int(i['asof'][5:7])}.{int(i['asof'][8:10])} 기준" if i.get('partial') else '')
     main = f'''<main><script type="application/ld+json" id="zp-ld">{json.dumps(ixld, ensure_ascii=False)}</script>
@@ -616,5 +617,5 @@ if pubs:
         dsc = keep[1] if keep else esc(' '.join(i.get('sum3') or []) or i['title'])
         if keep and re.fullmatch(r'인가 \d+건 · 원문 확인 \d+건', keep[1]): dsc = f"인가 {i.get('n', 0)}건 · 원문 확인 {i.get('ok', 0)}건"   # 30차: 정정으로 바뀐 건수는 따라간다(9월호 9→8건)
         return f'<item><title>{esc(ftitle(i))}</title><link>{SITE}/report/{i["ym"]}</link><guid>{SITE}/report/{i["ym"]}</guid><pubDate>{pdt}</pubDate><description>{dsc}</description></item>'
-    open(os.path.join(ROOT, 'public/report/feed.xml'), 'w', encoding='utf-8').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>집핀 · 서울 정비사업 단계 변경 리포트</title><link>{SITE}/report/</link><description>매달 서울에서 인가 단계가 바뀐 정비사업</description><language>ko</language>{"".join(fitem(i) for i in pubs)}</channel></rss>')
+    open(os.path.join(ROOT, 'public/report/feed.xml'), 'w', encoding='utf-8').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>{BRAND} · 서울 정비사업 단계 변경 리포트</title><link>{SITE}/report/</link><description>매달 서울에서 인가 단계가 바뀐 정비사업</description><language>ko</language>{"".join(fitem(i) for i in pubs)}</channel></rss>')
 print(YM, 'no', no, 'cut', CUT, 'partial', PARTIAL, 'events', n_ev, '(dated', len(ev), ')', 'zones', len(zones), 'checked', n_ok, '→', title)

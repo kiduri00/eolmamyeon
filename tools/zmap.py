@@ -1,6 +1,7 @@
 """구역 페이지(/z/<id>)용 그림 도구: 정적 위치 지도(SVG)와 공유 카드(OG PNG 1200x630).
 tools/zpages.py가 불러 쓴다. 외부 지도 타일 없이 공개 자료(구 경계·정비구역 경계·지하철 노선/역)만으로 그린다."""
 import json, os, re, math, hashlib, html
+from brand import BRAND, BRAND_EN
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 
@@ -199,7 +200,7 @@ def og_card(rid, nm, sub, stage, money_lab, money, loc, gu, upd, text_only=False
     """public/og/z/<rid>.png를 만든다(내용이 같으면 건너뜀). 성공하면 사이트 경로, 아니면 None."""
     global _OGH
     out = os.path.join(ROOT, 'public/og/z', rid + '.png')
-    key = hashlib.md5(json.dumps([nm, sub, stage, money_lab, money, upd[:7], [round(v, 3) for v in (loc or [])], gu, 5, text_only]).encode()).hexdigest()[:12]
+    key = hashlib.md5(json.dumps([nm, sub, stage, money_lab, money, upd[:7], [round(v, 3) for v in (loc or [])], gu, 5, text_only, BRAND, BRAND_EN]).encode()).hexdigest()[:12]
     if _OGH is None:
         try: _OGH = json.load(open(_OGHF))
         except Exception: _OGH = {}
@@ -230,16 +231,16 @@ def og_card(rid, nm, sub, stage, money_lab, money, loc, gu, upd, text_only=False
             d.ellipse([px - 17, py - 17, px + 17, py + 17], fill='#f5c33b')
             d.ellipse([px - 9, py - 9, px + 9, py + 9], fill=NAVY, outline='#ffffff', width=3)
         # 왼쪽: 글자
-        # 머리: 앱 아이콘(집 든 핀) + '집핀 Zippin · 서울 재개발 지도'
+        # 머리: 앱 아이콘(집 든 핀) + 서비스 이름(brand.BRAND·BRAND_EN) · 서울 재개발 지도
         lx = 64
         try:
             ic = Image.open(os.path.join(ROOT, 'public/icon-512.png')).convert('RGBA').resize((56, 56), Image.LANCZOS)
             im.paste(ic, (56, 50), ic); lx = 116
         except Exception: pass
-        d.text((lx, 56), '집핀', font=_font('k', 40), fill=NAVY)
-        lx += d.textlength('집핀', font=_font('k', 40)) + 10
-        d.text((lx, 71), 'Zippin', font=_font('b', 26), fill=NAVY)
-        lx += d.textlength('Zippin', font=_font('b', 26)) + 2
+        d.text((lx, 56), (BRAND), font=_font('k', 40), fill=NAVY)
+        lx += d.textlength((BRAND), font=_font('k', 40)) + 10
+        d.text((lx, 71), (BRAND_EN), font=_font('b', 26), fill=NAVY)
+        lx += d.textlength((BRAND_EN), font=_font('b', 26)) + 2
         d.text((lx, 70), '· 서울 재개발 지도', font=_font('b', 24), fill=MUT)
         f = 72
         while f > 40 and d.textlength(nm, font=_font('k', f)) > (1070 if text_only else 660): f -= 4

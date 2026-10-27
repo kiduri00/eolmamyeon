@@ -13,12 +13,11 @@ R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PUB = os.path.join(R, 'public')
 SITE = 'https://jaegaebal.alwaysquestions.kr'
 
-# ---- 브랜드 상수(여기만 바꾸면 세 페이지가 함께 바뀐다) ----
-BRAND = '집핀'                 # 서비스 이름
-BRAND_EN = 'Zippin'
+# ---- 브랜드: tools/brand.py · 필명만 여기 ----
+from brand import BRAND, BRAND_EN, SITE_TAIL, RENAME_NOTE, RENAME_DATE   # 서비스 이름은 tools/brand.py 한 곳에서
 PEN = '늘질문'                 # 운영자 필명(always questions) — 실명·사업자 정보·이메일은 싣지 않는다(운영 원칙)
 OP = f'{BRAND} 운영자'
-TITLE_SUFFIX = f'{BRAND} - 서울 재개발 지도'
+TITLE_SUFFIX = SITE_TAIL
 E = html.escape
 
 
@@ -129,6 +128,9 @@ def glossary():
 # 날짜 = 고친 커밋의 날짜(git log --format=%cs). 2026-10-15 이전 일은 저장소 기록이 시작되기 전이라 '기록 시작 전'으로 둔다.
 # 새로 고칠 때마다 맨 위에 한 줄씩 더한다(무엇이 · 어떻게 틀렸고 · 어떻게 고쳤나 · 어디에 반영됐나).
 FIXES = [
+    (RENAME_DATE, '', '이름', '서비스 이름을 집핀에서 재개각으로 바꿨어요',
+     '예전 이름 「집핀(Zippin)」이 다른 회사 상표와 겹칠 수 있었어요.',
+     f'이름을 {BRAND}({BRAND_EN})으로 바꿨어요. 사이트 주소와 기능은 그대로예요.', '모든 페이지·앱 이름'),
     ('2026-10-26', '83f474089', '숫자', '모아타운 사업구역 줄의 금액이 구역 화면과 달랐어요',
      '모아타운 관리지역 화면의 사업구역(하위 조합) 줄이 「일반 매매 · 금액」을 보여 줬어요. 같은 사업구역의 구역 화면과 구역 페이지는 「계산 보류」였어요.',
      '지금 사면 입주권이 원칙적으로 없는 사업구역은 모든 화면에서 「계산 보류 · 입주권 원칙적으로 없음 · 예외 매물만」으로 맞췄어요.', '지도·목록의 모아타운 화면'),
@@ -228,11 +230,15 @@ OP_HTML = f'''<!--zp-op--><h2 id="operator">누가 만드나요?</h2>
 def about():
     fp = os.path.join(PUB, 'about.html')
     h = open(fp, encoding='utf-8').read()
+    # 이름 변경 안내 한 줄(첫 소개 문단 바로 뒤) — 예전 이름이 남는 허용 예외
+    h = re.sub(r'<!--zp-rename-->.*?<!--/zp-rename-->', '', h, flags=re.S)
+    m = re.search(r'<p class="lede">.*?</p>\s*<p>.*?</p>', h, re.S)
+    if m: h = h[:m.end()] + f'<!--zp-rename--><p class="note" id="rename">{RENAME_NOTE}</p><!--/zp-rename-->' + h[m.end():]
     if '<!--zp-op-->' in h:
         h2 = re.sub(r'<!--zp-op-->.*?<!--/zp-op-->', lambda m: OP_HTML, h, count=1, flags=re.S)
     else:   # 처음 한 번: 예전 '누가 운영하나' 덩이(제목 ~ 운영 정보 목록)를 바꿔 끼운다
         h2 = re.sub(r'<h2>누가 운영하나</h2>.*?<ul class="meta-list">.*?</ul>', lambda m: OP_HTML, h, count=1, flags=re.S)
-    if h2 != h: open(fp, 'w', encoding='utf-8').write(h2); return True
+    if h2 != open(fp, encoding='utf-8').read(): open(fp, 'w', encoding='utf-8').write(h2); return True
     return False
 
 

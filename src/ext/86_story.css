@@ -31,3 +31,5 @@ html.is-tapp .s-story,html.is-app .s-story{display:none!important}
 @media (min-width:981px){.s-story.s-reads{margin:24px 0 8px;padding:20px 18px 16px}.s-story h2{font-size:19px}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-story .st-g a::before{color:#0c0e12}}
 :root[data-theme="dark"] .s-story .st-g a::before{color:#0c0e12}
+.s-story .st-wit{margin:-2px 0 12px;padding:8px 12px;border-left:3px solid #F5C33B;border-radius:0 8px 8px 0;background:color-mix(in srgb,#F5C33B 10%,transparent);font-size:14.5px;color:var(--text-1)}
+.s-story .st-wit b{color:var(--brand)}

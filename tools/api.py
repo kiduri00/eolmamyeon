@@ -10,6 +10,7 @@
   rebuild.json         재건축 연한 30년 아파트 단지
 """
 import json, os, re, math, datetime, collections, shutil
+from brand import BRAND, BRAND_EN
 import sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from zsample import smpTxt, trust, isEst, short, eta_adj, set_dup, noTicket   # /z/ 페이지와 같은 표본 문장·신뢰도 · 입주 시점(가로·소규모 보정 = 화면과 같은 값)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -117,7 +118,7 @@ CAT = {'ok': '인가·고시', 'chg': '변경 인가', 'con': '시공자 선정'
 W('notice.json', {'updated': NT.get('asOf'), 'items': [{'date': d, 'id': i, 'name': byId[i]['name'] if i in byId else None, 'gu': byId[i]['gu'] if i in byId else None, 'section': sec, 'text': t, 'category': c, 'categoryLabel': CAT.get(c)} for d, i, sec, t, c in NT.get('items', [])]})
 W('rebuild.json', {'updated': RB.get('asOf'), 'note': '준공 30년 넘은 서울 아파트(최근 실거래 있음). far=용적률(%), hh=세대수, ld=세대당 대지(㎡), m=실거래 가운데 값(만원), z=진행 중 정비구역 id',
                    'items': RB.get('items', [])})
-meta = {'name': '집핀 공개 데이터', 'version': 1, 'updated': D.get('upd'), 'tradesUntil': (D.get('txAsOf') or {}).get('sale'), 'site': SITE,
+meta = {'name': (BRAND + ' 공개 데이터'), 'version': 1, 'updated': D.get('upd'), 'tradesUntil': (D.get('txAsOf') or {}).get('sale'), 'site': SITE,
         'license': '원자료: 서울시·국토교통부 공공데이터(공공누리 1유형 등), 서울도시공간포털, 서울시 상권분석서비스, 서울부동산정보광장. 계산값은 추정치이며 투자 권유가 아님',
         'assumptions': {'homes': 0, 'unit': '84㎡', 'growth': '0%', 'ratio': '100%', 'unitPrice': '자동'},
         'endpoints': {k: f"{SITE}/api/v1/{k}" for k in ('meta.json', 'zones.json', 'zones/{id}.json', 'cash.json', 'rank.json', 'notice.json', 'rebuild.json')},
