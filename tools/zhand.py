@@ -473,6 +473,7 @@ def old_lede(X, r, V, body):
     if not m or not V.get('stage') or not V.get('sinceYM') or not V.get('stageAge'): return None
     from brand import josa_eun
     nm = re.sub(r'<[^>]+>', '', m.group(1)).strip(); y = float(V['stageYrs'])
+    if nm[-1:].isdigit(): josa_eun = lambda w: w + ('은' if w[-1] in '0136789' else '는')   # 숫자로 끝나는 이름(제3·제1)은 읽는 소리 받침으로
     sm = f"{int(V['sinceYM'][:4])}년 {int(V['sinceYM'][5:7])}월"
     age = f'<b class="zv" data-zv="stageAge">{esc(V["stageAge"])}</b>'
     head = f'{esc(josa_eun(nm))} {sm}부터 <b>{esc(V["stage"])}</b> 단계예요. '
