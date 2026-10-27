@@ -402,3 +402,40 @@ def _gu_html(X, g, src, V):
         for p_ in s['p']: o.append('<p>' + josa_fix(fill(p_, V, g)) + '</p>')
     o.append('</section><!--/gx-->')
     return ''.join(o)
+
+# ------------------------------------------------------------------ 기존 손글(40쪽)에 같은 틀 일부 입히기
+def enhance_hand(X, r, h):
+    """content/z 원본이 없는 예전 손글: 본문은 그대로 두고 ① 목차(본문 h2로) ② 다음에 볼 구역 카드 ③ 같은 CSS만 끼운다.
+    표시 주석(<!--zt-->·<!--zx-->·id="zh-css") 사이를 통째로 바꿔 몇 번 돌려도 같다 · 본문 글자는 줄이지 않는다."""
+    m = re.search(r'<main>(.*)</main>', h, re.S)
+    if not m: return h
+    # ① h2에 id를 붙이고 목차를 만든다(계산 덩이·신고 덩이 안 제목 포함 · 이미 붙은 id는 그대로)
+    hs = []; k = iter(range(1, 99))
+    def addid(mm):
+        tag = mm.group(0); txt = re.sub(r'<small.*?</small>|<[^>]+>', '', mm.group(1)).strip()
+        if 'id="' in tag[:12]:
+            hid = re.search(r'id="([^"]+)"', tag).group(1)
+        else:
+            hid = f'zh-s{next(k)}'; tag = tag.replace('<h2>', f'<h2 id="{hid}">', 1)
+        if hid != 'zh-nx': hs.append((hid, txt))
+        return tag
+    body = re.sub(r'<!--zt-->.*?<!--/zt-->|<!--zx-->.*?<!--/zx-->', '', m.group(1), flags=re.S)
+    body = re.sub(r'<h2(?: id="[^"]*")?>(.*?)</h2>', addid, body, flags=re.S)
+    toc = ('<!--zt--><nav class="zh-toc" aria-label="이 글의 차례"><p>이 글의 차례</p><ol>' + ''.join(f'<li><a href="#{a}">{esc(b)}</a></li>' for a, b in hs) + '</ol></nav><!--/zt-->') if len(hs) >= 3 else ''
+    if toc:
+        i = body.find('<!--/zk-->'); j = body.find('</p>', body.find('<p class="lede">')) if '<p class="lede">' in body else -1
+        at = max(i + len('<!--/zk-->') if i >= 0 else -1, j + 4 if j >= 0 else -1)
+        if at > 0: body = body[:at] + toc + body[at:]
+    # ② 다음에 볼 구역(면책 문단 바로 앞, 없으면 신고 덩이 앞)
+    nx = nextcards(X, r, {})
+    if nx:
+        nx = '<!--zx-->' + nx.replace('<!--zd-->', '').replace('<!--/zd-->', '') + '<!--/zx-->'
+        at = body.find('<p class="disc">')
+        if at < 0: at = body.find('<!--zr-->')
+        body = body[:at] + nx + body[at:] if at >= 0 else body + nx
+    h = h[:m.start(1)] + body + h[m.end(1):]
+    # ③ CSS
+    css = CSS.replace('<style>', '<style id="zh-css">', 1)
+    if 'id="zh-css"' in h: h = re.sub(r'<style id="zh-css">.*?</style>', lambda _: css, h, count=1, flags=re.S)
+    else: h = h.replace('</head>', css + '\n</head>', 1)
+    return h

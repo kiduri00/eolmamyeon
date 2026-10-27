@@ -626,6 +626,7 @@ def hand_calc(r, h):
 def hand_fix(r):
     f = os.path.join(ZD, r['id'] + '.html'); h0 = open(f, encoding='utf-8').read()
     h1 = static_norm(hand_seo(r, term_fix(hand_calc(r, hand_live(r, h0)) if r['id'] in _LIVE else h0)))
+    if r['id'] in _LIVE and r['id'] not in ZH_IDS: h1 = zhand.enhance_hand(_ZX, r, h1)   # 리뉴얼: 예전 손글에도 목차·다음에 볼 구역(본문은 그대로)
     if h1 != h0: open(f, 'w', encoding='utf-8').write(h1)
 # ---- 얇은 페이지 거르기(24차 · 애드센스 '가치가 별로 없는 콘텐츠' 대응) ----
 # 자동 페이지마다 (1) 자료가 얼마나 있는지(계산 매수가 표본 · 구역 안 거래 · 날짜가 있는 인가 이력 · 정보몽땅 추진경과 기록 · 법원경매 · 토지거래허가)와
@@ -659,7 +660,7 @@ _tpl = lambda x: re.sub(r'[\d,.%]+', '0', x)
 eok_m = __import__('zsample').eok_m
 # 리뉴얼 A1: 손으로 쓴 구역 분석 글(content/z/*.json) → public/z/<id>.html (아래 손글 처리 hand_fix가 최신 숫자 상자·계산 덩이를 채운다)
 import zhand
-ZH_IDS = set(zhand.render_all(globals()))
+ZH_IDS = set(zhand.render_all(globals())); _ZX = zhand.Ctx(globals()); _ZX._HANDSET = zhand.HANDSET
 made = kept = 0
 AUTO = {}
 for r in R:
@@ -878,8 +879,8 @@ def guPage(g, L):
             '.gr-r small{font-size:12px;color:var(--text-2)}.gr-r small.gr-ex{color:var(--warn-ink,#8a4b00);font-weight:600}.gr-r small b{font-weight:700;color:var(--text-1)}.gr-r small small{font-size:11px;color:var(--text-3)}</style>')
     o.append(gu_note(g, L))
     o.append(zhand.gu_prose(g, L, globals()))
-    GCSS = GCSS.replace('</style>', '.gl-h{margin:22px 0 4px;font-size:16px}.gthin{margin:14px 0}.gthin>summary{cursor:pointer;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);font-weight:700;font-size:14.5px}.gthin[open]>summary{margin-bottom:4px}.gr-l>b em{font-style:normal;margin-left:6px;padding:1px 6px;border-radius:6px;background:var(--brand-soft,#e8edf9);color:var(--brand,#1f3a87);font-size:11.5px;font-weight:700;vertical-align:2px}</style>')
-    _ol = lambda xs, lab: f'<ol class="gl" aria-label="{esc(g)} {lab} · 전세 끼고 지금 필요한 돈 적은 순">' + ''.join(grow(x).replace(f'<b>{esc(short(x["n"]))}</b>', f'<b>{esc(short(x["n"]))}<em>분석 글</em></b>', 1) if x['id'] in _hs else grow(x) for x in xs) + '</ol>'
+    GCSS = GCSS.replace('</style>', '.gl-h{margin:22px 0 4px;font-size:16px}.gthin{margin:14px 0}.gthin>summary{cursor:pointer;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);font-weight:700;font-size:14.5px}.gthin[open]>summary{margin-bottom:4px}</style>')
+    _ol = lambda xs, lab: f'<ol class="gl" aria-label="{esc(g)} {lab} · 전세 끼고 지금 필요한 돈 적은 순">' + ''.join(grow(x) for x in xs) + '</ol>'
     o.append(GCSS)
     if gH: o.append(f'<h3 class="gl-h">기사·고시로 대조한 분석 글이 있는 구역 {len(gH)}곳</h3>' + _ol(gH, '분석 글이 있는 구역'))
     if gI: o.append(f'<h3 class="gl-h">{"그 밖에 " if gH else ""}거래·인가 자료가 넉넉한 구역 {len(gI)}곳</h3>' + _ol(gI, '자료가 넉넉한 구역'))
