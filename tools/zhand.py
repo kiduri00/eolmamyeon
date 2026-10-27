@@ -24,7 +24,32 @@ HOOKS = json.load(open(os.path.join(ROOT, 'content/z_hooks.json'), encoding='utf
 CARDS = json.load(open(os.path.join(ROOT, 'content/z_cards.json'), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, 'content/z_cards.json')) else {}   # 예전 손글 40쪽: 이야기 제목(질문형)·핵심 위험·이런 사람에게 맞아요
 FAILED = []   # 그날 렌더하지 못한 글(값 없음) — save_cache가 함께 남긴다
 CACHE = {'z': {}, 'gu': {}}   # 글에 쓴 값(키 → 글자) — tools/zhand_check.py가 페이지 글자·/api/v1과 대조
+# ---- 단계적 공개(애드센스 레드팀 c1: 새 손글 40편이 같은 날 올라감) ----
+# content/z/<id>.json의 publishAt(YYYY-MM-DD, 서울 날짜) 전에는 noindex·광고 태그 없음·사이트맵 제외(sitemap.py가 noindex를 뺌).
+# '처음 올림'은 publishAt이 아니라 실제로 처음 공개 상태로 만든 날(pipeline/cache/zpub_state.json에 한 번 적고 바꾸지 않음) — 배포가 늦어져도 날짜를 앞당겨 적지 않는다.
+# ZH_TODAY(시험용)를 주면 그 날짜로 보되 상태 파일에는 적지 않는다.
+KST = datetime.timezone(datetime.timedelta(hours=9))
+TODAY = os.environ.get('ZH_TODAY') or datetime.datetime.now(KST).date().isoformat()
+PUBF = os.path.join(ROOT, 'pipeline/cache/zpub_state.json')
+try: PUBS = json.load(open(PUBF, encoding='utf-8'))
+except Exception: PUBS = {}
+PUBS.setdefault('first', {}); PUBS['scheduled'] = {}; WEEK_CAP = 12
+def pub(rid, src):
+    """(공개됨, 처음 올린 날) — publishAt이 없으면 예전 방식(first)"""
+    pa = src.get('publishAt')
+    if not pa: return True, src.get('first') or src['written']
+    if pa > TODAY: PUBS['scheduled'][rid] = pa; return False, None
+    if rid not in PUBS['first']:
+        # 한 주(7일)에 새로 공개하는 손글은 WEEK_CAP편까지 — 배포가 늦어져 공개일이 한꺼번에 지나도 몰아서 올리지 않는다(나머지는 다음 날 이후로)
+        wk = (datetime.date.fromisoformat(TODAY) - datetime.timedelta(days=6)).isoformat()
+        if sum(1 for d in PUBS['first'].values() if d >= wk) + len(PUBS.get('_new', [])) >= WEEK_CAP: PUBS['scheduled'][rid] = pa; return False, None
+        if os.environ.get('ZH_TODAY'): PUBS.setdefault('_new', []).append(rid); return True, TODAY
+        PUBS['first'][rid] = TODAY
+    return True, PUBS['first'].get(rid) or TODAY
 def save_cache():
+    if not os.environ.get('ZH_TODAY'):
+        json.dump({k: v for k, v in PUBS.items() if not k.startswith('_')}, open(PUBF, 'w', encoding='utf-8'), ensure_ascii=False, indent=1, sort_keys=True)
+    CACHE['scheduled'] = PUBS['scheduled']
     CACHE['failed'] = FAILED
     json.dump(CACHE, open(os.path.join(ROOT, 'pipeline/cache/zhand_vals.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'), sort_keys=True)
 
@@ -44,6 +69,10 @@ class Ctx:
     def __init__(self, g): self.__dict__.update({k: v for k, v in g.items() if not k.startswith('__')})
 
 # ------------------------------------------------------------------ 값
+def stalled(X, r):
+    """앱·자동 /z와 같은 규칙(zsample.eta_show)으로 준공 시기를 '산정 불가'로 두는 구역인지 — 8년 넘게 같은 단계 등"""
+    return __import__('zsample').eta_show(r, (X.P.get(r['id']) or {}).get('dt') or {}, X.D.get('asOf'), X.D.get('upd')) == '산정 불가'
+
 def vals(X, r):
     """구역 하나의 {{키}} 값(글자). 자료가 없는 키는 None — 글에 쓰면 render가 멈춘다(지어내지 않음)."""
     rid = r['id']; c = X.C.get(rid) or {}; p = X.P.get(rid) or {}; dt = p.get('dt') or {}; t = r.get('tx') or {}; sm = r.get('sm') or {}
@@ -53,6 +82,7 @@ def vals(X, r):
     sd = X._sdate(r); v['since'] = ymd(sd) if sd else None; v['sinceYM'] = ym(sd) if sd else None
     y = X._yrs(sd) if sd else None; med, _ = X._stats(); m = med.get(r.get('s', 0))
     v['stageYrs'] = f'{y:.1f}' if y is not None else None
+    v['stageAge'] = (f'{max(1, int(y * 12))}개월' if y < 1 else f'{y:.1f}년') if y is not None else None   # 지금 단계에 들어선 지(예전 손글 첫 문단 · 'N개월째/X.X년째')
     v['seoulStageMed'] = f'{m[0]:.1f}' if m else None; v['seoulStageN'] = f'{m[1]:,}' if m else None
     v['now'] = k3.get('lnow') or (k3['now'] if k3['now'] != '계산 보류' else None)
     v['tot'] = k3.get('ltot') or (k3['tot'] if k3['tot'] != '계산 보류' else None)
@@ -90,6 +120,9 @@ def vals(X, r):
     v['p10'] = prob_txt(e['p10']) if e.get('p10') is not None and not r.get('stale') else None   # /api/v1 completion.p10과 같은 값(가로·소규모 보정)
     v['eLo'] = ym(e.get('eLo')) if e.get('eLo') else None; v['eMid'] = ym(e.get('eMid')) if e.get('eMid') else None; v['eHi'] = ym(e.get('eHi')) if e.get('eHi') else None
     v['eLoY'] = e['eLo'][:4] if e.get('eLo') else None; v['eHiY'] = e['eHi'][:4] if e.get('eHi') else None
+    v['eMidK'] = f"{e['eMid'][:4]}년 {int(e['eMid'][5:7])}월" if e.get('eMid') else None
+    if stalled(X, r):   # 8년 넘게 같은 단계(앱 etaShow '산정 불가'): 준공 통계를 싣지 않는다 — 카드·본문·일정표가 같은 규칙(장위14 모순)
+        for k in ('p10', 'eLo', 'eMid', 'eHi', 'eLoY', 'eHiY', 'eMidK'): v[k] = None
     st = c.get('st') or r.get('st') or {}   # 가까운 역: 앱 화면·/api/v1·자동 /z와 같은 값(calc.json = 빌드에서 고친 역 · tools/stfix.py)
     v['station'] = st.get('n'); v['walk'] = f"{walk_min(st['d'])}분" if st.get('d') is not None else None   # 앱과 같은 반올림(tools/jsnum.py)
     v['rdx'] = ymd((r.get('rdx') or {}).get('d')) if (r.get('rdx') or {}).get('d') else None
@@ -191,7 +224,7 @@ def timeline(X, r, src):
     li = ''.join(f'<li class="{"cur" if d == cur and s == "정보몽땅 등록" else ""}{" ev" if s != "정보몽땅 등록" else ""}"><b>{esc(ymd(d) if len(d) >= 10 else ym(d))}</b><span>{esc(lab)}</span><small>{esc(s)}</small></li>' for d, lab, s in rows)
     e = __import__('zsample').eta_adj(r, X.D.get('asOf')) or {}; c = X.C.get(r['id']) or {}   # 앱·/api/v1과 같은 가로·소규모 보정
     nx = ''
-    if e.get('eLo') and e.get('eHi') and not r.get('stale'):
+    if e.get('eLo') and e.get('eHi') and not r.get('stale') and not stalled(X, r):
         nx = f'<li class="nx"><b>{esc(ym(e["eLo"]))}~{esc(ym(e["eHi"])[2:])}</b><span>준공 예상 범위(추정)</span><small>서울 사업장 기록 통계 · 가운데 {esc(ym(e.get("eMid")))}</small></li>'
     return f'<!--zd--><div class="zh-card zh-tl"><p class="zh-ct">단계 일정표</p><ol>{li}{nx}</ol><p class="zh-cap">줄마다 아래에 출처를 적었어요(정보몽땅 등록 날짜 · 기사·고시로 확인한 일). 예상 범위는 단정이 아니에요.</p></div><!--/zd-->'
 
@@ -205,15 +238,16 @@ def carousel(X, r, src, V):
     elif k3['now'] != '계산 보류': m1 = (k3['now'], k3['basis'] + (f' · 입주까지 {k3["tot"]}' if k3['tot'] != '계산 보류' else ''))
     else: m1 = ('계산 보류', (k3.get('esub') or k3.get('basis') or '') + (f' · {k3["alt"]}' if k3.get('alt') else ''))
     e = __import__('zsample').eta_adj(r, X.D.get('asOf')) or {}   # 앱·/api/v1과 같은 가로·소규모 보정
-    if e.get('eLo') and e.get('eHi') and not r.get('stale') and r.get('s', 0) < 9:
+    if e.get('eLo') and e.get('eHi') and not r.get('stale') and r.get('s', 0) < 9 and not stalled(X, r):
         m2 = (f'{e["eLo"][:4]}~{e["eHi"][:4]}년', f'준공 예상 범위(추정) · 가운데 {ym(e.get("eMid"))}' + (f' · 10년 안 준공 가능성 {V["p10"]}' if V.get('p10') and r.get('s', 0) < 8 else '') + (' · 지금 사면 입주권은 없어요' if k3.get('elab') == '입주권' and not k3.get('im') else ''))
+    elif stalled(X, r): m2 = ('산정 불가', '같은 단계에 8년 넘게 머물러 준공 통계를 싣지 않았어요')
     else: m2 = (k3.get('eta') or '산정 불가', k3.get('esub') or '입주 시기는 범위로만 봐요')
     cards = [('지금 필요한 돈', m1[0], m1[1], 'm'), ('입주 시기 범위', m2[0], m2[1], 'm'), ('핵심 위험', None, src['cards']['risk'], 'r'), ('이런 사람에게 맞아요', None, src['cards']['fit'], 'f')]
     li = ''.join(f'<li class="zh-s zh-s{t}" role="group" aria-roledescription="슬라이드" aria-label="{i + 1}/{len(cards)} {esc(a)}"><span class="zh-sl">{esc(a)}</span>' + (f'<b class="zh-sv">{esc(b)}</b>' if b else '') + f'<p>{josa_fix(fill(s, V, r["id"])) if t in "rf" else esc(s)}</p></li>' for i, (a, b, s, t) in enumerate(cards))
     return (f'<!--zd--><section class="zh-car" aria-roledescription="캐러셀" aria-label="{esc(V["name"])} 요약 카드 {len(cards)}장"><ul class="zh-tr" tabindex="0" aria-label="요약 카드 · 옆으로 넘기거나 화살표 키로 이동">{li}</ul>'
             f'<p class="zh-hint" aria-hidden="true">옆으로 넘겨 보세요 · 기본 가정(무주택·84㎡) 추정 · 데이터 기준 {X.UPD}</p></section><!--/zd-->')
 
-def nextcards(X, r, src):
+def nextcards(X, r, src, title=None):
     """다음에 볼 구역: 손글 있는 곳 먼저 → 같은 유형 → 거리 순(2.5km 안) · 4곳 · 직접 고른 목록(next)이 있으면 그것부터"""
     if not r.get('ll'): return ''
     rid = r['id']; hand = X._HANDSET
@@ -234,7 +268,7 @@ def nextcards(X, r, src):
         d = X.dist(r['ll'][0], r['ll'][1], y['ll'][0], y['ll'][1]) if y.get('ll') else None
         tag = '<em>분석 글</em>' if y['id'] in hand else ''
         return f'<a class="zh-nc" href="{y["id"]}"><b>{esc(X.short(y["n"]))}{tag}</b><span>{esc(X.KIND.get(y["k"], y["k"]))} · {esc(c.get("stage") or y.get("sr") or "")}{f" · {d / 1000:.1f}km" if d is not None else ""}</span><small>{esc(mon)}</small></a>'
-    return '<!--zd--><nav class="zh-next" aria-labelledby="zh-nx"><h2 id="zh-nx">다음에 볼 구역</h2><div class="zh-ng">' + ''.join(card(y) for y in pick[:4]) + '</div><p class="zh-cap">가까운 곳 가운데 분석 글이 있는 구역을 먼저 놓았어요. 추천 목록이 아니에요.</p></nav><!--/zd-->'
+    return '<!--zd--><nav class="zh-next" aria-labelledby="zh-nx"><h2 id="zh-nx">' + esc(title or src.get('nextTitle') or '다음에 볼 구역') + '</h2><div class="zh-ng">' + ''.join(card(y) for y in pick[:4]) + '</div><p class="zh-cap">가까운 곳 가운데 분석 글이 있는 구역을 먼저 놓았어요. 추천 목록이 아니에요.</p></nav><!--/zd-->'
 
 CSS = ('<style>'
        '.zh-car{margin:18px 0 6px}.zh-tr{list-style:none;margin:0;padding:2px 2px 8px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(232px,82%);gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}'
@@ -273,10 +307,15 @@ def page(X, r, src):
     W = src['written']; Wd = W.replace('-', '.')
     desc = src['desc']
     cites = [s[3] for s in src.get('sources') or []]
-    ld = {"@context": "https://schema.org", "@graph": [{"@type": "Article", "headline": src['h1'], "description": desc, "inLanguage": "ko", "datePublished": src['first'], "dateModified": W,
+    live, first = pub(rid, src)
+    ld = {"@context": "https://schema.org", "@graph": [{"@type": "Article", "headline": src['h1'], "description": desc, "inLanguage": "ko", **({"datePublished": first} if live else {}), "dateModified": max(W, first or W),
           "image": f"{X.SITE}/og.png", "mainEntityOfPage": url, "author": {"@type": "Organization", "name": _OP, "url": f"{X.SITE}/about#principles"}, "publisher": {"@type": "Organization", "name": _BR, "url": X.SITE}, "citation": cites}]}
     secs = src['sections']
-    toc = '<nav class="zh-toc" aria-label="이 글의 차례"><p>이 글에서 답하는 질문</p><ol>' + ''.join(f'<li><a href="#{s["id"]}">{esc(s["h"])}</a></li>' for s in secs) + '<li><a href="#zh-check">사기 전에 이것 3가지만</a></li></ol></nav>'
+    # 뼈대는 글마다 다르게(애드센스 레드팀 c1: 40편이 같은 틀) — 목차·확인 목록·다음 구역 제목·요약 카드 자리를 원본(JSON)이 정한다
+    cform = src.get('checkForm') or ('list' if src.get('check') else 'none')
+    ctitle = src.get('checkTitle') or '사기 전에 이것 3가지만'
+    tl = [(s['id'], s['h']) for s in secs] + ([('zh-check', ctitle)] if cform == 'list' else [])
+    toc = (f'<nav class="zh-toc" aria-label="이 글의 차례"><p>{esc(src["tocTitle"])}</p><ol>' + ''.join(f'<li><a href="#{a}">{esc(b)}</a></li>' for a, b in tl) + '</ol></nav>') if src.get('tocTitle') else ''
     body = []; nads = 0
     for si, s in enumerate(secs):
         body.append(f'<h2 id="{s["id"]}">{esc(s["h"])}</h2>')
@@ -292,7 +331,10 @@ def page(X, r, src):
             elif b['t'] == 'live': body.append('<!--zk--><!--/zk-->')
             elif b['t'] == 'calc': body.append('<!--zc--><!--/zc-->')
             elif b['t'] == 'card': body.append(f'<div class="zh-card"><p class="zh-ct">{esc(b["title"])}</p>' + ''.join(f'<p>{josa_fix(fill(x, V, rid))}</p>' for x in b['p']) + '</div>')
-    body.append('<h2 id="zh-check">사기 전에 이것 3가지만</h2>' + ('<p>' + josa_fix(fill(src['checkLead'], V, rid)) + '</p>' if src.get('checkLead') else '') + checklist(src['check'], V, rid))
+    if cform == 'list':
+        body.append(f'<h2 id="zh-check">{esc(ctitle)}</h2>' + ('<p>' + josa_fix(fill(src['checkLead'], V, rid)) + '</p>' if src.get('checkLead') else '') + checklist(src['check'], V, rid, src.get('checkCard') or '계약 전에 확인할 것'))
+    elif cform == 'prose' and src.get('checkProse'):   # 마지막 질문 아래 문단으로(따로 제목 없이)
+        body.append('<p>' + josa_fix(fill(src['checkProse'], V, rid)) + '</p>')
     srcs = '<details class="srcs"><summary>참고한 기사·고시·법령 ' + str(len(src.get('sources') or [])) + '건</summary><ul>' + ''.join(f'<li>{esc(a)}, 「{esc(b)}」 ({esc(c)}) <a href="{esc(u)}" target="_blank" rel="noopener nofollow">원문</a></li>' for a, b, c, u in src.get('sources') or []) + '</ul></details>'
     # 머리·바닥은 tools/zpages.py의 공통 틀(HEAD·FOOT)을 그대로 쓴다 — 서비스 이름·메뉴 같은 공통 상수는 그쪽에서 한 번에 바뀐다
     brand = (re.search(r'<meta property="og:site_name" content="([^"]*)"', X.HEAD) or [None, ''])[1]
@@ -301,13 +343,18 @@ def page(X, r, src):
     head = X.HEAD.format(title=esc(title), desc=esc(desc), url=url, site=X.SITE, ld=json.dumps(ld, ensure_ascii=False).replace("</", "<\\/"))
     head = head.replace('<meta name="emr-auto" content="1">\n', '', 1)
     head = head.replace('<link rel="canonical"', f'<link rel="alternate" type="application/rss+xml" title="{esc(X.nk(nm, kind))} 소식" href="../feed/z/{rid}.xml">\n<link rel="canonical"', 1)
-    head = head.replace('<script type="application/ld+json">', ADTAG + '\n<script type="application/ld+json">', 1).replace('</head>', CSS + '\n</head>', 1)
+    if live: head = head.replace('<script type="application/ld+json">', ADTAG + '\n<script type="application/ld+json">', 1)
+    else: head = head.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<meta name="robots" content="noindex,follow">', 1)   # 공개 전: 색인·광고 없음
+    head = head.replace('</head>', CSS + '\n</head>', 1)
     o = [head]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or "")} · {esc(kind)} · 글 기준 {Wd}</p>')
     o.append(f'<h1>{esc(src["h1"])}</h1>')
-    o.append(f'<p class="byline">정리: <a href="/about#principles">{_OP}</a> · 기사·고시·정비사업 정보몽땅 대조 · 처음 올림 {int(src["first"][:4])}년 {int(src["first"][5:7])}월 {int(src["first"][8:10])}일 · 글 속 굵은 숫자는 매일 사이트 계산값으로 다시 써요</p>')
+    o.append(f'<p class="byline">정리: <a href="/about#principles">{_OP}</a> · 기사·고시·정비사업 정보몽땅 대조 · {f'처음 올림 {int(first[:4])}년 {int(first[5:7])}월 {int(first[8:10])}일' if live else f'공개 전 검토 중({int(src["publishAt"][5:7])}월 {int(src["publishAt"][8:10])}일 공개 예정)'} · 글 속 굵은 숫자는 매일 사이트 계산값으로 다시 써요</p>')
     o.append('<p class="lede">' + josa_fix(fill(src['lede'], V, rid)) + '</p>')
-    o.append(carousel(X, r, src, V))
+    car = carousel(X, r, src, V)
+    if src.get('carouselAt') == 'after1':   # 요약 카드를 첫 질문 뒤로(첫 문단이 첫 화면에 먼저 보이게)
+        k = next((i for i, x in enumerate(body) if i > 0 and x.startswith('<h2 ')), len(body)); body.insert(k, car); car = ''
+    o.append(car)
     o.append(toc)
     o.append('<div class="zh-body">' + ''.join(body) + '</div>')
     o.append(nextcards(X, r, src))
@@ -322,7 +369,7 @@ def render_all(g):
     global HANDSET
     X = Ctx(g); S = sources(); done = []
     X._HANDSET = HANDSET = {f[:-5] for f in os.listdir(X.ZD) if f.endswith('.html') and f != 'index.html' and X.is_hand(f[:-5])} | set(S)
-    for rid, src in S.items():
+    for rid, src in sorted(S.items(), key=lambda kv: (kv[1].get('publishAt') or '', kv[0])):   # 공개일 순(한 주 공개 한도를 앞 순서부터 채움)
         r = X._BY.get(rid)
         if not r or rid not in X._LIVE: print('  zhand: skip (진행 중 아님)', rid); continue
         try: h = page(X, r, src); CACHE['z'][rid] = vals(X, r)
@@ -409,6 +456,34 @@ def _gu_html(X, g, src, V):
     return ''.join(o)
 
 # ------------------------------------------------------------------ 기존 손글(40쪽)에 같은 틀 일부 입히기
+_YM = None
+def years_med():
+    """/years 표의 단계별 가운데 값(그 페이지와 같은 숫자 · 예전 손글 첫 문단 비교용)"""
+    global _YM
+    if _YM is None:
+        _YM = {}
+        try:
+            t = re.sub(r'<[^>]+>', ' ', open(os.path.join(ROOT, 'public/years.html'), encoding='utf-8').read())
+            for a, b, y in re.findall(r'(정비구역 지정|추진위원회 승인|조합설립인가|사업시행인가|관리처분인가|착공)\s*→\s*(조합설립인가|사업시행인가|관리처분인가|착공|준공)\s+([\d.]+)년', t): _YM.setdefault(a, (b, float(y)))
+        except Exception: pass
+    return _YM
+def old_lede(X, r, V, body):
+    """예전 손글 첫 문단(지금 단계·들어선 지 얼마·/years 가운데 값) — 글 쓴 날 숫자로 굳어 있던 것을 매일 계산값으로"""
+    m = re.search(r'<p class="lede">(.*?)(은|는) \d{4}년 \d{1,2}월부터', body, re.S)
+    if not m or not V.get('stage') or not V.get('sinceYM') or not V.get('stageAge'): return None
+    from brand import josa_eun
+    nm = re.sub(r'<[^>]+>', '', m.group(1)).strip(); y = float(V['stageYrs'])
+    sm = f"{int(V['sinceYM'][:4])}년 {int(V['sinceYM'][5:7])}월"
+    age = f'<b class="zv" data-zv="stageAge">{esc(V["stageAge"])}</b>'
+    head = f'{esc(josa_eun(nm))} {sm}부터 <b>{esc(V["stage"])}</b> 단계예요. '
+    if stalled(X, r):
+        return f'<p class="lede">{head}이 단계에 들어선 지 {age}이 지났어요. 서울 사업장 기록으로 내는 준공 가능성은 이렇게 오래 멈춘 구역에는 맞지 않아서 이 페이지에는 싣지 않았어요.</p>'
+    st = {'사업시행자 지정': '조합설립인가'}.get(V['stage'], V['stage']); nx = years_med().get(st)
+    if not nx: return f'<p class="lede">{head}들어선 지 {age}째예요. <a href="../years">단계별 실제 기간 →</a></p>'
+    to, md = nx
+    rel = (f'{to}까지 서울 가운데 값이 {md:.1f}년이라 아직 초반이에요.' if y < md * 0.5 else f'{to}까지 서울 가운데 값 {md:.1f}년에 가까워지고 있어요.' if y < md else f'{to}까지 서울 가운데 값 {md:.1f}년을 이미 넘겼어요.')
+    return f'<p class="lede">{head}들어선 지 {age}째이고 {rel} <a href="../years">단계별 실제 기간 →</a></p>'
+
 def enhance_hand(X, r, h):
     """content/z 원본이 없는 예전 손글: 본문은 그대로 두고 ① 목차(본문 h2로) ② 다음에 볼 구역 카드 ③ 같은 CSS만 끼운다.
     표시 주석(<!--zt-->·<!--zx-->·id="zh-css") 사이를 통째로 바꿔 몇 번 돌려도 같다 · 본문 글자는 줄이지 않는다."""
@@ -426,6 +501,18 @@ def enhance_hand(X, r, h):
         return tag
     body = re.sub(r'<!--zt-->.*?<!--/zt-->|<!--zx-->.*?<!--/zx-->|<!--zh-hook-->.*?<!--/zh-hook-->|<!--zcar-->.*?<!--/zcar-->', '', m.group(1), flags=re.S)
     cd = (CARDS or {}).get(r['id'])
+    try: V = vals(X, r)
+    except Exception as ex: V = None; FAILED.append(f'{r["id"]} 값: {ex}')
+    if V:
+        CACHE.setdefault('old', {})[r['id']] = V
+        # 글 속 사이트 계산 숫자(data-zv) — 매일 오늘 값으로(값이 없어지면 어제 글자를 두고 zhand_check가 알림)
+        def _zv(mm):
+            k = mm.group(1)
+            if V.get(k) is None: FAILED.append(f'{r["id"]}: {{{{{k}}}}} 값 없음(어제 글자 유지)'); return mm.group(0)
+            return f'<b class="zv" data-zv="{k}">{esc(V[k])}</b>'
+        body = re.sub(r'<b class="zv" data-zv="(\w+)">[^<]*</b>', _zv, body)
+        lede = old_lede(X, r, V, body)
+        if lede: body = re.sub(r'<p class="lede">.*?</p>', lambda _: lede, body, count=1, flags=re.S)
     if cd and cd.get('h'):   # 이야기 제목을 질문형으로(content/z_cards.json · 손으로 씀)
         body = re.sub(r'<h2((?: id="[^"]*")?)>[^<]*</h2>(<div class="zstory">)', lambda mm: f'<h2{mm.group(1)}>{esc(cd["h"])}</h2>{mm.group(2)}', body, count=1)
     hk = (HOOKS or {}).get(r['id'])   # 첫 두 문장 질문(content/z_hooks.json · 손으로 씀 · 숫자는 그 페이지 본문에 있는 것만)
@@ -438,7 +525,7 @@ def enhance_hand(X, r, h):
         if at > 0: body = body[:at] + toc + body[at:]
     # ①-2 요약 카드 4장(돈·입주 시기는 매일 계산값 · 위험·맞는 사람은 content/z_cards.json) — 목차 바로 뒤
     if cd and cd.get('risk') and cd.get('fit'):
-        try: car = '<!--zcar-->' + carousel(X, r, {'cards': cd}, vals(X, r)) + '<!--/zcar-->'
+        try: car = '<!--zcar-->' + carousel(X, r, {'cards': cd}, V or vals(X, r)) + '<!--/zcar-->'
         except Exception as ex: FAILED.append(f'{r["id"]} 카드: {ex}'); car = ''
         if car:
             i = body.find('<!--/zt-->'); i = i + len('<!--/zt-->') if i >= 0 else body.find('<div class="kpis">')

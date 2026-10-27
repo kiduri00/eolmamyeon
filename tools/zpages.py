@@ -632,7 +632,9 @@ def hand_kpi(r, h):
     if c.get('st'):
         b = f"{esc(c['st']['n'])} 도보 {walk_min(c['st']['d'])}분"; sm = ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])
         h = re.sub(r'(<div class="kpi"><span>가까운 역</span><b>)[^<]*(</b><small>)[^<]*(</small>)', lambda m: m.group(1) + b + m.group(2) + sm + m.group(3), h, count=1)
-    if c.get('p10') is not None:
+    if __import__('zsample').eta_show(r, (P.get(r['id']) or {}).get('dt') or {}, D.get('asOf'), D.get('upd')) == '산정 불가':   # 오래 멈춘 구역: 통계 생략(앱·카드·본문 같은 규칙 · 장위14 모순)
+        h = re.sub(r'(<div class="kpi"><span>10년 안 준공 가능성</span><b>)[^<]*(</b><small>)[^<]*(</small>)', lambda m: m.group(1) + '–' + m.group(2) + '같은 단계에 8년 넘게 머물러 통계를 싣지 않았어요' + m.group(3), h, count=1)
+    elif c.get('p10') is not None:
         h = re.sub(r'(<div class="kpi"><span>10년 안 준공 가능성</span><b>)[^<]*(</b>)', lambda m: m.group(1) + prob_txt(c['p10']) + m.group(2), h, count=1)
         if c['p10'] >= 0.01:   # 글 속 '이 페이지 통계로 본 10년 안 준공 가능성은 약 N%' — 같은 통계라 오늘 값으로(1% 미만이 되면 문장 꼴이 달라 그대로 두고 QA가 알림)
             h = re.sub(r'(10년 안 준공 가능성은 약 )\d+(%)', lambda m: m.group(1) + str(prob(c['p10'])) + m.group(2), h)
