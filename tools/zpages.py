@@ -896,6 +896,8 @@ def guPage(g, L):
     return ''.join(o)
 for g in sorted(byg): open(os.path.join(GD, g + '.html'), 'w', encoding='utf-8').write(MONEY(guPage(g, byg[g])))
 print('gu pages', len(byg)); zhand.save_cache()
+if os.environ.get('ZH_PEEK_GU'):   # 구 해설 쓰는 사람용: 쓸 수 있는 값 미리 보기
+    for _g in sorted(byg, key=lambda g: -len(byg[g])): print('ZH_GU', _g, json.dumps(zhand.gu_vals(zhand.Ctx(globals()), _g, byg[_g]), ensure_ascii=False))
 # 구 목록 페이지: public/gu/index.html (/gu/ 가 404가 나지 않게)
 def gu_compare():
     """25차: 구별 비교 글(자료로만) — 구역 수 · 전세 끼고 지금 필요한 돈이 가장 적은 구 · 단계 분포 · 토지거래허가로 전세를 못 끼는 곳"""

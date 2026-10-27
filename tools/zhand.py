@@ -337,18 +337,22 @@ def render_all(g):
 # ------------------------------------------------------------------ /gu 해설
 def gu_vals(X, g, L):
     """구 해설 {{키}} 값: /gu 목록·첫 화면 곳 수와 같은 기준(LISTED · dsp 가운데 값)"""
-    cg = lambda x: X.C.get(x['id']) or {}
+    X._HANDSET = HANDSET; cg = lambda x: X.C.get(x['id']) or {}
     v = {'gu': g, 'n': f"{len(L)}", 'upd': X.UPD}
     stc = collections.Counter(X._stage(x) for x in L if X._stage(x))
     for k, lab in (('정비계획 수립', 'stPlan'), ('정비구역 지정', 'stZone'), ('추진위원회 승인', 'stCom'), ('조합설립인가', 'stUnion'), ('사업시행자 지정', 'stTrust'), ('사업시행인가', 'stImpl'), ('관리처분인가', 'stMgmt'), ('이주·철거', 'stMove'), ('착공·분양', 'stBuild'), ('후보지·대상지 선정', 'stCand'), ('주민합의체·준비위원회', 'stPrep')):
         v[lab] = f"{stc.get(k, 0)}"
-    early = sum(stc.get(k, 0) for k in ('후보지·대상지 선정', '정비계획 수립', '정비구역 지정', '추진위원회 승인', '주민합의체·준비위원회'))
-    late = sum(stc.get(k, 0) for k in ('관리처분인가', '이주·철거', '착공·분양'))
+    early = sum(1 for x in L if (x.get('s', 0) or 0) <= 3)   # 조합(시행자) 전: 후보지·정비계획·구역지정·추진위·주민대표회의 등 단계 이름이 여럿이라 단계 번호로 센다
+    late = sum(1 for x in L if (x.get('s', 0) or 0) >= 6)    # 관리처분인가 이후(이주·착공 포함)
     v['early'] = f"{early}"; v['late'] = f"{late}"; v['earlyPct'] = f"{round(early / max(1, len(L)) * 100)}%"
     ok = [x for x in L if X.LISTED(x)]; allok = [x for x in X.R if X.LISTED(x)]
     v['listed'] = f"{len(ok)}"
     v['med'] = X.eok(statistics.median([dsp(cg(x)['gapNow']) for x in ok])) if len(ok) >= 3 else None
     v['seoulMed'] = X.eok(statistics.median([dsp(cg(x)['gapNow']) for x in allok]))
+    if v['med']:   # /gu 해설 견주기와 같은 5% 잣대(tools/zpages.py gu_note) — 값이 바뀌어도 말이 맞게
+        gm, sm = statistics.median([dsp(cg(x)['gapNow']) for x in ok]), statistics.median([dsp(cg(x)['gapNow']) for x in allok])
+        v['medVsSeoul'] = f"서울 전체 가운데 값 {v['seoulMed']}" + ('보다 많이 들어요' if gm > sm * 1.05 else '보다 적게 들어요' if gm < sm * 0.95 else '과 비슷해요')
+    else: v['medVsSeoul'] = None
     for cap, lab in ((2, 'b2'), (3, 'b3'), (5, 'b5'), (8, 'b8')):
         v[lab] = f"{sum(1 for x in ok if cg(x)['gapNow'] <= cap + 1e-9)}"
     cheap = sorted(ok, key=lambda x: cg(x)['gapNow'])
@@ -387,6 +391,10 @@ def gu_prose(g, L, gl):
     fp = os.path.join(CG, g + '.json')
     if not os.path.exists(fp): return ''
     X = Ctx(gl); src = json.load(open(fp, encoding='utf-8')); V = gu_vals(X, g, L); CACHE['gu'][g] = V
+    try: return _gu_html(X, g, src, V)
+    except (KeyError, ValueError) as e:   # 그날 값이 없는 문장이 있으면 해설 덩이를 빼고(지어내지 않음) 점검에 실패로 남긴다
+        print('  !! zhand gu:', e); FAILED.append(f'/gu/{g}: {e}'); return ''
+def _gu_html(X, g, src, V):
     X._HANDSET = HANDSET
     o = [f'<!--gx--><section class="gx" aria-labelledby="gx-h"><h2 id="gx-h">{esc(src["h"])}</h2><p class="meta">정리: <a href="../about">운영자</a> · 글 기준 {src["written"].replace("-", ".")} · 굵은 숫자는 데이터 기준 {X.UPD} 값으로 매일 다시 써요</p>']
     for s in src['blocks']:
