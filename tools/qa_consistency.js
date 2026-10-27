@@ -316,6 +316,7 @@ async function staticLane(api) {
       let h = fs.readFileSync(p, "utf8");
       if (rel === "about.html") h = h.replace(/<!--zp-rename-->[\s\S]*?<!--\/zp-rename-->/, "");
       if (rel === "corrections.html" || rel === "about.html") h = h.split(BN.RENAME_LINE).join("");   // 예외: 이름 변경 안내 한 줄(brand.RENAME_LINE)
+      h = h.replace(/"alternateName"\s*:\s*(\[[^\]]*\])/g, (x, a) => { try { return JSON.stringify(JSON.parse(a)) === JSON.stringify(BN.ALT_NAMES || []) ? "" : x; } catch (e) { return x; } });   // 사이클 2 예외: JSON-LD alternateName = brand.ALT_NAMES 그대로
       BN.OLD_RX.lastIndex = 0; const m = BN.OLD_RX.exec(h); if (m) bad.push(`${rel}: …${h.slice(Math.max(0, m.index - 30), m.index + 10).replace(/\s+/g, " ")}`); } };
     try { walk(PUBD); } catch (e) { bad.push("walk: " + e.message); }
     expect(!bad.length, "brand.static", T, `${bad.length} files · ${bad.slice(0, 3).join(" ; ")}`);
@@ -2860,6 +2861,8 @@ async function tappLane(browser, api, errs) {
     const bad1 = [];
     const TAG = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>';
     const P = require("path"), PUBD = P.join(__dirname, "..", "public"), want = new Set(JSON.parse(fs.readFileSync(P.join(__dirname, "fixtures", "ads_tag_pages.json"), "utf8")));
+    // 단계적 공개: 공개일(DEPLOY_DATE + 묶음) 전 손글은 광고 태그 없음(tools/zhand.py가 pipeline/cache/zpub_state.json scheduled에 적음)
+    try { for (const id of Object.keys(JSON.parse(fs.readFileSync(P.join(__dirname, "..", "pipeline", "cache", "zpub_state.json"), "utf8")).scheduled || {})) want.delete(`z/${id}.html`); } catch (e) {}
     let nf = 0;
     const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = P.join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name.endsWith(".html")) { const rel = P.relative(PUBD, f).split(P.sep).join("/"), h = fs.readFileSync(f, "utf8"); nf++;
       const k = h.split(TAG).length - 1, any = (h.match(/<script[^>]*adsbygoogle/g) || []).length;
@@ -4793,7 +4796,7 @@ const UNITS = {
   r30: { est: 140, limit: 400, files: [/^src\/ext\/(10_lmap|56_toheo|20_zone|99zzzzzzzz_r30)/, /^tools\/(report|zpages|toheo)\.py$/] },
   r31: { est: 70, limit: 300, files: [/^src\/(app\.js|app\.css|shell\.html)$/, /^tools\/(zpages|report)\.py$/] },
   // 리뉴얼 통합: 따로 만든 검사 도구를 단위로(같은 PASS/FAIL·JSON에 합침) — feat.*(qa_feat.js) · data.sync.*(qa_sync.js) · brand.residual(qa_brand.js) · zhand.*(zhand_check.py)
-  feat: { est: 420, limit: 1200, browser: false, ext: ["node", "tools/qa_feat.js", "$BASE"], files: [/^src\/feat\//, /^src\/ext\/(20_zone|66_tools|70_pins|72_inbox|74_my)\./, /^src\/app\.js$/, /^tools\/(qa_feat|qa_feat_ref|qa_feat_split)\./] },
+  feat: { est: 420, limit: 1200, browser: false, ext: ["node", "tools/qa_feat.js", "$BASE"], files: [/^src\/featx?\//, /^src\/ext\/(05_facts|20_zone|60_simple|66_tools|70_pins|72_inbox|74_my|76_detail|78_cx)\./, /^src\/app\.js$/, /^public\/sw\.js$/, /^tools\/(qa_feat|qa_feat_ref|qa_feat_split|zsample|agexy)\./] },
   sync: { est: 60, limit: 400, browser: false, ext: ["node", "tools/qa_sync.js", "$BASE"], files: [/^src\/app\.js$/, /^src\/ext\/(20_zone|30_api)\./, /^tools\/(api|zpages|report|stfix|jsnum|calc|build|enrich|zsample)\./, /^public\/(z|api)\//] },
   brand: { est: 10, limit: 120, browser: false, ext: ["node", "tools/qa_brand.js"], files: [/./] },
   zhand: { est: 60, limit: 400, browser: false, ext: ["python3", "tools/zhand_check.py"], files: [/^content\//, /^tools\/(zhand|zhand_check|zpages)\./, /^public\/(z|gu)\//] },

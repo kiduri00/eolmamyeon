@@ -17,26 +17,26 @@
     const per = {};
     pins.forEach((id) => { per[id] = uq(I.evOf(id).filter((e) => e.date >= d0 && !offK.has(e.type))).length; });
     const got = [...I.week(), ...I.condAuc().filter((e) => e.date >= d0)].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-    // 꺼 둔 설정(종류·구역·조건)이 없었다면 받았을 수 — 구역 소식 전체(종류 무관) + 조건 경매(종류 꺼짐이면 0)
-    const all = uq(pins.flatMap((id) => I.evOf(id).filter((e) => e.date >= d0))).length;
+    // 꺼 둔 설정(종류·구역·조건)이 하나도 없었다면 받았을 수 — 구역 소식 전체(종류 무관) + 모든 조건의 경매(조건 끄기·경매 끄기 무시) · 사이클 2: 조건 끄기도 '빠져요'에 넣음
+    const all = uq(pins.flatMap((id) => I.evOf(id).filter((e) => e.date >= d0))).length + I.condAuc(true).filter((e) => e.date >= d0).length;
     const conds = P.conds().map((c) => ({ id: c.id, name: P.cname(c), on: !I.isMuted("c", c.id), n: (P.evalCond(c) || []).length }));
-    return { d0, pins, per, got, out: Math.max(0, all - I.week().length), conds };
+    return { d0, pins, per, got, out: Math.max(0, all - got.length), conds };
   };
   function render(K, A, ctx) {
     const I = A.INBOX, X = F.alertsData(A, ctx), esc = ctx.esc;
     let box = document.getElementById("myMute");
-    if (!X.pins.length && !X.conds.length) { if (box) box.remove(); return; }
+    if (!X.pins.length && !X.conds.length) { if (box) box.remove(); return; }   // 관심 구역·조건이 하나도 없으면 상자 없음(끌 것이 없음)
     if (!box) { box = document.createElement("div"); box.id = "myMute"; box.className = "zal"; box.setAttribute("data-f", "alerts"); K.after(box); }
     const zl = X.pins.map((id, i) => SW("z", id, esc(ctx.shortName(ctx.byId[id].n)), `최근 7일 소식 ${X.per[id]}건`, !I.isMuted("z", id)).replace("<li>", i >= SHOW && !open ? '<li hidden data-more="1">' : "<li>")).join("");
     const more = X.pins.length > SHOW ? `<button type="button" class="zal-more" data-zmore aria-expanded="${open}">${open ? "접기" : `관심 구역 ${X.pins.length - SHOW}곳 더 보기`}</button>` : "";
     const cl = X.conds.map((c) => SW("c", c.id, esc(c.name), `지금 맞는 곳 ${ctx.fmt(c.n)}곳`, c.on)).join("");
     const rows = X.got.slice(0, SHOW).map((e) => `<li><span class="zal-d">${esc(I.dLabel(e.date))}</span><span class="zal-n">${esc(ctx.byId[e.id] ? ctx.shortName(ctx.byId[e.id].n) : e.n || "")}</span><span class="zal-x">${esc(e.text)}</span></li>`).join("");
     const html = `${X.pins.length ? `<p class="my-kc zal-h" id="myMuteZ">관심 구역별</p><ul class="my-l my-kinds" aria-labelledby="myMuteZ">${zl}</ul>${more}` : ""}` +
-      `${X.conds.length ? `<p class="my-kc zal-h" id="myMuteC">알림 조건별</p><ul class="my-l my-kinds" aria-labelledby="myMuteC">${cl}</ul>` : ""}` +
+      `<p class="my-kc zal-h" id="myMuteC">알림 조건별</p>${X.conds.length ? `<ul class="my-l my-kinds" aria-labelledby="myMuteC">${cl}</ul>` : `<p class="zal-s">저장한 알림 조건이 없어요 · 관심 탭에서 '이 조건으로 알림 받기'를 저장하면 여기서 조건마다 끌 수 있어요</p>`}` +
       `<section class="zal-pv" aria-labelledby="myMuteP"><h4 id="myMuteP">미리 보기 · 지금 설정이면 최근 7일에 받았을 소식</h4>` +
       `<p class="zal-c"><b>${ctx.fmt(X.got.length)}건</b>${X.out ? ` · 꺼 둔 설정으로 ${ctx.fmt(X.out)}건 빠져요` : ""}</p>` +
       (rows ? `<ul class="zal-l">${rows}</ul>${X.got.length > SHOW ? `<p class="zal-s">외 ${ctx.fmt(X.got.length - SHOW)}건은 소식 탭에서 볼 수 있어요</p>` : ""}` : `<p class="zal-s">최근 7일에는 받을 소식이 없었어요</p>`) +
-      `<p class="zal-s">소식 자료 ${esc(F.ymd(A.INBOX.asOf() || ""))} 기준 · 폰 알림은 하루 한 번 아침에 모아서 보내요 · '갈 수 있게 된 곳'은 그날 계산으로 정해져 미리 보기에 넣지 않았어요</p></section>`;
+      `<p class="zal-s">소식 자료 ${esc(F.ymd(A.INBOX.asOf() || ""))} 기준 · 새 소식은 자료에 새로 올라온 날(실거래는 신고가 등록된 날) 기준이고, 실거래 줄의 'N.N 계약'은 계약한 날이에요 · 폰 알림은 하루 한 번 아침에 모아서 보내요 · '갈 수 있게 된 곳'은 그날 계산으로 정해져 미리 보기에 넣지 않았어요</p></section>`;
     if (box.innerHTML !== html) box.innerHTML = html;
     if (!box.__b) {
       box.__b = 1;

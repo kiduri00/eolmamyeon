@@ -20,6 +20,7 @@ echo "== 4. 경계 매칭 · 필지"
 python3 tools/bnd_match.py --data pipeline/data.base.json --uq181 pipeline/cache/upis_uq181.json --uq120 pipeline/cache/upis_uq120.json --sgg pipeline/cache/upis_sgg.json --report public/data/geo.json --out public/data/geo.json
 timeout 1800 python3 tools/parcels.py || echo "!! 필지 갱신 일부 실패"
 timeout 1800 python3 tools/bldg.py || echo "!! 건축물 갱신 일부 실패"
+python3 tools/agexy.py || echo "!! 필지 연식 지도 자료 실패 — 이전 자료 유지"   # 사이클 2(F8)
 echo "== 5. 구역 실거래 집계"
 SALE=$(ls $RAW/sale_*.csv 2>/dev/null | tr "\n" " " || true)
 RENT=$(ls $RAW/rent_*.csv 2>/dev/null | tr '\n' ' ' || true)

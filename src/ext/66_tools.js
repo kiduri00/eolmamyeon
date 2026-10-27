@@ -93,18 +93,24 @@ const TOOLS = (() => {
     const q = document.getElementById("dgQ"), sl = document.getElementById("dgS");
     const pick = (b) => (b.onclick = () => { dSel = byId[b.dataset.d]; sl.innerHTML = ""; q.value = shortName(dSel.n); diagShow(); });
     // renew-feat F1: 지번으로도 찾기('미아동 791-2' · 검색창과 같은 필지 색인 public/pcli)
-    const byJibun = (raw, pq) => {
-      const h = pcliHits(pq);
-      if (h === null) { sl.innerHTML = '<li class="tl-e">지번 찾는 중…</li>'; Promise.all(pcliAlt(pq.dong).map(pcliLoad)).then(() => { if (q.value === raw) byJibun(raw, pq); }); return; }
-      const L = h.own.filter((r) => r.src !== "moa" && !(r.s >= 9)).slice(0, 8), jb = `${h.dong || pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : ""}`;
-      sl.innerHTML = L.map((r) => `<li><button type="button" data-d="${r.id}">${esc(shortName(r.n))}<small>${esc(r.g)} · ${esc(stageName(r))} · ${esc(jb)} 포함</small></button></li>`).join("") || `<li class="tl-e">${esc(window.ZP_josa ? ZP_josa(jb, "은", "는") : jb + "은")} 지도에 있는 진행 중 재개발 구역 밖이에요</li>`;
+    // 사이클 2: 지번 꼴('미아동 791-2')은 지번 검색이 먼저 · 이름이 부분만 같은 구역('미아동 791-2882')은 따로 묶어 아래에(필지가 그 구역 안이라고 오해하지 않게)
+    const byJibun = (raw, pq, nameHits) => {
+      const h = pcliHits(pq), nz = (t) => String(t || "").replace(/\s/g, ""), v0 = nz(raw);
+      // 이름이 검색어와 똑같은 구역(예: '미아동 791-2882')은 맨 위 따로 — 지번 색인을 받는 동안에도 바로 보인다
+      const E = (nameHits || []).filter((r) => nz(shortName(r.n)) === v0), eH = E.length ? `<li class="tl-g" role="presentation">이 이름의 구역</li>` + E.map((r) => `<li><button type="button" data-d="${r.id}">${esc(shortName(r.n))}<small>${esc(r.g)} · ${esc(stageName(r))}</small></button></li>`).join("") : "";
+      if (h === null) { sl.innerHTML = eH + '<li class="tl-e">지번 찾는 중…</li>'; sl.querySelectorAll("[data-d]").forEach(pick); Promise.all(pcliAlt(pq.dong).map(pcliLoad)).then(() => { if (q.value === raw) byJibun(raw, pq, nameHits); }); return; }
+      const eIds = new Set(E.map((r) => r.id));
+      const L = h.own.filter((r) => r.src !== "moa" && !(r.s >= 9) && !eIds.has(r.id)).slice(0, 8), jb = `${h.dong || pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : ""}`, ids = new Set(L.map((r) => r.id).concat([...eIds]));
+      const N = (nameHits || []).filter((r) => !ids.has(r.id)).slice(0, 5);
+      sl.innerHTML = eH + (!L.length && E.length ? "" : `<li class="tl-g" role="presentation">지번 ${esc(jb)}</li>` + (L.map((r) => `<li><button type="button" data-d="${r.id}">${esc(shortName(r.n))}<small>${esc(r.g)} · ${esc(stageName(r))} · ${esc(jb)} 필지가 구역 안</small></button></li>`).join("") || `<li class="tl-e">${esc(window.ZP_josa ? ZP_josa(jb, "은", "는") : jb + "은")} 지도에 있는 진행 중 재개발 구역 밖이에요</li>`))
+        + (N.length ? `<li class="tl-g" role="presentation">이름에 '${esc(q.value.trim())}'이 들어간 구역 · 지번과는 별개</li>` + N.map((r) => `<li><button type="button" data-d="${r.id}">${esc(shortName(r.n))}<small>${esc(r.g)} · ${esc(stageName(r))} · 이름만 비슷해요</small></button></li>`).join("") : "");
       sl.querySelectorAll("[data-d]").forEach(pick);
     };
     q.oninput = () => {
       const v = q.value.replace(/\s/g, ""); if (!v) { sl.innerHTML = ""; return; }
       const hits = R.filter((r) => r.src !== "moa" && !(r.s >= 9) && (shortName(r.n).replace(/\s/g, "").includes(v) || (r.n || "").replace(/\s/g, "").includes(v))).slice(0, 8);
-      // 이름으로 하나도 안 걸리고 '동 + 번지' 꼴이면 지번으로(이름에 지번이 든 구역 '미아동 791-2882번지 일대'는 이름으로 먼저 찾힌다)
-      const pq = !hits.length && /\d/.test(v) ? pcliQ(q.value) : null; if (pq) { byJibun(q.value, pq); return; }
+      // '동 + 번지' 꼴이면 지번 검색이 먼저 · 이름 부분 일치는 따로 아래에(사이클 2 · 라이브 검색창과 같은 필지 색인)
+      const pq = /\d/.test(v) ? pcliQ(q.value) : null; if (pq) { byJibun(q.value, pq, hits); return; }
       sl.innerHTML = hits.map((r) => `<li><button type="button" data-d="${r.id}">${esc(shortName(r.n))}<small>${esc(r.g)} · ${esc(stageName(r))}</small></button></li>`).join("") || '<li class="tl-e">찾는 구역이 없어요</li>';
       sl.querySelectorAll("[data-d]").forEach(pick);
     };
@@ -123,13 +129,16 @@ const TOOLS = (() => {
   // 매물진단 판정 목록(구역 리포트 '규제' 탭도 이 함수를 그대로 쓴다): [cls, 항목, 설명, 출처 링크?]
   function diagItems(r, redraw) {
     const items = [], pol = (D && D.policy) || {}, LAW = "https://www.law.go.kr/법령/도시및주거환경정비법";
+    // 사이클 2: 사업 유형에 맞는 법 — 가로·소규모·모아주택은 빈집 및 소규모주택 정비에 관한 특례법(소규모주택정비법), 재개발·재건축은 도시정비법
+    const SM = isSmall(r) || r.src === "moa", LAWS = "https://www.law.go.kr/법령/빈집및소규모주택정비에관한특례법";
+    const tLaw = SM ? [LAWS + "/제24조", "소규모주택정비법 제24조"] : [LAW + "/제39조", "도정법 제39조"];
     const w = buyWindow(r);
     // 28차: 착공 뒤 입주권 거래가 있는 곳(o903 고척4)은 '✕ 입주권 없음'으로 시작하지 않고 길을 함께 — 집(지금 매물)을 사면 없음 · 조합원 입주권은 따로 거래돼요(/z key3 '조합원 입주권을 사야 해요'와 같은 판정)
     const imT = w.cls === "no" && r.s >= 8 && r.tx && r.tx.im ? r.tx.im : null;
-    if (imT) items.push(["warn", "입주권", `집을 사면 입주권 없음 · 조합원 입주권은 따로 살 수 있어요 · 참고 입주권 시세 ${ZF.eok(imT)}`, [LAW + "/제39조", "도정법 제39조"]]);
+    if (imT) items.push(["warn", "입주권", `집을 사면 입주권 없음 · 조합원 입주권은 따로 살 수 있어요 · 참고 입주권 시세 ${ZF.eok(imT)}`, tLaw]);
     // 4라운드: 관리처분인가(재건축은 조합설립인가) 뒤 매수는 '원칙적으로 없음' — 예외 매물(10년 보유·5년 거주 1주택 등)은 승계되므로 ✕ 대신 !(아래 '조합원 지위양도' 줄과 같은 말)
-    else if (w.cls === "no" && / 이후 매수분$/.test(w.due || "") && /예외:/.test(w.d || "")) items.push(["warn", "입주권", `원칙적으로 없음(${w.due.replace(/ 이후 매수분$/, "")} 이후 매수) · 예외 매물(10년 보유·5년 거주 1주택 등)만 승계`, [LAW + "/제39조", "도정법 제39조"]]);
-    else items.push([w.cls === "ok" ? "ok" : w.cls === "no" ? "no" : "warn", "입주권", w.t + (w.due ? ` · ${w.due}` : ""), [LAW + "/제39조", "도정법 제39조"]]);
+    else if (w.cls === "no" && / 이후 매수분$/.test(w.due || "") && /예외:/.test(w.d || "")) items.push(["warn", "입주권", `원칙적으로 없음(${w.due.replace(/ 이후 매수분$/, "")} 이후 매수) · 예외 매물(10년 보유·5년 거주 1주택 등)만 승계`, tLaw]);
+    else items.push([w.cls === "ok" ? "ok" : w.cls === "no" ? "no" : "warn", "입주권", w.t + (w.due ? ` · ${w.due}` : ""), tLaw]);
     // 토허: 서울 전역(아파트)·신통·구역 안 허가 기록·구 단위 기록까지 본 뒤에만 말한다(56_toheo.js). 허가 자료가 오면 다시 그림
     let th = null;
     try { th = TOH.lookup(r); } catch (e) {}
@@ -139,17 +148,28 @@ const TOOLS = (() => {
     try { if (!TOH.loaded() && redraw) TOH.load().then(redraw); } catch (e) {}
     const sp = pol.speculation || {};
     items.push(["warn", "투기과열·조정대상지역", `서울 25개 구 전역 (${(sp.date || "2025-10-16").replaceAll("-", ".")}~)${/강남|서초|송파|용산/.test(r.g) ? ` · ${r.g}는 2017.8.3부터 연속` : ""} · 대출·세금·전매 규제 적용`, [sp.src || "https://www.korea.kr", "정책브리핑"]]);
-    try { const rt = ZX.rights(r); items.push([rt.k === "set" ? (rt.c === "low" ? "warn" : "ok") : "warn", "권리산정기준일", rt.k === "set" ? (rt.old ? `${rt.d}(지정일)로 추정 · 서울시 조례 부칙(2010.7.16 이전 지정) 확인 필요` : `${rt.d} 전 준공·등기 건물만 단독 입주권${rt.c === "low" ? " · 추정이라 확인 필요" : ""}`) : rt.k === "chg" ? "확인 필요 · 등록된 구역지정일이 변경 지정일이라 추정하지 않아요" : "날짜 미확정 · 구청 확인", [LAW + "/제77조", "도정법 제77조"]]); } catch (e) {}
-    items.push(["warn", "여러 채 보유(다물권)", "한 구역에 여러 채면 원칙적으로 입주권 1개(세대원 합산) · 1+1 분양은 종전 가격·주거전용면적 범위 안에서만(추가 1채는 60㎡ 이하·3년 전매 제한) · 투기과열지구 재건축은 다주택 조합원도 1주택만", [LAW + "/제76조", "도정법 제76조"]]);
-    items.push(["warn", "재당첨 제한", "투기과열지구 정비사업에서 조합원 분양을 받은 세대는 5년 동안 다른 투기과열지구 정비사업 분양신청 불가(세대원 포함)", [LAW + "/제72조", "도정법 제72조"]]);
-    const rb = /재건축/.test(r.k), lock = rb ? r.s >= 4 : r.s >= 6;
-    // 5라운드: 위 '입주권' 줄과 같은 규정(도정법 39조) — 같은 표시(!)·같은 말투('원칙적으로 … 예외 매물만')
-    items.push([lock ? "warn" : "ok", "조합원 지위양도", `${rb ? "재건축은 조합설립인가" : "재개발은 관리처분인가"} 뒤 매수는 원칙적으로 승계 불가 · 예외 매물(10년 보유·5년 거주 1주택 등)만 승계 · ${lock ? "지금 이 단계라 예외 매물만" : "지금은 아직 그 전"}`, [LAW + "/제39조", "도정법 제39조"]]);
+    try { const rt = ZX.rights(r); items.push([rt.k === "set" ? (rt.c === "low" ? "warn" : "ok") : "warn", "권리산정기준일", rt.k === "set" ? (rt.old ? `${rt.d}(지정일)로 추정 · 서울시 조례 부칙(2010.7.16 이전 지정) 확인 필요` : `${rt.d} 전 준공·등기 건물만 단독 입주권${rt.c === "low" ? " · 추정이라 확인 필요" : ""}`) : rt.k === "chg" ? "확인 필요 · 등록된 구역지정일이 변경 지정일이라 추정하지 않아요" : rt.k === "moa" ? "모아타운·가로주택은 기준일을 따로 고시해요 · 구청 확인" : "날짜 미확정 · 구청 확인", SM ? [rt.u && !/law\.go\.kr/.test(rt.u) ? rt.u : LAWS, rt.u && !/law\.go\.kr/.test(rt.u) ? "서울시 고시·보도" : "소규모주택정비법"] : [LAW + "/제77조", "도정법 제77조"]]); } catch (e) {}
+    if (SM) {
+      items.push(["warn", "여러 채 보유(다물권)", "가로·소규모·모아주택은 소규모주택정비법의 분양 기준과 조합 정관을 따라요 · 한 구역에 여러 채면 입주권이 몇 개인지 조합·구청에 확인", [LAWS, "소규모주택정비법"]]);
+      items.push(["warn", "재당첨 제한", "가로·소규모·모아주택의 재당첨 제한 적용 여부는 소규모주택정비법과 조합원 모집 공고로 확인", [LAWS, "소규모주택정비법"]]);
+    } else {
+      items.push(["warn", "여러 채 보유(다물권)", "한 구역에 여러 채면 원칙적으로 입주권 1개(세대원 합산) · 1+1 분양은 종전 가격·주거전용면적 범위 안에서만(추가 1채는 60㎡ 이하·3년 전매 제한) · 투기과열지구 재건축은 다주택 조합원도 1주택만", [LAW + "/제76조", "도정법 제76조"]]);
+      items.push(["warn", "재당첨 제한", "투기과열지구 정비사업에서 조합원 분양을 받은 세대는 5년 동안 다른 투기과열지구 정비사업 분양신청 불가(세대원 포함)", [LAW + "/제72조", "도정법 제72조"]]);
+    }
+    const rb = /재건축/.test(r.k), lock = rb || SM ? r.s >= 4 : r.s >= 6;
+    // 5라운드: 위 '입주권' 줄과 같은 규정 — 같은 표시(!)·같은 말투('원칙적으로 … 예외 매물만') · 사이클 2: 사업 유형별 조항
+    // 사이클 2: 재개발 부칙(2018.1.24까지 사업시행인가 '신청' 구역은 관리처분인가 뒤에도 제한 없음) — 시트 입주권 줄과 같은 판정(b18Of)
+    const b8 = !rb && !SM ? b18Of(r) : { st: "ap" }, d8 = (d) => String(d || "").replace(/^(\d{4})-(\d{2})-(\d{2}).*/, (m, y, a, c) => `${y}.${+a}.${+c}`);
+    if (b8.st === "ex") items.push(["ok", "조합원 지위양도", `${b8.by === "app" ? `사업시행인가 신청(${d8(b8.d)})` : `사업시행인가(${d8(b8.d)})`}이 2018.1.24까지라 관리처분인가 뒤에도 지위양도 제한이 적용되지 않아요(도시정비법 부칙 제2조 · 신청일 기준)`, [LAW + "/제39조", "도정법 제39조·부칙"]]);
+    else if (b8.st === "unk") items.push(["warn", "조합원 지위양도", `사업시행인가(${d8(b8.d)})가 2018.1.25 시행 직후라 신청이 2018.1.24까지였다면 관리처분인가 뒤에도 제한이 없어요 · 신청일 자료가 없어 단정하지 않아요(조합·구청 확인)${lock ? "" : " · 지금은 아직 관리처분인가 전"}`, [LAW + "/제39조", "도정법 제39조·부칙"]]);
+    else items.push([lock ? "warn" : "ok", "조합원 지위양도", `${SM ? "가로·소규모·모아주택은 조합설립인가" : rb ? "재건축은 조합설립인가" : "재개발은 관리처분인가"} 뒤 매수는 원칙적으로 승계 불가 · 예외 매물(10년 보유·5년 거주 1주택 등)만 승계 · ${lock ? "지금 이 단계라 예외 매물만" : "지금은 아직 그 전"}`, tLaw]);
+    // 사이클 2: 판정 줄마다 '추정·확인 필요'(공식 사실인 투기과열 지정은 빼고)
+    items.forEach((it) => { if (it[1] !== "투기과열·조정대상지역") it[4] = 1; });
     // 5라운드(설치 앱): 날짜 꼴 하나(YYYY.M.D) — '2009.10.01'·'2026.09.23' → '2009.10.1'·'2026.9.23'
     if (document.documentElement.classList.contains("is-tapp")) items.forEach((it) => { it[2] = String(it[2]).replace(/\b(\d{4})\.(\d{1,2})\.(\d{1,2})\b/g, (m, y, a, b) => `${y}.${+a}.${+b}`); });
     return items;
   }
-  const dgLi = ([c, k, v, src]) => `<li class="${c}"><i aria-hidden="true">${c === "ok" ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : c === "no" ? "✕" : c === "na" ? "?" : "!"}</i><span><b>${k}</b><small>${esc(v)}${src ? ` <a href="${esc(src[0])}" target="_blank" rel="noopener">${esc(src[1])} ↗</a>` : ""}</small></span></li>`;
+  const dgLi = ([c, k, v, src, est]) => `<li class="${c}"><i aria-hidden="true">${c === "ok" ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : c === "no" ? "✕" : c === "na" ? "?" : "!"}</i><span><b>${k}${est ? ' <em class="dg-est">추정·확인 필요</em>' : ""}</b><small>${esc(v)}${src ? ` <a href="${esc(src[0])}" target="_blank" rel="noopener">${esc(src[1])} ↗</a>` : ""}</small></span></li>`;
   function diagShow(ex) {
     const r = dSel, box = document.getElementById("dgR"); if (!r || !box) return;
     const items = diagItems(r, () => { if (dSel === r) diagShow(ex); });

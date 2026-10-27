@@ -70,7 +70,7 @@ MEAN = {
  '구역지정': '서울시가 정비구역으로 지정·고시한 단계예요. 원칙적으로 이 날이 권리산정기준일이 돼요(따로 고시한 날이 있으면 그날).',
  '조합설립': '토지등소유자 동의를 모아 조합이 인가된 단계예요. <b>재건축·소규모 정비는 이 인가 뒤에 산 사람은 조합원이 될 수 없어요</b>(도시정비법 제39조②·소규모주택정비법 제24조, 예외 있음). 재개발은 관리처분인가 전까지 매수해도 조합원이 될 수 있어요.',
  '사업시행': '건물 배치·세대수 등 사업계획이 인가된 단계예요. 다음은 분담금이 정해지는 관리처분인가예요.',
- '관리처분': '조합원별 분담금과 새 아파트 배정 계획이 인가된 단계예요. <b>재개발도 이 인가 뒤 매수자는 조합원이 될 수 없어요</b>(2018.1.24 이전 사업시행인가 구역 등 예외).',
+ '관리처분': '조합원별 분담금과 새 아파트 배정 계획이 인가된 단계예요. <b>재개발도 이 인가 뒤 매수자는 조합원이 될 수 없어요</b>(2018.1.24까지 사업시행인가를 신청한 구역 등 예외 · 도시정비법 부칙 제2조).',
 }
 act = lambda r: not (r['s'] >= 9 or (r.get('dn') and r['s'] < 7))   # 진행 중·중복 아닌 구역(enrich.py와 같은 규칙)
 kind = lambda r: 'rebuild' if '재건축' in (r.get('k') or '') else 'small' if re.search('가로|소규모', r.get('k') or '') else 'redev'
@@ -529,7 +529,7 @@ ptxt = (f'<div class="rp-pt"><b>{RNG} 기준이에요.</b> {M}월이 아직 끝�
         if PARTIAL else (f'<div class="rp-pt">{M}월 전체 자료로 {md_.month}월 {md_.day}일 갱신했어요. 처음 낸 건 {pd_.month}월 {pd_.day}일({md(OLD.get("asof") or "")} 기준)이에요.</div>' if OLD and OLD.get('partial') else ''))
 ld = {"@context": "https://schema.org", "@type": "Article", "headline": title[:110], "description": desc, "inLanguage": "ko", "datePublished": PUB, "dateModified": MOD,
       "url": f"{SITE}/report/{YM}", "mainEntityOfPage": f"{SITE}/report/{YM}", "image": f"{SITE}/og.png",
-      "author": {"@type": "Organization", "name": (BRAND + " 편집"), "url": f"{SITE}/about#principles"}, "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icon-512.png"}}
+      "author": {"@type": "Organization", "name": (BRAND + " 편집"), "url": f"{SITE}/about#principles"}, "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icons/icon-512.png"}}
 body = f'''<main><script type="application/ld+json" id="zp-ld">{json.dumps(ld, ensure_ascii=False).replace("</", "<\\/")}</script>{STY}
 <p class="eyebrow">서울 재개발 월간 리포트 · {no}호 · {Y}년 {M}월분{f" ({RNG} 기준)" if PARTIAL else ""}</p>
 <h1>{esc(title)}</h1>
@@ -591,7 +591,7 @@ if pubs:
     idx = open(os.path.join(ROOT, 'public/report/index.html'), encoding='utf-8').read()
     a, b = idx.index('<main>'), idx.index('</main>')
     ixld = {"@context": "https://schema.org", "@type": "CollectionPage", "name": ("서울 정비사업 단계 변경 리포트 | " + BRAND + " - 서울 재개발 지도"), "description": "매달 서울 정비사업 중 인가 단계가 바뀐 구역을 원문 링크와 함께 정리합니다.",
-            "url": f"{SITE}/report/", "inLanguage": "ko", "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icon-512.png"},
+            "url": f"{SITE}/report/", "inLanguage": "ko", "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icons/icon-512.png"},
             "mainEntity": {"@type": "ItemList", "itemListElement": [{"@type": "ListItem", "position": n + 1, "url": f"{SITE}/report/{i['ym']}"} for n, i in enumerate(pubs)]}}
     sub = lambda i: f"인가 {i['n']}건 · 원문 확인 {i['ok']}건" + (f" · {int(i['asof'][5:7])}.{int(i['asof'][8:10])} 기준" if i.get('partial') else '')
     main = f'''<main><script type="application/ld+json" id="zp-ld">{json.dumps(ixld, ensure_ascii=False)}</script>

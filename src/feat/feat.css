@@ -53,6 +53,7 @@ html.is-tapp .zorg-c{background:var(--t-pg)}
 .znr-i:focus-visible{outline:2px solid var(--focus,var(--zf-brand));outline-offset:2px}
 .znr-n{flex:1;min-width:0}.znr-n b{display:block;font:700 15px/21px var(--font,inherit);word-break:keep-all}.znr-n small{display:block;font:500 12px/17px var(--font,inherit);color:var(--zf-mute)}
 .znr-v{flex:none;text-align:right}.znr-v b{display:block;font:800 16px/22px var(--font,inherit);color:var(--zf-brand);font-variant-numeric:tabular-nums}.znr-v small{display:block;font:500 11.5px/16px var(--font,inherit);color:var(--zf-mute)}
+.znr-v b.znr-hb{font:700 13px/20px var(--font,inherit);color:var(--zf-mute)}
 .znr-src{margin:8px 0 0;font:500 12px/17px var(--font,inherit);color:var(--zf-mute);word-break:keep-all}
 /* F5 가격 흐름 */
 .zpx-seg{display:inline-flex;gap:2px;padding:3px;margin:2px 0 8px;border-radius:12px;background:var(--zf-fill)}
@@ -69,6 +70,8 @@ html.is-tapp .zpx-seg button[aria-pressed="true"]{background:var(--t-pg)}
 .zpx-svg text{font:500 10px var(--font,inherit);fill:var(--zf-mute)}
 .zpx-svg .p{fill-opacity:.55;stroke:none}.zpx-svg .t0{fill:#5B7BD6}.zpx-svg .t1{fill:#14A38B}.zpx-svg .t2{fill:#E58A2B}.zpx-svg .t3{fill:#A35BD6}
 .zpx-svg .ml{fill:none;stroke:var(--zf-ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.zpx-svg .gx{stroke-dasharray:2 3}.zpx-svg .yu{font-weight:700}
+.zpx-jr p.zpx-warn{color:var(--zf-warn)}
 .zpx-key{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 10px;font:500 11.5px/16px var(--font,inherit);color:var(--zf-mute)}
 .zpx-key i{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:50%;vertical-align:0}.zpx-key .k0{background:#5B7BD6}.zpx-key .k1{background:#14A38B}.zpx-key .k2{background:#E58A2B}.zpx-key .k3{background:#A35BD6}.zpx-key .kl{width:14px;height:2px;border-radius:1px;background:var(--zf-ink);vertical-align:3px}
 .zpx-none{margin:6px 0 12px;color:var(--zf-mute);font:500 13px/18px var(--font,inherit)}
@@ -103,7 +106,6 @@ html.is-tapp .zpx-seg button[aria-pressed="true"]{background:var(--t-pg)}
 .zal-x{grid-column:1 / -1;color:var(--zf-sub);word-break:keep-all;overflow-wrap:anywhere}
 .zal-s{margin:8px 0 0;font:500 12px/17px var(--font,inherit);color:var(--zf-mute);word-break:keep-all}
 /* F1 매물진단: 신축 쪼개기 위험 줄 · 매수 전 규정 펼치기 */
-.dg-l .zdg-est{display:inline-block;width:auto;margin-left:4px;padding:1px 6px;border-radius:999px;background:var(--warn-soft,#FFF4E5);color:var(--warn-ink,#8A4B00);font:600 11px/16px var(--font,inherit);font-style:normal;vertical-align:1px}
 .dg-l .zdg-src{display:block;margin-top:3px;font-size:11.5px;color:var(--text-3,#6B7684)}
 .zdg-rules{margin:14px 0 0;border:1px solid var(--divider,#E5E8EB);border-radius:16px;background:var(--surface,#fff)}
 .zdg-rules>summary{display:flex;flex-direction:column;gap:2px;min-height:48px;justify-content:center;padding:10px 40px 10px 16px;cursor:pointer;list-style:none;position:relative}
@@ -111,9 +113,17 @@ html.is-tapp .zpx-seg button[aria-pressed="true"]{background:var(--t-pg)}
 .zdg-rules>summary::after{content:"";position:absolute;right:18px;top:50%;width:8px;height:8px;border-right:2px solid var(--text-3,#6B7684);border-bottom:2px solid var(--text-3,#6B7684);transform:translateY(-70%) rotate(45deg);transition:transform .15s}
 .zdg-rules[open]>summary::after{transform:translateY(-30%) rotate(-135deg)}
 .zdg-rules>summary b{font-size:15px;color:var(--text-1,#191F28)}
-.zdg-rules>summary small{font-size:12.5px;color:var(--text-3,#6B7684)}
+.zdg-rules>summary small{font-size:12.5px;color:var(--text-2,#4E5968)}
 .zdg-rb{padding:0 16px 14px;min-width:0;overflow-wrap:anywhere}
-html.is-tapp .zdg-rules{border-color:var(--t-line,#E5E8EB);background:none}html.is-tapp .zdg-rules>summary b{color:var(--t-ink)}html.is-tapp .zdg-rules>summary small{color:var(--t-mute)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dg-l .zdg-est{background:rgba(255,170,60,.16);color:#FFC37A}}
-:root[data-theme="dark"] .dg-l .zdg-est{background:rgba(255,170,60,.16);color:#FFC37A}
+html.is-tapp .zdg-rules{border-color:var(--t-line,#E5E8EB);background:none}html.is-tapp .zdg-rules>summary b{color:var(--t-ink)}html.is-tapp .zdg-rules>summary small{color:var(--t-sub,#4E5968)}
 @media (prefers-reduced-motion:reduce){.zdg-rules>summary::after{transition:none}}
+/* 사이클 2: 이미 가진 집이면 */
+.zow-b{padding:12px 0;border-top:1px solid var(--zf-line)}.zow-b:first-of-type{border-top:0;padding-top:4px}
+.zow-b h4{margin:0 0 6px;font:700 14px/20px var(--font,inherit);color:var(--zf-ink)}
+.zow-b p{margin:4px 0;font:500 14px/21px var(--font,inherit);color:var(--zf-sub);word-break:keep-all;overflow-wrap:anywhere}
+.zow-b p b{color:var(--zf-ink)}
+.zow-mut{font-size:12.5px!important;line-height:18px!important;color:var(--zf-mute)!important}
+.zow-est{font-style:normal;font-size:11.5px;color:var(--zf-warn);margin-left:4px}
+.zow-ev{margin:6px 0 0;padding:0;list-style:none}.zow-ev li{display:flex;gap:8px;font:500 13px/19px var(--font,inherit);color:var(--zf-sub);padding:3px 0}.zow-ev li span{flex:none;color:var(--zf-mute);font-variant-numeric:tabular-nums}
+/* 사이클 2 접근성: 글 속 링크는 밑줄(axe link-in-text-block) — 타임라인 출처·조합 카드 '구역 글'·필지 연식 */
+[data-f] small a,[data-f] p a,[data-f] dd a{text-decoration:underline;text-underline-offset:2px}

@@ -55,7 +55,8 @@ const INBOX = (() => {
   const freshN = () => { if (isOff("price")) return 0; try { return PINS.freshIds().length; } catch (e) { return 0; } };
   const unreadC = (e) => { const s = seen(); return e.date > s.at || (e.date === s.at && !s.k.includes(e.k)); };
   // 알림 조건에 맞는 구역의 경매(핀 꽂은 구역은 핀 소식으로 이미 셈)
-  const condAuc = () => { if (!CH || isOff("auction")) return []; const P = new Set(pinIds()), out = new Map(); conds().forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0 && !(e.mn > n.c.cash * 1.1 + 1e-9)) out.set(e.k, e); }); /* 경매: 대표 물건 최저가가 조건 현금(+10%) 안일 때만 */ }); return [...out.values()]; };
+  // all = true: 꺼 둔 설정(종류·조건)을 무시한 셈(미리 보기 '꺼 둔 설정으로 N건 빠져요'의 기준) · 서버 match(worker/push.js)와 같은 규칙: 관심 구역(끈 구역 포함)은 조건 경로에서 빼고, 최저가 ≤ 조건 현금 × 1.1
+  const condAuc = (all) => { if (!CH || (!all && isOff("auction"))) return []; const P = new Set(pinIds()), out = new Map(); (all ? (() => { try { return PINS.condsAll(); } catch (e) { return []; } })() : conds()).forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0 && !(e.mn > n.c.cash * 1.1 + 1e-9)) out.set(e.k, e); }); /* 경매: 대표 물건 최저가가 조건 현금(+10%) 안일 때만 */ }); return [...out.values()]; };
   const count = () => pinEvents().filter(unread).length + freshN() + condAuc().filter(unreadC).length;
   function markSeen() {
     if (!CH) return;
@@ -110,7 +111,8 @@ const INBOX = (() => {
   const overCash = (e) => { let c = null; try { c = CASH; } catch (er) {} return c != null && e.mn > c * 1.1 + 1e-9; };
   // 28차: 기준일은 앱 머리 'N.NN 갱신'과 같은 한 곳(D.upd)에서 — 알림 자료(changes.json asOf)가 하루 어긋나 '10.24 기준' vs '10.25 갱신'이던 것
   const asOfD = () => { let u = ""; try { u = String((typeof D !== "undefined" && (D.upd || D.asOf)) || (CH && CH.asOf) || ""); } catch (e) {} const m = /(\d{4})-?(\d\d)-?(\d\d)/.exec(u); return m ? `${+m[2]}.${m[3]}` : ""; };
-  const foot = () => (CH && asOfD() ? `<p class="ib-foot">최근 ${CH.days || 30}일 · 매일 아침 갱신 <span class="nw">(${asOfD()} 기준)</span></p>` : "");
+  // 사이클 2: '새 소식'의 기준을 밝힌다 — 날짜 머리는 자료에 새로 올라온 날(실거래는 신고 등록일) · 실거래 줄의 'N.N 계약'은 계약일(넉 달 전 계약이 새 소식으로 보이던 혼동)
+  const foot = () => (CH && asOfD() ? `<p class="ib-foot">최근 ${CH.days || 30}일 · 매일 아침 갱신 <span class="nw">(${asOfD()} 기준)</span><br>날짜는 자료에 새로 올라온 날(실거래는 신고 등록일)이에요 · 실거래 줄의 '○.○ 계약'은 계약한 날</p>` : "");
   function body() { const ph = pinHTML(); return `${pushBox()}${condHTML()}${ph}${/ib-none|ib-empty/.test(ph) && !condHTML() ? "" : foot()}`; }   // 28차: 소식이 없으면 기준일을 그 줄에 붙이고 아래 줄은 뺀다(빈 카드 여백)
   // 소식 화면(#news) 위 칸에 그린다 · 화면을 열면 소식을 받아 다시 그리고 잠시 뒤 읽음 처리
   const box = () => $("nwMine");
@@ -162,7 +164,7 @@ const INBOX = (() => {
   const u8 = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const swReady = (ms = 8000) => Promise.race([navigator.serviceWorker.getRegistration("/").then((r) => r || navigator.serviceWorker.register("/sw.js", { scope: "/" })).then(() => navigator.serviceWorker.ready), new Promise((_, no) => setTimeout(() => no(new Error("sw")), ms))]);
-  const payload = (sub) => ({ sub: sub.toJSON(), o: off(), zones: pinOn().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.slice(0, 150) })) });
+  const payload = (sub) => { const muteZ = new Set(mute().z); return { sub: sub.toJSON(), o: off(), zones: pinOn().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.filter((id) => !muteZ.has(id)).slice(0, 150) })) }; };   // 사이클 2: 끈 구역은 조건 경로(conds[].z)에서도 뺀다(서버가 조건 경매로 보내던 누수)
   // 시간 제한: 구독·서버 저장이 멈춰도 '켜는 중…'에 갇히지 않게(8초)
   const tmo = (p, ms, tag) => { let t; return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(new Error(tag || "timeout")), ms); })]).finally(() => clearTimeout(t)); };
   const postSub = (sub) => {
@@ -339,7 +341,7 @@ const INBOX = (() => {
   function setMute(t, id, on) { const m = mute(), L = new Set(m[t]); if (on) L.delete(id); else L.add(id); m[t] = [...L]; lsW(MUK, m); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
   const isMuted = (t, id) => mute()[t].includes(id);
   function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
-  return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind, setMute, isMuted, d0: () => addDay(day(), -6), asOf: () => (CH ? CH.asOf || "" : ""), pinEvents: () => pinEvents(), condAuc: () => condAuc(), payloadOf: () => payload({ toJSON: () => ({}) }) };
+  return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind, setMute, isMuted, d0: () => addDay(day(), -6), asOf: () => (CH ? CH.asOf || "" : ""), pinEvents: () => pinEvents(), condAuc: (all) => condAuc(all), payloadOf: () => payload({ toJSON: () => ({}) }) };
 })();
 window.ZP_INBOX = INBOX;   // 점검(QA): 폰 알림 상태·종류 끄기
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", INBOX.init) : setTimeout(INBOX.init, 0);

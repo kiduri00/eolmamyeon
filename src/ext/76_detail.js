@@ -43,6 +43,20 @@ const DTL = (() => {
     if (o.total == null && !o.why2) o.why2 = x && x.price != null ? ZF.noCalcTxt(r, x) : "입주 시점·신축 시세 자료가 부족해요";
     return o;
   }
+  // 사이클 2(판정 한 곳): 구역 하나의 '보이는 지금 필요한 돈'과 그 이름 — 시트·관심 카드·모아타운 행·근처 카드·미리보기가 모두 이것만 부른다
+  //   kind: done(사업 끝) · nt(입주권 없음 → 계산 보류) · moa(관리지역 → 안의 사업구역) · need(지금 사는 방식 값) · lnow(전세 끼고 불가 → 대출 끼고 값) · hold(계산 보류)
+  //   mode: 값이 어느 사는 방식인지('gap' 전세 끼고 · 'cash' 대출 끼고) — 화면은 고른 방식과 다르면 꼬리표를 단다
+  function shown(r) {
+    let n = null; try { n = nums(r); } catch (e) {}
+    if (!n) return { kind: "hold", v: null, mode: null };
+    const m = gapMode() ? "gap" : "cash";
+    if (n.done || r.s >= 9) return { kind: "done", v: null, mode: null };
+    if (n.moa) return { kind: "moa", v: null, mode: null, ref: n.ref };
+    if (n.nt) return { kind: "nt", v: null, mode: null };
+    if (n.need != null) return { kind: "need", v: n.need, mode: m, total: n.total };
+    if (n.lnow != null) return { kind: "lnow", v: n.lnow, mode: "cash", total: n.ltot != null ? n.ltot : null };
+    return { kind: "hold", v: null, mode: null };
+  }
   // 지금 필요한 돈을 내지 않는 곳(입주권 없음·전세 끼고 불가·매수가 없음): 첫 화면에 참고 시세 한 줄(실거래 탭 큰 숫자와 같은 1년 가운데 값 · /z zsample.ref_price와 같은 규칙)
   function refPrice(r) {
     const t = r.tx || {};
@@ -57,12 +71,12 @@ const DTL = (() => {
       // 3라운드: 값 자리 = 지금 필요한 돈(15/700) · 판정은 12px 보조 줄 · 준공·입주는 '입주 완료' · 단계는 회색 칩 · 오른쪽 ›
       let v = "", sub = "";
       try {
-        const m = nums(k), dn = m.done || k.s >= 9 || /준공|입주/.test(stageName(k));
+        const w = shown(k), dn = w.kind === "done" || /준공|입주/.test(stageName(k));
         if (dn) { v = "입주 완료"; sub = "일반 매매"; }
         // 6라운드: 입주권 없는 하위 구역 = 시트·정적 /z와 같은 '계산 보류'(5라운드의 '일반 매매 · N'은 다른 화면과 숫자가 달라 뺌) · 보조 줄은 입주권 화면 말투
-        else if (m.nt) { v = "계산 보류"; sub = "입주권 원칙적으로 없음 · 예외 매물만"; }
-        else if (m.need != null) { v = C(m.need); sub = upC(m.need) <= CASH + 1e-9 && !(k.lc) ? `내 돈 ${C(CASH)}으로 가능` : `${ZF.short(m.need - CASH)} 더 필요`; }
-        else if (m.lnow != null) { v = C(m.lnow); sub = "대출 끼고"; }
+        else if (w.kind === "nt") { v = "계산 보류"; sub = "입주권 원칙적으로 없음 · 예외 매물만"; }
+        else if (w.kind === "need") { v = C(w.v); sub = upC(w.v) <= CASH + 1e-9 && !(k.lc) ? `내 돈 ${C(CASH)}으로 가능` : `${ZF.gap(w.v, CASH)} 더 필요`; }
+        else if (w.kind === "lnow") { v = C(w.v); sub = "대출 끼고"; }
         else { v = "계산 보류"; sub = ""; }
       } catch (e) { v = "계산 보류"; }
       let st = ""; try { st = stageName(k); } catch (e) {}
@@ -86,10 +100,10 @@ const DTL = (() => {
     // 판정 한 줄(가능 · 사는 방법): '✓ 가능'과 '전세 끼고 ✓ 가능' 칩을 따로 두지 않는다
     const how = gapMode() ? "전세 끼고" : "대출 끼고";
     const CK = '<svg class="dt-ck" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const vd1 = n.need == null ? "" : excl && upC(n.need) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>${ZF.EXCL}</b><small> · 숫자는 참고만</small></em>` : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : ZF.short(n.need - CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
+    const vd1 = n.need == null ? "" : excl && upC(n.need) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>${ZF.EXCL}</b><small> · 숫자는 참고만</small></em>` : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : ZF.gap(n.need, CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
     // 30차: 전세 끼고는 못 사는 곳(토허 등) — 대출 끼고 값에도 판정 한 줄(대출 끼고 보기와 같은 말) · '대출 끼고'를 두 번 쓰지 않는다
-    const lv = n.need == null && n.lnow != null && !excl ? (upC(n.lnow) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>내 돈 ${C(CASH)} 안이에요</b><small> · 전세 끼고 목록엔 없어요</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.lnow).slice(1) : ZF.short(n.lnow - CASH))} 더 필요해요</b></em>`) : "";
-    const sub2 = n.total == null ? (n.ltot != null ? (upC(n.ltot) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.short(n.ltot - CASH)}</b> 더 필요해요 · 잔금대출 뺀 값` : `내 돈 ${C(CASH)} 안이에요 · 잔금대출 뺀 값`) : esc(n.why2)) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.short(n.total - CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
+    const lv = n.need == null && n.lnow != null && !excl ? (upC(n.lnow) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>내 돈 ${C(CASH)} 안이에요</b><small> · 전세 끼고 목록엔 없어요</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.lnow).slice(1) : ZF.gap(n.lnow, CASH))} 더 필요해요</b></em>`) : "";
+    const sub2 = n.total == null ? (n.ltot != null ? (upC(n.ltot) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.gap(n.ltot, CASH)}</b> 더 필요해요 · 잔금대출 뺀 값` : `내 돈 ${C(CASH)} 안이에요 · 잔금대출 뺀 값`) : esc(n.why2)) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.gap(n.total, CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;
     let eta = "–"; try { eta = etaShow(r); } catch (e) {}
     // 입주권 없는 곳: 셋째 칸 이름 '입주권' · 이유는 그 아래 한 번 · 착공 뒤처럼 입주권 거래가 있으면 '조합원 입주권을 사야 해요'(참고 시세) — '입주권 없음'과 시세가 부딪치지 않게(20차 G3)
     const TAPP = document.documentElement.classList.contains("is-tapp");
@@ -179,6 +193,7 @@ const DTL = (() => {
     const src = w && w.querySelector(".ov-srcw"); if (src) end.querySelector(".dt-src").appendChild(src);
     const fm = head.querySelector(".ov-formal") || head.querySelector(".formal"); if (fm) { fm.classList.add("dt-fm"); end.querySelector(".dt-src").appendChild(fm); }
     if (card) { card.className = "btn secondary dt-card"; card.textContent = "공유 이미지 저장하기"; end.querySelector(".dt-acts").appendChild(card); }
+    try { if (typeof CX !== "undefined") CX.btn(end, r); } catch (e) {}   // 사이클 2(F6): '비교에 담기'(관심 구역이 아니어도)
     place();
   }
   // 관심 버튼 글자·아이콘(목록 ♡와 같은 하트) — syncFav가 [data-fav]를 다시 그린 뒤에도
@@ -289,7 +304,7 @@ const DTL = (() => {
     });
     try { if (cur && document.querySelector("#report .rep-head")) decorate(); } catch (e) {}
   }
-  return { init, nums, repOpen, repClose, numsTxt };
+  return { init, nums, shown, repOpen, repClose, numsTxt };
 })();
 window.ZP_detail = DTL;   // 점검(QA): 첫 화면 숫자·신고 메일 주소
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", DTL.init) : setTimeout(DTL.init, 0);
