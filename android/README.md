@@ -99,6 +99,17 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
     `generate.js`를 쓰거나 git에서 되살리세요.
 - 재생성 스크립트: `assets-src/generate.js` (@bubblewrap/core로 이 폴더를 다시 만듭니다. 서명 설정·gradle.properties 수정은 다시 적용해야 합니다).
 
+## 스토어·매니페스트 스크린샷
+
+`assets-src/shots/capture.js`가 빌드 폴더를 로컬 서버로 띄워 앱 모드(TWA)로 9장(스토어 6장 + 웹 매니페스트 3장)을 찍고 검사합니다.
+
+```sh
+NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt NODE_PATH=$(npm root -g) node android/assets-src/shots/capture.js <빌드 폴더> [--out DIR] [--dry]
+```
+
+결과: `store/01_home.png`~`06_news.png`(Play 휴대전화 스크린샷, 1080×1920, 24비트 RGB), `manifest/screenshot-{home,map,wide}.png`
+(사이트 `public/`에 넣을 파일), `raw/`(문구 없는 원본), `report.json`(장면별 검사). 장면·문구는 파일 위쪽 `SCENES`에서 고칩니다.
+
 ## 스플래시 / 다크 모드
 
 - 스플래시 배경: 밝은 모드 `#FFFFFF`(build.gradle `backgroundColor`), 다크 모드 `#15181D`(`res/values-night/colors.xml`, bubblewrap 템플릿 밖 파일).
