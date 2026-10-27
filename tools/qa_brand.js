@@ -42,6 +42,13 @@ console.log(`  SPA·앱 범위 ${nSpa}건 · 정적 페이지 범위 ${n - nSpa}
   console.log(hits.length ? `FAIL persona.residual — ${hits.length}곳: ${hits.slice(0, 4).join(" ; ")}` : `PASS persona.residual`);
   if (hits.length) process.exitCode = 1;
 }
+// tone.banned(2026-10-28 오너 '유치한 건 빼고 세련되게'): 말장난·유행어 금지어(tools/brand.py BANNED — '될랑가' 등)가 public·src에 0건
+{
+  const BW = new RegExp((BN.BANNED || ['될랑가']).map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g"), th = [];
+  for (const f of files) { if (/\.py$/.test(f)) continue; const s = fs.readFileSync(path.join(R, f), "utf8"); for (const m of s.matchAll(BW)) { if (EXC.test(f) && s.slice(Math.max(0, m.index - 40), m.index + 40).includes(BN.RENAME_LINE)) continue; th.push(`${f}: '${s.slice(Math.max(0, m.index - 20), m.index + 20).replace(/\s+/g, " ")}'`); } }
+  console.log(th.length ? `FAIL tone.banned — ${th.length}곳: ${th.slice(0, 4).join(" ; ")}` : `PASS tone.banned (${(BN.BANNED || []).join("·")})`);
+  if (th.length) process.exitCode = 1;
+}
 if (!n) { console.log(`PASS brand.residual: 옛 이름 0건 (파일 ${files.length}개 · 지금 묶음 ${cur.size}개 · 이름 변경 안내 예외 ${okEx}곳)`); process.exit(process.exitCode || 0); }
 console.log(`FAIL brand.residual: 옛 이름 ${n}건 · 파일 ${files_n}개 (이름 변경 안내 예외 ${okEx}곳)`);
 const byDir = {}; for (const f of Object.keys(bad)) { const d = f.replace(/\/[^/]*$/, ""); byDir[d] = (byDir[d] || 0) + bad[f].length; }
