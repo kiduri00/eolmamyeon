@@ -2904,7 +2904,7 @@ async function tappLane(browser, api, errs) {
   }
   // --- tapp.split(pre-adsense 5): 설치 앱은 앱 코드를 덩이로 나눠 도는 판(/b/ta.*.js)만 받고, 웹은 예전 판(/b/a.*.js)만 받는다(파일 수 같음) · 앱은 마지막 덩이까지 돈 뒤 붙음 · 덩이 사이 예약(타이머·프레임) 잡아 두기가 끝나 원래 함수로 돌아옴 · 웹 서비스 워커 미리 받기에 ta 없음
   if (SEC(7, "tapp.split")) {
-    const T = "앱 코드 나눠 실행: 설치 앱 = /b/ta.*.js 하나(a.*.js 안 받음) · 웹 = /b/a.*.js 하나(ta 안 받음 · 받는 파일 수 그대로) · 앱 ZP_aWait 풀린 뒤 zp:hydrated · setTimeout 원래 함수 · sw 미리 받기 정규식에 ta 안 걸림";
+    const T = "앱 코드 나눠 실행: 설치 앱 = /b/ta.*.js 하나(a.*.js 안 받음) · 웹 = /b/a.*.js 하나(ta 안 받음 · 받는 파일 수 그대로) · 둘 다 ZP_aWait 풀린 뒤 zp:hydrated(사이클 2부터 웹도 나눠 실행) · setTimeout 원래 함수 · sw 미리 받기 정규식에 ta 안 걸림";
     const R = [];
     for (const mode of ["app", "web"]) {
       const { ctx, page } = mode === "app" ? await appPage(mob(390, 844)) : await newPage(browser, mob(390, 844), errs);
@@ -2914,8 +2914,8 @@ async function tappLane(browser, api, errs) {
         const st = await page.evaluate(async () => ({ aw: !!window.ZP_aWait, done: window.ZP_aWait ? await Promise.race([window.ZP_aWait.then(() => 1), new Promise((r) => setTimeout(() => r(0), 3000))]) : null, hyd: window.ZP_boot && ZP_boot.hyd, booted: window.ZP_booted, st: String(window.setTimeout).includes("[native code]"), raf: String(window.requestAnimationFrame).includes("[native code]") }));
         const want = mode === "app" ? "ta" : "a";
         if (U.join(",") !== want) R.push(`${mode} 받은 앱 코드 ${U.join(",") || "없음"}`);
-        if (mode === "app" && (!st.aw || st.done !== 1)) R.push(`app 덩이 끝 ${JSON.stringify(st)}`);
-        if (mode === "web" && st.aw) R.push("web에 ZP_aWait");
+        // 사이클 2(B): 웹 묶음도 scheduler.yield로 나눠 돈다(크롬) → 웹도 ZP_aWait가 있고 끝까지 풀려야 한다
+        if (!st.aw || st.done !== 1) R.push(`${mode} 덩이 끝 ${JSON.stringify(st)}`);
         if (st.hyd !== 1 || st.booted !== 1 || !st.st || !st.raf) R.push(`${mode} ${JSON.stringify(st)}`);
       } catch (e) { R.push(mode + " crash " + String(e.message || e).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
     }
