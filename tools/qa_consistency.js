@@ -4738,10 +4738,12 @@ async function r31Static(api) {
 //   종료 코드:   0 전부 통과 · 1 FAIL 있음 · 3 FAIL은 없지만 SKIP(시간 초과·죽음)된 단위가 있어 불완전 · 2 실행 불가
 const UNIT = process.env.QAC_UNIT || "";
 // 기계 전체 잠금(/tmp/qa.lock): 부모만 잡는다(자식 단위는 부모가 쥔 잠금 안에서 돈다) · --list는 잠금 없이
-if (!UNIT && !argv.includes("--list") && require("./qa_lock").relaunch(__filename)) process.exit(0);
+if (!UNIT && !argv.includes("--list") && !argv.includes("--plan") && require("./qa_lock").relaunch(__filename)) process.exit(0);
 const SHARED_DIR = process.env.QAC_SHARED || "";
 const putShared = (k, v) => { if (SHARED_DIR) fs.writeFileSync(path.join(SHARED_DIR, k + ".json"), JSON.stringify(v)); };
 const getShared = (k) => { try { return JSON.parse(fs.readFileSync(path.join(SHARED_DIR, k + ".json"), "utf8")); } catch (e) { return null; } };
+// 빠른 모드(--changed·--files)는 noHomeFlash를 1번만(감사 권고 · 게이트 전체 실행은 5번 그대로) — QAC_NHF_RUNS로 덮어씀
+if ((argv.some((a) => a === "--changed" || a.startsWith("--changed=") || a.startsWith("--files="))) && !process.env.QAC_NHF_RUNS) process.env.QAC_NHF_RUNS = "1";
 const TAPP_N = +process.env.QAC_TAPP_PARTS || 5;
 // 단위 표: est = 이 기계(2코어 · 다른 트랙과 같이 씀) 대략 초 · limit = 시간 한도(초) · solo = 시간을 재는 검사라 혼자(다른 단위와 겹치지 않게)
 // deps = 먼저 끝나야 하는 단위(공유 자료: static → liveCounts · core → listMap)
@@ -4849,6 +4851,7 @@ async function parent(api, zoneIds) {
   else want = Object.keys(UNITS);
   for (const k of want) if (!UNITS[k]) { console.error(`unknown lane '${k}' — node tools/qa_consistency.js --list`); process.exit(2); }
   const units = withDeps(want);
+  if (argv.includes("--plan")) { console.log(`${why} → ${units.join(" ")} (est ${units.reduce((a, k) => a + UNITS[k].est, 0)}s 단위 합)`); process.exit(0); }
   const PAR = Math.max(1, +process.env.QAC_PAR || 3);
   // 시간 한도는 '멈춤' 보호용 — 공용 기계가 바쁘면(1분 부하 ÷ 코어 수) 그만큼 늘린다(최대 4배). 성능 판정이 아님.
   const busy = () => Math.min(4, Math.max(1, os.loadavg()[0] / Math.max(1, os.cpus().length)));

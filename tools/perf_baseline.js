@@ -7,10 +7,12 @@
    견주기: node tools/perf_baseline.js --compare tools/fixtures/perf_main.json new.json
            또는 재면서 바로:  node tools/perf_baseline.js http://localhost:8790 --against tools/fixtures/perf_main.json
            회귀 한도(스펙): JS KB +10% · 가장 긴 작업 +100ms → 넘으면 exit 1. LCP·TBT는 참고(+20%·+300ms 넘으면 경고만).
+   JS KB = 받은 스크립트 내용을 gzip -6 한 크기(로컬·라이브 같은 잣대) · jsWireKb = 실제 받은 바이트.
    TBT = 관찰 9초 안 긴 작업(50ms 넘는 부분) 합 — 바쁜 공용 기계에서는 출렁이므로 판정에 쓰지 않는다. */
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const zlib = require("zlib");
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf("--" + k); return i >= 0 ? argv[i + 1] : d; };
@@ -58,9 +60,10 @@ async function measure(BASE, RUNS, CPU) {
       const cdp = await ctx.newCDPSession(pg);
       await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU });
       await cdp.send("Network.enable");
-      let bytes = 0, js = 0, reqs = 0; const types = {};
+      // JS 크기는 두 가지: 실제 받은 바이트(서버 압축에 따라 다름 · 로컬 python 서버는 압축 안 함) · 내용을 gzip -6 한 크기(어느 서버든 같은 잣대 → 회귀 판정은 이것)
+      let bytes = 0, js = 0, jsGz = 0, reqs = 0; const types = {}, pend = [];
       cdp.on("Network.responseReceived", (e) => { types[e.requestId] = e.type; });
-      cdp.on("Network.loadingFinished", (e) => { bytes += e.encodedDataLength; reqs++; if (types[e.requestId] === "Script") js += e.encodedDataLength; });
+      cdp.on("Network.loadingFinished", (e) => { bytes += e.encodedDataLength; reqs++; if (types[e.requestId] === "Script") { js += e.encodedDataLength; pend.push(cdp.send("Network.getResponseBody", { requestId: e.requestId }).then((b) => { jsGz += zlib.gzipSync(Buffer.from(b.body, b.base64Encoded ? "base64" : "utf8"), { level: 6 }).length; }).catch(() => {})); } });
       await pg.addInitScript(() => {
         window.__lt = []; window.__lcp = 0;
         new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt.push([Math.round(e.startTime), Math.round(e.duration)]))).observe({ type: "longtask", buffered: true });
@@ -70,7 +73,8 @@ async function measure(BASE, RUNS, CPU) {
       await pg.goto(u, { waitUntil: "load", timeout: 60000 }).catch(() => {});
       await pg.waitForTimeout(9000);
       const r = await pg.evaluate(() => { const lt = window.__lt; return { lcp: window.__lcp, fcp: Math.round((performance.getEntriesByName("first-contentful-paint")[0] || {}).startTime || 0), longMs: lt.reduce((m, x) => Math.max(m, x[1]), 0), tbt: lt.reduce((s, x) => s + Math.max(0, x[1] - 50), 0), nLong: lt.length }; }).catch(() => ({}));
-      const row = { ...r, kb: Math.round(bytes / 1024), jsKb: Math.round(js / 1024), reqs };
+      await Promise.all(pend);
+      const row = { ...r, kb: Math.round(bytes / 1024), jsWireKb: Math.round(js / 1024), jsKb: Math.round(jsGz / 1024), reqs };
       runs[k].push(row);
       console.log(`${k.padEnd(5)} #${i + 1} ${JSON.stringify(row)}`);
       await ctx.close();
@@ -78,7 +82,7 @@ async function measure(BASE, RUNS, CPU) {
   }
   await b.close();
   const pages = {};
-  for (const [k, p] of PAGES) { const R = runs[k]; pages[k] = { path: p }; for (const f of ["lcp", "fcp", "tbt", "longMs", "nLong", "kb", "jsKb", "reqs"]) pages[k][f] = median(R.map((x) => x[f])); }
+  for (const [k, p] of PAGES) { const R = runs[k]; pages[k] = { path: p }; for (const f of ["lcp", "fcp", "tbt", "longMs", "nLong", "kb", "jsKb", "jsWireKb", "reqs"]) pages[k][f] = median(R.map((x) => x[f])); }
   let load = null; try { load = require("os").loadavg().map((x) => +x.toFixed(2)); } catch (e) {}
   return { base: BASE, at: new Date().toISOString(), runs: RUNS, cpu: CPU, viewport: "390x844@2", observeMs: 9000, loadavg: load, pages, raw: runs };
 }
@@ -92,7 +96,7 @@ async function measure(BASE, RUNS, CPU) {
   const BASE = (argv.find((a, i) => !a.startsWith("--") && !(i && argv[i - 1].startsWith("--"))) || "http://localhost:8765").replace(/\/+$/, "");
   const res = await measure(BASE, +opt("runs", 3), +opt("cpu", 4));
   console.log("\nmedian of " + res.runs + " · load " + (res.loadavg || []).join(" "));
-  for (const [k, v] of Object.entries(res.pages)) console.log(`  ${k.padEnd(5)} ${v.path.padEnd(10)} LCP ${v.lcp}ms · TBT ${v.tbt}ms · 가장 긴 작업 ${v.longMs}ms · JS ${v.jsKb}KB · 전체 ${v.kb}KB`);
+  for (const [k, v] of Object.entries(res.pages)) console.log(`  ${k.padEnd(5)} ${v.path.padEnd(10)} LCP ${v.lcp}ms · TBT ${v.tbt}ms · 가장 긴 작업 ${v.longMs}ms · JS ${v.jsKb}KB(gzip) / 받은 ${v.jsWireKb}KB · 전체 ${v.kb}KB`);
   const out = opt("out", "/tmp/claude-0/-home-claude/887bff60-b663-5701-90e9-e402cebc9114/scratchpad/perf_last.json");
   fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, JSON.stringify(res, null, 1)); console.log("JSON " + out);
   const ag = opt("against", null);
