@@ -300,6 +300,18 @@ _parts = [pre_js + 'window.__ZPDp=[' + JP(_core) + '];'] + ['window.__ZPDp.push(
 _parts[-1] += '(function(){var p=window.__ZPDp,D=p[0];D.recs=[].concat.apply([],p.slice(1));window.__ZPD=D;window.__ZPDp=null})();'
 d_urls = [emit('d', x) for x in _parts]
 d_url = d_urls[0]
+# renew-feat: 새 기능 묶음(src/feat/*.js · *.css) → /b/f.*.js — 구역 시트의 일정·거래·입지 탭과 도구를 처음 열 때 받는다(웹·앱 첫 화면 a.js 무게에 넣지 않음)
+# 기능 CSS는 같은 파일 안 문자열로(처음 쓸 때 <style>로 붙임) — 앱 CSS 정리(prune)와 섞이지 않게
+_FD = os.path.join(R, 'src', 'feat')
+f_js = ''.join(open(os.path.join(_FD, f), encoding='utf-8').read() for f in sorted(os.listdir(_FD)) if f.endswith('.js')) if os.path.isdir(_FD) else ''
+f_css = ''.join(open(os.path.join(_FD, f), encoding='utf-8').read() for f in sorted(os.listdir(_FD)) if f.endswith('.css')) if os.path.isdir(_FD) else ''
+if ESB and not os.environ.get('NO_MINIFY'): f_js = mini(f_js, 'js'); f_css = mini(f_css, 'css')
+assert f_js.count('"__FCSS__"') == 1, 'src/feat: "__FCSS__" 자리 하나'
+f_js = f_js.replace('"__FCSS__"', json.dumps(f_css, ensure_ascii=False).replace('</', '<\\/'))
+f_url = emit('f', f_js)
+assert js.count('__FEAT__') == 1 and js_y.count('__FEAT__') == 1, 'app.js: __FEAT__ 자리 하나'
+js = js.replace('__FEAT__', f_url); js_y = js_y.replace('__FEAT__', f_url)
+print('feat', f_url, len(f_js.encode()), 'bytes')
 a_url = emit('a', js)
 aa_url = emit('ta', js_y)   # pre-adsense 5: 설치 앱 전용(덩이로 나눠 실행) — 이름이 't'로 시작해 웹 서비스 워커의 미리 받기(/b/[a-su-z].*)에 안 걸린다(웹 방문자는 받지 않음)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
@@ -334,7 +346,7 @@ shell = shell.replace('__TJS__', t_url).replace('__TCSS__', tc_url)
 # 지난 빌드 파일은 이번 것 + 바로 전 것만 남김(배포 직후 옛 화면이 잠깐 참조할 수 있게)
 KEEP = 2
 def prune():
-    for pre, ext in (('d', 'js'), ('a', 'js'), ('ta', 'js'), ('c', 'css'), ('h', 'js'), ('r', 'json'), ('t', 'js'), ('t', 'css')):
+    for pre, ext in (('d', 'js'), ('a', 'js'), ('ta', 'js'), ('f', 'js'), ('c', 'css'), ('h', 'js'), ('r', 'json'), ('t', 'js'), ('t', 'css')):
         fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.' + ext)], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
         cur = {u.split('/')[-1] for u in d_urls} if pre == 'd' else set()
         for f in [x for x in fs if x not in cur][KEEP * (len(d_urls) if pre == 'd' else 1) - len(cur):]:

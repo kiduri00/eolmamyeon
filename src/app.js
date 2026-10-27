@@ -4127,6 +4127,28 @@
     $("pane").setAttribute("aria-labelledby", "tab-" + k);
     renderPane();
   }
+  // renew-feat: 새 기능(단계 타임라인·사업 정보 카드·근처 구역 추천·가격 흐름·매수 전 진단)은 따로 된 묶음(/b/f.*.js)을 처음 쓸 때 받는다
+  // 기능 묶음은 앱 닫힘 범위 밖이라 쓰는 값·함수를 아래 ctx로만 건넨다(숫자는 시트·/z와 같은 함수: DTL.nums · ZX.pace · ZX.rights)
+  let FEAT_P = null;
+  const featLoad = () => FEAT_P || (FEAT_P = new Promise((res, rej) => {
+    if (window.ZPF && window.ZPF.v) return res(window.ZPF);
+    const s = document.createElement("script"); s.src = "__FEAT__"; s.async = true;
+    s.onload = () => (window.ZPF && window.ZPF.v ? res(window.ZPF) : rej(new Error("feat")));
+    s.onerror = () => { FEAT_P = null; rej(new Error("feat load")); };
+    document.head.appendChild(s);
+  }));
+  const featCtx = () => ({
+    D, R, byId, ZF, esc, fmt, stageName, shortName, isDone, probTxt, projection,
+    nums: (r) => DTL.nums(r), pace: (r) => ZX.pace(r), rights: (r) => ZX.rights(r), tx: () => ZX.loadTx(), shape: (r) => shapeOf(r), SHAPE,
+    cash: () => CASH, gap: () => gapMode(), tapp: () => document.documentElement.classList.contains("is-tapp"),
+    open: (id) => { curTab = "money"; select(id, true, false, { scroll: true }); },
+    cur: () => cur, tab: () => curTab, areaBad: (r) => areaSuspect(r), ok: (r) => !!(window.ZP_ok && window.ZP_ok(r)),
+  });
+  const featHook = (tab, r) => {
+    if (!["biz", "tx", "loc"].includes(tab) || !r || r.src === "moa") return;
+    featLoad().then((F) => { if (cur === r && curTab === tab && $("pane")) F.pane(tab, r, $("pane"), featCtx()); }).catch(() => {});
+  };
+  window.ZP_feat = { load: featLoad, ctx: featCtx, hook: featHook };
   function renderPane() {
     if (!$("pane")) return;
     if (PREM_TABS.has(curTab) && !cur._prem) {
@@ -4134,6 +4156,7 @@
       return;
     }
     ({ loc: paneLoc, biz: paneBiz, money: paneMoney, req: paneReq, near: paneNear, tx: paneTx })[curTab](cur);
+    if (curTab === "biz" || curTab === "loc") featHook(curTab, cur);
     if (curTab === "money" && gapMode()) {
       const h = gapPaneHTML(cur);
       if (h) {
