@@ -54,7 +54,7 @@ const OVX = (() => {
     out.push({ k: "단계", c: "st", v: stageName(r), why: () => {
       const [T, i] = curStep(r), d = i >= 0 ? stepDate(r, T[i][0]) : null;
       let p = null; try { p = ZX.pace(r); } catch (e) {}
-      if (p) return `${ymd(p.from)}부터 ${p.yrs < 1 ? Math.round(p.yrs * 12) + "개월" : p.yrs.toFixed(1) + "년"}째 · 서울 가운데 값 ${p.med}년`;
+      if (p) return `${ymd(p.from)}부터 ${ZF.dur(p.yrs)}째 · 서울 가운데 값 ${p.med}년`;
       return d ? `${ymd(d)} ${T[i][0]}` : r._prem || !FREE ? "단계 날짜 기록 없음" : "불러오는 중";
     } });
     return out;

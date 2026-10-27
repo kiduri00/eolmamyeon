@@ -33,7 +33,10 @@ for rid, z in GEO['z'].items():
     if z.get('e') or rid not in act: continue
     h = hashlib.md5(json.dumps(z['g']).encode()).hexdigest()[:10]
     if cache.get(rid, {}).get('h') != h: todo.append((rid, h, z['g']))
-print('todo', len(todo), 'cached', len(cache), flush=True)
+# 사이클 2(F8 필지 연식 지도): 필지 가운데 점(위도·경도)을 함께 저장 — 예전 캐시(점 없음)는 하루 120곳씩 다시 받아 채운다(매일 갱신 시간 안에)
+_back = [(rid, cache[rid]['h'], GEO['z'][rid]['g']) for rid in cache if rid in GEO['z'] and rid in act and not GEO['z'][rid].get('e') and cache[rid].get('p') and len(cache[rid]['p'][0]) < 6 and rid not in {t[0] for t in todo}]
+todo += _back[:120]
+print('todo', len(todo), 'cached', len(cache), 'backfill', min(120, len(_back)), '/', len(_back), flush=True)
 def run(t):
     rid, h, rings = t
     g = Polygon(rings[0], rings[1:]).buffer(0)
@@ -49,7 +52,7 @@ def run(t):
     for f in fs:
         rg = f['geometry']['rings'][0]; cx = sum(p[0] for p in rg)/len(rg); cy = sum(p[1] for p in rg)/len(rg)
         if g.contains(Point(cx, cy)):
-            a = f['attributes']; out.append([a['PNU'], round(a.get('SHAPE.AREA') or 0, 1), a.get('OWN') or '', a.get('JIMOK') or ''])
+            a = f['attributes']; out.append([a['PNU'], round(a.get('SHAPE.AREA') or 0, 1), a.get('OWN') or '', a.get('JIMOK') or '', round(cy, 6), round(cx, 6)])
     with LOCK: cache[rid] = {'h': h, 'p': out}
     time.sleep(.3)
 with ThreadPoolExecutor(3) as ex:

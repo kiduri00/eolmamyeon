@@ -22,6 +22,25 @@
     // 28차: 모자라는 돈('N 부족' · 'N 더 필요해요')은 표시용 올림(0.1억·100만)이 아니라 정확한 만 원으로 — 한 곳에서만 만든다(0원 부족이 나오지 않게 최소 1만)
     // 29차: 한 규칙 — 1억 아래는 정확한 만 원('470만'), 1억부터는 0.1억 단위 올림에 '약'('약 16.8억' · 딱 떨어지면 '약' 없이) · 검색·상세·알약 모두 이것 하나
     const short = (d) => { let m = Math.ceil((d || 0) * 1e4 - 1e-6); if (!(m >= 1)) m = 1; if (m < 1e4) return `${m.toLocaleString("ko-KR")}만`; const t = Math.ceil(m / 1e3 - 1e-9); return `${m % 1e3 ? "약 " : ""}${(t / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억`; };
+    // 사이클 2: 경과 연수 한 곳 — 기준 = 데이터 갱신일(ETA_NOW · 입주 시점 판단과 같은 날) · 날짜 차이(일) ÷ 365.25 · 꼴도 하나(dur: 1년 아래 개월, 위는 소수 첫째 자리 내림)
+    //   시트 '현재 단계 N년째'·F2 '…부터 N년째'·장기 정체(8년) 판정·/z(tools/zsample.py yrs_since)가 모두 이 셈 — 16.4년/16.3년이 한 화면에 함께 나오던 것
+    const yrsSince = (d) => { const m = /(\d{4})[.-](\d{1,2})(?:[.-](\d{1,2}))?/.exec(String(d || "")); if (!m) return null; return (Date.UTC(ETA_NOW.getFullYear(), ETA_NOW.getMonth(), ETA_NOW.getDate()) - Date.UTC(+m[1], +m[2] - 1, +(m[3] || 1))) / (365.25 * 864e5); };
+    const dur = (y) => (y == null || !isFinite(y) ? "–" : y < 1 ? `${Math.max(1, Math.floor(y * 12 + 1e-9))}개월` : `${(Math.floor(y * 10 + 1e-9) / 10).toFixed(1).replace(/\.0$/, "")}년`);
+    // 사이클 2: 단계 기간 통계 한 곳 — 시트(진행 속도·F2 타임라인)·/years·가이드·/z가 같은 기준
+    //   가운데 값 = 생존분석(KM · 아직 다음 단계에 못 간 사업장까지 · D.etaMeta.transitions) · 표본 n = 전체(닿음+진행 중), nEv = 닿음
+    //   보통 범위(25~75%) = 이미 닿은 사업장만(D.stats · na곳) — /years 표 '닿은 구역만' 열과 같은 값
+    const stageStat = (r, k) => {
+      const sm = /가로|소규모/.test((r && r.k) || ""), TRS = (D.etaMeta && D.etaMeta.transitions) || {}, SS = D.stats || {};
+      const ts = sm && TRS.small && TRS.small[k], t = (ts && ts.uses === "small" ? ts : null) || (TRS.large && TRS.large[k]) || null, q = (sm && SS.small && SS.small[k]) || (SS.large && SS.large[k]) || null;
+      if (!q && !t) return null;
+      const med = t && t.med != null ? t.med : q ? q.med : null;
+      return { med, p25: q ? q.p25 : null, p75: q ? q.p75 : null, na: q ? q.n : null, n: t ? t.nEv + t.nCen : null, nEv: t ? t.nEv : null, reach5: t && t.S5 != null ? 1 - t.S5 : null, km: !!(t && t.med != null) };
+    };
+    // 통계 값(가운데 값·25~75%)은 /years 표와 같은 반올림(소수 한 자리 · 3.0년) — 경과 연수(dur · 버림)와 다르다
+    const durS = (y) => (y == null || !isFinite(y) ? "–" : `${(Math.round(y * 10 + 1e-9) / 10).toFixed(1)}년`);
+    const stageStatTxt = (st) => (!st ? "" : `가운데 ${durS(st.med)}${st.km && st.n ? `(아직 못 넘어간 곳 포함 ${st.n.toLocaleString("ko-KR")}곳)` : ""}${st.p25 != null ? ` · 이미 넘어간 ${st.na != null ? st.na.toLocaleString("ko-KR") + "곳의 " : ""}가운데 50% ${durS(st.p25)}~${durS(st.p75)}` : ""}${st.nEv != null && st.nEv < 50 ? " · 표본 적음·불안정" : ""}`);
+    // 사이클 2: 모자라는 돈은 화면에 보인 금액(cash 올림)에서 내 돈을 뺀 값 — '4억'과 '9,727만 더 필요해요'가 한 화면에 함께 나오던 것(4 − 3 = 1억)
+    const gap = (v, c) => short(shown(v) - c);
     // 정확한 만 원 꼴(왜 이 금액? 합계 등): 3억 7,059만
     const exact = (v) => { const m = Math.round((v || 0) * 1e4); if (m <= 0) return "0원"; const a = Math.floor(m / 1e4), b = m % 1e4; return `${a ? `${a.toLocaleString("ko-KR")}억` : ""}${a && b ? " " : ""}${b ? `${b.toLocaleString("ko-KR")}만` : ""}`; };
     const entry = (r) => (r && r.mk && r.mk.entry) || null;
@@ -127,7 +146,7 @@
     const aucAmt = (v) => (v == null || !isFinite(v) || v <= 0 ? "–" : v >= 1e8 ? `${(Math.round(v / 1e7) / 10).toLocaleString("ko-KR")}억` : `${Math.round(v / 1e4).toLocaleString("ko-KR")}만`);
     // 26차: 경계가 없을 때 이유는 자료로 — 구역지정 이후(면적·인가가 있는 곳)는 '경계 도면 자료가 아직 없어', 그 전은 '공식 경계가 없는 곳(후보지 등)'
     const bndTxt = (r, what) => { const a = r && r.sm && r.sm.area; return (r && (r.s >= 2 || a)) ? `구역 면적${a ? `(${Math.round(a).toLocaleString("ko-KR")}㎡)` : ""}은 정보몽땅에 등록돼 있지만 경계 도면(서울도시공간포털)을 아직 받지 못해 ${what}` : `아직 공식 경계가 없는 곳(후보지 등)이라 ${what}`; };
-    return { EXCL: "추정 신뢰 낮아 목록에서 뺐어요", bndTxt, aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, left, short, exact, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
+    return { EXCL: "추정 신뢰 낮아 목록에서 뺐어요", bndTxt, aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, left, short, gap, shown, yrsSince, dur, stageStat, stageStatTxt, durS, exact, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
   })();
   // 정적 HTML(shell.html)의 방식 버튼 글자도 LBL에서: data-lbl="gap|loan|cashToMoveIn"
   { const lbl = () => document.querySelectorAll("[data-lbl]").forEach((e) => { const t = LBL[e.dataset.lbl]; if (t && e.textContent !== t) e.textContent = t; }); document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", lbl) : lbl(); }

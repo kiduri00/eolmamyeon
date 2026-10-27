@@ -66,6 +66,37 @@ def sources():
         o = json.load(open(f, encoding='utf-8')); out[o['id']] = o
     return out
 
+# 사이클 2(F3): 정보몽땅 등록값에 없는 계획 세대·최고 층수를 손글의 '주요 일정'(기사·고시와 대조한 줄)에서 그대로 옮긴다 — 지어내지 않음
+#   가장 최근 줄 가운데 'N가구/N세대'·'최고 N층'이 적힌 것 하나 · 날짜와 출처 줄 글자를 함께 둔다(앱 F3 카드가 '기사 기준 · 날짜'로 보인다)
+_PU = re.compile(r'(\d{1,2},?\d{3}|\d{3})\s*(?:가구|세대)'); _PF = re.compile(r'최고\s*(\d{1,2})\s*층')
+def plan_of(events):
+    best = {}
+    for d, t in sorted(events, key=lambda x: x[0]):
+        t = html.unescape(re.sub(r'<[^>]+>', '', t))
+        if re.search(r'해제|무산|철회', t): continue
+        u, f = _PU.search(t), _PF.search(t)
+        if u or f:
+            o = {'d': d, 't': t[:80]}
+            if u: o['u'] = int(u.group(1).replace(',', ''))
+            if u and re.search(r'약\s*' + re.escape(u.group(1)) + r'|' + re.escape(u.group(0)) + r'\s*(?:내외|안팎|규모)', t): o['a'] = 1   # '약 2,250세대'·'2,100세대 내외'
+            if f: o['f'] = int(f.group(1))
+            best = o
+    return best or None
+def plan_all(zd):
+    """→ {id: {u?, f?, d, t}} · content/z/*.json events + 예전 손글(public/z/<id>.html)의 주요 일정 목록"""
+    out = {}
+    for rid, src in sources().items():
+        p = plan_of([(e[0], e[1]) for e in (src.get('events') or []) if isinstance(e, (list, tuple)) and len(e) >= 2])
+        if p: out[rid] = p
+    for f in sorted(os.listdir(zd)):
+        rid = f[:-5]
+        if not f.endswith('.html') or rid in out or not re.match(r'^[a-z]+\d+$', rid): continue
+        h = open(os.path.join(zd, f), encoding='utf-8').read()
+        ev = [(m.group(1).replace('.', '-'), m.group(2)) for m in re.finditer(r'<li><b>(20\d\d(?:\.\d\d){1,2})</b><span>(.*?)</span></li>', h)]
+        p = plan_of(ev) if ev else None
+        if p: out[rid] = p
+    return out
+
 def dsp(v):   # tools/zpages.py dsp와 같은 규칙(보이는 값 ZF.cash 올림끼리 가운데 값)
     return math.ceil(v * 100 - 1e-6) / 100 if v < 1 else math.ceil(v * 10 - 1e-6) / 10
 def ymd(d): return str(d or '')[:10].replace('-', '.')
@@ -245,12 +276,14 @@ def carousel(X, r, src, V):
     elif k3['now'] != '계산 보류': m1 = (k3['now'], k3['basis'] + (f' · 입주까지 {k3["tot"]}' if k3['tot'] != '계산 보류' else ''))
     else: m1 = ('계산 보류', (k3.get('esub') or k3.get('basis') or '') + (f' · {k3["alt"]}' if k3.get('alt') else ''))
     e = __import__('zsample').eta_adj(r, X.D.get('asOf')) or {}   # 앱·/api/v1과 같은 가로·소규모 보정
-    if e.get('eLo') and e.get('eHi') and not r.get('stale') and r.get('s', 0) < 9 and not stalled(X, r):
+    stl = __import__('zsample').stall_yrs(r, (X.P.get(r['id']) or {}).get('dt') or {}, X.D.get('upd'))   # 사이클 2: 장기 정체면 통계 범위 생략(시트·본문과 같은 판정)
+    if stl: m2 = ('산정 불가', f'{stl}년째 같은 단계라 서울 통계로 견줄 곳이 거의 없어 예상 범위를 싣지 않아요(8년 이상이면 생략)')
+    elif e.get('eLo') and e.get('eHi') and not r.get('stale') and r.get('s', 0) < 9 and not stalled(X, r):
         m2 = (f'{e["eLo"][:4]}~{e["eHi"][:4]}년', f'준공 예상 범위(추정) · 가운데 {ym(e.get("eMid"))}' + (f' · 10년 안 준공 가능성 {V["p10"]}' if V.get('p10') and r.get('s', 0) < 8 else '') + (' · 지금 사면 입주권은 없어요' if k3.get('elab') == '입주권' and not k3.get('im') else ''))
     elif stalled(X, r): m2 = ('산정 불가', '같은 단계에 8년 넘게 머물러 준공 통계를 싣지 않았어요')
     else: m2 = (k3.get('eta') or '산정 불가', k3.get('esub') or '입주 시기는 범위로만 봐요')
     cards = [('지금 필요한 돈', m1[0], m1[1], 'm'), ('입주 시기 범위', m2[0], m2[1], 'm'), ('핵심 위험', None, src['cards']['risk'], 'r'), ('이런 사람에게 맞아요', None, src['cards']['fit'], 'f')]
-    li = ''.join(f'<li class="zh-s zh-s{t}" role="group" aria-roledescription="슬라이드" aria-label="{i + 1}/{len(cards)} {esc(a)}"><span class="zh-sl">{esc(a)}</span>' + (f'<b class="zh-sv">{esc(b)}</b>' if b else '') + f'<p>{josa_fix(fill(s, V, r["id"])) if t in "rf" else esc(s)}</p></li>' for i, (a, b, s, t) in enumerate(cards))
+    li = ''.join(f'<li class="zh-s zh-s{t}" aria-label="{i + 1}/{len(cards)} {esc(a)}"><span class="zh-sl">{esc(a)}</span>' + (f'<b class="zh-sv">{esc(b)}</b>' if b else '') + f'<p>{josa_fix(fill(s, V, r["id"])) if t in "rf" else esc(s)}</p></li>' for i, (a, b, s, t) in enumerate(cards))
     return (f'<!--zd--><section class="zh-car" aria-roledescription="캐러셀" aria-label="{esc(V["name"])} 요약 카드 {len(cards)}장"><ul class="zh-tr" tabindex="0" aria-label="요약 카드 · 옆으로 넘기거나 화살표 키로 이동">{li}</ul>'
             f'<p class="zh-hint" aria-hidden="true">옆으로 넘겨 보세요 · 기본 가정(무주택·84㎡) 추정 · 데이터 기준 {X.UPD}</p></section><!--/zd-->')
 
@@ -269,13 +302,17 @@ def nextcards(X, r, src, title=None):
         if len(pick) >= 4: break
         if y not in pick: pick.append(y)
     if not pick: return ''
+    # 사이클 2: 카드 돈은 한 가지 사는 방식(첫 화면 기본 = 전세 끼고)으로만 — 대출 끼고 값과 섞지 않는다 · 계산 보류 카드는 뒤로(단계는 그대로 보임)
+    def k3of(y):
+        c = X.C.get(y['id']) or {}; return c, X.key3(y, c, (X.P.get(y['id']) or {}).get('dt') or {}, X.D.get('asOf'), X.D.get('upd'))
+    pick = [y for y in pick[:4] if k3of(y)[1]['now'] != '계산 보류'] + [y for y in pick[:4] if k3of(y)[1]['now'] == '계산 보류']
     def card(y):
-        c = X.C.get(y['id']) or {}; k3 = X.key3(y, c, (X.P.get(y['id']) or {}).get('dt') or {}, X.D.get('asOf'), X.D.get('upd'))
-        mon = k3.get('lnow') and f'대출 끼고 지금 {k3["lnow"]}' or (k3['now'] != '계산 보류' and f'전세 끼고 지금 {k3["now"]}') or '지금 필요한 돈 계산 보류'
+        c, k3 = k3of(y)
+        mon = f'전세 끼고 지금 {k3["now"]}' if k3['now'] != '계산 보류' else ('전세 끼고 불가 · 계산 보류' if k3.get('lnow') else '지금 필요한 돈 계산 보류')
         d = X.dist(r['ll'][0], r['ll'][1], y['ll'][0], y['ll'][1]) if y.get('ll') else None
         tag = '<em>분석 글</em>' if y['id'] in hand else ''
         return f'<a class="zh-nc" href="{y["id"]}"><b>{esc(X.short(y["n"]))}{tag}</b><span>{esc(X.KIND.get(y["k"], y["k"]))} · {esc(c.get("stage") or y.get("sr") or "")}{f" · {d / 1000:.1f}km" if d is not None else ""}</span><small>{esc(mon)}</small></a>'
-    return '<!--zd--><nav class="zh-next" aria-labelledby="zh-nx"><h2 id="zh-nx">' + esc(title or src.get('nextTitle') or '다음에 볼 구역') + '</h2><div class="zh-ng">' + ''.join(card(y) for y in pick[:4]) + '</div><p class="zh-cap">가까운 곳 가운데 분석 글이 있는 구역을 먼저 놓았어요. 추천 목록이 아니에요.</p></nav><!--/zd-->'
+    return '<!--zd--><nav class="zh-next" aria-labelledby="zh-nx"><h2 id="zh-nx">' + esc(title or src.get('nextTitle') or '다음에 볼 구역') + '</h2><div class="zh-ng">' + ''.join(card(y) for y in pick[:4]) + '</div><p class="zh-cap">가까운 곳 가운데 분석 글이 있는 구역을 먼저 놓았어요(돈이 계산 보류인 곳은 뒤에). 돈은 기본 가정(전세 끼고) 값이에요. 추천 목록이 아니에요.</p></nav><!--/zd-->'
 
 CSS = ('<style>'
        '.zh-car{margin:18px 0 6px}.zh-tr{list-style:none;margin:0;padding:2px 2px 8px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(232px,82%);gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}'

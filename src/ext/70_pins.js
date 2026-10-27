@@ -40,14 +40,18 @@ const PINS = (() => {
   const ymdOf = (t) => { const d = new Date(t + 9 * 36e5); return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`; };
   const dot = (t) => { const s = ymdOf(t); return `${s.slice(2, 4)}.${s.slice(4, 6)}.${s.slice(6, 8)}`; };
   const mode = () => (gapMode() ? "gap" : "cash");
+  // 사이클 2: 시트와 같은 판정(DTL.shown) — 입주권 없음·사업 끝·모아타운 관리지역은 어느 방식이든 금액을 내지 않는다
+  const holdAny = (r) => { try { const k = DTL.shown(r).kind; return k === "nt" || k === "done" || k === "moa"; } catch (e) { return false; } };
   function needNow(r, m = mode()) {
+    if (holdAny(r)) return null;
     try {
       if (m === "gap") { const g = gapOf(r); return g && !g.block && !g.na && g.now != null && isFinite(g.now) ? g.now : null; }
       const x = investC(r); return x && x.needBuy != null && isFinite(x.needBuy) ? x.needBuy : null;
     } catch (e) { return null; }
   }
   // 전세 끼고가 막힌 구역(토허 등)은 대출 끼고 값으로 대신 보여 준다(구역 리포트와 같은 방식)
-  const modeFor = (r) => (mode() === "gap" && needNow(r, "gap") == null && needNow(r, "cash") != null ? "cash" : mode());
+  // 지금 보이는 방식: 시트(DTL.shown)가 '대출 끼고'로 보여 주는 곳만 대출 끼고(전세 끼고 불가 · 계산 보류 구역은 다른 방식 값으로 메우지 않음)
+  const modeFor = (r) => { try { const w = DTL.shown(r); if (w.kind === "lnow") return "cash"; } catch (e) {} return mode(); };
   const snapOf = (r) => { const m = modeFor(r), now = needNow(r, m); return { t: Date.now(), s: r.s, sn: stageName(r), now, m, c: CASH, ok: now == null ? null : now <= CASH + 1e-9, hi: (r.tx && r.tx.hi && r.tx.hi[1]) || null }; };
 
   // 옛 찜(스냅샷 없음)은 처음 볼 때 지금 값으로 스냅샷을 만든다 = 자동 이전
@@ -75,7 +79,8 @@ const PINS = (() => {
   function news(id) {
     const r = byId[id], sp = SNAP[id];
     if (!r || !sp) return { r, sp, b: [], now: null, d: null, sig: "" };
-    const m = modeFor(r), now = needNow(r, m), b = [];
+    const w = (() => { try { return DTL.shown(r); } catch (e) { return null; } })();
+    const m = modeFor(r), now = w && (w.kind === "need" || w.kind === "lnow") ? w.v : null, b = [];
     const sm = sp.m || m, cmp = sm === m ? now : needNow(r, sm);
     if (r.s > sp.s) b.push({ k: "st", t: `${sp.sn} → ${stageName(r)}`, c: "up", h: "단계 올라감", v: r.s });
     const hi = r.tx && r.tx.hi;
@@ -84,7 +89,7 @@ const PINS = (() => {
     if (ok === true && sp.ok === false) b.push({ k: "ok", t: sm === m ? "이제 갈 수 있어요" : `${MODE_T[sm]} 이제 갈 수 있어요`, c: "good", h: "이제 갈 수 있어요", v: "" });
     if (ok === false && sp.ok === true) b.push({ k: "short", t: `${sm === m ? "" : MODE_T[sm] + " "}${amt(cmp - CASH)} 모자라요`, c: "bad", h: "돈이 모자라요", v: "" });
     const d = cmp != null && sp.now != null && Math.abs(cmp - sp.now) >= 0.05 ? cmp - sp.now : null;
-    return { r, sp, b, now, cmp, sm, d, ok, alt: m !== mode(), salt: sm !== m, sig: b.map((x) => x.k + x.v).join("|") };
+    return { r, sp, b, now, cmp, sm, d, ok, alt: m !== mode(), salt: sm !== m, hold: w ? w.kind : "hold", sig: b.map((x) => x.k + x.v).join("|") };
   }
   const unread = (n) => !!n.sig && SEEN.sig[n.r.id] !== n.sig;
   const all = () => (ensure(), FAV.filter((id) => byId[id]).map(news));
@@ -108,7 +113,7 @@ const PINS = (() => {
     let goal = "";
     if (sp.goal && now != null) {
       const p = Math.max(0, Math.min(1, CASH / Math.max(now, 0.01)));
-      goal = now <= CASH + 1e-9 ? `<p class="pn-goal done">${pinY(14)}목표 달성! 이제 갈 수 있어요</p>` : `<p class="pn-goal"><span class="pn-gbar" aria-hidden="true"><i style="width:${Math.round(p * 100)}%"></i></span>여기까지 <b>${amt(now - CASH)}</b> 더</p>`;
+      goal = now <= CASH + 1e-9 ? `<p class="pn-goal done">${pinY(14)}목표 금액에 닿았어요 · 이제 갈 수 있어요</p>` : `<p class="pn-goal"><span class="pn-gbar" aria-hidden="true"><i style="width:${Math.round(p * 100)}%"></i></span>여기까지 <b>${amt(now - CASH)}</b> 더</p>`;
     }
     const sub = `${esc(r.g)} · ${esc(stageName(r))}`;
     // 최근 소식 한 줄(data/changes.json: 실거래·단계·고시·경매)
@@ -116,12 +121,13 @@ const PINS = (() => {
     try { if (typeof INBOX !== "undefined") { const e = INBOX.evOf(r.id)[0]; if (e) { const [tl, tc] = INBOX.TY[e.type]; ev = `<small class="pn-ev"><i class="ib-tg ${e.hi ? "hi" : tc}">${e.hi ? "신고가" : tl}</i><span>${esc(INBOX.dLabel(e.date).replace(/ \(.\)$/, ""))} · ${esc(e.text)}</span></small>`; } } } catch (e) {}
     // 꽂을 때와 지금 방식이 다르면 '꽂을 때'는 그 방식 값끼리 비교(라벨에 방식 표시)
     // 방식이 다르면: '전세 3.2→2.4억'(꽂을 때 방식 값끼리)
-    const then = salt ? `<span class="pn-alt">${sm === "gap" ? "전세" : "대출"}</span> ${sp.now != null ? ZF.cash(sp.now) : "–"}→<b class="pn-cmpv${d == null ? "" : d > 0 ? " up" : " dn"}">${n.cmp != null ? `${ZF.cash(n.cmp)}` : "–"}</b>` : `추가할 때 ${sp.now != null ? `${ZF.cash(sp.now)}` : "–"}`;
+    const then = now == null ? "" : salt ? `<span class="pn-alt">${sm === "gap" ? "전세" : "대출"}</span> ${sp.now != null ? ZF.cash(sp.now) : "–"}→<b class="pn-cmpv${d == null ? "" : d > 0 ? " up" : " dn"}">${n.cmp != null ? `${ZF.cash(n.cmp)}` : "–"}</b>` : `추가할 때 ${sp.now != null ? `${ZF.cash(sp.now)}` : "–"}`;
     // 18차: 관심 카드도 목록과 같은 두 숫자(지금 필요한 돈 · 입주까지 현금) — 같은 함수(SIMPLE.zstate)
-    let tot = null; try { const z = SIMPLE.zstate(r); if (!alt && z && z.total != null && isFinite(z.total)) tot = z.total; } catch (e) {}
+    // 사이클 2: 입주까지 현금도 시트와 같은 판정(DTL.shown) — 계산 보류·입주권 없음이면 숫자를 내지 않는다
+    let tot = null; try { const w = DTL.shown(r); if (w.kind === "need" && w.total != null && isFinite(w.total)) tot = w.total; } catch (e) {}
     const main = `<span class="pn-pin">${pinY(26)}${nw ? '<i class="pn-new" aria-hidden="true"></i>' : ""}</span>
       <span class="pn-nm"><b>${esc(shortName(r.n))}</b><small>${sub}${nw ? '<span class="sr-only"> · 새 소식</span>' : ""}</small>${riskH(r) ? `<small class="pn-rk">${riskH(r)}</small>` : ""}${ev}${sp.memo ? `<small class="pn-memo">${esc(sp.memo)}</small>` : ""}</span>
-      <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><i class="pn-l" aria-hidden="true">지금</i><b>${alt ? '<small class="pn-alt" title="전세 끼고는 살 수 없는 구역이라 대출 끼고 금액">대출로 계산</small> ' : ""}${now != null ? `${ZF.cash(now)}` : "–"}</b>${salt ? "" : chip}</span>${tot != null ? `<small class="pn-tot">입주까지 현금 <b>${ZF.cash(tot)}</b></small>` : ""}<small title="${salt ? `추가할 때와 같은 ${MODE_T[sm]} 기준 비교` : ""}">${then}</small></span>`;
+      <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><i class="pn-l" aria-hidden="true">지금</i><b>${alt ? '<small class="pn-alt" title="전세 끼고는 살 수 없는 구역이라 대출 끼고 금액">대출로 계산</small> ' : ""}${now != null ? `${ZF.cash(now)}` : `<span class="pn-hold">${n.hold === "nt" ? "입주권 없음" : n.hold === "done" ? "사업 끝" : n.hold === "moa" ? "사업구역별" : "계산 보류"}</span>`}</b>${salt || now == null ? "" : chip}</span>${tot != null ? `<small class="pn-tot">입주까지 현금 <b>${ZF.cash(tot)}</b></small>` : ""}<small title="${salt ? `추가할 때와 같은 ${MODE_T[sm]} 기준 비교` : ""}">${then}</small></span>`;
     const head = SEL
       ? `<button type="button" class="pn-main sel" data-cmp="${r.id}" aria-pressed="${CMP.includes(r.id)}"><span class="pn-ck" aria-hidden="true"></span>${main}</button>`
       : `<button type="button" class="pn-main" data-open="${r.id}" aria-label="${esc(shortName(r.n))} 리포트 열기">${main}</button><button type="button" class="pn-more" data-pedit="${r.id}" aria-expanded="${EDIT === r.id}" aria-controls="pnEd${i}" title="메모·목표·빼기" aria-label="${esc(shortName(r.n))} 메모·목표·빼기"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>`;

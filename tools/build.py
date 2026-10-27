@@ -7,6 +7,14 @@ S = lambda p: open(os.path.join(R, 'src', p), encoding='utf-8').read()
 shell = brand.sub(S('shell.html'))
 EN = os.path.join(R, 'pipeline', 'data.enriched.json')
 D = json.load(open(EN, encoding='utf-8')) if os.path.exists(EN) else json.loads(S('data.json'))
+# 사이클 2(부칙 판정 · app.js b18Of): 재개발 사업시행인가일이 2018.1.25~2020.1.24인데 신청일(b18p) 자료가 없는 구역 → b18a(인가일)
+#   첫 화면 엔진(목록·calc.json)과 시트가 같은 판정('신청일 확인 필요')을 내게 — premium.json(나중에 받음)의 날짜를 기다리지 않는다
+try:
+    _PD = json.load(open(os.path.join(R, 'public', 'premium.json'), encoding='utf-8'))
+    for _r in D['recs']:
+        _a = str(((_PD.get(_r['id']) or {}).get('dt') or {}).get('사업시행') or '')[:10]
+        if '재개발' in (_r.get('k') or '') and (_r.get('s') or 0) < 9 and not _r.get('b18') and not _r.get('b18p') and '2018-01-25' <= _a < '2020-01-25': _r['b18a'] = _a
+except Exception as _e: print('b18a 건너뜀:', _e)
 # 첫 화면 정적 글자(눈썹·요약·읽을거리 소개)의 '진행 중 N곳'을 자료와 같게(앱이 그린 뒤의 숫자 · /api count와 같은 기준) — 같은 곳 합치기 등으로 수가 바뀌어도 어긋나지 않게
 _LIVE = sum(1 for r in D['recs'] if not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n'))
 shell = re.sub(r'(진행 중(?: 정비사업)? |<span class="eb-s">서울 정비사업 )[\d,]+(곳)', lambda m: f"{m.group(1)}{_LIVE:,}{m.group(2)}", shell)
@@ -285,6 +293,17 @@ f_url = emit('f', f_js)
 assert js.count('__FEAT__') == 1 and js_y.count('__FEAT__') == 1, 'app.js: __FEAT__ 자리 하나'
 js = js.replace('__FEAT__', f_url); js_y = js_y.replace('__FEAT__', f_url)
 print('feat', f_url, len(f_js.encode()), 'bytes')
+# 사이클 2: 두 번째 지연 묶음(src/featx → /b/g.*.js) — 구역 비교·내 시나리오·필지 연식 지도(누를 때만 받음 · f 묶음 무게에 넣지 않음)
+_XD = os.path.join(R, 'src', 'featx')
+x_js = ''.join(open(os.path.join(_XD, f), encoding='utf-8').read() for f in sorted(os.listdir(_XD)) if f.endswith('.js')) if os.path.isdir(_XD) else ''
+x_css = ''.join(open(os.path.join(_XD, f), encoding='utf-8').read() for f in sorted(os.listdir(_XD)) if f.endswith('.css')) if os.path.isdir(_XD) else ''
+if ESB and not os.environ.get('NO_MINIFY'): x_js = mini(x_js, 'js'); x_css = mini(x_css, 'css')
+assert x_js.count('"__XCSS__"') == 1, 'src/featx: "__XCSS__" 자리 하나'
+x_js = x_js.replace('"__XCSS__"', json.dumps(x_css, ensure_ascii=False).replace('</', '<\\/'))
+g_url = emit('g', x_js)
+assert js.count('__FEATX__') == 1 and js_y.count('__FEATX__') == 1, 'app.js: __FEATX__ 자리 하나'
+js = js.replace('__FEATX__', g_url); js_y = js_y.replace('__FEATX__', g_url)
+print('featx', g_url, len(x_js.encode()), 'bytes')
 a_url = emit('a', js)
 aa_url = emit('ta', js_y)   # pre-adsense 5: 설치 앱 전용(덩이로 나눠 실행) — 이름이 't'로 시작해 웹 서비스 워커의 미리 받기(/b/[a-su-z].*)에 안 걸린다(웹 방문자는 받지 않음)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
@@ -316,15 +335,51 @@ if ESB and not os.environ.get('NO_MINIFY'): t_js = mini(t_js, 'js'); t_css = min
 t_url = emit('t', t_js); tc_url = emit('t', t_css, 'css')
 assert shell.count('__TJS__') == 1 and shell.count('__TCSS__') == 1
 shell = shell.replace('__TJS__', t_url).replace('__TCSS__', tc_url)
-# 지난 빌드 파일은 이번 것 + 바로 전 것만 남김(배포 직후 옛 화면이 잠깐 참조할 수 있게)
-KEEP = 2
-def prune():
-    for pre, ext in (('d', 'js'), ('a', 'js'), ('ta', 'js'), ('f', 'js'), ('c', 'css'), ('h', 'js'), ('r', 'json'), ('t', 'js'), ('t', 'css')):
-        fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.' + ext)], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
-        cur = {u.split('/')[-1] for u in d_urls} if pre == 'd' else set()
-        for f in [x for x in fs if x not in cur][KEEP * (len(d_urls) if pre == 'd' else 1) - len(cur):]:
-            try: os.remove(os.path.join(B, f))
-            except OSError: pass
+# 사이클 2: 지난 빌드 파일 정리 — 참조로 남긴다(수정 시각 순 KEEP=2는 여러 번 빌드하면 배포된 화면이 쓰는 묶음까지 지웠다)
+#   남기는 것 = 이번 빌드(out·full) + 디스크의 지난 index.html + 배포본(origin/main public/index.html)이 이어 부르는 /b/ 파일(묶음 안 참조까지 따라감)
+#   그 밖의 /b/ 파일(아무 화면도 안 부르는 옛 묶음)만 지운다 · git이 없으면 지난 index.html만 '배포본'으로 본다
+_BREF = re.compile(r'/b/([a-z]+\.[0-9a-f]{6,}\.(?:json|js|css))(?![a-z])')
+def _refs(roots):
+    seen, q = set(), [m for t in roots for m in _BREF.findall(t or '')]
+    while q:
+        f = q.pop()
+        if f in seen: continue
+        seen.add(f)
+        try: t = open(os.path.join(B, f), encoding='utf-8').read()
+        except OSError:
+            try: t = subprocess.run(['git', '-C', R, 'show', f'origin/main:public/b/{f}'], capture_output=True, text=True, timeout=20).stdout
+            except Exception: t = ''
+        q += [m for m in _BREF.findall(t) if m not in seen]
+    return seen
+def prune(*cur_html):
+    prev = ''
+    try: prev = open(os.path.join(R, 'public', 'index.html'), encoding='utf-8').read()
+    except OSError: pass
+    live = ''
+    try: live = subprocess.run(['git', '-C', R, 'show', 'origin/main:public/index.html'], capture_output=True, text=True, timeout=20).stdout
+    except Exception: pass
+    stat = []   # 정적 페이지가 직접 부르는 묶음(예: 설치 앱 ta)도 남긴다
+    for dp, _, fns in os.walk(os.path.join(R, 'public')):
+        if os.path.basename(dp) == 'b': continue
+        for fn in fns:
+            if fn.endswith('.html') and not (dp == os.path.join(R, 'public') and fn == 'index.html'):
+                try:
+                    t = open(os.path.join(dp, fn), encoding='utf-8').read()
+                    if '/b/' in t: stat.append(t)
+                except OSError: pass
+    keep = _refs(list(cur_html) + [prev, live] + stat)
+    for f in keep:   # 배포본이 부르는데 디스크에 없는 묶음은 git(origin/main)에서 되살린다(배포 직후 옛 화면이 깨지지 않게)
+        fp = os.path.join(B, f)
+        if os.path.exists(fp): continue
+        try:
+            t = subprocess.run(['git', '-C', R, 'show', f'origin/main:public/b/{f}'], capture_output=True, timeout=20)
+            if t.returncode == 0 and t.stdout: open(fp, 'wb').write(t.stdout)
+        except Exception: pass
+    gone = [f for f in os.listdir(B) if _BREF.fullmatch('/b/' + f) and f not in keep]
+    for f in gone:
+        try: os.remove(os.path.join(B, f))
+        except OSError: pass
+    print(f'b/ 정리: 남김 {len(keep)} · 지움 {len(gone)}')
 # ---- 예전 방식(전체 앱을 바로) = 섬을 못 만들 때의 대비책이자, 섬 상태를 떠 오는 원본 ----
 full = shell.replace('<script type="application/json" id="data">/*DATA*/</script>', ''.join(f'<script src="{u}"></script>' for u in d_urls), 1)
 full = full.replace('<script>/*APPJS*/</script>', f'<script src="{a_url}"></script>', 1)
@@ -438,7 +493,7 @@ if os.environ.get('ZP_ISLAND', '1') != '0':
         else: print('island 건너뜀(prerender 실패) — 전체 앱을 바로 싣는 예전 방식으로 냄')
     except Exception as e:
         print('island 건너뜀:', e)
-prune()
+prune(out, full)
 # 5라운드 16: 구역 안 필지 지번 검색 색인(public/pcli · 검색창에 동+번지를 칠 때만 받음)
 try:
     import pcli; pcli.main()
@@ -475,5 +530,6 @@ if os.path.exists(_MF):
 _AL = os.path.join(R, 'public', '.well-known', 'assetlinks.json')
 if os.path.exists(_AL):
     a0 = open(_AL, encoding='utf-8').read()
-    a1 = re.sub(r'("package_name": ")[^"]*(")', lambda m: m.group(1) + brand.APP_PKG + m.group(2), a0)
-    if a1 != a0: open(_AL, 'w', encoding='utf-8').write(a1); print('assetlinks package', brand.APP_PKG)
+    # 사이클 2: 새 앱(APP_PKG) + 이미 설치된 예전 앱(LEGACY_PKG) 두 항목 · 지문은 brand.SIGNING_SHA256(두 항목 공통)
+    a1 = json.dumps([{"relation": ["delegate_permission/common.handle_all_urls"], "target": {"namespace": "android_app", "package_name": p, "sha256_cert_fingerprints": list(brand.SIGNING_SHA256)}} for p in (brand.APP_PKG, brand.LEGACY_PKG)], indent=2) + '\n'
+    if a1 != a0: open(_AL, 'w', encoding='utf-8').write(a1); print('assetlinks packages', brand.APP_PKG, brand.LEGACY_PKG)

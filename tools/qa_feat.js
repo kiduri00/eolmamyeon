@@ -31,7 +31,7 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
       ctx.R.forEach((r) => {
         if (r.src === "moa") return;
         const m = merged(r), T = F.tl(m, ctx);
-        if (T) tl[r.id] = { gaps: T.gaps.map((g) => [g.a, g.b, r4(g.yrs), g.st ? g.st.med : null, g.lvl]), next: T.next ? [T.next.k, r4(T.next.lo), r4(T.next.hi), T.next.state] : null };
+        if (T) tl[r.id] = { gaps: T.gaps.map((g) => [g.a, g.b, r4(g.yrs), g.st ? g.st.med : null, g.lvl]), next: T.next ? [T.next.k, T.next.lo != null ? r4(T.next.lo) : null, T.next.hi != null ? r4(T.next.hi) : null, T.next.state] : null };
         const o = F.org(m, ctx); org[r.id] = { builder: o.builder, consent: o.consent ? o.consent.v : null, owners: o.owners, units: o.units, sale: o.sale, far: o.far };
       });
       Object.keys(TXD).forEach((id) => {
@@ -39,12 +39,30 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
         const q = {}; ["v", "a"].forEach((bs) => { q[bs] = {}; ["all", "s", "m", "l", "x"].forEach((ak) => { q[bs][ak] = F.px(z, bs, ak).qs.map((x) => [x.q, x.m, x.n]); }); });
         px[id] = { q, jr: F.px(z, "v", "all").jr.map((x) => [x.q, x.r]) };
       });
-      return { tl, org, px };
+      // 사이클 2: 단계 기간 통계(ZF.stageStat)를 /years 표와 견줄 값
+      const stg = {}; ["large", "small"].forEach((g) => { stg[g] = {}; Object.keys(((ctx.D.etaMeta || {}).transitions || {})[g] || {}).forEach((k) => { const s = ctx.ZF.stageStat({ k: g === "small" ? "가로주택" : "재개발" }, k); if (s) stg[g][k] = [s.med, s.n, s.nEv, s.p25, s.p75, s.na]; }); });
+      return { tl, org, px, stg };
     }), 240000, "eval");
+    { const bad = []; const Y = ref.years || {};
+      if (Y.err) bad.push("years.html 읽기 " + Y.err);
+      ["large", "small"].forEach((g) => Object.keys(Y[g] || {}).forEach((k) => { const a = Y[g][k], b = (got.stg[g] || {})[k]; if (!b) { bad.push(`${g} ${k} 앱 통계 없음`); return; }
+        // /years가 small에 큰 사업장 값을 쓰는 구간(own:false)은 가운데 값·전체 표본만 견준다
+        const idx = g === "small" ? [0, 1, 2] : [0, 1, 2, 3, 4, 5]; idx.forEach((i) => { if (a[i] != null && !(Math.abs(a[i] - b[i]) < 1e-6)) bad.push(`${g} ${k} [${i}] /years ${a[i]} vs 앱 ${b[i]}`); }); }));
+      check(!bad.length && Object.keys(Y.large || {}).length >= 6, "feat.stagestat", `단계 기간 통계 /years ↔ 시트 ${bad.length} 불일치 · ${bad.slice(0, 4).join(" ; ")}`); }
+    // ---------- 1-1) 부칙 판정 단위 시험(app.js b18Of · 도시정비법 부칙 <제14943호> 제2조: 2018.1.24까지 사업시행인가 '신청' 구역은 관리처분인가 뒤에도 제한 없음) ----------
+    { const T = await p.evaluate(() => { const f = window.ZP_b18; if (!f) return null; const C = [
+        [{ b18p: "2017-12-22" }, "ex"], [{ b18p: "2018-01-24" }, "ex"], [{ b18p: "2018-01-25" }, "ap"],
+        [{ b18: "2016-07-14" }, "ex"], [{ b18: "2018-01-24" }, "ex"], [{ b18: "2018-01-25" }, "ap"],
+        [{ b18a: "2018-12-20" }, "unk"], [{ b18a: "2020-01-24" }, "unk"], [{ b18a: "2020-01-25" }, "ap"], [{}, "ap"]];
+        return C.map(([r, w]) => [JSON.stringify(r), w, f(r).st]); });
+      const bad = T ? T.filter((x) => x[1] !== x[2]) : [["ZP_b18 없음"]];
+      check(!bad.length, "feat.b18", bad.map((x) => x.join(" ")).join(" ; ")); log(`  b18 단위 ${T ? T.length : 0}건`); }
     const near = (a, b) => (a == null && b == null) || (typeof a === "number" && typeof b === "number" ? Math.abs(a - b) <= 1e-3 : a === b);
     const cmpArr = (x, y) => JSON.stringify(x.length) === JSON.stringify(y.length) && x.every((v, i) => Array.isArray(v) ? cmpArr(v, y[i]) : near(v, y[i]));
     { const bad = []; const ids = new Set([...Object.keys(ref.tl), ...Object.keys(got.tl)]);
       ids.forEach((id) => { const a = ref.tl[id], g = got.tl[id]; if (!a || !g || !cmpArr(a.gaps, g.gaps) || !((a.next == null && g.next == null) || (a.next && g.next && cmpArr(a.next, g.next)))) bad.push(`${id} ref ${JSON.stringify(a)} 화면 ${JSON.stringify(g)}`); });
+      check(!(ref.past || []).length, "feat.tl.past", `다음 단계 예상에 이미 지난 날짜 ${(ref.past || []).length}곳 · ${(ref.past || []).slice(0, 5).join(",")}`);
+      const st = {}; Object.values(got.tl).forEach((x) => { if (x.next) st[x.next[3]] = (st[x.next[3]] || 0) + 1; }); log(`  tl 다음 단계 상태 ${JSON.stringify(st)}`);
       check(!bad.length && ids.size > 600, "feat.tl", `단계 타임라인 ${ids.size}곳 중 ${bad.length} 불일치 · ${bad.slice(0, 3).join(" ; ")}`); log(`  tl ${ids.size}곳`); }
     { const bad = []; Object.keys(ref.org).forEach((id) => { const a = ref.org[id], g = got.org[id]; if (!g || Object.keys(a).some((k) => !near(a[k], g[k]))) bad.push(`${id} ${JSON.stringify(a)} vs ${JSON.stringify(g)}`); });
       check(!bad.length && Object.keys(ref.org).length > 1000, "feat.org", `사업 정보 ${Object.keys(ref.org).length}곳 중 ${bad.length} 불일치 · ${bad.slice(0, 3).join(" ; ")}`); log(`  org ${Object.keys(ref.org).length}곳`); }
@@ -60,17 +78,20 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
       ctx.R.forEach((r) => {
         if (r.src === "moa" || !r.ll || ctx.isDone(r) || r.dn) return; n++;
         const L = F.near(r, ctx); if (L.length) withRec++;
-        let prev = -Infinity;
-        L.forEach(({ q, d, n: m }) => {
-          const nm = ctx.nums(q), v = nm.need != null ? nm.need : nm.lnow;
+        // 사이클 2: 돈 = 시트 첫 칸 판정(ctx.shown) 그대로 · 고른 사는 방식 한 가지(전세 끼고면 'lnow' 대출 끼고 값은 섞지 않고 보류로) · 보류는 뒤에
+        let prev = -Infinity, seenHold = false;
+        L.forEach(({ q, d, n: m, hold }) => {
+          const w = ctx.shown(q), inMode = w.v != null && !(w.kind === "lnow" && ctx.gap());
           if (q === r || q.src === "moa" || ctx.isDone(q) || q.dn) out.push(`${r.id}→${q.id} 대상 아님`);
           if (ctx.shape(q) !== ctx.shape(r)) out.push(`${r.id}→${q.id} 유형 다름`);
           if (Math.abs(q.s - r.s) > 1) out.push(`${r.id}→${q.id} 단계 차이`);
           if (Math.abs(hav(r.ll, q.ll) - d) > 1 || d > 1000) out.push(`${r.id}→${q.id} 거리 ${d}`);
-          if (v == null || Math.abs(v - m.v) > 1e-9) out.push(`${r.id}→${q.id} 돈 ${m.v} vs 시트 ${v}`);
+          if (!m) { seenHold = true; if (inMode) out.push(`${r.id}→${q.id} 계산되는데 보류로`); if (!hold) out.push(`${r.id}→${q.id} 보류 이유 없음`); return; }
+          if (seenHold) out.push(`${r.id}→${q.id} 보류 뒤에 계산 카드`);
+          if (!inMode || Math.abs(w.v - m.v) > 1e-9) out.push(`${r.id}→${q.id} 돈 ${m.v} vs 시트 ${w.v}(${w.kind})`);
           if (m.v < prev - 1e-12) out.push(`${r.id} 순서`); prev = m.v;
         });
-        if (L.length > 5) out.push(`${r.id} ${L.length}곳`);
+        if (L.filter((x) => x.n).length > 5 || L.length > 7) out.push(`${r.id} ${L.length}곳`);
       });
       return { out, n, withRec };
     }), 240000, "near");
@@ -97,7 +118,7 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
               const o = { ov, docW: document.documentElement.scrollWidth, w: innerWidth };
               if (t === "biz") { o.tlWant = !!(F && F.tl(r, ctx) && (F.tl(r, ctx).gaps.length || F.tl(r, ctx).next)); o.tl = has("timeline"); o.org = has("org"); o.facts = !!pane.querySelector("dl.facts"); }
               if (t === "loc") { const L = F ? F.near(r, ctx) : []; o.nWant = L.length; o.n = has("near") ? pane.querySelectorAll('[data-f="near"] .znr-i').length : 0;
-                o.nTxt = has("near") ? [...pane.querySelectorAll('[data-f="near"] .znr-v b')].map((x) => x.textContent) : []; o.nExp = L.map((x) => ctx.ZF.cash(x.n.v)); }
+                o.nTxt = has("near") ? [...pane.querySelectorAll('[data-f="near"] .znr-v b')].map((x) => x.textContent) : []; o.nExp = L.map((x) => (x.n ? ctx.ZF.cash(x.n.v) : x.hold)); }
               if (t === "tx") { const z = (await ctx.tx())[r.id]; o.pWant = !!(z && z.s && z.s.length >= 3); o.p = has("price"); }
               return o;
             }, tab), 20000, "eval");
@@ -124,13 +145,13 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
       await wd(p5.waitForFunction(() => window.ZP_boot && ZP_boot.hyd === 1 && window.ZP_feat, null, { timeout: 60000 }), 61000, "hyd");
       const got5 = await wd(p5.evaluate(async () => {
         const F = await ZP_feat.load(), ctx = ZP_feat.ctx(), T = await ctx.tx(), o = {}, rd = {};
-        for (const r of ctx.R) { if (r.src === "moa" || r.s >= 9) continue; const rt = ctx.rights(r), pc = r.pcl ? await ctx.pcl(r.id) : null; const x = F.split(pc, T[r.id], rt); rd[r.id] = x.set ? x.rd : null; o[r.id] = [x.n, x.after, x.same, x.txn, x.txf, x.pct]; }
+        for (const r of ctx.R) { if (r.src === "moa" || r.s >= 9) continue; const rt = ctx.rights(r), pc = r.pcl ? await ctx.pcl(r.id) : null; const x = F.split(pc, T[r.id], rt); rd[r.id] = x.set ? x.rd : null; o[r.id] = [x.n, x.after, x.same, x.pct]; }
         return { o, rd };
       }), 300000, "split");
       const ref5 = JSON.parse(execFileSync("python3", [path.join(__dirname, "qa_feat_split.py")], { input: JSON.stringify(got5.rd), maxBuffer: 1 << 26 }).toString());
       const bad5 = Object.keys(got5.o).filter((id) => JSON.stringify(got5.o[id]) !== JSON.stringify(ref5[id])).map((id) => `${id} ${JSON.stringify(got5.o[id])} vs ${JSON.stringify(ref5[id])}`);
-      const nz = Object.keys(got5.o).length, nA = Object.values(got5.o).filter((v) => v[1] > 0).length, nF = Object.values(got5.o).filter((v) => v[4] > 0).length;
-      check(!bad5.length, "feat.split", `${bad5.length}곳 · ${bad5.slice(0, 4).join(" ; ")}`); log(`  split ${nz}곳 · 기준일 뒤 준공 필지 있음 ${nA} · 쪼개기 의심 거래 있음 ${nF}`);
+      const nz = Object.keys(got5.o).length, nA = Object.values(got5.o).filter((v) => v[1] > 0).length, nF = Object.values(got5.o).filter((v) => v[2] > 0).length;
+      check(!bad5.length, "feat.split", `${bad5.length}곳 · ${bad5.slice(0, 4).join(" ; ")}`); log(`  split ${nz}곳 · 기준일 뒤 준공 필지 있음 ${nA} · 기준일 같은 해 준공 있음 ${nF}`);
       // 화면: 매물진단에서 구역 몇 곳을 골라 줄 글자·규정 펼치기 · 지번 찾기(필지 색인)
       const ZD = Object.keys(got5.o).filter((id) => got5.o[id][1] > 0).slice(0, 3).concat(Object.keys(got5.o).filter((id) => got5.rd[id] && got5.o[id][0] && !got5.o[id][1]).slice(0, 2));
       const bad6 = [];
@@ -186,7 +207,7 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
       const cnt = {}; wk.forEach((e) => (cnt[e.id] = (cnt[e.id] || 0) + 1));
       const cand = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || (a < b ? -1 : 1)).slice(0, 6).concat(["o127", "o637"]);
       const expOf = (ids) => { const P = new Set(ids), s = new Set(); return wk.filter((e) => P.has(e.id)).filter((e) => { const k = `${e.id}|${e.date}|${e.type}|${e.text}`; if (s.has(k)) return false; s.add(k); return true; }); };
-      const bad4 = [], perr4 = [];
+      const bad4 = [], perr4 = [], PUSH = await import(require("url").pathToFileURL(path.join(__dirname, "..", "worker", "push.js")).href);
       const COND = [{ id: "cqa1", cash: 3, mode: "loan", base: [], at: Date.now() - 60 * 864e5, seen: "", asOf: "" }];
       for (const mode of ["web", "app"]) for (const cs of ["light", "dark"]) {
         const w = `${mode}/${cs}`;
@@ -203,9 +224,19 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
             const pl = I.payloadOf(), d0 = I.d0();
             const ov = [...document.querySelectorAll("#myMute, #myMute *")].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).length;
             return { pins: window.PINS.list(), z, c, shown: +box.querySelector(".zal-c b").textContent.replace(/[^\d]/g, ""), out: (/꺼 둔 설정으로 ([\d,]+)건/.exec(box.querySelector(".zal-c").textContent) || [0, "0"])[1].replace(/,/g, "") | 0,
-              zones: pl.zones, conds: pl.conds.length, pinEv: I.pinEvents().map((e) => e.id), auc: I.condAuc().filter((e) => e.date >= d0).length, d0, ov, docW: document.documentElement.scrollWidth };
+              zones: pl.zones, conds: pl.conds.length, pl, mute: JSON.parse(localStorage.getItem("zp-alert-mute") || "{}"), pinEv: I.pinEvents().filter((e) => e.date >= d0).map((e) => `${e.id}|${e.date}|${e.type}|${e.text}`), aucK: I.condAuc().filter((e) => e.date >= d0).map((e) => `${e.id}|${e.date}|${e.text}`), auc: I.condAuc().filter((e) => e.date >= d0).length, d0, ov, docW: document.documentElement.scrollWidth };
           });
-          let s = await st();
+          // 사이클 2: 서버(worker/push.js match)가 이 payload로 보낼 것 = 앱 화면(소식·조건 경매)과 같은지 · 끈 구역은 서버 목록(zones·conds[].z)에 0
+          const srv = (s, tag) => {
+            const sub = { z: s.pl.zones, o: s.pl.o || [], c: s.pl.conds }, m = PUSH.match(sub, CH.items.filter((e) => e.date >= d0));
+            const zk = [...new Set(m.zone.filter((e) => TY.has(e.type)).map((e) => `${e.id}|${e.date}|${e.type}|${e.text}`))].sort(), ak = [...new Set(m.cond.filter((x) => x.e.type === "auction").map((x) => `${x.e.id}|${x.e.date}|${x.e.text}`))].sort();
+            const pz = [...new Set(s.pinEv)].sort(), pa = [...new Set(s.aucK)].sort(), mz = new Set((s.mute && s.mute.z) || []);
+            if (JSON.stringify(zk) !== JSON.stringify(pz)) bad4.push(`${w} ${tag} 서버 구역 소식 ${zk.length} vs 앱 ${pz.length}`);
+            if (JSON.stringify(ak) !== JSON.stringify(pa)) bad4.push(`${w} ${tag} 서버 조건 경매 ${ak.length} vs 앱 ${pa.length}`);
+            const leak = sub.z.filter((id) => mz.has(id)).concat(...sub.c.map((c) => (c.z || []).filter((id) => mz.has(id))));
+            if (leak.length) bad4.push(`${w} ${tag} 끈 구역이 서버 목록에 ${leak.slice(0, 3)}`);
+          };
+          let s = await st(); srv(s, "처음");
           if (s.d0 !== d0) bad4.push(`${w} d0 ${s.d0} vs ${d0}`);
           const E = expOf(s.pins);
           if (s.z.length !== s.pins.length || s.c.length !== 1) bad4.push(`${w} 스위치 구역 ${s.z.length}/${s.pins.length} 조건 ${s.c.length}`);
@@ -215,7 +246,7 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
           // 1) 첫 구역 끄기
           const z0 = s.pins[0], n0 = E.filter((e) => e.id === z0).length;
           await pg.evaluate((id) => { const x = document.querySelector(`#myMute [data-mz="${id}"]`); x.scrollIntoView({ block: "center" }); x.click(); }, z0); await pg.waitForTimeout(400);
-          s = await st();
+          s = await st(); srv(s, "구역 끈 뒤");
           const m1 = await pg.evaluate(() => JSON.parse(localStorage.getItem("zp-alert-mute") || "{}"));
           if (!(m1.z || []).includes(z0) || s.zones.includes(z0) || s.zones.length !== s.pins.length - 1 || s.pinEv.includes(z0)) bad4.push(`${w} 구역 끄기: 저장 ${JSON.stringify(m1)} · 폰 알림 목록 ${s.zones.includes(z0)} · 소식 ${s.pinEv.includes(z0)}`);
           if (s.shown !== E.length - n0 + s.auc || s.out !== n0) bad4.push(`${w} 구역 끈 뒤 미리 보기 ${s.shown} vs ${E.length - n0}+${s.auc} · 빠짐 ${s.out}/${n0}`);
@@ -223,8 +254,10 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
           await pg.screenshot({ path: `${process.env.QAF_SHOTS || "/tmp"}/f9_${mode}_${cs}_1.png` }).catch(() => {});
           // 2) 조건 끄기
           await pg.evaluate(() => { const x = document.querySelector("#myMute [data-mc]"); x.scrollIntoView({ block: "center" }); x.click(); }); await pg.waitForTimeout(400);
-          s = await st();
+          const auc0 = s.auc;
+          s = await st(); srv(s, "조건 끈 뒤");
           if (s.conds !== 0 || s.auc !== 0 || s.shown !== E.length - n0) bad4.push(`${w} 조건 끄기: 폰 알림 조건 ${s.conds} · 경매 ${s.auc} · 미리 보기 ${s.shown}`);
+          if (s.out !== n0 + auc0) bad4.push(`${w} 조건 끈 뒤 '빠져요' ${s.out} vs 구역 ${n0} + 조건 경매 ${auc0}`);
           // 3) 다시 열어도 그대로 → 다시 켜면 원래대로
           await pg.reload({ waitUntil: "domcontentloaded" }); await wd(pg.waitForFunction(() => document.querySelector("#myMute .zal-c b"), null, { timeout: 30000 }), 31000, "reload");
           s = await st();
@@ -239,6 +272,56 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
       }
       check(!bad4.length, "feat.alerts", bad4.slice(0, 6).join(" ; "));
       check(!perr4.length, "feat.errors4", perr4.slice(0, 3).join(" | "));
+    }
+    // ---------- 6) 화면끼리 전수 대조(사이클 2 핵심 원칙: 판정·계산 함수 하나) — 구역 전체 · 기본 사는 방식(전세 끼고) ----------
+    //   시트 첫 칸(DTL.shown) = 목록 카드(ZP_simple.zstate) = 관심 카드(PINS.news) = 구역 비교(ZPX.cmpRows) = /z·API(/api/v1/zones.json · calc.json과 같은 값)
+    //   + 입주권 판정(시트 buyWindow) = API stage 단계 · '더 필요해요'(ZF.gap) = 보인 금액 − 내 돈
+    if (!ONLY || ONLY === "xscreen") {
+      const cx = await b.newContext({ viewport: { width: 390, height: 844 } });
+      await cx.addInitScript(() => { try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+      await cx.route("**/*", (r) => (/^http:\/\/localhost/.test(r.request().url()) ? r.continue() : r.abort()));
+      const px = await cx.newPage(); const perrX = []; px.on("pageerror", (e) => perrX.push(e.message));
+      await wd(px.goto(BASE + "/#map", { waitUntil: "domcontentloaded" }), 60000, "goto");
+      await wd(px.waitForFunction(() => window.ZP_boot && ZP_boot.hyd === 1 && window.ZP_feat && window.ZP_simple, null, { timeout: 60000 }), 61000, "hyd");
+      const X6 = await wd(px.evaluate(async () => {
+        const ctx = ZP_feat.ctx(), X = await ZP_feat.loadX(), API = await (await fetch("api/v1/zones.json")).json(), A = {}; (API.items || []).forEach((z) => (A[z.id] = z));
+        const out = [], n = { all: 0, need: 0, lnow: 0, hold: 0, api: 0 }, gap = ctx.gap(), C = ctx.cash();
+        const near = (a, b) => (a == null && b == null) || (a != null && b != null && Math.abs(a - b) < 1e-6);
+        for (const r of ctx.R) {
+          if (r.src === "moa") continue; n.all++;
+          const w = ctx.shown(r), z = ZP_simple.zstate(r), cm = X.cmpRows([r.id], ctx)[0];
+          const inMode = w.v != null && !(w.kind === "lnow" && gap);
+          if (w.kind === "need") n.need++; else if (w.kind === "lnow") n.lnow++; else n.hold++;
+          // 목록 카드: 보이는 값이 있으면 시트와 같은 값, 시트가 보류(입주권 없음·사업 끝·계산 보류)면 카드도 값 없음
+          if (w.kind === "need" && !near(z.need, w.v)) out.push(`${r.id} 카드 ${z.need} vs 시트 ${w.v}`);
+          if ((w.kind === "nt" || w.kind === "done" || w.kind === "hold") && z.need != null && z.st !== "na" && !r.lc && !r.dn) { /* 추정 신뢰 낮은 곳(lc)·해제·중단(dn)은 목록에 안 나온다(60_simple rows) */ let tk = ""; try { tk = ZP_simple.cardHTML(r).includes("s-b-no") ? "badge" : "nobadge"; } catch (e) {} out.push(`${r.id} 카드값/${w.kind}/${z.st}/${tk} ${z.need}`); }
+          // 구역 비교: 같은 값 또는 같은 보류 이름
+          if (inMode ? !near(cm.now, w.v) : cm.now != null) out.push(`${r.id} 비교 ${cm.now} vs 시트 ${w.v}(${w.kind})`);
+          // 관심 카드(핀 없어도 같은 함수): news(id).now — 스냅샷 없는 구역은 now null이라 셈만
+          // /z·API: 기본 가정 = 전세 끼고 · 시트 need(전세) = API need.gap.now · lnow = API need.cash.now(전세 불가 구역)
+          const a = A[r.id];
+          if (a && gap) { n.api++;
+            const g = a.need && a.need.gap, c = a.need && a.need.cash;
+            // API는 억 단위 소수 셋째 자리까지(tools/api.py) — 같은 값인지는 그 자릿수로
+            if (w.kind === "need" && !(g && g.now != null && Math.abs(g.now - w.v) < 0.0006)) out.push(`${r.id} API 전세 ${g && g.now} vs 시트 ${w.v}`);
+            if (w.kind === "lnow" && !(c && c.now != null && Math.abs(c.now - w.v) < 0.0006)) out.push(`${r.id} API 대출 ${c && c.now} vs 시트 lnow ${w.v}`);
+            if (w.kind === "nt" && g && g.now != null) out.push(`${r.id} API 전세 값 ${g.now} · 시트 입주권 없음`);
+          }
+          // 같은 화면 '더 필요해요' = 보인 금액(올림) − 내 돈
+          if (inMode && w.v > C + 1e-9) { const sh = ctx.ZF.gap(w.v, C), want = ctx.ZF.short(ctx.ZF.shown(w.v) - C); if (sh !== want) out.push(`${r.id} 더 필요 ${sh} vs ${want}`); }
+        }
+        return { out, n };
+      }), 300000, "xscreen");
+      X6.out = X6.out.filter((x) => !/카드값\/nt\/(far|near|na)\/badge/.test(x));   // 입주권 없는 곳: 목록 카드는 금액 + '입주권 ✕' 배지(시트는 '입주권 없음') — 같은 판정을 배지로 밝힘
+      check(!X6.out.length && X6.n.all > 900, "feat.xscreen", `구역 ${X6.n.all}곳(값 ${X6.n.need} · 대출 끼고만 ${X6.n.lnow} · 보류 ${X6.n.hold} · API ${X6.n.api}) 중 ${X6.out.length} 불일치 · ${X6.out.slice(0, 5).join(" ; ")}`);
+      { const cat = {}; X6.out.forEach((x) => { const k = x.split(" ")[1]; cat[k] = (cat[k] || 0) + 1; }); log(`  xscreen ${JSON.stringify(X6.n)}${X6.out.length ? " · 갈래 " + JSON.stringify(cat) : ""}`); }
+      // 서비스 워커: 미리 받는 /b 묶음 수 < 캐시 한도(BUND CAP) · 아이콘(/icons/) 경로가 캐시 규칙에 들어감
+      { const sw = require("fs").readFileSync(path.join(__dirname, "..", "public", "sw.js"), "utf8"), idx = require("fs").readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+        const cap = +(/\[BUND\]:\s*(\d+)/.exec(sw) || [])[1], pre = new Set(idx.match(/\/b\/[a-su-z]\.[0-9a-f]{10}\.(?:js|css|json)/g) || []).size;
+        const rx = sw.indexOf("icons\\/") >= 0;   // sw.js 캐시 규칙 정규식에 /icons/ 경로
+        check(cap >= 20 && pre < cap && rx, "feat.sw", `BUND CAP ${cap} · 미리 받는 묶음 ${pre} · /icons/ 규칙 ${rx}`); log(`  sw BUND ${pre}/${cap}`); }
+      check(!perrX.length, "feat.errors6", perrX.slice(0, 3).join(" | "));
+      await cx.close();
     }
   } catch (e) { check(false, "feat.crash", String(e.message || e).split("\n")[0]); }
   await b.close();

@@ -9,10 +9,11 @@ TAGLINE = '서울 재개발 지도'          # 로고 옆 작은 글
 SITE_TAIL = f'{BRAND} - {TAGLINE}'   # <title> 꼬리
 EDITOR = f'{BRAND} 편집'   # 글쓴이 줄·JSON-LD author(2026-10-27 오너: 개인 운영자 소개 없이 브랜드 편집으로)
 SLOGAN = '내 돈으로 갈 수 있는 서울 재개발'
-WIT = '내 돈으로 될랑가?'   # 위트 문구는 이것 한 곳(홈 소개 블록 첫 줄) · 이름 말장난 문구는 쓰지 않는다
+WIT = '내 돈으로 어디까지 갈 수 있을까?'   # 홈 소개 블록 첫 줄(2026-10-28 오너: 말장난·유행어 없이 차분하게 · '될랑가'는 QA 금지어)
 # 예전 이름 — 아래 안내 문장(about·오류 수정 기록)에서만 쓴다. QA(브랜드 잔존 0)의 허용 예외
 OLD_NAMES = ('집핀', 'Zippin', 'zippin', '재개각', 'Jaegaegak', 'jaegaegak', '재개랩', 'JaegaeLab')   # brand.residual 금지어(재개각·재개랩은 공개된 적 없는 검토안 — 안내 문구에도 쓰지 않는다)
 RENAME_DATE = '2026-10-27'
+BANNED = ('될랑가', '각 나옴', '각 나왔다', '재개각')
 def _batchim(w): c = ord(w[-1]) - 0xAC00; return 0 <= c < 11172 and c % 28   # 받침 번호(0 = 없음 · 8 = ㄹ)
 def josa_ro(w): b = _batchim(w); return w + ('으로' if b and b != 8 else '로')   # '…으로/로'
 def josa_eun(w): return w + ('은' if _batchim(w) else '는')
@@ -20,8 +21,14 @@ RENAME_LINE = f'서비스 이름을 집핀에서 {josa_ro(BRAND)} 바꿨어요' 
 RENAME_NOTE = f'2026.10 {RENAME_LINE}.'
 # ---- 기능 트랙(SPA·앱) ----
 APP_PKG = 'kr.alwaysquestions.jaegaepick'   # 안드로이드 앱 패키지(assetlinks · QA 기대값)
+LEGACY_PKG = 'kr.alwaysquestions.zippin'   # 이미 설치된 예전 앱(집핀) — assetlinks에 함께 둬야 그 앱의 주소 열기가 끊기지 않는다
+OLD_PKGS = (LEGACY_PKG,)   # QA brand.residual 허용 예외: assetlinks의 이 패키지 식별자만
+# assetlinks 서명 지문(두 패키지 공통) — 지금은 업로드 키 · Play 앱 서명 지문이 나오면 이 목록에 더한다
+SIGNING_SHA256 = ['CA:7E:87:4A:C9:9C:A4:AD:53:2F:24:4C:17:43:7A:5F:F2:03:B3:97:4F:01:78:C8:44:98:38:C7:54:15:0F:9B']
+ALT_NAMES = (BRAND_EN, '집핀')   # JSON-LD alternateName(검색엔진이 예전 이름으로 찾아도 이어지게 · QA 허용 예외: alternateName 배열 이 값만)
 APP_NAME = BRAND                          # 설치 앱 이름(manifest name)
-TOKENS = {'__BRAND_EN__': BRAND_EN, '__APP_PKG__': APP_PKG, '__BRAND__': BRAND}
+import json as _json
+TOKENS = {'__ALT_NAMES__': _json.dumps(list(ALT_NAMES), ensure_ascii=False, separators=(',', ':')), '__BRAND_EN__': BRAND_EN, '__APP_PKG__': APP_PKG, '__BRAND__': BRAND}
 def sub(s):
     s = sub_assets(s)
     for k, v in TOKENS.items(): s = s.replace(k, v)
@@ -52,15 +59,34 @@ def wordmark_svg(cls='logo-wm'):
 WORDMARK_CSS = ('.logo-wm{display:block;flex:none;height:28px;width:auto}.logo-wm .wm-a{fill:#1F3A87}.logo-wm .wm-b{fill:#fff}'
                 '@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo-wm .wm-a{fill:#fff}:root:not([data-theme="light"]) .logo-wm .wm-b{fill:#13265E}}'
                 ':root[data-theme="dark"] .logo-wm .wm-a{fill:#fff}:root[data-theme="dark"] .logo-wm .wm-b{fill:#13265E}')
+# 사이클 2(브랜드 콘셉트 '픽'으로 마크 교체 예정): 마크를 글 속에 직접 쓰지 않고 이 파일들만 읽는다 — 새 에셋은 같은 경로로 덮어쓰면 끝
+MARK_FILE = '/icons/brand_mark_dark.svg'          # 작은 마크(첫 화면 소개 줄 st-k 등 글 속 마크 · brand_v7 logo/*_mark_dark.svg)
+COVER_MARK_FILES = ('/icons/cover_mark_light.svg', '/icons/cover_mark_dark.svg')   # 덮개 마크(디자이너 web/cover_mark_*.svg · 2026-10-28 '픽' 마크) — 덮개 바탕이 남색이라 _dark(흰 몸통)를 쓴다 · _light는 밝은 바탕용 예비
+def mark_svg(cls='mk', h=17):
+    """글 속 작은 마크(높이 h px) — MARK_FILE 그대로 · 흰 몸통 → class '{cls}-p'(CSS로 남색) · 남색 집 → '{cls}-h'(CSS로 바탕색) · 나머지 색은 그대로."""
+    s = _rd(MARK_FILE)
+    vb = _re.search(r'viewBox="([^"]+)"', s).group(1); n = [float(x) for x in vb.split()]
+    body = _re.sub(r'<title>.*?</title>', '', s.split('>', 1)[1].rsplit('</svg>', 1)[0], flags=_re.S)
+    body = body.replace('fill="#FFFFFF"', f'class="{cls}-p"').replace('fill="#13265E"', f'class="{cls}-h"')
+    return f'<svg class="{cls}" width="{round(h * n[2] / n[3])}" height="{h}" viewBox="{vb}" aria-hidden="true">{body}</svg>'
 def cover_uri(bg):
-    """앱 덮개 마크(안드로이드 스플래시와 같은 모양: brand_v7 logo/*_mark_dark.svg) — 240×240 칸 가운데, 너비 70 · 높이 100(점 포함)."""
-    s = _rd('/icons/brand_mark_dark.svg')
-    body = s.split('>', 1)[1].rsplit('</svg>', 1)[0].replace('#13265E', bg).replace('"', "'")
-    k = 70 / 38.0; tx = 120 - (13 + 19) * k; ty = 120 - (6 + 54.27 / 2) * k
+    """앱 덮개 마크(남색 바탕 240×240 칸 가운데) — 디자이너 덮개 파일(web/cover_mark_dark.svg · 64×64, 흰 몸통·노란 문·노란 체크)을 그대로 넣고
+    가운데 너비 약 84px(64칸 100px)로 놓는다 · 파일 안 짙은 남색(#13265E)은 덮개 바탕색으로(밝게·어둡게 바탕이 달라도 이음새 없게)
+    덮개 파일이 없으면 MARK_FILE(viewBox 그대로)로 같은 크기에 맞춘다."""
+    cf = _os.path.join(_PUB, COVER_MARK_FILES[1].lstrip('/'))
+    if _os.path.exists(cf):
+        s = _rd(COVER_MARK_FILES[1]); x, y, w, h = 0.0, 0.0, 64.0, 64.0; size = 100.0
+        vb = _re.search(r'viewBox="([^"]+)"', s)
+        if vb: x, y, w, h = [float(v) for v in vb.group(1).split()]
+    else:
+        s = _rd(MARK_FILE); x, y, w, h = [float(v) for v in _re.search(r'viewBox="([^"]+)"', s).group(1).split()]; size = 84.0
+    body = _re.sub(r'<title>.*?</title>', '', s.split('>', 1)[1].rsplit('</svg>', 1)[0], flags=_re.S).replace('#13265E', bg).replace('"', "'")
+    k = size / max(w, h); tx = 120 - (x + w / 2) * k; ty = 120 - (y + h / 2) * k
     svg = f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240'><g transform='translate({tx:.3f} {ty:.3f}) scale({k:.5f})'>{body}</g></svg>"
     return 'data:image/svg+xml,' + _up.quote(svg, safe="/:=' .,-()")
 def sub_assets(s):
     if '__BRAND_WM__' in s: s = s.replace('__BRAND_WM__', wordmark_svg())
+    if '__BRAND_MARK_SM__' in s: s = s.replace('__BRAND_MARK_SM__', mark_svg())
     if '__BRAND_ICONS__' in s: s = s.replace('__BRAND_ICONS__', ICON_LINKS)
     if '__BRAND_COVER_L__' in s: s = s.replace('__BRAND_COVER_L__', cover_uri(COVER_BG[0]))
     if '__BRAND_COVER_D__' in s: s = s.replace('__BRAND_COVER_D__', cover_uri(COVER_BG[1]))
