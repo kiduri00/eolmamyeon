@@ -30,12 +30,18 @@ const files_n = Object.keys(bad).length;
 const SPA = (f) => f.startsWith("src/") || f.startsWith("public/b/") || /^public\/(index\.html|sw\.js|manifest\.webmanifest|admin\.html|\.well-known\/)/.test(f);
 const nSpa = Object.keys(bad).filter(SPA).reduce((a, f) => a + bad[f].length, 0);
 console.log(`  SPA·앱 범위 ${nSpa}건 · 정적 페이지 범위 ${n - nSpa}건`);
-// pen.residual: 옛 운영자 필명('늘질문' → 'AQ', 2026-10-27)이 public·src·content·tools 어디에도 없어야(조사 붙은 꼴 포함)
+// persona.residual(2026-10-27 오너 결정: 개인 운영자 소개 없음): about 본문·모든 글쓴이 줄(byline·meta 정리 줄·리포트 서명)에
+// 필명·개인 경력 서술('늘질문'·'AQ'·'운영자 1인'·'낙찰'·'임장'·'평택')이 없고, 글쓴이 줄은 '운영자'가 아니라 브랜드 편집이어야 한다
 {
-  const OLDPEN = /늘질문/g, files2 = [...files, ...walk(path.join(R, "content")).map(rel), ...walk(path.join(R, "tools")).map(rel).filter((f) => !/qa_brand\.js$/.test(f))];
-  const hit = files2.filter((f) => { try { return OLDPEN.test(fs.readFileSync(path.join(R, f), "utf8")); } catch (e) { return false; } finally { OLDPEN.lastIndex = 0; } });
-  console.log(hit.length ? `FAIL pen.residual — 옛 필명 남은 파일 ${hit.length}개: ${hit.slice(0, 5).join(", ")}` : `PASS pen.residual`);
-  if (hit.length) process.exitCode = 1;
+  const txt = (h) => h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ");
+  const BADW = /늘질문|\bAQ\b|운영자 1인|낙찰|임장|평택/, hits = [];
+  try { const a = txt(fs.readFileSync(path.join(R, "public", "about.html"), "utf8")); const m = BADW.exec(a); if (m) hits.push(`about: '${a.slice(Math.max(0, m.index - 30), m.index + 20).replace(/\s+/g, " ")}'`); } catch (e) { hits.push("about 읽기 실패"); }
+  for (const f of files.filter((f) => f.startsWith("public/") && f.endsWith(".html") && !f.startsWith("public/b/"))) {
+    const h = fs.readFileSync(path.join(R, f), "utf8");
+    for (const m of h.matchAll(/<p class="(?:byline|rp-sig)">[\s\S]*?<\/p>|<p class="meta">정리:[\s\S]*?<\/p>/g)) { const t = txt(m[0]); if (BADW.test(t) || /운영자/.test(t)) { hits.push(`${f}: '${t.replace(/\s+/g, " ").slice(0, 60)}'`); break; } }
+  }
+  console.log(hits.length ? `FAIL persona.residual — ${hits.length}곳: ${hits.slice(0, 4).join(" ; ")}` : `PASS persona.residual`);
+  if (hits.length) process.exitCode = 1;
 }
 if (!n) { console.log(`PASS brand.residual: 옛 이름 0건 (파일 ${files.length}개 · 지금 묶음 ${cur.size}개 · 이름 변경 안내 예외 ${okEx}곳)`); process.exit(process.exitCode || 0); }
 console.log(`FAIL brand.residual: 옛 이름 ${n}건 · 파일 ${files_n}개 (이름 변경 안내 예외 ${okEx}곳)`);

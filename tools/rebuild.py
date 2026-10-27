@@ -145,7 +145,7 @@ _gr = collections.Counter(r['g'] for r in rows if id(r) not in _top)
 opts = ''.join(f'<option value="{esc(g)}">{esc(g)} ({n})</option>' for g, n in sorted(_gr.items()))
 desc = f"준공 30년이 지난 서울 아파트 {len(rows):,}단지의 실거래 가운데 값·거래 수·준공연도. 이미 정비사업이 진행 중인 {zN}단지는 구역 페이지로 연결. 데이터 기준 {UPD}."
 LD = json.dumps({"@context": "https://schema.org", "@type": "Article", "headline": f"준공 30년 넘은 서울 아파트 {len(rows):,}단지", "description": desc, "inLanguage": "ko", "datePublished": "2026-10-17", "dateModified": UPD.replace('.', '-'),
-                 "mainEntityOfPage": "https://jaegaebal.alwaysquestions.kr/guide/rebuild-30y", "image": "https://jaegaebal.alwaysquestions.kr/og.png", "author": {"@type": "Person", "name": (BRAND + " 운영자"), "url": "https://jaegaebal.alwaysquestions.kr/about"},
+                 "mainEntityOfPage": "https://jaegaebal.alwaysquestions.kr/guide/rebuild-30y", "image": "https://jaegaebal.alwaysquestions.kr/og.png", "author": {"@type": "Organization", "name": (BRAND + " 편집"), "url": "https://jaegaebal.alwaysquestions.kr/about#principles"},
                  "publisher": {"@type": "Organization", "name": (BRAND), "url": "https://jaegaebal.alwaysquestions.kr", "logo": "https://jaegaebal.alwaysquestions.kr/icon-512.png"}}, ensure_ascii=False).replace('</', '<\\/')
 page = f'''<!doctype html>
 <html lang="ko">
@@ -171,7 +171,7 @@ page = f'''<!doctype html>
 <main>
 <p class="eyebrow">재건축 · 데이터 기준 {UPD}</p>
 <h1>준공 30년 넘은 서울 아파트 {len(rows):,}단지</h1>
-<p class="byline">정리: {BRAND} 운영자 · <time datetime="2026-10-17">2026.10.17</time> 작성 · 매일 자동 갱신(<time datetime="{UPD.replace('.', '-')}">{UPD}</time> 자료)</p>
+<p class="byline">정리: {BRAND} 편집 · <time datetime="2026-10-17">2026.10.17</time> 작성 · 매일 자동 갱신(<time datetime="{UPD.replace('.', '-')}">{UPD}</time> 자료)</p>
 <p class="lede">재건축 연한(준공 30년)이 지난 서울 아파트 가운데 최근 실거래가 있는 단지를 모았어요. 이 가운데 <b>{zN}단지</b>는 이미 정비사업(재건축 등)이 진행 중이라 구역 페이지로 연결했고, 나머지는 아직 정비구역으로 잡히지 않은 단지예요.</p>
 <div class="hbox"><b>읽는 법</b>준공 30년은 재건축을 시작할 수 있는 최소 조건일 뿐이에요. 실제 사업성은 용적률·대지지분·단지 규모·안전진단(재건축 진단) 결과에 달려 있는데, 용적률·세대수는 건축물대장 총괄표제부(여러 동이 한 대지에 있는 단지만 있음)에서 가져왔고, 대지지분은 대지면적÷세대수로 낸 세대당 평균이에요. 총괄표제부가 없는 단지는 '–'로 보여요. 가격은 최근 12개월(거래가 적으면 2024년 이후) 실거래 가운데 값이고 평형이 섞여 있어요.</div>
 {NARR}

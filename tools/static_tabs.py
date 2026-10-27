@@ -180,18 +180,22 @@ DISC_P = f'<p class="f-d">{DISC_T}</p>'
 RFD = re.compile(r'<p class="f-d">.*?</p>', re.S)
 
 
+DISC_S = '<p class="f-d">이 사이트는 서울시·국토교통부 등 정부·공공기관과 무관한 비공식 정보 서비스예요. 공개 자료로 계산한 추정치를 보여 줘요.</p>'
+
+
 def foot_disc(h):
     h = RFD.sub('', h)
     m = re.search(r'<footer class="f"><p>.*?</p>', h, re.S) or re.search(r'<footer id="contact">.*?<p class="fl">.*?</p>', h, re.S)
-    return h[:m.end()] + DISC_P + h[m.end():] if m else h
+    # 통합: 면책('투자 권유 아님')은 화면마다 한 번(term.disclaimer) — 본문에 이미 있으면 푸터 줄에서는 뺀다
+    return h[:m.end()] + (DISC_S if '투자 권유' in re.sub(r'<script.*?</script>', '', h, flags=re.S) else DISC_P) + h[m.end():] if m else h
 
 
 # 리뉴얼 A3: 사람이 대조한 글(손으로 쓴 /z 40곳 · 가이드)에 '자동 계산 / 사람 대조' 범례 한 줄 — 글쓴이 줄(byline) 바로 뒤
 LEG_RX = re.compile(r'<!--zp-legend-->.*?<!--/zp-legend-->', re.S)
 LEG_Z = ('<!--zp-legend--><p class="zp-legend"><span class="lg lg-a">자동 계산</span>맨 위 숫자 상자·계산 표·사업 개요는 공개 자료로 매일 다시 계산해요. '
-         '<span class="lg lg-h">사람 대조</span>이야기와 주요 일정은 운영자가 기사·고시 원문과 맞춰 본 내용이에요. <a href="/about#editorial">편집 원칙</a></p><!--/zp-legend-->')
+         '<span class="lg lg-h">사람 대조</span>이야기와 주요 일정은 기사·고시 원문과 맞춰 본 내용이에요. <a href="/about#principles">편집 원칙</a></p><!--/zp-legend-->')
 LEG_G = ('<!--zp-legend--><p class="zp-legend"><span class="lg lg-a">자동 계산</span>표·막대의 숫자는 글 기준일에 공개 자료로 계산한 값이에요. '
-         '<span class="lg lg-h">사람 대조</span>해설과 법 조항은 운영자가 원문과 맞춰 봤어요. 낯선 말은 <a href="/glossary">용어집</a>에 있어요.</p><!--/zp-legend-->')
+         '<span class="lg lg-h">사람 대조</span>해설과 법 조항은 원문과 맞춰 봤어요. <a href="/about#principles">편집 원칙</a> · 낯선 말은 <a href="/glossary">용어집</a>에 있어요.</p><!--/zp-legend-->')
 
 
 def legend(h, rel):
@@ -201,16 +205,19 @@ def legend(h, rel):
     if not (hand_z or guide): return h
     m = re.search(r'<p class="byline">.*?</p>', h, re.S)
     if not m: return h
-    bl = re.sub(r'(?<!>)(\S+ 운영자)(?!</a>)', r'<a href="/about#operator">\1</a>', m.group(0), count=1)   # 글쓴이 → 운영자 소개
+    bl = m.group(0)   # 글쓴이 줄은 op_line이 '재개각 편집'으로 맞춘다
     return h[:m.start()] + bl + (LEG_Z if hand_z else LEG_G) + h[m.end():]
 
 
-# 통합(2026-10-27 오너): 손글·가이드·/gu 해설의 글쓴이 줄 = '재개각 운영자 AQ · 재개발 구역 임장 5년, 재개발 경매 낙찰 1건'(about 운영자 카드와 같은 사실 · tools/trust.py 한 곳)
-OPL_RX = re.compile(r'(<p class="(?:byline|meta)">(?:정리|글·계산|글·화면|글·정리): )<a href="[^"]*about[^"]*">([^<]*?운영자)(?: [^<]*)?</a>(?:<span class="op-f">[^<]*</span>)?')
+# 통합(2026-10-27 오너 결정): 개인 운영자 소개 없이 — 손글·가이드·/gu 해설·리포트의 글쓴이 줄 = '재개각 편집'(brand.EDITOR) → /about#principles(편집 원칙)
+from brand import EDITOR as _ED
+OPL_RX = re.compile(r'(<p class="(?:byline|meta)">(?:정리|글·계산|글·화면|글·정리): )(?:(?!</p>|<span class="op-f">| · <time| · 기사| · 글 | · 새로| · 법 | · 발행).)*?(?:운영자|편집)(?:(?!</p>|<span class="op-f">| · <time| · 기사| · 글 | · 새로| · 법 | · 발행).)*?(?:<span class="op-f">[^<]*</span>)?(?=(?: · )|</p>)', re.S)
 def op_line(h, rel):
-    if not rel.startswith(('z/', 'gu/', 'guide/')): return h
-    from trust import PEN, OP_FACTS
-    return OPL_RX.sub(lambda m: f'{m.group(1)}<a href="/about#operator">{m.group(2)} {PEN}</a><span class="op-f"> · {OP_FACTS}</span>', h)
+    if rel in ('index.html', 'admin.html', 'about.html'): return h   # about은 trust.py가 맞춘다
+    h = OPL_RX.sub(lambda m: f'{m.group(1)}<a href="/about#principles">{_ED}</a>', h)
+    h = re.sub(r'<p class="rp-sig">— [^<]*?운영자</p>', f'<p class="rp-sig">— {_ED}</p>', h)
+    # JSON-LD 글쓴이도 사람 대신 브랜드 편집(Organization)
+    return re.sub(r'"author": \{"@type": "Person", "name": "[^"]*운영자"(?:, "url": "[^"]*")?\}', lambda m: '"author": {"@type": "Organization", "name": "' + _ED + '", "url": "https://jaegaebal.alwaysquestions.kr/about#principles"}', h)
 
 
 # 리뉴얼 F10: 가이드 끝 '함께 보면 좋은 질문'에 용어집 한 줄(없을 때만)

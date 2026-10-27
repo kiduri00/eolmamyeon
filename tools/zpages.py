@@ -310,7 +310,7 @@ def page(r):
     desc = f"{r['g']} {tnm}{'(' + ' · '.join(tq) + ')' if tq else ''}: 지금 {stage} 단계. 구역 안 실거래, 노후도, 권리산정기준일, 정비사업 정보몽땅 추진경과, 기본 가정의 지금 필요한 돈과 입주까지 현금 추정. 데이터 기준 {UPD}."
     url = f"{SITE}/z/{rid}"
     ld0 = {"@type": "Article", "headline": f"{nmk} 진행 단계와 입주까지 현금", "description": desc, "inLanguage": "ko", "dateModified": UPD.replace('.', '-'),
-           "mainEntityOfPage": url, "author": {"@type": "Person", "name": (BRAND + " 운영자"), "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE}}
+           "mainEntityOfPage": url, "author": {"@type": "Organization", "name": (BRAND + " 편집"), "url": f"{SITE}/about#principles"}, "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE}}
     o = [HEAD.format(title=esc(title), desc=esc(desc), url=url, site=SITE, ld='@@LD@@').replace('<link rel="canonical"', f'<link rel="alternate" type="application/rss+xml" title="{esc(nmk)} 소식" href="../feed/z/{rid}.xml">\n<link rel="canonical"', 1)]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or r.get("dg") or "")} · {esc(kind)} · 데이터 기준 {UPD}</p>')
     o.append(f'<h1>{esc(nmk)} 진행 단계와 입주까지 현금</h1>')
@@ -1030,7 +1030,7 @@ if os.path.isdir(RD):
         if hd1 != hd0: open(os.path.join(RD, f), 'w', encoding='utf-8').write(hd1 + h[len(hd0):])
         _ld_put(os.path.join(RD, f), {"@context": "https://schema.org", "@type": "Article", "headline": re.sub(r'<[^>]+>', '', h1m.group(1)).strip()[:110] if h1m else _meta(h, 'title'),
                  "description": _meta(h, 'desc'), "inLanguage": "ko", "datePublished": pubd, "dateModified": modd, "url": f"{SITE}/report/{ym}", "mainEntityOfPage": f"{SITE}/report/{ym}",
-                 "image": f"{SITE}/og.png", "author": {"@type": "Person", "name": (BRAND + " 운영자"), "url": f"{SITE}/about"}, "publisher": _pub})
+                 "image": f"{SITE}/og.png", "author": {"@type": "Organization", "name": (BRAND + " 편집"), "url": f"{SITE}/about#principles"}, "publisher": _pub})
     ix = os.path.join(RD, 'index.html')
     if os.path.exists(ix):
         h = open(ix, encoding='utf-8').read()
@@ -1041,7 +1041,7 @@ if os.path.exists(YF):
     h = open(YF, encoding='utf-8').read()
     _ld_put(YF, {"@context": "https://schema.org", "@type": "Article", "headline": _meta(h, 'title').split(' | ')[0], "description": _meta(h, 'desc'), "inLanguage": "ko",
                  "dateModified": UPD.replace('.', '-'), "url": f"{SITE}/years", "mainEntityOfPage": f"{SITE}/years", "image": f"{SITE}/og.png",
-                 "author": {"@type": "Person", "name": (BRAND + " 운영자"), "url": f"{SITE}/about"}, "publisher": _pub})
+                 "author": {"@type": "Organization", "name": (BRAND + " 편집"), "url": f"{SITE}/about#principles"}, "publisher": _pub})
 # 26차(애드센스 2차): /report/ 목록에 지난 호들을 이어 읽는 해설(issues.json 숫자로만) — report.py가 목록을 다시 써도 매일 다시 끼운다
 _IJ = J('pipeline/report/issues.json', []) or []
 _IX = os.path.join(ROOT, 'public/report/index.html')

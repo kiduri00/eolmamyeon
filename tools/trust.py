@@ -15,9 +15,9 @@ SITE = 'https://jaegaebal.alwaysquestions.kr'
 
 # ---- 브랜드: tools/brand.py · 필명만 여기 ----
 from brand import BRAND, BRAND_EN, SITE_TAIL, RENAME_NOTE, RENAME_DATE, TAGLINE, ICON_LINKS, wordmark_svg   # 서비스 이름은 tools/brand.py 한 곳에서
-PEN = 'AQ'                     # 운영자 필명(Always Questions · 2026-10-27 오너 결정) — 실명·사업자 정보·이메일은 싣지 않는다(운영 원칙)
-OP = f'{BRAND} 운영자'
-OP_FACTS = '재개발 구역 임장 5년, 재개발 경매 낙찰 1건'   # 오너가 확인해 준 경력 두 가지만(2026-10-27) — 덧붙이지 않는다
+from brand import EDITOR   # 글쓴이 = '재개각 편집'(2026-10-27 오너: 개인 운영자 소개·필명 없이)
+OP = EDITOR
+_JE = lambda w: w + ('은' if (ord(w[-1]) - 0xAC00) % 28 else '는') if '가' <= w[-1] <= '힣' else w + '는'   # 받침 따라 은/는
 TITLE_SUFFIX = SITE_TAIL
 E = html.escape
 
@@ -211,19 +211,8 @@ def corrections():
     return page('corrections', '오류 수정 기록 · 무엇을 언제 고쳤나', desc, body, ld, 'website')
 
 
-# ================= about: 운영자 소개·편집 원칙 =================
-OP_HTML = f'''<!--zp-op--><h2 id="operator">누가 만드나요?</h2>
-<section class="op" aria-label="운영자 소개">
-<div class="op-h"><span class="op-av" aria-hidden="true"><svg viewBox="13 6 38 54.27"><path fill="#fff" d="M33.500 50.370L45.435 38.435A19.0 19.0 0 1 0 18.565 38.435L30.500 50.370Q32.000 51.870 33.500 50.370Z"/><path fill="#1F3A87" d="M32 12.4L42.4 22.8H40.5V34.6H23.5V22.8H21.6Z"/><path fill="#F5C33B" d="M30.40 26.60H33.60A1.1 1.1 0 0 1 34.70 27.70V34.6H29.30V27.70A1.1 1.1 0 0 1 30.40 26.60Z"/><path fill="#F5C33B" d="M29.250 57.520a2.75 2.75 0 1 0 5.500 0a2.75 2.75 0 1 0 -5.500 0Z"/></svg></span><span><b>{PEN}</b><small>필명 · 개인 운영자 1인 · {OP_FACTS}</small></span></div>
-<p>부동산 데이터를 다루는 개인 한 명이 만들고 운영해요. 재개발 매물 소개가 늘 「지금 얼마면 들어간다」에서 끝나는 게 아쉬웠어요. 처음 드는 돈만 보고 들어가면 이주·입주 때 돈이 모자랄 수 있어서 「입주까지」를 기준으로 계산하게 됐어요.</p>
-<p>운영자는 2020년에 평택에 전세를 끼고 집을 사려다 가족의 반대로 멈췄어요. 그때 「지금 얼마」만 보고 판단할 뻔했던 일이 이 사이트를 만든 직접적인 계기예요.</p>
-<dl><dt>하는 일</dt><dd>자료 수집과 계산, 구역 글, 월간 리포트를 운영자 한 사람이 관리해요</dd>
-<dt>관계</dt><dd>중개 사무소·조합·시공사와 관계가 없어요. 돈을 받고 특정 구역을 소개하지 않아요</dd>
-<dt>공개하지 않는 것</dt><dd>실명·연락처는 싣지 않아요. 문의는 <a href="contact">문의하기 양식</a>으로 받고 운영자가 직접 읽어요</dd>
-<dt>소식</dt><dd><a href="https://blog.naver.com/always_questions" rel="noopener">네이버 블로그</a> · 인스타그램 <a href="https://www.instagram.com/jaegaebal.ok/" rel="noopener">@jaegaebal.ok</a></dd></dl>
-</section>
-<p>이 사이트는 서울시·국토교통부 등 정부·공공기관과 무관한 비공식 정보 서비스예요. 공공 자료를 쓰고 출처를 밝히지만 자료를 낸 기관이 이 사이트를 운영하거나 내용을 보증하지는 않아요.</p>
-<h2 id="editorial">숫자는 어떻게 만들고 누가 확인하나요?</h2>
+# ================= about: 편집 원칙(2026-10-27 오너: 개인 운영자 소개 없음) =================
+OP_HTML = f'''<!--zp-op--><span id="operator"></span><span id="editorial"></span><h2 id="principles">{BRAND}의 숫자는 어떻게 만들고 확인하나요?</h2>
 <p>화면 숫자는 두 갈래로 만들어져요. 매일 자동으로 다시 계산하는 숫자와, 사람이 원문을 찾아 맞춰 본 글이에요. 구역 페이지와 가이드 맨 위 범례에서 <b>자동 계산</b>과 <b>사람 대조</b>로 나눠 표시해요.</p>
 <ol class="flow">
 <li><b>모으기</b> 매일 아침 공개 자료를 다시 받아요. 받지 못한 자료는 전날 것을 그대로 쓰고 기준일을 화면에 적어요.</li>
@@ -233,7 +222,9 @@ OP_HTML = f'''<!--zp-op--><h2 id="operator">누가 만드나요?</h2>
 <li><b>틀리면 고치고 남기기</b> 제보나 자체 검사로 틀린 걸 찾으면 고치고 <a href="corrections">오류 수정 기록</a>에 날짜와 함께 남겨요. 리포트는 발행일을 바꾸지 않고 그 호에 정정 상자를 달아요.</li>
 </ol>
 <p>숫자를 꾸며 넣지 않아요. 근거가 모자란 곳은 금액 대신 「계산 보류」로 두고 표본이 적으면 신뢰를 낮게 표시해요. 법 조항은 국가법령정보센터 원문으로 확인해요.</p>
-<p class="meta">고침 주기: 자료와 계산은 매일 아침 · 월간 리포트는 매달 5일 무렵 · 구역 글과 가이드는 큰 변화(인가·고시)가 생기면 다시 써요.</p><!--/zp-op-->'''
+<p class="meta">고침 주기: 자료와 계산은 매일 아침 · 월간 리포트는 매달 5일 무렵 · 구역 글과 가이드는 큰 변화(인가·고시)가 생기면 다시 써요. 고친 내용은 <a href="corrections">오류 수정 기록</a>에 남겨요.</p>
+<p>{_JE(BRAND)} 중개 사무소·조합·시공사와 관계가 없고, 돈을 받고 특정 구역을 소개하지 않아요. 문의는 <a href="contact">문의하기 양식</a>으로 받아요.</p>
+<p>{_JE(BRAND)} 서울시·국토교통부 등 정부·공공기관과 무관한 비공식 정보 서비스예요. 공공 자료를 쓰고 출처를 밝히지만 자료를 낸 기관이 이 서비스를 운영하거나 내용을 보증하지는 않아요.</p><!--/zp-op-->'''
 
 
 # ================= about: 자료 출처와 이용조건 (renew-infra docs/sources.md 2026-10-27 내용을 쉬운 말로) =================
@@ -271,7 +262,7 @@ def sources_html():
             '<h3>2026년 10월에 바꾼 자료는 무엇인가요?</h3>'
             '<p><b>지하철역 위치</b>는 출처와 이용조건이 분명하지 않은 개인 정리본을 쓰다가, 서울시 역사마스터 정보로 모두 바꿨어요. 예전 좌표 가운데 서원역은 2.4km, 석촌고분역은 1.7km 어긋나 있었어요. 아직 개통하지 않은 계획 역 5곳이 「가까운 역」으로 나오던 것도 뺐어요.</p>'
             '<p><b>대형마트 목록</b>은 비영리 조건(CC BY-NC-SA)이 붙은 위키 문서를 쓰다가, 서울시 대규모점포 인허가 정보로 영업 여부를 확인하는 방식으로 바꿨어요. 이때 빠져 있던 매장 15곳이 더해졌어요.</p>'
-            '<p class="meta">출처 표시: 서울 열린데이터광장 자료(실거래가·전월세가·건축물대장·상권분석·역사마스터·대규모점포 인허가)는 공공누리 제1유형 조건에 따라 출처를 밝혀요. 지도와 생활 인프라 위치는 © OpenStreetMap contributors(ODbL), © OpenMapTiles를 이용해요. 이 사이트는 서울시·국토교통부와 관계없는 개인 운영 사이트예요.</p><!--/zp-src-->')
+            f'<p class="meta">출처 표시: 서울 열린데이터광장 자료(실거래가·전월세가·건축물대장·상권분석·역사마스터·대규모점포 인허가)는 공공누리 제1유형 조건에 따라 출처를 밝혀요. 지도와 생활 인프라 위치는 © OpenStreetMap contributors(ODbL), © OpenMapTiles를 이용해요. {_JE(BRAND)} 서울시·국토교통부와 관계없는 비공식 정보 서비스예요.</p><!--/zp-src-->')
 
 
 def about():
@@ -281,6 +272,7 @@ def about():
     h = re.sub(r'<!--zp-rename-->.*?<!--/zp-rename-->', '', h, flags=re.S)
     m = re.search(r'<p class="lede">.*?</p>\s*<p>.*?</p>', h, re.S)
     if m: h = h[:m.end()] + f'<!--zp-rename--><p class="note" id="rename">{RENAME_NOTE} 새 이름 {BRAND}은 재개발과 「각 나왔다」를 합친 말이에요.</p><!--/zp-rename-->' + h[m.end():]
+    h = re.sub(r'<p class="byline">정리: (?:<a [^>]*>)?[^<·]*?(?:운영자|편집)(?:</a>)?', f'<p class="byline">정리: <a href="#principles">{EDITOR}</a>', h, count=1)   # 글쓴이 = 브랜드 편집
     if '<!--zp-op-->' in h:
         h2 = re.sub(r'<!--zp-op-->.*?<!--/zp-op-->', lambda m: OP_HTML, h, count=1, flags=re.S)
     else:   # 처음 한 번: 예전 '누가 운영하나' 덩이(제목 ~ 운영 정보 목록)를 바꿔 끼운다

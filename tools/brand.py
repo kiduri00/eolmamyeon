@@ -6,7 +6,8 @@ BRAND = '재개각'                     # 서비스 이름(한글)
 BRAND_EN = 'Jaegaegak'               # 영문 표기
 TAGLINE = '서울 재개발 지도'          # 로고 옆 작은 글
 SITE_TAIL = f'{BRAND} - {TAGLINE}'   # <title> 꼬리
-OPERATOR = f'{BRAND} 운영자'
+OPERATOR = f'{BRAND} 운영자'   # (예전 이름 — 쓰지 않음)
+EDITOR = f'{BRAND} 편집'   # 글쓴이 줄·JSON-LD author(2026-10-27 오너: 개인 운영자 소개 없이 브랜드 편집으로)
 SLOGAN = '내 돈으로 갈 수 있는 서울 재개발'
 WIT = '내 돈이면 재개각 나옴'
 # 예전 이름 — 아래 안내 문장(about·오류 수정 기록)에서만 쓴다. QA(브랜드 잔존 0)의 허용 예외

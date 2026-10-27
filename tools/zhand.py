@@ -12,7 +12,7 @@
 import json, os, re, math, html, statistics, datetime, collections, glob
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jsnum import walk_min, prob_txt
-from brand import BRAND as _BR, OPERATOR as _OP   # 앱과 같은 반올림(도보 분·준공 가능성 %)
+from brand import BRAND as _BR, EDITOR as _OP   # 앱과 같은 반올림(도보 분·준공 가능성 %)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CZ = os.path.join(ROOT, 'content/z'); CG = os.path.join(ROOT, 'content/gu')
@@ -274,7 +274,7 @@ def page(X, r, src):
     desc = src['desc']
     cites = [s[3] for s in src.get('sources') or []]
     ld = {"@context": "https://schema.org", "@graph": [{"@type": "Article", "headline": src['h1'], "description": desc, "inLanguage": "ko", "datePublished": src['first'], "dateModified": W,
-          "image": f"{X.SITE}/og.png", "mainEntityOfPage": url, "author": {"@type": "Person", "name": _OP, "url": f"{X.SITE}/about"}, "publisher": {"@type": "Organization", "name": _BR, "url": X.SITE}, "citation": cites}]}
+          "image": f"{X.SITE}/og.png", "mainEntityOfPage": url, "author": {"@type": "Organization", "name": _OP, "url": f"{X.SITE}/about#principles"}, "publisher": {"@type": "Organization", "name": _BR, "url": X.SITE}, "citation": cites}]}
     secs = src['sections']
     toc = '<nav class="zh-toc" aria-label="이 글의 차례"><p>이 글에서 답하는 질문</p><ol>' + ''.join(f'<li><a href="#{s["id"]}">{esc(s["h"])}</a></li>' for s in secs) + '<li><a href="#zh-check">사기 전에 이것 3가지만</a></li></ol></nav>'
     body = []; nads = 0
@@ -297,7 +297,7 @@ def page(X, r, src):
     # 머리·바닥은 tools/zpages.py의 공통 틀(HEAD·FOOT)을 그대로 쓴다 — 서비스 이름·메뉴 같은 공통 상수는 그쪽에서 한 번에 바뀐다
     brand = (re.search(r'<meta property="og:site_name" content="([^"]*)"', X.HEAD) or [None, ''])[1]
     for a in ld['@graph']:
-        a['author']['name'] = f'{brand} 운영자'.strip(); a['publisher']['name'] = brand
+        a['author']['name'] = f'{brand} 편집'.strip(); a['publisher']['name'] = brand
     head = X.HEAD.format(title=esc(title), desc=esc(desc), url=url, site=X.SITE, ld=json.dumps(ld, ensure_ascii=False).replace("</", "<\\/"))
     head = head.replace('<meta name="emr-auto" content="1">\n', '', 1)
     head = head.replace('<link rel="canonical"', f'<link rel="alternate" type="application/rss+xml" title="{esc(X.nk(nm, kind))} 소식" href="../feed/z/{rid}.xml">\n<link rel="canonical"', 1)
@@ -305,7 +305,7 @@ def page(X, r, src):
     o = [head]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or "")} · {esc(kind)} · 글 기준 {Wd}</p>')
     o.append(f'<h1>{esc(src["h1"])}</h1>')
-    o.append(f'<p class="byline">정리: <a href="../about">운영자</a> · 기사·고시·정비사업 정보몽땅 대조 · 처음 올림 {int(src["first"][:4])}년 {int(src["first"][5:7])}월 {int(src["first"][8:10])}일 · 글 속 굵은 숫자는 매일 사이트 계산값으로 다시 써요</p>')
+    o.append(f'<p class="byline">정리: <a href="/about#principles">{_OP}</a> · 기사·고시·정비사업 정보몽땅 대조 · 처음 올림 {int(src["first"][:4])}년 {int(src["first"][5:7])}월 {int(src["first"][8:10])}일 · 글 속 굵은 숫자는 매일 사이트 계산값으로 다시 써요</p>')
     o.append('<p class="lede">' + josa_fix(fill(src['lede'], V, rid)) + '</p>')
     o.append(carousel(X, r, src, V))
     o.append(toc)
@@ -401,7 +401,7 @@ def gu_prose(g, L, gl):
         print('  !! zhand gu:', e); FAILED.append(f'/gu/{g}: {e}'); return ''
 def _gu_html(X, g, src, V):
     X._HANDSET = HANDSET
-    o = [f'<!--gx--><section class="gx" aria-labelledby="gx-h"><h2 id="gx-h">{esc(src["h"])}</h2><p class="meta">정리: <a href="../about">운영자</a> · 글 기준 {src["written"].replace("-", ".")} · 굵은 숫자는 데이터 기준 {X.UPD} 값으로 매일 다시 써요</p>']
+    o = [f'<!--gx--><section class="gx" aria-labelledby="gx-h"><h2 id="gx-h">{esc(src["h"])}</h2><p class="meta">정리: <a href="/about#principles">{_OP}</a> · 글 기준 {src["written"].replace("-", ".")} · 굵은 숫자는 데이터 기준 {X.UPD} 값으로 매일 다시 써요</p>']
     for s in src['blocks']:
         if s.get('h'): o.append(f'<h3>{esc(s["h"])}</h3>')
         for p_ in s['p']: o.append('<p>' + josa_fix(fill(p_, V, g)) + '</p>')

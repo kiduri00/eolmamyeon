@@ -493,7 +493,7 @@ stall.sort(key=lambda x: -x[0])
 if stall: watch.append('<b>오래 머문 큰 구역</b> · 토지등소유자가 많은 50곳 중 지금 단계에 가장 오래 머문 곳: ' + ', '.join(f'{zlink(r["id"])}({lab} {yy:.1f}년째, 보통 {mm:.1f}년)' for _, yy, mm, r, lab in stall[:3]) + '.')
 sec_next = '<h2 id="next">8. 다음 달에 볼 것</h2><ul class="rp-w">' + ''.join(f'<li>{w}</li>' for w in watch if w) + '</ul>'
 # ---- 9. 운영자 코멘트 ----
-sec_cm = (f'<h2 id="comment">9. 운영자 코멘트</h2>{NOTE_TAG}<div class="rp-cm">{notes_block("comment")}<p class="rp-sig">— {BRAND} 운영자</p></div>' if NOTES.get('comment') else '')
+sec_cm = (f'<h2 id="comment">9. 편집 코멘트</h2>{NOTE_TAG}<div class="rp-cm">{notes_block("comment")}<p class="rp-sig">— {BRAND} 편집</p></div>' if NOTES.get('comment') else '')
 # ---- 부록: 10년 흐름·기간표 ----
 mx = max(v for _, v in yearly) or 1; bw = 390 / len(yearly)
 bars = ''.join(f'<rect class="bar{" hi" if yy == Y else ""}" x="{6 + i * bw + 3:.1f}" y="{174 - v / mx * 154:.1f}" width="{bw - 6:.1f}" height="{v / mx * 154:.1f}" rx="3"><title>{yy}년 {v}건</title></rect><text class="lab" x="{6 + i * bw + bw / 2:.1f}" y="{169 - v / mx * 154:.1f}" text-anchor="middle">{v}</text><text class="ax" x="{6 + i * bw + bw / 2:.1f}" y="192" text-anchor="middle">’{str(yy)[2:]}{"*" if yy == Y else ""}</text>' for i, (yy, v) in enumerate(yearly))
@@ -524,12 +524,12 @@ STY = '''<style>.rp-c{width:100%;max-width:560px;height:auto;display:block}main 
 .rp-w{padding-left:18px}.rp-w li{margin:8px 0;line-height:1.7}.rp-cm p{line-height:1.85}.rp-sig{text-align:right;color:var(--text-2)}.rp-src li{margin:4px 0}
 .hbars.w .hb{grid-template-columns:96px 1fr 52px}main h2[id]{scroll-margin-top:72px}</style>'''
 pd_ = datetime.date.fromisoformat(PUB); md_ = TODAY
-by = f"글·정리: {BRAND} 운영자 · 발행 {pd_.year}년 {pd_.month}월 {pd_.day}일" + (f' · 글 고친 날 <time class="zp-mod" datetime="{MOD}">{md_.year}년 {md_.month}월 {md_.day}일</time>' if MOD != PUB else '')   # 7차: dateModified와 같은 날(tools/sitemap.py가 맞춤)
+by = f"글·정리: {BRAND} 편집 · 발행 {pd_.year}년 {pd_.month}월 {pd_.day}일" + (f' · 글 고친 날 <time class="zp-mod" datetime="{MOD}">{md_.year}년 {md_.month}월 {md_.day}일</time>' if MOD != PUB else '')   # 7차: dateModified와 같은 날(tools/sitemap.py가 맞춤)
 ptxt = (f'<div class="rp-pt"><b>{RNG} 기준이에요.</b> {M}월이 아직 끝나지 않아 {M}월 1일~{CUT.day}일 자료로 썼어요. 11월 초 전체 달 기준으로 갱신해요(같은 주소). 늦게 등록되는 인가와 신고 기한이 남은 실거래가 그때 더해져요.</div>'.replace('11월 초', f'{nm}월 초')
         if PARTIAL else (f'<div class="rp-pt">{M}월 전체 자료로 {md_.month}월 {md_.day}일 갱신했어요. 처음 낸 건 {pd_.month}월 {pd_.day}일({md(OLD.get("asof") or "")} 기준)이에요.</div>' if OLD and OLD.get('partial') else ''))
 ld = {"@context": "https://schema.org", "@type": "Article", "headline": title[:110], "description": desc, "inLanguage": "ko", "datePublished": PUB, "dateModified": MOD,
       "url": f"{SITE}/report/{YM}", "mainEntityOfPage": f"{SITE}/report/{YM}", "image": f"{SITE}/og.png",
-      "author": {"@type": "Person", "name": (BRAND + " 운영자"), "url": f"{SITE}/about"}, "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icon-512.png"}}
+      "author": {"@type": "Organization", "name": (BRAND + " 편집"), "url": f"{SITE}/about#principles"}, "publisher": {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icon-512.png"}}
 body = f'''<main><script type="application/ld+json" id="zp-ld">{json.dumps(ld, ensure_ascii=False).replace("</", "<\\/")}</script>{STY}
 <p class="eyebrow">서울 재개발 월간 리포트 · {no}호 · {Y}년 {M}월분{f" ({RNG} 기준)" if PARTIAL else ""}</p>
 <h1>{esc(title)}</h1>
@@ -551,7 +551,7 @@ body = f'''<main><script type="application/ld+json" id="zp-ld">{json.dumps(ld, e
 {sec_src}
 <h2>인용하실 때</h2>
 <p class="note">"출처: {BRAND} 월간 리포트({Y}년 {M}월분{f', {RNG} 기준' if PARTIAL else ''})"로 적고 이 페이지 링크를 붙여 주세요. 숫자 오류는 <a href="../contact">문의하기</a>로 알려 주시면 고쳐요.</p>
-<p class="disc">투자 권유가 아닌 공개 자료 정리예요. 인가일은 정보몽땅 등록 기준이고, 원문 링크는 운영자가 기사·고시로 확인한 건에만 붙였어요. 필요한 돈·준공 가능성은 공개 자료와 기본 가정으로 낸 추정이고 예측이 아니에요. 경매 자료에는 사람 이름을 싣지 않아요.</p>
+<p class="disc">투자 권유가 아닌 공개 자료 정리예요. 인가일은 정보몽땅 등록 기준이고, 원문 링크는 기사·고시로 확인한 건에만 붙였어요. 필요한 돈·준공 가능성은 공개 자료와 기본 가정으로 낸 추정이고 예측이 아니에요. 경매 자료에는 사람 이름을 싣지 않아요.</p>
 </main>'''
 # ---- 머리·꼬리(지난 호 틀) ----
 _tf = sorted(f for f in os.listdir(os.path.join(ROOT, 'public/report')) if re.match(r'\d{4}-\d{2}\.html$', f) and f[:7] != YM)

@@ -808,7 +808,7 @@ async function uiLane(browser, api, errs, shared) {
     {
       const h = await page.evaluate(() => ({ h1: [...document.querySelectorAll("h1")].filter((e) => window.__qc.vis(e)).map((e) => e.textContent.trim().slice(0, 30)), h1all: document.querySelectorAll("h1:not([hidden])").length, txt: document.body.innerText, mini: (() => { const m = document.getElementById("sMini"); return m ? !!m.closest("aside,main,nav,header,footer,[role=region],[role=complementary],[role=main]") : null; })() }));
       expect(h.h1.length === 1, "ui.h1", "첫 화면 h1 정확히 하나 · 도구 화면마다 1단계 제목", `home visible h1: ${h.h1.length} [${h.h1.join(" | ")}]`);
-      expect(!/얼마면/.test(h.txt), "ui.brand", "화면에 옛 이름 '얼마면 재개발' 없음", `home text contains 얼마면: "${(h.txt.match(/.{0,20}얼마면.{0,20}/) || [""])[0]}"`);
+      expect(!/얼마면\s*재개발/.test(h.txt), "ui.brand", "화면에 옛 이름 '얼마면 재개발' 없음(통합: 옛 이름 꼴만 — '지금 얼마면 들어간다' 같은 보통 말은 허용)", `home text contains 얼마면 재개발: "${(h.txt.match(/.{0,20}얼마면\s*재개발.{0,20}/) || [""])[0]}"`);
       if (h.mini != null) expect(h.mini, "ui.landmark", "#sMini가 랜드마크 안", "#sMini not inside a landmark");
     }
     { const o = await page.evaluate(() => window.__qc.overflow()); expect(!o, "ui.overflow", "360px 가로 스크롤 없음(홈·도구 화면마다)", `home: ${o}`); }
@@ -2488,7 +2488,9 @@ async function r17bLane(browser, api, errs) {
           const ctas = [...document.querySelectorAll(".pc-al, .ib-push:not(.on), [data-wson]")].filter(vis).length;
           for (const e of document.querySelectorAll("body *")) {
             if (!vis(e)) continue;
-            for (const c of [getComputedStyle(e).backgroundColor, getComputedStyle(e, "::before").backgroundColor]) {
+            // 통합: 브랜드 v7 노란 점(::before 12px 이하 장식 · 홈 소개 블록 머리표)은 '노랑 바탕'이 아님
+            const bf = getComputedStyle(e, "::before"), tiny = parseFloat(bf.width) <= 12 && parseFloat(bf.height) <= 12;
+            for (const c of [getComputedStyle(e).backgroundColor, tiny ? "" : bf.backgroundColor]) {
               const v = rgb(c); if (!v) continue;
               const [r, g, b] = v.map((x) => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn; if (d < 0.08) continue;
               let hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; hh *= 60; if (hh < 0) hh += 360;
