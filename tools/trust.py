@@ -15,8 +15,9 @@ SITE = 'https://jaegaebal.alwaysquestions.kr'
 
 # ---- 브랜드: tools/brand.py · 필명만 여기 ----
 from brand import BRAND, BRAND_EN, SITE_TAIL, RENAME_NOTE, RENAME_DATE, TAGLINE, ICON_LINKS, wordmark_svg   # 서비스 이름은 tools/brand.py 한 곳에서
-PEN = '늘질문'                 # 운영자 필명(always questions) — 실명·사업자 정보·이메일은 싣지 않는다(운영 원칙)
+PEN = 'AQ'                     # 운영자 필명(Always Questions · 2026-10-27 오너 결정) — 실명·사업자 정보·이메일은 싣지 않는다(운영 원칙)
 OP = f'{BRAND} 운영자'
+OP_FACTS = '재개발 구역 임장 5년, 재개발 경매 낙찰 1건'   # 오너가 확인해 준 경력 두 가지만(2026-10-27) — 덧붙이지 않는다
 TITLE_SUFFIX = SITE_TAIL
 E = html.escape
 
@@ -213,9 +214,9 @@ def corrections():
 # ================= about: 운영자 소개·편집 원칙 =================
 OP_HTML = f'''<!--zp-op--><h2 id="operator">누가 만드나요?</h2>
 <section class="op" aria-label="운영자 소개">
-<div class="op-h"><span class="op-av" aria-hidden="true"><svg viewBox="13 6 38 54.27"><path fill="#fff" d="M33.500 50.370L45.435 38.435A19.0 19.0 0 1 0 18.565 38.435L30.500 50.370Q32.000 51.870 33.500 50.370Z"/><path fill="#1F3A87" d="M32 12.4L42.4 22.8H40.5V34.6H23.5V22.8H21.6Z"/><path fill="#F5C33B" d="M30.40 26.60H33.60A1.1 1.1 0 0 1 34.70 27.70V34.6H29.30V27.70A1.1 1.1 0 0 1 30.40 26.60Z"/><path fill="#F5C33B" d="M29.250 57.520a2.75 2.75 0 1 0 5.500 0a2.75 2.75 0 1 0 -5.500 0Z"/></svg></span><span><b>{PEN}</b><small>필명 · 개인 운영자 1인</small></span></div>
+<div class="op-h"><span class="op-av" aria-hidden="true"><svg viewBox="13 6 38 54.27"><path fill="#fff" d="M33.500 50.370L45.435 38.435A19.0 19.0 0 1 0 18.565 38.435L30.500 50.370Q32.000 51.870 33.500 50.370Z"/><path fill="#1F3A87" d="M32 12.4L42.4 22.8H40.5V34.6H23.5V22.8H21.6Z"/><path fill="#F5C33B" d="M30.40 26.60H33.60A1.1 1.1 0 0 1 34.70 27.70V34.6H29.30V27.70A1.1 1.1 0 0 1 30.40 26.60Z"/><path fill="#F5C33B" d="M29.250 57.520a2.75 2.75 0 1 0 5.500 0a2.75 2.75 0 1 0 -5.500 0Z"/></svg></span><span><b>{PEN}</b><small>필명 · 개인 운영자 1인 · {OP_FACTS}</small></span></div>
 <p>부동산 데이터를 다루는 개인 한 명이 만들고 운영해요. 재개발 매물 소개가 늘 「지금 얼마면 들어간다」에서 끝나는 게 아쉬웠어요. 처음 드는 돈만 보고 들어가면 이주·입주 때 돈이 모자랄 수 있어서 「입주까지」를 기준으로 계산하게 됐어요.</p>
-<p>운영자는 경매로 집을 한 번 낙찰받아 본 경험이 있어요. 2020년에는 평택에 전세를 끼고 집을 사려다 가족의 반대로 멈췄어요. 그때 「지금 얼마」만 보고 판단할 뻔했던 일이 이 사이트를 만든 직접적인 계기예요.</p>
+<p>운영자는 2020년에 평택에 전세를 끼고 집을 사려다 가족의 반대로 멈췄어요. 그때 「지금 얼마」만 보고 판단할 뻔했던 일이 이 사이트를 만든 직접적인 계기예요.</p>
 <dl><dt>하는 일</dt><dd>자료 수집과 계산, 구역 글, 월간 리포트를 운영자 한 사람이 관리해요</dd>
 <dt>관계</dt><dd>중개 사무소·조합·시공사와 관계가 없어요. 돈을 받고 특정 구역을 소개하지 않아요</dd>
 <dt>공개하지 않는 것</dt><dd>실명·연락처는 싣지 않아요. 문의는 <a href="contact">문의하기 양식</a>으로 받고 운영자가 직접 읽어요</dd>

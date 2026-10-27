@@ -30,7 +30,14 @@ const files_n = Object.keys(bad).length;
 const SPA = (f) => f.startsWith("src/") || f.startsWith("public/b/") || /^public\/(index\.html|sw\.js|manifest\.webmanifest|admin\.html|\.well-known\/)/.test(f);
 const nSpa = Object.keys(bad).filter(SPA).reduce((a, f) => a + bad[f].length, 0);
 console.log(`  SPA·앱 범위 ${nSpa}건 · 정적 페이지 범위 ${n - nSpa}건`);
-if (!n) { console.log(`PASS brand.residual: 옛 이름 0건 (파일 ${files.length}개 · 지금 묶음 ${cur.size}개 · 이름 변경 안내 예외 ${okEx}곳)`); process.exit(0); }
+// pen.residual: 옛 운영자 필명('늘질문' → 'AQ', 2026-10-27)이 public·src·content·tools 어디에도 없어야(조사 붙은 꼴 포함)
+{
+  const OLDPEN = /늘질문/g, files2 = [...files, ...walk(path.join(R, "content")).map(rel), ...walk(path.join(R, "tools")).map(rel).filter((f) => !/qa_brand\.js$/.test(f))];
+  const hit = files2.filter((f) => { try { return OLDPEN.test(fs.readFileSync(path.join(R, f), "utf8")); } catch (e) { return false; } finally { OLDPEN.lastIndex = 0; } });
+  console.log(hit.length ? `FAIL pen.residual — 옛 필명 남은 파일 ${hit.length}개: ${hit.slice(0, 5).join(", ")}` : `PASS pen.residual`);
+  if (hit.length) process.exitCode = 1;
+}
+if (!n) { console.log(`PASS brand.residual: 옛 이름 0건 (파일 ${files.length}개 · 지금 묶음 ${cur.size}개 · 이름 변경 안내 예외 ${okEx}곳)`); process.exit(process.exitCode || 0); }
 console.log(`FAIL brand.residual: 옛 이름 ${n}건 · 파일 ${files_n}개 (이름 변경 안내 예외 ${okEx}곳)`);
 const byDir = {}; for (const f of Object.keys(bad)) { const d = f.replace(/\/[^/]*$/, ""); byDir[d] = (byDir[d] || 0) + bad[f].length; }
 for (const [d, c] of Object.entries(byDir).sort((a, b) => b[1] - a[1])) console.log(`  ${d}/ ${c}건`);

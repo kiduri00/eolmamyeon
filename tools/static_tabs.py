@@ -205,6 +205,14 @@ def legend(h, rel):
     return h[:m.start()] + bl + (LEG_Z if hand_z else LEG_G) + h[m.end():]
 
 
+# 통합(2026-10-27 오너): 손글·가이드·/gu 해설의 글쓴이 줄 = '재개각 운영자 AQ · 재개발 구역 임장 5년, 재개발 경매 낙찰 1건'(about 운영자 카드와 같은 사실 · tools/trust.py 한 곳)
+OPL_RX = re.compile(r'(<p class="(?:byline|meta)">(?:정리|글·계산|글·화면|글·정리): )<a href="[^"]*about[^"]*">([^<]*?운영자)(?: [^<]*)?</a>(?:<span class="op-f">[^<]*</span>)?')
+def op_line(h, rel):
+    if not rel.startswith(('z/', 'gu/', 'guide/')): return h
+    from trust import PEN, OP_FACTS
+    return OPL_RX.sub(lambda m: f'{m.group(1)}<a href="/about#operator">{m.group(2)} {PEN}</a><span class="op-f"> · {OP_FACTS}</span>', h)
+
+
 # 리뉴얼 F10: 가이드 끝 '함께 보면 좋은 질문'에 용어집 한 줄(없을 때만)
 def glossary_link(h, rel):
     if not rel.startswith('guide/') or 'href="/glossary"' in re.sub(r'<!--zp-legend-->.*?<!--/zp-legend-->', '', h, flags=re.S): return h
@@ -286,6 +294,7 @@ def main():
             h1 = icons(h1)
             h1 = foot_links(h1)
             h1 = legend(h1, rel)
+            h1 = op_line(h1, rel)
             h1 = glossary_link(h1, rel)
             h1 = ad_slots(h1, rel)
             if rel.startswith('report/'): h1 = report_links(h1)

@@ -11,7 +11,8 @@
 """
 import json, os, re, math, html, statistics, datetime, collections, glob
 import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from jsnum import walk_min, prob_txt   # 앱과 같은 반올림(도보 분·준공 가능성 %)
+from jsnum import walk_min, prob_txt
+from brand import BRAND as _BR, OPERATOR as _OP   # 앱과 같은 반올림(도보 분·준공 가능성 %)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CZ = os.path.join(ROOT, 'content/z'); CG = os.path.join(ROOT, 'content/gu')
@@ -273,7 +274,7 @@ def page(X, r, src):
     desc = src['desc']
     cites = [s[3] for s in src.get('sources') or []]
     ld = {"@context": "https://schema.org", "@graph": [{"@type": "Article", "headline": src['h1'], "description": desc, "inLanguage": "ko", "datePublished": src['first'], "dateModified": W,
-          "image": f"{X.SITE}/og.png", "mainEntityOfPage": url, "author": {"@type": "Person", "name": "집핀 운영자", "url": f"{X.SITE}/about"}, "publisher": {"@type": "Organization", "name": "집핀", "url": X.SITE}, "citation": cites}]}
+          "image": f"{X.SITE}/og.png", "mainEntityOfPage": url, "author": {"@type": "Person", "name": _OP, "url": f"{X.SITE}/about"}, "publisher": {"@type": "Organization", "name": _BR, "url": X.SITE}, "citation": cites}]}
     secs = src['sections']
     toc = '<nav class="zh-toc" aria-label="이 글의 차례"><p>이 글에서 답하는 질문</p><ol>' + ''.join(f'<li><a href="#{s["id"]}">{esc(s["h"])}</a></li>' for s in secs) + '<li><a href="#zh-check">사기 전에 이것 3가지만</a></li></ol></nav>'
     body = []; nads = 0
