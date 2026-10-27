@@ -19,6 +19,7 @@ TAG = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbyg
 J = lambda p: json.load(open(os.path.join(ROOT, p), encoding='utf-8'))
 V = J('pipeline/cache/zhand_vals.json'); API = {z['id']: z for z in J('public/api/v1/zones.json')['items']}
 SCHED = set((V.get('scheduled') or {}).keys())   # 공개 전 손글(tools/zhand.py pub)
+HELD = V.get('held') or {}   # 공개 보류 손글(content/z publishHold: 사유) — 늘 공개 전. zthin 잣대는 공개할 때 다시 본다(점수는 아래 표에 그대로 남김)
 PUBST = J('pipeline/cache/zpub_state.json') if os.path.exists(os.path.join(ROOT, 'pipeline/cache/zpub_state.json')) else {}
 TH = J('pipeline/cache/zthin.json').get('handPages', {}); ADS = set(J('tools/fixtures/ads_tag_pages.json'))
 SM = open(os.path.join(PUB, 'sitemap.xml'), encoding='utf-8').read()
@@ -93,7 +94,11 @@ for rid, vals in sorted(V.get('z', {}).items()):
         if fd: chk(f'처음 올림 {int(fd[:4])}년 {int(fd[5:7])}월 {int(fd[8:10])}일' in h, f'{rid}: 처음 올림 날짜 ≠ 상태 파일 {fd}')
     chk(f'z/{rid}.html' in ADS, f'{rid}: tools/fixtures/ads_tag_pages.json에 없음')
     tm = TH.get(rid) or {}
-    chk(tm.get('score', 0) >= 4 and tm.get('uniq', 0) >= 800, f'{rid}: zthin 잣대 미달 score {tm.get("score")} uniq {tm.get("uniq")}')
+    if rid in HELD:   # 공개 보류: 사유가 있고 공개 전 상태(위 SCHED 검사 · noindex·사이트맵·광고·날짜)일 때만 zthin 미달을 넘긴다 — 공개로 바뀌면(HELD에서 빠지면) 다시 아래 잣대
+        chk(rid in SCHED and len(str(HELD[rid]).strip()) >= 10, f'{rid}: 공개 보류인데 사유 없음 또는 공개 전 상태 아님')
+        if not (tm.get('score', 0) >= 4 and tm.get('uniq', 0) >= 800): print(f'  (공개 보류) {rid}: zthin 점수 {tm.get("score")} · 고유 본문 {tm.get("uniq")} — 공개 전이라 통과 · 사유: {HELD[rid]}')
+    else:
+        chk(tm.get('score', 0) >= 4 and tm.get('uniq', 0) >= 800, f'{rid}: zthin 잣대 미달 score {tm.get("score")} uniq {tm.get("uniq")}')
     t = TXT[os.path.join('z', rid + '.html')]; ss = sents(t); tot = sum(len(x) for x in ss) or 1; u = sum(len(x) for x in ss if freq[norm(x)] <= 2)
     chk(len(t) >= 2500 and u / tot >= 0.70, f'{rid}: 글자 {len(t)} · 고유 {u / tot:.0%} (기준 2,500자 · 70%)')
     rep.append((rid, len(t), round(100 * u / tot), tm.get('score'), tm.get('uniq')))

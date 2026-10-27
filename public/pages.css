@@ -212,7 +212,8 @@ main h2+ul:not([class])>li{margin:0;padding-top:11px;padding-bottom:11px}
 /* ---- 리뉴얼 A3·A4·F10 (renew-content): 푸터 무관 문장 · 자동 계산/사람 대조 범례 · 정적 광고 자리 · 운영자 소개 · 오류 수정 기록 · 용어집 ---- */
 :root{--pin-y:#F5C33B}
 footer.f .f-d,footer#contact .f-d{margin:10px 0 0;font-size:12.5px;line-height:1.6;color:var(--text-3);max-width:66ch}
-.zp-legend{display:block;margin:10px 0 18px;padding:10px 12px;border-radius:var(--r-md);background:var(--surface-2);font-size:13px;line-height:1.75;color:var(--text-2)}
+.zp-legend{display:block;margin:8px 0 14px;padding:0;border-radius:var(--r-md);background:var(--surface-2);font-size:13px;line-height:1.75;color:var(--text-2)}
+.zp-legend>summary{display:flex;align-items:center;flex-wrap:wrap;gap:4px 0;min-height:40px;padding:4px 12px;cursor:pointer;list-style:none}.zp-legend>summary::-webkit-details-marker{display:none}.zp-legend .lg-q{margin-left:auto;font-size:12.5px;color:var(--brand);font-weight:600}.zp-legend[open] .lg-q{opacity:.6}.zp-legend>p{margin:0;padding:0 12px 10px}
 .zp-legend .lg{display:inline-flex;align-items:center;gap:5px;height:22px;margin:0 6px 0 0;padding:0 8px;border-radius:var(--r-full);font-size:12px;font-weight:700;vertical-align:1px}
 .zp-legend .lg-a{background:var(--surface-3);color:var(--text-2)}
 .zp-legend .lg-h{background:var(--brand-soft);color:var(--brand)}
@@ -269,3 +270,5 @@ ol.flow li:not(:last-child)::after{content:"";position:absolute;left:12.5px;top:
 .next-read h2{margin:0 0 8px;font-size:17px}
 .next-read ul{margin:0;padding-left:18px}
 .next-read li{margin:6px 0;line-height:1.6}
+/* 사이클 2: /z 눈에 보이는 이동 경로(BreadcrumbList와 같은 길) */
+.zp-crumb{display:flex;flex-wrap:wrap;align-items:center;gap:0 6px;margin:0 0 2px;font-size:13px;line-height:1.4}.zp-crumb a{display:inline-flex;align-items:center;min-height:32px;color:var(--text-2);font-weight:600}.zp-crumb a:hover{color:var(--brand)}.zp-crumb span{color:var(--text-3)}

@@ -37,13 +37,15 @@ _DRY = bool(os.environ.get('ZH_TODAY') or os.environ.get('ZH_DEPLOY'))
 PUBF = os.path.join(ROOT, 'pipeline/cache/zpub_state.json')
 try: PUBS = json.load(open(PUBF, encoding='utf-8'))
 except Exception: PUBS = {}
-PUBS.setdefault('first', {}); PUBS['scheduled'] = {}; WEEK_CAP = 12
+PUBS.setdefault('first', {}); PUBS['scheduled'] = {}; PUBS['held'] = {}; WEEK_CAP = 12
 def due(src):
     """공개일(묶음 기준) — 배포일이 없으면 None"""
     if not _DEP or not src.get('publishWave'): return None
     return (datetime.date.fromisoformat(_DEP) + datetime.timedelta(days=7 * (int(src['publishWave']) - 1))).isoformat()
 def pub(rid, src):
     """(공개됨, 처음 올린 날) — publishWave가 없으면 예전 방식(first)"""
+    # 공개 보류(publishHold: 사유) — 공개 계획에서 뺀 글. 배포일·묶음과 상관없이 늘 공개 전(noindex·광고 없음·사이트맵 제외)으로 둔다(리드 결정 2026-10-28 o333)
+    if src.get('publishHold'): PUBS['scheduled'][rid] = 'hold'; PUBS['held'][rid] = src['publishHold']; return False, None
     if 'publishWave' not in src: return True, src.get('first') or src['written']
     if rid in PUBS['first']: return True, PUBS['first'][rid]
     d = due(src)
@@ -57,6 +59,7 @@ def save_cache():
     if not _DRY:
         json.dump({k: v for k, v in PUBS.items() if not k.startswith('_')}, open(PUBF, 'w', encoding='utf-8'), ensure_ascii=False, indent=1, sort_keys=True)
     CACHE['scheduled'] = PUBS['scheduled']
+    CACHE['held'] = PUBS['held']
     CACHE['failed'] = FAILED
     json.dump(CACHE, open(os.path.join(ROOT, 'pipeline/cache/zhand_vals.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'), sort_keys=True)
 

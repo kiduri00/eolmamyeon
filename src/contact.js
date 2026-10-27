@@ -93,7 +93,7 @@
         busy = false; go.disabled = false; go.removeAttribute("aria-busy");
         if (ok) {
           ls.del();
-          f.innerHTML = '<div class="cf-ok" role="status" tabindex="-1"><b>잘 받았어요.</b>운영자가 직접 읽고, 이메일을 남기셨다면 며칠 안에 답장드려요.</div><div class="cf-ft"><button type="button" class="cf-x">닫기</button></div>';
+          f.innerHTML = '<div class="cf-ok" role="status" tabindex="-1"><b>잘 받았어요.</b>직접 읽어 볼게요. 이메일을 남기셨다면 며칠 안에 답장드려요.</div><div class="cf-ft"><button type="button" class="cf-x">닫기</button></div>';
           var x = f.querySelector(".cf-x"); x.onclick = function () { if (onClose) onClose(); else { var nf = build(opts, null); f.replaceWith(nf.el); nf.focus(); } };
           f.querySelector(".cf-ok").focus();
           try { W.dispatchEvent(new CustomEvent("zp:contact", { detail: { ok: true } })); } catch (e2) {}

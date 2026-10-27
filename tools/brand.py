@@ -12,8 +12,9 @@ SLOGAN = '내 돈으로 갈 수 있는 서울 재개발'
 WIT = '내 돈으로 어디까지 갈 수 있을까?'   # 홈 소개 블록 첫 줄(2026-10-28 오너: 말장난·유행어 없이 차분하게 · '될랑가'는 QA 금지어)
 # 예전 이름 — 아래 안내 문장(about·오류 수정 기록)에서만 쓴다. QA(브랜드 잔존 0)의 허용 예외
 OLD_NAMES = ('집핀', 'Zippin', 'zippin', '재개각', 'Jaegaegak', 'jaegaegak', '재개랩', 'JaegaeLab')   # brand.residual 금지어(재개각·재개랩은 공개된 적 없는 검토안 — 안내 문구에도 쓰지 않는다)
-RENAME_DATE = '2026-10-27'
+# 쓰지 않는 말투(2026-10-28 오너: '유치한 건 빼고 세련되게') — QA tone.banned가 public·src 전체에서 0건인지 본다
 BANNED = ('될랑가', '각 나옴', '각 나왔다', '재개각')
+RENAME_DATE = '2026-10-27'
 def _batchim(w): c = ord(w[-1]) - 0xAC00; return 0 <= c < 11172 and c % 28   # 받침 번호(0 = 없음 · 8 = ㄹ)
 def josa_ro(w): b = _batchim(w); return w + ('으로' if b and b != 8 else '로')   # '…으로/로'
 def josa_eun(w): return w + ('은' if _batchim(w) else '는')

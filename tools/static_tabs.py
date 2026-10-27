@@ -192,21 +192,86 @@ def foot_disc(h):
 
 # 리뉴얼 A3: 사람이 대조한 글(손으로 쓴 /z 40곳 · 가이드)에 '자동 계산 / 사람 대조' 범례 한 줄 — 글쓴이 줄(byline) 바로 뒤
 LEG_RX = re.compile(r'<!--zp-legend-->.*?<!--/zp-legend-->', re.S)
-LEG_Z = ('<!--zp-legend--><p class="zp-legend"><span class="lg lg-a">자동 계산</span>맨 위 숫자 상자·계산 표·사업 개요는 공개 자료로 매일 다시 계산해요. '
-         '<span class="lg lg-h">사람 대조</span>이야기와 주요 일정은 기사·고시 원문과 맞춰 본 내용이에요. <a href="/about#principles">편집 원칙</a></p><!--/zp-legend-->')
-LEG_G = ('<!--zp-legend--><p class="zp-legend"><span class="lg lg-a">자동 계산</span>표·막대의 숫자는 글 기준일에 공개 자료로 계산한 값이에요. '
-         '<span class="lg lg-h">사람 대조</span>해설과 법 조항은 원문과 맞춰 봤어요. <a href="/about#principles">편집 원칙</a> · 낯선 말은 <a href="/glossary">용어집</a>에 있어요.</p><!--/zp-legend-->')
+# 사이클 2: 범례는 한 줄(접힘) — /z 첫 화면에 첫 문단이 들어오게. 펼치면 무엇이 자동이고 무엇이 사람 대조인지
+def _leg(body):
+    return ('<!--zp-legend--><details class="zp-legend"><summary><span class="lg lg-a">자동 계산</span><span class="lg lg-h">사람 대조</span>'
+            '<span class="lg-q">무엇이 다른가요?</span></summary><p>' + body + '</p></details><!--/zp-legend-->')
+LEG_Z = _leg('숫자 상자·계산 표·사업 개요와 글 속 굵은 숫자는 공개 자료로 매일 다시 계산해요. 이야기와 주요 일정은 기사·고시 원문과 맞춰 본 내용이에요. <a href="/about#principles">편집 원칙</a>')
+LEG_G = _leg('표·막대의 숫자는 글 기준일에 공개 자료로 계산한 값이에요. 해설과 법 조항은 원문과 맞춰 봤어요. <a href="/about#principles">편집 원칙</a> · 낯선 말은 <a href="/glossary">용어집</a>에 있어요.')
+
+
+def _is_hand_z(h, rel):
+    return rel.startswith('z/') and rel != 'z/index.html' and 'name="emr-auto"' not in h[:4000] and '<p class="byline">' in h
 
 
 def legend(h, rel):
     h = LEG_RX.sub('', h)
+    # 범례는 예전 손글(이야기 덩이 .zstory)과 가이드만 — 새 손글(tools/zhand.py)은 글쓴이 줄에 '굵은 숫자는 매일 다시 써요'가 있어 따로 두지 않는다(같은 문장 반복 → 고유 비율)
     hand_z = rel.startswith('z/') and 'class="zstory"' in h
     guide = rel.startswith('guide/') and rel != 'guide/index.html'
     if not (hand_z or guide): return h
     m = re.search(r'<p class="byline">.*?</p>', h, re.S)
     if not m: return h
-    bl = m.group(0)   # 글쓴이 줄은 op_line이 '<이름> 편집'으로 맞춘다
-    return h[:m.start()] + bl + (LEG_Z if hand_z else LEG_G) + h[m.end():]
+    return h[:m.end()] + (LEG_Z if hand_z else LEG_G) + h[m.end():]
+
+
+# 사이클 2: /z 첫 화면 통일 — ① 눈에 보이는 이동 경로(JSON-LD BreadcrumbList와 같은 길 · 마지막 = 이 페이지는 글자로)
+# ② 손글: 최신 숫자 상자(<!--zk-->)가 첫 문단(lede) 앞에 있으면 첫 문단 뒤로(첫 문단이 첫 화면 안에)
+CRUMB_RX = re.compile(r'<!--zp-crumb-->.*?<!--/zp-crumb-->', re.S)
+
+
+def crumbs_vis(h, rel):
+    h = CRUMB_RX.sub('', h)
+    if not (rel.startswith('z/') and rel != 'z/index.html'): return h
+    items = None
+    for m in re.finditer(r'<script type="application/ld\+json"[^>]*>(.*?)</script>', h, re.S):
+        try: j = json.loads(m.group(1))
+        except Exception: continue
+        for g in (j.get('@graph') or [j]):
+            if isinstance(g, dict) and g.get('@type') == 'BreadcrumbList': items = g.get('itemListElement')
+    if not items or len(items) < 2: return h
+    names = {'구역별 페이지': '구역별'}
+    parts = []
+    for it in items[:-1]:
+        u = it.get('item') if isinstance(it.get('item'), str) else (it.get('item') or {}).get('@id', '')
+        u = re.sub(r'^https?://[^/]+', '', u or '/') or '/'
+        parts.append(f'<a href="{u}">{names.get(it.get("name"), it.get("name"))}</a>')
+    nav = '<!--zp-crumb--><nav class="zp-crumb" aria-label="이동 경로">' + '<span aria-hidden="true">›</span>'.join(parts) + '</nav><!--/zp-crumb-->'
+    return re.sub(r'(<main[^>]*>\s*)', lambda m: m.group(1) + nav, h, count=1)
+
+
+def zk_after_lede(h, rel):
+    if not _is_hand_z(h, rel): return h
+    a = h.find('<!--zk-->'); b = h.find('<!--/zk-->'); lp = h.find('<p class="lede">')
+    if a < 0 or b < 0 or lp < 0 or a > lp: return h
+    blk = h[a:b + len('<!--/zk-->')]
+    h = h[:a] + h[b + len('<!--/zk-->'):]
+    lp = h.find('<p class="lede">'); e = h.find('</p>', lp) + 4
+    return h[:e] + blk + h[e:]
+
+
+# 사이클 2: 구조화 데이터 — Organization publisher에 logo, Article에 image가 없으면 채운다(모든 정적 페이지 · 머리 JSON-LD만 · 광고 태그는 건드리지 않음)
+LOGO = 'https://jaegaebal.alwaysquestions.kr/icons/icon-512.png'
+OGIMG = 'https://jaegaebal.alwaysquestions.kr/og.png'
+
+
+def ld_fill(h):
+    def fix(m):
+        try: j = json.loads(m.group(2))
+        except Exception: return m.group(0)
+        ch = [False]
+        def walk(o):
+            if isinstance(o, dict):
+                if o.get('@type') in ('Article', 'NewsArticle', 'BlogPosting', 'Report') and not o.get('image'): o['image'] = OGIMG; ch[0] = True
+                pb = o.get('publisher')
+                if isinstance(pb, dict) and pb.get('@type') == 'Organization' and not pb.get('logo'): pb['logo'] = LOGO; ch[0] = True
+                for v in o.values(): walk(v)
+            elif isinstance(o, list):
+                for v in o: walk(v)
+        walk(j)
+        if not ch[0]: return m.group(0)
+        return m.group(1) + json.dumps(j, ensure_ascii=False).replace('</', '<\\/') + m.group(3)
+    return re.sub(r'(<script type="application/ld\+json"[^>]*>)(.*?)(</script>)', fix, h, flags=re.S)
 
 
 # 통합(2026-10-27 오너 결정): 개인 운영자 소개 없이 — 손글·가이드·/gu 해설·리포트의 글쓴이 줄 = '<이름> 편집'(brand.EDITOR) → /about#principles(편집 원칙)
@@ -238,6 +303,14 @@ def ad_slot(k, kind):
     return f'<!--zp-ad:{k}--><aside class="ad-slot" data-slot="{kind}-{k}" aria-label="광고" hidden></aside><!--/zp-ad-->'
 
 
+AD_GAP = 600   # 사이클 2(애드센스 레드팀): mid와 bottom 사이 본문 글자가 이보다 적으면 bottom은 두지 않는다(폰 한 화면에 칸 둘 방지)
+
+
+def _txt_len(s):
+    s = re.sub(r'<(script|style|svg)\b.*?</\1>|<!--.*?-->', ' ', s, flags=re.S)
+    return len(re.sub(r'\s+', '', re.sub(r'<[^>]+>', ' ', s)))
+
+
 def ad_slots(h, rel):
     h = AD_RX.sub('', h)
     if AD_TAG not in h[:h.find('</head>')]: return h
@@ -245,22 +318,30 @@ def ad_slots(h, rel):
     if a < 0 or b < 0: return h
     kind = rel.split('/')[0] if '/' in rel else rel[:-5]
     body = h[a:b]
-    # 손으로 지정한 자리(<!--zp-ad-at:mid|bottom-->)가 있으면 그 자리만 쓴다(규칙으로 자리를 못 찾는 리포트 7~9월호·howto·용어집)
-    if '<!--zp-ad-at:' in body:
-        body = re.sub(r'<!--zp-ad-at:(\w+)-->', lambda m: m.group(0) + ad_slot(m.group(1), kind), body)
-        return h[:a] + body + h[b:]
-    cand = []
-    for m in re.finditer(r'<p(?: class="(?:lede)")?>(?:(?!</p>).)*</p>\s*(?:</div>\s*)?(?:<!--zn-->.*?<!--/zn-->)?\s*(?=<h[23][ >])', body, re.S):
-        nh = re.match(r'<h[23][^>]*>(.*?)</h[23]>', body[m.end():].lstrip(), re.S)
-        if not nh or AD_NO_H.search(re.sub(r'<[^>]+>', '', nh.group(1))): continue
-        if len(re.sub(r'<[^>]+>', '', m.group(0))) < 60: continue      # 한 줄짜리 안내 문장 뒤는 건너뜀(본문 문단 뒤에만)
-        cand.append(m.end())
-    L = len(body); out, last = [], -1
-    for k, frac in (('mid', .35), ('bottom', .7)):
-        p = next((x for x in cand if x >= L * frac and x > last), None)
-        if p is None: continue
-        out.append((p, k)); last = p
-    for p, k in reversed(out): body = body[:p] + ad_slot(k, kind) + body[p:]
+    # 손으로 지정한 자리: <!--zp-ad-at:mid|bottom-->(리포트 7~9월호·howto·용어집) · <!--ad-slot-->(tools/zhand.py가 문단 사이에 둔 자리 — 앞에서부터 mid, bottom)
+    man = [(m.end(), m.group(1)) for m in re.finditer(r'<!--zp-ad-at:(\w+)-->', body)]
+    if not man:
+        man = [(m.end(), k) for m, k in zip(re.finditer(r'<!--ad-slot-->', body), ('mid', 'bottom'))]
+    if man:
+        out = man
+    else:
+        cand = []
+        for m in re.finditer(r'<p(?: class="(?:lede)")?>(?:(?!</p>).)*</p>\s*(?:</div>\s*)?(?:<!--zn-->.*?<!--/zn-->)?\s*(?=<h[23][ >])', body, re.S):
+            nh = re.match(r'<h[23][^>]*>(.*?)</h[23]>', body[m.end():].lstrip(), re.S)
+            if not nh or AD_NO_H.search(re.sub(r'<[^>]+>', '', nh.group(1))): continue
+            if len(re.sub(r'<[^>]+>', '', m.group(0))) < 60: continue      # 한 줄짜리 안내 문장 뒤는 건너뜀(본문 문단 뒤에만)
+            cand.append(m.end())
+        L = len(body); out, last = [], -1
+        for k, frac in (('mid', .35), ('bottom', .7)):
+            p = next((x for x in cand if x >= L * frac and x > last and (k == 'mid' or not out or _txt_len(body[out[-1][0]:x]) >= AD_GAP)), None)
+            if p is None: continue
+            out.append((p, k)); last = p
+    # 칸 사이 간격 규칙(손 지정 자리에도): 앞 칸과 본문 AD_GAP자 미만이면 뒤 칸은 뺀다
+    keep = []
+    for p, k in sorted(out):
+        if keep and _txt_len(body[keep[-1][0]:p]) < AD_GAP: continue
+        keep.append((p, k))
+    for p, k in reversed(keep): body = body[:p] + ad_slot(k, kind) + body[p:]
     return h[:a] + body + h[b:]
 
 
@@ -301,6 +382,9 @@ def main():
             h1 = icons(h1)
             h1 = foot_links(h1)
             h1 = legend(h1, rel)
+            h1 = crumbs_vis(h1, rel)
+            h1 = zk_after_lede(h1, rel)
+            h1 = ld_fill(h1)
             h1 = op_line(h1, rel)
             h1 = glossary_link(h1, rel)
             h1 = ad_slots(h1, rel)
