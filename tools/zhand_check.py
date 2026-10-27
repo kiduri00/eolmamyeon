@@ -103,6 +103,10 @@ for g, vals in sorted(V.get('gu', {}).items()):
         chk(sum(1 for m in ms if m <= cap + 1e-9) == int(vals[k]), f'/gu/{g}: {cap}억 이하 곳 수 목록 {sum(1 for m in ms if m <= cap + 1e-9)} ≠ {vals[k]}')
     t = TXT[os.path.join('gu', g + '.html')]; ss = sents(t); tot = sum(len(x) for x in ss) or 1; u = sum(len(x) for x in ss if freq[norm(x)] <= 2)
     rep.append(('gu:' + g, len(t), round(100 * u / tot), '', ''))
+# 원본 글에 '살 수 있'이 있으면 용어 통일(term_fix)이 '갈 수 있'으로 바꿔 문장이 깨진다('들어가 갈 수 있는') — 원본 단계에서 막는다
+import glob as _g
+for f in sorted(_g.glob(os.path.join(ROOT, 'content', '**', '*.json'), recursive=True)):
+    chk('살 수 있' not in open(f, encoding='utf-8').read(), f'{os.path.relpath(f, ROOT)}: 원본에 \'살 수 있\' — 용어 통일이 \'갈 수 있\'으로 바꿔 문장이 깨져요')
 for x in rep: print('%-14s 글자 %6d · 고유 %3d%% · zthin 점수 %s · 고유 본문 %s' % x)
 print(f'zhand_check: ok {okn} · fail {len(bad)}')
 for b in bad[:60]: print('  FAIL', b)

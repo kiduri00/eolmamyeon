@@ -18,6 +18,7 @@ esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 PH = re.compile(r'\{\{([a-zA-Z0-9_]+)\}\}')
 HANDSET = set()
 HOOKS = json.load(open(os.path.join(ROOT, 'content/z_hooks.json'), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, 'content/z_hooks.json')) else {}
+CARDS = json.load(open(os.path.join(ROOT, 'content/z_cards.json'), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, 'content/z_cards.json')) else {}   # 예전 손글 40쪽: 이야기 제목(질문형)·핵심 위험·이런 사람에게 맞아요
 FAILED = []   # 그날 렌더하지 못한 글(값 없음) — save_cache가 함께 남긴다
 CACHE = {'z': {}, 'gu': {}}   # 글에 쓴 값(키 → 글자) — tools/zhand_check.py가 페이지 글자·/api/v1과 대조
 def save_cache():
@@ -420,7 +421,10 @@ def enhance_hand(X, r, h):
             hid = f'zh-s{next(k)}'; tag = tag.replace('<h2>', f'<h2 id="{hid}">', 1)
         if hid != 'zh-nx': hs.append((hid, txt))
         return tag
-    body = re.sub(r'<!--zt-->.*?<!--/zt-->|<!--zx-->.*?<!--/zx-->|<!--zh-hook-->.*?<!--/zh-hook-->', '', m.group(1), flags=re.S)
+    body = re.sub(r'<!--zt-->.*?<!--/zt-->|<!--zx-->.*?<!--/zx-->|<!--zh-hook-->.*?<!--/zh-hook-->|<!--zcar-->.*?<!--/zcar-->', '', m.group(1), flags=re.S)
+    cd = (CARDS or {}).get(r['id'])
+    if cd and cd.get('h'):   # 이야기 제목을 질문형으로(content/z_cards.json · 손으로 씀)
+        body = re.sub(r'<h2((?: id="[^"]*")?)>[^<]*</h2>(<div class="zstory">)', lambda mm: f'<h2{mm.group(1)}>{esc(cd["h"])}</h2>{mm.group(2)}', body, count=1)
     hk = (HOOKS or {}).get(r['id'])   # 첫 두 문장 질문(content/z_hooks.json · 손으로 씀 · 숫자는 그 페이지 본문에 있는 것만)
     if hk and '<p class="lede">' in body: body = body.replace('<p class="lede">', f'<!--zh-hook--><p class="zh-hook">{esc(hk)}</p><!--/zh-hook--><p class="lede">', 1)
     body = re.sub(r'<h2(?: id="[^"]*")?>(.*?)</h2>', addid, body, flags=re.S)
@@ -429,6 +433,13 @@ def enhance_hand(X, r, h):
         i = body.find('<!--/zk-->'); j = body.find('</p>', body.find('<p class="lede">')) if '<p class="lede">' in body else -1
         at = max(i + len('<!--/zk-->') if i >= 0 else -1, j + 4 if j >= 0 else -1)
         if at > 0: body = body[:at] + toc + body[at:]
+    # ①-2 요약 카드 4장(돈·입주 시기는 매일 계산값 · 위험·맞는 사람은 content/z_cards.json) — 목차 바로 뒤
+    if cd and cd.get('risk') and cd.get('fit'):
+        try: car = '<!--zcar-->' + carousel(X, r, {'cards': cd}, vals(X, r)) + '<!--/zcar-->'
+        except Exception as ex: FAILED.append(f'{r["id"]} 카드: {ex}'); car = ''
+        if car:
+            i = body.find('<!--/zt-->'); i = i + len('<!--/zt-->') if i >= 0 else body.find('<div class="kpis">')
+            if i >= 0: body = body[:i] + car + body[i:]
     # ② 다음에 볼 구역(면책 문단 바로 앞, 없으면 신고 덩이 앞)
     nx = nextcards(X, r, {})
     if nx:
