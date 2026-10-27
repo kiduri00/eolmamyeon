@@ -19,8 +19,8 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   Object.assign(j, {
     packageId: 'kr.alwaysquestions.zippin',
     host: 'jaegaebal.alwaysquestions.kr',
-    name: '집핀 - 서울 재개발 지도',
-    launcherName: '집핀',
+    name: '재개픽 - 서울 재개발 지도',
+    launcherName: '재개픽',
     startUrl: '/?src=app',
     display: 'standalone',
     orientation: 'default',

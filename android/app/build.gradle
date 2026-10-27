@@ -24,8 +24,8 @@ def twaManifest = [
     applicationId: 'kr.alwaysquestions.zippin',
     hostName: 'jaegaebal.alwaysquestions.kr', // The domain being opened in the TWA.
     launchUrl: '/?src=app', // The start path for the TWA. Must be relative to the domain.
-    name: '집핀 - 서울 재개발 지도', // The application name.
-    launcherName: '집핀', // The name shown on the Android Launcher.
+    name: '재개픽 - 서울 재개발 지도', // The application name.
+    launcherName: '재개픽', // The name shown on the Android Launcher.
     themeColor: '#1F3A87', // Status bar while the splash shows (brand navy); the site's theme-color takes over once the page is verified.
     themeColorDark: '#13265E', // Dark status bar while the splash shows (navy-700).
     navigationColor: '#FFFFFF', // The color used for the navigation bar.

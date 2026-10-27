@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Android 12+ system splash = the TWA splash: navy background (@color/backgroundColor, deeper in -night),
-     white 집핀 mark @drawable/splash (240dp, mark inside the 160dp circle), navy icon background and system bars. -->
+     white 재개픽 mark @drawable/splash (240dp, mark inside the 160dp circle), navy icon background and system bars. -->
 <resources>
     <style name="Theme.Zippin.Launcher" parent="@android:style/Theme.Translucent.NoTitleBar">
         <item name="android:windowSplashScreenBackground">@color/backgroundColor</item>

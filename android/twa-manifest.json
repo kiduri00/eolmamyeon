@@ -1,8 +1,8 @@
 {
   "packageId": "kr.alwaysquestions.zippin",
   "host": "jaegaebal.alwaysquestions.kr",
-  "name": "집핀 - 서울 재개발 지도",
-  "launcherName": "집핀",
+  "name": "재개픽 - 서울 재개발 지도",
+  "launcherName": "재개픽",
   "display": "standalone",
   "themeColor": "#1F3A87",
   "themeColorDark": "#13265E",

@@ -1,6 +1,6 @@
-// 재개각 brand mark (v7) — single source of geometry for the launcher, splash and notification icons.
+// 재개픽 brand mark (v7) — single source of geometry for the launcher, splash and notification icons.
 // Same construction as brand_v7 (logo/jaegaegak_mark_*.svg), 64-unit box:
-//   pin   : circle r19 at (32,25) + two tangents meeting at exactly 90deg ("각 잡힌 핀"), tip slightly rounded
+//   pin   : circle r19 at (32,25) + two tangents meeting at exactly 90deg , tip slightly rounded
 //   house : 45deg roof, so the roof apex is a right angle mirroring the pin tip; crisp mitred corners
 //   door  : yellow; dot: yellow brand dot under the tip (the "spot" on the map)
 const R2 = Math.SQRT2;
