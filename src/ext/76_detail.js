@@ -12,6 +12,8 @@ const DTL = (() => {
   const pageOf = (r) => (r.src !== "moa" && !(r.s >= 9 || (r.dn && r.s < 7)) && /^[\w-]+$/.test(r.id) ? `${SITE}/z/${r.id}` : `${SITE}/#${r.id}`);
   const HEART = (on) => `<svg class="dt-ht" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3s-7.6-4.6-7.6-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.6 2.6c0 5.5-7.6 10.1-7.6 10.1z" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
 
+  // 사이클 3: 계산 보류 이유는 ZoneFacts 하나(카드·시트·신뢰 줄·돈 탭·/z가 같은 문장)
+  const holdTxt = (r) => { try { const h = ZFX.of(r).hold; return (h.now || h.one || {}).txt || ""; } catch (e) { return ""; } };
   // ---------- 핵심 3숫자 ----------
   function nums(r) {
     let z = null; try { z = SIMPLE.zstate(r); } catch (e) {}
@@ -22,7 +24,7 @@ const DTL = (() => {
     if (o.moa) {
       o.basis = "모아타운은 사업구역마다 달라요 · 안의 구역을 열어 보세요"; o.why2 = o.basis;
       // 관리지역 평균값은 참고로만(웹·앱 같음)(큰 숫자·'가능' 판정·곳 수에 넣지 않음) — 검색 '사업구역별' · 목록·지도 곳 수(모아타운 관리지역 제외)와 한 규칙
-      { const ref = o.need; o.ref = ref; o.need = null; o.total = null; o.tm = 1; o.basis = ref != null ? `관리지역 평균 참고값 ${C(ref)} · 안의 사업구역을 열어 보세요` : "안의 사업구역을 열어 보세요"; o.why2 = "입주까지는 안의 사업구역에서 계산해요"; }
+      { const ref = o.need; o.ref = ref; o.need = null; o.total = null; o.tm = 1; o.basis = ref != null ? `관리지역 참고값 ${C(ref)}(관리지역 전체 빌라 표본 기준) · 안의 사업구역을 열어 보세요` : "안의 사업구역을 열어 보세요"; o.why2 = "입주까지는 안의 사업구역에서 계산해요"; }
       return o;
     }
     if (done) { o.basis = "사업이 끝난 곳이에요 · 일반 아파트 매매"; o.why2 = "새 아파트 입주까지 계산 대상이 아니에요"; return o; }
@@ -33,14 +35,15 @@ const DTL = (() => {
       if (g && g.block && g.block !== "계산 대상 아님") {
         // 전세 끼고는 못 사는 곳: 전세 낀 숫자는 내지 않고(머리 '전세 끼고 사기 불가'와 같은 판정) 대출 끼고 사는 길을 한 줄로 — /z 페이지(zsample.key3)와 같은 글
         o.need = null; o.total = null; o.why2 = "전세 끼고는 계산하지 않아요";
-        o.basis = `전세를 안고는 살 수 없어요 · ${String(g.block).replace(/\s*\(.*\)\s*$/, "").replace(/^전세 낀 매수 불가\s*·\s*/, "")}`;
+        o.basis = /^전세 끼고 계산 보류/.test(g.block) ? ZFX.of(r).hold.now.txt : `전세를 안고는 살 수 없어요 · ${String(g.block).replace(/\s*\(.*\)\s*$/, "").replace(/^전세 낀 매수 불가\s*·\s*/, "")}`;
         // 27차: 대출 끼고 사는 값을 칸의 큰 값으로(+ '대출 끼고' 꼬리표) — '계산 보류' 칸과 아래 한 줄이 같은 말을 두 번 하던 것(/z zsample.key3 lnow·ltot와 같은 값)
         if (x && ok(x.needBuy) && !r.lc && r.tag !== "mk") { o.lnow = x.needBuy; if (x.ok && ok(x.needTotal)) o.ltot = x.needTotal; }
-      } else if (!g || g.na || !g.x || !ok(g.x.price)) o.basis = noPriceTxt(r);
-      else o.basis = `전세 끼고 · 매수가 ${ZF.manT(g.x.price)} − 전세 ${ZF.manT(g.D)}${g.x.tax >= 0.005 ? " (+취득세)" : ""}`;
-    } else if (!x || !ok(x.needBuy)) o.basis = x && x.price == null ? noPriceTxt(r) : "지금 필요한 돈을 계산하지 못했어요";
+      } else if (!g || g.na || !g.x || !ok(g.x.price)) o.basis = holdTxt(r);
+      else o.basis = `전세 끼고 · 매수가 ${ZF.manT(g.x.price)} − 전세 ${ZF.manT(g.D)}${g.userJ ? "(직접 입력)" : `(전세가율 ${ZFX.jrShort(r)})`}${g.x.tax >= 0.005 ? " (+취득세)" : ""}`;   // 사이클 3: 쓴 전세가율과 출처(ZoneFacts jr)
+    } else if (!x || !ok(x.needBuy)) o.basis = holdTxt(r);
     else o.basis = x.loanCap >= 0.005 ? `대출 끼고 · 매수가 ${ZF.manT(x.price)} − 대출 ${ZF.manT(x.loanCap)}${x.tax >= 0.005 ? " (+취득세)" : ""}` : `대출 안 나와요 · 매수가 ${ZF.manT(x.price)}${x.tax >= 0.005 ? " (+취득세)" : ""}`;
-    if (o.total == null && !o.why2) o.why2 = x && x.price != null ? ZF.noCalcTxt(r, x) : "입주 시점·신축 시세 자료가 부족해요";
+    // 사이클 3: 입주까지 칸 아래 이유도 ZoneFacts 보류 이유 하나(지금 칸이 보류면 같은 이유를 두 번 쓰지 않는다)
+    if (o.total == null && !o.why2) { const h = ZFX.of(r).hold; o.why2 = h.now ? "" : h.tot ? h.tot.txt : ""; }
     return o;
   }
   // 사이클 2(판정 한 곳): 구역 하나의 '보이는 지금 필요한 돈'과 그 이름 — 시트·관심 카드·모아타운 행·근처 카드·미리보기가 모두 이것만 부른다
@@ -85,7 +88,7 @@ const DTL = (() => {
     return `<section class="dt-k dt-moa" aria-label="핵심 숫자">
       <p class="dt-mg">모아타운은 사업구역마다 금액·입주 시점이 달라요</p>
       ${kids.length ? `<ul class="dt-kids" aria-label="안의 사업구역 ${kids.length}곳">${kids.map(row).join("")}</ul>` : `<p class="dt-mg0">아직 정보몽땅에 등록된 사업구역(개별 조합)이 없어요</p>`}
-      <p class="dt-ref">${n.ref != null ? `관리지역 평균 참고값 ${esc(C(n.ref))} · ` : ""}곳 수와 '가능' 판정에는 넣지 않아요</p>
+      <p class="dt-ref">${n.ref != null ? `관리지역 참고값 ${esc(C(n.ref))} · 관리지역 전체를 한 구역으로 보고 ${esc((() => { try { return ZF.smpTxt(r) || "빌라 실거래"; } catch (e) { return "빌라 실거래"; } })())}로 낸 지금 필요한 돈이에요(사업구역 값이 아님) · ` : ""}곳 수와 '가능' 판정에는 넣지 않아요</p>
     </section>`;
   }
   function keyHTML(r) {
@@ -122,7 +125,7 @@ const DTL = (() => {
     if (cls === "na" || lv === "안 함" || lv === "보류") {
       let x = null; try { x = investC(r); } catch (e) {}
       let nt = false; try { nt = noTicket(r); } catch (e) {}
-      const why = r.src === "moa" ? "모아타운은 사업구역마다 달라요" : nt ? "새 아파트 계산 대상이 아니에요" : x && x.stale ? "이주·철거가 시작됐어요" : x && x.noApt ? "단지 거래가 없어요" : "매수가로 쓸 거래가 없어요";
+      const h = ZFX.of(r).hold.one, why = h ? h.short : "계산 보류";   // 사이클 3: 보류 이유 하나(ZoneFacts) — 시트 첫 칸·돈 탭과 같은 이유의 짧은 꼴
       return `<button type="button" class="dt-trust na" data-dttrust><span class="dt-tc">계산 보류</span><span class="dt-tt">${esc(why)} · 이유 보기</span><i aria-hidden="true">›</i></button>`;
     }
     let est = false; try { est = isEst(r); } catch (e) {}
@@ -193,7 +196,8 @@ const DTL = (() => {
     const src = w && w.querySelector(".ov-srcw"); if (src) end.querySelector(".dt-src").appendChild(src);
     const fm = head.querySelector(".ov-formal") || head.querySelector(".formal"); if (fm) { fm.classList.add("dt-fm"); end.querySelector(".dt-src").appendChild(fm); }
     if (card) { card.className = "btn secondary dt-card"; card.textContent = "공유 이미지 저장하기"; end.querySelector(".dt-acts").appendChild(card); }
-    try { if (typeof CX !== "undefined") CX.btn(end, r); } catch (e) {}   // 사이클 2(F6): '비교에 담기'(관심 구역이 아니어도)
+    // 사이클 3(F6): '비교에 담기'는 시트 위 행동 줄(핵심 숫자 바로 아래) — 긴 본문 뒤 맨 아래에 있어 찾기 어렵던 것
+    try { if (typeof CX !== "undefined" && r.src !== "moa") { box.insertAdjacentHTML("beforeend", '<div class="dt-acts dt-acts-top"></div>'); CX.btn(box, r); } } catch (e) {}
     place();
   }
   // 관심 버튼 글자·아이콘(목록 ♡와 같은 하트) — syncFav가 [data-fav]를 다시 그린 뒤에도

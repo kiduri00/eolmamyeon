@@ -32,7 +32,7 @@
       if (zEarly) return { k: "chg", b: `등록된 구역지정일(${dz.replaceAll("-", ".")})이 ${zEarly}(${dt0[zEarly].slice(0, 7).replace("-", ".")})보다 늦어 변경 지정일로 보여요. 최초 지정 고시일이나 따로 고시된 기준일을 구청에 확인하세요.`, u: "https://www.law.go.kr/법령/도시및주거환경정비법/제77조" };
       if (dz && r.s >= 2) return { d: dz.replaceAll("-", "."), b: "정비구역 지정 고시일(도시정비법 제77조 원칙) · 별도 고시가 있었다면 그 날짜", u: "https://www.law.go.kr/법령/도시및주거환경정비법/제77조", c: "mid", k: "set" };
       if (r.src === "moa" || /가로|모아/.test(r.k))
-        return { k: "moa", b: "모아타운은 대상지 선정 뒤 서울시가 권리산정기준일을 따로 고시해요(2026.10.12부터 구역계 공개일로 앞당김). 가로주택·모아주택 개별 사업은 조합설립인가 전 착공신고·등기 여부로 갈려요.", u: "https://news.seoul.go.kr/citybuild/archives/525003" };
+        return { k: "moa", b: "모아타운은 대상지 선정 뒤 서울시가 권리산정기준일을 따로 고시해요(2026.10.12부터 구역계 공개일로 앞당김). 가로주택·모아주택 개별 사업의 기준일은 소규모주택정비법과 서울시 기준에 따라 정해져 구청 확인이 필요해요.", u: "https://news.seoul.go.kr/citybuild/archives/525003" };
       if ((r.pg || []).some((p) => p.startsWith("신속통합기획")) || r.src === "sintong")
         return { k: "sin", b: "신속통합기획 후보지는 2024년부터 후보지마다 구청장 추천일 등으로 따로 정해 공개하지 않는 경우가 많아요. 구청 도시재생·주택과에 꼭 확인하세요.", u: "https://cleanup.seoul.go.kr/cleanup/bsnssttus/lscrMainIndx.do" };
       if (r.s < 2) return { k: "pre", b: "구역지정 전이라 아직 정해지지 않았어요. 원칙은 정비구역 지정 고시일이고, 그 전에 시장이 따로 고시하면 그 날이에요.", u: "https://www.law.go.kr/법령/도시및주거환경정비법/제77조" };
@@ -54,9 +54,12 @@
     const STAGE_DT = { 2: "구역지정", 3: "추진위", 4: "조합설립", 5: "사업시행", 6: "관리처분", 8: "착공" };
     function pace(r) {
       if (r.dn || r.s >= 9 || r.src === "moa") return null;
-      const k = PACE_KEY[r.s], dk = STAGE_DT[r.s];
+      // 사이클 3: 비교 구간은 ZoneFacts 다음 단계와 같은 구간(가로·소규모 사업시행 → 이주·착공 · 자체 통계가 없으면 비교하지 않음)
+      let fx = null; try { fx = ZFX.of(r).next; } catch (e) {}
+      const k = fx ? fx.k : PACE_KEY[r.s], dk = STAGE_DT[r.s];
+      const d = (r.dt && (r.dt[dk] || (r.s === 4 && r.dt["시행자지정"]))) || r.sd;
+      if (fx && fx.state === "nostat" && d) { const y = ZF.yrsSince(d); return y >= 0 ? { yrs: y, nostat: true, from: d, k, to: fx.toName } : null; }
       const st0 = k ? ZF.stageStat(r, k) : null;   // 사이클 2: 단계 기간 통계 한 곳(/years·F2 타임라인과 같은 기준)
-      const d = r.dt && (r.dt[dk] || (r.s === 4 && r.dt["시행자지정"]));
       if (!k || !st0 || !d) return null;
       const yrs = ZF.yrsSince(d);   // 사이클 2: 경과 연수 한 곳(F2 타임라인·장기 정체 판정과 같은 셈)
       if (!(yrs >= 0)) return null;
@@ -66,6 +69,7 @@
     function paceHTML(r) {
       const p = pace(r);
       if (!p) return "";
+      if (p.nostat) return `<div class="pace"><div class="pace-h"><b>현재 단계 ${ZF.dur(p.yrs)}째</b></div><small>다음은 ${esc(p.to)} · 가로·소규모 사업장의 서울 기록이 적어 빠르고 늦음을 견주지 않아요 · ${esc(p.from.replaceAll("-", "."))}부터</small></div>`;
       const T = { fast: "빠른 편", norm: "보통", slow: "늦은 편", slow2: "많이 늦음" };
       const w = Math.min(100, (p.yrs / Math.max(p.p75 * 1.6, p.yrs)) * 100), m = Math.min(100, (p.med / Math.max(p.p75 * 1.6, p.yrs)) * 100);
       return `<div class="pace ${p.lvl}"><div class="pace-h"><b>현재 단계 ${ZF.dur(p.yrs)}째</b><span class="pace-t">${T[p.lvl]}</span></div><div class="pace-bar" role="img" aria-label="서울 같은 구간 가운데 값 ${ZF.durS(p.med)} 대비 ${ZF.dur(p.yrs)}"><i style="width:${w.toFixed(1)}%"></i><s style="left:${m.toFixed(1)}%"></s></div><small>${esc(p.k.replace(">", " → "))} 서울 실제 소요 ${ZF.stageStatTxt(p.st)} · ${esc(p.from.replaceAll("-", "."))}부터 · 같은 기준 <a href="years">몇 년 걸리나</a></small></div>`;
@@ -117,7 +121,8 @@
         // 이 구역 리포트 머리 큰 숫자와 같은 값(ZF.u33: 매수가 표본의 3.3㎡당 · 머리가 매수가인 곳은 구역 안 대표 거래 값)
         ["3.3㎡당 실거래(기준)", (q) => { const h = ZF.u33(q); return h ? `${eok(h.v)}<span class="dim" style="display:block;font-size:11px;font-weight:400;color:var(--text-3)">${h.zone ? `구역 안 ${h.n || ""}건(참고 · 매수가 표본 아님)` : HDB[h.b] || ""}${h.st ? " · 오래된 거래" : ""}</span>` : "–"; }],
         [lab, (q) => { const n = needOf(q); return n == null ? "–" : `${ZF.cash(n)}`; }, (q) => needOf(q)],
-        ["10년 안 준공", (q) => (q.eta?.p10 != null ? probTxt(q.eta.p10) : "–"), (q) => (q.eta?.p10 != null ? -q.eta.p10 : null)],
+        // 사이클 3: 확률은 ZoneFacts(p10S) — 장기 정체(8년)·진행 확인 필요 구역은 시트처럼 싣지 않는다(장위14 11%가 이 표에만 남던 것)
+        ["10년 안 준공", (q) => (p10S(q) != null ? probTxt(p10S(q)) : `<span class="dim">${esc(p10Why(q) || "–")}</span>`), (q) => (p10S(q) != null ? -p10S(q) : null)],
       ];
       // 비교하는 곳 절반 넘게 '–'인 '계획 세대' 줄은 뺀다
       for (let i = rows.length - 1; i >= 0; i--) { if (rows[i][0] !== "계획 세대") continue; const v = cols.map(([q, d]) => String(rows[i][1](q, d))); if (v.filter((x) => x === "–").length > cols.length / 2) rows.splice(i, 1); }
@@ -610,6 +615,8 @@
   // 매수가가 없을 때 이유(짧게 · 20자 안팎). 자세한 설명은 실거래·입주 현금 탭에
   function noPriceTxt(r) {
     if (!r) return "매수가 추정 불가";
+    // 사이클 3: 매수가가 없는 까닭도 ZoneFacts 보류 이유 하나의 짧은 꼴(시트 첫 칸·돈 탭·/z와 같은 이유)
+    try { const h = ZFX.of(r).hold; if (h.now && h.now.code !== "nt") return h.now.short; } catch (e) {}
     const en = r.mk && r.mk.entry, t = r.tx || {};
     if (r.nx === "biz") return "업무·상업 중심 · 입주권 계산 대상 아님";
     if (r.tag === "mk" || r.nx === "mk") return "시장·상가 정비 · 매수가 계산 전";

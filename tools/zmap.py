@@ -207,7 +207,7 @@ def og_card(rid, nm, sub, stage, money_lab, money, loc, gu, upd, text_only=False
     """public/og/z/<rid>.png를 만든다(내용이 같으면 건너뜀). 성공하면 사이트 경로, 아니면 None."""
     global _OGH
     out = os.path.join(ROOT, 'public/og/z', rid + '.png')
-    key = hashlib.md5(json.dumps([nm, sub, stage, money_lab, money, upd[:7], [round(v, 3) for v in (loc or [])], gu, 5, text_only, BRAND, BRAND_EN, 'v7', _logo_sig()]).encode()).hexdigest()[:12]
+    key = hashlib.md5(json.dumps([nm, sub, stage, money_lab, money, upd[:7], [round(v, 3) for v in (loc or [])], gu, 5, text_only, BRAND, BRAND_EN, 'v7', _logo_sig(), 'est1']).encode()).hexdigest()[:12]
     if _OGH is None:
         try: _OGH = json.load(open(_OGHF))
         except Exception: _OGH = {}
@@ -260,6 +260,8 @@ def og_card(rid, nm, sub, stage, money_lab, money, loc, gu, upd, text_only=False
         if money:
             d.text((64, y + 92), money_lab, font=_font('b', 28), fill=MUT)
             d.text((64, y + 130), money, font=_font('k', 76), fill=NAVY)
+            # 사이클 3: 공유 그림의 금액도 화면처럼 '추정'(기본 가정 계산값)
+            d.text((64 + d.textlength(money, font=_font('k', 76)) + 18, y + 172), '추정', font=_font('b', 30), fill=MUT)
         d.rectangle([64, H - 54, 64 + 56, H - 48], fill=YEL)
         d.text((64, H - 42), f'데이터 기준 {upd} · jaegaebal.alwaysquestions.kr', font=_font('r', 22), fill=MUT)
         os.makedirs(os.path.dirname(out), exist_ok=True)

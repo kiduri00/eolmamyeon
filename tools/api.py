@@ -37,6 +37,7 @@ def active(r): return not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) 
 R = [r for r in D['recs'] if active(r)]
 def summary(r):
     c = C.get(r['id']) or {}; t = r.get('tx') or {}; e = eta_adj(r, D.get('asOf')) or {}; st = r.get('st') or {}
+    fx = c.get('f')
     old = t.get('old') if r.get('s', 0) < 7 else None
     th = (TH.get('z') or {}).get(r['id'])
     mkz = r.get('tag') == 'mk' or r.get('nx') == 'mk'
@@ -59,7 +60,13 @@ def summary(r):
                         'to': ((r.get('mk') or {}).get('entry') or {}).get('t'), 'lastTrade': ((r.get('mk') or {}).get('entry') or {}).get('last'), 'source': 'est' if isEst(r, c) else c.get('priceSrc'),
                         'text': smpTxt(r, c), 'confidence': trust(r, c)[0]},
         'membership': {'status': c.get('win'), 'label': c.get('winT')},   # 입주권: ok 가능 / warn 확인 필요 / chk 판단 보류 / no 없음
-        'completion': {'p10': e.get('p10'), 'mid': e.get('eMid'), 'lo': e.get('eLo'), 'hi': e.get('eHi')} if e.get('p10') is not None else None,
+        # 사이클 3: 준공 확률·범위는 ZoneFacts(화면과 같은 판단) — 장기 정체·진행 확인 필요면 null, 범위가 10년 확률과 어긋나면 범위만 null
+        'completion': ({'p10': fx['eta']['p10'], 'label': fx['eta']['txt'], 'mid': None if fx['eta'].get('hid') else e.get('eMid'), 'lo': None if fx['eta'].get('hid') else e.get('eLo'), 'hi': None if fx['eta'].get('hid') else e.get('eHi')}
+                       if fx and (fx.get('eta') or {}).get('p10') is not None else None) if fx else ({'p10': e.get('p10'), 'mid': e.get('eMid'), 'lo': e.get('eLo'), 'hi': e.get('eHi')} if e.get('p10') is not None else None),
+        # 사이클 3: 구역 판단 한 객체(앱 ZoneFacts와 같은 값 · 화면 문장 그대로)
+        'facts': ({'eta': fx['eta']['txt'], 'stall': fx.get('stall') or 0, 'next': ({'to': fx['next']['toName'], 'state': fx['next']['state'], 'text': fx['next']['txt'], 'lo': fx['next'].get('loTxt'), 'hi': fx['next'].get('hiTxt')} if fx.get('next') else None),
+                   'hold': ({'code': fx['hold']['one']['code'], 'short': fx['hold']['one']['short'], 'text': fx['hold']['one']['txt']} if (fx.get('hold') or {}).get('one') else None),
+                   'jeonseRatio': {'pct': fx['jr']['v'], 'source': fx['jr']['src'], 'text': fx['jr']['txt'], 'held': bool(fx['jr'].get('hold'))} if fx.get('jr') else None} if fx else None),
         'rightsDate': (r.get('rdx') or {}).get('d'),
         'oldPct': old.get('pol') if old else None,
         # trades.n12 = 12개월 모든 거래(빌라·단독·아파트) · medVilla = 구역 안 구축 빌라 가운데 값(만원 · 구역 안 표본으로 정한 곳은 priceSample과 같은 묶음)

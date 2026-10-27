@@ -40,3 +40,9 @@
 .zxa-n,.zxa-src{margin:8px 0 0;font:500 12.5px/18px var(--font,inherit);color:var(--text-2,#4E5968);word-break:keep-all;overflow-wrap:anywhere}.zxa-src{color:var(--text-3,#6B7684)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .zxa-svg .n10,:root:not([data-theme="light"]) .zxa-key .n10,:root:not([data-theme="light"]) .zxa-bar .n10{fill:#8EA8F5;background:#8EA8F5}:root:not([data-theme="light"]) .zxa-svg .za.nw{stroke:#E8EBF0}:root:not([data-theme="light"]) .zx-w.ok{color:#5FD3B5}:root:not([data-theme="light"]) .zx-w.no{color:#FF9B85}:root:not([data-theme="light"]) .zx-w.chk{color:#F5C33B}}
 :root[data-theme="dark"] .zxa-svg .n10,:root[data-theme="dark"] .zxa-key .n10,:root[data-theme="dark"] .zxa-bar .n10{fill:#8EA8F5;background:#8EA8F5}:root[data-theme="dark"] .zxa-svg .za.nw{stroke:#E8EBF0}:root[data-theme="dark"] .zx-w.ok{color:#5FD3B5}:root[data-theme="dark"] .zx-w.no{color:#FF9B85}:root[data-theme="dark"] .zx-w.chk{color:#F5C33B}
+/* 사이클 3: 360px 비교 표 — 머리 첫 칸도 고정 · 오른쪽 그림자로 더 있다는 단서 · 안내 한 줄(좁은 화면만) */
+.zx-t thead th:first-child{position:sticky;left:0;z-index:2;background:var(--surface,#fff)}
+.zx-t tbody th{z-index:1;box-shadow:1px 0 0 var(--divider,#E5E8EB)}
+.zx-tw{background:linear-gradient(to right,var(--surface,#fff) 30%,transparent) left/40px 100% no-repeat local,linear-gradient(to left,var(--surface,#fff) 30%,transparent) right/40px 100% no-repeat local,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.16),transparent) right/12px 100% no-repeat scroll}
+.zx-hint{margin:0 0 8px;font:600 12.5px/18px var(--font,inherit);color:var(--brand,#1F3A87)}
+@media (min-width:641px){.zx-hint{display:none}}

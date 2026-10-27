@@ -265,7 +265,7 @@ def timeline(X, r, src):
     li = ''.join(f'<li class="{"cur" if d == cur and s == "정보몽땅 등록" else ""}{" ev" if s != "정보몽땅 등록" else ""}"><b>{esc(ymd(d) if len(d) >= 10 else ym(d))}</b><span>{esc(lab)}</span><small>{esc(s)}</small></li>' for d, lab, s in rows)
     e = __import__('zsample').eta_adj(r, X.D.get('asOf')) or {}; c = X.C.get(r['id']) or {}   # 앱·/api/v1과 같은 가로·소규모 보정
     nx = ''
-    if e.get('eLo') and e.get('eHi') and not r.get('stale') and not stalled(X, r):
+    if e.get('eLo') and e.get('eHi') and not r.get('stale') and not stalled(X, r) and not __import__('zsample').eta_hidden(r):   # 사이클 3: 범위가 10년 확률과 어긋나 숨긴 구역(ZoneFacts)은 싣지 않는다
         nx = f'<li class="nx"><b>{esc(ym(e["eLo"]))}~{esc(ym(e["eHi"])[2:])}</b><span>준공 예상 범위(추정)</span><small>서울 사업장 기록 통계 · 가운데 {esc(ym(e.get("eMid")))}</small></li>'
     return f'<!--zd--><div class="zh-card zh-tl"><p class="zh-ct">단계 일정표</p><ol>{li}{nx}</ol><p class="zh-cap">줄마다 아래에 출처를 적었어요(정보몽땅 등록 날짜 · 기사·고시로 확인한 일). 예상 범위는 단정이 아니에요.</p></div><!--/zd-->'
 
@@ -281,7 +281,7 @@ def carousel(X, r, src, V):
     e = __import__('zsample').eta_adj(r, X.D.get('asOf')) or {}   # 앱·/api/v1과 같은 가로·소규모 보정
     stl = __import__('zsample').stall_yrs(r, (X.P.get(r['id']) or {}).get('dt') or {}, X.D.get('upd'))   # 사이클 2: 장기 정체면 통계 범위 생략(시트·본문과 같은 판정)
     if stl: m2 = ('산정 불가', f'{stl}년째 같은 단계라 서울 통계로 견줄 곳이 거의 없어 예상 범위를 싣지 않아요(8년 이상이면 생략)')
-    elif e.get('eLo') and e.get('eHi') and not r.get('stale') and r.get('s', 0) < 9 and not stalled(X, r):
+    elif e.get('eLo') and e.get('eHi') and not r.get('stale') and r.get('s', 0) < 9 and not stalled(X, r) and not __import__('zsample').eta_hidden(r):
         m2 = (f'{e["eLo"][:4]}~{e["eHi"][:4]}년', f'준공 예상 범위(추정) · 가운데 {ym(e.get("eMid"))}' + (f' · 10년 안 준공 가능성 {V["p10"]}' if V.get('p10') and r.get('s', 0) < 8 else '') + (' · 지금 사면 입주권은 없어요' if k3.get('elab') == '입주권' and not k3.get('im') else ''))
     elif stalled(X, r): m2 = ('산정 불가', '같은 단계에 8년 넘게 머물러 준공 통계를 싣지 않았어요')
     else: m2 = (k3.get('eta') or '산정 불가', k3.get('esub') or '입주 시기는 범위로만 봐요')

@@ -24,7 +24,9 @@
       const st = statOf(ctx, r, `${ka}>${kb}`);
       gaps.push({ a: a.k, b: b.k, yrs, st: st ? { n: st.n, na: st.na, km: st.km, p25: st.p25, med: st.med, p75: st.p75 } : null, lvl: yrs > 0 ? lvlOf(yrs, st) : null, same: !(yrs > 0) });
     }
+    // 사이클 3: 다음 단계 판단은 ZoneFacts 하나(ctx.facts · 가로·소규모 사업시행 다음 = 이주·착공 · 소규모 자체 통계만) — '이미 가진 집이면'·/z와 같은 값
     let next = null;
+    if (ctx.facts) { const f = ctx.facts(r); next = f && f.next ? f.next : null; if (!steps.length && !next) return null; return { steps, gaps, next }; }
     const nk = !r.dn && !(r.s >= 9) ? NEXT[r.s] : null;
     if (nk) {
       const from = nk.split(">")[0], to = nk.split(">")[1];
@@ -74,16 +76,21 @@
       }).join("");
       const N = T.next;
       const FROM = N ? esc(NM[N.k.split(">")[0]] || "") : "";
-      const nx = !N ? "" : N.state === "stall" || N.state === "over" ? `<div class="ztl-next past">
-          <div class="ztl-nh"><span>다음 단계 예상 <em class="ztl-est">추정·확인 필요</em></span><b>${esc(NM[N.to] || N.to)}</b></div>
+      const TO = N ? esc(N.toName || NM[N.to] || N.to) : "";
+      const nx = !N ? "" : N.state === "nostat" ? `<div class="ztl-next past">
+          <div class="ztl-nh"><span>다음 단계 <em class="ztl-est">추정·확인 필요</em></span><b>${TO}</b></div>
+          <p class="ztl-rng"><b>예상 시점을 내지 않아요</b></p>
+          <p class="ztl-why">${/가로|소규모|모아/.test(r.k || "") ? `가로주택·소규모 사업은 사업시행계획인가 때 관리처분계획까지 함께 정해 다음 순서가 이주·착공이에요(소규모주택정비법 · 추정·확인 필요). 이 구간을 지난 서울 가로·소규모 사업장 기록이 적어 큰 재개발·재건축 기간을 빌려 쓰지 않고 시점을 비워 둬요.` : `서울 같은 구간 비교 기록이 없어 시점을 비워 둬요.`} ${FROM} ${F.ymd(N.fromD)}부터 ${F.dur(N.el)}째예요.</p>
+        </div>` : N.state === "stall" || N.state === "over" ? `<div class="ztl-next past">
+          <div class="ztl-nh"><span>다음 단계 예상 <em class="ztl-est">추정·확인 필요</em></span><b>${TO}</b></div>
           <p class="ztl-rng"><b>${N.state === "stall" ? "통계 범위를 싣지 않아요" : "보통 범위를 넘었어요"}</b></p>
           <p class="ztl-why">${N.state === "stall" ? `${FROM} ${F.ymd(N.fromD)}부터 ${F.dur(N.el)}째 같은 단계예요 · 8년 넘게 그대로인 사업장은 서울 통계로 견줄 곳이 거의 없어 예상 시점을 내지 않아요` : `${FROM} ${F.ymd(N.fromD)}부터 ${F.dur(N.el)}째 · 서울 같은 구간 사업장 가운데 50%가 걸린 기간(${ctx.ZF.durS(N.p25)}~${ctx.ZF.durS(N.p75)})을 넘었어요 · 언제 넘어갈지는 통계로 말하기 어려워요`}</p>
-          <small class="ztl-src">서울 정비사업 ${ctx.fmt(N.n)}곳(아직 못 넘어간 곳 포함 · 생존분석 가운데 값 ${ctx.ZF.durS(N.med)} · <a href="years">몇 년 걸리나</a>와 같은 기준)의 실제 ${esc((NM[N.k.split(">")[0]] || "") + " → " + (NM[N.to] || ""))} 기간(정보몽땅 인가·고시일)과 견준 결과예요</small>
+          <small class="ztl-src">서울 정비사업 ${ctx.fmt(N.n)}곳(아직 못 넘어간 곳 포함 · 생존분석 가운데 값 ${ctx.ZF.durS(N.med)} · <a href="years">몇 년 걸리나</a>와 같은 기준)의 실제 ${esc((NM[N.k.split(">")[0]] || "") + " → " + (N.toName || NM[N.to] || ""))} 기간(정보몽땅 인가·고시일)과 견준 결과예요</small>
         </div>` : `<div class="ztl-next ${N.state}">
-          <div class="ztl-nh"><span>다음 단계 예상 <em class="ztl-est">추정·확인 필요</em></span><b>${esc(NM[N.to] || N.to)}</b></div>
+          <div class="ztl-nh"><span>다음 단계 예상 <em class="ztl-est">추정·확인 필요</em></span><b>${TO}</b></div>
           <p class="ztl-rng"><b>${F.ym(N.lo)} ~ ${F.ym(N.hi)}</b><small>가운데 ${F.ym(N.mid)}</small></p>
           <p class="ztl-why">${N.state === "in" ? `${FROM} ${F.ymd(N.fromD)}부터 ${F.dur(N.el)}째 · 서울 같은 구간 사업장 가운데 이만큼 지나도 아직 넘어가지 않은 곳 기준으로 다시 낸 범위예요` : `${F.ymd(N.fromD)} ${FROM}에서 서울 같은 구간 가운데 50%가 걸린 기간(${ctx.ZF.durS(N.p25)}~${ctx.ZF.durS(N.p75)})을 더한 범위예요`}</p>
-          <small class="ztl-src">서울 정비사업 ${ctx.fmt(N.n)}곳(아직 못 넘어간 곳 포함 · 생존분석 가운데 값 ${ctx.ZF.durS(N.med)} · <a href="years">몇 년 걸리나</a>와 같은 기준)의 실제 ${esc((NM[N.k.split(">")[0]] || "") + " → " + (NM[N.to] || ""))} 기간(정보몽땅 인가·고시일)으로 낸 범위 · 이 구역 사정(소송·조합 갈등·심의)은 반영하지 않아요</small>
+          <small class="ztl-src">서울 정비사업 ${ctx.fmt(N.n)}곳(아직 못 넘어간 곳 포함 · 생존분석 가운데 값 ${ctx.ZF.durS(N.med)} · <a href="years">몇 년 걸리나</a>와 같은 기준)의 실제 ${esc((NM[N.k.split(">")[0]] || "") + " → " + (N.toName || NM[N.to] || ""))} 기간(정보몽땅 인가·고시일)으로 낸 범위 · 이 구역 사정(소송·조합 갈등·심의)은 반영하지 않아요</small>
         </div>`;
       const html = `<div class="sect ztl"><h3>단계별 걸린 기간 <small>정보몽땅 인가·고시일 기준 · 서울 같은 구간과 비교</small></h3>${nx}${rows ? `<ol class="ztl-l">${rows}</ol>` : ""}<p class="ztl-key" aria-hidden="true"><span><i class="kb"></i>서울 가운데 50%</span><span><i class="km"></i>가운데 값</span><span><i class="ki"></i>이 구역</span></p></div>`;
       F.put(pane, "timeline", html, (n) => { const lad = pane.querySelector(".ladder"); const sec = lad && lad.closest(".sect"); if (sec) sec.after(n); else pane.appendChild(n); });

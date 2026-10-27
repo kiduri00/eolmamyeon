@@ -131,8 +131,23 @@ def yrs_since(d, upd):
     m = re.match(r'(\d{4})[.-](\d{1,2})(?:[.-](\d{1,2}))?', str(d or '')); n = _ymd(upd) if upd else None
     if not m or not n: return None
     return (n - datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3) or 1))).days / 365.25
+# ---------- 사이클 3: ZoneFacts(앱 src/ext/06_zfacts.js가 만든 구역 판단 한 객체 · calc.json 'f') ----------
+# 정적 생성기는 판단(입주 글자·10년 확률·정체 생략·다음 단계·보류 이유·전세가율)을 따로 셈하지 않고 이것을 읽는다. 없으면(옛 calc.json) 아래 옛 셈.
+_FX = None
+def facts(rid):
+    global _FX
+    if _FX is None:
+        try: _FX = {k: v.get('f') for k, v in json.load(open(os.path.join(_ROOT, 'pipeline/calc.json'), encoding='utf-8')).items() if isinstance(v, dict) and v.get('f')}
+        except Exception: _FX = {}
+    return _FX.get(rid)
+def eta_hidden(r):   # 입주 범위를 숨긴 구역(범위가 10년 확률과 어긋남 · ZoneFacts eta.hid) — 정적 페이지도 범위(eLo~eHi)를 싣지 않는다
+    f = facts(r.get('id')); return bool(f and (f.get('eta') or {}).get('hid'))
+def hold_of(r, which='one'):   # 보류 이유 하나({code, short, txt}) — 화면과 같은 문장
+    f = facts(r.get('id')); return ((f or {}).get('hold') or {}).get(which)
 def stall_yrs(r, dt=None, upd=None):
     """같은 단계 8년 이상(장기 정체) — 화면 app.js stallYrs와 같은 판정 · 아니면 0. /z 카드·본문·입주 시점이 이것 하나로 통계를 생략한다."""
+    f = facts(r.get('id'))
+    if f is not None: return int(f.get('stall') or 0)
     s = r.get('s', 0) or 0
     if not (2 <= s <= 6): return 0
     dt = dt or {}
@@ -167,6 +182,8 @@ def eta_adj(r, as_of=None):
 def eta_show(r, dt=None, as_of=None, upd=None):
     """예상 입주 글자 — 화면 app.js etaShow(projection·etaSpan·stallYrs)와 같은 규칙.
     dt = premium 단계 날짜(없으면 r.sd), as_of = D.asOf(TODAY), upd = D.upd(ETA_NOW)."""
+    f = facts(r.get('id'))
+    if f is not None and (f.get('eta') or {}).get('txt'): return f['eta']['txt']   # 사이클 3: ZoneFacts 글자 그대로
     s = r.get('s', 0) or 0
     if r.get('dn') or s >= 9: return '완료'
     if r.get('src') == 'moa': return '사업구역별'
@@ -212,7 +229,8 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         if s >= 8 and t.get('im'): o['eta'] = '조합원 입주권을 사야 해요'; o['esub'] = f"참고 입주권 시세 {eok_m(t['im'])}"; o['im'] = 1
         else: o['eta'] = '없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 알아봐야 해요'
     elif c.get('gapBlock') and c['gapBlock'] not in ('계산 대상 아님', 'na'):   # 'na' = 매수가 자료 없음(아래 마지막 갈래)
-        o['basis'] = '전세를 안고는 살 수 없어요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
+        h = hold_of(r, 'now')
+        o['basis'] = h['txt'] if h and h.get('code') == 'jrLow' else '전세를 안고는 살 수 없어요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
         if c.get('now') is not None and not r.get('lc') and r.get('tag') != 'mk':
             o['alt'] = f"대출 끼고 사면 지금 {cash(c['now'])}" + (f" · 입주까지 {cash(c['need'])}" if c.get('need') is not None else '')
             # 27차: 대출 끼고 사는 값을 칸의 큰 값으로(앱 76_detail.js keyHTML과 같은 꼴: 값 + '대출 끼고' 꼬리표) — '계산 보류' 칸과 아래 한 줄이 겹치던 것
@@ -221,10 +239,11 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         o['tsub'] = '전세 끼고는 계산하지 않아요'
     elif c.get('gapNow') is not None:
         o['now'] = cash(c['gapNow'])
-        o['basis'] = f"전세 끼고 · 매수가 {manT(c['price'])} − 전세 {manT(c['jeonse'])} (+취득세)" if c.get('price') is not None and c.get('jeonse') is not None else '전세 끼고 · 기본 가정'
+        jr = ((facts(r.get('id')) or {}).get('jr') or {}).get('short')   # 사이클 3: 쓴 전세가율과 출처(화면 첫 칸과 같은 글)
+        o['basis'] = f"전세 끼고 · 매수가 {manT(c['price'])} − 전세 {manT(c['jeonse'])}" + (f"(전세가율 {jr})" if jr else '') + " (+취득세)" if c.get('price') is not None and c.get('jeonse') is not None else '전세 끼고 · 기본 가정'
         if c.get('gapTotal') is not None: o['tot'] = cash(c['gapTotal'])
-        else: o['tsub'] = '입주 시점·신축 시세 자료가 부족해요'
-    else: o['basis'] = '매수가로 쓸 거래가 없어 계산하지 않아요'; o['tsub'] = '매수가가 없어 계산하지 않아요'
+        else: h = hold_of(r, 'tot'); o['tsub'] = h['txt'] if h else '입주까지 계산에 필요한 자료가 부족해요'
+    else: h = hold_of(r, 'now'); o['basis'] = h['txt'] if h else '매수가로 쓸 거래가 없어 계산하지 않아요'; o['tsub'] = ''   # 사이클 3: 보류 이유 하나(ZoneFacts) · 입주까지 칸에서 같은 이유를 또 쓰지 않는다
     if o['now'] == '계산 보류' and not o['alt'] and r.get('src') != 'moa' and not done and not o.get('im'): o['alt'] = ref_price(r)
     w = c.get('win')
     o['ip'] = None if nt else ('입주권 ✓ 나와요', 'ok') if w == 'ok' else ('입주권 ✕ 안 나와요', 'no') if w == 'no' else ('입주권 ! 확인 필요', 'warn') if not done and r.get('src') != 'moa' else None
@@ -236,6 +255,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         basis = f"같은 구({r.get('g', '')}) 빌라 시세 기준" if est else (f"{('구역 안 아파트' if en.get('fill') == 'zoneapt' else '단지') if en.get('src') == 'complex' else '같은 동 빌라' if en.get('fill') == 'dong' else '주변 빌라' if en.get('radius') else '같은 본번 빌라' if en.get('m') == 'jibun' else '구역 안 빌라'} {en['n']}건 기준" if en.get('n') else '실거래 기준')
         o['trust'] = ('추정', f'{basis} · 믿을 만함: ', lv, {'높음': 'hi', '보통': 'md', '낮음': 'lo'}.get(lv, ''))
     else:
-        why = '모아타운은 사업구역마다 달라요' if r.get('src') == 'moa' else '새 아파트 계산 대상이 아니에요' if nt else '이주·철거가 시작됐어요' if 7 <= s < 9 else '매수가로 쓸 거래가 없어요'
+        h = hold_of(r, 'one')   # 사이클 3: 화면 신뢰 줄과 같은 짧은 이유(ZoneFacts hold.one.short)
+        why = h['short'] if h else ('모아타운은 사업구역마다 달라요' if r.get('src') == 'moa' else '새 아파트 계산 대상이 아니에요' if nt else '이주·철거가 시작됐어요' if 7 <= s < 9 else '매수가로 쓸 거래가 없어요')
         o['trust'] = None if nt else ('계산 보류', f'{why} · 이유 보기', '', 'na')   # 입주권 없는 곳은 이유를 셋째 칸에서 한 번만(20차 G3)
     return o

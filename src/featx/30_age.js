@@ -42,11 +42,11 @@
       if (!d.k) { const o = pane.querySelector('[data-f="age"]'); if (o) o.remove(); return; }
       const bar = BANDS.map(([k, t]) => d[k] ? `<i class="${k}" style="width:${((d[k] / d.k) * 100).toFixed(1)}%" title="${t} ${d[k]}필지"></i>` : "").join("");
       const svg = mapSVG(A, ctx.geo ? ctx.geo(r.id) : null, d.ry, nowY, esc, ctx.shortName(r.n));
-      const html = `<div class="sect zxa"><h3>필지 연식 지도 <small>구역 안 필지 ${fmt(d.n)}곳 · 건물 사용승인연도 확인 ${fmt(d.k)}곳 · ${nowY}년 기준</small></h3>
+      const html = `<div class="sect zxa"><h3>필지 연식 ${svg ? "지도" : "분포"} <small>구역 안 필지 ${fmt(d.n)}곳 · 건물 사용승인연도 확인 ${fmt(d.k)}곳 · ${nowY}년 기준</small></h3>
         ${svg || ""}
         <div class="zxa-bar" role="img" aria-label="${BANDS.map(([k, t]) => `${t} ${d[k]}필지`).join(", ")}">${bar}</div>
         <ul class="zxa-key">${BANDS.map(([k, t]) => `<li><i class="${k}"></i>${t} <b>${fmt(d[k])}</b></li>`).join("")}${d.ry ? `<li><i class="nw"></i>권리산정기준일(${esc(rd)}) 뒤 준공 <b>${fmt(d.after)}</b></li>` : ""}</ul>
-        <p class="zxa-n">필지 단위 30년 이상 비율 <b>${d.pct30}%</b> · 위 노후도 게이지는 건물 ${r.tx && r.tx.old ? fmt(r.tx.old.n) + "동" : ""} 전수 기준이라 값이 다를 수 있어요${svg ? "" : " · 필지 위치 자료가 아직 없어 지도 대신 분포만 보여요"}</p>
+        <p class="zxa-n">필지 단위 30년 이상 비율 <b>${d.pct30}%</b> · 위 노후도 게이지는 건물 ${r.tx && r.tx.old ? fmt(r.tx.old.n) + "동" : ""} 전수 기준이라 값이 다를 수 있어요${svg ? "" : " · 필지 위치 자료가 모이면 지도로 보여 드려요"}</p>
         <p class="zxa-src">자료: 서울도시공간포털 건물 정보(사용승인연도) · 연속지적 필지 · 한 필지에 건물이 여러 동이면 가장 새 건물 기준 · 신축 여부는 권리산정기준일과의 비교로만 판단해요(추정·확인 필요)</p></div>`;
       const F = window.ZPF;
       const put = (n) => { const tl = pane.querySelector('[data-f="timeline"]'), ow = pane.querySelector(".ov-oldw"); if (ow) ow.after(n); else if (tl) tl.after(n); else pane.appendChild(n); };

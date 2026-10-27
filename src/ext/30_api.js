@@ -12,10 +12,13 @@
         const w = buyWindow(r);
         let g = null;
         let gE = false, cE = false;
-        try { P.fund = "gap"; g = gapOf(r); gE = gapOk(r, 1e9); } catch (e) {} finally { P.fund = "cash"; }
+        // 사이클 3: 판단은 ZoneFacts 한 객체(f · 정적 /z·api·og·zhand가 이것만 읽는다) — 첫 화면 기본(전세 끼고)과 대출 끼고 보류 이유(hc)
+        let f = null, hc = null;
+        try { P.fund = "gap"; g = gapOf(r); gE = gapOk(r, 1e9); f = ZFX.of(r); } catch (e) {} finally { P.fund = "cash"; }
+        try { hc = ZFX.of(r).hold; } catch (e) {}
         try { cE = !estHide(r) && !r.dn && r.s < 9 && !r.cx && r.src !== "moa" && !($("pTrade").checked && restricted(r)) && !rewinBlocked(r); } catch (e) {}
         out[id] = { gapOk: gE, cashOk: cE, gapNow: g && !g.block && !g.na ? g.now : null, gapTotal: g && !g.block && !g.na ? g.total ?? null : null, gapBlock: g ? (g.block ? String(g.block === true ? "block" : g.block) : g.na ? "na" : null) : null, jeonse: g && g.D != null ? g.D : null,
-          price: x.price ?? null, priceSrc: x.priceSrc ?? null, need: x.ok ? x.needTotal : null, now: x.needBuy ?? null, p10: r.eta?.p10 ?? null, eMid: r.eta?.eMid ?? null, win: w.cls, winT: w.t, st: r.st ? { n: r.st.n, d: r.st.d } : null, ln: r.ln || [], owners: r.sm?.owners || r.sm?.members || null, stage: stageName(r) };
+          price: x.price ?? null, priceSrc: x.priceSrc ?? null, need: x.ok ? x.needTotal : null, now: x.needBuy ?? null, p10: f && f.eta ? f.eta.p10 : null, p10raw: r.eta?.p10 ?? null, f, hc, eMid: r.eta?.eMid ?? null, win: w.cls, winT: w.t, st: r.st ? { n: r.st.n, d: r.st.d } : null, ln: r.ln || [], owners: r.sm?.owners || r.sm?.members || null, stage: stageName(r) };
       }
     } finally { Object.assign(P, keep); }
     return out;

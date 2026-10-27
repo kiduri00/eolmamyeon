@@ -293,7 +293,9 @@ def hold_line(r, c, k3):
     """계산 보류 페이지 첫 줄: 왜 보류인지 + 대출 끼고 값(있으면) — 화면 key3와 같은 판정에서 말만 고른다"""
     if k3['now'] != '계산 보류': return ''
     t = r.get('tx') or {}; w = gapWhy(c)
-    if noTicket(r, c): why = '착공 뒤라 조합원 입주권을 사야 해요' if r.get('s', 0) >= 8 and t.get('im') else '지금 사면 새 아파트 입주권이 안 나와서 계산하지 않아요'
+    h = __import__('zsample').hold_of(r, 'now')   # 사이클 3: 보류 이유 하나(ZoneFacts · 앱 시트 첫 칸과 같은 문장)
+    if noTicket(r, c): why = '착공 뒤라 조합원 입주권을 사야 해요' if r.get('s', 0) >= 8 and t.get('im') else (h['txt'] if h else '지금 사면 새 아파트 입주권이 안 나와서 계산하지 않아요')
+    elif h and h.get('code') == 'jrLow': why = h['txt']
     elif w and w[0] == '토허제': why = '토지거래허가구역이라 2년 실거주해야 해서 전세를 끼고 살 수 없어요'
     elif w and w[0] != '대상 아님': why = f'전세를 끼고 계산하지 않아요. {w[1]}'
     elif k3['basis']: why = k3['basis'].replace(' · ', ', ')

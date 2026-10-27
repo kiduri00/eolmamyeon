@@ -10,7 +10,7 @@
   // 지금 화면의 조건 → 시나리오 하나
   X.scenNow = (ctx, name) => {
     const x = {}; XID.forEach(([k, id]) => { const el = document.getElementById(id); const v = el && String(el.value || "").trim(); if (v) x[k] = v.slice(0, 12); });
-    return { n: String(name || "").trim().slice(0, 20), q: ctx.condQ(), x, at: new Date().toISOString().slice(0, 10) };
+    return { n: String(name || "").trim().slice(0, 20), q: ctx.condQ(), x, at: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10) };   // 사이클 3: 저장일은 서울 날짜(KST) — UTC라 아침에 어제 날짜로 찍히던 것
   };
   // 시나리오 → 주소(?조건&sv=…#planner)
   X.scenURL = (ctx, s) => {

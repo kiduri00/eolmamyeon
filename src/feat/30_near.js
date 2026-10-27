@@ -35,7 +35,7 @@
       const html = `<div class="sect znr"><h3>근처 비슷한 구역 <small>1km 안 · 같은 ${esc(ctx.SHAPE[ctx.shape(r)] || "유형")} · 단계 비슷 · ${ctx.gap() ? "전세 끼고" : "대출 끼고"} 지금 필요한 돈이 적은 순 · 계산 보류는 뒤에</small></h3>
         ${me ? `<p class="znr-me">이 구역 지금 필요한 돈 <b>${ctx.ZF.cash(me.v)}</b> · ${ctx.gap() ? "전세 끼고" : "대출 끼고"}</p>` : ""}
         <ol class="znr-l">${L.map(li).join("")}</ol>
-        <p class="znr-src">거리·사업 유형·단계·내 조건으로 계산한 돈으로만 고른 목록이에요 · 추천 순위가 아니에요${L.filter((x) => x.n).length < 3 ? ` · 돈이 계산되는 곳이 ${L.filter((x) => x.n).length}곳뿐이에요` : ""}</p></div>`;
+        <p class="znr-src">거리·사업 유형·단계·내 조건으로 계산한 돈으로만 고른 목록이에요 · 추천 순위가 아니에요${L.filter((x) => x.n).length < 3 ? (L.filter((x) => x.n).length ? ` · 돈이 계산되는 곳은 ${L.filter((x) => x.n).length}곳이에요` : " · 돈이 계산되는 곳은 없어요") : ""}</p></div>`;
       const n = F.put(pane, "near", html, (el) => { const nc = pane.querySelector(".nearcmp"); if (nc) nc.before(el); else pane.appendChild(el); });
       if (n) n.querySelectorAll("[data-zid]").forEach((b) => (b.onclick = () => ctx.open(b.dataset.zid)));
     },

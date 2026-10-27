@@ -332,15 +332,18 @@ for r in R:
         r['nx'] = 'mk'; continue
     if t:
         r['tx'] = {k: v for k, v in t.items() if v not in (None, [], {}) and k not in ('q', 'qa', 'qi', 'age', 'agn', 'pc')}   # 상세는 data/tx.json에서 지연 로딩
-    if not act(r) or r.get('src') == 'moa': continue
+    if not act(r): continue
+    # 사이클 3: 모아타운 관리지역도 구역 안 빌라 표본(아래 (a))을 반경 추정보다 먼저 — '주변 300m 32건'과 '구역 안 21건'이 한 화면에 함께 나오던 것(관리지역 참고값)
+    moa = r.get('src') == 'moa'
     mk = r.setdefault('mk', {}); en = mk.get('entry')
-    villa_kind = r['k'] not in ('재건축', '소규모재건축')
+    villa_kind = r['k'] not in ('재건축', '소규모재건축') or moa
+    if moa and not (t and (t.get('no', 0) >= 5 or (t.get('no', 0) >= 3 and en and en.get('med') and t.get('med') and abs(en['med'] / t['med'] - 1) > 0.25))): continue
     # (0) 예전 반경 추정값 점검: 범위가 터무니없거나(p75/p25 3배 초과) 원룸 기준(전용 20㎡ 미만), 신축 단지(2005년 이후 준공)·먼 이름 매칭이면 버리고 다시 채운다
     if en and ((en.get('p25') and en.get('p75') and en['p75'] / max(en['p25'], 1) > 3) or (en.get('area_med') or 99) < 20
                or (en.get('src') == 'complex' and (en.get('yr') or 0) >= 2005) or (en.get('match') == 'name' and (en.get('radius') or 0) > 50)):
         mk.pop('entry', None); en = None; stat['entry_drop_bad'] += 1
     # (a0) 아파트 위주 구역(재개발 안 기존 아파트 단지 등): 구역 경계 안 아파트 매매로
-    if t and villa_kind and apt_dom(t) and t.get('ae'):
+    if t and villa_kind and not moa and apt_dom(t) and t.get('ae'):
         a = t['ae']
         mk['entry'] = {'src': 'complex', 'scope': '구역 경계 안 아파트', 'n': a['n'], 'p25': a['p25'], 'med': a['med'], 'p75': a['p75'], 'radius': 0, 'area_med': a['area_med'],
                        'name': '구역 안 아파트', 'yr': a['yr'], 'last': a['last'][2:4] + '.' + a['last'][4:6] + '.' + a['last'][6:8], 'match': 'zone', 'by_area': {}, 'fill': 'zoneapt',
@@ -360,6 +363,7 @@ for r in R:
             if fr[2]: mk['entry']['u'], mk['entry']['nl'] = fr[2], fr[3]
         if t['no'] < 5 or apt_dom(t): mk['entry']['lc'] = 1; r['lc'] = 1; stat['entry_lc'] += 1
         continue
+    if moa: continue   # 모아타운은 구역 안 표본만 바꾼다(아래 반경 보충·아파트 판정은 사업구역에서)
     # (b) 주변 빌라 표본(반경 300·500·800m): tools/near.py가 원자료에서 다시 뽑은 값으로(거래 하나하나가 public/data/near.json에 남아 거래 탭에서 확인 가능)
     #     예전 기준 자료의 반경 값은 어떤 거래였는지 남아 있지 않았다. 다시 뽑은 표본이 3건 미만이면 예전 값을 그대로 둔다
     if en and en.get('src') == 'villa' and (en.get('radius') or 0) >= 100 and (NEAR.get(r['id']) or {}).get('n', 0) >= 3:

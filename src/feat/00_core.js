@@ -26,6 +26,7 @@
   };
   F.pane = (tab, r, pane, ctx) => {
     F.css(); if (ctx.dur) F.dur = ctx.dur;   // 기간 꼴은 앱과 하나(ZF.dur)
-    Object.values(F.mods).forEach((m) => { if (m.tab === tab) { try { m.run(r, pane, ctx); } catch (e) { console.warn("feat", m.key, e); } } });
+    // 사이클 3: 모아타운 관리지역 시트는 '이미 가진 집이면'(moa: true 모듈)만
+    Object.values(F.mods).forEach((m) => { if (m.tab === tab && (r.src !== "moa" || m.moa)) { try { m.run(r, pane, ctx); } catch (e) { console.warn("feat", m.key, e); } } });
   };
 })();

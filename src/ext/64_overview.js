@@ -54,7 +54,7 @@ const OVX = (() => {
     out.push({ k: "단계", c: "st", v: stageName(r), why: () => {
       const [T, i] = curStep(r), d = i >= 0 ? stepDate(r, T[i][0]) : null;
       let p = null; try { p = ZX.pace(r); } catch (e) {}
-      if (p) return `${ymd(p.from)}부터 ${ZF.dur(p.yrs)}째 · 서울 가운데 값 ${p.med}년`;
+      if (p) return `${ymd(p.from)}부터 ${ZF.dur(p.yrs)}째${p.nostat ? ` · 다음은 ${p.to}` : ` · 서울 가운데 값 ${p.med}년`}`;
       return d ? `${ymd(d)} ${T[i][0]}` : r._prem || !FREE ? "단계 날짜 기록 없음" : "불러오는 중";
     } });
     return out;
@@ -66,8 +66,10 @@ const OVX = (() => {
   function vdHTML(V) {
     // 입주권이 안 나오는 구역: 지금 사면 무엇을 사는 건지 맨 위에 한 번(아래 아파트·빌라 시세 카드에 헷갈리지 않게)
     const ip = V.find((x) => x.w && x.c === "no");
-    const due = ip ? String(ip.w.due || "").replace(/\s*이후 매수분$/, "") : "";
-    const nb = ip ? `<div class="ov-noip" role="note"><b>지금 사면 새 아파트 입주권이 안 나와요</b><span>${due ? `${esc(due)} 뒤에 산 집은` : "지금 산 집은"} 조합원이 될 수 없어요(예외 매물 빼고). 새 아파트를 원하면 일반분양·분양권을 알아보세요. 아래 시세는 참고용이에요. 이미 가진 집(그 전에 산 집)은 해당 없어요.</span></div>` : "";
+    // 사이클 3: due('조합설립인가 이후 매수분 · 인가일 기록 없음(…)')를 통째로 문장 앞에 붙여 '…(정보몽땅 목록 단계로 판정) 뒤에 산 집은'이 되던 것 — 단계와 꼬리 설명을 나눠 쓴다
+    const dp = ip ? String(ip.w.due || "").split(" · ") : [], due = dp.length ? dp[0].replace(/\s*이후 매수분$/, "") : "", dx = dp.slice(1).join(" · ");
+    const dxT = /인가일 기록 없음/.test(dx) ? " 인가일 기록이 없어 정보몽땅 목록 단계로 판정했어요." : "";
+    const nb = ip ? `<div class="ov-noip" role="note"><b>지금 사면 새 아파트 입주권이 안 나와요</b><span>${due ? `${esc(due)} 뒤에 산 집은` : "지금 산 집은"} 조합원이 될 수 없어요(예외 매물 빼고).${dxT} 새 아파트를 원하면 일반분양·분양권을 알아보세요. 아래 시세는 참고용이에요. 이미 가진 집(그 전에 산 집)은 해당 없어요.</span></div>` : "";
     return `<div class="ov-vd" role="group" aria-label="판정">${V.map((x, i) => `<button type="button" class="ov-p ${x.c}" data-vi="${i}" aria-expanded="false"><span>${esc(x.k)}</span><b>${vdV(x.v)}</b></button>`).join("")}</div><p class="ov-why" hidden></p>${nb}`;
   }
   function vdBind(w, V) {
@@ -259,11 +261,10 @@ const OVX = (() => {
     // 계산 안 한 까닭을 한 줄로(입주권 없음 · 모아타운 · 이주 뒤 · 재건축 단지 거래 없음 · 표본 없음)
     if (!x || x.price == null || !isFinite(x.price) || noIpR(r)) {
       const TT = "입주까지 현금 계산";
-      if (r.src === "moa") return H("보류", "na", [], "모아타운 관리지역은 사업구역마다 조건이 달라 한 숫자로 계산하지 않아요. 안의 사업구역을 열어 보세요.", TT);
-      if (noIpR(r)) return imOf(r) ? H("보류", "na", [], "입주권 값은 매물마다 달라서 입주까지 현금은 계산 보류예요. 위 참고 시세를 기준으로 실제 입주권 매물 값을 견줘 보세요.", TT) : H("보류", "na", [], "지금 사는 집은 입주권이 안 나오는 시점이라 입주까지 현금(새 아파트 받을 때까지 드는 돈)은 계산 보류예요.", TT);
-      if (x && x.stale) return H("보류", "na", n12, "이주·철거가 시작돼 옛 집 매매가로는 계산할 수 없어요. 아는 입주권 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
-      if (x && x.noApt) return H("보류", "na", n12, "재건축 단지 아파트 거래가 없어 매수가를 못 잡았어요. 아는 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
-      return H("보류", "na", n12, "매수가로 쓸 거래가 없어 계산하지 않아요. 아는 매물가를 '돈' 탭 '숫자 바꿔 보기'에 넣으면 계산해요.", TT);
+      // 사이클 3: 보류 이유는 ZoneFacts 하나(시트 첫 칸·신뢰 줄·/z와 같은 문장) · 입주권 매물이 있는 입주권 없음 구역만 참고 시세 안내를 덧붙인다
+      const hz = (() => { try { return ZFX.of(r).hold.one; } catch (e) { return null; } })();
+      const msg = (hz ? hz.txt : "매수가로 쓸 거래가 없어 계산하지 않아요") + (noIpR(r) && imOf(r) ? " · 입주권 값은 매물마다 달라 위 참고 시세로 실제 입주권 매물 값을 견줘 보세요" : "");
+      return H("보류", "na", r.src === "moa" || noIpR(r) ? [] : n12, esc(msg) + ".", TT);
     }
     let est = false; try { est = isEst(r); } catch (e) {}
     if (est) return H("낮음", "lo", n12, `구역 안 거래가 적어 같은 구(${esc(r.g)}) 빌라 시세로 추정한 값이에요 · 계약 전 매물 시세로 꼭 확인`);
@@ -497,7 +498,7 @@ const OVX = (() => {
       const vis = [...p.children].filter((x) => !x.hidden && getComputedStyle(x).display !== "none" && !x.classList.contains("s-fold"));
       let noIpju = false; try { noIpju = buyWindow(r).cls === "no"; } catch (e) {}
       // 입주권이 안 나오는 구역은 위 '입주권 없음 · 계산 안 함'이 이유 하나·참고 시세 하나 — 여기서 다른 이유('자료 부족')·다른 값(계산 매수가)을 또 쓰지 않는다
-      if (!vis.length && !noIpju) { const cs = document.querySelector("#report .rep-head .cstrip"); p.insertAdjacentHTML("afterbegin", `<p class="ov-msg">${cs && cs.classList.contains("gblock") ? "전세 끼고는 살 수 없는 구역이에요. 위 '대출 끼고' 금액을 보세요." : (() => { let x = null; try { x = investC(r); } catch (e) {} return x && x.price != null ? `지금 사는 값(계산 매수가 ${ZF.manT(x.price)})까지만 계산했어요. ${ZF.noCalcTxt(r, x)}.` : "매수가로 쓸 거래가 없어 계산하지 않아요. 아는 매물가를 넣으면 계산해요."; })()}</p>`); }
+      if (!vis.length && !noIpju) { const cs = document.querySelector("#report .rep-head .cstrip"); p.insertAdjacentHTML("afterbegin", `<p class="ov-msg">${cs && cs.classList.contains("gblock") ? "전세 끼고는 살 수 없는 구역이에요. 위 '대출 끼고' 금액을 보세요." : (() => { let x = null; try { x = investC(r); } catch (e) {} let h = null; try { h = ZFX.of(r).hold; } catch (e) {} return x && x.price != null ? `지금 사는 값(계산 매수가 ${ZF.manT(x.price)})까지만 계산했어요. ${esc(((h && (h.tot || h.one)) || {}).txt || ZF.noCalcTxt(r, x))}.` : `${esc(((h && (h.now || h.one)) || {}).txt || "매수가로 쓸 거래가 없어 계산하지 않아요")}.`; })()}</p>`); }
     }
     p.querySelectorAll("dl.facts > div").forEach((d) => { const t = d.textContent; if (/자료 없음|미공개|계산 불가|일반분양 비율/.test(t)) d.hidden = true; });
   }

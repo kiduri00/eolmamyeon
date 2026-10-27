@@ -7,6 +7,8 @@
   "use strict";
   const F = window.ZPF;
   const LAW77 = "https://www.law.go.kr/법령/도시및주거환경정비법/제77조";
+  // 사이클 3: 가로·소규모·모아는 도시정비법 제77조가 아니라 소규모주택정비법과 서울시 기준 — 조항 번호는 확인 전이라 법령 첫 화면으로
+  const LAWSM = "https://www.law.go.kr/법령/빈집및소규모주택정비에관한특례법";
   // 순수 계산(QA 기준식과 대조): pcl = {d, p:[[동코드, 지번, 면적, 지목, 준공연도]]} · tz = tx.json의 구역 자료 · rt = rights(r)
   F.split = (pcl, tz, rt) => {
     // 사이클 2: 근거 없는 경험칙(2016년 뒤 준공·대지 15㎡ 이하 = 쪼개기 의심)은 뺐다 — 권리산정기준일과 필지 준공연도 비교만
@@ -39,7 +41,7 @@
       const old = ul.querySelector('[data-f="split"]'); if (old) old.remove();
       if (!it) return;
       const li = document.createElement("li"); li.className = it.cls; li.setAttribute("data-f", "split");
-      li.innerHTML = `<i aria-hidden="true">${ico(it.cls)}</i><span><b>신축 쪼개기 위험 <em class="dg-est">추정·확인 필요</em></b><small>${ctx.esc(it.t)} <a href="${LAW77}" target="_blank" rel="noopener">도정법 제77조</a><span class="zdg-src">${ctx.esc(it.src)}</span></small></span>`;
+      li.innerHTML = `<i aria-hidden="true">${ico(it.cls)}</i><span><b>신축 쪼개기 위험 <em class="dg-est">추정·확인 필요</em></b><small>${ctx.esc(it.t)} ${/가로|소규모|모아/.test(r.k || "") || r.src === "moa" ? `<a href="${LAWSM}" target="_blank" rel="noopener">소규모주택정비법</a> · 서울시 기준(구청 확인)` : `<a href="${LAW77}" target="_blank" rel="noopener">도정법 제77조</a>`}<span class="zdg-src">${ctx.esc(it.src)}</span></small></span>`;
       const after = [...ul.children].find((x) => /권리산정기준일/.test(x.textContent));
       if (after) after.after(li); else ul.appendChild(li);
     });
