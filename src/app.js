@@ -4676,6 +4676,9 @@
       .toLowerCase()
       .replace(/번지|일대/g, "");
     if (q.length >= 4 && !sgAny(q)) { const c = sgClean(q); if (c && c !== q && sgAny(c)) q = c; }
+    // 사이클 2 통합: 이 목록이 어떤 입력값으로 그려졌는지(data-q)·지번 색인을 받는 중이라 한 번 더 그릴지(data-pend) — 검사(search.names·search.parcel)가 고정 대기 대신 '이 검색어의 그리기 끝'을 기다린다
+    const qRaw = $("q").value;
+    $("sugg").dataset.q = qRaw; $("sugg").dataset.pend = "";
     if (q.length < 1) {
       $("sugg").hidden = true;
       $("q").setAttribute("aria-expanded", "false");
@@ -4743,7 +4746,7 @@
     let pr = null, pcl = null, pclOut = false, pclAdm = false, pclOther = [];
     if (pq) {
       pr = pcliHits(pq);
-      if (pr === null) Promise.all(pcliAlt(pq.dong).map(pcliLoad)).then(() => { if (pcliQ($("q").value)) renderSugg(); });
+      if (pr === null) { $("sugg").dataset.pend = "1"; Promise.all(pcliAlt(pq.dong).map(pcliLoad)).then(() => { if (pcliQ($("q").value)) renderSugg(); else if ($("sugg").dataset.q === qRaw) $("sugg").dataset.pend = ""; }, () => { if ($("sugg").dataset.q === qRaw) $("sugg").dataset.pend = ""; }); }
       else if (pr.own.length) { pcl = pr.own; pclOther = pr.other; }
       else if (!pr.dong && pcliAdm(pq.dong)) { pclOut = true; pclAdm = true; pcl = []; }
       else { pclOut = true; const dd = pr.dong || pq.dong; pcl = R.filter((r) => !isDone(r) && (!pq.gu || r.g === pq.gu) && String(r.j || "").split(" ")[0] === dd).slice(0, 6); }

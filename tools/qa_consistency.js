@@ -2999,8 +2999,10 @@ async function tappLane(browser, api, errs) {
           try {
             await page.goto(BASE + pg, { waitUntil: "load", timeout: 40000 }); await page.waitForTimeout(500);
             await page.evaluate(() => sessionStorage.setItem("__prOn", "1"));
-            const a = await page.$(`.zp-tabs a:has(span:text-is("${lab}"))`); if (!a) { R.push(`${pg} '${lab}' 링크 없음`); continue; }
-            await Promise.all([page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 40000 }).catch(() => {}), a.click()]);
+            // 사이클 2 통합: 붙잡아 둔 ElementHandle 대신 locator로 누른다(누를 때마다 다시 찾음 · 보임·안정·가림 검사는 그대로) — 바쁜 기계에서 elementHandle.click 30초 초과가 매번 첫 정적 페이지(/report)에서 났다.
+            //   실패하면 Playwright 기록(call log) 끝 줄을 남긴다(무엇을 기다렸는지)
+            const a = page.locator(`.zp-tabs a:has(span:text-is("${lab}"))`).first(); if (!(await a.count())) { R.push(`${pg} '${lab}' 링크 없음`); continue; }
+            await Promise.all([page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 40000 }).catch(() => {}), a.click({ timeout: 45000 }).catch((e) => { throw new Error(String(e.message || e).split("\n").filter((l) => l.trim()).slice(-4).join(" / ")); })]);
             await page.waitForFunction(() => window.__fr && window.__fr.length > 5 && !document.documentElement.classList.contains("tapp-cover"), null, { timeout: 40000 }).catch(() => {});
             await page.waitForTimeout(1500);
             const fr = await page.evaluate(() => window.__fr || []); nT++;
@@ -3709,7 +3711,8 @@ async function tappLane(browser, api, errs) {
     const R = [];
     for (const cs of ["light", "dark"]) {
       const { ctx, page } = await appPage(mob(390, 844, cs));
-      try { await appHome(page); const o = await page.evaluate(() => { const H = document.documentElement; return [getComputedStyle(H).overscrollBehaviorY, getComputedStyle(document.body).overscrollBehaviorY, getComputedStyle(H, "::after").backgroundColor, getComputedStyle(H, "::after").opacity]; }); const nv = cs === "light" ? "rgb(31, 58, 135)" : "rgb(19, 38, 94)"; if (!/none|contain/.test(o[0]) || !/none|contain/.test(o[1]) || o[2] !== nv || o[3] !== "0") R.push("app " + cs + " " + JSON.stringify(o)); } catch (er) { R.push("app crash"); } finally { await ctx.close().catch(() => {}); }
+      // 사이클 2 통합: 덮개 값은 덮개가 걷힌 뒤(tapp-cover 빠지고 사라지는 전환까지 끝난 뒤)에 잰다 — appHome은 tapp-on만 기다려서 바쁜 기계에서는 덮개가 아직 걷히는 중(opacity 1)이었다. 15초 안에 안 걷히면 그대로 실패로 남는다
+      try { await appHome(page); await page.waitForFunction(() => { const H = document.documentElement; return !H.classList.contains("tapp-cover") && getComputedStyle(H, "::after").opacity === "0"; }, null, { timeout: 15000, polling: 100 }).catch(() => {}); const o = await page.evaluate(() => { const H = document.documentElement; return [getComputedStyle(H).overscrollBehaviorY, getComputedStyle(document.body).overscrollBehaviorY, getComputedStyle(H, "::after").backgroundColor, getComputedStyle(H, "::after").opacity]; }); const nv = cs === "light" ? "rgb(31, 58, 135)" : "rgb(19, 38, 94)"; if (!/none|contain/.test(o[0]) || !/none|contain/.test(o[1]) || o[2] !== nv || o[3] !== "0") R.push("app " + cs + " " + JSON.stringify(o)); } catch (er) { R.push("app crash"); } finally { await ctx.close().catch(() => {}); }
     }
     { const { ctx, page } = await newPage(browser, mob(390, 844), errs); try { await page.goto(BASE + "/", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(800); const o = await page.evaluate(() => [getComputedStyle(document.documentElement).overscrollBehaviorY, getComputedStyle(document.body).overscrollBehaviorY, getComputedStyle(document.documentElement, "::after").content]); if (o[0] !== "auto" || o[1] !== "auto" || (o[2] !== "none" && o[2] !== "normal")) R.push("web " + JSON.stringify(o)); } catch (er) { R.push("web crash"); } finally { await ctx.close().catch(() => {}); } }
     expect(!R.length, "tapp.overscroll", T, R.join(" ; "));
@@ -3769,6 +3772,8 @@ async function tappLane(browser, api, errs) {
     } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); }
     expect(!R.length, "tapp.r5misc", T, R.join(" ; "));
   }
+  // 사이클 2 통합: 검색 결과 대기 = 입력 디바운스(80ms) 뒤 '이 검색어'로 그리기가 끝날 때까지(#sugg data-q == 입력값 · 지번 색인 받는 중(data-pend)이면 다시 그릴 때까지) — 고정 대기(260ms·700ms·2초)는 바쁜 기계에서 앞 검색어 목록을 읽거나 그리기 전에 끝나 들쭉날쭉했다
+  const sgDone = (page, q, ms = 15000) => page.waitForFunction((q) => { const s = document.getElementById("sugg"), i = document.getElementById("q"); return !!s && !!i && i.value === q && s.dataset.q === q && !s.dataset.pend; }, q, { timeout: ms }).then(() => true).catch(() => false);
   // --- search.parcel(5라운드 16 · 웹·앱): 구역 안 필지 지번 → 그 구역 1위(모아타운 하위 조합 먼저) · 구역 밖 지번 → '구역 밖' 안내 · 기존 검색어(이름·동·역·구·초성·로마자) 상위 6줄 = 지번 검색 넣기 전(tools/fixtures/search_base.json) · 색인은 지번 꼴일 때만 받음
   if (SEC(38, "search.parcel")) {
     const T = "지번 검색(웹·앱): 구역 안 필지 5개 → 그 구역 1위(모아타운은 필지가 든 사업구역 먼저) · 구역 밖 3개 → '구역 밖' 안내 · 기존 검색 상위 6줄 그대로 · 첫 화면에서 색인(pcli) 안 받음";
@@ -3779,7 +3784,7 @@ async function tappLane(browser, api, errs) {
       await ctx.addInitScript(() => { try { localStorage.setItem("zp.onb", "1"); } catch (e) {} });
       await page.goto(BASE + "/", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(3500);
       if (pcliReq.length) R.push("첫 화면에서 색인 받음 " + pcliReq.join(","));
-      const run = async (q) => { await page.evaluate((q) => { const i = document.getElementById("q"); i.value = q; i.dispatchEvent(new Event("input", { bubbles: true })); }, q); await page.waitForTimeout(700); await page.waitForFunction(() => !document.getElementById("sugg").hidden, null, { timeout: 4000 }).catch(() => {}); await page.waitForTimeout(500); return page.evaluate(() => ({ ids: [...document.querySelectorAll("#sugg [data-id],#sugg [data-stn],#sugg [data-gu]")].slice(0, 6).map((b) => b.dataset.id || "S:" + (b.dataset.stn || b.dataset.gu)), t: document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 200) })); };
+      const run = async (q) => { await page.evaluate((q) => { const i = document.getElementById("q"); i.value = q; i.dispatchEvent(new Event("input", { bubbles: true })); }, q); if (!(await sgDone(page, q))) R.push(`그리기 끝 안 옴 ${q}`); return page.evaluate(() => ({ ids: [...document.querySelectorAll("#sugg [data-id],#sugg [data-stn],#sugg [data-gu]")].slice(0, 6).map((b) => b.dataset.id || "S:" + (b.dataset.stn || b.dataset.gu)), t: document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 200) })); };
       for (const [q, want] of [["면목동 86-15", "o58"], ["면목동86-15", "o58"], ["중랑구 면목동 86-15", "o58"], ["행당동 128-417", "o498"], ["신림동 412-88", "o960"], ["성수동2가 344-7", "o509"], ["한남동 647-10번지", "o151"], ["개봉동 270-13", "m46"]]) { const r = await run(q); if (r.ids[0] !== want || !/안 필지/.test(r.t)) R.push(`${q} → ${r.ids[0]}(${want}) ${r.t.slice(0, 60)}`); }
       // 6라운드: 표기 변형(서울·서울특별시·붙여 쓰기·전각/엔대시·N번지 M·N번지M호·N의M·'한강로 3가'·성수2가) · 행정동 → 법정동 · 압구정동(구 이름 오인 없음) · 묶음 머리 줄
       for (const [q, want, hd] of [["서울 중랑구 면목동 86-15", "o58"], ["서울특별시 중랑구 면목동 86-15", "o58"], ["중랑구면목동86-15", "o58"], ["면목동 86－15", "o58"], ["면목동 86–15", "o58"], ["면목동 86번지 15", "o58"], ["면목동 86번지15호", "o58"], ["면목동 86의15", "o58"], ["면목본동 86-15", "o58", /법정동/], ["면목2동 86-15", "o58", /법정동/], ["한강로 3가 40-10", "o159"], ["압구정동 480", null, /압구정동 480번지 →/], ["자양동 799", "m78", /다른 검색 결과/]]) {
@@ -3794,14 +3799,16 @@ async function tappLane(browser, api, errs) {
         for (const f of fs.readdirSync(dir).filter((x) => /\.json$/.test(x)).sort()) { const J = JSON.parse(fs.readFileSync(P.join(dir, f), "utf8")); for (const d of Object.keys(J).sort()) for (const k of Object.keys(J[d]).sort()) { const v = J[d][k]; if (typeof v === "string" && !byz[v] && !/^산/.test(k) && /-/.test(k)) byz[v] = [d, k]; } }
         const ent = Object.entries(byz); let ok = 0; const bad = [];
         for (const [id, [d, k]] of ent) {
-          let r = await page.evaluate((q) => { const i = document.getElementById("q"); i.value = q; i.dispatchEvent(new Event("input", { bubbles: true })); return new Promise((res) => setTimeout(() => res([...document.querySelectorAll("#sugg [data-id]")].slice(0, 4).map((b) => b.dataset.id).concat([document.getElementById("sugg").innerText.slice(0, 60)])), 260)); }, `${d} ${k}`);
-          if (r[0] !== id && !(r.indexOf(id) > 0 && /^m/.test(id))) { await page.waitForTimeout(600); r = await page.evaluate(() => [...document.querySelectorAll("#sugg [data-id]")].slice(0, 4).map((b) => b.dataset.id)); }
+          await page.evaluate((q) => { const i = document.getElementById("q"); i.value = q; i.dispatchEvent(new Event("input", { bubbles: true })); }, `${d} ${k}`);
+          await sgDone(page, `${d} ${k}`);
+          const r = await page.evaluate(() => [...document.querySelectorAll("#sugg [data-id]")].slice(0, 4).map((b) => b.dataset.id));
           if (r[0] === id || (/^m/.test(id) && r.slice(0, 3).includes(id))) ok++; else bad.push(`${id} ${d} ${k}→${r[0]}`);
         }
         if (bad.length || ent.length < 650) R.push(`전수 ${ok}/${ent.length} ` + bad.slice(0, 5).join(","));
       }
       let base = null; try { base = JSON.parse(fs.readFileSync(require("path").join(__dirname, "fixtures", "search_base.json"), "utf8")); } catch (e) {}
-      if (base) for (const q of Object.keys(base)) { const r = await run(q); if (JSON.stringify(r.ids) !== JSON.stringify(base[q])) R.push(`회귀 ${q}: ${base[q].join(",")} → ${r.ids.join(",")}`); }
+      if (base) for (const q of Object.keys(base).filter((k) => !k.startsWith("_"))) {   // "_why": 기준을 바꾼 이유(검색어 아님)
+      const r = await run(q); if (JSON.stringify(r.ids) !== JSON.stringify(base[q])) R.push(`회귀 ${q}: ${base[q].join(",")} → ${r.ids.join(",")}`); }
       else R.push("search_base.json 없음");
     } catch (er) { R.push("crash " + String(er.message || er).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
     expect(!R.length, "search.parcel", T, R.join(" ; "));
@@ -3824,15 +3831,16 @@ async function tappLane(browser, api, errs) {
       for (const x of AL) {
         n++;
         await page.fill("#q", ""); await page.fill("#q", x.name);
-        const v = await page.waitForFunction((id) => { const e = document.querySelector(`#sugg [data-id="${id}"]`); if (!e) return false; const c = e.querySelector(".sg-c"); return c ? c.innerText.split("\n")[0].replace(/^지금\s*/, "").trim() : "(칩만)"; }, x.id, { timeout: 2000 }).then((h) => h.jsonValue()).catch(() => null);
-        if (v == null) { if (liveF.has(x.id)) lost.push(`${x.id} '${x.name}' ${(await page.evaluate(() => document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 40)))}`); continue; }
+        const rd = await sgDone(page, x.name);   // 이 이름으로 그리기가 끝난 뒤 한 번만 읽는다(그 목록에 없으면 사라진 곳)
+        const v = await page.evaluate((id) => { const e = document.querySelector(`#sugg [data-id="${id}"]`); if (!e) return null; const c = e.querySelector(".sg-c"); return c ? c.innerText.split("\n")[0].replace(/^지금\s*/, "").trim() : "(칩만)"; }, x.id);
+        if (v == null) { if (liveF.has(x.id)) lost.push(`${x.id} '${x.name}'${rd ? "" : " (그리기 끝 안 옴)"} ${(await page.evaluate(() => document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 40)))}`); continue; }
         const zv = await zCell(x.id); if (zv == null) continue;
         nv++; if (v !== zv) mis.push(`${x.id} 검색 ${v} · /z ${zv}`);
       }
       if (lost.length) R.push(`사라진 곳 ${lost.length}: ` + lost.slice(0, 6).join(" ; "));
       if (mis.length || nv < 800) R.push(`금액 다름 ${mis.length}/${nv}: ` + mis.slice(0, 6).join(" ; "));
       for (const [q, want] of [["수유동 310-15", "s43"], ["창동 608", "s51"], ["중화동324", "o6"], ["무교다동4", "s79"]]) {
-        await page.fill("#q", ""); await page.fill("#q", q); await page.waitForTimeout(1500);
+        await page.fill("#q", ""); await page.fill("#q", q); await sgDone(page, q);
         const r = await page.evaluate(() => ({ top: (document.querySelector("#sugg [data-id]") || {}).dataset?.id, t: document.getElementById("sugg").innerText.replace(/\s+/g, " ").slice(0, 80) }));
         if (/구역 밖/.test(r.t)) R.push(`${q}: '구역 밖' 안내 ${r.t}`);
         if (q === "수유동 310-15" && r.top !== want) R.push(`${q} 1위 ${r.top}(${want})`);
@@ -4111,8 +4119,10 @@ async function r27Lane(browser, api, errs) {
         const sv = await page.evaluate(() => { const m = ZP_lmx.map(), names = new Set([...document.querySelectorAll("#lmap .zgu")].map((e) => e.dataset.gu)); const lab = m.getLayer("gu-lab") ? m.queryRenderedFeatures({ layers: ["gu-lab"] }).map((f) => f.properties.n) : []; return { bub: names.size, dup: lab.filter((n) => names.has(n)) }; });
         await page.evaluate(() => { const e = [...document.querySelectorAll("#lmap .zgu")].sort((a, b) => +b.dataset.n - +a.dataset.n)[0]; if (e) e.click(); });
         await page.waitForFunction(() => document.getElementById("mapbox").dataset.view === "gu" && !ZP_lmx.map().isMoving(), null, { timeout: 15000, polling: 200 }).catch(() => {});
-        await page.waitForTimeout(1500);
-        const r = await page.evaluate(() => { const m = ZP_lmx.map(), o = { z: +m.getZoom().toFixed(2), gu: document.getElementById("mapbox").dataset.gu }; let n = 0; for (const id of ["gu-lab", "dong-lab", "stn-mj-lab", "stn-mid-lab", "place"]) { const k = m.getLayer(id) ? m.queryRenderedFeatures({ layers: [id] }).length : 0; o[id] = k; n += k; } o.n = n; return o; });
+        // 사이클 2 통합: 이름 글자는 바탕 지도 조각·글꼴(외부 tiles.openfreemap.org)을 받은 뒤 그려진다 — 고정 1.5초 대신 지도가 다 받고 그린 뒤(loaded·areTilesLoaded, 20초 한도)에 센다. 받는 데 1.5초 넘게 걸린 실행에서 0개로 떨어졌다
+        await page.waitForFunction(() => { const m = ZP_lmx.map(); return m.loaded() && (!m.areTilesLoaded || m.areTilesLoaded()) && !m.isMoving(); }, null, { timeout: 20000, polling: 250 }).catch(() => {});
+        await page.waitForTimeout(600);
+        const r = await page.evaluate(() => { const m = ZP_lmx.map(), o = { z: +m.getZoom().toFixed(2), gu: document.getElementById("mapbox").dataset.gu, ld: m.loaded() && (!m.areTilesLoaded || m.areTilesLoaded()) }; let n = 0; for (const id of ["gu-lab", "dong-lab", "stn-mj-lab", "stn-mid-lab", "place"]) { const k = m.getLayer(id) ? m.queryRenderedFeatures({ layers: [id] }).length : 0; o[id] = k; n += k; } o.n = n; return o; });
         expect(r.z >= 11 && r.z <= 14 && r.n >= 4 && !sv.dup.length, "map.guLabels", T, `${cs}: seoul bubbles ${sv.bub} dup base names ${sv.dup.join(",")} · gu view ${JSON.stringify(r)}`);
       } catch (e) { bad("map.guLabels", T, `${cs} crashed: ` + String(e.message || e).split("\n")[0]); }
       finally { await ctx.close().catch(() => {}); }
