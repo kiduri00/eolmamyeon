@@ -4789,6 +4789,11 @@ const UNITS = {
   r29: { est: 60, limit: 300, files: [/^src\/(app\.css|shell\.html)$/, /^src\/ext\/.*\.css$/, /^tools\/zpages\.py$/] },
   r30: { est: 140, limit: 400, files: [/^src\/ext\/(10_lmap|56_toheo|20_zone|99zzzzzzzz_r30)/, /^tools\/(report|zpages|toheo)\.py$/] },
   r31: { est: 70, limit: 300, files: [/^src\/(app\.js|app\.css|shell\.html)$/, /^tools\/(zpages|report)\.py$/] },
+  // 리뉴얼 통합: 따로 만든 검사 도구를 단위로(같은 PASS/FAIL·JSON에 합침) — feat.*(qa_feat.js) · data.sync.*(qa_sync.js) · brand.residual(qa_brand.js) · zhand.*(zhand_check.py)
+  feat: { est: 420, limit: 1200, browser: false, ext: ["node", "tools/qa_feat.js", "$BASE"], files: [/^src\/feat\//, /^src\/ext\/(20_zone|66_tools|70_pins|72_inbox|74_my)\./, /^src\/app\.js$/, /^tools\/(qa_feat|qa_feat_ref|qa_feat_split)\./] },
+  sync: { est: 60, limit: 400, browser: false, ext: ["node", "tools/qa_sync.js", "$BASE"], files: [/^src\/app\.js$/, /^src\/ext\/(20_zone|30_api)\./, /^tools\/(api|zpages|report|stfix|jsnum|calc|build|enrich|zsample)\./, /^public\/(z|api)\//] },
+  brand: { est: 10, limit: 120, browser: false, ext: ["node", "tools/qa_brand.js"], files: [/./] },
+  zhand: { est: 60, limit: 400, browser: false, ext: ["python3", "tools/zhand_check.py"], files: [/^content\//, /^tools\/(zhand|zhand_check|zpages)\./, /^public\/(z|gu)\//] },
   r22: { est: 590, limit: 1500, deps: ["core"], files: [/^src\/(app\.js|data\.json|premium\.json)$/, /^src\/ext\/68_app\./, /^tools\/(enrich|calc|api)\./] },
 };
 const NHF_N = Math.min(5, +process.env.QAC_NHF_RUNS || 5);
@@ -4826,11 +4831,26 @@ async function runUnit(name, api, shortSrc, zoneIds, errs) {
       case "r30": await guard("r30Lane", r30Lane(browser, api, errs)); break;
       case "r31": await guard("r31Lane", Promise.all([r31Lane(browser, api, errs), r31Static(api)])); break;
       case "r22": { const lm = getShared("listMap"); if (lm) shared.listMap = new Map(lm); await guard("r22Lane", r22Lane(browser, api, errs, shared)); break; }
+      case "feat": case "sync": case "brand": case "zhand": extUnit(name, u); break;
       default: if (/^(tapp|nhf)\d+$/.test(name)) { await guard("tappLane", tappLane(browser, api, errs)); break; } throw new Error("no runner for " + name);
     }
   } finally { if (browser) await browser.close().catch(() => {}); }
 }
 
+// 바깥 검사 도구 한 단위: 'PASS id' · 'FAIL id — 이유' 줄을 같은 검사 표로(zhand_check는 ok/fail 합계 줄 → zhand.check 하나)
+function extUnit(name, u) {
+  const { spawnSync } = require("child_process");
+  const args = u.ext.slice(1).map((x) => (x === "$BASE" ? BASE : x));
+  const r = spawnSync(u.ext[0], args, { cwd: path.join(__dirname, ".."), encoding: "utf8", maxBuffer: 1 << 27, env: { ...process.env, QAC_NO_LOCK: "1" } });
+  const out = (r.stdout || "") + "\n" + (r.stderr || ""), T = `바깥 검사 도구 ${u.ext.slice(0, 2).join(" ")}`;
+  let n = 0;
+  for (const line of out.split("\n")) {
+    const m = /^(PASS|FAIL) ([a-z][\w.]*)(?: — (.*))?$/.exec(line.trim()); if (!m) continue;
+    n++; expect(m[1] === "PASS", m[2], T, m[3] || "FAIL");
+  }
+  if (name === "zhand") { const m = /ok\s+([\d,]+)\s*[·/|]\s*(?:fail|실패)\s+([\d,]+)/i.exec(out); n++; expect(!!m && +m[2].replace(/,/g, "") === 0 && r.status === 0, "zhand.check", "손글 렌더 검사(tools/zhand_check.py: data-zv·머리 숫자·색인·사이트맵·광고 태그·zthin)", m ? `fail ${m[2]}` : `결과 줄 없음 · exit ${r.status} · ${out.trim().split("\n").slice(-2).join(" / ").slice(0, 200)}`); }
+  if (!n) bad("runtime", "검사 실행", `${name}: 결과 줄 없음 · exit ${r.status} · ${out.trim().split("\n").slice(-2).join(" / ").slice(0, 200)}`);
+}
 function unitResult(name, errs, partial) {
   return { unit: name, partial: !!partial, ms: el(), checks: [...CHECKS.values()], errs, sect: SECT_T, flaky: FLAKY_LOG };
 }
