@@ -87,6 +87,21 @@ for _f in _iss:
             _card = f'<article class="rd-card"><span class="rd-k">월간 리포트 {_no.group(1)}호 · {_ym[:4]}년 {_M}월분</span><h3><a href="report/{_ym}">{_t.replace("&", "&amp;").replace("<", "&lt;")}</a></h3><ol>{_li}</ol><a class="rd-go" href="report/{_ym}">{_M}월 리포트 전체 보기 →</a></article>'
             shell = re.sub(r'<article class="rd-card"><span class="rd-k">월간 리포트 .*?</article>', lambda m: _card, shell, count=1, flags=re.S)
     break
+# 리뉴얼 A5: 홈 소개 글(#sReads)의 '최신 리포트 요약' = 가장 최근에 낸 호(색인하는 호)의 제목·설명(JSON-LD headline·description)
+for _f in _iss:
+    _h = open(os.path.join(_RD, _f), encoding='utf-8').read()
+    if 'name="robots" content="noindex' in _h: continue
+    _ld = re.search(r'<script type="application/ld\+json"[^>]*>(.*?)</script>', _h, re.S)
+    try: _j = json.loads(_ld.group(1)) if _ld else {}
+    except Exception: _j = {}
+    _no = re.search(r'리포트 · (\d+)호 · ', _h)
+    _hd, _ds = (_j.get('headline') or '').strip(), (_j.get('description') or '').strip()
+    if _hd and _ds:
+        _e = lambda x: x.replace('&', '&amp;').replace('<', '&lt;')
+        shell = re.sub(r'<p class="st-l" id="sStRptK">[^<]*</p>', f'<p class="st-l" id="sStRptK">월간 리포트 · {int(_f[:4])}년 {int(_f[5:7])}월분' + (f' {_no.group(1)}호' if _no else '') + '</p>', shell, count=1)
+        shell = re.sub(r'<a href="report/[^"]*" id="sStRpt">[^<]*</a>', f'<a href="report/{_f[:-5]}" id="sStRpt">{_e(_hd)}</a>', shell, count=1)
+        shell = re.sub(r'<p id="sStRptD">[^<]*</p>', f'<p id="sStRptD">{_e(_ds)}</p>', shell, count=1)
+    break
 # 7차: /about '지금까지 낸 리포트'도 낸 호 전체(새 호가 빠져 3호까지만 있던 것)
 _AB = os.path.join(R, 'public', 'about.html')
 if os.path.exists(_AB):

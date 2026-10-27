@@ -262,15 +262,22 @@ async function zoneChecks(page, scen, id, opts) {
         const hl = await page.evaluate(() => {
           const shown = (a) => { const r = a.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return false; for (let e = a; e; e = e.parentElement) { const cs = getComputedStyle(e); if (e.hidden || cs.display === "none" || cs.visibility === "hidden" || +cs.opacity === 0) return false; } return true; };
           const out = {};
+          out.__story = 0;
           for (const a of document.querySelectorAll("a[href]")) {
             if (!shown(a)) continue;
+            // 리뉴얼 A5: 목록 아래 서술형 소개(#sReads.s-story)의 리포트·가이드 3선 링크는 따로 센다(읽을거리 한 줄 + MY 규칙은 그 밖에서 그대로)
+            if (a.closest("#sReads.s-story")) { out.__story++; continue; }
             let u; try { u = new URL(a.getAttribute("href"), location.href); } catch (e) { continue; }
             if (u.origin !== location.origin) continue;
             (out[u.pathname] = out[u.pathname] || 0); out[u.pathname]++;
           }
           return out;
         });
+        const storyN = hl.__story; delete hl.__story;
         const P = Object.keys(hl);
+        // 리뉴얼 A5: 홈 소개 글이 첫 화면 HTML에 있고(크롤러) 리포트 1 · 가이드 3 · 용어집 · 편집 원칙 링크가 보임
+        { const st = await page.evaluate(() => { const s = document.getElementById("sReads"); if (!s || !s.classList.contains("s-story")) return null; const L = [...s.querySelectorAll("a[href]")].map((a) => new URL(a.getAttribute("href"), location.href).pathname); return { rep: L.filter((p) => /^\/report\/\d{4}-\d{2}$/.test(p)).length, gd: L.filter((p) => /^\/guide\/[a-z0-9-]+$/.test(p)).length, gl: L.includes("/glossary"), ab: L.includes("/about"), txt: s.textContent.replace(/\s+/g, "").length }; });
+          if (!st || st.rep !== 1 || st.gd !== 3 || !st.gl || !st.ab || st.txt < 500 || storyN < 6) fail("seo.homeStory", name, `home narrative block missing or incomplete: ${JSON.stringify(st)} visible links ${storyN}`); }
         // 27차(운영자 결정): 가이드·리포트로 가는 곳은 검색칸 밑 읽을거리 한 줄(최신 리포트 + 가이드 목록)과 MY 둘만 — 맨 아래 '재개발 공부하기' 카드·푸터 가이드 링크는 뺐다
         const need = [["/guide/", (p) => p === "/guide/"], ["/about", (p) => /^\/about(\.html)?$/.test(p)], ["/privacy", (p) => /^\/privacy(\.html)?$/.test(p)], ["/contact", (p) => /^\/contact(\.html)?$/.test(p)]];
         for (const [lab, f] of need) if (!P.some(f)) fail("seo.homeLinks", name, `no visible link on / to ${lab}`);

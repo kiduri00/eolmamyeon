@@ -3804,7 +3804,7 @@ async function r26Lane(browser, api, errs) {
   const WEB = [".s-rd", ".s-reads", ".site-foot", ".ad-slot", ".s-about", ".s-read3", "#sAbout", "#sRead3"];
   // --- home.readsTop: 브라우저 첫 화면(폰·PC) 검색칸 바로 밑 읽을거리 한 줄(리포트·가이드 두 링크 · 한 줄 · 누르는 높이 40px 이상)이 첫 화면 안에 · '재개발 공부하기'는 목록 뒤 · '집핀이 뭔가요' 상자 없음
   {
-    const T = "홈 읽을거리: 검색칸 밑 한 줄(리포트·가이드 · 줄바꿈 없음 · 40px 이상)이 첫 화면 안 · 맨 아래 공부하기 카드·푸터 가이드 링크 없음(들어가는 곳 둘: 한 줄 + MY) · 소개 상자 없음";
+    const T = "홈 읽을거리: 검색칸 밑 한 줄(리포트·가이드 · 줄바꿈 없음 · 40px 이상)이 첫 화면 안 · 예전 공부하기 카드·푸터 가이드 링크 없음 · 소개 상자 없음 · 리뉴얼 A5: 목록 아래 서술형 소개(#sReads.s-story)는 보임";
     for (const [vp, tag] of [[mob(360, 740), "360"], [mob(390, 844), "390"], [mob(412, 915), "412"], [{ viewport: { width: 1440, height: 900 } }, "1440"]]) {
       const { ctx, page } = await newPage(browser, vp, errs);
       try {
@@ -3812,11 +3812,11 @@ async function r26Lane(browser, api, errs) {
         await loadHome(page); await settle(page, 400);
         const r = await page.evaluate(() => { const d = document.getElementById("sRd"), b = d && d.getBoundingClientRect(), L = d ? [...d.querySelectorAll("a")] : [], rd = document.getElementById("sReads"), li = document.getElementById("sList");
           return { ok: !!d && b.height > 0, top: b ? Math.round(b.top) : null, h: b ? Math.round(b.height) : 0, vh: innerHeight, links: L.map((a) => [a.getAttribute("href"), Math.round(a.getBoundingClientRect().height), a.scrollWidth > a.clientWidth + 1]), lines: d ? Math.round(b.height / 44) : 0,
-            reads: !!rd, about: !!document.getElementById("sAbout"), read3: !!document.getElementById("sRead3") }; });
+            reads: !!rd && !rd.classList.contains("s-story"), story: !!rd && rd.classList.contains("s-story") && rd.getClientRects().length > 0, about: !!document.getElementById("sAbout"), read3: !!document.getElementById("sRead3") }; });
         const linksOk = r.links.length === 2 && r.links.some((x) => /^report\//.test(x[0])) && r.links.some((x) => /^guide\//.test(x[0])) && r.links.every((x) => x[1] >= 40);
         // 27차: 가이드·리포트로 가는 곳은 읽을거리 한 줄 + MY 둘만 — 맨 아래 '재개발 공부하기' 카드 없음 · 웹 푸터에 가이드·리포트 링크 없음
         r.foot = await page.evaluate(() => [...document.querySelectorAll(".site-foot a")].map((a) => a.getAttribute("href")).filter((h) => /^(\/)?(guide|report)\//.test(h || "")));
-        expect(r.ok && r.top != null && r.top + r.h <= r.vh && r.h <= 52 && linksOk && !r.reads && !r.foot.length && !r.about && !r.read3, "home.readsTop", T, `${tag}: ${JSON.stringify(r)}`);
+        expect(r.ok && r.top != null && r.top + r.h <= r.vh && r.h <= 52 && linksOk && !r.reads && r.story && !r.foot.length && !r.about && !r.read3, "home.readsTop", T, `${tag}: ${JSON.stringify(r)}`);
       } catch (e) { bad("runtime", "검사 실행", "r26 readsTop crashed: " + String(e.message || e).split("\n")[0]); }
       finally { await ctx.close().catch(() => {}); }
     }
