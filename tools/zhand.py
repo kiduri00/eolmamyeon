@@ -63,6 +63,7 @@ def vals(X, r):
     v['n3'] = f"{t['n3']:,}" if t.get('n3') is not None else None
     v['yoy'] = f"{abs(t['yoy'])}%" if t.get('yoy') is not None and min(t.get('yon') or [0]) >= 30 else None
     v['pol'] = f"{t['old']['pol']}%" if t.get('old') and isinstance(t['old'].get('pol'), (int, float)) else None
+    v['split'] = f"{t['split']}" if t.get('split') else None   # 2016년 뒤 준공 · 대지지분 15㎡ 이하 매매 건수(tools/tx.py split)
     v['new10'] = f"{t['old']['new10']}" if t.get('old') and t['old'].get('new10') else None
     v['oldAvg'] = f"{t['old']['avg']}년" if t.get('old') and t['old'].get('avg') else None
     hd = ((X.TXX.get(rid) or {}).get('x') or {}).get('hd')
@@ -285,37 +286,14 @@ def page(X, r, src):
             elif b['t'] == 'card': body.append(f'<div class="zh-card"><p class="zh-ct">{esc(b["title"])}</p>' + ''.join(f'<p>{josa_fix(fill(x, V, rid))}</p>' for x in b['p']) + '</div>')
     body.append('<h2 id="zh-check">사기 전에 이것 3가지만</h2>' + ('<p>' + josa_fix(fill(src['checkLead'], V, rid)) + '</p>' if src.get('checkLead') else '') + checklist(src['check'], V, rid))
     srcs = '<details class="srcs"><summary>참고한 기사·고시·법령 ' + str(len(src.get('sources') or [])) + '건</summary><ul>' + ''.join(f'<li>{esc(a)}, 「{esc(b)}」 ({esc(c)}) <a href="{esc(u)}" target="_blank" rel="noopener nofollow">원문</a></li>' for a, b, c, u in src.get('sources') or []) + '</ul></details>'
-    head = f'''<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<base href="/z/">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{esc(title)}</title>
-<meta name="description" content="{esc(desc)}">
-<meta name="color-scheme" content="light dark">
-<link rel="canonical" href="{url}">
-<meta property="og:site_name" content="집핀"><meta property="og:title" content="{esc(title)}">
-<meta property="og:description" content="{esc(desc)}">
-<meta property="og:url" content="{url}">
-<meta name="twitter:card" content="summary_large_image">
-<meta property="og:type" content="article">
-<meta property="og:image" content="{X.SITE}/og.png">
-<meta property="og:locale" content="ko_KR">
-<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#15181D" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="/icon-small.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
-<link rel="stylesheet" href="../pages.css">
-<link rel="alternate" type="application/rss+xml" title="{esc(X.nk(nm, kind))} 소식" href="../feed/z/{rid}.xml">
-{ADTAG}
-<script type="application/ld+json">{json.dumps(ld, ensure_ascii=False).replace("</", "<\\/")}</script>
-<link rel="manifest" href="/manifest.webmanifest">
-{CSS}
-</head>
-<body>
-<header class="top"><div class="in"><a class="logo" href="../" aria-label="집핀 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><span class="logo-en" lang="en">Zippin</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/" aria-current="page">구역별 페이지</a><a href="../guide/">가이드·분석</a></nav></div></header>
-<main>
-'''
+    # 머리·바닥은 tools/zpages.py의 공통 틀(HEAD·FOOT)을 그대로 쓴다 — 서비스 이름·메뉴 같은 공통 상수는 그쪽에서 한 번에 바뀐다
+    brand = (re.search(r'<meta property="og:site_name" content="([^"]*)"', X.HEAD) or [None, ''])[1]
+    for a in ld['@graph']:
+        a['author']['name'] = f'{brand} 운영자'.strip(); a['publisher']['name'] = brand
+    head = X.HEAD.format(title=esc(title), desc=esc(desc), url=url, site=X.SITE, ld=json.dumps(ld, ensure_ascii=False).replace("</", "<\\/"))
+    head = head.replace('<meta name="emr-auto" content="1">\n', '', 1)
+    head = head.replace('<link rel="canonical"', f'<link rel="alternate" type="application/rss+xml" title="{esc(X.nk(nm, kind))} 소식" href="../feed/z/{rid}.xml">\n<link rel="canonical"', 1)
+    head = head.replace('<script type="application/ld+json">', ADTAG + '\n<script type="application/ld+json">', 1).replace('</head>', CSS + '\n</head>', 1)
     o = [head]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or "")} · {esc(kind)} · 글 기준 {Wd}</p>')
     o.append(f'<h1>{esc(src["h1"])}</h1>')
@@ -327,8 +305,8 @@ def page(X, r, src):
     o.append(nextcards(X, r, src))
     o.append(srcs)
     o.append(f'<p class="disc">출처: 정비사업 정보몽땅 추진경과·사업개요, 국토교통부 실거래가, 서울부동산정보광장 토지거래허가, 위 기사·고시. 금액은 기본 가정(무주택·84㎡·비례율 100%)으로 낸 추정이고 실제 분담금은 감정평가·관리처분계획으로 정해져요. 투자 권유가 아니에요. 서울시·국토교통부와 무관한 개인 운영 서비스예요.</p>')
-    o.append('<!--zr--><!--/zr--></main>\n')
-    o.append(f'<footer class="f"><p><a href="../about">소개</a> · <a href="../method">출처·계산 방법</a> · <a href="../contact">문의하기</a> · <a href="../terms">이용약관</a> · <a href="../privacy"><b>개인정보처리방침</b></a></p><p class="f-c">© 2026 집핀 · 데이터 기준 {X.UPD}</p></footer>\n</body>\n</html>\n')
+    o.append('<!--zr--><!--/zr-->')
+    o.append(X.FOOT.format(upd=X.UPD))
     return ''.join(o)
 
 def render_all(g):
