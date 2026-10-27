@@ -87,6 +87,21 @@ for _f in _iss:
             _card = f'<article class="rd-card"><span class="rd-k">월간 리포트 {_no.group(1)}호 · {_ym[:4]}년 {_M}월분</span><h3><a href="report/{_ym}">{_t.replace("&", "&amp;").replace("<", "&lt;")}</a></h3><ol>{_li}</ol><a class="rd-go" href="report/{_ym}">{_M}월 리포트 전체 보기 →</a></article>'
             shell = re.sub(r'<article class="rd-card"><span class="rd-k">월간 리포트 .*?</article>', lambda m: _card, shell, count=1, flags=re.S)
     break
+# 리뉴얼 A5: 홈 소개 글(#sReads)의 '최신 리포트 요약' = 가장 최근에 낸 호(색인하는 호)의 제목·설명(JSON-LD headline·description)
+for _f in _iss:
+    _h = open(os.path.join(_RD, _f), encoding='utf-8').read()
+    if 'name="robots" content="noindex' in _h: continue
+    _ld = re.search(r'<script type="application/ld\+json"[^>]*>(.*?)</script>', _h, re.S)
+    try: _j = json.loads(_ld.group(1)) if _ld else {}
+    except Exception: _j = {}
+    _no = re.search(r'리포트 · (\d+)호 · ', _h)
+    _hd, _ds = (_j.get('headline') or '').strip(), (_j.get('description') or '').strip()
+    if _hd and _ds:
+        _e = lambda x: x.replace('&', '&amp;').replace('<', '&lt;')
+        shell = re.sub(r'<p class="st-l" id="sStRptK">[^<]*</p>', f'<p class="st-l" id="sStRptK">월간 리포트 · {int(_f[:4])}년 {int(_f[5:7])}월분' + (f' {_no.group(1)}호' if _no else '') + '</p>', shell, count=1)
+        shell = re.sub(r'<a href="report/[^"]*" id="sStRpt">[^<]*</a>', f'<a href="report/{_f[:-5]}" id="sStRpt">{_e(_hd)}</a>', shell, count=1)
+        shell = re.sub(r'<p id="sStRptD">[^<]*</p>', f'<p id="sStRptD">{_e(_ds)}</p>', shell, count=1)
+    break
 # 7차: /about '지금까지 낸 리포트'도 낸 호 전체(새 호가 빠져 3호까지만 있던 것)
 _AB = os.path.join(R, 'public', 'about.html')
 if os.path.exists(_AB):
@@ -95,7 +110,7 @@ if os.path.exists(_AB):
         _h = open(os.path.join(_RD, _f), encoding='utf-8').read()
         if 'name="robots" content="noindex' in _h: continue
         _m = re.search(r'<h1[^>]*>(.*?)</h1>', _h, re.S); _no = re.search(r'리포트 · (\d+)호 · ', _h)
-        if _m and _no: _L.append(f'<li><a href="report/{_f[:-5]}">{_f[:4]}년 {int(_f[5:7])}월분 ({_no.group(1)}호)</a> — {re.sub(r"<[^>]+>", "", _m.group(1)).strip()}</li>')
+        if _m and _no: _L.append(f'<li><a href="report/{_f[:-5]}">{_f[:4]}년 {int(_f[5:7])}월분 ({_no.group(1)}호)</a>: {re.sub(r"<[^>]+>", "", _m.group(1)).strip()}</li>')
     if _L:
         _a2 = re.sub(r'(<h2>지금까지 낸 리포트</h2>\n<ul>).*?(</ul>)', lambda m: m.group(1) + ''.join(_L) + m.group(2), _a, count=1, flags=re.S)
         if _a2 != _a: open(_AB, 'w', encoding='utf-8').write(_a2); print('about: 리포트', len(_L), '호')
@@ -460,6 +475,13 @@ try:
 except Exception as e: print('pcli 건너뜀:', e)
 # 정적 페이지(/z·/gu·가이드·리포트·약관·404 …): 폰에서 앱과 같은 아래 탭 4개(찾기·관심·소식·MY)로 앱에 돌아가게.
 # 생성기마다 틀이 달라서(zpages·report·손으로 쓴 페이지) 빌드 끝에 한 번에 넣는다(표시 사이를 통째로 바꿔 몇 번 돌려도 같음)
+# 리뉴얼 A3·F10: 용어집·오류 수정 기록·about 운영자 소개(tools/trust.py) — 탭·푸터를 넣기 전에 만든다
+try:
+    import trust; trust.main()
+except Exception as e: print('trust 건너뜀:', e)
+try:
+    import og_site; og_site.main()   # 사이트 대표 공유 그림(이름: tools/brand.py)
+except Exception as e: print('og_site 건너뜀:', e)
 try:
     import static_tabs; static_tabs.main()
 except Exception as e: print('static tabs 건너뜀:', e)

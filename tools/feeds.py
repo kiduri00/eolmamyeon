@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """구별 '정비사업 새 소식' RSS: 최근 180일 안의 인가·착공·준공(정보몽땅 날짜) → public/feed/gu/<구>.xml, public/feed/index.html"""
 import json, os, html, datetime, collections, urllib.parse
+from brand import BRAND, BRAND_EN
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = 'https://jaegaebal.alwaysquestions.kr'
 D = json.load(open(os.path.join(ROOT, 'pipeline/data.enriched.json'), encoding='utf-8'))
@@ -17,13 +18,13 @@ gus = sorted({r['g'] for r in D['recs']})
 for g in gus:
     ev = sorted(G.get(g, []), key=lambda x: x[0], reverse=True)[:40]
     items = ''.join(f'<item><title>{esc(r["n"])} · {LAB[k]}</title><link>{SITE}/#{r["id"]}</link><guid isPermaLink="false">{r["id"]}-{k}-{d}</guid><pubDate>{datetime.datetime.fromisoformat(d).strftime("%a, %d %b %Y 09:00:00 +0900")}</pubDate><description>{esc(g)} {esc(r.get("j", ""))} · {LAB[k]} {d.replace("-", ".")} (정비사업 정보몽땅 기준)</description></item>' for d, k, r in ev)
-    open(os.path.join(out, g + '.xml'), 'w', encoding='utf-8').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>{esc(g)} 정비사업 새 소식 | 집핀 - 서울 재개발 지도</title><link>{SITE}/</link><description>{esc(g)} 재개발·재건축 인가·착공·준공 소식(최근 180일)</description><language>ko</language>{items}</channel></rss>\n')
+    open(os.path.join(out, g + '.xml'), 'w', encoding='utf-8').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>{esc(g)} 정비사업 새 소식 | {BRAND} - 서울 재개발 지도</title><link>{SITE}/</link><description>{esc(g)} 재개발·재건축 인가·착공·준공 소식(최근 180일)</description><language>ko</language>{items}</channel></rss>\n')
 tpl = open(os.path.join(ROOT, 'public/report/index.html'), encoding='utf-8').read()
 head = tpl[:tpl.index('<main>')].replace('<base href="/report/">', '<base href="/feed/">')
 import re
-head = re.sub(r'<title>.*?</title>', '<title>구별 정비사업 새 소식 구독 | 집핀 - 서울 재개발 지도</title>', head)
+head = re.sub(r'<title>.*?</title>', ('<title>구별 정비사업 새 소식 구독 | ' + BRAND + ' - 서울 재개발 지도</title>'), head)
 head = re.sub(r'(name="description" content=")[^"]*', r'\1서울 25개 구의 재개발·재건축 인가·착공·준공 소식을 RSS로 받아 보세요.', head)
-head = re.sub(r'(property="og:title" content=")[^"]*', r'\1구별 정비사업 새 소식 구독 | 집핀 - 서울 재개발 지도', head)
+head = re.sub(r'(property="og:title" content=")[^"]*', (r'\1구별 정비사업 새 소식 구독 | ' + BRAND + r' - 서울 재개발 지도'), head)
 head = re.sub(r'(property="og:description" content=")[^"]*', r'\1서울 25개 구의 재개발·재건축 인가·착공·준공 소식을 RSS로 받아 보세요.', head)
 head = head.replace(f'{SITE}/report/"', f'{SITE}/feed/"')   # 대표 주소·og:url = 이 페이지(예전엔 리포트 목록을 가리켰다)
 # RSS 주소 목록일 뿐이라 검색 색인에서는 뺀다(링크는 따라감) — 사이트맵에도 안 실린다
@@ -54,6 +55,6 @@ for r in D['recs']:
     for d, _, sec, t, c in NB.get(r['id'], []): ev[(d, t[:60])] = f'{sec} · {t}'
     its = sorted(ev.items(), key=lambda x: x[0][0], reverse=True)[:30]
     items = ''.join(f'<item><title>{esc(t)}</title><link>{SITE}/z/{r["id"]}</link><guid isPermaLink="false">{r["id"]}-{d}-{hashlib.md5(t.encode()).hexdigest()[:8]}</guid><pubDate>{rd(d)}</pubDate><description>{esc(desc)}</description></item>' for (d, t), desc in its)
-    open(os.path.join(zd, r['id'] + '.xml'), 'w', encoding='utf-8').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>{esc(r["n"])} 소식 | 집핀 - 서울 재개발 지도</title><link>{SITE}/z/{r["id"]}</link><description>{esc(r["g"])} {esc(r["n"])} 인가·고시·추진경과</description><language>ko</language>{items}</channel></rss>\n')
+    open(os.path.join(zd, r['id'] + '.xml'), 'w', encoding='utf-8').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>{esc(r["n"])} 소식 | {BRAND} - 서울 재개발 지도</title><link>{SITE}/z/{r["id"]}</link><description>{esc(r["g"])} {esc(r["n"])} 인가·고시·추진경과</description><language>ko</language>{items}</channel></rss>\n')
     nz += 1
 print('zone feeds', nz)

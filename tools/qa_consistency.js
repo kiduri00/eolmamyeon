@@ -304,6 +304,21 @@ async function stableText(page, sel, maxMs = 4000, need = 1) {
 // 첫 화면 3칸 이름: 셋째 칸은 '언제 입주'(입주권 없는 곳은 '입주권' · 20차 G3)
 const LAB3 = /^지금 필요한 돈\|입주까지 현금\|(언제 입주|입주권)$/;
 async function staticLane(api) {
+  // --- brand.static (리뉴얼 2026-10-27 '집핀' → '재개각'): 정적 페이지·피드·공개 API에 예전 이름이 없음 — 허용 예외는 이름 변경 안내(about #rename · 오류 수정 기록 '이름' 항목)뿐.
+  //     첫 화면(index.html)·앱 묶음(/b)·manifest·sw·assetlinks는 기능 트랙이 맡는다(같은 검사를 그쪽에서 켠다)
+  {
+    const T = "정적 페이지·피드·API에 예전 서비스 이름(집핀·Zippin·zippin) 0곳 — 이름 변경 안내 한 줄(about·/corrections)만 예외";
+    const P = require("path"), PUBD = P.join(__dirname, "..", "public"), bad = [];
+    const walk = (d) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = P.join(d, f.name), rel = P.relative(PUBD, p);
+      if (f.isDirectory()) { if (!/^(b|data|pcli|og|\.well-known)$/.test(rel)) walk(p); continue; }
+      if (!/\.(html|xml|json|css)$/.test(f.name) || rel === "index.html") continue;
+      let h = fs.readFileSync(p, "utf8");
+      if (rel === "about.html") h = h.replace(/<!--zp-rename-->[\s\S]*?<!--\/zp-rename-->/, "");
+      if (rel === "corrections.html") h = h.replace(/<li><p class="cx-d">(?:(?!<\/li>)[^])*?이름을 집핀에서 재개각으로(?:(?!<\/li>)[^])*?<\/li>/, "");
+      const m = /집핀|Zippin|zippin/.exec(h); if (m) bad.push(`${rel}: …${h.slice(Math.max(0, m.index - 30), m.index + 10).replace(/\s+/g, " ")}`); } };
+    try { walk(PUBD); } catch (e) { bad.push("walk: " + e.message); }
+    expect(!bad.length, "brand.static", T, `${bad.length} files · ${bad.slice(0, 3).join(" ; ")}`);
+  }
   const T = (id, t) => [id, t];
   // --- 매니페스트·첫 화면 HTML
   const idx = await get(BASE + "/");
@@ -3888,7 +3903,7 @@ async function r26Lane(browser, api, errs) {
   const WEB = [".s-rd", ".s-reads", ".site-foot", ".ad-slot", ".s-about", ".s-read3", "#sAbout", "#sRead3"];
   // --- home.readsTop: 브라우저 첫 화면(폰·PC) 검색칸 바로 밑 읽을거리 한 줄(리포트·가이드 두 링크 · 한 줄 · 누르는 높이 40px 이상)이 첫 화면 안에 · '재개발 공부하기'는 목록 뒤 · '집핀이 뭔가요' 상자 없음
   {
-    const T = "홈 읽을거리: 검색칸 밑 한 줄(리포트·가이드 · 줄바꿈 없음 · 40px 이상)이 첫 화면 안 · 맨 아래 공부하기 카드·푸터 가이드 링크 없음(들어가는 곳 둘: 한 줄 + MY) · 소개 상자 없음";
+    const T = "홈 읽을거리: 검색칸 밑 한 줄(리포트·가이드 · 줄바꿈 없음 · 40px 이상)이 첫 화면 안 · 예전 공부하기 카드·푸터 가이드 링크 없음 · 소개 상자 없음 · 리뉴얼 A5: 목록 아래 서술형 소개(#sReads.s-story)는 보임";
     for (const [vp, tag] of [[mob(360, 740), "360"], [mob(390, 844), "390"], [mob(412, 915), "412"], [{ viewport: { width: 1440, height: 900 } }, "1440"]]) {
       const { ctx, page } = await newPage(browser, vp, errs);
       try {
@@ -3896,11 +3911,11 @@ async function r26Lane(browser, api, errs) {
         await loadHome(page); await settle(page, 400);
         const r = await page.evaluate(() => { const d = document.getElementById("sRd"), b = d && d.getBoundingClientRect(), L = d ? [...d.querySelectorAll("a")] : [], rd = document.getElementById("sReads"), li = document.getElementById("sList");
           return { ok: !!d && b.height > 0, top: b ? Math.round(b.top) : null, h: b ? Math.round(b.height) : 0, vh: innerHeight, links: L.map((a) => [a.getAttribute("href"), Math.round(a.getBoundingClientRect().height), a.scrollWidth > a.clientWidth + 1]), lines: d ? Math.round(b.height / 44) : 0,
-            reads: !!rd, about: !!document.getElementById("sAbout"), read3: !!document.getElementById("sRead3") }; });
+            reads: !!rd && !rd.classList.contains("s-story"), story: !!rd && rd.classList.contains("s-story") && rd.getClientRects().length > 0, about: !!document.getElementById("sAbout"), read3: !!document.getElementById("sRead3") }; });
         const linksOk = r.links.length === 2 && r.links.some((x) => /^report\//.test(x[0])) && r.links.some((x) => /^guide\//.test(x[0])) && r.links.every((x) => x[1] >= 40);
         // 27차: 가이드·리포트로 가는 곳은 읽을거리 한 줄 + MY 둘만 — 맨 아래 '재개발 공부하기' 카드 없음 · 웹 푸터에 가이드·리포트 링크 없음
         r.foot = await page.evaluate(() => [...document.querySelectorAll(".site-foot a")].map((a) => a.getAttribute("href")).filter((h) => /^(\/)?(guide|report)\//.test(h || "")));
-        expect(r.ok && r.top != null && r.top + r.h <= r.vh && r.h <= 52 && linksOk && !r.reads && !r.foot.length && !r.about && !r.read3, "home.readsTop", T, `${tag}: ${JSON.stringify(r)}`);
+        expect(r.ok && r.top != null && r.top + r.h <= r.vh && r.h <= 52 && linksOk && !r.reads && r.story && !r.foot.length && !r.about && !r.read3, "home.readsTop", T, `${tag}: ${JSON.stringify(r)}`);
       } catch (e) { bad("runtime", "검사 실행", "r26 readsTop crashed: " + String(e.message || e).split("\n")[0]); }
       finally { await ctx.close().catch(() => {}); }
     }

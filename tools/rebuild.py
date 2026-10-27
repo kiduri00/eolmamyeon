@@ -3,6 +3,7 @@
 입력: pipeline/txsum.json의 apt(지번별 단지 실거래 요약: 이름·준공연도·거래 수·가운데 값), pipeline/cache/parcels.json(정비구역 안 필지), pipeline/data.enriched.json
 이미 정비구역(재건축 등)에 들어간 단지는 구역 페이지로 연결하고 '추진 중'으로 표시한다."""
 import json, os, html, datetime, collections, re
+from brand import BRAND, BRAND_EN
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p, d=None: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else d
 T = J('pipeline/txsum.json'); PAR = J('pipeline/cache/parcels.json', {}); D = J('pipeline/data.enriched.json')
@@ -144,19 +145,19 @@ _gr = collections.Counter(r['g'] for r in rows if id(r) not in _top)
 opts = ''.join(f'<option value="{esc(g)}">{esc(g)} ({n})</option>' for g, n in sorted(_gr.items()))
 desc = f"준공 30년이 지난 서울 아파트 {len(rows):,}단지의 실거래 가운데 값·거래 수·준공연도. 이미 정비사업이 진행 중인 {zN}단지는 구역 페이지로 연결. 데이터 기준 {UPD}."
 LD = json.dumps({"@context": "https://schema.org", "@type": "Article", "headline": f"준공 30년 넘은 서울 아파트 {len(rows):,}단지", "description": desc, "inLanguage": "ko", "datePublished": "2026-10-17", "dateModified": UPD.replace('.', '-'),
-                 "mainEntityOfPage": "https://jaegaebal.alwaysquestions.kr/guide/rebuild-30y", "image": "https://jaegaebal.alwaysquestions.kr/og.png", "author": {"@type": "Person", "name": "집핀 운영자", "url": "https://jaegaebal.alwaysquestions.kr/about"},
-                 "publisher": {"@type": "Organization", "name": "집핀", "url": "https://jaegaebal.alwaysquestions.kr", "logo": "https://jaegaebal.alwaysquestions.kr/icon-512.png"}}, ensure_ascii=False).replace('</', '<\\/')
+                 "mainEntityOfPage": "https://jaegaebal.alwaysquestions.kr/guide/rebuild-30y", "image": "https://jaegaebal.alwaysquestions.kr/og.png", "author": {"@type": "Person", "name": (BRAND + " 운영자"), "url": "https://jaegaebal.alwaysquestions.kr/about"},
+                 "publisher": {"@type": "Organization", "name": (BRAND), "url": "https://jaegaebal.alwaysquestions.kr", "logo": "https://jaegaebal.alwaysquestions.kr/icon-512.png"}}, ensure_ascii=False).replace('</', '<\\/')
 page = f'''<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
 <base href="/guide/">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>서울 재건축 연한 30년 넘은 아파트 {len(rows):,}단지 실거래 | 집핀 - 서울 재개발 지도</title>
+<title>서울 재건축 연한 30년 넘은 아파트 {len(rows):,}단지 실거래 | {BRAND} - 서울 재개발 지도</title>
 <meta name="description" content="{esc(desc)}">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="https://jaegaebal.alwaysquestions.kr/guide/rebuild-30y">
-<meta property="og:site_name" content="집핀"><meta property="og:title" content="서울 재건축 연한 30년 넘은 아파트 실거래">
+<meta property="og:site_name" content="{BRAND}"><meta property="og:title" content="서울 재건축 연한 30년 넘은 아파트 실거래">
 <meta property="og:description" content="{esc(desc)}">
 <meta property="og:image" content="https://jaegaebal.alwaysquestions.kr/og.png">
 <meta property="og:url" content="https://jaegaebal.alwaysquestions.kr/guide/rebuild-30y"><meta property="og:type" content="article"><meta property="og:locale" content="ko_KR"><meta name="twitter:card" content="summary_large_image">
@@ -166,11 +167,11 @@ page = f'''<!doctype html>
 <style>.rb-f{{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}}.rb-f select,.rb-f input{{min-height:38px;padding:0 10px;border:1px solid var(--border,#d6dae1);border-radius:10px;background:var(--surface,#fff);color:inherit;font:inherit}}.rb-w{{overflow-x:auto}}table.rb{{width:100%;border-collapse:collapse;font-size:14px;min-width:720px}}table.rb th,table.rb td{{padding:9px 8px;border-bottom:1px solid var(--border,#e5e7eb);text-align:left;vertical-align:top}}table.rb th{{font-size:12.5px;color:var(--text-3);font-weight:600;white-space:nowrap}}table.rb .n{{text-align:right;white-space:nowrap}}table.rb small{{display:block;font-size:12px;color:var(--text-3);margin-top:2px}}table.rb tr[hidden]{{display:none}}#rbCnt{{font-size:13px;color:var(--text-3)}}</style>
 </head>
 <body>
-<header class="top"><div class="in"><a class="logo" href="/" aria-label="집핀 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">집핀</span><span class="logo-en" lang="en">Zippin</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/">구역별 페이지</a><a href="../guide/" aria-current="page">가이드·분석</a></nav></div></header>
+<header class="top"><div class="in"><a class="logo" href="/" aria-label="{BRAND} 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">{BRAND}</span><span class="logo-en" lang="en">{BRAND_EN}</span><small class="logo-s">서울 재개발 지도</small></a><nav aria-label="사이트 메뉴"><a href="../">계산기</a><a href="../report/">월간 리포트</a><a href="../z/">구역별 페이지</a><a href="../guide/" aria-current="page">가이드·분석</a></nav></div></header>
 <main>
 <p class="eyebrow">재건축 · 데이터 기준 {UPD}</p>
 <h1>준공 30년 넘은 서울 아파트 {len(rows):,}단지</h1>
-<p class="byline">정리: 집핀 운영자 · <time datetime="2026-10-17">2026.10.17</time> 작성 · 매일 자동 갱신(<time datetime="{UPD.replace('.', '-')}">{UPD}</time> 자료)</p>
+<p class="byline">정리: {BRAND} 운영자 · <time datetime="2026-10-17">2026.10.17</time> 작성 · 매일 자동 갱신(<time datetime="{UPD.replace('.', '-')}">{UPD}</time> 자료)</p>
 <p class="lede">재건축 연한(준공 30년)이 지난 서울 아파트 가운데 최근 실거래가 있는 단지를 모았어요. 이 가운데 <b>{zN}단지</b>는 이미 정비사업(재건축 등)이 진행 중이라 구역 페이지로 연결했고, 나머지는 아직 정비구역으로 잡히지 않은 단지예요.</p>
 <div class="hbox"><b>읽는 법</b>준공 30년은 재건축을 시작할 수 있는 최소 조건일 뿐이에요. 실제 사업성은 용적률·대지지분·단지 규모·안전진단(재건축 진단) 결과에 달려 있는데, 용적률·세대수는 건축물대장 총괄표제부(여러 동이 한 대지에 있는 단지만 있음)에서 가져왔고, 대지지분은 대지면적÷세대수로 낸 세대당 평균이에요. 총괄표제부가 없는 단지는 '–'로 보여요. 가격은 최근 12개월(거래가 적으면 2024년 이후) 실거래 가운데 값이고 평형이 섞여 있어요.</div>
 {NARR}
@@ -183,12 +184,12 @@ page = f'''<!doctype html>
 </details>
 <p class="note">자료: 서울시 건축물대장 총괄표제부(서울 열린데이터광장), 서울시 부동산 실거래가(아파트 매매, {esc(T['asOf']['sale'][:4])}.{esc(T['asOf']['sale'][4:6])}.{esc(T['asOf']['sale'][6:])}까지), 정비구역 필지 서울도시공간포털. 단지 이름은 실거래 신고 이름이라 실제 단지명과 다를 수 있어요. 투자 권유가 아니에요.</p>
 <h2>출처</h2>
-<ul class="links"><li><a href="https://data.seoul.go.kr/dataList/OA-23051/S/1/datasetView.do" target="_blank" rel="noopener">서울시 건축물대장 총괄표제부 · 서울 열린데이터광장</a> — 용적률·세대수·대지면적·사용승인일</li><li><a href="https://data.seoul.go.kr/dataList/OA-21275/S/1/datasetView.do" target="_blank" rel="noopener">서울시 부동산 실거래가 정보(국토교통부 신고 자료) · 서울 열린데이터광장</a> — 단지 이름·준공연도·매매 가운데 값·거래 수</li><li><a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a> — 정비구역 경계·필지(이미 정비사업 중인 단지 표시)</li><li><a href="../method">집핀 계산 방법</a> — 가운데 값·기간 기준</li></ul>
+<ul class="links"><li><a href="https://data.seoul.go.kr/dataList/OA-23051/S/1/datasetView.do" target="_blank" rel="noopener">서울시 건축물대장 총괄표제부 · 서울 열린데이터광장</a> — 용적률·세대수·대지면적·사용승인일</li><li><a href="https://data.seoul.go.kr/dataList/OA-21275/S/1/datasetView.do" target="_blank" rel="noopener">서울시 부동산 실거래가 정보(국토교통부 신고 자료) · 서울 열린데이터광장</a> — 단지 이름·준공연도·매매 가운데 값·거래 수</li><li><a href="https://urban.seoul.go.kr" target="_blank" rel="noopener">서울도시공간포털</a> — 정비구역 경계·필지(이미 정비사업 중인 단지 표시)</li><li><a href="../method">{BRAND} 계산 방법</a> — 가운데 값·기간 기준</li></ul>
 <h2>함께 읽기</h2>
 <ul class="links"><li><a href="/guide/redevelop-vs-rebuild">같은 돈으로 재개발과 재건축은 무엇이 다를까</a></li><li><a href="/guide/ipjugwon">조합설립인가 뒤에 사도 입주권이 나오나</a></li><li><a href="/guide/jungong">재개발 단계별로 10년 안에 준공될 확률</a></li><li><a href="/guide/status">서울 정비사업, 지금 어느 단계에 몇 곳</a></li><li><a href="/gu/">구별 페이지: 구마다 진행 중인 정비사업</a></li></ul>
-<p class="meta">계산 방식과 자료: <a href="/method">계산 방법</a> · <a href="/about">집핀 소개</a> · <a href="/">찾기에서 내 돈으로 갈 수 있는 구역 보기 →</a></p>
+<p class="meta">계산 방식과 자료: <a href="/method">계산 방법</a> · <a href="/about">{BRAND} 소개</a> · <a href="/">찾기에서 내 돈으로 갈 수 있는 구역 보기 →</a></p>
 </main>
-<footer class="f"><p><a href="../report/">월간 리포트</a> · <a href="../z/">구역별 페이지</a> · <a href="../guide/">가이드·분석</a> · <a href="../about">소개</a> · <a href="../method">출처·계산 방법</a> · <a href="../privacy"><b>개인정보처리방침</b></a></p><p class="f-c">© 2026 집핀 · 데이터 기준 {UPD}</p></footer>
+<footer class="f"><p><a href="../report/">월간 리포트</a> · <a href="../z/">구역별 페이지</a> · <a href="../guide/">가이드·분석</a> · <a href="../about">소개</a> · <a href="../method">출처·계산 방법</a> · <a href="../privacy"><b>개인정보처리방침</b></a></p><p class="f-c">© 2026 {BRAND} · 데이터 기준 {UPD}</p></footer>
 <script>
 (function(){{var G=document.getElementById('rbG'),Z=document.getElementById('rbZ'),F=document.getElementById('rbF'),Q=document.getElementById('rbQ'),C=document.getElementById('rbCnt'),R=[].slice.call(document.querySelectorAll('#rbB tr'));
 function f(){{var g=G.value,z=Z.checked,q=Q.value.trim(),n=0;R.forEach(function(r){{var ok=(!g||r.dataset.g===g)&&(!z||r.dataset.z==='0')&&(!F.checked||+r.dataset.far<=200)&&(!q||r.textContent.indexOf(q)>=0);r.hidden=!ok;if(ok)n++;}});C.textContent=n.toLocaleString()+'단지';}}

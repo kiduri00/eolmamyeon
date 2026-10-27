@@ -3,6 +3,7 @@
 build.py 끝에서 부른다. 이미 넣은 자리(<!--zp-tabs--> … <!--/zp-tabs-->)는 통째로 바꾸므로 몇 번 돌려도 결과가 같다.
 지금 탭: 구역(/z)·구(/gu)·404 = 찾기, 나머지(가이드·리포트·약관·FAQ …) = MY."""
 import os, re
+from brand import BRAND, TAGLINE, ICON_LINKS, wordmark_svg, WORDMARK_CSS   # 재개각 v7 워드마크·아이콘(기능 트랙과 같은 tools/brand.py · public/icons/)
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PUB = os.path.join(R, 'public')
 SV = lambda d: f'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{d}"/></svg>'
@@ -114,7 +115,7 @@ TCSS = '@media (max-width:980px){html.is-tapp .zp-tabs{grid-template-columns:rep
 def block(cur):
     ac = ' aria-current="page"'
     a = ''.join(f'<a href="{u}"{ac if k == cur else ""}>{SV(d)}<span>{t}</span>{"<i class=\"nb-dot\" aria-hidden=\"true\" hidden>N</i>" if k == "news" else ""}</a>' for k, u, t, d in TABS)
-    return f'<!--zp-tabs--><style>{CSS}{BCSS}{TCSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}{FONTJS}{SPYJS}{OFFJS}{TABJS}{TAPPJS}<!--/zp-tabs-->'
+    return f'<!--zp-tabs--><style>{CSS}{BCSS}{TCSS}{WORDMARK_CSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}{FONTJS}{SPYJS}{OFFJS}{TABJS}{TAPPJS}<!--/zp-tabs-->'
 
 
 RX = re.compile(r'<!--zp-tabs-->.*?<!--/zp-tabs-->', re.S)
@@ -136,7 +137,8 @@ def app_header(h):
     hd = re.sub(r'<span class="hdr-date"[^>]*>.*?</span><a class="hdr-bell".*?</a>', '', hd, flags=re.S)
     hd = hd.replace('</div></header>', BELL + '</div></header>', 1)
     # 28차: 로고를 그림 파일 대신 글 속 SVG로(첫 프레임부터 보이게 · 그림 요청을 기다리지 않음)
-    hd = re.sub(r'<img class="logo-i" src="[^"]*icon-small\.svg" width="28" height="28" alt="">', LOGO_SVG, hd)
+    # 리뉴얼 브랜드 v7: 로고 = 재개각 워드마크(글 속 SVG · 밝게/어둡게 CSS 색) + 작은 글('서울 재개발 지도', 폰에서는 숨김)
+    hd = re.sub(r'<a class="logo"[^>]*>.*?</a>', lambda m: f'<a class="logo" href="/" aria-label="{BRAND} 처음으로">{wordmark_svg()}<small class="logo-s">{TAGLINE}</small></a>', hd, count=1, flags=re.S)
     hd = re.sub(r'(<input id="tq"[^>]*placeholder=")[^"]*(")', lambda x: x.group(1) + PH + x.group(2), hd)
     # 26차: 400px 아래에선 자리표시가 잘려 '구역·동·:'로 보이던 것 → '검색'
     hd = re.sub(r'<script>(?:innerWidth<400|matchMedia\("\(max-width:399)[^<]*</script>', '', hd)
@@ -146,15 +148,105 @@ def app_header(h):
 
 # 24차: 모든 정적 페이지 푸터 링크 한 줄을 같은 목록·같은 순서로(첫 화면 .f-nav와 같은 9곳 + 구역별·기간·블로그) — 절대 경로라 어느 폴더에서든 같다
 FOOT_LINKS = [('/about', '소개'), ('/method', '계산 방법'), ('/faq', '자주 묻는 질문'), ('/contact', '문의'), ('/terms', '이용약관'), ('/privacy', '<b>개인정보처리방침</b>'),
-              ('/gu/', '구별 페이지'), ('/guide/', '가이드'), ('/report/', '월간 리포트'), ('/z/', '구역별 페이지'), ('/years', '몇 년 걸리나')]
+              ('/gu/', '구별 페이지'), ('/guide/', '가이드'), ('/report/', '월간 리포트'), ('/z/', '구역별 페이지'), ('/years', '몇 년 걸리나'),
+              ('/glossary', '용어집'), ('/corrections', '오류 수정 기록')]
 FOOT_P = ' · '.join(f'<a href="{u}">{t}</a>' for u, t in FOOT_LINKS) + ' · <a href="https://blog.naver.com/always_questions" rel="noopener">블로그</a>'
 RF1 = re.compile(r'(<footer class="f"><p>).*?(</p>)', re.S)
 RF2 = re.compile(r'(<footer id="contact">.*?<p class="fl">).*?(</p>)', re.S)
 
 
+# 리뉴얼 브랜드 v7: 파비콘·홈 화면 아이콘 = public/icons/(기능 트랙과 같은 ICON_LINKS) — 예전 /icon-small.svg·/icon-180.png 링크를 지우고 </head> 앞에 한 번
+RICON = re.compile(r'<link rel="(?:icon|apple-touch-icon)"[^>]*>')
+
+
+def icons(h):
+    i = h.find('</head>')
+    if i < 0: return h
+    hd = RICON.sub('', h[:i])
+    return hd + ICON_LINKS + h[i:]
+
+
 def foot_links(h):
     h = RF1.sub(lambda m: m.group(1) + FOOT_P + m.group(2), h, count=1)
-    return RF2.sub(lambda m: m.group(1) + FOOT_P + m.group(2), h, count=1)
+    h = RF2.sub(lambda m: m.group(1) + FOOT_P + m.group(2), h, count=1)
+    return foot_disc(h)
+
+
+# 리뉴얼 A3: 모든 정적 페이지 푸터에 '정부·공공기관과 무관한 비공식 서비스' 한 줄(링크 줄 바로 뒤 · 링크와 붙지 않게 글 한 줄로)
+# 첫 화면(src/shell.html .site-foot .f-meta)과 같은 문장 · 몇 번 돌려도 같다(있던 줄은 지우고 다시 넣음)
+# (서비스 이름이 바뀔 수 있어 이름·조사 없이 '이 사이트'로 쓴다)
+DISC_T = '이 사이트는 서울시·국토교통부 등 정부·공공기관과 무관한 비공식 정보 서비스예요. 공개 자료로 계산한 추정치를 보여 주며 투자 권유가 아니에요.'
+DISC_P = f'<p class="f-d">{DISC_T}</p>'
+RFD = re.compile(r'<p class="f-d">.*?</p>', re.S)
+
+
+def foot_disc(h):
+    h = RFD.sub('', h)
+    m = re.search(r'<footer class="f"><p>.*?</p>', h, re.S) or re.search(r'<footer id="contact">.*?<p class="fl">.*?</p>', h, re.S)
+    return h[:m.end()] + DISC_P + h[m.end():] if m else h
+
+
+# 리뉴얼 A3: 사람이 대조한 글(손으로 쓴 /z 40곳 · 가이드)에 '자동 계산 / 사람 대조' 범례 한 줄 — 글쓴이 줄(byline) 바로 뒤
+LEG_RX = re.compile(r'<!--zp-legend-->.*?<!--/zp-legend-->', re.S)
+LEG_Z = ('<!--zp-legend--><p class="zp-legend"><span class="lg lg-a">자동 계산</span>맨 위 숫자 상자·계산 표·사업 개요는 공개 자료로 매일 다시 계산해요. '
+         '<span class="lg lg-h">사람 대조</span>이야기와 주요 일정은 운영자가 기사·고시 원문과 맞춰 본 내용이에요. <a href="/about#editorial">편집 원칙</a></p><!--/zp-legend-->')
+LEG_G = ('<!--zp-legend--><p class="zp-legend"><span class="lg lg-a">자동 계산</span>표·막대의 숫자는 글 기준일에 공개 자료로 계산한 값이에요. '
+         '<span class="lg lg-h">사람 대조</span>해설과 법 조항은 운영자가 원문과 맞춰 봤어요. 낯선 말은 <a href="/glossary">용어집</a>에 있어요.</p><!--/zp-legend-->')
+
+
+def legend(h, rel):
+    h = LEG_RX.sub('', h)
+    hand_z = rel.startswith('z/') and 'class="zstory"' in h
+    guide = rel.startswith('guide/') and rel != 'guide/index.html'
+    if not (hand_z or guide): return h
+    m = re.search(r'<p class="byline">.*?</p>', h, re.S)
+    if not m: return h
+    bl = re.sub(r'(?<!>)(\S+ 운영자)(?!</a>)', r'<a href="/about#operator">\1</a>', m.group(0), count=1)   # 글쓴이 → 운영자 소개
+    return h[:m.start()] + bl + (LEG_Z if hand_z else LEG_G) + h[m.end():]
+
+
+# 리뉴얼 F10: 가이드 끝 '함께 보면 좋은 질문'에 용어집 한 줄(없을 때만)
+def glossary_link(h, rel):
+    if not rel.startswith('guide/') or 'href="/glossary"' in re.sub(r'<!--zp-legend-->.*?<!--/zp-legend-->', '', h, flags=re.S): return h
+    return re.sub(r'(<h2>함께 보면 좋은 질문</h2><ul>)', r'\1<li><a href="/glossary">재개발 용어집: 권리산정기준일부터 비례율까지</a></li>', h, count=1)
+
+
+# 리뉴얼 A4: 정적 페이지 광고 자리(승인 전에는 비어 있고 hidden · 크기 0) — 애드센스 리터럴 태그가 있는 페이지에만.
+# 규칙: 본문 문단(<p>) 뒤 + 다음 소제목(<h2>/<h3>) 앞에만 · 글이 35% 넘게 지난 곳 1칸(mid), 70% 넘게 지난 곳 1칸(bottom)
+# · 버튼(.cta)·링크 목록·'함께 보면'·출처·면책(disc)·푸터·아래 탭 옆에는 두지 않는다. 자리 표는 renew/ad_placements.md
+AD_RX = re.compile(r'<!--zp-ad:\w+-->.*?<!--/zp-ad-->', re.S)
+AD_TAG = 'pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='
+AD_NO_H = re.compile(r'함께 보면|다음에 읽을|관련|참고|출처|원문|문의|지금까지 낸|용어 찾기')
+
+
+def ad_slot(k, kind):
+    return f'<!--zp-ad:{k}--><aside class="ad-slot" data-slot="{kind}-{k}" aria-label="광고" hidden></aside><!--/zp-ad-->'
+
+
+def ad_slots(h, rel):
+    h = AD_RX.sub('', h)
+    if AD_TAG not in h[:h.find('</head>')]: return h
+    a, b = h.find('<main'), h.find('</main>')
+    if a < 0 or b < 0: return h
+    kind = rel.split('/')[0] if '/' in rel else rel[:-5]
+    body = h[a:b]
+    # 손으로 지정한 자리(<!--zp-ad-at:mid|bottom-->)가 있으면 그 자리만 쓴다(규칙으로 자리를 못 찾는 리포트 7~9월호·howto·용어집)
+    if '<!--zp-ad-at:' in body:
+        body = re.sub(r'<!--zp-ad-at:(\w+)-->', lambda m: m.group(0) + ad_slot(m.group(1), kind), body)
+        return h[:a] + body + h[b:]
+    cand = []
+    for m in re.finditer(r'<p(?: class="(?:lede)")?>(?:(?!</p>).)*</p>\s*(?:</div>\s*)?(?:<!--zn-->.*?<!--/zn-->)?\s*(?=<h[23][ >])', body, re.S):
+        nh = re.match(r'<h[23][^>]*>(.*?)</h[23]>', body[m.end():].lstrip(), re.S)
+        if not nh or AD_NO_H.search(re.sub(r'<[^>]+>', '', nh.group(1))): continue
+        if len(re.sub(r'<[^>]+>', '', m.group(0))) < 60: continue      # 한 줄짜리 안내 문장 뒤는 건너뜀(본문 문단 뒤에만)
+        cand.append(m.end())
+    L = len(body); out, last = [], -1
+    for k, frac in (('mid', .35), ('bottom', .7)):
+        p = next((x for x in cand if x >= L * frac and x > last), None)
+        if p is None: continue
+        out.append((p, k)); last = p
+    for p, k in reversed(out): body = body[:p] + ad_slot(k, kind) + body[p:]
+    return h[:a] + body + h[b:]
 
 
 # pre-adsense 3: 리포트 링크 — '지도 열기'는 지도 화면(#map)으로 · 정적 /z에서 '지금 필요한 돈'이 계산 보류인 구역으로 가는 '내 돈으로 계산'은 '구역 보기'(계산할 금액이 없는 곳)
@@ -191,8 +283,15 @@ def main():
             b = block(cur)
             h1 = RX.sub(lambda m: b, h, count=1) if RX.search(h) else h.replace('</body>', b + '\n</body>', 1)
             h1 = app_header(h1)
+            h1 = icons(h1)
             h1 = foot_links(h1)
+            h1 = legend(h1, rel)
+            h1 = glossary_link(h1, rel)
+            h1 = ad_slots(h1, rel)
             if rel.startswith('report/'): h1 = report_links(h1)
+            if re.match(r'report/\d{4}-\d{2}\.html$', rel):   # 리뉴얼 사이클 2: 이미 낸 호도 질문형 소제목 + 도입부 훅(tools/report_copy.py)
+                import report_copy
+                h1 = report_copy.add_hook(report_copy.retitle(h1), int(rel[12:14]))
             # 26차: 글꼴 CSS를 늦게 붙여 봤지만(/z TBT) 나아지지 않아 원래대로(첫 그림부터 같은 글꼴 · CLS 0)
             h1 = re.sub(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/gh/orioncactus/pretendard[^"]+)" media="print" onload="this\.media=\'all\'" crossorigin>', lambda m: f'<link rel="stylesheet" href="{m.group(1)}" crossorigin>', h1)
             # 22차 접근성: 옆으로 밀리는 표 상자(.tw)는 키보드로도 밀 수 있게(초점 + 이름) — axe scrollable-region-focusable
