@@ -10,6 +10,8 @@
   6. /gu 해설: 글 속 숫자 == 캐시 값, 구 곳 수(n) == h1, 예산대 곳 수(b2·b3·b5·b8) == 아래 목록에서 센 값
 나가는 값: 실패가 있으면 1"""
 import json, os, re, sys, html, math, collections, urllib.parse
+import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from jsnum import prob_txt
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); PUB = os.path.join(ROOT, 'public')
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 from zsample import cash, manT
@@ -35,7 +37,7 @@ APIMAP = {   # 글 키 → /api/v1 값(그 키의 글자 꼴로)
     'jeonse': lambda a: {manT(round(a['jeonse'] + d / 1e4, 4)) for d in range(-5, 6)} if a.get('jeonse') is not None else {None},
     'stage': lambda a: {a['stage']['label']}, 'owners': lambda a: {f"{a['owners']:,}"} if a.get('owners') else {None},
     'n12': lambda a: {f"{a['trades']['n12']:,}"} if (a.get('trades') or {}).get('n12') is not None else {None},
-    'p10': lambda a: {(f"{min(97, round(a['completion']['p10'] * 100))}%" if a['completion']['p10'] >= 0.01 else '1% 미만')} if a.get('completion') else {None},
+    'p10': lambda a: {prob_txt(a['completion']['p10'])} if a.get('completion') else {None},   # 앱 probTxt와 같은 반올림(tools/jsnum.py)
     'eLo': lambda a: {ym(a['completion']['lo'])} if a.get('completion') else {None}, 'eMid': lambda a: {ym(a['completion']['mid'])} if a.get('completion') else {None},
     'eHi': lambda a: {ym(a['completion']['hi'])} if a.get('completion') else {None},
     'station': lambda a: {(a.get('station') or {}).get('name')}, 'walk': lambda a: {f"{a['station']['walkMin']}분"} if a.get('station') else {None},

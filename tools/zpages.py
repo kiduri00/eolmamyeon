@@ -20,7 +20,7 @@ GEO = J('public/data/geo.json', {}) or {}   # 앱 지도와 같은 정비구역�
 GUG = {x['n']: x['r'] for x in (GEO.get('gu') or [])}
 import sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import zmap   # 구역 위치 지도(SVG)·공유 카드(OG PNG) — tools/zmap.py
-from jsnum import walk_min, prob   # 역 도보 분·준공 가능성 %(앱과 같은 반올림) — tools/jsnum.py
+from jsnum import walk_min, prob, prob_txt   # 역 도보 분·준공 가능성 %(앱과 같은 반올림) — tools/jsnum.py
 OG_OK = zmap.og_ok()
 # 돈 꼴: 숫자 뒤 '만원·억원' → '만·억'(앱 ZF와 같은 꼴 · '476만' '6,920만') — 글 속(자료 원문 인용 포함) 화면 글자에만, 태그 속성은 그대로
 import re as _re
@@ -625,9 +625,24 @@ def hand_calc(r, h):
             j = h.find('</div>', i)
             if j > 0: h = h[:j + 6] + note + h[j + 6:]
     return h
+def hand_kpi(r, h):
+    """리뉴얼 통합(data.sync): 예전 손글 머리 숫자 칸 중 매일 바뀌는 '가까운 역'·'10년 안 준공 가능성'을 오늘 값으로(앱·API·자동 /z와 같은 calc.json · 같은 반올림).
+    글 본문 문장 속 숫자는 글 기준일 값 그대로 둔다(글쓰기 트랙 data-zv 대상)."""
+    c = C.get(r['id']) or {}
+    if c.get('st'):
+        b = f"{esc(c['st']['n'])} 도보 {walk_min(c['st']['d'])}분"; sm = ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])
+        h = re.sub(r'(<div class="kpi"><span>가까운 역</span><b>)[^<]*(</b><small>)[^<]*(</small>)', lambda m: m.group(1) + b + m.group(2) + sm + m.group(3), h, count=1)
+    if c.get('p10') is not None:
+        h = re.sub(r'(<div class="kpi"><span>10년 안 준공 가능성</span><b>)[^<]*(</b>)', lambda m: m.group(1) + prob_txt(c['p10']) + m.group(2), h, count=1)
+        if c['p10'] >= 0.01:   # 글 속 '이 페이지 통계로 본 10년 안 준공 가능성은 약 N%' — 같은 통계라 오늘 값으로(1% 미만이 되면 문장 꼴이 달라 그대로 두고 QA가 알림)
+            h = re.sub(r'(10년 안 준공 가능성은 약 )\d+(%)', lambda m: m.group(1) + str(prob(c['p10'])) + m.group(2), h)
+        if re.match(r'\d{4}-\d{2}', str(c.get('eMid') or '')):
+            em = f"{c['eMid'][:4]}년 {int(c['eMid'][5:7])}월"
+            h = re.sub(r'(<div class="kpi"><span>10년 안 준공 가능성</span><b>[^<]*</b><small>준공 시점 가운데 값 )\d{4}년 \d{1,2}월', lambda m: m.group(1) + em, h, count=1)
+    return h
 def hand_fix(r):
     f = os.path.join(ZD, r['id'] + '.html'); h0 = open(f, encoding='utf-8').read()
-    h1 = static_norm(hand_seo(r, term_fix(hand_calc(r, hand_live(r, h0)) if r['id'] in _LIVE else h0)))
+    h1 = static_norm(hand_seo(r, term_fix(hand_kpi(r, hand_calc(r, hand_live(r, h0))) if r['id'] in _LIVE else h0)))
     if r['id'] in _LIVE and r['id'] not in ZH_IDS: h1 = zhand.enhance_hand(_ZX, r, h1)   # 리뉴얼: 예전 손글에도 목차·다음에 볼 구역(본문은 그대로)
     if h1 != h0: open(f, 'w', encoding='utf-8').write(h1)
 # ---- 얇은 페이지 거르기(24차 · 애드센스 '가치가 별로 없는 콘텐츠' 대응) ----

@@ -10,6 +10,8 @@
   · 광고 칸은 승인 뒤에 정한다: 문단 사이에만 <!--ad-slot--> 표시(카드·목차·버튼 옆에는 두지 않음). 광고 리터럴 태그는 기존 손글과 같은 한 줄.
 """
 import json, os, re, math, html, statistics, datetime, collections, glob
+import sys as _sys; _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from jsnum import walk_min, prob_txt   # 앱과 같은 반올림(도보 분·준공 가능성 %)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CZ = os.path.join(ROOT, 'content/z'); CG = os.path.join(ROOT, 'content/gu')
@@ -84,11 +86,11 @@ def vals(X, r):
     psm = p.get('sm') or {}
     v['far'] = f"{psm['far']:g}%" if psm.get('far') else None
     fl = re.match(r'지상:(\d+)', str(psm.get('floors') or '')); v['floors'] = f"{fl.group(1)}층" if fl else None
-    v['p10'] = (f"{min(97, round(e['p10'] * 100))}%" if e['p10'] >= 0.01 else '1% 미만') if e.get('p10') is not None and not r.get('stale') else None   # /api/v1 completion.p10과 같은 값(가로·소규모 보정)
+    v['p10'] = prob_txt(e['p10']) if e.get('p10') is not None and not r.get('stale') else None   # /api/v1 completion.p10과 같은 값(가로·소규모 보정)
     v['eLo'] = ym(e.get('eLo')) if e.get('eLo') else None; v['eMid'] = ym(e.get('eMid')) if e.get('eMid') else None; v['eHi'] = ym(e.get('eHi')) if e.get('eHi') else None
     v['eLoY'] = e['eLo'][:4] if e.get('eLo') else None; v['eHiY'] = e['eHi'][:4] if e.get('eHi') else None
-    st = r.get('st') or c.get('st') or {}   # 앱 구역 시트(64_overview.js)·/api/v1과 같은 r.st (calc.json st와 몇 m 다를 수 있음)
-    v['station'] = st.get('n'); v['walk'] = f"{max(1, round(st['d'] * 1.3 / 67))}분" if st.get('d') is not None else None
+    st = c.get('st') or r.get('st') or {}   # 가까운 역: 앱 화면·/api/v1·자동 /z와 같은 값(calc.json = 빌드에서 고친 역 · tools/stfix.py)
+    v['station'] = st.get('n'); v['walk'] = f"{walk_min(st['d'])}분" if st.get('d') is not None else None   # 앱과 같은 반올림(tools/jsnum.py)
     v['rdx'] = ymd((r.get('rdx') or {}).get('d')) if (r.get('rdx') or {}).get('d') else None
     th = (X.TH.get('z') or {}).get(rid) or {}
     v['thN'] = f"{th['n']}" if th else None; v['thN30'] = f"{th['n30']}" if th else None
