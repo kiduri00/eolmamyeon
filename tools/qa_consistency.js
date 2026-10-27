@@ -2860,7 +2860,7 @@ async function tappLane(browser, api, errs) {
     const bad1 = [];
     const TAG = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>';
     const P = require("path"), PUBD = P.join(__dirname, "..", "public"), want = new Set(JSON.parse(fs.readFileSync(P.join(__dirname, "fixtures", "ads_tag_pages.json"), "utf8")));
-    // 단계적 공개: 공개일(publishAt) 전 손글은 광고 태그 없음(tools/zhand.py가 pipeline/cache/zpub_state.json scheduled에 적음)
+    // 단계적 공개: 공개일(DEPLOY_DATE + 묶음) 전 손글은 광고 태그 없음(tools/zhand.py가 pipeline/cache/zpub_state.json scheduled에 적음)
     try { for (const id of Object.keys(JSON.parse(fs.readFileSync(P.join(__dirname, "..", "pipeline", "cache", "zpub_state.json"), "utf8")).scheduled || {})) want.delete(`z/${id}.html`); } catch (e) {}
     let nf = 0;
     const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = P.join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name.endsWith(".html")) { const rel = P.relative(PUBD, f).split(P.sep).join("/"), h = fs.readFileSync(f, "utf8"); nf++;

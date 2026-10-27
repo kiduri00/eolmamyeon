@@ -92,10 +92,10 @@
       "https://news.seoul.go.kr/citybuild/archives/530966"
     ]
   ],
-  "publishAt": "2026-11-09",
   "checkForm": "prose",
   "checkProse": "계약서를 쓰기 전에 구청에서 이 구역 권리산정기준일이 정비구역 지정일({{dtZone}})인지 신통 후보지 단계에서 따로 고시된 날짜가 있는지 확인하세요. 같은 구역이라도 언덕 위와 아래는 사는 동안의 불편도 감정평가도 달라요. 입주까지 15년을 넘길 수 있다고 보고 2년 실거주와 대출 이자를 계산해 두세요.",
   "tocTitle": "차례",
   "nextTitle": "다음에 볼 구역",
-  "carouselAt": "after1"
+  "carouselAt": "after1",
+  "publishWave": 2
 }

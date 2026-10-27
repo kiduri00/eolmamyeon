@@ -94,10 +94,10 @@
       "https://mediahub.seoul.go.kr/archives/2006582"
     ]
   ],
-  "publishAt": "2026-11-02",
   "checkForm": "list",
   "checkTitle": "값보다 먼저 볼 건축물대장",
   "checkCard": "대장과 지분 확인",
   "tocTitle": "여기서 짚는 것",
-  "nextTitle": "가까운 구역 더 보기"
+  "nextTitle": "가까운 구역 더 보기",
+  "publishWave": 1
 }

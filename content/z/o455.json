@@ -81,10 +81,10 @@
       "https://www.mt.co.kr/estate/2026/04/22/2026042209341463436"
     ]
   ],
-  "publishAt": "2026-11-09",
   "checkForm": "prose",
   "checkProse": "해제 뒤 지은 빌라라면 사용승인일이 이 구역 권리산정기준일보다 앞서는지 구청에 확인하세요. 매수가 대부분을 대출로 낸다면 15년 넘는 기간 전체의 이자를 계산해 둬야 해요. 세대수는 신통기획 확정 숫자(약 3,400가구)와 정보몽땅 등록 숫자가 달라서 최신 고시로 보는 게 맞아요.",
   "tocTitle": "차례",
   "nextTitle": "다음에 볼 구역",
-  "carouselAt": "after1"
+  "carouselAt": "after1",
+  "publishWave": 2
 }

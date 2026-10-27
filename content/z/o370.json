@@ -109,11 +109,11 @@
       "https://www.mt.co.kr/industry/2025/11/11/2025111110090982428"
     ]
   ],
-  "publishAt": "2026-11-02",
   "checkForm": "list",
   "checkTitle": "중개사무소에서 챙길 것",
   "checkCard": "서류로 받아 둘 것",
   "tocTitle": "차례",
   "nextTitle": "다음에 볼 구역",
-  "carouselAt": "after1"
+  "carouselAt": "after1",
+  "publishWave": 1
 }

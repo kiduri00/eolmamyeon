@@ -114,10 +114,10 @@
       "https://kbthink.com/realestate/issue/hosing-251211.html"
     ]
   ],
-  "publishAt": "2026-11-02",
   "checkForm": "list",
   "checkTitle": "입주권 계약서 특약에 넣을 것",
   "checkCard": "특약과 확인 사항",
   "tocTitle": "읽을 순서",
-  "nextTitle": "이 구역과 견줘 볼 곳"
+  "nextTitle": "이 구역과 견줘 볼 곳",
+  "publishWave": 1
 }

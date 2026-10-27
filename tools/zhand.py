@@ -25,29 +25,36 @@ CARDS = json.load(open(os.path.join(ROOT, 'content/z_cards.json'), encoding='utf
 FAILED = []   # 그날 렌더하지 못한 글(값 없음) — save_cache가 함께 남긴다
 CACHE = {'z': {}, 'gu': {}}   # 글에 쓴 값(키 → 글자) — tools/zhand_check.py가 페이지 글자·/api/v1과 대조
 # ---- 단계적 공개(애드센스 레드팀 c1: 새 손글 40편이 같은 날 올라감) ----
-# content/z/<id>.json의 publishAt(YYYY-MM-DD, 서울 날짜) 전에는 noindex·광고 태그 없음·사이트맵 제외(sitemap.py가 noindex를 뺌).
-# '처음 올림'은 publishAt이 아니라 실제로 처음 공개 상태로 만든 날(pipeline/cache/zpub_state.json에 한 번 적고 바꾸지 않음) — 배포가 늦어져도 날짜를 앞당겨 적지 않는다.
-# ZH_TODAY(시험용)를 주면 그 날짜로 보되 상태 파일에는 적지 않는다.
+# content/z/<id>.json의 publishWave(1~4) → 공개일 = DEPLOY_DATE + 7일 × (묶음 − 1). DEPLOY_DATE가 비어 있으면 아무 글도 공개하지 않는다(배포할 때 리드가 실제 날짜를 넣음).
+# 공개 전: noindex·광고 태그 없음·사이트맵 제외(sitemap.py가 noindex를 뺌) · 바이라인은 '공개 전 검토 중'만(날짜 없음).
+# '처음 올림'은 실제로 처음 공개 상태로 만든 날(pipeline/cache/zpub_state.json에 한 번 적고 바꾸지 않음) — 날짜를 앞당겨 적지 않는다.
+# 한 주(7일)에 새로 공개하는 손글은 WEEK_CAP편까지. ZH_TODAY·ZH_DEPLOY(시험용)를 주면 그 값으로 보되 상태 파일에는 적지 않는다.
+DEPLOY_DATE = ''   # 배포일(YYYY-MM-DD, 서울 날짜) — 비어 있으면 새 손글은 모두 공개 전
 KST = datetime.timezone(datetime.timedelta(hours=9))
 TODAY = os.environ.get('ZH_TODAY') or datetime.datetime.now(KST).date().isoformat()
+_DEP = os.environ.get('ZH_DEPLOY') or DEPLOY_DATE
+_DRY = bool(os.environ.get('ZH_TODAY') or os.environ.get('ZH_DEPLOY'))
 PUBF = os.path.join(ROOT, 'pipeline/cache/zpub_state.json')
 try: PUBS = json.load(open(PUBF, encoding='utf-8'))
 except Exception: PUBS = {}
 PUBS.setdefault('first', {}); PUBS['scheduled'] = {}; WEEK_CAP = 12
+def due(src):
+    """공개일(묶음 기준) — 배포일이 없으면 None"""
+    if not _DEP or not src.get('publishWave'): return None
+    return (datetime.date.fromisoformat(_DEP) + datetime.timedelta(days=7 * (int(src['publishWave']) - 1))).isoformat()
 def pub(rid, src):
-    """(공개됨, 처음 올린 날) — publishAt이 없으면 예전 방식(first)"""
-    pa = src.get('publishAt')
-    if not pa: return True, src.get('first') or src['written']
-    if pa > TODAY: PUBS['scheduled'][rid] = pa; return False, None
-    if rid not in PUBS['first']:
-        # 한 주(7일)에 새로 공개하는 손글은 WEEK_CAP편까지 — 배포가 늦어져 공개일이 한꺼번에 지나도 몰아서 올리지 않는다(나머지는 다음 날 이후로)
-        wk = (datetime.date.fromisoformat(TODAY) - datetime.timedelta(days=6)).isoformat()
-        if sum(1 for d in PUBS['first'].values() if d >= wk) + len(PUBS.get('_new', [])) >= WEEK_CAP: PUBS['scheduled'][rid] = pa; return False, None
-        if os.environ.get('ZH_TODAY'): PUBS.setdefault('_new', []).append(rid); return True, TODAY
-        PUBS['first'][rid] = TODAY
-    return True, PUBS['first'].get(rid) or TODAY
+    """(공개됨, 처음 올린 날) — publishWave가 없으면 예전 방식(first)"""
+    if 'publishWave' not in src: return True, src.get('first') or src['written']
+    if rid in PUBS['first']: return True, PUBS['first'][rid]
+    d = due(src)
+    if not d or d > TODAY: PUBS['scheduled'][rid] = src['publishWave']; return False, None
+    wk = (datetime.date.fromisoformat(TODAY) - datetime.timedelta(days=6)).isoformat()
+    if sum(1 for x in PUBS['first'].values() if x >= wk) + len(PUBS.get('_new', [])) >= WEEK_CAP: PUBS['scheduled'][rid] = src['publishWave']; return False, None
+    if _DRY: PUBS.setdefault('_new', []).append(rid); return True, TODAY
+    PUBS['first'][rid] = TODAY
+    return True, TODAY
 def save_cache():
-    if not os.environ.get('ZH_TODAY'):
+    if not _DRY:
         json.dump({k: v for k, v in PUBS.items() if not k.startswith('_')}, open(PUBF, 'w', encoding='utf-8'), ensure_ascii=False, indent=1, sort_keys=True)
     CACHE['scheduled'] = PUBS['scheduled']
     CACHE['failed'] = FAILED
@@ -349,7 +356,7 @@ def page(X, r, src):
     o = [head]
     o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or "")} · {esc(kind)} · 글 기준 {Wd}</p>')
     o.append(f'<h1>{esc(src["h1"])}</h1>')
-    o.append(f'<p class="byline">정리: <a href="/about#principles">{_OP}</a> · 기사·고시·정비사업 정보몽땅 대조 · {f'처음 올림 {int(first[:4])}년 {int(first[5:7])}월 {int(first[8:10])}일' if live else f'공개 전 검토 중({int(src["publishAt"][5:7])}월 {int(src["publishAt"][8:10])}일 공개 예정)'} · 글 속 굵은 숫자는 매일 사이트 계산값으로 다시 써요</p>')
+    o.append(f'<p class="byline">정리: <a href="/about#principles">{_OP}</a> · 기사·고시·정비사업 정보몽땅 대조 · {f'처음 올림 {int(first[:4])}년 {int(first[5:7])}월 {int(first[8:10])}일' if live else '공개 전 검토 중'} · 글 속 굵은 숫자는 매일 사이트 계산값으로 다시 써요</p>')
     o.append('<p class="lede">' + josa_fix(fill(src['lede'], V, rid)) + '</p>')
     car = carousel(X, r, src, V)
     if src.get('carouselAt') == 'after1':   # 요약 카드를 첫 질문 뒤로(첫 문단이 첫 화면에 먼저 보이게)
@@ -369,7 +376,7 @@ def render_all(g):
     global HANDSET
     X = Ctx(g); S = sources(); done = []
     X._HANDSET = HANDSET = {f[:-5] for f in os.listdir(X.ZD) if f.endswith('.html') and f != 'index.html' and X.is_hand(f[:-5])} | set(S)
-    for rid, src in sorted(S.items(), key=lambda kv: (kv[1].get('publishAt') or '', kv[0])):   # 공개일 순(한 주 공개 한도를 앞 순서부터 채움)
+    for rid, src in sorted(S.items(), key=lambda kv: (kv[1].get('publishWave') or 0, kv[0])):   # 공개일 순(한 주 공개 한도를 앞 순서부터 채움)
         r = X._BY.get(rid)
         if not r or rid not in X._LIVE: print('  zhand: skip (진행 중 아님)', rid); continue
         try: h = page(X, r, src); CACHE['z'][rid] = vals(X, r)

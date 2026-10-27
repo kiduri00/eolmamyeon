@@ -70,9 +70,9 @@
       "https://www.smarttoday.co.kr/ko-kr/articles/103275"
     ]
   ],
-  "publishAt": "2026-11-09",
   "checkForm": "list",
   "checkTitle": "LH 안내문과 실거주 일정",
   "checkCard": "계약 전 확인",
-  "nextTitle": "근처에서 함께 볼 구역"
+  "nextTitle": "근처에서 함께 볼 구역",
+  "publishWave": 2
 }

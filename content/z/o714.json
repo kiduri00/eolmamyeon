@@ -113,10 +113,10 @@
       "https://mediahub.seoul.go.kr/archives/2006582"
     ]
   ],
-  "publishAt": "2026-11-02",
   "checkForm": "list",
   "checkTitle": "신탁사 자료에서 볼 것",
   "checkCard": "신탁사·구청 확인",
   "tocTitle": "여기서 짚는 것",
-  "nextTitle": "가까운 구역 더 보기"
+  "nextTitle": "가까운 구역 더 보기",
+  "publishWave": 1
 }

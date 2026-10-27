@@ -103,11 +103,11 @@
       "https://www.mt.co.kr/industry/2025/11/11/2025111110090982428"
     ]
   ],
-  "publishAt": "2026-11-02",
   "checkForm": "list",
   "checkTitle": "계약 전에 받아 둘 서류",
   "checkCard": "받아 둘 서류",
   "tocTitle": "이 글의 순서",
   "nextTitle": "근처에서 함께 볼 구역",
-  "carouselAt": "after1"
+  "carouselAt": "after1",
+  "publishWave": 1
 }

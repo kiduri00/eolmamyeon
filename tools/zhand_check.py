@@ -80,11 +80,11 @@ for rid, vals in sorted(V.get('z', {}).items()):
         if kn and kn.group(1) != '계산 보류':
             exp = cashes(a['need']['gap']['now']) if a['need']['gap'].get('now') is not None else cashes(a['need']['cash']['now'])
             chk(kn.group(1) in exp, f'{rid}: 지금 필요한 돈 {kn.group(1)} ≠ /api/v1 {sorted(map(str, exp))}')
-    if rid in SCHED:   # 공개 전(publishAt): noindex · 사이트맵 없음 · 광고 태그 없음 · '처음 올림' 날짜 없음
+    if rid in SCHED:   # 공개 전(publishWave · DEPLOY_DATE): noindex · 사이트맵 없음 · 광고 태그 없음 · '처음 올림' 날짜 없음
         chk('name="robots" content="noindex' in h, f'{rid}: 공개 전인데 noindex 없음')
         chk(f'/z/{rid}</loc>' not in SM, f'{rid}: 공개 전인데 sitemap.xml에 있음')
         chk(not re.findall(r'<script[^>]*adsbygoogle', h), f'{rid}: 공개 전인데 광고 태그 있음')
-        chk('처음 올림' not in h and '"datePublished"' not in h, f'{rid}: 공개 전인데 처음 올림 날짜가 있음')
+        chk('처음 올림' not in h and '"datePublished"' not in h and '공개 예정' not in h, f'{rid}: 공개 전인데 날짜가 있음')
     else:
         chk('name="robots" content="noindex' not in h, f'{rid}: noindex')
         chk(f'/z/{rid}</loc>' in SM, f'{rid}: sitemap.xml에 없음')

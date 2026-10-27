@@ -92,10 +92,10 @@
       "https://theguru.co.kr/mobile/article.html?no=105540"
     ]
   ],
-  "publishAt": "2026-11-02",
   "checkForm": "list",
   "checkTitle": "비탈 위 빌라 계약 전 점검",
   "checkCard": "계약 전 확인",
   "tocTitle": "차례",
-  "nextTitle": "다음에 볼 구역"
+  "nextTitle": "다음에 볼 구역",
+  "publishWave": 1
 }
