@@ -93,6 +93,8 @@ for rid, vals in sorted(V.get('z', {}).items()):
         fd = (PUBST.get('first') or {}).get(rid)
         if fd: chk(f'처음 올림 {int(fd[:4])}년 {int(fd[5:7])}월 {int(fd[8:10])}일' in h, f'{rid}: 처음 올림 날짜 ≠ 상태 파일 {fd}')
     chk(f'z/{rid}.html' in ADS, f'{rid}: tools/fixtures/ads_tag_pages.json에 없음')
+    # 사이클 3: 광고 칸 자리 — 공개 전에도 zhand가 둔 자리 표시(<!--ad-slot-->)가 1개 이상(공개되면 태그와 함께 칸이 생김)
+    chk(h.count('<!--ad-slot-->') >= 1, f'{rid}: 광고 칸 자리 표시(<!--ad-slot-->) 없음 — 공개 뒤 태그만 있고 칸 0이 돼요')
     tm = TH.get(rid) or {}
     if rid in HELD:   # 공개 보류: 사유가 있고 공개 전 상태(위 SCHED 검사 · noindex·사이트맵·광고·날짜)일 때만 zthin 미달을 넘긴다 — 공개로 바뀌면(HELD에서 빠지면) 다시 아래 잣대
         chk(rid in SCHED and len(str(HELD[rid]).strip()) >= 10, f'{rid}: 공개 보류인데 사유 없음 또는 공개 전 상태 아님')
@@ -142,6 +144,15 @@ for g, vals in sorted(V.get('gu', {}).items()):
         chk(sum(1 for m in ms if m <= cap + 1e-9) == int(vals[k]), f'/gu/{g}: {cap}억 이하 곳 수 목록 {sum(1 for m in ms if m <= cap + 1e-9)} ≠ {vals[k]}')
     t = TXT[os.path.join('gu', g + '.html')]; ss = sents(t); tot = sum(len(x) for x in ss) or 1; u = sum(len(x) for x in ss if freq[norm(x)] <= 2)
     rep.append(('gu:' + g, len(t), round(100 * u / tot), '', ''))
+# 사이클 3(애드센스 레드팀 c2): 광고 리터럴 태그가 있는 정적 페이지는 광고 칸이 1개 이상(태그만 있고 칸 0이던 손글 4편)
+for dp, _, fs in os.walk(PUB):
+    if os.path.relpath(dp, PUB).split(os.sep)[0] in ('b', 'api', 'data'): continue
+    for f in fs:
+        if not f.endswith('.html'): continue
+        rel = os.path.relpath(os.path.join(dp, f), PUB)
+        if rel in ('index.html', 'admin.html'): continue   # SPA 홈은 src/shell.html 칸(정적 칸 규칙 밖)
+        h = open(os.path.join(dp, f), encoding='utf-8').read(); hd = h[:h.find('</head>')]
+        if 'adsbygoogle.js' in hd: chk(h.count('class="ad-slot"') >= 1, f'{rel}: 광고 태그는 있는데 광고 칸 0')
 # 원본 글에 '살 수 있'이 있으면 용어 통일(term_fix)이 '갈 수 있'으로 바꿔 문장이 깨진다('들어가 갈 수 있는') — 원본 단계에서 막는다
 import glob as _g
 for f in sorted(_g.glob(os.path.join(ROOT, 'content', '**', '*.json'), recursive=True)):

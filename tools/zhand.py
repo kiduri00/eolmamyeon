@@ -348,6 +348,22 @@ CSS = ('<style>'
        '@media (max-width:420px){.zh-tl li{grid-template-columns:6.4em 1fr}.zh-sv{font-size:20px}}'
        '</style>')
 
+def ad_spots(secs):
+    """광고 칸 자리(승인 뒤 설정 · static_tabs.ad_slots가 <!--ad-slot--> 뒤에 칸을 둔다): 문단과 문단 사이에만(카드·그림·목차·버튼 옆은 아님).
+    질문(절)이 4개 이상이면 둘째·넷째 절, 3개면 첫째·셋째 절(사이클 3: 세 절짜리 글이 공개 뒤 태그만 있고 칸 0이던 o403·o141·o535·o93).
+    고른 절에 문단 둘이 이어진 곳이 없으면 둘째 절부터 처음 나오는 이어진 문단 사이 하나 — 태그가 있는 글은 칸이 늘 1개 이상(zhand_check 검사).
+    mid–bottom 사이 본문이 600자 미만이면 static_tabs가 뒤 칸을 뺀다(AD_GAP)."""
+    pairs = [(si, bi) for si, s in enumerate(secs) for bi in range(len(s['blocks']) - 1) if isinstance(s['blocks'][bi], str) and isinstance(s['blocks'][bi + 1], str)]
+    want = (0, 2) if len(secs) == 3 else (1, 3)
+    out = []
+    for w in want:
+        p = [x for x in pairs if x[0] == w]
+        if p: out.append(p[-1] if w == 0 else p[0])   # 첫째 절이면 그 절의 마지막 이어진 문단 사이(첫 화면에서 멀게)
+    if not out:
+        p = [x for x in pairs if x[0] >= 1] or pairs
+        if p: out.append(p[0])
+    return set(out)
+
 def page(X, r, src):
     rid = r['id']; V = vals(X, r); nm = V['name']; kind = V['kind']
     tnm, tq = X.zt(r); title = X.ztitle_s(r); url = f"{X.SITE}/z/{rid}"
@@ -363,16 +379,15 @@ def page(X, r, src):
     ctitle = src.get('checkTitle') or '사기 전에 이것 3가지만'
     tl = [(s['id'], s['h']) for s in secs] + ([('zh-check', ctitle)] if cform == 'list' else [])
     toc = (f'<nav class="zh-toc" aria-label="이 글의 차례"><p>{esc(src["tocTitle"])}</p><ol>' + ''.join(f'<li><a href="#{a}">{esc(b)}</a></li>' for a, b in tl) + '</ol></nav>') if src.get('tocTitle') else ''
-    body = []; nads = 0
+    body = []
+    ads = ad_spots(secs)
     for si, s in enumerate(secs):
         body.append(f'<h2 id="{s["id"]}">{esc(s["h"])}</h2>')
         bl = s['blocks']
         for bi, b in enumerate(bl):
             if isinstance(b, str):
                 body.append('<p>' + josa_fix(fill(b, V, rid)) + '</p>')
-                # 광고 칸 자리(승인 뒤 설정): 둘째·넷째 질문에서 문단과 문단 사이에만
-                if si in (1, 3) and nads < 2 and bi + 1 < len(bl) and isinstance(bl[bi + 1], str) and bi >= 0 and not any('ad-slot' in x for x in body[-3:]):
-                    body.append('<!--ad-slot-->'); nads += 1
+                if (si, bi) in ads: body.append('<!--ad-slot-->')
             elif b['t'] == 'timeline': body.append(timeline(X, r, src))
             elif b['t'] == 'chart': body.append(chart(X, r))
             elif b['t'] == 'live': body.append('<!--zk--><!--/zk-->')
@@ -394,7 +409,9 @@ def page(X, r, src):
     else: head = head.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<meta name="robots" content="noindex,follow">', 1)   # 공개 전: 색인·광고 없음
     head = head.replace('</head>', CSS + '\n</head>', 1)
     o = [head]
-    o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or "")} · {esc(kind)} · 글 기준 {Wd}</p>')
+    # 사이클 3(애드센스 레드팀 c2: 40편 눈썹줄이 모두 '글 기준 2026.10.27'): 날짜를 꾸미지 않는다 — 공개 전은 그날 자료 기준일만, 공개 뒤는 실제로 처음 공개한 날(zpub_state first)
+    edate = f'처음 올림 {ymd(first)}' if live else f'<!--zd-->자료 기준 {esc(X.UPD)}<!--/zd-->'
+    o.append(f'<p class="eyebrow">{esc(r["g"])} {esc(r.get("j") or "")} · {esc(kind)} · {edate}</p>')
     o.append(f'<h1>{esc(src["h1"])}</h1>')
     o.append(f'<p class="byline">정리: <a href="/about#principles">{_OP}</a> · 기사·고시·정비사업 정보몽땅 대조 · {f'처음 올림 {int(first[:4])}년 {int(first[5:7])}월 {int(first[8:10])}일' if live else '공개 전 검토 중'} · 글 속 굵은 숫자는 매일 사이트 계산값으로 다시 써요</p>')
     o.append('<p class="lede">' + josa_fix(fill(src['lede'], V, rid)) + '</p>')
