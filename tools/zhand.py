@@ -63,6 +63,7 @@ def vals(X, r):
     v['n3'] = f"{t['n3']:,}" if t.get('n3') is not None else None
     v['yoy'] = f"{abs(t['yoy'])}%" if t.get('yoy') is not None and min(t.get('yon') or [0]) >= 30 else None
     v['pol'] = f"{t['old']['pol']}%" if t.get('old') and isinstance(t['old'].get('pol'), (int, float)) else None
+    v['new10'] = f"{t['old']['new10']}" if t.get('old') and t['old'].get('new10') else None
     v['oldAvg'] = f"{t['old']['avg']}년" if t.get('old') and t['old'].get('avg') else None
     hd = ((X.TXX.get(rid) or {}).get('x') or {}).get('hd')
     v['hdU'] = X.eok_m(hd['u']) if hd else None; v['hdN'] = f"{hd['n']:,}" if hd else None
@@ -72,6 +73,7 @@ def vals(X, r):
     v['members'] = f"{int(sm['members']):,}" if sm.get('members') else None
     v['units'] = f"{int(sm['units']):,}" if sm.get('units') else None
     v['area'] = f"{sm['area']:,.0f}" if sm.get('area') else None
+    v['rental'] = f"{int(sm['rental']):,}" if sm.get('rental') else None
     v['areaPy'] = f"{sm['area'] / 3.3058:,.0f}" if sm.get('area') else None
     psm = p.get('sm') or {}
     v['far'] = f"{psm['far']:g}%" if psm.get('far') else None
@@ -79,7 +81,7 @@ def vals(X, r):
     v['p10'] = (f"{min(97, round(c['p10'] * 100))}%" if c['p10'] >= 0.01 else '1% 미만') if c.get('p10') is not None and not r.get('stale') else None
     v['eLo'] = ym(e.get('eLo')) if e.get('eLo') else None; v['eMid'] = ym(e.get('eMid')) if e.get('eMid') else None; v['eHi'] = ym(e.get('eHi')) if e.get('eHi') else None
     v['eLoY'] = e['eLo'][:4] if e.get('eLo') else None; v['eHiY'] = e['eHi'][:4] if e.get('eHi') else None
-    st = c.get('st') or {}
+    st = r.get('st') or c.get('st') or {}   # 앱 구역 시트(64_overview.js)·/api/v1과 같은 r.st (calc.json st와 몇 m 다를 수 있음)
     v['station'] = st.get('n'); v['walk'] = f"{max(1, round(st['d'] * 1.3 / 67))}분" if st.get('d') is not None else None
     v['rdx'] = ymd((r.get('rdx') or {}).get('d')) if (r.get('rdx') or {}).get('d') else None
     th = (X.TH.get('z') or {}).get(rid) or {}
@@ -160,15 +162,20 @@ def chart(X, r):
         bars.append(f'<rect x="{Xp(i):.1f}" y="{y:.1f}" width="{bw:.1f}" height="{max(1, base - y):.1f}" rx="3"{f" class=\"{cls}\"" if cls else ""}><title>20{x[0][:2]}년 {x[0][3:]}분기 · {E(x[1])} · {x[2]}건</title></rect>{val}<text x="{cx:.1f}" y="{base + 12}" class="bq">{x[0][2:]}</text>' + (f'<text x="{cx:.1f}" y="{base - 4:.1f}" class="bn{" on" if i == n - 1 else ""}">{x[2]}</text>' if base - y >= 15 else '') + lab)
     lo = any(x[2] < 3 for x in qq)
     first, lastq = qq[0], qq[-1]
-    return (f'<!--zd--><figure class="zh-card zh-ch"><figcaption><b>{unit} · 분기별 가운데 값</b><span>최근 분기 {E(lastq[1])} · 20{first[0][:2]}년 {first[0][3:]}분기 {E(first[1])}</span></figcaption>'
+    return (f'<!--zd--><div class="zh-card zh-ch" role="figure" aria-label="{unit} 분기별 가운데 값 그림"><p class="zh-fc"><b>{unit} · 분기별 가운데 값</b><span>최근 분기 {E(lastq[1])} · 20{first[0][:2]}년 {first[0][3:]}분기 {E(first[1])}</span></p>'
             f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{unit} 분기별 가운데 값, 최근 {E(lastq[1])}, 최고 {E(mx)}">{g}{"".join(bars)}</svg>'
-            f'<p class="zh-cap">국토교통부 실거래 신고분 · 구역 대표 거래 기준(앱 구역 상세 그림과 같은 값) · 막대 안 숫자는 분기 거래 수{" · 흐린 막대는 3건 미만" if lo else ""} · 데이터 기준 {X.UPD}</p></figure><!--/zd-->')
+            f'<p class="zh-cap">국토교통부 실거래 신고분 · 구역 대표 거래 기준(앱 구역 상세 그림과 같은 값) · 막대 안 숫자는 분기 거래 수{" · 흐린 막대는 3건 미만" if lo else ""} · 데이터 기준 {X.UPD}</p></div><!--/zd-->')
 
 DTL = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 승인'), ('조합설립', '조합설립인가'), ('시행자지정', '사업시행자 지정'), ('시공자', '시공자 선정'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가'), ('이주', '이주 시작'), ('착공', '착공'), ('준공', '준공')]
 def timeline(X, r, src):
     """정보몽땅 등록 단계 날짜(자료) + 기사·고시로 확인한 일(글쓴이) — 날짜 순 · 지금 단계 표시 · 다음 단계 예상(범위)"""
     dt = (X.P.get(r['id']) or {}).get('dt') or {}
-    rows = [(dt[k], lab, '정보몽땅 등록') for k, lab in DTL if dt.get(k)]
+    ORD = ['구역지정', '추진위', '조합설립', '시행자지정', '사업시행', '관리처분', '이주', '착공', '준공']
+    def stale(k):   # 뒤 단계 날짜보다 늦게 적힌 앞 단계 날짜(변경 승인일이 덮어쓴 것)는 일정표에서 뺀다 · 구역지정·추진위 순서는 구역마다 달라 둘끼리는 견주지 않음
+        if k not in ORD: return False
+        i = ORD.index(k); later = [dt[x] for x in ORD[i + 1:] if dt.get(x) and not {k, x} <= {'구역지정', '추진위'}]
+        return any(dt[k] > d for d in later)
+    rows = [(dt[k], lab, '정보몽땅 등록') for k, lab in DTL if dt.get(k) and not stale(k)]
     for d, lab in src.get('events') or []: rows.append((d.replace('.', '-'), lab, '기사·고시'))
     rows.sort(key=lambda z: z[0])
     cur = X._sdate(r)
@@ -176,8 +183,8 @@ def timeline(X, r, src):
     e = r.get('eta') or {}; c = X.C.get(r['id']) or {}
     nx = ''
     if e.get('eLo') and e.get('eHi') and not r.get('stale'):
-        nx = f'<li class="nx"><b>{esc(ym(e["eLo"]))}~{esc(ym(e["eHi"]))}</b><span>준공 예상 범위(추정)</span><small>서울 사업장 기록 통계 · 가운데 {esc(ym(e.get("eMid")))}</small></li>'
-    return f'<!--zd--><div class="zh-card zh-tl"><p class="zh-ct">단계 일정표</p><ol>{li}{nx}</ol><p class="zh-cap">회색 줄은 기사·고시에서 확인한 일, 나머지는 정비사업 정보몽땅 등록 날짜예요. 예상 범위는 단정이 아니에요.</p></div><!--/zd-->'
+        nx = f'<li class="nx"><b>{esc(ym(e["eLo"]))}~{esc(ym(e["eHi"])[2:])}</b><span>준공 예상 범위(추정)</span><small>서울 사업장 기록 통계 · 가운데 {esc(ym(e.get("eMid")))}</small></li>'
+    return f'<!--zd--><div class="zh-card zh-tl"><p class="zh-ct">단계 일정표</p><ol>{li}{nx}</ol><p class="zh-cap">줄마다 아래에 출처를 적었어요(정보몽땅 등록 날짜 · 기사·고시로 확인한 일). 예상 범위는 단정이 아니에요.</p></div><!--/zd-->'
 
 def checklist(items, V, rid, title='사기 전에 이것 3가지만 확인하세요'):
     return f'<div class="zh-card zh-ck"><p class="zh-ct">{esc(title)}</p><ol>' + ''.join(f'<li>{josa_fix(fill(x, V, rid))}</li>' for x in items) + '</ol></div>'
@@ -189,8 +196,8 @@ def carousel(X, r, src, V):
     elif k3['now'] != '계산 보류': m1 = (k3['now'], k3['basis'] + (f' · 입주까지 {k3["tot"]}' if k3['tot'] != '계산 보류' else ''))
     else: m1 = ('계산 보류', (k3.get('esub') or k3.get('basis') or '') + (f' · {k3["alt"]}' if k3.get('alt') else ''))
     e = r.get('eta') or {}
-    if e.get('eLo') and e.get('eHi') and not r.get('stale') and k3.get('elab') != '입주권':
-        m2 = (f'{e["eLo"][:4]}~{e["eHi"][:4]}년', f'준공 예상 범위(추정) · 가운데 {ym(e.get("eMid"))}' + (f' · 10년 안 준공 가능성 {V["p10"]}' if V.get('p10') else ''))
+    if e.get('eLo') and e.get('eHi') and not r.get('stale') and r.get('s', 0) < 9:
+        m2 = (f'{e["eLo"][:4]}~{e["eHi"][:4]}년', f'준공 예상 범위(추정) · 가운데 {ym(e.get("eMid"))}' + (f' · 10년 안 준공 가능성 {V["p10"]}' if V.get('p10') and r.get('s', 0) < 8 else '') + (' · 지금 사면 입주권은 없어요' if k3.get('elab') == '입주권' and not k3.get('im') else ''))
     else: m2 = (k3.get('eta') or '산정 불가', k3.get('esub') or '입주 시기는 범위로만 봐요')
     cards = [('지금 필요한 돈', m1[0], m1[1], 'm'), ('입주 시기 범위', m2[0], m2[1], 'm'), ('핵심 위험', None, src['cards']['risk'], 'r'), ('이런 사람에게 맞아요', None, src['cards']['fit'], 'f')]
     li = ''.join(f'<li class="zh-s zh-s{t}" role="group" aria-roledescription="슬라이드" aria-label="{i + 1}/{len(cards)} {esc(a)}"><span class="zh-sl">{esc(a)}</span>' + (f'<b class="zh-sv">{esc(b)}</b>' if b else '') + f'<p>{josa_fix(fill(s, V, r["id"])) if t in "rf" else esc(s)}</p></li>' for i, (a, b, s, t) in enumerate(cards))
@@ -229,7 +236,7 @@ CSS = ('<style>'
        '.zh-s::before{content:"";position:absolute;top:16px;right:16px;width:8px;height:8px;border-radius:50%;background:#FFC24A}'
        '.zh-sl{display:block;font-size:12.5px;font-weight:700;color:var(--brand)}.zh-sv{display:block;font-size:22px;line-height:1.3;margin:4px 0 2px;font-variant-numeric:tabular-nums;word-break:keep-all}'
        '.zh-s p{margin:4px 0 0;font-size:14px;line-height:1.6;color:var(--text-2);word-break:keep-all}.zh-sr{border-left:4px solid var(--warn-ink,#8a4b00)}.zh-sf{border-left:4px solid var(--brand)}'
-       '.zh-hint,.zh-cap{font-size:12px;color:var(--text-3);margin:4px 0 0}'
+       '.zh-hint,.zh-cap,.zh-body .zh-cap,.zh-body .zh-fc{font-size:12px!important;line-height:1.55!important;color:var(--text-3);margin:6px 0 0!important}.zh-body .zh-fc{font-size:13.5px!important;color:var(--text-1);margin:0 0 6px!important;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px}'
        '.zh-toc{margin:16px 0;padding:12px 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2)}.zh-toc p{margin:0 0 6px;font-weight:700;font-size:14px}'
        '.zh-toc ol{margin:0;padding-left:1.3em}.zh-toc li{margin:4px 0;line-height:1.5}.zh-toc a{color:var(--text-1)}'
        '.zh-body h2{scroll-margin-top:72px}.zh-body p{font-size:15.5px;line-height:1.8;margin:0 0 12px;word-break:keep-all}'
@@ -238,8 +245,8 @@ CSS = ('<style>'
        '.zh-tl li::before{content:"";position:absolute;left:-5px;top:13px;width:8px;height:8px;border-radius:50%;background:var(--surface);border:2px solid var(--text-3)}'
        '.zh-tl li.cur::before{background:var(--brand);border-color:var(--brand)}.zh-tl li.nx::before{background:#FFC24A;border-color:#FFC24A}.zh-tl li.ev span{color:var(--text-2)}'
        '.zh-tl b{font-variant-numeric:tabular-nums;font-size:14px}.zh-tl span{font-size:14.5px;line-height:1.5}.zh-tl small{grid-column:2;font-size:12px;color:var(--text-3)}'
-       '.zh-ch figcaption{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:13.5px;margin-bottom:6px}.zh-ch figcaption span{color:var(--text-3)}'
-       '.zh-ch svg{display:block;width:100%;height:auto;max-width:520px}.zh-ch rect{fill:var(--brand);opacity:.55}.zh-ch rect.on{opacity:1}.zh-ch rect.lo{opacity:.25}'
+       '.zh-fc{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:13.5px;margin-bottom:6px}.zh-fc span{color:var(--text-3)}'
+       '.zh-ch svg{display:block;width:100%!important;min-width:0!important;height:auto;max-width:520px;border:0!important;border-radius:0!important}.zh-ch rect{fill:var(--brand);opacity:.55}.zh-ch rect.on{opacity:1}.zh-ch rect.lo{opacity:.25}'
        '.zh-ch .g{stroke:var(--divider,#e5e8eb);stroke-width:1}.zh-ch .g.b{stroke:var(--text-3)}.zh-ch text{font-size:10px;fill:var(--text-3);font-family:inherit}.zh-ch .ax{text-anchor:end}.zh-ch .bq,.zh-ch .bn{text-anchor:middle}'
        '.zh-ch .bn{fill:#fff;font-size:9px}.zh-ch .bv{fill:var(--text-1);font-weight:700}.zh-ch .yr{font-size:9.5px}'
        '.zh-ck{border-left:4px solid #FFC24A}.zh-ck ol{margin:0;padding-left:1.3em}.zh-ck li{margin:8px 0;line-height:1.65;font-size:15px}'
@@ -339,6 +346,8 @@ def render_all(g):
         m = re.search(r'<!--zp-tabs-->.*?<!--/zp-tabs-->', old, re.S)
         if m: h = h.replace('</body>', m.group(0) + '\n</body>', 1)
         open(fp, 'w', encoding='utf-8').write(h); done.append(rid)
+    for rid in filter(None, os.environ.get('ZH_PEEK', '').split(',')):   # 글 쓰는 사람용: 쓸 수 있는 값 미리 보기(ZH_PEEK=o1,o2)
+        if rid in X._BY: print('ZH_PEEK', rid, json.dumps(vals(X, X._BY[rid]), ensure_ascii=False))
     print('zhand: hand analysis pages', len(done))
     return done
 

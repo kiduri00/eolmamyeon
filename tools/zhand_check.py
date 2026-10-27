@@ -30,7 +30,9 @@ def ym(s): return str(s or '')[:7].replace('-', '.')
 APIMAP = {   # 글 키 → /api/v1 값(그 키의 글자 꼴로)
     'gapNow': lambda a: cashes(a['need']['gap']['now']), 'gapTotal': lambda a: cashes(a['need']['gap']['total']),
     'cnow': lambda a: cashes(a['need']['cash']['now']), 'need': lambda a: cashes(a['need']['cash'].get('total')),
-    'price': lambda a: {manT(a['price'])} if a.get('price') is not None else {None}, 'jeonse': lambda a: {manT(a['jeonse'])} if a.get('jeonse') is not None else {None},
+    # /api/v1 price·jeonse는 소수 둘째·넷째 자리로 줄인 값 → 반올림 폭(±0.0005억 = ±5만) 안의 만 원 단위 글자를 모두 같은 값으로 본다
+    'price': lambda a: {manT(round(a['price'] + d / 1e4, 4)) for d in range(-5, 6)} if a.get('price') is not None else {None},
+    'jeonse': lambda a: {manT(round(a['jeonse'] + d / 1e4, 4)) for d in range(-5, 6)} if a.get('jeonse') is not None else {None},
     'stage': lambda a: {a['stage']['label']}, 'owners': lambda a: {f"{a['owners']:,}"} if a.get('owners') else {None},
     'n12': lambda a: {f"{a['trades']['n12']:,}"} if (a.get('trades') or {}).get('n12') is not None else {None},
     'p10': lambda a: {(f"{min(97, round(a['completion']['p10'] * 100))}%" if a['completion']['p10'] >= 0.01 else '1% 미만')} if a.get('completion') else {None},
