@@ -9169,10 +9169,10 @@
     // 예전 첫 화면 소개(#intro)는 간단 화면에서 숨겨져 있다 → 그 숫자(1·2·3억이면 N곳) 계산은 건너뛴다(18차 성능)
     if (!document.documentElement.classList.contains("simple") || ($("intro") && $("intro").getClientRects().length)) { initIntro(); await yieldT(); }
     // 4라운드(설치 앱): 미리 나눠 계산하기 전에 조건(AV)을 읽어 둔다 — 안 읽으면 계산 캐시 열쇠(condKey)가 plan()에서 바뀌어 미리 한 계산을 버리고 1,300곳을 한 번에 다시(긴 작업 ~150ms@4×CPU)
-    if (document.documentElement.classList.contains("is-tapp")) try { readAV(); } catch (e) {}
+    try { readAV(); } catch (e) {}   // 사이클 2 성능(B): 웹도(예전엔 설치 앱만) — 안 읽으면 미리 한 계산을 plan()이 버리고 1,300곳을 한 번에 다시
     if (gapMode()) { const L = baseList(); for (let i = 0; i < L.length; i += 150) { for (let j = i; j < Math.min(L.length, i + 150); j++) try { gapOf(L[j]); } catch (e) {} await yieldT(); } }
     // 4라운드(설치 앱): 짧은 이름 표(1,300곳 · 첫 호출 ~130ms@4×CPU)를 plan() 앞의 따로 된 작업으로 — plan() 한 작업이 290~430ms이던 것을 나눔
-    if (document.documentElement.classList.contains("is-tapp")) { try { if (R[0]) shortName(R[0].n); } catch (e) {} await yieldT(); }
+    { try { if (R[0]) shortName(R[0].n); } catch (e) {} await yieldT(); }   // 사이클 2 성능(B): 웹도(예전엔 설치 앱만)
     plan();
     if (!hash0) initReveal();
     mbInit();

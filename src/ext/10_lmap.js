@@ -472,7 +472,15 @@
       if (gateOn || gateInit.d) return; gateInit.d = 1;
       if (!MQ_SHEET.matches || typeof IntersectionObserver !== "function") { gateOpen(); return; }
       let seen = false, busy = false;
-      const go = () => { if (gateOn || !seen || busy) return; busy = true; idleT(2500).then(() => { busy = false; if (!gateOn && seen) gateOpen(); }); };
+      // 사이클 2 성능(B): 폰 홈에서 지도 칸이 처음부터 보여도(전체 지도 아님) 바로 붙이지 않고 사람이 처음 손댈 때(스크롤·누르기·휠·키·입력) 또는 12초 뒤에 —
+      // 그동안은 지금처럼 자리 그림(구 묶음·칩·범례). 4×CPU 폰 첫 화면 긴 작업의 절반이 지도 엔진(라이브러리 실행·타일 그리기)이었다. 전체 지도(#map·s-full)는 예전 그대로 바로.
+      let user = false;
+      const EV = ["pointerdown", "touchstart", "wheel", "keydown", "scroll", "click", "input"];
+      const touched = (e) => { if (user || (e && e.isTrusted === false)) return; user = true; EV.forEach((t) => removeEventListener(t, touched, true)); go(); };   // 앱이 스스로 내는 click·input(초기화)은 사람 손이 아님
+      EV.forEach((t) => addEventListener(t, touched, { passive: true, capture: true }));
+      setTimeout(touched, 12000);
+      const full = () => document.documentElement.classList.contains("s-full");
+      const go = () => { if (gateOn || !seen || busy || !(user || full())) return; busy = true; idleT(2500).then(() => { busy = false; if (!gateOn && seen) gateOpen(); }); };
       const io = new IntersectionObserver((es) => { const v = es.some((e) => e.isIntersecting && e.intersectionRatio >= 0.35); seen = v; if (v) go(); if (gateOn) io.disconnect(); }, { threshold: [0, 0.35, 0.7] });
       io.observe($("mapbox"));
       addEventListener("zp:mapgo", () => { io.disconnect(); gateOpen(); }, { once: true });
@@ -502,13 +510,13 @@
       ZP_G.draw({ cnt, min, ok: ok.filter((r) => r.ll).map((r) => [r.ll[0], r.ll[1], r.g]), ids, pad: fitPad(false, el.getBoundingClientRect()) });
     }
     // 실제 지도가 바탕 타일·구 묶음까지 다 그린 첫 '한가함(idle)' 뒤에 자리 그림을 200ms 동안 걷어 낸다(빈 회색 화면 없음)
-    let fadeT = 0;
+    let fadeT = 0, prFull = 0;
     function fadeSoon() {
       if (!map || !ghostOn()) return;
       clearTimeout(fadeT);
       const chk = () => {
         if (!map || !ghostOn()) return;
-        if (ready && !revealing && !STG.length && map.loaded() && map.areTilesLoaded() && !map.isMoving()) { requestAnimationFrame(() => requestAnimationFrame(() => { try { performance.mark("zp-fade"); } catch (e) {} ZP_G.fade(); try { if (cur && !MQ_SHEET.matches && !map.isMoving()) focus("soft"); } catch (e) {}   /* 28차: PC 딥링크(#o…)가 붙는 동안 다른 맞춤(구·서울)에 밀렸으면 자리 그림이 걷힐 때 그 구역으로 */ if (pendZ) { const z = pendZ; pendZ = 0; if (z > 0) map.zoomIn(); else map.zoomOut(); } })); return; }
+        if (ready && !revealing && !STG.length && map.loaded() && map.areTilesLoaded() && !map.isMoving()) { map.once("render", () => requestAnimationFrame(() => requestAnimationFrame(() => { try { performance.mark("zp-fade"); } catch (e) {} ZP_G.fade(); [60, 320].forEach((t) => setTimeout(() => { try { map.triggerRepaint(); } catch (e) {} }, t));   /* 걷힌 뒤(캔버스가 실제로 보일 때) 다시 그려 화면에 올린다 */ try { if (cur && !MQ_SHEET.matches && !map.isMoving()) focus("soft"); } catch (e) {}   /* 28차: PC 딥링크(#o…)가 붙는 동안 다른 맞춤(구·서울)에 밀렸으면 자리 그림이 걷힐 때 그 구역으로 */ if (pendZ) { const z = pendZ; pendZ = 0; if (z > 0) map.zoomIn(); else map.zoomOut(); } }))); try { if (prFull) { const r = prFull; prFull = 0; map.setPixelRatio(r); } else map.triggerRepaint(); } catch (e) {} return; }
         map.once("idle", () => { fadeT = setTimeout(chk, 30); });
       };
       fadeT = setTimeout(chk, 30);
@@ -1400,11 +1408,15 @@
           locale: { "CooperativeGesturesHandler.WindowsHelpText": "Ctrl 키를 누른 채 스크롤하면 확대·축소돼요", "CooperativeGesturesHandler.MacHelpText": "⌘ 키를 누른 채 스크롤하면 확대·축소돼요", "CooperativeGesturesHandler.MobileHelpText": "두 손가락으로 지도를 움직여 보세요", "AttributionControl.ToggleAttribution": "지도 출처", "AttributionControl.MapFeedback": "지도 고치기 제안" },
         });
       } catch (e) { map = null; failed = true; return false; }
+      // 사이클 2 성능(B): 자리 그림(불투명 · 지도 칸 전체)이 덮고 있는 동안은 아주 작은 해상도(픽셀 비 0.1)로 그린다 — 자리 그림 밑이라 안 보이고,
+      // 타일 고르기·배치·자료 처리는 CSS 픽셀 기준이라 그대로다. 덮인 동안 원래 해상도로 그리던 70여 장의 합성(Commit)이 4×CPU 폰에서 프레임당 150~500ms였다.
+      // 걷기 직전에 원래 픽셀 비로 되돌려(크기 맞춤 + 다시 그리기) 그 한 장이 그려진 뒤 걷는다(fadeSoon) — 걷힌 뒤 픽셀은 예전 그대로.
+      try { if (ghostOn() && typeof map.setPixelRatio === "function") { prFull = map.getPixelRatio(); map.setPixelRatio(0.1); } } catch (e) { prFull = 0; }
       // 22차: 관심·소식·MY 화면으로 가면 지도 칸이 숨어 크기가 0 → 지도가 400×300으로 줄었다가 찾기로 돌아올 때 다시 키우며 캔버스를 새로 잡고 전부 다시 그렸다(탭 전환마다).
       // 숨은 동안(0 크기)과 크기가 그대로일 때는 크기 맞추기를 건너뛴다(돌아오면 같은 크기라 그대로 보인다).
       try {
-        const rs0 = map.resize.bind(map), box = map.getContainer(); let last = box.clientWidth + "x" + box.clientHeight + "@" + devicePixelRatio;
-        map.resize = function (ev, ct) { const w = box.clientWidth, h = box.clientHeight; if (!w || !h) return map; const k = w + "x" + h + "@" + devicePixelRatio; if (k === last && ct === undefined) return map; last = k; return rs0(ev, ct); };
+        const rs0 = map.resize.bind(map), box = map.getContainer(); let last = box.clientWidth + "x" + box.clientHeight + "@" + map.getPixelRatio();   // 사이클 2(B): 픽셀 비 바꾸기(setPixelRatio)도 크기 맞춤으로
+        map.resize = function (ev, ct) { const w = box.clientWidth, h = box.clientHeight; if (!w || !h) return map; const k = w + "x" + h + "@" + map.getPixelRatio(); if (k === last && ct === undefined) return map; last = k; return rs0(ev, ct); };
       } catch (e) {}
       map.touchZoomRotate.disableRotation();
       // 금액 막대를 끄는 동안은 지도 프레임을 그리지 않는다(소프트웨어 WebGL에서 한 장 150ms+ → 끄는 숫자가 밀리던 것). 손을 떼면 한 번에 그린다

@@ -141,7 +141,18 @@ data = json.dumps(D, ensure_ascii=False, separators=(',', ':')).replace('</', '<
 EXT = os.path.join(R, 'src', 'ext')
 ext_js = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.js'))
 ext_css = ''.join(open(os.path.join(EXT, f), encoding='utf-8').read() for f in sorted(os.listdir(EXT)) if f.endswith('.css'))
-js = S('app.js'); assert js.count('/*EXT*/') == 1; js = js.replace('/*EXT*/', ext_js.strip() + '\n')
+# 사이클 2(B): app.js 맨 위 문장 경계에 쉬는 자리를 더(약 150줄마다) — /*Y*/ 사이 한 덩이가 260ms@4×까지 컸다.
+# 닫힘 범위 맨 위(들여쓰기 2칸)의 function·const·let 줄이고 바로 앞 줄이 문장 끝(; } ,가 아닌 })일 때만 — 식·템플릿 중간에는 안 넣는다. 확장 모듈(/*EXT*/ 자리)은 위 모듈 경계에서.
+def _auto_y(src, every=150):
+    L = src.split('\n'); out = []; last = 0; depth_ok = True
+    for i, l in enumerate(L):
+        prev = next((x for x in reversed(out) if x.strip()), '')
+        if (i - last >= every and re.match(r'^  (async function|function|const|let) [A-Za-z_$]', l)
+                and (prev.rstrip().endswith(';') or prev.rstrip() == '  }' or prev.rstrip().endswith('*/'))):
+            out.append('  /*YW*/'); last = i
+        out.append(l)
+    return '\n'.join(out)
+js = _auto_y(S('app.js')); assert js.count('/*EXT*/') == 1; js = js.replace('/*EXT*/', ext_js.strip() + '\n')
 # pre-adsense 5: 앱 코드(a.js) 첫 실행을 몇 덩이로 — 4배 느린 CPU에서 a.js 실행 한 덩이(350~420ms)가 첫 화면 가장 긴 작업이었다.
 # 확장 모듈이 app.js 닫힘 범위를 함께 써서 파일로 나누면 모듈 구조를 다 바꿔야 하므로, 같은 파일 안에서 실행만 나눈다:
 # 함수 전체를 async로 두고 /*Y*/ 자리(맨 위 문장 경계)와 큰 확장 모듈 사이에서 scheduler.yield()로 한 번씩 쉰다.
@@ -149,17 +160,27 @@ js = S('app.js'); assert js.count('/*EXT*/') == 1; js = js.replace('/*EXT*/', ex
 # 다 돌면 window.ZP_aWait가 풀리고, boot.js는 그 뒤에 '붙음(zp:hydrated)'을 낸다. 웹 묶음(a.*.js)은 쉬는 자리 없는 예전 그대로이고, 나눠 도는 판은 설치 앱 전용 묶음(ta.*.js)으로 따로 낸다(웹은 받지 않음).
 _Y = 'if (__Y) await __Y();'
 js_y = js
-js = js.replace('  /*Y*/\n', '').replace('/*Y*/', '')   # 웹 묶음(a): 쉬는 자리 없이 예전 그대로(한 번에 끝까지)
-for _m in ('10_lmap.js', '20_zone.js', '60_simple.js', '64_overview.js', '70_pins.js'):
+js = js.replace('  /*Y*/\n', '').replace('/*Y*/', '').replace('  /*YW*/\n', '').replace('/*YW*/', '')   # 웹 묶음(a): 쉬는 자리 없이 예전 그대로(한 번에 끝까지)
+# 사이클 2(B): 큰 모듈 5개 뒤에만 쉬던 것을 확장 모듈마다(작은 것은 이웃과 묶여도 됨) — 70_pins 뒤 남은 모듈 + app.js 앞부분이 한 덩이(~310ms@4×)였다.
+# 모듈은 같은 닫힘 범위의 맨 위 문장들이라 모듈 경계는 늘 문장 경계다.
+_Y5 = ('10_lmap.js', '20_zone.js', '60_simple.js', '64_overview.js', '70_pins.js')   # 설치 앱(ta)도 쉬는 예전 자리
+_YW = 'if (__YW) await __YW();'   # 사이클 2: 웹에서만 쉬는 자리(설치 앱 ta는 예전 자리만 — 앱 첫 화면 LCP 그대로)
+for _m in sorted(f for f in os.listdir(EXT) if f.endswith('.js') and os.path.getsize(os.path.join(EXT, f)) > 1500):
     _src = open(os.path.join(EXT, _m), encoding='utf-8').read().strip()
     assert js_y.count(_src) == 1, _m
-    js_y = js_y.replace(_src, _src + '\n' + _Y, 1)
+    js_y = js_y.replace(_src, _src + '\n' + (_Y if _m in _Y5 else _YW), 1)
 assert js_y.count('/*Y*/') >= 8
-js_y = js_y.replace('/*Y*/', _Y)
+js_y = js_y.replace('/*Y*/', _Y).replace('/*YW*/', _YW)
+if os.environ.get('ZP_YMARK'):   # 측정용: 쉬는 자리마다 performance.mark('zpY<n>') — 덩이 크기 재기(배포 빌드에는 안 씀)
+    _k = [0]
+    def _ym(m): _k[0] += 1; return f'try {{ performance.mark("zpY{_k[0]}"); }} catch (e) {{}} ' + m.group(0)
+    js_y = re.sub(re.escape(_Y), _ym, js_y)
 assert js_y.startswith('(function () {\n  "use strict";\n') and js_y.rstrip().endswith('})();')
 js_y = ('(async function () {\n  "use strict";\n'
       '  const __Y = document.documentElement.classList.contains("is-tapp") && window.scheduler && typeof scheduler.yield === "function" ? () => scheduler.yield() : null;\n'
+      '  const __YW = null;\n'
       '  if (__Y) window.ZP_aWait = new Promise((r) => (window.ZP_aDone = r));\n'
+
       # 덩이 사이에 끼어들 수 있는 예약(setTimeout·setInterval·requestAnimationFrame)은 실행이 다 끝날 때까지 잡아 두었다가 같은 순서·남은 시간으로 — 한 번에 돌던 예전과 같은 차례(뒤 덩이 정의를 앞서 부르지 않게)
       '  if (__Y) { const W = window, st = W.setTimeout, ct = W.clearTimeout, si = W.setInterval, ci = W.clearInterval, ra = W.requestAnimationFrame, ca = W.cancelAnimationFrame, q = [], m = new Map(); let n = 0, on = 1;\n'
       '    const hold = (k, real) => function (f, d, ...a) { if (!on || typeof f !== "function") return real.apply(W, arguments); const id = -(++n); q.push({ k, id, f, d: +d || 0, a, at: performance.now() }); return id; };\n'
@@ -168,6 +189,15 @@ js_y = ('(async function () {\n  "use strict";\n'
       '    W.ZP_aRel = () => { if (!on) return; on = 0; W.setTimeout = st; W.setInterval = si; W.requestAnimationFrame = ra; const now = performance.now(); for (const x of q) m.set(x.id, x.k === "r" ? ra.call(W, x.f) : (x.k === "t" ? st : si).call(W, x.f, x.k === "t" ? Math.max(0, x.d - (now - x.at)) : x.d, ...x.a)); q.length = 0; }; }\n'
       + js_y[len('(function () {\n  "use strict";\n'):].rstrip()[:-len('})();')]
       + '\n  if (window.ZP_aRel) window.ZP_aRel(); if (window.ZP_aDone) window.ZP_aDone();\n})().catch((e) => { try { window.ZP_aRel && window.ZP_aRel(); window.ZP_aDone && window.ZP_aDone(); } catch (x) {} setTimeout(() => { throw e; }, 0); });\n')
+# 사이클 2 성능(B 트랙): 웹 묶음(a)도 같은 자리에서 쉰다 — 4×CPU 폰에서 a.js 첫 실행 한 덩이(420~500ms)가 홈·#map의 가장 긴 작업 중 하나였다.
+# 쉬는 조건만 다르다: 설치 앱 판(ta)은 html.is-tapp일 때, 웹 판(a)은 scheduler.yield가 있는 브라우저 전부(크롬 129+ · 없으면 예전처럼 한 번에).
+# 실행 순서·예약(setTimeout·rAF) 차례는 ta와 같은 방식으로 지킨다(위 hold/ZP_aRel). ZP_WEB_YIELD=0 이면 예전 웹 판(쉬지 않음).
+_GATE = 'document.documentElement.classList.contains("is-tapp") && window.scheduler'
+assert js_y.count(_GATE) == 1
+if os.environ.get('ZP_WEB_YIELD', '1') != '0':
+    js = js_y.replace(_GATE, 'window.scheduler', 1)
+    assert js.count('  const __YW = null;\n') == 1
+    js = js.replace('  const __YW = null;\n', '  const __YW = __Y;\n', 1)
 
 # 21차: 새 소식 'N' 점의 기준 날짜(경매 물건이 처음 보인 날 · 고시·공고 기록 날 중 가장 늦은 날) — 63_newb.js · 정적 페이지(static_tabs.py)가 같은 값
 def newd():
