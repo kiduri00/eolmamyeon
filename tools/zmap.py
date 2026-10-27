@@ -181,6 +181,13 @@ def _font(w, size):
             except Exception: pass
     raise RuntimeError('no CJK font')
 _OGH = None
+_LS = None
+def _logo_sig():   # 로고 그림이 바뀌면(브랜드 에셋 교체) 공유 그림도 다시 그린다
+    global _LS
+    if _LS is None:
+        try: _LS = hashlib.md5(open(os.path.join(ROOT, LOGO_H_LIGHT), 'rb').read()).hexdigest()[:8]
+        except Exception: _LS = ''
+    return _LS
 _OGHF = os.path.join(ROOT, 'pipeline/og_z.json')
 def og_ok():
     try:
@@ -200,7 +207,7 @@ def og_card(rid, nm, sub, stage, money_lab, money, loc, gu, upd, text_only=False
     """public/og/z/<rid>.png를 만든다(내용이 같으면 건너뜀). 성공하면 사이트 경로, 아니면 None."""
     global _OGH
     out = os.path.join(ROOT, 'public/og/z', rid + '.png')
-    key = hashlib.md5(json.dumps([nm, sub, stage, money_lab, money, upd[:7], [round(v, 3) for v in (loc or [])], gu, 5, text_only, BRAND, BRAND_EN, 'v7']).encode()).hexdigest()[:12]
+    key = hashlib.md5(json.dumps([nm, sub, stage, money_lab, money, upd[:7], [round(v, 3) for v in (loc or [])], gu, 5, text_only, BRAND, BRAND_EN, 'v7', _logo_sig()]).encode()).hexdigest()[:12]
     if _OGH is None:
         try: _OGH = json.load(open(_OGHF))
         except Exception: _OGH = {}

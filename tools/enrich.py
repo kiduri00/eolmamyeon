@@ -582,7 +582,7 @@ D['rvj'] = TX.get('rvj')
 import datetime as _dt
 # 갱신일은 서울 날짜(KST)로 — Actions 러너는 UTC라 06:40(서울)에 돌면 전날이 찍혔다(10.25 → 10.24 되돌아감).
 # 직전 빌드·배포된 날짜보다 앞서지 않게 한다(같은 날 두 번 돌거나 시계가 어긋나도 날짜가 뒤로 가지 않음).
-_kst = (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(hours=9)).date().isoformat()
+_kst = os.environ.get('ZP_UPD') or (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(hours=9)).date().isoformat()   # ZP_UPD: 새 자료 없이 다시 생성할 때(통합 빌드 등) 자료 날짜를 그대로
 _prev = []
 for _pp, _kk in (('pipeline/data.enriched.json', 'upd'), ('public/api/v1/meta.json', 'updated')):
     try: _prev.append(str(json.load(open(os.path.join(ROOT, _pp), encoding='utf-8')).get(_kk) or '')[:10])
