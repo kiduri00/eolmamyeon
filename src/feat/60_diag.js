@@ -24,6 +24,8 @@
   };
   F.splitItem = (o, ctx) => {
     const fmt = ctx.fmt, tag = '<em class="zdg-est">추정·확인 필요</em>';
+    // 설치 앱은 날짜 꼴 하나(YYYY.M.D — 66_tools diagItems와 같은 규칙)
+    if (o.rd && ctx.tapp()) o = Object.assign({}, o, { rd: String(o.rd).replace(/\b(\d{4})\.(\d{1,2})\.(\d{1,2})\b/g, (m, y, a, b) => `${y}.${+a}.${+b}`) });
     const src = "필지 준공연도: 실거래 신고 건축연도·서울도시공간포털 건물 사용승인연도(확인된 필지만)";
     if (!o.n && !o.txf) return null;
     if (!o.set) {
