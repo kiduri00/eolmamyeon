@@ -460,6 +460,10 @@ try:
 except Exception as e: print('pcli 건너뜀:', e)
 # 정적 페이지(/z·/gu·가이드·리포트·약관·404 …): 폰에서 앱과 같은 아래 탭 4개(찾기·관심·소식·MY)로 앱에 돌아가게.
 # 생성기마다 틀이 달라서(zpages·report·손으로 쓴 페이지) 빌드 끝에 한 번에 넣는다(표시 사이를 통째로 바꿔 몇 번 돌려도 같음)
+# 리뉴얼 A3·F10: 용어집·오류 수정 기록·about 운영자 소개(tools/trust.py) — 탭·푸터를 넣기 전에 만든다
+try:
+    import trust; trust.main()
+except Exception as e: print('trust 건너뜀:', e)
 try:
     import static_tabs; static_tabs.main()
 except Exception as e: print('static tabs 건너뜀:', e)

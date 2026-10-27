@@ -146,7 +146,8 @@ def app_header(h):
 
 # 24차: 모든 정적 페이지 푸터 링크 한 줄을 같은 목록·같은 순서로(첫 화면 .f-nav와 같은 9곳 + 구역별·기간·블로그) — 절대 경로라 어느 폴더에서든 같다
 FOOT_LINKS = [('/about', '소개'), ('/method', '계산 방법'), ('/faq', '자주 묻는 질문'), ('/contact', '문의'), ('/terms', '이용약관'), ('/privacy', '<b>개인정보처리방침</b>'),
-              ('/gu/', '구별 페이지'), ('/guide/', '가이드'), ('/report/', '월간 리포트'), ('/z/', '구역별 페이지'), ('/years', '몇 년 걸리나')]
+              ('/gu/', '구별 페이지'), ('/guide/', '가이드'), ('/report/', '월간 리포트'), ('/z/', '구역별 페이지'), ('/years', '몇 년 걸리나'),
+              ('/glossary', '용어집'), ('/corrections', '오류 수정 기록')]
 FOOT_P = ' · '.join(f'<a href="{u}">{t}</a>' for u, t in FOOT_LINKS) + ' · <a href="https://blog.naver.com/always_questions" rel="noopener">블로그</a>'
 RF1 = re.compile(r'(<footer class="f"><p>).*?(</p>)', re.S)
 RF2 = re.compile(r'(<footer id="contact">.*?<p class="fl">).*?(</p>)', re.S)
@@ -154,7 +155,81 @@ RF2 = re.compile(r'(<footer id="contact">.*?<p class="fl">).*?(</p>)', re.S)
 
 def foot_links(h):
     h = RF1.sub(lambda m: m.group(1) + FOOT_P + m.group(2), h, count=1)
-    return RF2.sub(lambda m: m.group(1) + FOOT_P + m.group(2), h, count=1)
+    h = RF2.sub(lambda m: m.group(1) + FOOT_P + m.group(2), h, count=1)
+    return foot_disc(h)
+
+
+# 리뉴얼 A3: 모든 정적 페이지 푸터에 '정부·공공기관과 무관한 비공식 서비스' 한 줄(링크 줄 바로 뒤 · 링크와 붙지 않게 글 한 줄로)
+# 첫 화면(src/shell.html .site-foot .f-meta)과 같은 문장 · 몇 번 돌려도 같다(있던 줄은 지우고 다시 넣음)
+# (서비스 이름이 바뀔 수 있어 이름·조사 없이 '이 사이트'로 쓴다)
+DISC_T = '이 사이트는 서울시·국토교통부 등 정부·공공기관과 무관한 비공식 정보 서비스예요. 공개 자료로 계산한 추정치를 보여 주며 투자 권유가 아니에요.'
+DISC_P = f'<p class="f-d">{DISC_T}</p>'
+RFD = re.compile(r'<p class="f-d">.*?</p>', re.S)
+
+
+def foot_disc(h):
+    h = RFD.sub('', h)
+    m = re.search(r'<footer class="f"><p>.*?</p>', h, re.S) or re.search(r'<footer id="contact">.*?<p class="fl">.*?</p>', h, re.S)
+    return h[:m.end()] + DISC_P + h[m.end():] if m else h
+
+
+# 리뉴얼 A3: 사람이 대조한 글(손으로 쓴 /z 40곳 · 가이드)에 '자동 계산 / 사람 대조' 범례 한 줄 — 글쓴이 줄(byline) 바로 뒤
+LEG_RX = re.compile(r'<!--zp-legend-->.*?<!--/zp-legend-->', re.S)
+LEG_Z = ('<!--zp-legend--><p class="zp-legend"><span class="lg lg-a">자동 계산</span>맨 위 숫자 상자·계산 표·사업 개요는 공개 자료로 매일 다시 계산해요. '
+         '<span class="lg lg-h">사람 대조</span>이야기와 주요 일정은 운영자가 기사·고시 원문과 맞춰 본 내용이에요. <a href="/about#editorial">편집 원칙</a></p><!--/zp-legend-->')
+LEG_G = ('<!--zp-legend--><p class="zp-legend"><span class="lg lg-a">자동 계산</span>표·막대의 숫자는 글 기준일에 공개 자료로 계산한 값이에요. '
+         '<span class="lg lg-h">사람 대조</span>해설과 법 조항은 운영자가 원문과 맞춰 봤어요. 낯선 말은 <a href="/glossary">용어집</a>에 있어요.</p><!--/zp-legend-->')
+
+
+def legend(h, rel):
+    h = LEG_RX.sub('', h)
+    hand_z = rel.startswith('z/') and 'class="zstory"' in h
+    guide = rel.startswith('guide/') and rel != 'guide/index.html'
+    if not (hand_z or guide): return h
+    m = re.search(r'<p class="byline">.*?</p>', h, re.S)
+    if not m: return h
+    bl = re.sub(r'(?<!>)(\S+ 운영자)(?!</a>)', r'<a href="/about#operator">\1</a>', m.group(0), count=1)   # 글쓴이 → 운영자 소개
+    return h[:m.start()] + bl + (LEG_Z if hand_z else LEG_G) + h[m.end():]
+
+
+# 리뉴얼 F10: 가이드 끝 '함께 보면 좋은 질문'에 용어집 한 줄(없을 때만)
+def glossary_link(h, rel):
+    if not rel.startswith('guide/') or 'href="/glossary"' in re.sub(r'<!--zp-legend-->.*?<!--/zp-legend-->', '', h, flags=re.S): return h
+    return re.sub(r'(<h2>함께 보면 좋은 질문</h2><ul>)', r'\1<li><a href="/glossary">재개발 용어집: 권리산정기준일부터 비례율까지</a></li>', h, count=1)
+
+
+# 리뉴얼 A4: 정적 페이지 광고 자리(승인 전에는 비어 있고 hidden · 크기 0) — 애드센스 리터럴 태그가 있는 페이지에만.
+# 규칙: 본문 문단(<p>) 뒤 + 다음 소제목(<h2>/<h3>) 앞에만 · 글이 35% 넘게 지난 곳 1칸(mid), 70% 넘게 지난 곳 1칸(bottom)
+# · 버튼(.cta)·링크 목록·'함께 보면'·출처·면책(disc)·푸터·아래 탭 옆에는 두지 않는다. 자리 표는 renew/ad_placements.md
+AD_RX = re.compile(r'<!--zp-ad:\w+-->.*?<!--/zp-ad-->', re.S)
+AD_TAG = 'pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='
+AD_NO_H = re.compile(r'함께 보면|다음에 읽을|관련|참고|출처|원문|문의|지금까지 낸|용어 찾기')
+
+
+def ad_slot(k, kind):
+    return f'<!--zp-ad:{k}--><aside class="ad-slot" data-slot="{kind}-{k}" aria-label="광고" hidden></aside><!--/zp-ad-->'
+
+
+def ad_slots(h, rel):
+    h = AD_RX.sub('', h)
+    if AD_TAG not in h[:h.find('</head>')]: return h
+    a, b = h.find('<main'), h.find('</main>')
+    if a < 0 or b < 0: return h
+    kind = rel.split('/')[0] if '/' in rel else rel[:-5]
+    body = h[a:b]
+    cand = []
+    for m in re.finditer(r'<p(?: class="(?:lede)")?>(?:(?!</p>).)*</p>\s*(?:</div>\s*)?(?:<!--zn-->.*?<!--/zn-->)?\s*(?=<h[23][ >])', body, re.S):
+        nh = re.match(r'<h[23][^>]*>(.*?)</h[23]>', body[m.end():].lstrip(), re.S)
+        if not nh or AD_NO_H.search(re.sub(r'<[^>]+>', '', nh.group(1))): continue
+        if len(re.sub(r'<[^>]+>', '', m.group(0))) < 60: continue      # 한 줄짜리 안내 문장 뒤는 건너뜀(본문 문단 뒤에만)
+        cand.append(m.end())
+    L = len(body); out, last = [], -1
+    for k, frac in (('mid', .35), ('bottom', .7)):
+        p = next((x for x in cand if x >= L * frac and x > last), None)
+        if p is None: continue
+        out.append((p, k)); last = p
+    for p, k in reversed(out): body = body[:p] + ad_slot(k, kind) + body[p:]
+    return h[:a] + body + h[b:]
 
 
 # pre-adsense 3: 리포트 링크 — '지도 열기'는 지도 화면(#map)으로 · 정적 /z에서 '지금 필요한 돈'이 계산 보류인 구역으로 가는 '내 돈으로 계산'은 '구역 보기'(계산할 금액이 없는 곳)
@@ -192,6 +267,9 @@ def main():
             h1 = RX.sub(lambda m: b, h, count=1) if RX.search(h) else h.replace('</body>', b + '\n</body>', 1)
             h1 = app_header(h1)
             h1 = foot_links(h1)
+            h1 = legend(h1, rel)
+            h1 = glossary_link(h1, rel)
+            h1 = ad_slots(h1, rel)
             if rel.startswith('report/'): h1 = report_links(h1)
             # 26차: 글꼴 CSS를 늦게 붙여 봤지만(/z TBT) 나아지지 않아 원래대로(첫 그림부터 같은 글꼴 · CLS 0)
             h1 = re.sub(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/gh/orioncactus/pretendard[^"]+)" media="print" onload="this\.media=\'all\'" crossorigin>', lambda m: f'<link rel="stylesheet" href="{m.group(1)}" crossorigin>', h1)
