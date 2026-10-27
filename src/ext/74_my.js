@@ -51,6 +51,8 @@ const MY = (() => {
       else h = "지금은 앱 안 소식에만 적용돼요 · 폰 알림은 위 '알림 받기'로 켜요";   // 26차: '알림 받기' 단추는 위 한 곳만
       if (c.innerHTML !== h) c.innerHTML = h;
       c.hidden = false;
+      // renew-feat F9: 관심 구역별·조건별 끄기 + 최근 7일 미리 보기(기능 묶음 /b/f — 처음 MY를 열 때 받는다)
+      T(() => window.ZP_feat.load().then((F) => F.alerts && F.alerts(K, { INBOX, PINS }, window.ZP_feat.ctx())).catch(() => {}));
     }
   }
   // ---------- 관심 구역 옮기기 ----------

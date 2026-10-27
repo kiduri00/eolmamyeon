@@ -11,11 +11,12 @@ const BASE = process.argv[2] || "http://localhost:8777";
 const EXE = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const fails = [], log = (...a) => console.log(...a);
 const check = (ok, id, msg) => { log(`${ok ? "PASS" : "FAIL"} ${id}${ok ? "" : " — " + msg}`); if (!ok) fails.push(id); };
+const ONLY = process.env.QAF_ONLY || "";   // "alerts" = F9 화면만(개발용)
 const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error(m || "timeout")), ms))]);
 (async () => {
   const ref = JSON.parse(execFileSync("python3", [path.join(__dirname, "qa_feat_ref.py")], { maxBuffer: 1 << 28 }).toString());
   const b = await chromium.launch({ executablePath: EXE });
-  try {
+  try { if (!ONLY) {
     // ---------- 1) 숫자 전수 대조 ----------
     const c = await b.newContext({ viewport: { width: 390, height: 844 } });
     await c.route("**/*", (r) => (/^http:\/\/localhost/.test(r.request().url()) ? r.continue() : r.abort()));
@@ -113,6 +114,71 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
     }
     check(!bad.length, "feat.render", bad.slice(0, 6).join(" ; "));
     check(!perr2.length, "feat.errors2", perr2.slice(0, 3).join(" | "));
+    }
+    // ---------- 4) F9 알림 세부 설정(MY): 구역별·조건별 끄기 → 소식·배지·폰 알림 목록(서버로 보내는 것)에서 빠짐 · 미리 보기 수 = 소식 자료 직접 셈 ----------
+    {
+      const CH = JSON.parse(require("fs").readFileSync(path.join(__dirname, "..", "public", "data", "changes.json"), "utf8"));
+      const day = () => new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
+      const addDay = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+      const d0 = addDay(day(), -6), TY = new Set(["stage", "trade", "notice", "auction"]);
+      const wk = CH.items.filter((e) => e.date >= d0 && TY.has(e.type));
+      const cnt = {}; wk.forEach((e) => (cnt[e.id] = (cnt[e.id] || 0) + 1));
+      const cand = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || (a < b ? -1 : 1)).slice(0, 6).concat(["o127", "o637"]);
+      const expOf = (ids) => { const P = new Set(ids), s = new Set(); return wk.filter((e) => P.has(e.id)).filter((e) => { const k = `${e.id}|${e.date}|${e.type}|${e.text}`; if (s.has(k)) return false; s.add(k); return true; }); };
+      const bad4 = [], perr4 = [];
+      const COND = [{ id: "cqa1", cash: 3, mode: "loan", base: [], at: Date.now() - 60 * 864e5, seen: "", asOf: "" }];
+      for (const mode of ["web", "app"]) for (const cs of ["light", "dark"]) {
+        const w = `${mode}/${cs}`;
+        const c4 = await b.newContext({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true, colorScheme: cs });
+        await c4.addInitScript(([m, fav, cond]) => { if (m === "app") Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.jaegaegak/" }); try { if (!sessionStorage.getItem("qa4")) { sessionStorage.setItem("qa4", "1"); localStorage.clear(); localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); localStorage.setItem("jg-fav", JSON.stringify(fav)); localStorage.setItem("zp-cond", JSON.stringify(cond)); } } catch (e) {} }, [mode, cand, COND]);
+        await c4.route("**/*", (r) => (/^http:\/\/localhost/.test(r.request().url()) ? r.continue() : r.abort()));
+        const pg = await c4.newPage(); pg.on("pageerror", (e) => perr4.push(`${w}: ${e.message}`));
+        try {
+          await wd(pg.goto(BASE + "/#my", { waitUntil: "domcontentloaded" }), 60000, "goto");
+          await wd(pg.waitForFunction(() => document.querySelector("#myMute .zal-c b"), null, { timeout: 30000 }), 31000, "myMute");
+          const st = () => pg.evaluate(() => {
+            const I = window.ZP_INBOX, box = document.getElementById("myMute");
+            const z = [...box.querySelectorAll("[data-mz]")].map((x) => [x.dataset.mz, x.getAttribute("aria-checked")]), c = [...box.querySelectorAll("[data-mc]")].map((x) => [x.dataset.mc, x.getAttribute("aria-checked")]);
+            const pl = I.payloadOf(), d0 = I.d0();
+            const ov = [...document.querySelectorAll("#myMute, #myMute *")].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).length;
+            return { pins: window.PINS.list(), z, c, shown: +box.querySelector(".zal-c b").textContent.replace(/[^\d]/g, ""), out: (/꺼 둔 설정으로 ([\d,]+)건/.exec(box.querySelector(".zal-c").textContent) || [0, "0"])[1].replace(/,/g, "") | 0,
+              zones: pl.zones, conds: pl.conds.length, pinEv: I.pinEvents().map((e) => e.id), auc: I.condAuc().filter((e) => e.date >= d0).length, d0, ov, docW: document.documentElement.scrollWidth };
+          });
+          let s = await st();
+          if (s.d0 !== d0) bad4.push(`${w} d0 ${s.d0} vs ${d0}`);
+          const E = expOf(s.pins);
+          if (s.z.length !== s.pins.length || s.c.length !== 1) bad4.push(`${w} 스위치 구역 ${s.z.length}/${s.pins.length} 조건 ${s.c.length}`);
+          if (s.shown !== E.length + s.auc || s.out) bad4.push(`${w} 처음 미리 보기 ${s.shown} vs ${E.length}+${s.auc} · 빠짐 ${s.out}`);
+          if (s.ov || s.docW > 361) bad4.push(`${w} 가로 넘침 ${s.ov} · ${s.docW}`);
+          await pg.screenshot({ path: `${process.env.QAF_SHOTS || "/tmp"}/f9_${mode}_${cs}_0.png`, fullPage: false }).catch(() => {});
+          // 1) 첫 구역 끄기
+          const z0 = s.pins[0], n0 = E.filter((e) => e.id === z0).length;
+          await pg.evaluate((id) => { const x = document.querySelector(`#myMute [data-mz="${id}"]`); x.scrollIntoView({ block: "center" }); x.click(); }, z0); await pg.waitForTimeout(400);
+          s = await st();
+          const m1 = await pg.evaluate(() => JSON.parse(localStorage.getItem("zp-alert-mute") || "{}"));
+          if (!(m1.z || []).includes(z0) || s.zones.includes(z0) || s.zones.length !== s.pins.length - 1 || s.pinEv.includes(z0)) bad4.push(`${w} 구역 끄기: 저장 ${JSON.stringify(m1)} · 폰 알림 목록 ${s.zones.includes(z0)} · 소식 ${s.pinEv.includes(z0)}`);
+          if (s.shown !== E.length - n0 + s.auc || s.out !== n0) bad4.push(`${w} 구역 끈 뒤 미리 보기 ${s.shown} vs ${E.length - n0}+${s.auc} · 빠짐 ${s.out}/${n0}`);
+          if ((s.z.find((x) => x[0] === z0) || [])[1] !== "false") bad4.push(`${w} 구역 스위치 상태`);
+          await pg.screenshot({ path: `${process.env.QAF_SHOTS || "/tmp"}/f9_${mode}_${cs}_1.png` }).catch(() => {});
+          // 2) 조건 끄기
+          await pg.evaluate(() => { const x = document.querySelector("#myMute [data-mc]"); x.scrollIntoView({ block: "center" }); x.click(); }); await pg.waitForTimeout(400);
+          s = await st();
+          if (s.conds !== 0 || s.auc !== 0 || s.shown !== E.length - n0) bad4.push(`${w} 조건 끄기: 폰 알림 조건 ${s.conds} · 경매 ${s.auc} · 미리 보기 ${s.shown}`);
+          // 3) 다시 열어도 그대로 → 다시 켜면 원래대로
+          await pg.reload({ waitUntil: "domcontentloaded" }); await wd(pg.waitForFunction(() => document.querySelector("#myMute .zal-c b"), null, { timeout: 30000 }), 31000, "reload");
+          s = await st();
+          if ((s.z.find((x) => x[0] === z0) || [])[1] !== "false" || s.c[0][1] !== "false") bad4.push(`${w} 다시 연 뒤 상태 ${JSON.stringify(s.z[0])} ${JSON.stringify(s.c[0])}`);
+          await pg.evaluate((id) => { document.querySelector(`#myMute [data-mz="${id}"]`).click(); }, z0); await pg.waitForTimeout(300);
+          await pg.evaluate(() => { document.querySelector("#myMute [data-mc]").click(); }); await pg.waitForTimeout(400);
+          s = await st();
+          if (s.zones.length !== s.pins.length || s.conds !== 1 || s.shown !== E.length + s.auc || s.out) bad4.push(`${w} 다시 켠 뒤 ${s.zones.length}/${s.pins.length} 조건 ${s.conds} 미리 보기 ${s.shown}`);
+          if (mode === "web" && cs === "light") log(`  alerts 구역 ${s.pins.length} · 7일 소식 ${E.length} · 조건 경매 ${s.auc} · 끈 구역 ${z0} ${n0}건`);
+        } catch (e) { bad4.push(`${w} ${e.message}`); }
+        await c4.close();
+      }
+      check(!bad4.length, "feat.alerts", bad4.slice(0, 6).join(" ; "));
+      check(!perr4.length, "feat.errors4", perr4.slice(0, 3).join(" | "));
+    }
   } catch (e) { check(false, "feat.crash", String(e.message || e).split("\n")[0]); }
   await b.close();
   log(fails.length ? `FAILED ${fails.length}: ${fails.join(", ")}` : "PASSED");

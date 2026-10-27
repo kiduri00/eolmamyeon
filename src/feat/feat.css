@@ -87,3 +87,18 @@ html.is-tapp .zpx-seg button[aria-pressed="true"]{background:var(--t-pg)}
 .zpx-jr p,.zpx-src{margin:8px 0 0;font:500 12px/17px var(--font,inherit);color:var(--zf-mute);word-break:keep-all}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .zpx-svg .t0{fill:#8EA8F5}:root:not([data-theme="light"]) .zpx-svg .p{fill-opacity:.7}}
 :root[data-theme="dark"] .zpx-svg .t0{fill:#8EA8F5}:root[data-theme="dark"] .zpx-svg .p{fill-opacity:.7}
+/* F9 알림 세부 설정(MY) — 줄·스위치는 MY 것(.my-l · .my-sw) 그대로 · 소제목 · 더 보기 · 미리 보기 카드 */
+.zal{margin-top:4px}
+.zal .zal-h{margin-top:14px;font-weight:700;color:var(--zf-ink)}
+.zal .my-t small{display:block;margin-top:2px;font-size:12.5px;font-weight:500;color:var(--zf-mute)}
+.zal-more{display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;margin-top:4px;border:0;border-radius:12px;background:none;color:var(--brand);font:700 14px var(--font,inherit);cursor:pointer}
+.zal-pv{margin:14px 0 0;padding:14px 16px;border:1px solid var(--zf-line);border-radius:16px;background:var(--surface,#fff)}
+.zal-pv h4{margin:0;font:700 14px/1.45 var(--font,inherit);color:var(--zf-ink);word-break:keep-all}
+.zal-c{margin:6px 0 0;font-size:14px;color:var(--zf-sub)}
+.zal-c b{font-size:20px;font-weight:800;color:var(--zf-ink);font-variant-numeric:tabular-nums;margin-right:2px}
+.zal-l{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.zal-l li{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;font-size:13.5px;line-height:1.45}
+.zal-d{color:var(--zf-mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.zal-n{font-weight:700;color:var(--zf-ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zal-x{grid-column:1 / -1;color:var(--zf-sub);word-break:keep-all;overflow-wrap:anywhere}
+.zal-s{margin:8px 0 0;font:500 12px/17px var(--font,inherit);color:var(--zf-mute);word-break:keep-all}

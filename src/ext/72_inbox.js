@@ -29,7 +29,11 @@ const INBOX = (() => {
       .catch(() => { CHP = null; return null; }));
   }
   const pinIds = () => { try { return PINS.list(); } catch (e) { return []; } };
-  const conds = () => { try { return PINS.condsAll(); } catch (e) { return []; } };
+  // renew-feat F9: 구역별·조건별 끄기(zp-alert-mute {z:[구역 id], c:[조건 id]}) — 끈 구역·조건은 소식 목록·배지·폰 알림(서버로 보내는 목록)에서 뺀다 · 관심 구역·조건 자체는 그대로
+  const MUK = "zp-alert-mute";
+  const mute = () => { const v = lsR(MUK, {}); return { z: Array.isArray(v && v.z) ? v.z : [], c: Array.isArray(v && v.c) ? v.c : [] }; };
+  const pinOn = () => { const m = new Set(mute().z); return pinIds().filter((id) => !m.has(id)); };
+  const conds = () => { try { return PINS.condsOn ? PINS.condsOn() : PINS.condsAll(); } catch (e) { return []; } };
   function seen() {
     // 처음 쓰는 기기: 지난 7일 소식만 '새 소식'으로(30일치가 한꺼번에 뜨지 않게)
     if (!SEEN || typeof SEEN.at !== "string" || !Array.isArray(SEEN.k)) { SEEN = { at: addDay((CH && CH.asOf) || day(), -7), k: [] }; lsW(SK, SEEN); }
@@ -37,7 +41,7 @@ const INBOX = (() => {
   }
   function pinEvents() {
     if (!CH) return [];
-    const P = new Set(pinIds());
+    const P = new Set(pinOn());
     const O = off();
     return uniq(CH.items.filter((e) => P.has(e.id) && TY[e.type] && byId[e.id] && !O.includes(e.type)));
   }
@@ -158,7 +162,7 @@ const INBOX = (() => {
   const u8 = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const swReady = (ms = 8000) => Promise.race([navigator.serviceWorker.getRegistration("/").then((r) => r || navigator.serviceWorker.register("/sw.js", { scope: "/" })).then(() => navigator.serviceWorker.ready), new Promise((_, no) => setTimeout(() => no(new Error("sw")), ms))]);
-  const payload = (sub) => ({ sub: sub.toJSON(), o: off(), zones: pinIds().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.slice(0, 150) })) });
+  const payload = (sub) => ({ sub: sub.toJSON(), o: off(), zones: pinOn().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.slice(0, 150) })) });
   // 시간 제한: 구독·서버 저장이 멈춰도 '켜는 중…'에 갇히지 않게(8초)
   const tmo = (p, ms, tag) => { let t; return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(new Error(tag || "timeout")), ms); })]).finally(() => clearTimeout(t)); };
   const postSub = (sub) => {
@@ -332,8 +336,10 @@ const INBOX = (() => {
   const week = () => { const d0 = addDay(day(), -6); return pinEvents().filter((e) => e.date >= d0); };
   // MY > 알림 설정에서 쓰는 것: 폰 알림 상태(st) · 켜기/끄기 · 종류별 끄기
   const st = () => ({ can: (!!KEY || KNET || (KEY === undefined && navigator.onLine === false)) && canPush(), on: isOn() && canPush() && Notification.permission === "granted", perm: canPush() ? Notification.permission : "unsupported", msg: PMSG });
+  function setMute(t, id, on) { const m = mute(), L = new Set(m[t]); if (on) L.delete(id); else L.add(id); m[t] = [...L]; lsW(MUK, m); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
+  const isMuted = (t, id) => mute()[t].includes(id);
   function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
-  return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind };
+  return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind, setMute, isMuted, d0: () => addDay(day(), -6), asOf: () => (CH ? CH.asOf || "" : ""), pinEvents: () => pinEvents(), condAuc: () => condAuc(), payloadOf: () => payload({ toJSON: () => ({}) }) };
 })();
 window.ZP_INBOX = INBOX;   // 점검(QA): 폰 알림 상태·종류 끄기
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", INBOX.init) : setTimeout(INBOX.init, 0);

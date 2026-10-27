@@ -561,6 +561,9 @@ const PINS = (() => {
   }
   const condUnread = (n) => !!n.sig && n.c.seen !== n.sig;
   const condsAll = () => CONDS.map(condNews);
+  // renew-feat F9: 알림에서 끈 조건(zp-alert-mute.c)은 '갈 수 있게 된 곳' 셈·폰 알림에서 뺀다(관심 화면의 조건 목록에는 그대로)
+  const condMuted = (id) => { try { const m = JSON.parse(localStorage.getItem("zp-alert-mute") || "null"); return !!(m && Array.isArray(m.c) && m.c.includes(id)); } catch (e) { return false; } };
+  const condsOn = () => CONDS.filter((c) => !condMuted(c.id)).map(condNews);
   const cashT = ZF.cash;
   const stShort = (m) => (STAGES.find((x) => x[0] === m) || [0, ""])[1];
   const autoName = (c) => [`${cashT(c.cash)} ${c.mode === "gap" ? "전세" : "대출"}`, c.gu ? c.gu.replace(/구$/, "") : "", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.minS ? stShort(c.minS) : "", c.firm ? "확실성 높음" : "", c.cm ? `출퇴근 ${c.cm.max}분` : ""].filter(Boolean).reduce((a, x) => (a && (a + " · " + x).length > 30 ? a : a ? a + " · " + x : x), "");
@@ -818,7 +821,7 @@ const PINS = (() => {
   // 본 적 없는 새 구역만: seen(마지막으로 본 sig)의 '새로 들어온' id 목록을 빼고 센다
   // 알림함(72_inbox)에서 조건 핀 새 구역을 보여 줬을 때: 조건 핀만 '읽음'(핀 소식 배지는 그대로)
   function markCondSeen() { let ch = 0; condsAll().forEach((n) => { if (n.c.seen !== n.sig) { n.c.seen = n.sig; ch = 1; } }); if (ch) { saveC(); badges(); } }
-  const freshIds = () => [...new Set(condsAll().flatMap((n) => { const sn = new Set(String(n.c.seen || "").split("/")[0].split(",").filter(Boolean)); return n.add.filter((id) => !sn.has(id)); }))];
+  const freshIds = () => [...new Set(condsOn().flatMap((n) => { const sn = new Set(String(n.c.seen || "").split("/")[0].split(",").filter(Boolean)); return n.add.filter((id) => !sn.has(id)); }))];
 
   // ---------- 화면 이벤트 ----------
   function onClick(e) {
@@ -912,7 +915,7 @@ const PINS = (() => {
   const cmpShown = () => CMPON;
   // MY > 관심 구역 내보내기: 관심 구역 화면의 '링크 복사'와 같은 링크·같은 복사/공유
   const move = (fb) => moveURL().then((u) => shareLink(u, fb));
-  return { move, moveURL, init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
+  return { move, moveURL, init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), condsOn, cname: (c) => c.name || autoName(c), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
 })();
 window.PINS = { list: PINS.list, has: PINS.has, on: PINS.on, newIds: PINS.newIds };
 window.ZP_ok = PINS.zpOk;   // 홈 '갈 수 있는 곳' 숫자와 같은 판정(지도 핀·게이지 토스트용)
