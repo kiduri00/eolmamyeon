@@ -3,7 +3,7 @@
 (남색 바탕 · v7 가로 로고 + 영문 · '내 돈으로 갈 수 있는 서울 재개발' · 물결 · 주소). 내용이 같으면 다시 쓰지 않는다.
   python3 tools/og_site.py"""
 import os, io, hashlib
-from brand import BRAND, BRAND_EN, SLOGAN
+from brand import BRAND, BRAND_EN, SLOGAN, LOGO_H_DARK
 from zmap import _font
 
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -21,8 +21,8 @@ def main():
     import math
     pts = [(x, 560 - 28 * math.sin((x - 80) / 190)) for x in range(0, W + 1, 8)]
     d.line(pts, fill='#3d5cad', width=34)
-    # 재개각 v7 가로 로고(마크 + 한글 워드마크 · 어두운 바탕용) — tools/brand_assets
-    lg = Image.open(os.path.join(R, 'tools', 'brand_assets', 'jaegaegak_horizontal_ko_dark.png')).convert('RGBA')
+    # 브랜드 v7 가로 로고(마크 + 한글 워드마크 · 어두운 바탕용) — tools/brand_assets
+    lg = Image.open(os.path.join(R, LOGO_H_DARK)).convert('RGBA')
     lh = 132; lg = lg.resize((round(lg.width * lh / lg.height), lh), Image.LANCZOS)
     im.paste(lg, (92, 88), lg)
     d.text((92 + lg.width + 22, 140), BRAND_EN, font=_font('b', 46), fill=SKY)

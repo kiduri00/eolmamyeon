@@ -3,7 +3,7 @@
 build.py 끝에서 부른다. 이미 넣은 자리(<!--zp-tabs--> … <!--/zp-tabs-->)는 통째로 바꾸므로 몇 번 돌려도 결과가 같다.
 지금 탭: 구역(/z)·구(/gu)·404 = 찾기, 나머지(가이드·리포트·약관·FAQ …) = MY."""
 import os, re
-from brand import BRAND, TAGLINE, ICON_LINKS, wordmark_svg, WORDMARK_CSS   # 재개각 v7 워드마크·아이콘(기능 트랙과 같은 tools/brand.py · public/icons/)
+from brand import BRAND, TAGLINE, ICON_LINKS, wordmark_svg, WORDMARK_CSS   # 브랜드 v7 워드마크·아이콘(기능 트랙과 같은 tools/brand.py · public/icons/)
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PUB = os.path.join(R, 'public')
 SV = lambda d: f'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{d}"/></svg>'
@@ -137,7 +137,7 @@ def app_header(h):
     hd = re.sub(r'<span class="hdr-date"[^>]*>.*?</span><a class="hdr-bell".*?</a>', '', hd, flags=re.S)
     hd = hd.replace('</div></header>', BELL + '</div></header>', 1)
     # 28차: 로고를 그림 파일 대신 글 속 SVG로(첫 프레임부터 보이게 · 그림 요청을 기다리지 않음)
-    # 리뉴얼 브랜드 v7: 로고 = 재개각 워드마크(글 속 SVG · 밝게/어둡게 CSS 색) + 작은 글('서울 재개발 지도', 폰에서는 숨김)
+    # 리뉴얼 브랜드 v7: 로고 = 브랜드 워드마크(글 속 SVG · 밝게/어둡게 CSS 색) + 작은 글('서울 재개발 지도', 폰에서는 숨김)
     hd = re.sub(r'<a class="logo"[^>]*>.*?</a>', lambda m: f'<a class="logo" href="/" aria-label="{BRAND} 처음으로">{wordmark_svg()}<small class="logo-s">{TAGLINE}</small></a>', hd, count=1, flags=re.S)
     hd = re.sub(r'(<input id="tq"[^>]*placeholder=")[^"]*(")', lambda x: x.group(1) + PH + x.group(2), hd)
     # 26차: 400px 아래에선 자리표시가 잘려 '구역·동·:'로 보이던 것 → '검색'
@@ -205,11 +205,11 @@ def legend(h, rel):
     if not (hand_z or guide): return h
     m = re.search(r'<p class="byline">.*?</p>', h, re.S)
     if not m: return h
-    bl = m.group(0)   # 글쓴이 줄은 op_line이 '재개각 편집'으로 맞춘다
+    bl = m.group(0)   # 글쓴이 줄은 op_line이 '<이름> 편집'으로 맞춘다
     return h[:m.start()] + bl + (LEG_Z if hand_z else LEG_G) + h[m.end():]
 
 
-# 통합(2026-10-27 오너 결정): 개인 운영자 소개 없이 — 손글·가이드·/gu 해설·리포트의 글쓴이 줄 = '재개각 편집'(brand.EDITOR) → /about#principles(편집 원칙)
+# 통합(2026-10-27 오너 결정): 개인 운영자 소개 없이 — 손글·가이드·/gu 해설·리포트의 글쓴이 줄 = '<이름> 편집'(brand.EDITOR) → /about#principles(편집 원칙)
 from brand import EDITOR as _ED
 OPL_RX = re.compile(r'(<p class="(?:byline|meta)">(?:정리|글·계산|글·화면|글·정리): )(?:(?!</p>|<span class="op-f">| · <time| · 기사| · 글 | · 새로| · 법 | · 발행).)*?(?:운영자|편집)(?:(?!</p>|<span class="op-f">| · <time| · 기사| · 글 | · 새로| · 법 | · 발행).)*?(?:<span class="op-f">[^<]*</span>)?(?=(?: · )|</p>)', re.S)
 def op_line(h, rel):

@@ -1,7 +1,7 @@
 """구역 페이지(/z/<id>)용 그림 도구: 정적 위치 지도(SVG)와 공유 카드(OG PNG 1200x630).
 tools/zpages.py가 불러 쓴다. 외부 지도 타일 없이 공개 자료(구 경계·정비구역 경계·지하철 노선/역)만으로 그린다."""
 import json, os, re, math, hashlib, html
-from brand import BRAND, BRAND_EN
+from brand import BRAND, BRAND_EN, LOGO_H_LIGHT
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 
@@ -233,8 +233,8 @@ def og_card(rid, nm, sub, stage, money_lab, money, loc, gu, upd, text_only=False
         # 왼쪽: 글자
         # 머리: 앱 아이콘(집 든 핀) + 서비스 이름(brand.BRAND·BRAND_EN) · 서울 재개발 지도
         lx = 64
-        try:   # 재개각 v7 가로 로고(마크 + 한글 워드마크 · 밝은 바탕용) — tools/brand_assets
-            lg = Image.open(os.path.join(ROOT, 'tools/brand_assets/jaegaegak_horizontal_ko_light.png')).convert('RGBA')
+        try:   # 브랜드 v7 가로 로고(마크 + 한글 워드마크 · 밝은 바탕용) — tools/brand_assets
+            lg = Image.open(os.path.join(ROOT, LOGO_H_LIGHT)).convert('RGBA')
             lh = 50; lg = lg.resize((round(lg.width * lh / lg.height), lh), Image.LANCZOS)
             im.paste(lg, (60, 48), lg); lx = 60 + lg.width + 12
         except Exception:

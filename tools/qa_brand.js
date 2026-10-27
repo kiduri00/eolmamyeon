@@ -1,12 +1,11 @@
 #!/usr/bin/env node
-/* QA brand.residual — 옛 서비스 이름('집핀'·'Zippin'·'zippin'·'ZIPPIN')이 public 전체와 src에 0건인지.
+/* QA brand.residual — 옛·검토 이름(tools/brand.py OLD_NAMES)이 public 전체와 src에 0건인지.
    예외: 소개(about)와 오류 수정 기록(corrections)의 '이름 변경' 안내(같은 줄 앞뒤 80자 안에 새 이름과 '이름'이 함께 있을 때만).
    public/b는 지금 빌드가 쓰는 묶음만 본다(index.html·sw.js에서 이어지는 /b/ 파일 — 옛 묶음은 캐시용으로 남겨 둔 것).
    사용: node tools/qa_brand.js  (실패하면 파일별 건수와 첫 몇 곳을 찍고 종료 코드 1) */
 const fs = require("fs"), path = require("path");
 const R = path.resolve(__dirname, "..");
-const OLD = /집핀|zippin/gi;
-const NEW = (() => { const m = fs.readFileSync(path.join(R, "tools", "brand.py"), "utf8").match(/^BRAND = '([^']+)'/m); return m ? m[1] : "재개각"; })();
+const BN = require("./brand_names")(), OLD = BN.OLD_RX, NEW = BN.BRAND;   // 금지어·새 이름·안내 문구 = tools/brand.py
 const EXC = /^public\/(about|corrections)(\.html|\/index\.html)$/;
 const TXT = /\.(html?|js|mjs|css|json|webmanifest|xml|txt|svg|md|py)$/i;
 const walk = (d, out = []) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p, out); else if (TXT.test(e.name)) out.push(p); } return out; };
@@ -21,7 +20,7 @@ for (const f of files) {
   for (const m of s.matchAll(OLD)) {
     const ctx = s.slice(Math.max(0, m.index - 80), m.index + 80).split("\n");
     const near = s.slice(Math.max(0, m.index - 80), m.index + 80);
-    if (EXC.test(f) && near.includes(NEW) && /이름/.test(near)) { okEx++; continue; }
+    if (EXC.test(f) && s.slice(Math.max(0, m.index - 40), m.index + 40).includes(BN.RENAME_LINE)) { okEx++; continue; }   // 예외: 이름 변경 안내 한 줄(brand.RENAME_LINE 그대로)뿐
     (bad[f] = bad[f] || []).push(near.replace(/\s+/g, " ").slice(40, 130)); n++;
   }
 }

@@ -82,7 +82,7 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
     const bad = []; const perr2 = [];
     for (const mode of ["web", "app"]) for (const cs of ["light", "dark"]) {
       const c2 = await b.newContext({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true, colorScheme: cs });
-      await c2.addInitScript((m) => { if (m === "app") Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.jaegaegak/" }); try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} }, mode);
+      await c2.addInitScript((m) => { if (m === "app") Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.twa/" }); try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} }, mode);
       await c2.route("**/*", (r) => (/^http:\/\/localhost/.test(r.request().url()) ? r.continue() : r.abort()));
       const pg = await c2.newPage(); pg.on("pageerror", (e) => perr2.push(`${mode}/${cs}: ${e.message}`));
       for (const id of ZS) {
@@ -136,7 +136,7 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
       const bad6 = [];
       for (const [mode, cs] of [["web", "light"], ["app", "dark"]]) {
         const c6 = await b.newContext({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true, colorScheme: cs });
-        await c6.addInitScript((m) => { if (m === "app") Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.jaegaegak/" }); try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} }, mode);
+        await c6.addInitScript((m) => { if (m === "app") Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.twa/" }); try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} }, mode);
         await c6.route("**/*", (r) => (/^http:\/\/localhost/.test(r.request().url()) ? r.continue() : r.abort()));
         const pg = await c6.newPage(); pg.on("pageerror", (e) => perr5.push(`${mode}: ${e.message}`));
         await wd(pg.goto(BASE + "/#diagTop", { waitUntil: "domcontentloaded" }), 60000, "goto");
@@ -191,7 +191,7 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
       for (const mode of ["web", "app"]) for (const cs of ["light", "dark"]) {
         const w = `${mode}/${cs}`;
         const c4 = await b.newContext({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true, colorScheme: cs });
-        await c4.addInitScript(([m, fav, cond]) => { if (m === "app") Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.jaegaegak/" }); try { if (!sessionStorage.getItem("qa4")) { sessionStorage.setItem("qa4", "1"); localStorage.clear(); localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); localStorage.setItem("jg-fav", JSON.stringify(fav)); localStorage.setItem("zp-cond", JSON.stringify(cond)); } } catch (e) {} }, [mode, cand, COND]);
+        await c4.addInitScript(([m, fav, cond]) => { if (m === "app") Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.twa/" }); try { if (!sessionStorage.getItem("qa4")) { sessionStorage.setItem("qa4", "1"); localStorage.clear(); localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); localStorage.setItem("jg-fav", JSON.stringify(fav)); localStorage.setItem("zp-cond", JSON.stringify(cond)); } } catch (e) {} }, [mode, cand, COND]);
         await c4.route("**/*", (r) => (/^http:\/\/localhost/.test(r.request().url()) ? r.continue() : r.abort()));
         const pg = await c4.newPage(); pg.on("pageerror", (e) => perr4.push(`${w}: ${e.message}`));
         try {

@@ -304,18 +304,19 @@ async function stableText(page, sel, maxMs = 4000, need = 1) {
 // 첫 화면 3칸 이름: 셋째 칸은 '언제 입주'(입주권 없는 곳은 '입주권' · 20차 G3)
 const LAB3 = /^지금 필요한 돈\|입주까지 현금\|(언제 입주|입주권)$/;
 async function staticLane(api) {
-  // --- brand.static (리뉴얼 2026-10-27 '집핀' → '재개각'): 정적 페이지·피드·공개 API에 예전 이름이 없음 — 허용 예외는 이름 변경 안내(about #rename · 오류 수정 기록 '이름' 항목)뿐.
+  // --- brand.static (리뉴얼 2026-10-27 이름 변경 · 값은 tools/brand.py): 정적 페이지·피드·공개 API에 예전 이름이 없음 — 허용 예외는 이름 변경 안내(about #rename · 오류 수정 기록 '이름' 항목)뿐.
   //     첫 화면(index.html)·앱 묶음(/b)·manifest·sw·assetlinks는 기능 트랙이 맡는다(같은 검사를 그쪽에서 켠다)
   {
-    const T = "정적 페이지·피드·API에 예전 서비스 이름(집핀·Zippin·zippin) 0곳 — 이름 변경 안내 한 줄(about·/corrections)만 예외";
+    const BN = require("./brand_names")();
+    const T = `정적 페이지·피드·API에 옛·검토 이름(${BN.OLD_NAMES.join("·")}) 0곳 — 이름 변경 안내 한 줄(about·/corrections)만 예외`;
     const P = require("path"), PUBD = P.join(__dirname, "..", "public"), bad = [];
     const walk = (d) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = P.join(d, f.name), rel = P.relative(PUBD, p);
       if (f.isDirectory()) { if (!/^(b|data|pcli|og|\.well-known)$/.test(rel)) walk(p); continue; }
       if (!/\.(html|xml|json|css)$/.test(f.name) || rel === "index.html") continue;
       let h = fs.readFileSync(p, "utf8");
       if (rel === "about.html") h = h.replace(/<!--zp-rename-->[\s\S]*?<!--\/zp-rename-->/, "");
-      if (rel === "corrections.html") h = h.replace(/<li><p class="cx-d">(?:(?!<\/li>)[^])*?이름을 집핀에서 재개각으로(?:(?!<\/li>)[^])*?<\/li>/, "");
-      const m = /집핀|Zippin|zippin/.exec(h); if (m) bad.push(`${rel}: …${h.slice(Math.max(0, m.index - 30), m.index + 10).replace(/\s+/g, " ")}`); } };
+      if (rel === "corrections.html" || rel === "about.html") h = h.split(BN.RENAME_LINE).join("");   // 예외: 이름 변경 안내 한 줄(brand.RENAME_LINE)
+      BN.OLD_RX.lastIndex = 0; const m = BN.OLD_RX.exec(h); if (m) bad.push(`${rel}: …${h.slice(Math.max(0, m.index - 30), m.index + 10).replace(/\s+/g, " ")}`); } };
     try { walk(PUBD); } catch (e) { bad.push("walk: " + e.message); }
     expect(!bad.length, "brand.static", T, `${bad.length} files · ${bad.slice(0, 3).join(" ; ")}`);
   }
@@ -2688,7 +2689,7 @@ const FORCE_SA = () => {   // (display-mode: standalone) 규칙을 그대로 꺼
 // ================================================================ 설치 앱 화면(안드로이드 TWA·홈 화면 앱 · html.is-tapp)
 // 크롬 헤드리스는 display-mode를 흉내 못 내므로 TWA와 같은 진입(document.referrer = android-app://…)으로 켠다 · 브라우저(웹)는 그대로인지도 같이
 // 1라운드 B: 이 크로미움은 CDP display-mode 흉내가 듣지 않는다 → referrer(android-app://) 덮어쓰기 + 세션 표시(zp.tapp=1)를 둘 다 넣고, 각 검사 전에 html.is-tapp가 켜졌는지부터 단언(tapp.on)
-const TWA = () => { try { Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.jaegaegak/" }); } catch (e) {} try { sessionStorage.setItem("zp.tapp", "1"); } catch (e) {} };
+const TWA = () => { try { Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.twa/" }); } catch (e) {} try { sessionStorage.setItem("zp.tapp", "1"); } catch (e) {} };
 async function tappLane(browser, api, errs) {
   const SEC = secGate("tapp");   // 묶음마다 시간 재기 · QAC_PART=tapp:k/n 이면 k번째 몫만(나눠서 따로 돌림)
   const mob = (w, h, cs = "light") => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs });
@@ -2966,7 +2967,7 @@ async function tappLane(browser, api, errs) {
       const tick = () => { if (window.__pr) { let hit = 0; for (const [x, y] of pts) { const e = document.elementFromPoint(innerWidth * x, innerHeight * y); if (e && e.closest && e.closest(HS)) { hit = 1; break; } } const c = document.documentElement.className; window.__fr.push([hit, /tapp-cover/.test(c) ? 1 : 0, /tapp-tab/.test(c) ? 1 : 0]); } requestAnimationFrame(tick); }; requestAnimationFrame(tick); };
     const mk = async () => {
       const r = await newPage(browser, mob(390, 844), errs);
-      await r.ctx.addInitScript(() => { let fs = 0; try { fs = sessionStorage.getItem("__prOn") === "1"; } catch (e) {} if (!fs) try { Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.jaegaegak/" }); } catch (e) {} try { sessionStorage.setItem("zp.tapp", "1"); localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+      await r.ctx.addInitScript(() => { let fs = 0; try { fs = sessionStorage.getItem("__prOn") === "1"; } catch (e) {} if (!fs) try { Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.twa/" }); } catch (e) {} try { sessionStorage.setItem("zp.tapp", "1"); localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
       await r.ctx.addInitScript(PROBE);
       await r.ctx.route(/^https?:\/\/[^/]+\/(?:years|report\/\d{4}-\d\d|guide\/[a-z0-9-]+)(?:[?#].*)?$/, (q) => { const u = new URL(q.request().url()); u.pathname += ".html"; return q.continue({ url: u.toString() }); });
       const cdp = await r.ctx.newCDPSession(r.page); await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
@@ -3906,7 +3907,7 @@ async function tappLane(browser, api, errs) {
     let j = null; try { j = JSON.parse(al.text); } catch (e) {}
     const fp = j && j[0] && j[0].target && j[0].target.sha256_cert_fingerprints;
     expect(/\/\\\/b\\\/\[a-su-z\]\\\./.test(sw), "tapp.swPre", "SW 설치 때 미리 저장하는 묶음에서 설치 앱 묶음(/b/t.*) 제외(브라우저 방문자가 받지 않게)", "sw.js 정규식 확인");
-    expect(!!(j && j[0].target.package_name === "kr.alwaysquestions.jaegaegak" && Array.isArray(fp) && fp.length && fp.every((x) => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x)) && !/TODO/.test(al.text) && /application\/json/.test(al.ct || "")), "tapp.assetlinks", "/.well-known/assetlinks.json: application/json · 패키지 이름 · SHA-256 지문만(TODO 없음)", (al.ct || "") + " " + al.text.slice(0, 200));
+    expect(!!(j && j[0].target.package_name === require("./brand_names")().APP_PKG && Array.isArray(fp) && fp.length && fp.every((x) => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x)) && !/TODO/.test(al.text) && /application\/json/.test(al.ct || "")), "tapp.assetlinks", "/.well-known/assetlinks.json: application/json · 패키지 이름 · SHA-256 지문만(TODO 없음)", (al.ct || "") + " " + al.text.slice(0, 200));
   }
   SEC.close();
 }
