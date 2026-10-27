@@ -133,6 +133,9 @@ def glossary():
 # 날짜 = 고친 커밋의 날짜(git log --format=%cs). 2026-10-15 이전 일은 저장소 기록이 시작되기 전이라 '기록 시작 전'으로 둔다.
 # 새로 고칠 때마다 맨 위에 한 줄씩 더한다(무엇이 · 어떻게 틀렸고 · 어떻게 고쳤나 · 어디에 반영됐나).
 FIXES = [
+    ('2026-10-27', '', '자료', '지하철역 위치와 대형마트 목록을 공공데이터로 바꿨어요',
+     '역 좌표를 출처가 분명하지 않은 정리본에서 가져와 서원역(2.4km)·석촌고분역(1.7km)처럼 크게 어긋난 역이 있었어요. 아직 개통하지 않은 계획 역 5곳이 「가까운 역」으로 나왔어요. 대형마트 목록은 비영리 조건이 붙은 위키 문서였어요.',
+     '역 좌표는 서울시 역사마스터 정보로, 대형마트는 서울시 대규모점포 인허가 정보로 바꿨어요. 계획 역은 가까운 역 후보에서 뺐어요. 빠져 있던 마트 15곳도 더해졌어요.', '가까운 역·도보 시간·입지 점수·<a href="/about#sources">자료 출처</a>'),
     (RENAME_DATE, '', '이름', '서비스 이름을 집핀에서 재개각으로 바꿨어요',
      '예전 이름 「집핀(Zippin)」이 다른 회사 상표와 겹칠 수 있었어요.',
      f'이름을 {BRAND}({BRAND_EN})으로 바꿨어요. 사이트 주소와 기능은 그대로예요.', '모든 페이지·앱 이름'),
@@ -232,6 +235,44 @@ OP_HTML = f'''<!--zp-op--><h2 id="operator">누가 만드나요?</h2>
 <p class="meta">고침 주기: 자료와 계산은 매일 아침 · 월간 리포트는 매달 5일 무렵 · 구역 글과 가이드는 큰 변화(인가·고시)가 생기면 다시 써요.</p><!--/zp-op-->'''
 
 
+# ================= about: 자료 출처와 이용조건 (renew-infra docs/sources.md 2026-10-27 내용을 쉬운 말로) =================
+KOGL1 = '공공누리 제1유형: 출처만 밝히면 상업적 이용·변경 가능'
+SOURCES = [
+    ('정비사업 정보몽땅', 'https://cleanup.seoul.go.kr/cleanup/bsnssttus/lscrMainIndx.do', '서울시', '공개 웹페이지(별도 개방 라이선스 표시 없음). 사업장·단계·인가일 같은 사실 정보만 쓰고 출처를 링크해요', '구역 목록, 단계, 인가 날짜, 추진경과, 조합 정보', '매일'),
+    ('신속통합기획·모아타운 현황', 'https://cleanup.seoul.go.kr/cleanup/view/publicIntgrPlanSttn.do', '서울시', '정보몽땅과 같아요', '후보지·대상지 목록', '수시'),
+    ('부동산 실거래가 정보(OA-21275)', 'https://data.seoul.go.kr/dataList/OA-21275/S/1/datasetView.do', '서울 열린데이터광장 · 국토교통부 실거래가', KOGL1, '매매 실거래, 대지 3.3㎡당 가격, 계산 매수가 표본', '매일'),
+    ('부동산 전월세가 정보(OA-21276)', 'https://data.seoul.go.kr/dataList/OA-21276/S/1/datasetView.do', '서울 열린데이터광장', KOGL1, '전세가, 전세 끼고 필요한 돈', '매일'),
+    ('건축물대장 총괄표제부(OA-23051)', 'https://data.seoul.go.kr/dataList/OA-23051/S/1/datasetView.do', '서울 열린데이터광장', KOGL1, '용적률, 세대수, 사용승인일(노후도)', '매주'),
+    ('상권분석서비스(OA-15560·15572·15577)', 'https://data.seoul.go.kr/dataList/OA-15577/S/1/datasetView.do', '서울 열린데이터광장', KOGL1, '주변 상권(점포 수, 학원 수, 분기 매출)', '매주'),
+    ('역사마스터 정보(OA-21232)', 'https://data.seoul.go.kr/dataList/OA-21232/S/1/datasetView.do', '서울 열린데이터광장 · 서울교통공사·서울시', KOGL1, '역 좌표, 가까운 역, 도보 시간, 지도의 역 점', '개통·역 이름이 바뀔 때'),
+    ('대규모점포 인허가 정보(OA-16096)', 'https://data.seoul.go.kr/dataList/OA-16096/S/1/datasetView.do', '서울 열린데이터광장 · 지방행정 인허가', KOGL1, '대형마트 영업 여부와 위치(생활 인프라·입지 점수)', '분기'),
+    ('서울 도시계획포털(정비구역·연속지적)', 'https://urban.seoul.go.kr', '서울시', '공개 지도 서비스(별도 개방 라이선스 표시 없음). 사실 정보만 쓰고 출처를 링크해요', '구역 경계, 필지 위치, 개별공시지가', '매주'),
+    ('서울 부동산정보광장(토지거래허가 내역)', 'https://land.seoul.go.kr', '서울시', '공개 웹페이지. 사실 정보만 쓰고 출처를 링크해요', '토지거래허가 판정과 건수', '매일'),
+    ('공시가격 알리미', 'https://www.realtyprice.kr', '국토교통부', '공개 웹페이지', '개별공시지가 기준연도 확인', '해마다'),
+    ('법원경매정보', 'https://www.courtauction.go.kr', '법원행정처', '이용약관을 따르고 사람 이름은 싣지 않아요', '구역 안 경매 물건', '매일'),
+    ('상급종합병원 지정(제5기, 2024.1.1~2026.12.31)', 'https://www.mohw.go.kr', '보건복지부', '정부가 공고한 사실 정보', '대형병원(상급종합) 위치', '지정 기간마다'),
+    ('OpenStreetMap', 'https://www.openstreetmap.org/copyright', 'OpenStreetMap contributors', 'ODbL 1.0(출처 표시 · 데이터베이스는 같은 조건으로)', '학교·병원·대형마트 위치, 한강 수면', '손으로(2026.10.1)'),
+    ('OpenFreeMap 지도 타일', 'https://openfreemap.org', 'OpenFreeMap · OpenMapTiles', '서비스는 MIT, 지도 데이터는 ODbL. 지도 화면에 출처가 자동으로 붙어요', '배경 지도', '실시간'),
+    ('seoul-maps 행정구역 경계', 'https://github.com/southkorea/seoul-maps', 'Lucy Park 정리 · 통계청 2013 센서스 경계', 'Apache 2.0', '첫 화면 지도의 자치구 경계', '고정'),
+    ('국가법령정보센터', 'https://www.law.go.kr', '법제처', '법령은 저작권 보호 대상이 아니에요(저작권법 제7조)', '도시정비법·소규모주택정비법·조례 요약과 조항 링크', '법이 바뀔 때'),
+    ('언론 기사·보도자료', '', '각 언론사·서울시', '링크와 사실 인용만 해요. 본문은 옮기지 않아요', '구역 소식, 날짜 대조', '수시'),
+]
+
+
+def sources_html():
+    rows = ''.join(
+        f'<tr><td class="t" data-l="자료">{f"<a href=\"{u}\" target=\"_blank\" rel=\"noopener\">{esc(n)}</a>" if u else esc(n)}<small class="meta" style="display:block">{esc(by)}</small></td>'
+        f'<td data-l="이용조건">{esc(lic)}</td><td data-l="쓰는 곳">{esc(use)}</td><td data-l="갱신">{esc(cyc)}</td></tr>'
+        for n, u, by, lic, use, cyc in SOURCES)
+    return ('<!--zp-src--><h2 id="sources">어떤 자료를 쓰고 이용조건은 무엇인가요?</h2>'
+            '<p>모두 누구나 볼 수 있는 공개 자료예요. 사이트 숫자는 이 자료를 모아 같은 기준으로 다시 계산한 값이에요. 서울 열린데이터광장 자료는 대부분 공공누리 제1유형이라 출처를 밝히면 광고가 붙은 사이트에서도 쓸 수 있어요.</p>'
+            f'<div class="tw cards"><table><thead><tr><th>자료</th><th>이용조건</th><th>쓰는 곳</th><th>갱신</th></tr></thead><tbody>{rows}</tbody></table></div>'
+            '<h3>2026년 10월에 바꾼 자료는 무엇인가요?</h3>'
+            '<p><b>지하철역 위치</b>는 출처와 이용조건이 분명하지 않은 개인 정리본을 쓰다가, 서울시 역사마스터 정보로 모두 바꿨어요. 예전 좌표 가운데 서원역은 2.4km, 석촌고분역은 1.7km 어긋나 있었어요. 아직 개통하지 않은 계획 역 5곳이 「가까운 역」으로 나오던 것도 뺐어요.</p>'
+            '<p><b>대형마트 목록</b>은 비영리 조건(CC BY-NC-SA)이 붙은 위키 문서를 쓰다가, 서울시 대규모점포 인허가 정보로 영업 여부를 확인하는 방식으로 바꿨어요. 이때 빠져 있던 매장 15곳이 더해졌어요.</p>'
+            '<p class="meta">출처 표시: 서울 열린데이터광장 자료(실거래가·전월세가·건축물대장·상권분석·역사마스터·대규모점포 인허가)는 공공누리 제1유형 조건에 따라 출처를 밝혀요. 지도와 생활 인프라 위치는 © OpenStreetMap contributors(ODbL), © OpenMapTiles를 이용해요. 이 사이트는 서울시·국토교통부와 관계없는 개인 운영 사이트예요.</p><!--/zp-src-->')
+
+
 def about():
     fp = os.path.join(PUB, 'about.html')
     h = open(fp, encoding='utf-8').read()
@@ -243,6 +284,9 @@ def about():
         h2 = re.sub(r'<!--zp-op-->.*?<!--/zp-op-->', lambda m: OP_HTML, h, count=1, flags=re.S)
     else:   # 처음 한 번: 예전 '누가 운영하나' 덩이(제목 ~ 운영 정보 목록)를 바꿔 끼운다
         h2 = re.sub(r'<h2>누가 운영하나</h2>.*?<ul class="meta-list">.*?</ul>', lambda m: OP_HTML, h, count=1, flags=re.S)
+    # 자료 출처와 이용조건(처음 한 번은 예전 '어떤 자료를 쓰나요?' 제목 ~ 표를 바꿔 끼움)
+    if '<!--zp-src-->' in h2: h2 = re.sub(r'<!--zp-src-->.*?<!--/zp-src-->', lambda m: sources_html(), h2, count=1, flags=re.S)
+    else: h2 = re.sub(r'<h2>어떤 자료를 쓰나요\?</h2>.*?</table></div>', lambda m: sources_html(), h2, count=1, flags=re.S)
     if h2 != open(fp, encoding='utf-8').read(): open(fp, 'w', encoding='utf-8').write(h2); return True
     return False
 

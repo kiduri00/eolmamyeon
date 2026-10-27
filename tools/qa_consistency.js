@@ -256,7 +256,7 @@ async function staticLane(api) {
       if (!/\.(html|xml|json|css)$/.test(f.name) || rel === "index.html") continue;
       let h = fs.readFileSync(p, "utf8");
       if (rel === "about.html") h = h.replace(/<!--zp-rename-->[\s\S]*?<!--\/zp-rename-->/, "");
-      if (rel === "corrections.html") h = h.replace(/<li><p class="cx-d"><time datetime="2026-10-27">[^]*?<\/li>/, "");
+      if (rel === "corrections.html") h = h.replace(/<li><p class="cx-d">(?:(?!<\/li>)[^])*?이름을 집핀에서 재개각으로(?:(?!<\/li>)[^])*?<\/li>/, "");
       const m = /집핀|Zippin|zippin/.exec(h); if (m) bad.push(`${rel}: …${h.slice(Math.max(0, m.index - 30), m.index + 10).replace(/\s+/g, " ")}`); } };
     try { walk(PUBD); } catch (e) { bad.push("walk: " + e.message); }
     expect(!bad.length, "brand.static", T, `${bad.length} files · ${bad.slice(0, 3).join(" ; ")}`);
