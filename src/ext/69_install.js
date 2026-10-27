@@ -28,7 +28,7 @@
   function show(why) {
     if (shown || !allowed()) return; shown = true;
     if (!el) {
-      el = document.createElement("div"); el.className = "zi"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "홈 화면에 집핀 추가");
+      el = document.createElement("div"); el.className = "zi"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", `홈 화면에 ${BRAND} 추가`);
       document.body.appendChild(el);
       el.addEventListener("click", async (e) => {
         if (e.target.closest("[data-zix]")) { put({ no: Date.now() }); return hide(); }
@@ -39,7 +39,7 @@
       });
     }
     const lead = why === "push" ? "알림을 켰어요. 앱으로 두면 놓치지 않아요" : "관심 구역에 넣었어요. 앱처럼 바로 열어 보세요";
-    el.innerHTML = `<img src="/icon-192.png" alt="" width="40" height="40"><div class="zi-t"><b>홈 화면에 집핀 추가</b><span>${lead}</span>` +
+    el.innerHTML = `<img src="/icons/icon-192.png" alt="" width="40" height="40"><div class="zi-t"><b>홈 화면에 ${BRAND} 추가</b><span>${lead}</span>` +
       (ios ? `<span class="zi-ios">아래 <svg viewBox="0 0 24 24" width="15" height="15" aria-label="공유"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 공유 → <b>홈 화면에 추가</b></span>` : "") +
       `</div>${ios ? "" : `<button type="button" class="zi-go" data-zio>추가</button>`}<button type="button" class="zi-x" data-zix aria-label="닫기">✕</button>`;
     el.hidden = false; requestAnimationFrame(() => el.classList.add("on"));

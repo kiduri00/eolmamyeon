@@ -81,7 +81,7 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
     const bad = []; const perr2 = [];
     for (const mode of ["web", "app"]) for (const cs of ["light", "dark"]) {
       const c2 = await b.newContext({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true, colorScheme: cs });
-      await c2.addInitScript((m) => { if (m === "app") Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.zippin/" }); try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} }, mode);
+      await c2.addInitScript((m) => { if (m === "app") Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.jaegaegak/" }); try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} }, mode);
       await c2.route("**/*", (r) => (/^http:\/\/localhost/.test(r.request().url()) ? r.continue() : r.abort()));
       const pg = await c2.newPage(); pg.on("pageerror", (e) => perr2.push(`${mode}/${cs}: ${e.message}`));
       for (const id of ZS) {

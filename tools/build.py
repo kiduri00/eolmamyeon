@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """src/ → public/index.html 조립. 사용: python3 tools/build.py"""
-import json, hashlib, os, re
+import json, hashlib, os, re, sys
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(R, 'tools')); import brand   # 서비스 이름은 tools/brand.py 한 곳
 S = lambda p: open(os.path.join(R, 'src', p), encoding='utf-8').read()
-shell = S('shell.html')
+shell = brand.sub(S('shell.html'))
 EN = os.path.join(R, 'pipeline', 'data.enriched.json')
 D = json.load(open(EN, encoding='utf-8')) if os.path.exists(EN) else json.loads(S('data.json'))
 # 첫 화면 정적 글자(눈썹·요약·읽을거리 소개)의 '진행 중 N곳'을 자료와 같게(앱이 그린 뒤의 숫자 · /api count와 같은 기준) — 같은 곳 합치기 등으로 수가 바뀌어도 어긋나지 않게
@@ -280,6 +281,7 @@ B = os.path.join(R, 'public', 'b'); os.makedirs(B, exist_ok=True)
 _cf = os.path.join(R, 'public', 'cf.js')
 if not os.path.exists(_cf) or open(_cf, encoding='utf-8').read() != CONTACT_JS: open(_cf, 'w', encoding='utf-8').write(CONTACT_JS)
 def emit(prefix, body, ext='js'):
+    body = brand.sub(body)
     h = hashlib.md5(body.encode()).hexdigest()[:10]; fn = f'{prefix}.{h}.{ext}'
     open(os.path.join(B, fn), 'w', encoding='utf-8').write(body)
     return '/b/' + fn
@@ -338,7 +340,7 @@ if os.path.isdir(_KD):
             s = s.replace(f'id="{i}"', f'id="{k}__U__{i}"').replace(f'url(#{i})', f'url(#{k}__U__{i})').replace(f'href="#{i}"', f'href="#{k}__U__{i}"')
         _kit[k] = s
     if os.path.exists(os.path.join(_KD, 'tokens.css')): t_css += open(os.path.join(_KD, 'tokens.css'), encoding='utf-8').read()
-t_js = '(function(){"use strict";\nconst TKIT = ' + json.dumps(_kit, ensure_ascii=False) + ';\n' + t_js + '\n})();'
+t_js = '(function(){"use strict";\nconst BRAND = "__BRAND__";\nconst TKIT = ' + json.dumps(_kit, ensure_ascii=False) + ';\n' + t_js + '\n})();'
 if ESB and not os.environ.get('NO_MINIFY'): t_js = mini(t_js, 'js'); t_css = mini(t_css, 'css')
 t_url = emit('t', t_js); tc_url = emit('t', t_css, 'css')
 assert shell.count('__TJS__') == 1 and shell.count('__TCSS__') == 1
@@ -475,6 +477,7 @@ except Exception as e: print('pcli 건너뜀:', e)
 try:
     import static_tabs; static_tabs.main()
 except Exception as e: print('static tabs 건너뜀:', e)
+out = brand.sub(out)
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)
 print('public/index.html', len(out.encode()), 'bytes', '(island)' if out is not full else '(full)')
 # 서비스 워커 캐시 이름 = 이번 빌드 내용 해시(배포마다 옛 캐시를 비운다)
@@ -482,4 +485,21 @@ SW = os.path.join(R, 'public', 'sw.js')
 if os.path.exists(SW):
     sw0 = open(SW, encoding='utf-8').read(); swv = hashlib.md5(out.encode()).hexdigest()[:8]
     sw1 = re.sub(r'^const V = "[^"]*";', f'const V = "{swv}";', sw0, count=1, flags=re.M)
+    sw1 = re.sub(r'^const BRAND = "[^"]*", BRAND_EN = "[^"]*";', f'const BRAND = "{brand.BRAND}", BRAND_EN = "{brand.BRAND_EN}";', sw1, count=1, flags=re.M)
     if sw1 != sw0: open(SW, 'w', encoding='utf-8').write(sw1); print('sw.js cache', swv)
+# 서비스 이름(tools/brand.py) → 앱 정보 파일(manifest · assetlinks)
+_MF = os.path.join(R, 'public', 'manifest.webmanifest')
+if os.path.exists(_MF):
+    m0 = open(_MF, encoding='utf-8').read()
+    m1 = re.sub(r'("name": ")[^"]*(")', lambda m: m.group(1) + brand.APP_NAME + m.group(2), m0, count=1)
+    m1 = re.sub(r'("short_name": ")[^"]*(")', lambda m: m.group(1) + brand.BRAND + m.group(2), m1, count=1)
+    if m1 != m0: open(_MF, 'w', encoding='utf-8').write(m1); print('manifest brand', brand.BRAND)
+_AL = os.path.join(R, 'public', '.well-known', 'assetlinks.json')
+if os.path.exists(_AL):
+    a0 = open(_AL, encoding='utf-8').read()
+    a1 = re.sub(r'("package_name": ")[^"]*(")', lambda m: m.group(1) + brand.APP_PKG + m.group(2), a0)
+    if a1 != a0: open(_AL, 'w', encoding='utf-8').write(a1); print('assetlinks package', brand.APP_PKG)
+_AD = os.path.join(R, 'public', 'admin.html')
+if os.path.exists(_AD):
+    d0 = open(_AD, encoding='utf-8').read(); d1 = re.sub(r'var BRAND = "[^"]*";', f'var BRAND = "{brand.BRAND}";', d0, count=1)
+    if d1 != d0: open(_AD, 'w', encoding='utf-8').write(d1)

@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<title>집핀 문의함</title>
+<title>운영자 문의함</title>
 <link rel="icon" href="/icon-small.svg" type="image/svg+xml">
 <style>
 :root{--zn:#1F3A87;--bg:#F5F6F8;--sf:#fff;--tx:#141821;--t2:#4A5361;--t3:#6A7482;--bd:#D7DCE5;--warn:#C2410C}
@@ -39,7 +39,7 @@ li.m.new{border-color:var(--zn);box-shadow:inset 3px 0 0 var(--zn)}
 </head>
 <body>
 <main>
-<h1>집핀 문의함</h1>
+<h1>운영자 문의함</h1>
 <section id="login" hidden>
   <p class="st">운영자 토큰을 한 번 넣으면 이 기기(브라우저)에만 저장돼요. 토큰은 사이트 어디에도 적혀 있지 않아요.</p>
   <form id="lf"><label for="tok">운영자 토큰</label><input id="tok" type="password" autocomplete="off" spellcheck="false" required><div class="bar" style="margin-top:10px"><button class="pri" type="submit">열기</button></div></form>
@@ -61,10 +61,11 @@ li.m.new{border-color:var(--zn);box-shadow:inset 3px 0 0 var(--zn)}
     return fetch("/api/contact/admin/" + p, { method: body ? "POST" : "GET", headers: Object.assign({ Authorization: "Bearer " + tok() }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined, cache: "no-store" })
       .then(function (r) { if (r.status === 401) { show(false); throw new Error("토큰이 맞지 않아요"); } return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; }); });
   };
+  var BRAND = "재개각"; // 서비스 이름 — tools/build.py가 tools/brand.py 값으로 바꿔 씀
   var cursor = null, total = 0;
   var when = function (iso) { try { return new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return iso; } };
   function row(m) {
-    var subj = "[집핀] 문의 답장" + (m.zone ? " · " + m.zone : "");
+    var subj = "[" + BRAND + "] 문의 답장" + (m.zone ? " · " + m.zone : "");
     return '<li class="m' + (m.read ? "" : " new") + '" data-id="' + esc(m.id) + '"><div class="h"><span class="k">' + esc(m.kindT || m.kind) + "</span><span>" + esc(when(m.ts)) + "</span>" + (m.read ? "" : "<b>새 문의</b>") + (m.zone ? '<a href="/#' + encodeURIComponent(m.zone) + '" target="_blank" rel="noopener">구역 ' + esc(m.zone) + "</a>" : "") + "</div>"
       + '<p class="tx">' + esc(m.text) + "</p>"
       + '<p class="meta">' + [m.why ? "틀린 곳: " + esc(m.why) : "", m.nums ? "화면 숫자: " + esc(m.nums) : "", m.asOf ? "데이터 기준 " + esc(m.asOf) : "", m.url ? "보낸 화면: " + esc(m.url) : "", m.ua ? esc(m.ua) : ""].filter(Boolean).join("<br>") + "</p>"

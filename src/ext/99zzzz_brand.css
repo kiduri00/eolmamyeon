@@ -1,0 +1,10 @@
+/* 브랜드 워드마크(재개각 v7 · public/icons/header_wordmark_*.svg를 글 속 SVG로) — 56px 앱바·웹 머리에서 높이 28px · 세로 가운데.
+   색: .wm-a 핀·글자(밝게 #1F3A87 ↔ 어둡게 #FFFFFF) · .wm-b 집(밝게 #FFFFFF ↔ 어둡게 #13265E) · 노랑(#F5C33B)은 그림에 고정 */
+.logo{display:inline-flex;align-items:center;gap:8px;line-height:1}
+.logo-wm{display:block;flex:none;height:28px;width:auto}
+.logo-wm .wm-a{fill:#1F3A87}
+.logo-wm .wm-b{fill:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo-wm .wm-a{fill:#fff}:root:not([data-theme="light"]) .logo-wm .wm-b{fill:#13265E}}
+:root[data-theme="dark"] .logo-wm .wm-a{fill:#fff}
+:root[data-theme="dark"] .logo-wm .wm-b{fill:#13265E}
+@media print{.logo-wm .wm-a{fill:#1F3A87}.logo-wm .wm-b{fill:#fff}}

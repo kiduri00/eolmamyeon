@@ -432,7 +432,7 @@ const PINS = (() => {
     const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#1f3a87"); gr.addColorStop(1, "#142659");
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
     const L = all().filter((n) => n.r);
-    g.fillStyle = "rgba(255,255,255,.65)"; g.font = F(600, 36); g.fillText("집핀 · 내 관심 구역", 80, 120);
+    g.fillStyle = "rgba(255,255,255,.65)"; g.font = F(600, 36); g.fillText(`${BRAND} · 내 관심 구역`, 80, 120);
     g.fillStyle = "#fff"; g.font = F(800, 84); g.fillText(`관심 구역 ${L.length}곳`, 80, 222);
     // 서울 지도
     const S = 0.86, OX = (W - D.map.w * S) / 2, OY = 270;
@@ -475,14 +475,14 @@ const PINS = (() => {
     });
     if (L.length > 8) { g.fillStyle = "rgba(255,255,255,.6)"; g.fillText(`외 ${L.length - 8}곳`, 80, top + 4 * 46); }
     g.fillStyle = "rgba(255,255,255,.55)"; g.font = F(500, 26);
-    g.fillText(money ? `${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 필요한 돈 추정 · 투자 권유 아님` : "집핀 · 서울 재개발 지도", 80, H - 96);
+    g.fillText(money ? `${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 필요한 돈 추정 · 투자 권유 아님` : `${BRAND} · 서울 재개발 지도`, 80, H - 96);
     g.fillStyle = "#fff"; g.font = F(700, 34); g.fillText("jaegaebal.alwaysquestions.kr", 80, H - 48);
     return cv;
   }
   async function shareMap() {
     try { await (document.fonts && document.fonts.ready); } catch (e) {}
     const fb = $("pnShareFb"); if (fb) fb.textContent = "";
-    await EXTRA.shareCv(mapCard(MONEY), "zippin_my_pins.png", "내 관심 구역", `내 관심 구역 ${FAV.length}곳 · 소식이 생기면 알려 주는 집핀 https://jaegaebal.alwaysquestions.kr/`, fb);
+    await EXTRA.shareCv(mapCard(MONEY), "my_pins.png", "내 관심 구역", `내 관심 구역 ${FAV.length}곳 · 소식이 생기면 알려 주는 ${BRAND} https://jaegaebal.alwaysquestions.kr/`, fb);
   }
 
 

@@ -178,7 +178,7 @@ const INBOX = (() => {
   let P_FAIL = "이 브라우저에선 폰 알림을 켤 수 없어요 · 소식 탭에 모아 드려요";
   // 설치 앱(html.is-tapp · 안드로이드 앱)에는 주소창이 없다 → 폰 설정에서 푸는 길
   const TAPP = () => document.documentElement.classList.contains("is-tapp");
-  const TSET = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? "설정 → 알림 → 집핀" : "설정 → 애플리케이션(또는 앱) → 집핀 → 알림");
+  const TSET = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? `설정 → 알림 → ${BRAND}` : `설정 → 애플리케이션(또는 앱) → ${BRAND} → 알림`);
   let P_DENY = "알림이 막혀 있어요 · 주소창 왼쪽 자물쇠(사이트 설정)에서 알림을 허용해 주세요";
   if (TAPP()) P_DENY = `알림이 막혀 있어요 · 폰 ${TSET()}에서 허용해 주세요`;
   if (TAPP()) P_FAIL = "이 기기에선 폰 알림을 켤 수 없어요 · 소식 탭에 모아 드려요";
@@ -261,8 +261,8 @@ const INBOX = (() => {
       <p id="wsD">${push ? "이런 일이 생기면 폰 알림으로 알려 드려요" : "이런 일이 생기면 소식 탭에 모아 알려 드려요"}</p>
       <ul class="ws-l">${items.map(([k, t]) => `<li><span class="ws-li ${k}">${ic(k)}</span>${t}</li>`).join("")}</ul>
       ${push ? `<button type="button" class="btn primary ws-go" data-wson>${bellSvg(18)}알림 받기</button>` : ios && canI ? "" : `<p class="ws-note">새 소식은 아래 ${bellSvg(14)} 소식 탭에 모아 드려요</p>`}
-      ${canI ? `<button type="button" class="btn ${push ? "secondary" : "primary"} ws-in" data-wsin aria-expanded="false"><img src="/icon-192.png" alt="" width="22" height="22">앱으로 설치하면 놓치지 않아요</button>
-        <div class="ws-ios" data-wsios hidden><b>홈 화면에 추가하는 법</b><ol><li>Safari 아래 <svg viewBox="0 0 24 24" width="15" height="15" aria-label="공유"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 공유 버튼</li><li><b>홈 화면에 추가</b></li><li>홈 화면의 집핀을 열고 소식 탭에서 <b>알림 받기</b></li></ol><small>iPhone은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요</small></div>` : ""}
+      ${canI ? `<button type="button" class="btn ${push ? "secondary" : "primary"} ws-in" data-wsin aria-expanded="false"><img src="/icons/icon-192.png" alt="" width="22" height="22">앱으로 설치하면 놓치지 않아요</button>
+        <div class="ws-ios" data-wsios hidden><b>홈 화면에 추가하는 법</b><ol><li>Safari 아래 <svg viewBox="0 0 24 24" width="15" height="15" aria-label="공유"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 공유 버튼</li><li><b>홈 화면에 추가</b></li><li>홈 화면의 ${BRAND} 앱을 열고 소식 탭에서 <b>알림 받기</b></li></ol><small>iPhone은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요</small></div>` : ""}
       <button type="button" class="btn text sm ws-x" data-wsx>${push || canI ? "나중에" : "확인"}</button></div>`;
     let closed = false;
     const close = (later, pop) => { if (closed) return; closed = true; if (pop !== true) ZL.done("ws"); ov.remove(); document.removeEventListener("keydown", kd); removeEventListener("hashchange", close); if (later === true && canI) try { IN.later(); } catch (e) {} try { back && back.focus && back.focus(); } catch (e) {} };
@@ -284,7 +284,7 @@ const INBOX = (() => {
       const ins = e.target.closest("[data-wsin]");
       if (ins) {
         if (ios) { const box = ov.querySelector("[data-wsios]"); box.hidden = !box.hidden; ins.setAttribute("aria-expanded", String(!box.hidden)); return; }
-        const ok = await IN.prompt(); if (ok) { tst("집핀을 설치했어요", "홈 화면에서 바로 열 수 있어요"); close(); }
+        const ok = await IN.prompt(); if (ok) { tst(`${BRAND} 앱을 설치했어요`, "홈 화면에서 바로 열 수 있어요"); close(); }
       }
     });
     try { IN && IN.seen(); } catch (e) {}
