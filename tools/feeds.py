@@ -44,7 +44,8 @@ for f in os.listdir(zd): os.remove(os.path.join(zd, f))
 today = datetime.date.today().isoformat(); nz = 0
 rd = lambda d: datetime.datetime.fromisoformat(d[:10]).strftime("%a, %d %b %Y 09:00:00 +0900")
 for r in D['recs']:
-    if r.get('s', 0) >= 9 or r.get('src') == 'moa' or not r.get('n'): continue
+    # zpages.py와 같은 기준(사업 중단 dn이면서 관리처분 전인 곳은 /z 페이지가 없다 → 그 RSS는 없는 /z로 가는 고아 링크였다: o941·o99)
+    if r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7) or r.get('src') == 'moa' or not r.get('n'): continue
     pm = P.get(r['id']) or {}; ev = {}
     for k, d in (pm.get('dt') or {}).items():
         if k in LAB and d and d <= today: ev[(d, LAB[k])] = f'{LAB[k]} (정보몽땅 등록 날짜)'
