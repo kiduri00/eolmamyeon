@@ -16,6 +16,8 @@ def mainhash(s):
     m = re.search(r'<main\b[^>]*>(.*)</main>', s, re.S)
     b = m.group(1) if m else re.sub(r'^.*?<body[^>]*>', '', s, flags=re.S)
     b = re.sub(r'<!--(z[kcrn])-->.*?<!--/\1-->', '', b, flags=re.S)
+    b = re.sub(r'<!--(zd|gx)-->.*?<!--/\1-->', lambda m: re.sub(r'<b class="zv"[^>]*>[^<]*</b>', '', m.group(0)) if m.group(1) == 'gx' else '', b, flags=re.S)   # 리뉴얼 A1·A2: 손글의 매일 바뀌는 그림·카드(zd) 빼고, 구 해설(gx)·손글 글 속 숫자(data-zv)는 숫자만 뺀다
+    b = re.sub(r'<b class="zv"[^>]*>[^<]*</b>', '', b)
     b = re.sub(r'<(script|style|svg|nav|footer|header)\b[^>]*>.*?</\1>', '', b, flags=re.S)
     t = re.sub(r'<[^>]+>', ' ', b)
     for rx in DATE_RX: t = re.sub(rx, ' ', t)
