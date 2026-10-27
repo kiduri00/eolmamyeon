@@ -70,28 +70,34 @@ async function flaky(ids, label, fn) {
 //   몫 나누기는 PART_W(묶음별 대략 초 · 실측)로 균형 — 같은 몫은 언제나 같은 묶음(결정적).
 const SECT_T = {};
 const PART_W = {
-  tapp: { "tapp.noHomeFlash": 300, "search.names": 160, "tapp.race": 90, "tapp.axeAll": 80, "tapp.entry": 70, "tapp.mapMin": 60, "tapp.a11y": 45, "tapp.newsEntry": 40, "tapp.bigFont": 40, "tapp.toolEntry": 35, "tapp.coldTop": 35, "moa.rows": 35, "tapp.lcp": 30 },
+  // 2026-10-27 실측(2코어 · 다른 트랙 QA 3개와 같이 돈 때 초) — noHomeFlash는 nhf 단위로 따로라 여기선 빠짐
+  tapp: { "tapp.entry": 500, "search.parcel": 400, "search.names": 190, "tapp.toolEntry": 124, "tapp.mapMin": 117, "tapp.newsEntry": 80, "web.wideScroll": 80, "tapp.race": 75, "web.sheetInView": 65, "tapp.r3misc": 63, "tapp.coldTop": 63, "tapp.cashBack": 58, "tapp.r4misc": 50, "tapp.r5misc": 47, "tapp.segAll": 46, "tapp.a11y": 41, "tapp.home": 40, "moa.rows": 40, "tapp.axeAll": 40, "tapp.r2misc": 34, "tapp.bigFont": 34, "tapp.sheets": 33, "tapp.appbar": 33, "tapp.lcp": 25, "tapp.split": 20, "tapp.web": 18, "tapp.chips": 15 },
 };
 function partOf(lane, labels, n) {
   // 무거운 것부터 가장 가벼운 몫에 넣기(LPT) · 무게 모르는 묶음은 15초
   const W = PART_W[lane] || {}, load = Array(n).fill(0), at = {};
-  labels.map((l, i) => [l, i, W[l] || 15]).sort((a, b) => b[2] - a[2] || a[1] - b[1]).forEach(([l, i, w]) => { const k = load.indexOf(Math.min(...load)); at[i] = k + 1; load[k] += w; });
+  labels.map((l, i) => [l, i, l === "" ? 0 : W[l] || 15]).sort((a, b) => b[2] - a[2] || a[1] - b[1]).forEach(([l, i, w]) => { const k = load.indexOf(Math.min(...load)); at[i] = k + 1; load[k] += w; });
   return at;
 }
 const TAPP_SECTS = ["tapp.web", "web.sheetInView", "web.loanPill", "tapp.home", "tapp.static", "tapp.staticSA", "tapp.static5", "tapp.split", "tapp.toggleDark", "tapp.noHomeFlash", "tapp.feed", "tapp.onboard", "tapp.a11y", "tapp.race", "tapp.lcp", "tapp.chips", "tapp.sheets", "tapp.appbar", "tapp.onbPolish", "tapp.r2misc", "tapp.onbToast", "tapp.newsEntry", "tapp.onbPush", "tapp.toolEntry", "tapp.segAll", "tapp.r3misc", "web.why", "web.wideScroll", "tapp.axeAll", "tapp.entry", "tapp.coldTop", "tapp.cashBack", "tapp.mapMin", "tapp.bigFont", "tapp.r4misc", "tapp.overscroll", "tapp.cover", "tapp.r5misc", "search.parcel", "search.names", "moa.rows", "tapp.coverSafe", "tapp.files"];   // tappLane 묶음 이름(SEC 번호 순서 그대로 — 묶음을 더하면 여기도)
+const GATES = [];
 function secGate(lane) {
+  // QAC_PART 꼴: "tapp:2/3"(몫) · "tapp:2/3:-tapp.noHomeFlash"(그 묶음 빼고) · "tapp:=tapp.noHomeFlash"(그 묶음만)
   const spec = (process.env.QAC_PART || "").split(",").map((s) => s.split(":")).find(([l]) => l === lane);
-  const want = spec ? spec[1].split("/").map(Number) : null;
+  const only = spec && spec[1].startsWith("=") ? spec[1].slice(1) : null;
+  const want = spec && !only ? spec[1].split("/").map(Number) : null;
+  const minus = new Set(spec ? spec.slice(2).filter((x) => x.startsWith("-")).map((x) => x.slice(1)) : []);
   let cur = null, t0 = 0, at = null;
   const f = (i, lab) => {
     f.close();
     if (lane === "tapp" && TAPP_SECTS[i] !== lab) bad("runtime", "검사 실행", `secGate: tapp 묶음 ${i} "${lab}" ≠ TAPP_SECTS "${TAPP_SECTS[i]}" — 목록을 맞출 것`);
-    if (want && !at) at = partOf(lane, lane === "tapp" ? TAPP_SECTS : [], want[1]);
-    const on = !want || at[i] === want[0];
+    if (want && !at) at = partOf(lane, (lane === "tapp" ? TAPP_SECTS : []).map((l) => (minus.has(l) ? "" : l)), want[1]);
+    const on = only ? lab === only : (!want || at[i] === want[0]) && !minus.has(lab);
     if (on) { cur = lab || "s" + i; t0 = Date.now(); }
     return on;
   };
   f.close = () => { if (cur) { SECT_T[lane + "/" + cur] = (SECT_T[lane + "/" + cur] || 0) + Date.now() - t0; cur = null; } };
+  GATES.push(f);
   return f;
 }
 
@@ -2946,7 +2952,10 @@ async function tappLane(browser, api, errs) {
     const TABS = ["home", "map", "fav", "news", "my"];
     try {
       const RUNS = +process.env.QAC_NHF_RUNS || 5;   // 개발 때만 줄여 돌림 · 게이트는 5
+      // QAC_NHF_SLICE="k/n": 5번 중 run % n == k-1 인 것만(단위 nhf1..n이 나눠 돌림 · 합치면 5번 그대로)
+      const [sk, sn] = (process.env.QAC_NHF_SLICE || "1/1").split("/").map(Number);
       for (let run = 0; run < RUNS; run++) {
+        if (run % sn !== sk - 1) continue;
         { const { ctx, page } = await mk();
           try {
             await page.goto(BASE + "/", { waitUntil: "domcontentloaded", timeout: 40000 }); await ready(page);
@@ -2971,10 +2980,11 @@ async function tappLane(browser, api, errs) {
           } catch (e) { R.push(`${pg}→${z} crash ` + String(e.message || e).split("\n")[0]); } finally { await ctx.close().catch(() => {}); }
         }
       }
-      // 콜드 스타트(앱 아이콘)는 예전 그대로 남색 스플래시(탭 바탕 덮개 아님)
-      { const { ctx, page } = await appPage(mob(390, 844)); try { await page.goto(BASE + "/#news", { waitUntil: "domcontentloaded", timeout: 40000 }); const c = await page.evaluate(() => document.documentElement.className); if (/tapp-tab/.test(c) || !/tapp-cover|tapp-on/.test(c)) R.push("콜드 스타트 덮개 " + c.slice(0, 80)); } finally { await ctx.close().catch(() => {}); } }
+      // 콜드 스타트(앱 아이콘)는 예전 그대로 남색 스플래시(탭 바탕 덮개 아님) — 나눠 돌 때는 첫 몫에서만
+      if (sk === 1) { const { ctx, page } = await appPage(mob(390, 844)); try { await page.goto(BASE + "/#news", { waitUntil: "domcontentloaded", timeout: 40000 }); const c = await page.evaluate(() => document.documentElement.className); if (/tapp-tab/.test(c) || !/tapp-cover|tapp-on/.test(c)) R.push("콜드 스타트 덮개 " + c.slice(0, 80)); } finally { await ctx.close().catch(() => {}); } }
     } catch (e) { R.push("crash " + String(e.message || e).split("\n")[0]); }
-    expect(!R.length && nT >= (+process.env.QAC_NHF_RUNS || 5) * (16 + 8 + 10 + 16), "tapp.noHomeFlash", T, `${nT}번 전환 · ` + R.slice(0, 8).join(" ; "));
+    { const [sk, sn] = (process.env.QAC_NHF_SLICE || "1/1").split("/").map(Number), RUNS = +process.env.QAC_NHF_RUNS || 5, mine = Array.from({ length: RUNS }, (_, r) => r).filter((r) => r % sn === sk - 1).length;
+      expect(!R.length && nT >= mine * (16 + 8 + 10 + 16), "tapp.noHomeFlash", T, `${nT}번 전환(이 몫 ${mine}번 × 50) · ` + R.slice(0, 8).join(" ; ")); }
   }
   // --- tapp.feed: 전체 소식 = data/changes.json(종류별 수 같음) · 칩으로 거르기 · 줄을 누르면 그 구역 · 관심 구역(예전 소식) 칸 그대로
   if (SEC(10, "tapp.feed")) {
@@ -4723,35 +4733,40 @@ async function r31Static(api) {
 // SIGTERM → 그때까지 잰 검사는 살리고 그 단위를 SKIP(시간 초과)으로 보고한다. 결과 꼴(PASS/FAIL 줄 · JSON)은 예전 그대로.
 //   전체:        node tools/qa_consistency.js [baseUrl]
 //   바뀐 곳만:   node tools/qa_consistency.js [baseUrl] --changed[=origin/main]   (git diff → 레인 · static은 늘)
+//   파일 지정:   --files=src/ext/72_inbox.js,tools/feeds.py   (훅·CI에서 바뀐 파일 목록을 직접)
 //   몇 개만:     QAC_ONLY=r14,tapp  (예전처럼 하나도 됨 · static은 늘)    목록 보기: --list
 //   종료 코드:   0 전부 통과 · 1 FAIL 있음 · 3 FAIL은 없지만 SKIP(시간 초과·죽음)된 단위가 있어 불완전 · 2 실행 불가
 const UNIT = process.env.QAC_UNIT || "";
 const SHARED_DIR = process.env.QAC_SHARED || "";
 const putShared = (k, v) => { if (SHARED_DIR) fs.writeFileSync(path.join(SHARED_DIR, k + ".json"), JSON.stringify(v)); };
 const getShared = (k) => { try { return JSON.parse(fs.readFileSync(path.join(SHARED_DIR, k + ".json"), "utf8")); } catch (e) { return null; } };
-const TAPP_N = +process.env.QAC_TAPP_PARTS || 3;
+const TAPP_N = +process.env.QAC_TAPP_PARTS || 5;
 // 단위 표: est = 이 기계(2코어 · 다른 트랙과 같이 씀) 대략 초 · limit = 시간 한도(초) · solo = 시간을 재는 검사라 혼자(다른 단위와 겹치지 않게)
 // deps = 먼저 끝나야 하는 단위(공유 자료: static → liveCounts · core → listMap)
 const UNITS = {
   static: { est: 20, limit: 180, browser: false, files: [/./] },
-  core: { est: 150, limit: 420, files: [/^src\/(app\.js|data\.json|premium\.json|shell\.html|island\.js|boot\.js)$/, /^src\/ext\/(20_zone|30_api|40_home|60_simple|61_budget|76_detail|95_desk|10_lmap)\./, /^tools\/(calc\.js|build\.py|prerender\.js|enrich\.py|api\.py)$/] },
-  ui: { est: 150, limit: 420, deps: ["static"], files: [/^src\/(app\.js|app\.css|shell\.html|island\.js|boot\.js)$/, /^src\/ext\/(10_lmap|02_layers|62_extra|63_newb|64_overview|66_tools|70_pins|72_inbox|74_my|90_theme|99)/] },
-  r14: { est: 80, limit: 300, files: [/^src\/ext\/(70_pins|72_inbox|74_my)\./, /^worker\//, /^src\/(net|contact)\.js$/] },
+  core: { est: 280, limit: 600, files: [/^src\/(app\.js|data\.json|premium\.json|shell\.html|island\.js|boot\.js)$/, /^src\/ext\/(20_zone|30_api|40_home|60_simple|61_budget|76_detail|95_desk|10_lmap)\./, /^tools\/(calc\.js|build\.py|prerender\.js|enrich\.py|api\.py)$/] },
+  ui: { est: 200, limit: 600, deps: ["static"], files: [/^src\/(app\.js|app\.css|shell\.html|island\.js|boot\.js)$/, /^src\/ext\/(10_lmap|02_layers|62_extra|63_newb|64_overview|66_tools|70_pins|72_inbox|74_my|90_theme|99)/] },
+  r14: { est: 125, limit: 400, files: [/^src\/ext\/(70_pins|72_inbox|74_my)\./, /^worker\//, /^src\/(net|contact)\.js$/] },
   r1: { est: 40, limit: 240, files: [/^src\/ext\/(74_my|68_app|60_simple)\./, /^src\/(shell\.html|app\.css)$/] },
   r3: { est: 60, limit: 300, files: [/^src\/ext\/(10_lmap|65_pills|02_layers|61_budget)\./] },
   r4: { est: 35, limit: 240, files: [/^src\/ext\/(20_zone|76_detail|05_facts)\./, /^tools\/zpages\.py$/] },
-  r17: { est: 80, limit: 300, files: [/^src\/ext\/(10_lmap|20_zone|97_r17)\./, /^src\/app\.js$/] },
+  r17: { est: 140, limit: 400, files: [/^src\/ext\/(10_lmap|20_zone|97_r17)\./, /^src\/app\.js$/] },
   r17b: { est: 35, limit: 240, solo: true, files: [/^src\/ext\/(20_zone|72_inbox|97_r17)\./, /^tools\/(report|zpages)\.py$/] },
-  r19: { est: 160, limit: 480, solo: true, files: [/^src\/ext\/(10_lmap|11_ghost|61_budget|02_layers)\./, /^src\/(ghost|island|boot)\.js$/, /^tools\/(ghost_geo|zmap|prerender)\./] },
-  r21: { est: 85, limit: 360, solo: true, files: [/^src\/ext\/(10_lmap|65_pills|98_r21|61_budget)\./] },
-  r26: { est: 60, limit: 300, files: [/^src\/tapp\//, /^src\/ext\/(74_my|77_tbridge|95_desk|99zzzz_r26)/] },
+  r19: { est: 190, limit: 600, solo: true, files: [/^src\/ext\/(10_lmap|11_ghost|61_budget|02_layers)\./, /^src\/(ghost|island|boot)\.js$/, /^tools\/(ghost_geo|zmap|prerender)\./] },
+  r21: { est: 95, limit: 400, solo: true, files: [/^src\/ext\/(10_lmap|65_pills|98_r21|61_budget)\./] },
+  r26: { est: 100, limit: 400, files: [/^src\/tapp\//, /^src\/ext\/(74_my|77_tbridge|95_desk|99zzzz_r26)/] },
   r27: { est: 35, limit: 240, files: [/^src\/ext\/(64_overview|99zzzzz_r27)/, /^tools\/zpages\.py$/] },
   r29: { est: 60, limit: 300, files: [/^src\/(app\.css|shell\.html)$/, /^src\/ext\/.*\.css$/, /^tools\/zpages\.py$/] },
-  r30: { est: 90, limit: 360, files: [/^src\/ext\/(10_lmap|56_toheo|20_zone|99zzzzzzzz_r30)/, /^tools\/(report|zpages|toheo)\.py$/] },
+  r30: { est: 140, limit: 400, files: [/^src\/ext\/(10_lmap|56_toheo|20_zone|99zzzzzzzz_r30)/, /^tools\/(report|zpages|toheo)\.py$/] },
   r31: { est: 70, limit: 300, files: [/^src\/(app\.js|app\.css|shell\.html)$/, /^tools\/(zpages|report)\.py$/] },
-  r22: { est: 150, limit: 600, deps: ["core"], files: [/^src\/(app\.js|data\.json|premium\.json)$/, /^src\/ext\/(20_zone|76_detail|68_app)\./] },
+  r22: { est: 590, limit: 1500, deps: ["core"], files: [/^src\/(app\.js|data\.json|premium\.json)$/, /^src\/ext\/68_app\./, /^tools\/(enrich|calc|api)\./] },
 };
-for (let k = 1; k <= TAPP_N; k++) UNITS["tapp" + k] = { est: 300, limit: 900, solo: false, part: `tapp:${k}/${TAPP_N}`, files: [/^src\/tapp\//, /^src\/ext\/(68_app|69_install|77_tbridge|72_inbox|74_my)\./, /^src\/(shell\.html|island\.js|boot\.js)$/, /^tools\/static_tabs\.py$/, /^public\/(sw\.js|manifest\.webmanifest|\.well-known\/)/] };
+const NHF_N = Math.min(5, +process.env.QAC_NHF_RUNS || 5);
+const TAPP_FILES = [/^src\/tapp\//, /^src\/ext\/(68_app|69_install|77_tbridge|72_inbox|74_my)\./, /^src\/(shell\.html|island\.js|boot\.js)$/, /^tools\/static_tabs\.py$/, /^public\/(sw\.js|manifest\.webmanifest|\.well-known\/)/];
+// tapp.noHomeFlash(4×CPU · 5번 × 50 전환)는 혼자 15분 넘게 걸려 → 5번을 nhf1..5 단위로 나눠(합은 같음), 나머지 42묶음은 tapp1..3
+for (let k = 1; k <= NHF_N; k++) UNITS["nhf" + k] = { est: 600, limit: 900, part: "tapp:=tapp.noHomeFlash", env: { QAC_NHF_SLICE: `${k}/${NHF_N}` }, files: TAPP_FILES };
+for (let k = 1; k <= TAPP_N; k++) UNITS["tapp" + k] = { est: 500, limit: 1200, solo: false, part: `tapp:${k}/${TAPP_N}:-tapp.noHomeFlash`, files: [/^src\/tapp\//, /^src\/ext\/(68_app|69_install|77_tbridge|72_inbox|74_my)\./, /^src\/(shell\.html|island\.js|boot\.js)$/, /^tools\/static_tabs\.py$/, /^public\/(sw\.js|manifest\.webmanifest|\.well-known\/)/] };
 // 흔한 몸통(app.js·data.json)은 위 표에 이미 · 생성물(public/b 등)은 소스와 같은 레인 — 표에 없는 파일만 바뀌면 static만
 
 async function runUnit(name, api, shortSrc, zoneIds, errs) {
@@ -4782,7 +4797,7 @@ async function runUnit(name, api, shortSrc, zoneIds, errs) {
       case "r30": await guard("r30Lane", r30Lane(browser, api, errs)); break;
       case "r31": await guard("r31Lane", Promise.all([r31Lane(browser, api, errs), r31Static(api)])); break;
       case "r22": { const lm = getShared("listMap"); if (lm) shared.listMap = new Map(lm); await guard("r22Lane", r22Lane(browser, api, errs, shared)); break; }
-      default: if (/^tapp\d+$/.test(name)) { await guard("tappLane", tappLane(browser, api, errs)); break; } throw new Error("no runner for " + name);
+      default: if (/^(tapp|nhf)\d+$/.test(name)) { await guard("tappLane", tappLane(browser, api, errs)); break; } throw new Error("no runner for " + name);
     }
   } finally { if (browser) await browser.close().catch(() => {}); }
 }
@@ -4795,7 +4810,8 @@ async function child(api, shortSrc, zoneIds) {
   const out = process.env.QAC_UNIT_OUT;
   const errs = [];   // 레인들이 콘솔 오류를 여기에 쌓는다 → 시간 초과(SIGTERM) 때도 그때까지 것을 남긴다
   const dump = (partial) => { try { fs.writeFileSync(out, JSON.stringify(unitResult(UNIT, errs, partial))); } catch (e) {} };
-  process.on("SIGTERM", () => { SECT_T["(cut)"] = el(); dump(true); process.exit(0); });
+  setInterval(() => { if (process.ppid === 1) { dump(true); process.exit(0); } }, 2000).unref();   // 부모가 죽으면 같이 끝(고아 브라우저가 기계를 붙잡지 않게)
+  process.on("SIGTERM", () => { GATES.forEach((g) => { try { g.close(); } catch (e) {} }); SECT_T["(cut at)"] = el(); dump(true); process.exit(0); });
   try { await runUnit(UNIT, api, shortSrc, zoneIds, errs); }
   catch (e) { bad("runtime", "검사 실행", `${UNIT} crashed: ` + String(e && e.message || e).split("\n")[0]); }
   dump(false);
@@ -4825,28 +4841,33 @@ async function parent(api, zoneIds) {
   if (argv.includes("--list")) { for (const [k, u] of Object.entries(UNITS)) console.log(`${k.padEnd(7)} est ${String(u.est).padStart(4)}s · limit ${u.limit}s${u.solo ? " · solo" : ""}${u.deps ? " · after " + u.deps.join(",") : ""}`); process.exit(0); }
   const chArg = argv.find((a) => a === "--changed" || a.startsWith("--changed="));
   let want, why = "full";
-  if (process.env.QAC_ONLY) { const only = process.env.QAC_ONLY.split(",").map((s) => s.trim()).filter(Boolean).flatMap((s) => (s === "tapp" ? Object.keys(UNITS).filter((k) => /^tapp\d+$/.test(k)) : [s])); want = ["static", ...only]; why = "QAC_ONLY=" + process.env.QAC_ONLY; }
+  if (process.env.QAC_ONLY) { const only = process.env.QAC_ONLY.split(",").map((s) => s.trim()).filter(Boolean).flatMap((s) => (s === "tapp" ? Object.keys(UNITS).filter((k) => /^(tapp|nhf)\d+$/.test(k)) : [s])); want = ["static", ...only]; why = "QAC_ONLY=" + process.env.QAC_ONLY; }
+  else if (argv.some((a) => a.startsWith("--files="))) { const files = argv.find((a) => a.startsWith("--files=")).slice(8).split(",").filter(Boolean); const pick = new Set(["static"]); for (const f of files) for (const [k, u] of Object.entries(UNITS)) if (k !== "static" && u.files.some((re) => re.test(f))) pick.add(k); want = [...pick]; why = `files ${files.join(",")}`; }
   else if (chArg) { const base = chArg.includes("=") ? chArg.split("=")[1] : "origin/main"; const c = changedUnits(base); want = c.units; why = `changed vs ${base}: ${c.files.length} files`; if (c.files.length) console.log("changed files: " + c.files.slice(0, 30).join(" ") + (c.files.length > 30 ? ` … +${c.files.length - 30}` : "")); }
   else want = Object.keys(UNITS);
   for (const k of want) if (!UNITS[k]) { console.error(`unknown lane '${k}' — node tools/qa_consistency.js --list`); process.exit(2); }
   const units = withDeps(want);
-  const PAR = Math.max(1, +process.env.QAC_PAR || 2);
+  const PAR = Math.max(1, +process.env.QAC_PAR || 3);
+  // 시간 한도는 '멈춤' 보호용 — 공용 기계가 바쁘면(1분 부하 ÷ 코어 수) 그만큼 늘린다(최대 4배). 성능 판정이 아님.
+  const busy = () => Math.min(4, Math.max(1, os.loadavg()[0] / Math.max(1, os.cpus().length)));
+  const kids = new Set();
+  for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { for (const c of kids) try { c.kill("SIGTERM"); } catch (e) {} process.exit(130); });
   const LANE_MS = +process.env.QAC_LANE_MS || 0;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "qac-"));
   console.log(`qa_consistency ${BASE} · ${why} · units ${units.join(" ")} · ${PAR} at a time · shared ${tmp}`);
-  const state = Object.fromEntries(units.map((k) => [k, "wait"])), res = {}, timing = {}, skipped = {};
+  const state = Object.fromEntries(units.map((k) => [k, "wait"])), res = {}, timing = {}, skipped = {}, limits = {};
   const running = new Map();
   const ready = (k) => state[k] === "wait" && (UNITS[k].deps || []).every((d) => !state[d] || state[d] === "done");
   const start = (k) => new Promise((resolve) => {
-    const u = UNITS[k], out = path.join(tmp, k + ".json"), t = Date.now(), lim = (LANE_MS || u.limit * 1000);
-    const env = { ...process.env, QAC_UNIT: k, QAC_UNIT_OUT: out, QAC_SHARED: tmp, QAC_PART: u.part || "" };
-    const p = spawn(process.execPath, [__filename, BASE], { env, stdio: ["ignore", "ignore", "pipe"] });
+    const u = UNITS[k], out = path.join(tmp, k + ".json"), t = Date.now(), bf = busy(), lim = LANE_MS || Math.round(u.limit * 1000 * bf);
+    const env = { ...process.env, QAC_UNIT: k, QAC_UNIT_OUT: out, QAC_SHARED: tmp, QAC_PART: u.part || "", ...(u.env || {}) };
+    const p = spawn(process.execPath, [__filename, BASE], { env, stdio: ["ignore", "ignore", "pipe"] }); kids.add(p);
     let errTxt = ""; p.stderr.on("data", (d) => { errTxt = (errTxt + d).slice(-2000); });
     let killed = null;
     const tm = setTimeout(() => { killed = "time limit " + Math.round(lim / 1000) + "s"; p.kill("SIGTERM"); setTimeout(() => p.kill("SIGKILL"), 8000); }, lim);
     state[k] = "run"; running.set(k, p);
     p.on("exit", (code, sig) => {
-      clearTimeout(tm); running.delete(k); timing[k] = Date.now() - t;
+      clearTimeout(tm); running.delete(k); kids.delete(p); timing[k] = Date.now() - t; limits[k] = Math.round(lim / 1000);
       let r = null; try { r = JSON.parse(fs.readFileSync(out, "utf8")); } catch (e) {}
       if (killed || !r || r.partial || code) skipped[k] = killed || (r && r.partial ? "partial" : `exit ${code}${sig ? " " + sig : ""}: ${errTxt.split("\n").filter(Boolean).slice(-1)[0] || "no result"}`);
       res[k] = r; state[k] = "done";
@@ -4880,7 +4901,7 @@ async function parent(api, zoneIds) {
   }
   for (const [k, why2] of Object.entries(skipped)) { const c = C("lane." + k, `레인 ${k}가 시간 한도 안에 끝남(SKIP이면 일부 검사를 못 잼)`); c.skipped = why2; }
   for (const c of CHECKS.values()) if (c.n && c.skipped && !c.fails.length && !c.id.startsWith("lane.")) c.skipped = null;   // 다른 단위에서 잰 검사
-  return { errs, timing, skipped, flakyLog, sect, units, why };
+  return { errs, timing, skipped, flakyLog, sect, units, why, limits, par: PAR };
 }
 
 (async () => {
@@ -4917,7 +4938,7 @@ async function parent(api, zoneIds) {
   const list = [...CHECKS.values()].sort((a, b) => a.id.localeCompare(b.id));
   const nFail = list.filter((c) => c.fails.length).length;
   const nSkipLane = Object.keys(P.skipped).length;
-  const res = { base: BASE, at: new Date().toISOString(), ms: el(), mode: P.why, units: P.units, timing, skippedLanes: P.skipped, flaky: P.flakyLog, sections: P.sect, pass: nFail === 0 && !nSkipLane, zones: zoneIds, checks: list };
+  const res = { base: BASE, at: new Date().toISOString(), ms: el(), mode: P.why, units: P.units, par: P.par, limits: P.limits, load: require("os").loadavg(), timing, skippedLanes: P.skipped, flaky: P.flakyLog, sections: P.sect, pass: nFail === 0 && !nSkipLane, zones: zoneIds, checks: list };
   try { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT, JSON.stringify(res, null, 2)); } catch (e) { console.error("could not write " + OUT + ": " + e.message); }
   console.log(`\nqa_consistency ${BASE}  ${(el() / 1000).toFixed(1)}s  zones: ${zoneIds.join(" ")}`);
   for (const c of list) {
