@@ -58,6 +58,7 @@ for dp, _, fs in os.walk(PUB):
             t = text(open(os.path.join(dp, f), encoding='utf-8').read()); TXT[os.path.join(top, f)] = t
             for s_ in set(norm(x) for x in sents(t)): freq[s_] += 1
 rep = []
+for f in V.get('failed') or []: chk(False, '렌더 실패(어제 페이지 유지): ' + f)
 for rid, vals in sorted(V.get('z', {}).items()):
     fp = os.path.join(PUB, 'z', rid + '.html'); h = open(fp, encoding='utf-8').read(); a = API.get(rid)
     zv = re.findall(r'<b class="zv" data-zv="(\w+)">([^<]*)</b>', h)

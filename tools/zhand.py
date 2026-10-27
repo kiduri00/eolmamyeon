@@ -17,8 +17,10 @@ ADTAG = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsb
 esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 PH = re.compile(r'\{\{([a-zA-Z0-9_]+)\}\}')
 HANDSET = set()
+FAILED = []   # 그날 렌더하지 못한 글(값 없음) — save_cache가 함께 남긴다
 CACHE = {'z': {}, 'gu': {}}   # 글에 쓴 값(키 → 글자) — tools/zhand_check.py가 페이지 글자·/api/v1과 대조
 def save_cache():
+    CACHE['failed'] = FAILED
     json.dump(CACHE, open(os.path.join(ROOT, 'pipeline/cache/zhand_vals.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'), sort_keys=True)
 
 def sources():
@@ -40,7 +42,7 @@ class Ctx:
 def vals(X, r):
     """구역 하나의 {{키}} 값(글자). 자료가 없는 키는 None — 글에 쓰면 render가 멈춘다(지어내지 않음)."""
     rid = r['id']; c = X.C.get(rid) or {}; p = X.P.get(rid) or {}; dt = p.get('dt') or {}; t = r.get('tx') or {}; sm = r.get('sm') or {}
-    k3 = X.key3(r, c, dt, X.D.get('asOf'), X.D.get('upd')); e = r.get('eta') or {}
+    k3 = X.key3(r, c, dt, X.D.get('asOf'), X.D.get('upd')); e = __import__('zsample').eta_adj(r, X.D.get('asOf')) or {}   # 앱·/api/v1과 같은 가로·소규모 보정
     v = {}
     v['stage'] = c.get('stage') or r.get('sr')
     sd = X._sdate(r); v['since'] = ymd(sd) if sd else None; v['sinceYM'] = ym(sd) if sd else None
@@ -62,6 +64,7 @@ def vals(X, r):
     v['n12'] = f"{t['n12']:,}" if t.get('n12') is not None else None
     v['n3'] = f"{t['n3']:,}" if t.get('n3') is not None else None
     v['yoy'] = f"{abs(t['yoy'])}%" if t.get('yoy') is not None and min(t.get('yon') or [0]) >= 30 else None
+    v['yonA'], v['yonB'] = (f"{t['yon'][0]}", f"{t['yon'][1]}") if v['yoy'] else (None, None)
     v['pol'] = f"{t['old']['pol']}%" if t.get('old') and isinstance(t['old'].get('pol'), (int, float)) else None
     v['split'] = f"{t['split']}" if t.get('split') else None   # 2016년 뒤 준공 · 대지지분 15㎡ 이하 매매 건수(tools/tx.py split)
     v['new10'] = f"{t['old']['new10']}" if t.get('old') and t['old'].get('new10') else None
@@ -79,7 +82,7 @@ def vals(X, r):
     psm = p.get('sm') or {}
     v['far'] = f"{psm['far']:g}%" if psm.get('far') else None
     fl = re.match(r'지상:(\d+)', str(psm.get('floors') or '')); v['floors'] = f"{fl.group(1)}층" if fl else None
-    v['p10'] = (f"{min(97, round(c['p10'] * 100))}%" if c['p10'] >= 0.01 else '1% 미만') if c.get('p10') is not None and not r.get('stale') else None
+    v['p10'] = (f"{min(97, round(e['p10'] * 100))}%" if e['p10'] >= 0.01 else '1% 미만') if e.get('p10') is not None and not r.get('stale') else None   # /api/v1 completion.p10과 같은 값(가로·소규모 보정)
     v['eLo'] = ym(e.get('eLo')) if e.get('eLo') else None; v['eMid'] = ym(e.get('eMid')) if e.get('eMid') else None; v['eHi'] = ym(e.get('eHi')) if e.get('eHi') else None
     v['eLoY'] = e['eLo'][:4] if e.get('eLo') else None; v['eHiY'] = e['eHi'][:4] if e.get('eHi') else None
     st = r.get('st') or c.get('st') or {}   # 앱 구역 시트(64_overview.js)·/api/v1과 같은 r.st (calc.json st와 몇 m 다를 수 있음)
@@ -181,7 +184,7 @@ def timeline(X, r, src):
     rows.sort(key=lambda z: z[0])
     cur = X._sdate(r)
     li = ''.join(f'<li class="{"cur" if d == cur and s == "정보몽땅 등록" else ""}{" ev" if s != "정보몽땅 등록" else ""}"><b>{esc(ymd(d) if len(d) >= 10 else ym(d))}</b><span>{esc(lab)}</span><small>{esc(s)}</small></li>' for d, lab, s in rows)
-    e = r.get('eta') or {}; c = X.C.get(r['id']) or {}
+    e = __import__('zsample').eta_adj(r, X.D.get('asOf')) or {}; c = X.C.get(r['id']) or {}   # 앱·/api/v1과 같은 가로·소규모 보정
     nx = ''
     if e.get('eLo') and e.get('eHi') and not r.get('stale'):
         nx = f'<li class="nx"><b>{esc(ym(e["eLo"]))}~{esc(ym(e["eHi"])[2:])}</b><span>준공 예상 범위(추정)</span><small>서울 사업장 기록 통계 · 가운데 {esc(ym(e.get("eMid")))}</small></li>'
@@ -196,7 +199,7 @@ def carousel(X, r, src, V):
     if hv: m1 = (k3['lnow'], '대출 끼고 · 전세를 안고는 살 수 없는 곳' + (f' · 입주까지 {k3["ltot"]}' if k3.get('ltot') else ''))
     elif k3['now'] != '계산 보류': m1 = (k3['now'], k3['basis'] + (f' · 입주까지 {k3["tot"]}' if k3['tot'] != '계산 보류' else ''))
     else: m1 = ('계산 보류', (k3.get('esub') or k3.get('basis') or '') + (f' · {k3["alt"]}' if k3.get('alt') else ''))
-    e = r.get('eta') or {}
+    e = __import__('zsample').eta_adj(r, X.D.get('asOf')) or {}   # 앱·/api/v1과 같은 가로·소규모 보정
     if e.get('eLo') and e.get('eHi') and not r.get('stale') and r.get('s', 0) < 9:
         m2 = (f'{e["eLo"][:4]}~{e["eHi"][:4]}년', f'준공 예상 범위(추정) · 가운데 {ym(e.get("eMid"))}' + (f' · 10년 안 준공 가능성 {V["p10"]}' if V.get('p10') and r.get('s', 0) < 8 else '') + (' · 지금 사면 입주권은 없어요' if k3.get('elab') == '입주권' and not k3.get('im') else ''))
     else: m2 = (k3.get('eta') or '산정 불가', k3.get('esub') or '입주 시기는 범위로만 봐요')
@@ -317,7 +320,9 @@ def render_all(g):
     for rid, src in S.items():
         r = X._BY.get(rid)
         if not r or rid not in X._LIVE: print('  zhand: skip (진행 중 아님)', rid); continue
-        h = page(X, r, src); CACHE['z'][rid] = vals(X, r)
+        try: h = page(X, r, src); CACHE['z'][rid] = vals(X, r)
+        except (KeyError, ValueError) as e:   # 그날 자료에 글이 쓰는 값이 없으면(지어내지 않음) 이 페이지만 어제 것을 둔다 — 매일 갱신 전체를 멈추지 않게 · zhand_check.py가 실패로 알림
+            print('  !! zhand: 어제 페이지 유지 —', e); FAILED.append(f'{rid}: {e}'); done.append(rid) if os.path.exists(os.path.join(X.ZD, rid + '.html')) else None; continue
         fp = os.path.join(X.ZD, rid + '.html')
         old = open(fp, encoding='utf-8').read() if os.path.exists(fp) else ''
         # 아래 탭·머리(static_tabs.py가 입힘)는 지난번 것을 유지해 매번 같은 결과가 되게
