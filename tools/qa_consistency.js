@@ -4737,6 +4737,8 @@ async function r31Static(api) {
 //   몇 개만:     QAC_ONLY=r14,tapp  (예전처럼 하나도 됨 · static은 늘)    목록 보기: --list
 //   종료 코드:   0 전부 통과 · 1 FAIL 있음 · 3 FAIL은 없지만 SKIP(시간 초과·죽음)된 단위가 있어 불완전 · 2 실행 불가
 const UNIT = process.env.QAC_UNIT || "";
+// 기계 전체 잠금(/tmp/qa.lock): 부모만 잡는다(자식 단위는 부모가 쥔 잠금 안에서 돈다) · --list는 잠금 없이
+if (!UNIT && !argv.includes("--list") && require("./qa_lock").relaunch(__filename)) process.exit(0);
 const SHARED_DIR = process.env.QAC_SHARED || "";
 const putShared = (k, v) => { if (SHARED_DIR) fs.writeFileSync(path.join(SHARED_DIR, k + ".json"), JSON.stringify(v)); };
 const getShared = (k) => { try { return JSON.parse(fs.readFileSync(path.join(SHARED_DIR, k + ".json"), "utf8")); } catch (e) { return null; } };

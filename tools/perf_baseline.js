@@ -84,6 +84,7 @@ async function measure(BASE, RUNS, CPU) {
 }
 
 (async () => {
+  if (!has("compare")) require("./qa_lock").relaunch(__filename);   // 재는 동안 다른 QA와 겹치지 않게(기계 전체 잠금)
   if (has("compare")) {
     const i = argv.indexOf("--compare"); const [a, b] = [argv[i + 1], argv[i + 2]];
     process.exit(compare(JSON.parse(fs.readFileSync(a, "utf8")), JSON.parse(fs.readFileSync(b, "utf8"))) ? 1 : 0);
