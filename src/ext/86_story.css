@@ -26,7 +26,7 @@
 .s-story .st-g a:focus-visible{outline:2px solid var(--focus,var(--brand));outline-offset:-2px}
 .s-story .st-f{margin:0;font-size:14px}
 /* 광고 자리(승인 뒤 채워질 때만 보임): 위아래 글과 28px 이상 · '광고' 라벨 · 목록·버튼과는 글 문단을 사이에 둔다 */
-html.simple .s-story .ad-slot:not([hidden]){display:block!important;margin:22px -4px;padding:8px 0 0;max-width:none;border-top:1px solid var(--divider,var(--border));min-height:118px}
+html .s-story .ad-slot[data-slot]:not([hidden]){display:block!important;margin:36px -4px 32px!important;padding:8px 0 0;max-width:none;border-top:1px solid var(--divider,var(--border));min-height:118px}
 html.is-tapp .s-story,html.is-app .s-story{display:none!important}
 @media (min-width:981px){.s-story.s-reads{margin:24px 0 8px;padding:20px 18px 16px}.s-story h2{font-size:19px}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-story .st-g a::before{color:#0c0e12}}

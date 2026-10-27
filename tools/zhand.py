@@ -209,7 +209,7 @@ def carousel(X, r, src, V):
         m2 = (f'{e["eLo"][:4]}~{e["eHi"][:4]}년', f'준공 예상 범위(추정) · 가운데 {ym(e.get("eMid"))}' + (f' · 10년 안 준공 가능성 {V["p10"]}' if V.get('p10') and r.get('s', 0) < 8 else '') + (' · 지금 사면 입주권은 없어요' if k3.get('elab') == '입주권' and not k3.get('im') else ''))
     else: m2 = (k3.get('eta') or '산정 불가', k3.get('esub') or '입주 시기는 범위로만 봐요')
     cards = [('지금 필요한 돈', m1[0], m1[1], 'm'), ('입주 시기 범위', m2[0], m2[1], 'm'), ('핵심 위험', None, src['cards']['risk'], 'r'), ('이런 사람에게 맞아요', None, src['cards']['fit'], 'f')]
-    li = ''.join(f'<li class="zh-s zh-s{t}" role="group" aria-roledescription="슬라이드" aria-label="{i + 1}/{len(cards)} {esc(a)}"><span class="zh-sl">{esc(a)}</span>' + (f'<b class="zh-sv">{esc(b)}</b>' if b else '') + f'<p>{josa_fix(fill(s, V, r["id"])) if t in "rf" else esc(s)}</p></li>' for i, (a, b, s, t) in enumerate(cards))
+    li = ''.join(f'<li class="zh-s zh-s{t}" aria-label="{i + 1}/{len(cards)} {esc(a)}"><span class="zh-sl">{esc(a)}</span>' + (f'<b class="zh-sv">{esc(b)}</b>' if b else '') + f'<p>{josa_fix(fill(s, V, r["id"])) if t in "rf" else esc(s)}</p></li>' for i, (a, b, s, t) in enumerate(cards))
     return (f'<!--zd--><section class="zh-car" aria-roledescription="캐러셀" aria-label="{esc(V["name"])} 요약 카드 {len(cards)}장"><ul class="zh-tr" tabindex="0" aria-label="요약 카드 · 옆으로 넘기거나 화살표 키로 이동">{li}</ul>'
             f'<p class="zh-hint" aria-hidden="true">옆으로 넘겨 보세요 · 기본 가정(무주택·84㎡) 추정 · 데이터 기준 {X.UPD}</p></section><!--/zd-->')
 
@@ -312,7 +312,7 @@ def page(X, r, src):
     o.append('<div class="zh-body">' + ''.join(body) + '</div>')
     o.append(nextcards(X, r, src))
     o.append(srcs)
-    o.append(f'<p class="disc">출처: 정비사업 정보몽땅 추진경과·사업개요, 국토교통부 실거래가, 서울부동산정보광장 토지거래허가, 위 기사·고시. 금액은 기본 가정(무주택·84㎡·비례율 100%)으로 낸 추정이고 실제 분담금은 감정평가·관리처분계획으로 정해져요. 투자 권유가 아니에요. 서울시·국토교통부와 무관한 개인 운영 서비스예요.</p>')
+    o.append(f'<p class="disc">출처: 정비사업 정보몽땅 추진경과·사업개요, 국토교통부 실거래가, 서울부동산정보광장 토지거래허가, 위 기사·고시. 금액은 기본 가정(무주택·84㎡·비례율 100%)으로 낸 추정이고 실제 분담금은 감정평가·관리처분계획으로 정해져요. 투자 권유가 아니에요. 서울시·국토교통부 등 정부·공공기관과 무관한 비공식 정보 서비스예요.</p>')
     o.append('<!--zr--><!--/zr-->')
     o.append(X.FOOT.format(upd=X.UPD))
     return ''.join(o)
