@@ -15,6 +15,7 @@ from zsample import smpTxt, trust, isEst, short, eta_adj, set_dup, noTicket   # 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 J = lambda p, d=None: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else d
 D = J('pipeline/data.enriched.json') or J('src/data.json'); P = J('public/premium.json', {}); C = J('pipeline/calc.json', {})
+from stfix import st_fix; from jsnum import walk_min; st_fix(D)   # 가까운 역·노선: 앱 화면·/z와 같은 값(예전엔 고치기 전 자료를 써서 도보 분이 1분씩 어긋난 곳이 있었다)
 set_dup(D)
 TX = J('public/data/tx.json', {}); TH = J('public/data/toheo.json', {}) or {}; S = J('public/data/sang.json'); NT = J('public/data/notice.json', {}) or {}
 RB = J('pipeline/rebuild.json', {}) or {}
@@ -42,7 +43,7 @@ def summary(r):
         'id': r['id'], 'name': short(r['n']), 'fullName': r['n'], 'gu': r['g'], 'dong': dong(r), 'jibun': r.get('j') or None,
         'kind': r.get('k'), 'tag': {'lt': '역세권 장기전세주택', 'mk': '시장·상가 정비'}.get(r.get('tag')), 'stage': {'level': r.get('s'), 'label': c.get('stage') or r.get('sr'), 'raw': r.get('sr'), 'since': r.get('sd')},
         'lat': r['ll'][0] if r.get('ll') else None, 'lng': r['ll'][1] if r.get('ll') else None,
-        'station': {'name': st.get('n'), 'walkMin': max(1, round(st['d'] * 1.3 / 67)) if st.get('d') else None, 'lines': r.get('ln') or []} if st else None,
+        'station': {'name': st.get('n'), 'walkMin': walk_min(st['d']) if st.get('d') else None, 'lines': r.get('ln') or []} if st else None,
         # 시장·상가 정비(tag mk)는 빌라 시세가 상가 지분 값을 대신하지 못해 사이트처럼 값을 내지 않는다(null)
         'need': ({'gap': {'now': None, 'total': None, 'eligible': False, 'blocked': '시장·상가 정비사업이라 계산 전'}, 'cash': {'now': None, 'total': None, 'eligible': False}} if mkz else {  # 단위: 억원 · 무주택·84㎡·기본 가정(사이트 계산기와 같은 엔진)
             'gap': {'now': r2(c.get('gapNow')), 'total': r2(c.get('gapTotal')), 'eligible': bool(c.get('gapOk')), 'blocked': c.get('gapBlock')},

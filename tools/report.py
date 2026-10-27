@@ -52,6 +52,7 @@ def _years_stats():
         print('!! /years 표를 못 읽어 엔진 통계로:', e); return None
 STG = _years_stats() or D['stats']['large']
 from zsample import batchim   # 받침 규칙 한 곳(숫자 끝 '9구'는 받침 없음)
+from jsnum import walk_min, prob_txt   # 역 도보 분·준공 가능성 %(앱과 같은 반올림)
 def josa(w, a, b): return w + (a if batchim(w) else b)
 esc = lambda s: html.escape(str(s if s is not None else ''), quote=True)
 zp = lambda i: os.path.exists(os.path.join(ROOT, 'public/z', i + '.html'))
@@ -277,14 +278,14 @@ def card(r, k, d, seen=''):
         if not ck.get('url'): ck = dict(CHK.get((r['id'], '사업시행')) or {}); s_ = f'<a href="{esc(ck["url"])}" rel="noopener">원문</a>' if ck.get('url') else s_
         ck = {**ck, 'note': ' · '.join(x for x in [ck.get('note'), '사업시행인가와 같은 날 인가(소규모 정비는 함께 인가되는 경우가 많아요)'] if x)}
     stn = c.get('st'); ow = c.get('owners')
-    meta2 = ' · '.join(x for x in [f"토지등소유자 {ow:,.0f}명" if ow else '', f"{stn['n']} 도보 {max(1, round(stn['d'] * 1.3 / 67))}분" if stn else ''] if x)
+    meta2 = ' · '.join(x for x in [f"토지등소유자 {ow:,.0f}명" if ow else '', f"{stn['n']} 도보 {walk_min(stn['d'])}분" if stn else ''] if x)
     nk = NEXT.get(k); nx = STG.get(nk) if nk else None
     kv = []
     if c.get('price') is not None: kv.append(('매수가(발행 당시)', f"{c['price']:.1f}억"))
     # 28차: 지금 사면 입주권이 없는 곳(win no)은 입주까지 현금을 내지 않는다(앱·/z·api와 같은 '계산 보류')
     if c.get('win') == 'no': kv.append(('입주까지 현금 <small>입주권 없음</small>', '계산 보류'))
     elif c.get('need') is not None: kv.append(('입주까지 현금 <small>발행 당시 시세·현금 매수 가정</small>', f"약 {c['need']:.1f}억"))
-    if c.get('p10') is not None: kv.append(('10년 안 준공 가능성', f"{min(97, round(c['p10'] * 100))}%"))
+    if c.get('p10') is not None: kv.append(('10년 안 준공 가능성', prob_txt(c['p10'])))
     if nx: kv.append(('다음 인가까지 보통', f"{nx['med']:.1f}년"))
     when = d.replace('-', '.') if d else ('인가일 미등록' + (f' · 단계 변경 감지 {md(seen)}' if seen else ''))
     win = c.get('win'); wt = c.get('winT') or ''
@@ -455,7 +456,7 @@ def zbox(i, paras):
     if c.get('gapOk') and c.get('gapNow') is not None: kv.append(('전세 끼고 지금', eok(c['gapNow'])))
     elif c.get('now') is not None and c.get('cashOk'): kv.append(('대출 끼고 지금', eok(c['now'])))
     if c.get('need') is not None: kv.append(('입주까지 현금', eok(c['need'])))
-    if c.get('p10') is not None: kv.append(('10년 안 준공', f"{min(97, round(c['p10'] * 100))}%"))
+    if c.get('p10') is not None: kv.append(('10년 안 준공', prob_txt(c['p10'])))
     if Q1 in q: kv.append((f'{qlab(Q1)} 거래', f"{q[Q1][2]}건 · 3.3㎡ {q[Q1][1]:,}만"))
     elif Q1 in qa: kv.append((f'{qlab(Q1)} 아파트 거래', f"{qa[Q1][2]}건 · {qa[Q1][1] / 1e4:.1f}억"))
     if th_z.get(i): kv.append((f'{M}월 허가', f"{th_z[i]}건"))

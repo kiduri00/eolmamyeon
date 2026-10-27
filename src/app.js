@@ -4145,7 +4145,7 @@
     nums: (r) => DTL.nums(r), pace: (r) => ZX.pace(r), rights: (r) => ZX.rights(r), tx: () => ZX.loadTx(), shape: (r) => shapeOf(r), SHAPE,
     cash: () => CASH, gap: () => gapMode(), tapp: () => document.documentElement.classList.contains("is-tapp"),
     open: (id) => { curTab = "money"; select(id, true, false, { scroll: true }); },
-    brand: BRAND, cur: () => cur, tab: () => curTab, areaBad: (r) => areaSuspect(r), ok: (r) => !!(window.ZP_ok && window.ZP_ok(r)),
+    brand: BRAND, etaShow: (r) => etaShow(r), cur: () => cur, tab: () => curTab, areaBad: (r) => areaSuspect(r), ok: (r) => !!(window.ZP_ok && window.ZP_ok(r)),
   });
   const featHook = (tab, r) => {
     if (!["biz", "tx", "loc"].includes(tab) || !r || r.src === "moa") return;
