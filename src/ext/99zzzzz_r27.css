@@ -34,6 +34,8 @@
 .s-card .s-l2.wf2 .s-wn,.s-card .s-l2.wf3 .s-wn{display:none}
 .s-card .s-l2.wf2 .s-wm::before,.s-card .s-l2.wf3 .s-wm::before{content:"가까운 "}
 .s-card .s-l2.wf3 .s-stg{display:none}
+/* 사이클 2 통합: ④ 그래도 '분'이 잘리면 노후도 칩(F8)을 뺀다 */
+.s-card .s-l2.wf4 .s-b-old{display:none}
 @media (max-width:420px){.s-card button.s-amt small.s-na .s-nah{display:none}}
 /* ---- 폰: 시트(구역 상세 등)가 열린 동안 오프라인 띠는 숨긴다 — 머리 오른쪽 띠가 시트 닫기 ✕를 덮던 것(시트를 닫으면 다시 보임) ---- */
 @media (max-width:980px){html.sheet-open .off-bar,html.menu-open .off-bar,html.cf-on .off-bar{display:none!important}}

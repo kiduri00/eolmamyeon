@@ -125,6 +125,9 @@ const fm = (m) => (!m ? "–" : m.v < 1 ? `${Math.round(m.v * 1e4).toLocaleStrin
 const zfUp = (x, k) => Math.ceil(x * k - 1e-6) / k;   // 화면 ZF.num과 같은 올림
 const zfNum = (v) => { if (v == null || !isFinite(v)) return "–"; const a = Math.abs(v), sg = v < 0 ? "-" : ""; if (a < 0.005) return "0"; if (zfUp(a, 100) < 1) return sg + zfUp(a, 100).toFixed(2).replace(/0$/, ""); return sg + zfUp(a, 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 }); };
 const zfShort = (d) => { let m = Math.ceil((d || 0) * 1e4 - 1e-6); if (!(m >= 1)) m = 1; if (m < 1e4) return `${m.toLocaleString("ko-KR")}만`; const t = Math.ceil(m / 1e3 - 1e-9); return `${m % 1e3 ? "약 " : ""}${(t / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억`; };   // 29차: 1억 아래 정확한 만 원 · 1억부터 0.1억 올림 '약 N억'(화면 ZF.short)
+// 사이클 2(renew-feat 3번): 모자라는 돈 = 화면에 보인 금액(cash 올림)에서 내 돈을 뺀 값(src/ext/05_facts.js ZF.shown·ZF.gap과 같은 규칙)
+const zfShown = (v) => { const a = Math.abs(v); if (!isFinite(a) || a < 0.005) return 0; const c = Math.ceil(a * 100 - 1e-6); return c < 100 ? c / 100 : zfUp(a, 10); };
+const zfGap = (v, c) => zfShort(zfShown(v) - c);
 const zfCash = (v) => { const t = zfNum(v); if (t === "–") return t; if (t === "0") return "0원"; const a = Math.abs(v); if (Math.ceil(a * 100 - 1e-6) < 100) return (v < 0 ? "-" : "") + (Math.ceil(a * 100 - 1e-6) * 100).toLocaleString("ko-KR") + "만"; return t + "억"; };   // 1억 아래는 만 원(4,100만)
 // WCAG 대비(페이지 안): 글자색(불투명도 곱) vs 조상 배경을 겹쳐 만든 실제 바탕
 const CONTRAST_JS = (rootSel) => {
@@ -1699,7 +1702,7 @@ async function r3Lane(browser, errs) {
         for (const p of P) {
           const lab = /지금 필요한 돈/.test(p.lab) && p.lab.length > 12;
           if (p.st === "ok") expect(p.need <= c + 1e-9 && list[p.id] != null && p.t === list[p.id] && p.t === zfCash(p.need) && lab && /가능/.test(p.lab), "map.pills", T, `${where} ${p.id}: pill "${p.t}" list "${list[p.id]}" need ${p.need} label "${p.lab}"`);
-          else if (p.st === "near") { const want = zfShort(p.need - c) + " 부족"; /* 28차: 모자란 곳은 정확한 만 원 '5,636만 부족' */ expect(p.need > c && p.need <= c * 1.2 + 1e-9 && p.t === want && list[p.id] == null && /조금 모자람/.test(p.lab), "map.pills", T, `${where} ${p.id}: near pill "${p.t}" want "${want}" need ${p.need} in list ${list[p.id] != null}`); }
+          else if (p.st === "near") { const want = zfGap(p.need, c) + " 부족"; /* 28차 정확한 만 원 → 사이클 2: 보인 금액(3.6억) − 내 돈(3억) = '6,000만 부족' (ZF.gap · 목록·시트와 같은 한 함수) */ expect(p.need > c && p.need <= c * 1.2 + 1e-9 && p.t === want && list[p.id] == null && /조금 모자람/.test(p.lab), "map.pills", T, `${where} ${p.id}: near pill "${p.t}" want "${want}" need ${p.need} in list ${list[p.id] != null}`); }
           else bad("map.pills", T, `${where} ${p.id}: pill with state ${p.st}`);
         }
         // 알약끼리 겹치지 않음(보이는 알약 상자)

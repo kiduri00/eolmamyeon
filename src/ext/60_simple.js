@@ -1032,10 +1032,11 @@ const SIMPLE = (() => {
   function rowFit(root) {
     const L = [...(root || document).querySelectorAll("#sList li.s-card .s-l2")];
     if (!L.length) return;
-    L.forEach((e) => e.classList.remove("wf1", "wf2", "wf3"));
+    L.forEach((e) => e.classList.remove("wf1", "wf2", "wf3", "wf4"));
     const over = (e) => { const sub = e.querySelector(".s-sub"), wn = e.querySelector(".s-wn"), wm = e.querySelector(".s-wm"); if (!sub || !wm) return false; const a = sub.getBoundingClientRect(), m = wm.getBoundingClientRect(); return (wn && wn.offsetWidth && wn.scrollWidth > wn.clientWidth + 1) || m.right > a.right + 0.5 || m.width < 4; };
     let bad = L.filter(over);
-    for (const c of ["wf1", "wf2", "wf3"]) { if (!bad.length) break; bad.forEach((e) => e.classList.add(c)); bad = bad.filter(over); }
+    // 사이클 2 통합: ④ 그래도 잘리면 '노후도 N%' 칩(F8 목록 칩)을 뺀다 — 360px에서 '가까운 역 N분'이 잘리던 것
+    for (const c of ["wf1", "wf2", "wf3", "wf4"]) { if (!bad.length) break; bad.forEach((e) => e.classList.add(c)); bad = bad.filter(over); }
   }
   addEventListener("resize", () => { clearTimeout(rowFitT); rowFitT = setTimeout(() => rowFit(), 150); }, { passive: true });
   try { window.ZP_rowFit = rowFit; } catch (e) {}
