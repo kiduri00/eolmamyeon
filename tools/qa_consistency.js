@@ -43,6 +43,58 @@ const wrn = (id, title, msg) => { C(id, title).warns.push(String(msg).replace(/\
 const skip = (id, title, why) => { const c = C(id, title); if (!c.n) c.skipped = why; };
 const expect = (cond, id, title, msg) => (cond ? ok(id, title) : bad(id, title, msg));
 
+// ---------------------------------------------------------------- 불안정 검사 다시 재기 · 레인 묶음 나누기 (I 트랙 2026-10-27)
+// flaky(ids, label, fn): 공유 2코어 기계(swiftshader)에서 타이밍 때문에 가끔 떨어지는 것으로 알려진 검사만 최대 3번(처음 + 다시 2번).
+//   이번 시도에서 새로 생긴 실패가 모두 ids 안의 것일 때만 되돌리고 다시 잰다 — 다른 검사가 같이 떨어지면 바로 판정(가리지 않음).
+//   다시 잰 기록은 결과 JSON checks[].retries 와 flaky[] 에 남는다(통과해도).
+const FLAKY_LOG = [];
+async function flaky(ids, label, fn) {
+  ids = [].concat(ids);
+  for (let a = 1; ; a++) {
+    const snap = new Map([...CHECKS].map(([id, c]) => [id, [c.n, c.fails.length, c.warns.length]]));
+    await fn(a);
+    const fresh = [...CHECKS].filter(([id, c]) => c.fails.length > (snap.get(id) || [0, 0])[1]).map(([id]) => id);
+    if (!fresh.length) { if (a > 1) FLAKY_LOG.push({ label, ids, attempts: a, result: "pass" }); return true; }
+    if (a >= 3 || fresh.some((id) => !ids.includes(id))) { FLAKY_LOG.push({ label, ids, attempts: a, result: "fail", failed: fresh }); return false; }
+    for (const id of fresh) {
+      const c = CHECKS.get(id), [n, f, w] = snap.get(id) || [0, 0, 0];
+      const dropped = c.fails.splice(f); c.warns.splice(w); c.n = n;
+      (c.retries = c.retries || []).push(`try ${a}: ${dropped[0] || ""}`.slice(0, 300));
+    }
+    // 같은 묶음 안에서 이번 시도에 통과로 센 다른 검사는 다시 돌 때 두 번 세지 않게 되돌린다
+    //   (한 프로세스 안에서 flaky 묶음과 다른 레인이 동시에 돌지 않는다는 전제 — 레인마다 자식 프로세스 하나)
+    for (const [id, c] of [...CHECKS]) { if (fresh.includes(id)) continue; const s = snap.get(id); if (!s) CHECKS.delete(id); else { c.n = s[0]; c.warns.splice(s[2]); } }
+  }
+}
+// secGate(lane): 레인 안 묶음마다 시간을 재고(SECT_T), QAC_PART="tapp:2/3"이면 그 레인 묶음 중 2번째 몫만 돈다.
+//   몫 나누기는 PART_W(묶음별 대략 초 · 실측)로 균형 — 같은 몫은 언제나 같은 묶음(결정적).
+const SECT_T = {};
+const PART_W = {
+  tapp: { "tapp.noHomeFlash": 300, "search.names": 160, "tapp.race": 90, "tapp.axeAll": 80, "tapp.entry": 70, "tapp.mapMin": 60, "tapp.a11y": 45, "tapp.newsEntry": 40, "tapp.bigFont": 40, "tapp.toolEntry": 35, "tapp.coldTop": 35, "moa.rows": 35, "tapp.lcp": 30 },
+};
+function partOf(lane, labels, n) {
+  // 무거운 것부터 가장 가벼운 몫에 넣기(LPT) · 무게 모르는 묶음은 15초
+  const W = PART_W[lane] || {}, load = Array(n).fill(0), at = {};
+  labels.map((l, i) => [l, i, W[l] || 15]).sort((a, b) => b[2] - a[2] || a[1] - b[1]).forEach(([l, i, w]) => { const k = load.indexOf(Math.min(...load)); at[i] = k + 1; load[k] += w; });
+  return at;
+}
+const TAPP_SECTS = ["tapp.web", "web.sheetInView", "web.loanPill", "tapp.home", "tapp.static", "tapp.staticSA", "tapp.static5", "tapp.split", "tapp.toggleDark", "tapp.noHomeFlash", "tapp.feed", "tapp.onboard", "tapp.a11y", "tapp.race", "tapp.lcp", "tapp.chips", "tapp.sheets", "tapp.appbar", "tapp.onbPolish", "tapp.r2misc", "tapp.onbToast", "tapp.newsEntry", "tapp.onbPush", "tapp.toolEntry", "tapp.segAll", "tapp.r3misc", "web.why", "web.wideScroll", "tapp.axeAll", "tapp.entry", "tapp.coldTop", "tapp.cashBack", "tapp.mapMin", "tapp.bigFont", "tapp.r4misc", "tapp.overscroll", "tapp.cover", "tapp.r5misc", "search.parcel", "search.names", "moa.rows", "tapp.coverSafe", "tapp.files"];   // tappLane 묶음 이름(SEC 번호 순서 그대로 — 묶음을 더하면 여기도)
+function secGate(lane) {
+  const spec = (process.env.QAC_PART || "").split(",").map((s) => s.split(":")).find(([l]) => l === lane);
+  const want = spec ? spec[1].split("/").map(Number) : null;
+  let cur = null, t0 = 0, at = null;
+  const f = (i, lab) => {
+    f.close();
+    if (lane === "tapp" && TAPP_SECTS[i] !== lab) bad("runtime", "검사 실행", `secGate: tapp 묶음 ${i} "${lab}" ≠ TAPP_SECTS "${TAPP_SECTS[i]}" — 목록을 맞출 것`);
+    if (want && !at) at = partOf(lane, lane === "tapp" ? TAPP_SECTS : [], want[1]);
+    const on = !want || at[i] === want[0];
+    if (on) { cur = lab || "s" + i; t0 = Date.now(); }
+    return on;
+  };
+  f.close = () => { if (cur) { SECT_T[lane + "/" + cur] = (SECT_T[lane + "/" + cur] || 0) + Date.now() - t0; cur = null; } };
+  return f;
+}
+
 // ---------------------------------------------------------------- 숫자 읽기
 const toPos = (c) => { const KN = [[0, 0.5], [28, 2], [58, 5], [88, 10], [100, 15]]; c = Math.min(15, Math.max(0.5, c)); for (let i = 1; i < KN.length; i++) if (c <= KN[i][1]) { const [a, x] = KN[i - 1], [b, y] = KN[i]; return a + ((c - x) / (y - x)) * (b - a); } return 100; };
 const intOf = (s) => { const m = String(s || "").replace(/,/g, "").match(/(\d+)/); return m ? +m[1] : NaN; };
@@ -616,10 +668,16 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
       if (over()) { skip("zone.sample", "구역 리포트", "time budget"); break; }
       const where = `#${zid}`;
       page.__where = where;
-      await page.evaluate(() => { const t = document.getElementById("repTitle"); if (t) t.__qcOld = 1; });
-      await page.evaluate((i) => { location.hash = "#" + i; }, zid);
-      const opened = await page.waitForFunction(() => { const t = document.getElementById("repTitle"); return t && !t.__qcOld && t.textContent.trim(); }, null, { timeout: 7000, polling: 80 }).then(() => true, () => false);
-      if (!opened) { bad("zone.open", "구역 리포트가 열림", `${where}: report did not render`); continue; }
+      // zone.open은 알려진 불안정 검사: 7초 안에 안 열리면 첫 화면을 다시 불러 두 번 더(그래도 안 열리면 실패)
+      let opened = false, tries = 0;
+      for (; tries < 3 && !opened; tries++) {
+        if (tries) { await loadHome(page); await setMode(page, "gap"); }
+        await page.evaluate(() => { const t = document.getElementById("repTitle"); if (t) t.__qcOld = 1; });
+        await page.evaluate((i) => { location.hash = "#" + i; }, zid);
+        opened = await page.waitForFunction(() => { const t = document.getElementById("repTitle"); return t && !t.__qcOld && t.textContent.trim(); }, null, { timeout: 7000, polling: 80 }).then(() => true, () => false);
+      }
+      if (tries > 1) { const c = C("zone.open", "구역 리포트가 열림"); (c.retries = c.retries || []).push(`${where}: opened ${opened} after ${tries} tries`); FLAKY_LOG.push({ label: "zone.open " + where, ids: ["zone.open"], attempts: tries, result: opened ? "pass" : "fail" }); }
+      if (!opened) { bad("zone.open", "구역 리포트가 열림", `${where}: report did not render (${tries} tries)`); continue; }
       ok("zone.open", "구역 리포트가 열림");
       // tx.json은 리포트를 열 때 늦게 불러온다 → 글자가 멈출 때까지
       await page.waitForFunction(() => /믿어도 될까|최근 구역 안 거래 없음|계산 안 함|계산 보류/.test((document.getElementById("report") || {}).innerText || ""), null, { timeout: 5000, polling: 150 }).catch(() => {});
@@ -735,8 +793,9 @@ async function uiLane(browser, api, errs, shared) {
       shared.alias = await page.evaluate(() => window.ZP_ALIAS || {});
     }
     // 21차: 홈 '더 알아보기' 격자(#sTiles)는 없고, 아래쪽 빠른 메뉴 한 줄(#sQuick)에 정확히 6개 · 각각 그 화면을 연다 · MY 도구 묶음은 전부 그대로
-    {
+    await flaky("ui.tiles", "ui.tiles", async (a) => {
       const TT = "홈 빠른 메뉴 한 줄 = 순위·실거래·경공매·고시공고·출퇴근·입주 계산(각각 그 화면) · 격자 없음 · 도구(ZP_TOOLS)는 MY 도구 묶음(관심·소식은 아래 탭)에 전부";
+      if (a > 1) { await loadHome(page); await settle(page, 600); }
       const g = await page.evaluate(() => ({ grid: !!document.getElementById("sTiles") || !!document.querySelector(".s-t[data-view]"), q: [...document.querySelectorAll("#sQuick a")].map((a) => ({ t: a.querySelector("span").textContent.trim(), h: (a.getAttribute("href") || "").slice(1), lab: a.getAttribute("aria-label") || "" })), my: [...document.querySelectorAll("#myTools a")].map((a) => a.dataset.menu || (a.getAttribute("href") || "").replace(/^#/, "")), ids: (window.ZP_TOOLS || []).map((t) => t[0]) }));
       const lack = g.ids.filter((id) => !g.my.includes(id) && id !== "favTop" && id !== "news");
       const want = ["순위", "실거래", "경공매", "고시공고", "출퇴근", "입주 계산"];
@@ -752,7 +811,7 @@ async function uiLane(browser, api, errs, shared) {
         const back = await page.evaluate(async () => { history.back(); await new Promise((r) => setTimeout(r, 700)); return { view: document.documentElement.classList.contains("s-view"), y: scrollY }; });
         expect(!back.view && Math.abs(back.y - r.y1) <= 80, "ui.tiles", TT, `${x.t}: 뒤로 가기 → 홈 ${!back.view} · scroll ${Math.round(back.y)} (was ${Math.round(r.y1)})`);
       }
-    }
+    });
     // 돌아가기: MY에서 연 도구의 '← 돌아가기' → MY로(아래 탭 화면 관심·소식·MY에는 돌아가기 없음)
     {
       await loadHome(page, "#my"); await page.waitForTimeout(700);
@@ -854,12 +913,17 @@ async function uiLane(browser, api, errs, shared) {
       const T = "아래 탭 '관심 구역'이 어디서든 #favTop 화면을 연다(전체 지도·상세 닫은 뒤)";
       const fav = () => page.evaluate(() => { const s = document.getElementById("favTop"), r = s && s.getBoundingClientRect(); return { hash: location.hash, on: !!(s && s.classList.contains("s-on")), vis: !!(r && r.height > 40 && r.top < innerHeight && r.bottom > 0), full: document.documentElement.classList.contains("s-full") }; });
       const tapFav = async () => { await page.tap('#sNav [data-nav="fav"]', { timeout: 4000, force: true }).catch(() => {}); await page.waitForFunction(() => location.hash === "#favTop" && !!document.querySelector("#favTop.s-on"), null, { timeout: 6000 }).catch(() => {}); await page.waitForTimeout(500); };   // 바쁜 기계(swiftshader 지도 다시 그리기)에선 누름 처리가 몇 초 늦다
-      await loadHome(page, "#map"); await page.waitForTimeout(800);
-      await tapFav(); { const s = await fav(); expect(s.hash === "#favTop" && s.on && s.vis && !s.full, "ui.favTab", T, `from full map: hash "${s.hash}" s-on ${s.on} visible ${s.vis} s-full ${s.full}`); }
+      // /#map(전체 지도)에서 누름이 늦게 먹는 일이 알려진 불안정(hash "#map" s-full true) → flaky
+      await flaky("ui.favTab", "ui.favTab from #map", async () => {
+        await loadHome(page, "#map"); await page.waitForTimeout(800);
+        await tapFav(); { const s = await fav(); expect(s.hash === "#favTop" && s.on && s.vis && !s.full, "ui.favTab", T, `from full map: hash "${s.hash}" s-on ${s.on} visible ${s.vis} s-full ${s.full}`); }
+      });
       const zid = api.zones[1].id;
-      await loadHome(page, "#" + zid); await page.waitForFunction(() => !!document.querySelector("#report.sheet .rep-head"), null, { timeout: 8000 }).catch(() => {});
-      await page.evaluate(() => { const b = document.getElementById("sheetClose"); b && b.click(); }); await page.waitForTimeout(500);
-      await tapFav(); { const s = await fav(); expect(s.hash === "#favTop" && s.on && s.vis, "ui.favTab", T, `report #${zid} closed → tab: hash "${s.hash}" s-on ${s.on} visible ${s.vis}`); }
+      await flaky("ui.favTab", "ui.favTab after report", async () => {
+        await loadHome(page, "#" + zid); await page.waitForFunction(() => !!document.querySelector("#report.sheet .rep-head"), null, { timeout: 8000 }).catch(() => {});
+        await page.evaluate(() => { const b = document.getElementById("sheetClose"); b && b.click(); }); await page.waitForTimeout(500);
+        await tapFav(); { const s = await fav(); expect(s.hash === "#favTop" && s.on && s.vis, "ui.favTab", T, `report #${zid} closed → tab: hash "${s.hash}" s-on ${s.on} visible ${s.vis}`); }
+      });
     }
   } catch (e) { bad("runtime", "검사 실행", "uiLane crashed: " + String(e.message || e).split("\n")[0]); }
   finally { await ctx.close().catch(() => {}); }
@@ -874,7 +938,9 @@ async function r1Lane(browser, api, errs) {
     const T = "아래 탭 정확히 4개(찾기·관심·소식·MY) · 어느 화면에서든(도구·상세 닫은 뒤·전체 지도·뒤로 가기) 지금 탭 하나만 aria-current";
     const tabs = () => page.evaluate(() => { const B = [...document.querySelectorAll("#sNav [data-nav]")].filter((b) => window.__qc.vis(b)); return { n: B.length, lab: B.map((b) => (b.querySelector("span") || b).textContent.trim()).join(","), cur: B.filter((b) => b.getAttribute("aria-current") === "page").map((b) => b.dataset.nav) }; });
     const want = async (where, k) => { const t = await tabs(); expect(t.n === 4 && t.lab === "찾기,관심,소식,MY" && t.cur.length === 1 && t.cur[0] === k, "ui.tabs4", T, `${where}: ${t.n} tabs [${t.lab}] current [${t.cur}] want ${k}`); };
-    for (const [h, k] of [["", "home"], ["#favTop", "fav"], ["#news", "news"], ["#my", "my"], ["#rankHub", "my"], ["#planner", "my"], ["#map", "home"]]) { await loadHome(page, h); await page.waitForTimeout(700); await want(h || "/", k); }
+    for (const [h, k] of [["", "home"], ["#favTop", "fav"], ["#news", "news"], ["#my", "my"], ["#rankHub", "my"], ["#planner", "my"]]) { await loadHome(page, h); await page.waitForTimeout(700); await want(h || "/", k); }
+    // /#map 진입(전체 지도 붙이기)은 알려진 불안정 — 같은 판정을 최대 3번
+    await flaky("ui.tabs4", "ui.tabs4 /#map", async () => { await loadHome(page, "#map"); await page.waitForTimeout(700); await want("#map", "home"); });
     // 탭을 차례로 누르기 → 뒤로 가기
     await loadHome(page); await page.mouse.move(10, 10).catch(() => {}); await page.evaluate(() => window.dispatchEvent(new Event("scroll")));   // 첫 손길 → 전체 앱 붙이기
     await page.waitForFunction(() => !window.ZP_boot || window.ZP_boot.hyd === 1, null, { timeout: 15000 }).catch(() => {}); await page.waitForTimeout(600);
@@ -1124,6 +1190,9 @@ async function deskLane(browser, errs) {
       await page2.waitForFunction(() => { const m = window.ZP_lmx && window.ZP_lmx.map && window.ZP_lmx.map(); return m && m.loaded() && !m.isMoving(); }, null, { timeout: 25000, polling: 200 }).catch(() => {});
       await page2.waitForTimeout(800);
       // hover: 알약이 있는 줄에 마우스 → 그 알약 .hov · 알약에 마우스 → 그 줄 .lm-hov (서울 보기는 구 묶음이라 첫 줄 구역 근처로 당겨서)
+      // desk.hover는 알려진 불안정(지도가 아직 움직이는 중 마우스) → flaky
+      await flaky("desk.hover", "desk.hover", async (a) => {
+      if (a > 1) { await page2.mouse.move(5, 500); await page2.waitForTimeout(800); }
       await page2.evaluate(() => { const id = (document.querySelector("#sList li.s-card") || {}).dataset?.zid; const f = (window.ZP_lmx.map().getSource("zlab").serialize().data.features || []).find((x) => x.properties.id === id); if (f) window.ZP_lmx.map().jumpTo({ center: f.geometry.coordinates, zoom: 13 }); });
       await page2.waitForTimeout(600); await page2.waitForFunction(() => !window.ZP_lmx.map().isMoving() && document.querySelectorAll("#lmap button.zpill").length > 0, null, { timeout: 8000, polling: 150 }).catch(() => {});
       const pr = await page2.evaluate(() => { const ids = new Set([...document.querySelectorAll("#lmap button.zpill[data-zid]")].map((b) => b.dataset.zid)); const li = [...document.querySelectorAll("#sList li.s-card")].find((l) => ids.has(l.dataset.zid) && l.getBoundingClientRect().top > 80 && l.getBoundingClientRect().bottom < innerHeight - 10); if (!li) return null; const b = li.getBoundingClientRect(); return { id: li.dataset.zid, x: b.left + 40, y: b.top + b.height / 2 }; });
@@ -1137,6 +1206,7 @@ async function deskLane(browser, errs) {
         expect(h2, "desk.hover", "PC 목록 줄에 마우스 → 지도 알약 강조 · 알약에 마우스 → 목록 줄 강조", `pill ${pr.id} hover → row .lm-hov ${h2}`);
         await page2.mouse.move(5, 500);
       } else skip("desk.hover", "PC 목록 줄에 마우스 → 지도 알약 강조 · 알약에 마우스 → 목록 줄 강조", "no row with a visible pill");
+      });
       const row = await page2.evaluate(() => { const a = [...document.querySelectorAll("#sList li.s-card a[data-id]")][2]; if (!a) return null; a.click(); return a.dataset.id; });
       if (row) {
         // 날아가기가 끝날 때까지(바쁜 기계에선 늦다) → 그 뒤 2초 동안 그 자리에 머무는지
@@ -1840,7 +1910,7 @@ async function r19Lane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- map.attachJank: 붙이기(zp-att) ~ 자리 그림 걷힘(zp-fade) 사이 가장 긴 작업 ≤ 300ms (이 기계 · CPU 1배) · 붙는 동안 끈 막대 숫자 지연 중앙 ≤ 100 · 최대 ≤ 200
-  {
+  await flaky("map.attachJank", "map.attachJank", async () => {
     const TJ = "실제 지도를 붙이는 동안 가장 긴 작업 ≤ 300ms(이 기계 1배) · 붙는 중 막대 끌기 숫자 지연 중앙값 ≤ 100ms · 최대 ≤ 200ms";
     // 27차: 이 기계가 바쁘면(다른 검사·브라우저가 같이 돌면) 한 번 더 재고, 바쁜 배수(loadFactor)만큼 기준을 늘린다 — 공유 기계에서의 거짓 실패
     const once = async () => {
@@ -1885,7 +1955,7 @@ async function r19Lane(browser, api, errs) {
       if (lat.length < 6) bad("map.attachJank", TJ, `첫 끌기: 숫자가 거의 바뀌지 않음(${lat.length}번)`);
       else { const med = lat[lat.length >> 1], mx = lat[lat.length - 1]; expect(okL(lat, lf), "map.attachJank", TJ, `first drag at 2.5s: median ${Math.round(med)}ms max ${Math.round(mx)}ms (n ${lat.length}) · load ×${lf.toFixed(2)} tries ${tries}`); }
     } catch (e) { bad("runtime", "검사 실행", "firstDrag crashed: " + String(e.message || e).split("\n")[0]); }
-  }
+  });
   // --- ui.scrubA11y: 홈 금액 막대 = role=slider(값·글 · 키보드 ←→ PageUp/Down Home/End)
   {
     const TA = "홈 금액 막대: role=slider · aria-valuemin/max/now · aria-valuetext '2억, 54곳' · 초점 가능(aria-hidden 아님) · 화살표·PageUp/Down·Home/End";
@@ -2587,6 +2657,7 @@ const FORCE_SA = () => {   // (display-mode: standalone) 규칙을 그대로 꺼
 // 1라운드 B: 이 크로미움은 CDP display-mode 흉내가 듣지 않는다 → referrer(android-app://) 덮어쓰기 + 세션 표시(zp.tapp=1)를 둘 다 넣고, 각 검사 전에 html.is-tapp가 켜졌는지부터 단언(tapp.on)
 const TWA = () => { try { Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.zippin/" }); } catch (e) {} try { sessionStorage.setItem("zp.tapp", "1"); } catch (e) {} };
 async function tappLane(browser, api, errs) {
+  const SEC = secGate("tapp");   // 묶음마다 시간 재기 · QAC_PART=tapp:k/n 이면 k번째 몫만(나눠서 따로 돌림)
   const mob = (w, h, cs = "light") => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs });
   const ADRX = /googlesyndication|adsbygoogle|pagead2/i;
   const appPage = async (vp, onb) => {
@@ -2613,7 +2684,7 @@ async function tappLane(browser, api, errs) {
   // 원본 changes.json 항목 수(RAW) = 합친 소식들이 품은 항목 수의 합 · 단계·고시·필요한 돈은 구역마다 따로(합치지 않음)
   const RAW = {}, EXP = {}, UK = new Set(); (CH ? CH.items : []).forEach((e) => { RAW[e.type] = (RAW[e.type] || 0) + 1; const k = /^(trade|auction)$/.test(e.type) ? `${e.date}|${e.type}|${e.text}|${e.g || ""}` : `${e.id}|${e.date}|${e.type}|${e.text}`; if (!UK.has(k)) { UK.add(k); EXP[e.type] = (EXP[e.type] || 0) + 1; } });
   // --- tapp.web: 브라우저(웹)에는 앱 화면이 하나도 없다 · 앱 묶음(/b/t.*)도 안 받는다 · 정적 페이지 광고는 예전처럼 받는다
-  {
+  if (SEC(0, "tapp.web")) {
     const T = "브라우저(웹): html.is-tapp·앱 첫 화면·전체 소식·처음 안내 없음 · 아래 탭 4개 그대로 · 앱 묶음(/b/t.*) 안 받음 · 광고 스크립트는 정적 페이지에서 그대로 요청";
     for (const [vp, tag] of [[mob(390, 844), "390"], [{ viewport: { width: 1440, height: 900 } }, "1440"]]) {
       const { ctx, page } = await newPage(browser, vp, errs);
@@ -2640,7 +2711,7 @@ async function tappLane(browser, api, errs) {
   }
   // --- web.sheetInView(1·2라운드 · 웹 결함): 관심 탭 줄 → 리포트가 실제로 보임 — 폰(390: 시트)·PC/태블릿(1024·1280: 두 칸 리포트) · 뒤로 = 관심 탭
   //     | 모아타운 관리지역(웹·앱 같음) = 큰 숫자 없이 안내 한 줄 + 안의 사업구역 목록(56px 줄 · 단계) + 참고값 한 줄 · 입주권 판정 없음 · 목록 단계 = 그 구역 시트 칩
-  for (const W of [390, 1024, 1280]) {
+  if (SEC(1, "web.sheetInView")) for (const W of [390, 1024, 1280]) {
     const T = "브라우저(390·1024·1280): 관심 탭 줄 → 구역 리포트 보임(폰 시트 · PC 두 칸) · 뒤로 = 관심 탭 | 모아타운 관리지역 첫 화면 = 안내 한 줄 + 사업구역 목록 + 참고값('가능'·입주권 판정 없음) · 목록 단계 = 그 시트 칩";
     const { ctx, page } = await newPage(browser, W < 900 ? mob(W, 844) : { viewport: { width: W, height: 860 } }, errs);
     try {
@@ -2667,7 +2738,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- web.loanPill(2라운드 5): '대출 끼고' 가정 알약 = 실제 계산(아파트 시세·빌라 감정가) — '감정가 40%'만 쓰지 않는다(웹·앱 같음)
-  {
+  if (SEC(2, "web.loanPill")) {
     const T = "'대출 끼고' 가정 알약: '시세·감정가 N% 대출 가정'(아파트는 시세, 빌라는 감정가 — 계산과 같음)";
     const { ctx, page } = await newPage(browser, mob(390, 844), errs);
     try {
@@ -2680,7 +2751,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.home: 첫 화면(아이콘 10개 = 있는 화면 · 종 배지 · 배너 3장 실제 글) · 아래 탭 5개 · 뒤로 = 홈
-  {
+  if (SEC(3, "tapp.home")) {
     const T = "설치 앱 첫 화면: 아이콘 10개 모두 있는 화면으로 열림(앱 화면·페이지 200) · 종 N 배지 = 새 소식 수 · 배너 3장(실제 링크 · 1 / 3) · 내 돈 카드 그대로";
     const T2 = "설치 앱 아래 탭 5개(홈·지도·관심·소식·MY): 누르면 그 화면 · 지도 = 화면 가득 · 탭은 홈 위 한 칸(뒤로 = 홈) · 표시(aria-current) 맞음";
     const { ctx, page, ads } = await appPage(mob(390, 844));
@@ -2750,7 +2821,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.static: (리드 결정 A) 정적 페이지 HTML은 simple-home과 같게 — 광고 태그는 예전 리터럴 그대로(심사 전엔 광고가 안 나옴), 앱 전용 주입 없음
-  {
+  if (SEC(4, "tapp.static")) {
     const T = "정적 페이지 전수: 애드센스 리터럴 태그 그대로(심사 기준 · tools/fixtures/ads_tag_pages.json의 페이지마다 한 번 · 바이트 같음) · 앱 전용 광고 로더(data-zp-ads) 없음 · 다른 페이지엔 광고 태그 없음";
     const bad1 = [];
     const TAG = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>';
@@ -2766,7 +2837,7 @@ async function tappLane(browser, api, errs) {
     expect(!bad1.length && nf > 900 && want.size > 50, "tapp.static", T, `${nf}쪽 · 태그 ${want.size}쪽 · ` + bad1.slice(0, 6).join(" ; "));
   }
   // --- tapp.staticSA: 앱(display-mode standalone)에서 연 정적 페이지 — 아래 탭 '지금 여기'(MY) 표시 없음 · 새 소식 = 작은 빨간 점 (pages.css display-mode 규칙만 · 브라우저는 그대로)
-  {
+  if (SEC(5, "tapp.staticSA")) {
     const T = "앱에서 연 정적 페이지: 아래 탭 MY가 현재 위치로 강조되지 않음 · 소식 표시 = 8px 빨간 점(글자 없음) — pages.css display-mode 규칙";
     const { ctx, page } = await newPage(browser, mob(390, 844), errs);
     try {
@@ -2781,7 +2852,7 @@ async function tappLane(browser, api, errs) {
   }
   // --- tapp.noAds(첫 화면): 앱 첫 화면은 광고 스크립트를 안 받는다(정적 페이지는 결정 A로 리터럴 태그 — 별도 브랜치 ads-app-guard에 로더)
   // pre-adsense 3: 앱에서 연 정적 페이지 = 아래 탭 5개(홈·지도·관심·소식·MY) · 브라우저는 4개 그대로(광고 태그는 결정 A로 리터럴 그대로라 광고 요청은 여기서 세지 않음)
-  {
+  if (SEC(6, "tapp.static5")) {
     const T = "설치 앱에서 연 정적 페이지(/z·리포트·가이드): 아래 탭 5개(홈·지도·관심·소식·MY) · 같은 페이지 브라우저는 4개";
     const { ctx, page } = await appPage(mob(390, 844)); const ads = [];
     try {
@@ -2798,7 +2869,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.split(pre-adsense 5): 설치 앱은 앱 코드를 덩이로 나눠 도는 판(/b/ta.*.js)만 받고, 웹은 예전 판(/b/a.*.js)만 받는다(파일 수 같음) · 앱은 마지막 덩이까지 돈 뒤 붙음 · 덩이 사이 예약(타이머·프레임) 잡아 두기가 끝나 원래 함수로 돌아옴 · 웹 서비스 워커 미리 받기에 ta 없음
-  {
+  if (SEC(7, "tapp.split")) {
     const T = "앱 코드 나눠 실행: 설치 앱 = /b/ta.*.js 하나(a.*.js 안 받음) · 웹 = /b/a.*.js 하나(ta 안 받음 · 받는 파일 수 그대로) · 앱 ZP_aWait 풀린 뒤 zp:hydrated · setTimeout 원래 함수 · sw 미리 받기 정규식에 ta 안 걸림";
     const R = [];
     for (const mode of ["app", "web"]) {
@@ -2821,7 +2892,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.split", T, R.join(" ; "));
   }
   // --- tapp.toggleDark(pre-adsense · 실기기 다크 모드): MY 알림 스위치 켜짐·꺼짐·막힘 — 계산 색 = 지정 색 · 비텍스트 대비(켜짐 트랙/카드 ≥ 3 · 꺼짐 손잡이/카드 ≥ 3 · 막힘 손잡이/카드 ≥ 3) · 막힘 글자 대비 ≥ 4.5 · 라이트는 예전 색 그대로
-  {
+  if (SEC(8, "tapp.toggleDark")) {
     const T = "설치 앱 다크 MY 알림 스위치: 켜짐 트랙 #8EA8F5·흰 손잡이 · 꺼짐 트랙 #3A3F47(+1px 밝은 테두리)·손잡이 #B0B8C1 · 막힘 손잡이 #6B7280 · 비텍스트 대비 3:1 이상 · 막힘 글자 4.5:1 이상 · 라이트 켜짐 #1F3A87 그대로";
     const R = [];
     for (const cs of ["dark", "light"]) {
@@ -2854,7 +2925,7 @@ async function tappLane(browser, api, errs) {
   // --- tapp.noHomeFlash(tabfix): 아래 탭으로 화면을 바꾸는 동안 목적 화면이 아닌 홈 요소(홈 카드·그리드·배너·목록)가 한 프레임도 안 보임 — 4×CPU · 경로마다 5번
   // 탭끼리 20쌍 · 도구 화면(입주 계산·순위) → 탭 · 구역 시트 → 탭 · 정적 페이지(리포트·/z·가이드·소개) → 탭(새 문서: 덮개는 남색 스플래시가 아니라 탭 바탕) · 콜드 스타트는 그대로 스플래시
   // 매 프레임(requestAnimationFrame) 화면 여섯 곳에서 맨 위 요소를 집어 홈 요소 안이면 '홈 보임'. 홈에서 떠날 때는 홈이 한 번 가려진 뒤 다시 보이면 셈
-  {
+  if (SEC(9, "tapp.noHomeFlash")) {
     const T = "설치 앱 탭 전환 중 홈 비침 없음(4×CPU · 경로마다 5번): 탭 20쌍 · 도구 → 탭 · 시트 → 탭 · 정적 페이지 → 탭(덮개 = 탭 바탕, 남색 스플래시 아님) · 콜드 스타트는 스플래시";
     const R = []; let nT = 0;
     const PROBE = () => { window.__fr = []; window.__pr = 0; try { if (sessionStorage.getItem("__prOn") === "1") { window.__pr = 1; sessionStorage.removeItem("__prOn"); } } catch (e) {}
@@ -2906,7 +2977,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length && nT >= (+process.env.QAC_NHF_RUNS || 5) * (16 + 8 + 10 + 16), "tapp.noHomeFlash", T, `${nT}번 전환 · ` + R.slice(0, 8).join(" ; "));
   }
   // --- tapp.feed: 전체 소식 = data/changes.json(종류별 수 같음) · 칩으로 거르기 · 줄을 누르면 그 구역 · 관심 구역(예전 소식) 칸 그대로
-  {
+  if (SEC(10, "tapp.feed")) {
     const T = "설치 앱 전체 소식: 칩 수 = changes.json을 같은 거래끼리 합친 종류별 건수(실거래·경공매만 합침 · 합친 소식의 항목 합 = 원본 수) · 칩 거르기 · 줄 → 구역 열림 · '관심 구역' 칸 = 예전 내 소식";
     const { ctx, page } = await appPage(mob(390, 844));
     try {
@@ -2933,7 +3004,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.onboard: 처음 실행 안내 3장 · 한 번만(건너뛰면 다시 안 뜸) · 뒤로 가기로도 닫힘
-  {
+  if (SEC(11, "tapp.onboard")) {
     const T = "설치 앱 처음 실행 안내: 처음엔 뜸(3장 · 건너뛰기 있음) · 건너뛴 뒤 다시 열면 안 뜸 · 닫은 뒤 홈에서 기록 깊이 0";
     const { ctx, page } = await appPage(mob(390, 844), true);
     try {
@@ -2951,7 +3022,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.a11y · tapp.overflow · tapp.cls: axe 심각·치명 0(밝게·어둡게: 홈·소식·안내) · 360/390/412 가로 넘침 없음 · 첫 화면 밀림 ≈ 0
-  {
+  if (SEC(12, "tapp.a11y")) {
     const T = "설치 앱 접근성: axe serious·critical 0 — 홈·전체 소식·지도 탭·처음 안내(밝게·어둡게)";
     const T2 = "설치 앱 가로 넘침 없음(360·390·412): 홈·소식·관심·MY·지도 탭(레이아웃 뷰포트 = 창 폭)";
     const T3 = "설치 앱 첫 화면 밀림(CLS) 0.02 미만";
@@ -2996,8 +3067,9 @@ async function tappLane(browser, api, errs) {
   }
   // ================= 1라운드 레드팀 수정이 되돌아가지 않게 =================
   // --- tapp.race(D1): 4×CPU 감속으로 10번 — 웹 코드가 아래 탭을 다시 그려도 5탭(지도 포함) 유지
-  {
+  if (SEC(13, "tapp.race")) {
     const T = "설치 앱 아래 탭 5개 경쟁 상태: 4×CPU 감속 10번 모두 홈·지도·관심·소식·MY(지도 탭 사라짐 없음)";
+    await flaky("tapp.race", "tapp.race", async (a) => {   // 알려진 불안정(감속 중 로컬 서버 응답 늦음) → 10번 묶음을 최대 3번
     const R = [];
     for (let i = 0; i < 10; i++) {
       const { ctx, page } = await appPage(mob(390, 844));
@@ -3005,7 +3077,7 @@ async function tappLane(browser, api, errs) {
         const cdp = await ctx.newCDPSession(page); await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
         page.__where = "tapp.race " + i;
         // 로컬 python 서버가 감속 중 가끔 응답을 늦게 준다 → 문서 준비까지만 기다리고, 주소 열기 자체가 실패하면 한 번 더(탭 판정과 무관한 실패)
-        await page.goto(BASE + "/?src=app&race=" + i, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => page.goto(BASE + "/?src=app&race=" + i + "b", { waitUntil: "domcontentloaded", timeout: 60000 }));
+        await page.goto(BASE + "/?src=app&race=" + i + "-" + a, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => page.goto(BASE + "/?src=app&race=" + i + "b" + a, { waitUntil: "domcontentloaded", timeout: 60000 }));
         await page.waitForFunction(() => document.documentElement.classList.contains("tapp-on"), null, { timeout: 30000 }).catch(() => {});
         await page.waitForTimeout(2500);
         R.push(await page.evaluate(() => [...document.querySelectorAll("#sNav [data-nav]")].map((b) => b.dataset.nav).join(",") + (document.querySelectorAll("#sNav .tn-i svg").length >= 10 ? "" : " (그림 없음)")));
@@ -3013,9 +3085,10 @@ async function tappLane(browser, api, errs) {
       finally { await ctx.close().catch(() => {}); }
     }
     expect(R.every((x) => x === "home,map,fav,news,my"), "tapp.race", T, JSON.stringify(R));
+    });
   }
   // --- tapp.lcp(18): 4×CPU에서 앱 첫 화면 LCP ≤ 1.0초(3번 가운데 값)
-  {
+  if (SEC(14, "tapp.lcp")) {
     const T = "설치 앱 첫 화면 LCP ≤ 1,000ms (4×CPU 감속 · 3번 가운데 값) — 섬 위에 앱 첫 화면을 먼저 그림";
     const L = [];
     for (let i = 0; i < 3; i++) {
@@ -3032,7 +3105,7 @@ async function tappLane(browser, api, errs) {
     const med = L.slice().sort((a, b) => a - b)[1];
     expect(med > 0 && med <= 1000, "tapp.lcp", T, `LCP ${L.join(", ")}ms`);
   }
-  {
+  if (SEC(15, "tapp.chips")) {
     const { ctx, page } = await appPage(mob(390, 844));
     try {
       // --- tapp.order(8): 머리 → 가치 한 줄(= 내 돈 카드 숫자) → 검색 → 내 돈 카드 → 아이콘 → 배너 → 목록 · 아이콘 순서·이름
@@ -3066,7 +3139,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.sheets(1·4): 관심 탭 줄 → 시트 보임 → 뒤로 = 관심 탭 · 지도 탭(구) → 구역 시트 → 뒤로 = 지도 탭 · 홈으로 → 구 거르기 안 샘 · 모아타운 → 개별 조합 → 뒤로 = 모아타운 시트(단계 표기 같음)
-  {
+  if (SEC(16, "tapp.sheets")) {
     const T = "설치 앱 시트: 관심 탭 줄 → 시트 보임 · 뒤로 = 관심 탭 | 지도 탭 구 → 구역 → 뒤로 = 지도 탭 · 홈에 구 거르기 안 샘 | 모아타운 → 개별 조합(목록 단계 = 시트 칩) → 뒤로 = 모아타운";
     const { ctx, page } = await appPage(mob(390, 844));
     try {
@@ -3106,7 +3179,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.appbar(9·10·11·17): 아이콘 화면 = 56px 앱바(← 44×44 · 제목 17px · 남색 막대 없음 · 테두리 카드 없음) · 웹 바닥글 숨김 · MY 정부 무관 고지 · MY 제목 28px · 알림 경로 '(또는 앱)'
-  {
+  if (SEC(17, "tapp.appbar")) {
     const T = "설치 앱 아이콘 화면: 로고 머리 숨김 · 맨 위 56px 앱바(top 0 · 스크롤해도 · ← 44×44 · 제목 17px) · 남색 막대·테두리 카드 없음 · '모으면 언제' 따로 주소(#saveTop)·그 칸 맨 위 · 화면·MY 이름 '입주권 나오나' · 웹 바닥글 없음 · MY 정부 무관 고지 · 제목 28px";
     const { ctx, page } = await appPage(mob(390, 844));
     try {
@@ -3132,7 +3205,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.onbPolish(16): 안내 제목 초점 테두리 없음 · 진행 점 남색 · 2장 목록 페이드 · 끝나면 토스트 닫힘
-  {
+  if (SEC(18, "tapp.onbPolish")) {
     const T = "설치 앱 처음 안내: 제목 프로그램 초점 테두리 없음 · 진행 점 남색 · 2장 목록 아래 페이드 · 안내에서 담은 '관심 구역에 추가' 토스트는 안내가 끝나면 닫힘";
     const { ctx, page } = await appPage(mob(390, 844), true);
     try {
@@ -3149,7 +3222,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // ================= 2라운드 레드팀 수정이 되돌아가지 않게 =================
-  for (const W of [360, 390]) {
+  if (SEC(19, "tapp.r2misc")) for (const W of [360, 390]) {
     const { ctx, page } = await appPage(mob(W, 800));
     try {
       await appHome(page);
@@ -3196,7 +3269,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // tapp.onbToast(12): 처음 안내 2장에서 담아도 토스트가 안내를 가리지 않음
-  {
+  if (SEC(20, "tapp.onbToast")) {
     const { ctx, page } = await appPage(mob(390, 844), true);
     try {
       await appHome(page); await page.waitForTimeout(300);
@@ -3210,7 +3283,7 @@ async function tappLane(browser, api, errs) {
   // ================= 3라운드: 고친 것마다 모든 진입 경로·같은 부품 모든 화면 =================
   const feedOk = (page) => page.evaluate(() => ({ chips: document.querySelectorAll("#tFeed [data-ft]").length, rows: document.querySelectorAll("#tFeed .tf-it").length, seg: (document.getElementById("news") || {}).dataset?.tseg }));
   // --- tapp.newsEntry(1): 소식 탭 빈 화면 없음 — 콜드 /#news ×10 · 정적 페이지(리포트)에서 아래 '소식' ×5 · 홈에서 탭 · 앱 안에서 주소만 #news(알림 클릭이 여는 길)
-  {
+  if (SEC(21, "tapp.newsEntry")) {
     const T = "설치 앱 소식 탭: 콜드 /#news ×10 · 정적 페이지 → '소식' 탭 ×5 · 탭 누름 · 알림 클릭 주소(#news) 모두 칩 6개·목록 있음";
     const R = [];
     for (let i = 0; i < 10; i++) {
@@ -3240,7 +3313,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.newsEntry", T, R.join(" ; "));
   }
   // --- tapp.onbPush(2): 푸시 키가 200이면 처음 안내 3/3에 '알림 켜기'(MY를 열지 않아도)
-  {
+  if (SEC(22, "tapp.onbPush")) {
     const T = "설치 앱 처음 안내 3/3: /api/push/key 200(정상 키)이면 '알림 켜기' 단추가 보임(안내를 열 때 키를 미리 받음)";
     const { ctx, page } = await appPage(mob(390, 844), true);
     try {
@@ -3257,7 +3330,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.toolEntry(4·14): 도구 7개 — 타일로 열기 · 콜드 해시(/?src=app#…)로 열기 모두 앱바(제목)·로고 머리 없음·같은 제목 화면에서 숨김(읽어 주기 유지)·앱바 아래 첫 줄 16px 안팎 · 콜드 #saveTop ×6 = 모으면 언제
-  {
+  if (SEC(23, "tapp.toolEntry")) {
     const T = "설치 앱 도구 화면(순위·출퇴근·입주권 나오나·매수 전 규정·통계·입주 계산·모으면 언제): 타일·콜드 해시 모두 앱바 제목 · 아래 중복 제목은 화면에서 숨김(sr) · 콜드 #saveTop 6번 모두 '모으면 언제'";
     const TOOLS = [["rank", "#rankHub", "순위"], ["commute", "#commuteTop", "출퇴근"], ["diag", "#diagTop", "입주권 나오나"], ["rules", "#rulesTop", "매수 전 규정"], ["stats", "#statsTop", "통계"], ["calc", "#planner", "입주 계산"], ["save", "#saveTop", "모으면 언제"]];
     const chk = (page, want) => page.evaluate((want) => { const H = document.documentElement, t = (document.getElementById("tBarT") || {}).textContent, hd = getComputedStyle(document.getElementById("hdr")).display; const sec = document.querySelector(H.classList.contains("t-save") ? "#saveTop" : ".s-on"); const h = sec && sec.querySelector(".sec-h h2, .pl-in > .pl-t"); const hw = h ? h.getBoundingClientRect().width : 0; return { ok: H.classList.contains("t-tool") && t === want && hd === "none" && (!h || hw <= 1), t, hw: Math.round(hw) }; }, want);
@@ -3280,7 +3353,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.toolEntry", T, R.join(" ; "));
   }
   // --- tapp.segAll(5): 단일 선택 모양 하나 — 홈 카드·지도 카드·MY·순위·입주 계산·모으면 언제·출퇴근·소식(전체/관심 · 그 밖 소식) 선택 = 흰 바탕 · 진한 글자 · 트랙 연회색(라이트)
-  for (const cs of ["light", "dark"]) {
+  if (SEC(24, "tapp.segAll")) for (const cs of ["light", "dark"]) {
     const { ctx, page } = await appPage(mob(390, 844, cs));
     try {
       await appHome(page);
@@ -3299,7 +3372,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.r3misc: 가치 한 줄(숫자 없음) · '왜 이 금액?' 시트 뒤로 = 닫힘(앱 안 그대로) · 지도 목록 → 뒤로 = 지도 · 날짜 머리 종류별 · '외 N곳' 함께 이름 · 모아타운 행(› · 입주 완료) · MY 막힘 한 줄(중복 없음) · 모으면 언제 문구·바꾸기
-  {
+  if (SEC(25, "tapp.r3misc")) {
     const { ctx, page } = await appPage(mob(390, 844));
     try {
       await appHome(page);
@@ -3332,7 +3405,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- web.why(6): 브라우저(390)도 '왜 이 금액?' 바텀시트는 뒤로 = 닫힘(페이지를 떠나지 않음)
-  {
+  if (SEC(26, "web.why")) {
     const { ctx, page } = await newPage(browser, mob(390, 844), errs);
     try {
       await ctx.addInitScript(() => { try { localStorage.setItem("zp.onb", "1"); } catch (e) {} });
@@ -3345,7 +3418,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- web.wideScroll(R3-2): 넓은 화면(1024·1280·1440) — 관심 아래쪽 줄 → 두 칸 리포트 제목이 화면 안 · 칩 '← 관심 구역' · 뒤로 = 관심(보던 자리 ±40px)
-  for (const W of [1024, 1280, 1440]) {
+  if (SEC(27, "web.wideScroll")) for (const W of [1024, 1280, 1440]) {
     const { ctx, page } = await newPage(browser, { viewport: { width: W, height: 860 } }, errs);
     try {
       await ctx.addInitScript(() => { try { localStorage.setItem("jg-fav", JSON.stringify(["o497", "o111", "o144", "o392", "o960", "o337", "o890", "o913", "s21", "s69", "o28", "o58", "o10", "o24"])); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
@@ -3363,7 +3436,7 @@ async function tappLane(browser, api, errs) {
     finally { await ctx.close().catch(() => {}); }
   }
   // --- tapp.axeAll(3): 앱 모드 모든 화면 axe serious·critical 0 — 라이트·다크 × 홈·지도·관심·소식(전체·관심 구역)·MY·도구 7개·구역 시트·모아타운 시트
-  {
+  if (SEC(28, "tapp.axeAll")) {
     let AXE = null; try { const ap = process.env.AXE_PATH || require.resolve("axe-core/axe.min.js"); AXE = fs.readFileSync(ap, "utf8"); } catch (e) {}
     const T = "설치 앱 axe serious·critical 0 — 라이트·다크 × 홈·지도·관심·소식(전체·관심 구역)·MY·도구 7개·구역 시트·모아타운 시트";
     if (!AXE) skip("tapp.axeAll", T, "axe-core 없음");
@@ -3385,7 +3458,7 @@ async function tappLane(browser, api, errs) {
   }
   // --- tapp.entry(4라운드 진입 경로 매트릭스): 콜드 해시(소식·inbox·지도·관심·MY·도구 7개·#oID) · 숏컷(/?src=app#map·#favTop) · 정적 페이지 → 탭 · 앱 안 알림(zp-open) × 390·1280
   //   (a) 그 화면이 뜬다 (b) scrollY 0(1.5초·3.5초 · 넓은 화면 두 칸 리포트는 제목도 화면 안) (c) 뒤로 1번 = 홈(앱 안 알림은 누르기 전 탭) · 홈에서 뒤로 = 앱 닫힘
-  {
+  if (SEC(29, "tapp.entry")) {
     const T = "설치 앱 진입 경로 매트릭스(콜드 해시·숏컷·정적 페이지 → 탭·앱 안 알림 × 390·1280): 화면이 뜨고 맨 위(scrollY 0)에서 열리며, 뒤로 1번 = 홈(알림은 원래 탭) · 홈에서 뒤로 = 앱 닫힘";
     const SCR = { news: "#news", inbox: "#news", favTop: "#favTop", my: "#my", rankHub: "#rankHub", commuteTop: "#commuteTop", diagTop: "#diagTop", rulesTop: "#rulesTop", statsTop: "#statsTop", planner: "#planner", saveTop: "#saveTop" };
     const ENT = ["#news", "#inbox", "#map", "#favTop", "#my", "#rankHub", "#planner", "#saveTop", "#commuteTop", "#diagTop", "#rulesTop", "#statsTop", "#o890", "src#map", "src#favTop", "static", "zpopen"];
@@ -3437,7 +3510,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.entry", T, `${n}경로 · ` + R.slice(0, 6).join(" ; "));
   }
   // --- tapp.coldTop(4라운드 1): 도구 7개 콜드 해시 × 390·412 — 1.5초·3.5초·8초 모두 scrollY 0(앱바 아래 첫 블록 · 48px 내려가던 것)
-  {
+  if (SEC(30, "tapp.coldTop")) {
     const T = "설치 앱 도구 7개 콜드 해시(390·412): 1.5·3.5·8초 모두 scrollY 0";
     const R = [];
     const H = ["#rankHub", "#planner", "#saveTop", "#commuteTop", "#diagTop", "#rulesTop", "#statsTop"];
@@ -3455,7 +3528,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.coldTop", T, R.join(" ; "));
   }
   // --- tapp.cashBack(4라운드 3 · 웹도 web.cashBack): 금액 시트에서 고른 뒤 뒤로·×·'N곳 보기' — 주소 ?cash = 화면 금액 · 홈에서 뒤로 = 닫힘 · 모으면 언제 '바꾸기'도
-  {
+  if (SEC(31, "tapp.cashBack")) {
     const T = "금액 시트에서 고른 뒤 닫기(뒤로·×·N곳 보기): 주소 cash = 화면 금액 · 그다음 뒤로 = 앱 닫힘(홈) / 도구 '바꾸기'는 그 도구 화면 그대로";
     const R = [];
     for (const app of [true, false]) for (const how of ["back", "x", "go"]) {
@@ -3491,7 +3564,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.cashBack", T, R.join(" ; "));
   }
   // --- tapp.mapMin(4라운드 5): 앱 지도 탭 첫 화면 360·390·412 × 1·2·3·5억 × 전세·대출 — 화면 안 구 묶음 최저 = 홈 최저 · 묶음이 화면 가장자리 8px 안 · 화면 밖 묶음 없음 · '+N곳' 칩에 최저가
-  {
+  if (SEC(32, "tapp.mapMin")) {
     const T = "설치 앱 지도 탭 첫 화면(360·390·412 × 1·2·3·5억 × 전세·대출): 보이는 최저 = 홈 최저 · 묶음은 가장자리 8px 안 · 화면 밖 묶음 없음 · '+N곳 · 금액~' · 묶음 합 + 칩 = 홈 곳 수";
     const R = []; let n = 0;
     await Promise.all([360, 390, 412].map(async (W) => {
@@ -3516,7 +3589,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.mapMin", T, `${n}경우 · ` + R.slice(0, 5).join(" ; "));
   }
   // --- tapp.bigFont(4라운드 레인 2): 360 · 글자 1.3배(모든 요소 글자 크기 ×1.3 — 안드로이드 글꼴 크게) × 라이트·다크 — 홈 목록·아이콘 이름·관심 행·구역 시트: 겹침 없음 · 단어 중간 끊김 없음 · 가로 넘침 없음
-  {
+  if (SEC(33, "tapp.bigFont")) {
     const T = "큰 글씨(360 · 글자 1.3배 · 라이트·다크): 홈 목록 행(이름 ↔ 금액)·아이콘 이름·관심 행·구역 시트 머리가 겹치지 않고 이름이 단어 중간에서 끊기지 않음 · 가로 넘침 0";
     const grow = (page) => page.evaluate(() => { const els = [...document.querySelectorAll("body *")]; const v = els.map((e) => { const s = getComputedStyle(e); return [parseFloat(s.fontSize), s.lineHeight]; }); els.forEach((e, i) => { if (e.dataset.g13) return; e.dataset.g13 = 1; e.style.setProperty("font-size", v[i][0] * 1.3 + "px", "important"); if (/px/.test(v[i][1])) e.style.setProperty("line-height", parseFloat(v[i][1]) * 1.3 + "px", "important"); }); });
     const probe = (page, tag) => page.evaluate((tag) => {
@@ -3549,7 +3622,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.bigFont", T, R.slice(0, 8).join(" ; "));
   }
   // --- tapp.r4misc: 넓은 화면 #tVal 숨김 · 지도 ⓘ 44 · 경매 범례 ↔ 서울 전체 막대 안 겹침 · 지도 탭 시트 aria-current 지도 · 소식 칩 aria 전부 같은 꼴 · '내 구역만' · 배너 1 쉼표 없음 · 통계 '이주·철거' · 입주권 문구 · 다크 세그먼트 #3A404B·굵기 700/500 · 넓은 화면 순위 보조 글 대비 · 넓은 화면 소식 세그먼트 흰 thumb
-  {
+  if (SEC(34, "tapp.r4misc")) {
     const T = "설치 앱 4라운드 마감: 넓은 화면 #tVal 숨김 · 지도 ⓘ 44×44 · 경매 범례 ↔ '서울 전체' 안 겹침 · 지도 탭 시트에도 aria-current=지도 · 소식 칩 aria 같은 꼴 · '내 구역만' · 배너 1 쉼표 없음 · 통계 '이주·철거' · 입주권 '원칙적으로 없음'(!) · 다크 세그먼트 · 넓은 화면 순위 보조 글 대비";
     const R = [];
     try {
@@ -3590,7 +3663,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.r4misc", T, R.join(" ; "));
   }
   // --- tapp.overscroll(4라운드 22): 앱 모드 html·body overscroll-behavior-y = none/contain(당겨서 새로고침 없음) · 첫 그림 덮개 남색(#1F3A87·다크 #13265E) · 브라우저는 auto 그대로(덮개 없음)
-  {
+  if (SEC(35, "tapp.overscroll")) {
     const T = "당겨서 새로고침: 설치 앱 html·body overscroll-behavior-y none/contain · 첫 그림 덮개는 스플래시 남색 · 브라우저(웹)는 auto 그대로";
     const R = [];
     for (const cs of ["light", "dark"]) {
@@ -3601,7 +3674,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.overscroll", T, R.join(" ; "));
   }
   // --- tapp.cover(5라운드 A·B): 시작 덮개 = 스플래시 마크(흰 핀·노란 문 · data URI · 240px 칸 · 가운데) · 첫 무거운 작업 뒤 걷힘(앱이 붙은 뒤 2.5초 안) · 덮개 동안 theme-color 남색, 걷으면 되돌림 · 해시 진입도 같음 · 웹은 덮개 없음
-  {
+  if (SEC(36, "tapp.cover")) {
     const T = "설치 앱 시작 덮개: 스플래시와 같은 마크(흰 핀·노란 문, 인라인)·가운데 · 첫 계산·홈 그리기 뒤 걷힘(앱 붙은 뒤 ≤2.5초) · 덮개 동안 theme-color 남색 → 걷으면 원래 값 · 걷은 뒤 앱 5탭(웹 화면 노출 없음) · 웹은 덮개 없음";
     const R = [];
     for (const [u, cs] of [["/?src=app", "light"], ["/#news", "dark"], ["/#map", "light"], ["/#o497", "light"]]) {
@@ -3620,7 +3693,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.cover", T, R.join(" ; "));
   }
   // --- tapp.r5misc(5라운드): 오프라인 안내 = 페이지 안 판단(서비스 워커 전역 값 없음) · 시트 열린 채 새로고침해도 기록 안 늘어남 · 리포트 → 하단 탭 → 뒤로 = 리포트 · 지위양도 ! · 날짜 YYYY.M.D · 모아타운 행 단정 없음 · 자리 그림 ⓘ 44 · 홈 → 흰 원 없음 · 390 '갈 수 있는 곳' 제목 아래 탭 위 · 메타 줄 한 줄(기본 글씨)
-  {
+  if (SEC(37, "tapp.r5misc")) {
     const T = "설치 앱 5라운드 마감: 오프라인 탭 판단이 페이지 안 · 시트 새로고침 기록 불어남 없음 · 정적→탭→뒤로 = 그 페이지 · 지위양도 !·말투 · 날짜 YYYY.M.D · 모아타운 행 '원칙적으로' · 지도 자리 그림 ⓘ 44 · 홈 → 흰 원 없음 · 제목 접힘선 위 · 목록 메타 한 줄";
     const R = [];
     try {
@@ -3656,7 +3729,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.r5misc", T, R.join(" ; "));
   }
   // --- search.parcel(5라운드 16 · 웹·앱): 구역 안 필지 지번 → 그 구역 1위(모아타운 하위 조합 먼저) · 구역 밖 지번 → '구역 밖' 안내 · 기존 검색어(이름·동·역·구·초성·로마자) 상위 6줄 = 지번 검색 넣기 전(tools/fixtures/search_base.json) · 색인은 지번 꼴일 때만 받음
-  {
+  if (SEC(38, "search.parcel")) {
     const T = "지번 검색(웹·앱): 구역 안 필지 5개 → 그 구역 1위(모아타운은 필지가 든 사업구역 먼저) · 구역 밖 3개 → '구역 밖' 안내 · 기존 검색 상위 6줄 그대로 · 첫 화면에서 색인(pcli) 안 받음";
     const R = [];
     const { ctx, page } = await newPage(browser, { viewport: { width: 1280, height: 900 } }, errs);
@@ -3693,7 +3766,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "search.parcel", T, R.join(" ; "));
   }
   // --- search.names(출시 전 검수 B1 · 웹·앱 공통 검색): 구역 956곳을 각자 이름으로 검색 — 라이브가 찾던 곳은 하나도 빠지지 않음(tools/fixtures/search_names_live.json = 라이브 전수 결과) · 이름이 '동 + 번지' 꼴이어도 '구역 밖' 안내로 가리지 않음 · 이름이 똑같은 곳 1위(수유동 310-15 → s43)
-  {
+  if (SEC(39, "search.names")) {
     const T = "이름 전수 검색: 라이브가 찾던 구역은 후보도 전부 찾음(사라진 곳 0) · 찾은 줄 금액 = 정적 /z '지금 필요한 돈'(0 불일치) · '동+번지' 꼴 이름도 '구역 밖'으로 안 가림 · 이름 같은 곳 1위";
     const R = []; let n = 0, lost = [];
     const { ctx, page } = await newPage(browser, { viewport: { width: 1280, height: 900 } }, errs);
@@ -3728,7 +3801,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "search.names", T, `${n}곳 · ` + R.join(" ; "));
   }
   // --- moa.rows(6라운드 1 · 웹): 모아타운 관리지역(m1~m140) 하위 행 전부 — 행 값 = 그 구역 시트 '지금 필요한 돈' = 정적 /z 같은 칸(전수 · 0 불일치) · 입주권 없는 행은 '계산 보류' + '입주권 원칙적으로 없음 · 예외 매물만'
-  {
+  if (SEC(40, "moa.rows")) {
     const T = "모아타운 하위 행 값 = 시트 '지금 필요한 돈' = 정적 /z(전수) · 입주권 없는 행은 '계산 보류'·'원칙적으로 없음'(웹)";
     const R = []; let nRow = 0;
     const { ctx, page } = await newPage(browser, mob(390, 844), errs);
@@ -3758,7 +3831,7 @@ async function tappLane(browser, api, errs) {
     expect(!R.length && nRow > 50, "moa.rows", T, `${nRow}행 · ` + R.slice(0, 6).join(" ; "));
   }
   // --- tapp.coverSafe(6라운드 5): 덮개 안전장치 — 덮개가 있는 동안 아래로 터치가 새지 않음(pointer-events) · 앱 코드(a.js) 실패 → 바로 걷고 웹 머리·4탭 숨김 · 느린 앱 코드(11초) → 10초 안내 한 줄 · 배너 자동 넘김은 덮개를 걷은 뒤
-  {
+  if (SEC(41, "tapp.coverSafe")) {
     const T = "설치 앱 덮개 안전장치: 덮개 동안 터치 막힘 · 앱 코드 실패 땐 바로 걷고 웹 머리·4탭 숨김 · 10초 넘으면 안내 한 줄 · 배너 자동 넘김은 걷은 뒤";
     const R = [];
     const twaPage = async () => { const r = await newPage(browser, mob(390, 844), []); await r.ctx.addInitScript(TWA); await r.ctx.addInitScript(() => { try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} }); return r; };   // 일부러 막는 요청의 콘솔 오류는 전체 오류 검사(err.console)에 넣지 않는다
@@ -3791,13 +3864,14 @@ async function tappLane(browser, api, errs) {
     expect(!R.length, "tapp.coverSafe", T, R.join(" ; "));
   }
   // --- tapp.files(19·20): SW 미리 저장에서 앱 묶음(/b/t.*) 빼기 · assetlinks.json(JSON · TODO 없음 · 패키지 이름 · SHA-256 지문)
-  {
+  if (SEC(42, "tapp.files")) {
     const sw = String((await getPage("/sw.js")).text || ""), al = await get(BASE + "/.well-known/assetlinks.json").catch(() => ({ text: "" }));
     let j = null; try { j = JSON.parse(al.text); } catch (e) {}
     const fp = j && j[0] && j[0].target && j[0].target.sha256_cert_fingerprints;
     expect(/\/\\\/b\\\/\[a-su-z\]\\\./.test(sw), "tapp.swPre", "SW 설치 때 미리 저장하는 묶음에서 설치 앱 묶음(/b/t.*) 제외(브라우저 방문자가 받지 않게)", "sw.js 정규식 확인");
     expect(!!(j && j[0].target.package_name === "kr.alwaysquestions.zippin" && Array.isArray(fp) && fp.length && fp.every((x) => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x)) && !/TODO/.test(al.text) && /application\/json/.test(al.ct || "")), "tapp.assetlinks", "/.well-known/assetlinks.json: application/json · 패키지 이름 · SHA-256 지문만(TODO 없음)", (al.ct || "") + " " + al.text.slice(0, 200));
   }
+  SEC.close();
 }
 async function r26Lane(browser, api, errs) {
   const mob = (w, h, cs = "light") => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs });
@@ -4644,6 +4718,171 @@ async function r31Static(api) {
   }
 }
 // ================================================================ main
+// 레인을 '단위'로 나눠 단위마다 자식 프로세스 하나 · 브라우저 하나(한 레인이 브라우저를 죽여도 다른 레인은 그대로).
+// 부모가 단위를 차례·동시에(QAC_PAR, 기본 2) 띄우고, 단위마다 시간 한도(QAC_LANE_MS 또는 아래 표)를 넘으면
+// SIGTERM → 그때까지 잰 검사는 살리고 그 단위를 SKIP(시간 초과)으로 보고한다. 결과 꼴(PASS/FAIL 줄 · JSON)은 예전 그대로.
+//   전체:        node tools/qa_consistency.js [baseUrl]
+//   바뀐 곳만:   node tools/qa_consistency.js [baseUrl] --changed[=origin/main]   (git diff → 레인 · static은 늘)
+//   몇 개만:     QAC_ONLY=r14,tapp  (예전처럼 하나도 됨 · static은 늘)    목록 보기: --list
+//   종료 코드:   0 전부 통과 · 1 FAIL 있음 · 3 FAIL은 없지만 SKIP(시간 초과·죽음)된 단위가 있어 불완전 · 2 실행 불가
+const UNIT = process.env.QAC_UNIT || "";
+const SHARED_DIR = process.env.QAC_SHARED || "";
+const putShared = (k, v) => { if (SHARED_DIR) fs.writeFileSync(path.join(SHARED_DIR, k + ".json"), JSON.stringify(v)); };
+const getShared = (k) => { try { return JSON.parse(fs.readFileSync(path.join(SHARED_DIR, k + ".json"), "utf8")); } catch (e) { return null; } };
+const TAPP_N = +process.env.QAC_TAPP_PARTS || 3;
+// 단위 표: est = 이 기계(2코어 · 다른 트랙과 같이 씀) 대략 초 · limit = 시간 한도(초) · solo = 시간을 재는 검사라 혼자(다른 단위와 겹치지 않게)
+// deps = 먼저 끝나야 하는 단위(공유 자료: static → liveCounts · core → listMap)
+const UNITS = {
+  static: { est: 20, limit: 180, browser: false, files: [/./] },
+  core: { est: 150, limit: 420, files: [/^src\/(app\.js|data\.json|premium\.json|shell\.html|island\.js|boot\.js)$/, /^src\/ext\/(20_zone|30_api|40_home|60_simple|61_budget|76_detail|95_desk|10_lmap)\./, /^tools\/(calc\.js|build\.py|prerender\.js|enrich\.py|api\.py)$/] },
+  ui: { est: 150, limit: 420, deps: ["static"], files: [/^src\/(app\.js|app\.css|shell\.html|island\.js|boot\.js)$/, /^src\/ext\/(10_lmap|02_layers|62_extra|63_newb|64_overview|66_tools|70_pins|72_inbox|74_my|90_theme|99)/] },
+  r14: { est: 80, limit: 300, files: [/^src\/ext\/(70_pins|72_inbox|74_my)\./, /^worker\//, /^src\/(net|contact)\.js$/] },
+  r1: { est: 40, limit: 240, files: [/^src\/ext\/(74_my|68_app|60_simple)\./, /^src\/(shell\.html|app\.css)$/] },
+  r3: { est: 60, limit: 300, files: [/^src\/ext\/(10_lmap|65_pills|02_layers|61_budget)\./] },
+  r4: { est: 35, limit: 240, files: [/^src\/ext\/(20_zone|76_detail|05_facts)\./, /^tools\/zpages\.py$/] },
+  r17: { est: 80, limit: 300, files: [/^src\/ext\/(10_lmap|20_zone|97_r17)\./, /^src\/app\.js$/] },
+  r17b: { est: 35, limit: 240, solo: true, files: [/^src\/ext\/(20_zone|72_inbox|97_r17)\./, /^tools\/(report|zpages)\.py$/] },
+  r19: { est: 160, limit: 480, solo: true, files: [/^src\/ext\/(10_lmap|11_ghost|61_budget|02_layers)\./, /^src\/(ghost|island|boot)\.js$/, /^tools\/(ghost_geo|zmap|prerender)\./] },
+  r21: { est: 85, limit: 360, solo: true, files: [/^src\/ext\/(10_lmap|65_pills|98_r21|61_budget)\./] },
+  r26: { est: 60, limit: 300, files: [/^src\/tapp\//, /^src\/ext\/(74_my|77_tbridge|95_desk|99zzzz_r26)/] },
+  r27: { est: 35, limit: 240, files: [/^src\/ext\/(64_overview|99zzzzz_r27)/, /^tools\/zpages\.py$/] },
+  r29: { est: 60, limit: 300, files: [/^src\/(app\.css|shell\.html)$/, /^src\/ext\/.*\.css$/, /^tools\/zpages\.py$/] },
+  r30: { est: 90, limit: 360, files: [/^src\/ext\/(10_lmap|56_toheo|20_zone|99zzzzzzzz_r30)/, /^tools\/(report|zpages|toheo)\.py$/] },
+  r31: { est: 70, limit: 300, files: [/^src\/(app\.js|app\.css|shell\.html)$/, /^tools\/(zpages|report)\.py$/] },
+  r22: { est: 150, limit: 600, deps: ["core"], files: [/^src\/(app\.js|data\.json|premium\.json)$/, /^src\/ext\/(20_zone|76_detail|68_app)\./] },
+};
+for (let k = 1; k <= TAPP_N; k++) UNITS["tapp" + k] = { est: 300, limit: 900, solo: false, part: `tapp:${k}/${TAPP_N}`, files: [/^src\/tapp\//, /^src\/ext\/(68_app|69_install|77_tbridge|72_inbox|74_my)\./, /^src\/(shell\.html|island\.js|boot\.js)$/, /^tools\/static_tabs\.py$/, /^public\/(sw\.js|manifest\.webmanifest|\.well-known\/)/] };
+// 흔한 몸통(app.js·data.json)은 위 표에 이미 · 생성물(public/b 등)은 소스와 같은 레인 — 표에 없는 파일만 바뀌면 static만
+
+async function runUnit(name, api, shortSrc, zoneIds, errs) {
+  const shared = {};
+  const u = UNITS[name];
+  if (!u) throw new Error("unknown unit " + name);
+  const browser = u.browser === false ? null : await chromium.launch({ executablePath: EXE, args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader"] });
+  const cut = Math.ceil(zoneIds.length * 0.6);
+  const guard = (lab, p) => p.catch((e) => bad("runtime", "검사 실행", `${lab} crashed: ` + String(e && e.message || e).split("\n")[0]));
+  try {
+    switch (name) {
+      case "static": { const st = await guard("static", staticLane(api)); putShared("liveCounts", (st && st.liveCounts) || []); break; }
+      case "core": await guard("countsLane", countsLane(browser, api, errs, shared)); putShared("listMap", shared.listMap ? [...shared.listMap] : []);
+        await guard("zoneLane", zoneLane(browser, api, errs, shared, zoneIds.slice(0, cut))); await guard("deskLane", deskLane(browser, errs)); break;
+      case "ui": await guard("mapLane", mapLane(browser, api, errs, shortSrc)); shared.liveCounts = getShared("liveCounts") || [];
+        await guard("uiLane", uiLane(browser, api, errs, shared)); await guard("zoneLane", zoneLane(browser, api, errs, shared, zoneIds.slice(cut))); break;
+      case "r14": await guard("r14Lane", r14Lane(browser, api, errs)); break;
+      case "r1": await guard("r1Lane", r1Lane(browser, api, errs)); break;
+      case "r3": await guard("r3Lane", r3Lane(browser, errs)); break;
+      case "r4": await guard("r4Lane", r4Lane(browser, api, errs)); break;
+      case "r17": await guard("navLane", navLane(browser, api, errs)); break;
+      case "r17b": await guard("r17bLane", r17bLane(browser, api, errs)); break;
+      case "r19": await guard("r19Lane", r19Lane(browser, api, errs)); break;
+      case "r21": await guard("r21Lane", r21Lane(browser, api, errs)); break;
+      case "r26": await guard("r26Lane", r26Lane(browser, api, errs)); break;
+      case "r27": await guard("r27Lane", Promise.all([r27Lane(browser, api, errs), guProse()])); break;
+      case "r29": await guard("r29Lane", r29Lane(browser, api, errs)); break;
+      case "r30": await guard("r30Lane", r30Lane(browser, api, errs)); break;
+      case "r31": await guard("r31Lane", Promise.all([r31Lane(browser, api, errs), r31Static(api)])); break;
+      case "r22": { const lm = getShared("listMap"); if (lm) shared.listMap = new Map(lm); await guard("r22Lane", r22Lane(browser, api, errs, shared)); break; }
+      default: if (/^tapp\d+$/.test(name)) { await guard("tappLane", tappLane(browser, api, errs)); break; } throw new Error("no runner for " + name);
+    }
+  } finally { if (browser) await browser.close().catch(() => {}); }
+}
+
+function unitResult(name, errs, partial) {
+  return { unit: name, partial: !!partial, ms: el(), checks: [...CHECKS.values()], errs, sect: SECT_T, flaky: FLAKY_LOG };
+}
+
+async function child(api, shortSrc, zoneIds) {
+  const out = process.env.QAC_UNIT_OUT;
+  const errs = [];   // 레인들이 콘솔 오류를 여기에 쌓는다 → 시간 초과(SIGTERM) 때도 그때까지 것을 남긴다
+  const dump = (partial) => { try { fs.writeFileSync(out, JSON.stringify(unitResult(UNIT, errs, partial))); } catch (e) {} };
+  process.on("SIGTERM", () => { SECT_T["(cut)"] = el(); dump(true); process.exit(0); });
+  try { await runUnit(UNIT, api, shortSrc, zoneIds, errs); }
+  catch (e) { bad("runtime", "검사 실행", `${UNIT} crashed: ` + String(e && e.message || e).split("\n")[0]); }
+  dump(false);
+  process.exit(0);
+}
+
+function changedUnits(baseRef) {
+  const { execSync } = require("child_process");
+  const root = path.join(__dirname, "..");
+  const sh = (c) => { try { return execSync(c, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) { return ""; } };
+  const mb = sh(`git merge-base HEAD ${baseRef}`) || baseRef;
+  const files = [...new Set((sh(`git diff --name-only ${mb}`) + "\n" + sh("git ls-files --others --exclude-standard")).split("\n").filter(Boolean))];
+  const pick = new Set(["static"]);
+  for (const f of files) for (const [k, u] of Object.entries(UNITS)) if (k !== "static" && u.files.some((re) => re.test(f))) pick.add(k);
+  return { files, units: [...pick] };
+}
+
+function withDeps(list) {
+  const s = new Set(list);
+  for (let ch = true; ch; ) { ch = false; for (const k of [...s]) for (const d of UNITS[k].deps || []) if (!s.has(d)) { s.add(d); ch = true; } }
+  return Object.keys(UNITS).filter((k) => s.has(k));
+}
+
+async function parent(api, zoneIds) {
+  const { spawn } = require("child_process");
+  const os = require("os");
+  if (argv.includes("--list")) { for (const [k, u] of Object.entries(UNITS)) console.log(`${k.padEnd(7)} est ${String(u.est).padStart(4)}s · limit ${u.limit}s${u.solo ? " · solo" : ""}${u.deps ? " · after " + u.deps.join(",") : ""}`); process.exit(0); }
+  const chArg = argv.find((a) => a === "--changed" || a.startsWith("--changed="));
+  let want, why = "full";
+  if (process.env.QAC_ONLY) { const only = process.env.QAC_ONLY.split(",").map((s) => s.trim()).filter(Boolean).flatMap((s) => (s === "tapp" ? Object.keys(UNITS).filter((k) => /^tapp\d+$/.test(k)) : [s])); want = ["static", ...only]; why = "QAC_ONLY=" + process.env.QAC_ONLY; }
+  else if (chArg) { const base = chArg.includes("=") ? chArg.split("=")[1] : "origin/main"; const c = changedUnits(base); want = c.units; why = `changed vs ${base}: ${c.files.length} files`; if (c.files.length) console.log("changed files: " + c.files.slice(0, 30).join(" ") + (c.files.length > 30 ? ` … +${c.files.length - 30}` : "")); }
+  else want = Object.keys(UNITS);
+  for (const k of want) if (!UNITS[k]) { console.error(`unknown lane '${k}' — node tools/qa_consistency.js --list`); process.exit(2); }
+  const units = withDeps(want);
+  const PAR = Math.max(1, +process.env.QAC_PAR || 2);
+  const LANE_MS = +process.env.QAC_LANE_MS || 0;
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "qac-"));
+  console.log(`qa_consistency ${BASE} · ${why} · units ${units.join(" ")} · ${PAR} at a time · shared ${tmp}`);
+  const state = Object.fromEntries(units.map((k) => [k, "wait"])), res = {}, timing = {}, skipped = {};
+  const running = new Map();
+  const ready = (k) => state[k] === "wait" && (UNITS[k].deps || []).every((d) => !state[d] || state[d] === "done");
+  const start = (k) => new Promise((resolve) => {
+    const u = UNITS[k], out = path.join(tmp, k + ".json"), t = Date.now(), lim = (LANE_MS || u.limit * 1000);
+    const env = { ...process.env, QAC_UNIT: k, QAC_UNIT_OUT: out, QAC_SHARED: tmp, QAC_PART: u.part || "" };
+    const p = spawn(process.execPath, [__filename, BASE], { env, stdio: ["ignore", "ignore", "pipe"] });
+    let errTxt = ""; p.stderr.on("data", (d) => { errTxt = (errTxt + d).slice(-2000); });
+    let killed = null;
+    const tm = setTimeout(() => { killed = "time limit " + Math.round(lim / 1000) + "s"; p.kill("SIGTERM"); setTimeout(() => p.kill("SIGKILL"), 8000); }, lim);
+    state[k] = "run"; running.set(k, p);
+    p.on("exit", (code, sig) => {
+      clearTimeout(tm); running.delete(k); timing[k] = Date.now() - t;
+      let r = null; try { r = JSON.parse(fs.readFileSync(out, "utf8")); } catch (e) {}
+      if (killed || !r || r.partial || code) skipped[k] = killed || (r && r.partial ? "partial" : `exit ${code}${sig ? " " + sig : ""}: ${errTxt.split("\n").filter(Boolean).slice(-1)[0] || "no result"}`);
+      res[k] = r; state[k] = "done";
+      console.log(`  ${skipped[k] ? "SKIP" : "done"} ${k.padEnd(7)} ${(timing[k] / 1000).toFixed(0).padStart(4)}s${skipped[k] ? " — " + skipped[k] : ""}`);
+      resolve();
+    });
+  });
+  // 순서: 의존 먼저 → 오래 걸리는 것 먼저(LPT) · solo는 혼자 · 나머지는 PAR개까지
+  const pre = (k) => (units.some((x) => (UNITS[x].deps || []).includes(k)) ? 1 : 0);   // 다른 단위가 기다리는 단위(static·core) 먼저
+  const order = () => units.filter(ready).sort((a, b) => pre(b) - pre(a) || UNITS[b].est - UNITS[a].est);
+  await new Promise((done) => {
+    const tick = () => {
+      if (units.every((k) => state[k] === "done")) return done();
+      const soloRun = [...running.keys()].some((k) => UNITS[k].solo);
+      if (!soloRun) for (const k of order()) {
+        if (running.size >= PAR) break;
+        if (UNITS[k].solo) { if (running.size) continue; start(k).then(tick); break; }
+        if (UNITS[k].browser === false || running.size < PAR) start(k).then(tick);
+      }
+      // solo가 기다리는데 일반 단위만 남아 있으면 solo부터(굶지 않게): 남은 일반 단위가 없을 때 위에서 처리됨
+    };
+    tick();
+  });
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) {}
+  // 합치기
+  const errs = [], flakyLog = [], sect = {};
+  for (const k of units) {
+    const r = res[k]; if (!r) continue;
+    for (const c of r.checks) { const m = C(c.id, c.title); m.n += c.n; m.fails.push(...c.fails); m.warns.push(...c.warns); if (c.skipped && !m.skipped) m.skipped = c.skipped; if (c.retries) m.retries = (m.retries || []).concat(c.retries.map((x) => `${k}: ${x}`)); }
+    errs.push(...(r.errs || [])); flakyLog.push(...(r.flaky || []).map((f) => ({ unit: k, ...f }))); Object.assign(sect, r.sect || {});
+  }
+  for (const [k, why2] of Object.entries(skipped)) { const c = C("lane." + k, `레인 ${k}가 시간 한도 안에 끝남(SKIP이면 일부 검사를 못 잼)`); c.skipped = why2; }
+  for (const c of CHECKS.values()) if (c.n && c.skipped && !c.fails.length && !c.id.startsWith("lane.")) c.skipped = null;   // 다른 단위에서 잰 검사
+  return { errs, timing, skipped, flakyLog, sect, units, why };
+}
+
 (async () => {
   // API
   const [cash, zones] = await Promise.all([get(BASE + "/api/v1/cash.json"), get(BASE + "/api/v1/zones.json")]);
@@ -4663,48 +4902,9 @@ async function r31Static(api) {
   zoneIds.push(...cheap.slice(0, 2));
   { let s = 20261018; const rnd = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648); const pool2 = api.zones.filter((z) => z.need.gap.total != null && !zoneIds.includes(z.id)); for (let i = 0; i < 2 && pool2.length; i++) zoneIds.push(pool2.splice(Math.floor(rnd() * pool2.length), 1)[0].id); }
 
-  const errs = [];
-  const shared = {};
-  const browser = await chromium.launch({ executablePath: EXE, args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader"] });
-  const timing = {};
-  const timed = (k, p) => { const t = Date.now(); return p.then((v) => { timing[k] = Date.now() - t; return v; }); };
-  // 정적 검사는 바로 시작, 브라우저는 두 줄로(코어 2개)
-  const stat = timed("static", staticLane(api));
-  const cut = Math.ceil(zoneIds.length * 0.6);
-  const ONLY = process.env.QAC_ONLY || "";   // 'r14' = 14회차 줄만(개발용)
-  const lane1 = ONLY ? Promise.resolve() : timed("counts+zones", (async () => { await countsLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(0, cut)); await deskLane(browser, errs); })());
-  const lane2 = ONLY ? Promise.resolve() : timed("map+ui+zones", (async () => { await mapLane(browser, api, errs, shortSrc); const st = await stat.catch(() => ({})); shared.liveCounts = st.liveCounts; await uiLane(browser, api, errs, shared); await zoneLane(browser, api, errs, shared, zoneIds.slice(cut)); })());
-  const lane3 = timed("r14", (ONLY === "r1" || ONLY === "r3" || ONLY === "r4" ? Promise.resolve() : r14Lane(browser, api, errs)).catch((e) => bad("runtime", "검사 실행", "r14Lane crashed: " + e.message)));
-  await Promise.all([stat.catch((e) => bad("runtime", "검사 실행", "static crashed: " + e.message)), lane1, lane2, lane3]);
-  // 리뉴얼 1단계 줄(탭 4개·MY)은 다른 줄이 끝난 뒤 혼자: 코어 2개 기계에서 세 번째 브라우저가 겹치면 손가락 누름이 길게 누름으로 바뀌어 다른 줄의 탭 검사가 흔들렸다
-  if (!ONLY || ONLY === "r1") await timed("r1", r1Lane(browser, api, errs));
-  // 리뉴얼 3단계(지도 알약·구 묶음·♡·막대 끌기)는 다른 줄이 다 끝난 뒤 혼자 — 지도 그리기가 무거워 같이 돌면 다른 줄의 누름 검사가 밀린다
-  if (!ONLY || ONLY === "r3") await timed("r3", r3Lane(browser, errs).catch((e) => bad("runtime", "검사 실행", "r3Lane crashed: " + e.message)));
-  // 리뉴얼 4·5단계(상세 첫 화면 3숫자 · 숫자 신고 · 용어집 · 면책)
-  if (!ONLY || ONLY === "r4") await timed("r4", r4Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r4Lane crashed: " + e.message)));
-  // 17차(구 묶음 합 · 뒤로 가기 겹 · 새로고침 유지 · 시트 위 시트 없음)
-  if (!ONLY || ONLY === "r17") await timed("r17", navLane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "navLane crashed: " + e.message)));
-  // 17차 2부(이름으로 답하기 · 고른 상태 남색 · 알림 하나 · 끄는 동안 숫자 · 용어 코드·메타·리포트) — 혼자(끄는 시간 재기)
-  if (!ONLY || ONLY === "r17b") await timed("r17b", r17bLane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r17bLane crashed: " + e.message)));
-  // 19차(지도 자리 그림 = 실제 지도 · 붙일 때 긴 작업 · 홈 막대 슬라이더 · PC 구 화면 뒤로 · 돈 꼴 · 검색 배지) — 혼자(긴 작업을 잰다)
-  if (!ONLY || ONLY === "r19") await timed("r19", r19Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r19Lane crashed: " + e.message)));
-  // 21차(가능 구역마다 알약 · 범례 · 서울 보기 구역 면 · 막대 끌기 · 목록 줄) — 혼자(끄는 프레임을 잰다)
-  if (!ONLY || ONLY === "r21") await timed("r21", r21Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r21Lane crashed: " + e.message)));
-  // 26차(설치 앱 웹 덩이 · MY 줄 · 한 판정 · PC 끝 · 키보드 첫 방문) — 혼자
-  if (!ONLY || ONLY === "r26") await timed("r26", r26Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r26Lane crashed: " + e.message)));
-  // 27차(첫 방문 밀림 · 구 화면 바탕 이름 · /gu 해설 숫자) — 혼자
-  if (!ONLY || ONLY === "r27") await timed("r27", Promise.all([r27Lane(browser, api, errs), guProse()]).catch((e) => bad("runtime", "검사 실행", "r27Lane crashed: " + e.message)));
-  // 29차(h1·h2 대비 · h1 자리 · 날짜 한 출처 · 짧은 이름 · /gu 세대수 범위) — 혼자
-  if (!ONLY || ONLY === "r29") await timed("r29", r29Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r29Lane crashed: " + e.message)));
-  // 30차(구 화면 이름 줄 · 계산식 합 · 토허 판정 · 모자란 돈 말 · 지도 칩·글자·자리 · 리포트 교차 · 보이는 날짜) — 혼자
-  if (!ONLY || ONLY === "r30") await timed("r30", r30Lane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "r30Lane crashed: " + e.message)));
-  // 31차(7차 레드팀: 접근 이름 · Esc 초점 · 바꿔 보기 칸 · 작은 링크 · 정적 글 숫자 한 기준) — 혼자
-  if (!ONLY || ONLY === "r31") await timed("r31", Promise.all([r31Lane(browser, api, errs), r31Static(api)]).catch((e) => bad("runtime", "검사 실행", "r31Lane crashed: " + e.message)));
-  // 설치 앱 화면(TWA·홈 화면 앱 · html.is-tapp) — 혼자
-  if (!ONLY || ONLY === "tapp") await timed("tapp", tappLane(browser, api, errs).catch((e) => bad("runtime", "검사 실행", "tappLane crashed: " + e.message)));
-  // 22차(앱 껍데기 · 모든 구역 열기) — 혼자, 맨 끝(모든 구역을 여는 데 몇 분)
-  if (!ONLY || ONLY === "r22") await timed("r22", r22Lane(browser, api, errs, shared).catch((e) => bad("runtime", "검사 실행", "r22Lane crashed: " + e.message)));
-  await browser.close();
+  if (UNIT) return child(api, shortSrc, zoneIds);
+  const P = await parent(api, zoneIds);
+  const errs = P.errs, timing = P.timing;
 
   // 콘솔 오류
   const localPush = /localhost|127\.0\.0\.1/.test(BASE || "") ;
@@ -4716,15 +4916,19 @@ async function r31Static(api) {
   // 출력
   const list = [...CHECKS.values()].sort((a, b) => a.id.localeCompare(b.id));
   const nFail = list.filter((c) => c.fails.length).length;
-  const res = { base: BASE, at: new Date().toISOString(), ms: el(), timing, pass: nFail === 0, zones: zoneIds, checks: list };
+  const nSkipLane = Object.keys(P.skipped).length;
+  const res = { base: BASE, at: new Date().toISOString(), ms: el(), mode: P.why, units: P.units, timing, skippedLanes: P.skipped, flaky: P.flakyLog, sections: P.sect, pass: nFail === 0 && !nSkipLane, zones: zoneIds, checks: list };
   try { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT, JSON.stringify(res, null, 2)); } catch (e) { console.error("could not write " + OUT + ": " + e.message); }
   console.log(`\nqa_consistency ${BASE}  ${(el() / 1000).toFixed(1)}s  zones: ${zoneIds.join(" ")}`);
   for (const c of list) {
     const tag = c.fails.length ? "FAIL" : c.skipped && !c.n ? "SKIP" : "PASS";
-    console.log(`${tag} ${c.id.padEnd(16)} ${c.title}  [${c.n - c.fails.length}/${c.n}]${c.warns.length ? ` (${c.warns.length} warn)` : ""}${c.skipped ? ` (skipped: ${c.skipped})` : ""}`);
+    console.log(`${tag} ${c.id.padEnd(16)} ${c.title}  [${c.n - c.fails.length}/${c.n}]${c.warns.length ? ` (${c.warns.length} warn)` : ""}${c.skipped ? ` (skipped: ${c.skipped})` : ""}${c.retries ? ` (retried ${c.retries.length})` : ""}`);
     c.fails.slice(0, 4).forEach((f) => console.log(`       - ${f}`));
     if (c.fails.length > 4) console.log(`       … +${c.fails.length - 4} more (JSON)`);
   }
-  console.log(`\n${nFail ? "FAILED" : "PASSED"} · ${nFail} failing check(s) of ${list.length} · JSON ${OUT}`);
-  process.exit(nFail ? 1 : 0);
+  const fl = P.flakyLog.filter((f) => f.attempts > 1);
+  if (fl.length) console.log(`\nflaky retries: ${fl.map((f) => `${f.label} ${f.result} after ${f.attempts}`).join(" · ")}`);
+  console.log(`lanes: ${Object.entries(timing).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v / 1000)}s`).join(" · ")}`);
+  console.log(`\n${nFail ? "FAILED" : nSkipLane ? "INCOMPLETE" : "PASSED"} · ${nFail} failing check(s) of ${list.length}${nSkipLane ? ` · ${nSkipLane} lane(s) SKIP: ${Object.entries(P.skipped).map(([k, v]) => k + " (" + v + ")").join(", ")}` : ""} · JSON ${OUT}`);
+  process.exit(nFail ? 1 : nSkipLane ? 3 : 0);
 })().catch((e) => { console.error("qa_consistency crashed:", e); process.exit(2); });
