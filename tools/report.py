@@ -565,6 +565,9 @@ head = re.sub(re.escape(SITE) + r'/report/\d{4}-\d{2}', f'{SITE}/report/{YM}', h
 head = re.sub(r'<script type="application/ld\+json">.*?</script>\n?', '', head, flags=re.S)
 head = head.replace('<meta name="robots" content="noindex">\n', '')
 if A.draft: head = head.replace('<head>', '<head>\n<meta name="robots" content="noindex">', 1)
+# 리뉴얼 사이클 2: 소제목 질문형 + 도입부 훅(숫자 상자 값 그대로) — tools/report_copy.py(이미 낸 호는 static_tabs가 같은 표로)
+import report_copy
+body = report_copy.add_hook(report_copy.retitle(body), M)
 if A.test:
     open(os.path.join(ROOT, f'pipeline/report/test_{YM}.html'), 'w', encoding='utf-8').write(head + body + foot)
     print('test written', title); raise SystemExit

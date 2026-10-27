@@ -14,7 +14,7 @@ PUB = os.path.join(R, 'public')
 SITE = 'https://jaegaebal.alwaysquestions.kr'
 
 # ---- 브랜드: tools/brand.py · 필명만 여기 ----
-from brand import BRAND, BRAND_EN, SITE_TAIL, RENAME_NOTE, RENAME_DATE   # 서비스 이름은 tools/brand.py 한 곳에서
+from brand import BRAND, BRAND_EN, SITE_TAIL, RENAME_NOTE, RENAME_DATE, TAGLINE, ICON_LINKS, wordmark_svg   # 서비스 이름은 tools/brand.py 한 곳에서
 PEN = '늘질문'                 # 운영자 필명(always questions) — 실명·사업자 정보·이메일은 싣지 않는다(운영 원칙)
 OP = f'{BRAND} 운영자'
 TITLE_SUFFIX = SITE_TAIL
@@ -24,8 +24,12 @@ E = html.escape
 def esc(s): return E(s, quote=False)
 
 
-def page(path, title, desc, body, ld, og_type='article'):
-    """정적 페이지 뼈대(about.html과 같은 머리) — 광고 태그는 넣지 않는다(새 페이지 · tools/fixtures/ads_tag_pages.json 밖)"""
+# 애드센스 리터럴 태그(다른 63쪽과 바이트 같음) — 고유 글인 /glossary에만(리드 결정 2026-10-27 · tools/fixtures/ads_tag_pages.json에 함께 올림). /corrections에는 넣지 않는다
+ADS_TAG = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>'
+
+
+def page(path, title, desc, body, ld, og_type='article', ads=False):
+    """정적 페이지 뼈대(about.html과 같은 머리)"""
     url = f'{SITE}/{path}'
     t = f'{title} | {TITLE_SUFFIX}'
     return f'''<!doctype html>
@@ -46,14 +50,14 @@ def page(path, title, desc, body, ld, og_type='article'):
 <meta property="og:image" content="{SITE}/og.png">
 <meta property="og:locale" content="ko_KR">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#15181D" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="/icon-small.svg" type="image/svg+xml">
+{ICON_LINKS}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
 <link rel="stylesheet" href="pages.css">
-<script type="application/ld+json">{json.dumps(ld, ensure_ascii=False)}</script>
+{ADS_TAG + chr(10) if ads else ""}<script type="application/ld+json">{json.dumps(ld, ensure_ascii=False)}</script>
 <link rel="manifest" href="/manifest.webmanifest">
 </head>
 <body>
-<header class="top"><div class="in"><a class="logo" href="/" aria-label="{BRAND} 처음으로"><img class="logo-i" src="/icon-small.svg" width="28" height="28" alt=""><span class="logo-t">{BRAND}</span><span class="logo-en" lang="en">{BRAND_EN}</span><small class="logo-s">서울 재개발 지도</small></a></div></header>
+<header class="top"><div class="in"><a class="logo" href="/" aria-label="{BRAND} 처음으로">{wordmark_svg()}<small class="logo-s">{TAGLINE}</small></a></div></header>
 <main>
 {body}
 </main>
@@ -101,7 +105,8 @@ def glossary():
                          f'<p class="t-def">{esc(t["d"])}</p><p>{esc(t["w"])}</p><p class="t-ex">{esc(t["e"])}</p>'
                          + (f'<p class="t-law">근거: {law}</p>' if law else '')
                          + f'<p class="t-rel"><span>같이 보면</span>{rel}{more}</p></article>')
-        secs.append(f'<section class="gl-sec" id="s-{sid}" aria-labelledby="h-{sid}"><h2 id="h-{sid}">{esc(h)}</h2><p>{esc(lead)}</p>{"".join(items)}</section>')
+        at = {'rights': '<!--zp-ad-at:mid-->', 'plan': '<!--zp-ad-at:bottom-->'}.get(sid, '')   # 광고 자리: 묶음 소개 문단 뒤 · 첫 용어 제목 앞
+        secs.append(f'<section class="gl-sec" id="s-{sid}" aria-labelledby="h-{sid}"><h2 id="h-{sid}">{esc(h)}</h2><p>{esc(lead)}</p>{at}{"".join(items)}</section>')
     nav = ''.join(f'<li><a href="/glossary#s-{sid}">{esc(h)}</a></li>' for sid, h, _ in SECS)
     n = len(TERMS)
     body = f'''<p class="eyebrow">용어집</p>
@@ -121,7 +126,7 @@ def glossary():
     ld = {"@context": "https://schema.org", "@type": "DefinedTermSet", "name": "재개발 용어집", "url": f"{SITE}/glossary", "inLanguage": "ko", "dateModified": "2026-10-27",
           "hasDefinedTerm": [{"@type": "DefinedTerm", "name": t['t'], "description": t['d'], "url": f"{SITE}/glossary#{t['id']}"} for t in TERMS]}
     desc = f'재개발·재건축에서 자주 쓰는 말 {n}개를 뜻, 돈·시기에 주는 영향, 예, 도시정비법·소규모주택정비법 근거 조항과 함께 정리했어요.'
-    return page('glossary', f'재개발 용어집 {n}개 · 비례율·권리산정기준일·관리처분', desc, body, ld)
+    return page('glossary', f'재개발 용어집 {n}개 · 비례율·권리산정기준일·관리처분', desc, body, ld, ads=True)
 
 
 # ================= 오류 수정 기록 =================
@@ -205,7 +210,7 @@ def corrections():
 # ================= about: 운영자 소개·편집 원칙 =================
 OP_HTML = f'''<!--zp-op--><h2 id="operator">누가 만드나요?</h2>
 <section class="op" aria-label="운영자 소개">
-<div class="op-h"><span class="op-av" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 61C25.5 52.5 12.5 40.5 12.5 24.5a19.5 19.5 0 0 1 39 0C51.5 40.5 38.5 52.5 32 61z" fill="#fff"/><path d="M32 12.6 44.4 23.7h-3.9V35.2H23.5V23.7h-3.9z" fill="#1F3A87"/></svg></span><span><b>{PEN}</b><small>필명 · 개인 운영자 1인</small></span></div>
+<div class="op-h"><span class="op-av" aria-hidden="true"><svg viewBox="13 6 38 54.27"><path fill="#fff" d="M33.500 50.370L45.435 38.435A19.0 19.0 0 1 0 18.565 38.435L30.500 50.370Q32.000 51.870 33.500 50.370Z"/><path fill="#1F3A87" d="M32 12.4L42.4 22.8H40.5V34.6H23.5V22.8H21.6Z"/><path fill="#F5C33B" d="M30.40 26.60H33.60A1.1 1.1 0 0 1 34.70 27.70V34.6H29.30V27.70A1.1 1.1 0 0 1 30.40 26.60Z"/><path fill="#F5C33B" d="M29.250 57.520a2.75 2.75 0 1 0 5.500 0a2.75 2.75 0 1 0 -5.500 0Z"/></svg></span><span><b>{PEN}</b><small>필명 · 개인 운영자 1인</small></span></div>
 <p>부동산 데이터를 다루는 개인 한 명이 만들고 운영해요. 재개발 매물 소개가 늘 「지금 얼마면 들어간다」에서 끝나는 게 아쉬웠어요. 처음 드는 돈만 보고 들어가면 이주·입주 때 돈이 모자랄 수 있어서 「입주까지」를 기준으로 계산하게 됐어요.</p>
 <p>운영자는 경매로 집을 한 번 낙찰받아 본 경험이 있어요. 2020년에는 평택에 전세를 끼고 집을 사려다 가족의 반대로 멈췄어요. 그때 「지금 얼마」만 보고 판단할 뻔했던 일이 이 사이트를 만든 직접적인 계기예요.</p>
 <dl><dt>하는 일</dt><dd>자료 수집과 계산, 구역 글, 월간 리포트를 운영자 한 사람이 관리해요</dd>
@@ -233,7 +238,7 @@ def about():
     # 이름 변경 안내 한 줄(첫 소개 문단 바로 뒤) — 예전 이름이 남는 허용 예외
     h = re.sub(r'<!--zp-rename-->.*?<!--/zp-rename-->', '', h, flags=re.S)
     m = re.search(r'<p class="lede">.*?</p>\s*<p>.*?</p>', h, re.S)
-    if m: h = h[:m.end()] + f'<!--zp-rename--><p class="note" id="rename">{RENAME_NOTE}</p><!--/zp-rename-->' + h[m.end():]
+    if m: h = h[:m.end()] + f'<!--zp-rename--><p class="note" id="rename">{RENAME_NOTE} 새 이름 {BRAND}은 재개발과 「각 나왔다」를 합친 말이에요.</p><!--/zp-rename-->' + h[m.end():]
     if '<!--zp-op-->' in h:
         h2 = re.sub(r'<!--zp-op-->.*?<!--/zp-op-->', lambda m: OP_HTML, h, count=1, flags=re.S)
     else:   # 처음 한 번: 예전 '누가 운영하나' 덩이(제목 ~ 운영 정보 목록)를 바꿔 끼운다

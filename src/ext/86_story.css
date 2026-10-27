@@ -33,3 +33,4 @@ html.is-tapp .s-story,html.is-app .s-story{display:none!important}
 :root[data-theme="dark"] .s-story .st-g a::before{color:#0c0e12}
 .s-story .st-wit{margin:-2px 0 12px;padding:8px 12px;border-left:3px solid #F5C33B;border-radius:0 8px 8px 0;background:color-mix(in srgb,#F5C33B 10%,transparent);font-size:14.5px;color:var(--text-1)}
 .s-story .st-wit b{color:var(--brand)}
+.s-story .mk-p{fill:var(--brand,#1F3A87)}.s-story .mk-h{fill:var(--surface,#fff)}

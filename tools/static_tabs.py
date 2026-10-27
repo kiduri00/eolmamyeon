@@ -3,6 +3,7 @@
 build.py 끝에서 부른다. 이미 넣은 자리(<!--zp-tabs--> … <!--/zp-tabs-->)는 통째로 바꾸므로 몇 번 돌려도 결과가 같다.
 지금 탭: 구역(/z)·구(/gu)·404 = 찾기, 나머지(가이드·리포트·약관·FAQ …) = MY."""
 import os, re
+from brand import BRAND, TAGLINE, ICON_LINKS, wordmark_svg, WORDMARK_CSS   # 재개각 v7 워드마크·아이콘(기능 트랙과 같은 tools/brand.py · public/icons/)
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PUB = os.path.join(R, 'public')
 SV = lambda d: f'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{d}"/></svg>'
@@ -114,7 +115,7 @@ TCSS = '@media (max-width:980px){html.is-tapp .zp-tabs{grid-template-columns:rep
 def block(cur):
     ac = ' aria-current="page"'
     a = ''.join(f'<a href="{u}"{ac if k == cur else ""}>{SV(d)}<span>{t}</span>{"<i class=\"nb-dot\" aria-hidden=\"true\" hidden>N</i>" if k == "news" else ""}</a>' for k, u, t, d in TABS)
-    return f'<!--zp-tabs--><style>{CSS}{BCSS}{TCSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}{FONTJS}{SPYJS}{OFFJS}{TABJS}{TAPPJS}<!--/zp-tabs-->'
+    return f'<!--zp-tabs--><style>{CSS}{BCSS}{TCSS}{WORDMARK_CSS}</style><nav class="zp-tabs" aria-label="주요 메뉴">{a}</nav>{NJS}{FONTJS}{SPYJS}{OFFJS}{TABJS}{TAPPJS}<!--/zp-tabs-->'
 
 
 RX = re.compile(r'<!--zp-tabs-->.*?<!--/zp-tabs-->', re.S)
@@ -136,7 +137,8 @@ def app_header(h):
     hd = re.sub(r'<span class="hdr-date"[^>]*>.*?</span><a class="hdr-bell".*?</a>', '', hd, flags=re.S)
     hd = hd.replace('</div></header>', BELL + '</div></header>', 1)
     # 28차: 로고를 그림 파일 대신 글 속 SVG로(첫 프레임부터 보이게 · 그림 요청을 기다리지 않음)
-    hd = re.sub(r'<img class="logo-i" src="[^"]*icon-small\.svg" width="28" height="28" alt="">', LOGO_SVG, hd)
+    # 리뉴얼 브랜드 v7: 로고 = 재개각 워드마크(글 속 SVG · 밝게/어둡게 CSS 색) + 작은 글('서울 재개발 지도', 폰에서는 숨김)
+    hd = re.sub(r'<a class="logo"[^>]*>.*?</a>', lambda m: f'<a class="logo" href="/" aria-label="{BRAND} 처음으로">{wordmark_svg()}<small class="logo-s">{TAGLINE}</small></a>', hd, count=1, flags=re.S)
     hd = re.sub(r'(<input id="tq"[^>]*placeholder=")[^"]*(")', lambda x: x.group(1) + PH + x.group(2), hd)
     # 26차: 400px 아래에선 자리표시가 잘려 '구역·동·:'로 보이던 것 → '검색'
     hd = re.sub(r'<script>(?:innerWidth<400|matchMedia\("\(max-width:399)[^<]*</script>', '', hd)
@@ -151,6 +153,17 @@ FOOT_LINKS = [('/about', '소개'), ('/method', '계산 방법'), ('/faq', '자�
 FOOT_P = ' · '.join(f'<a href="{u}">{t}</a>' for u, t in FOOT_LINKS) + ' · <a href="https://blog.naver.com/always_questions" rel="noopener">블로그</a>'
 RF1 = re.compile(r'(<footer class="f"><p>).*?(</p>)', re.S)
 RF2 = re.compile(r'(<footer id="contact">.*?<p class="fl">).*?(</p>)', re.S)
+
+
+# 리뉴얼 브랜드 v7: 파비콘·홈 화면 아이콘 = public/icons/(기능 트랙과 같은 ICON_LINKS) — 예전 /icon-small.svg·/icon-180.png 링크를 지우고 </head> 앞에 한 번
+RICON = re.compile(r'<link rel="(?:icon|apple-touch-icon)"[^>]*>')
+
+
+def icons(h):
+    i = h.find('</head>')
+    if i < 0: return h
+    hd = RICON.sub('', h[:i])
+    return hd + ICON_LINKS + h[i:]
 
 
 def foot_links(h):
@@ -217,6 +230,10 @@ def ad_slots(h, rel):
     if a < 0 or b < 0: return h
     kind = rel.split('/')[0] if '/' in rel else rel[:-5]
     body = h[a:b]
+    # 손으로 지정한 자리(<!--zp-ad-at:mid|bottom-->)가 있으면 그 자리만 쓴다(규칙으로 자리를 못 찾는 리포트 7~9월호·howto·용어집)
+    if '<!--zp-ad-at:' in body:
+        body = re.sub(r'<!--zp-ad-at:(\w+)-->', lambda m: m.group(0) + ad_slot(m.group(1), kind), body)
+        return h[:a] + body + h[b:]
     cand = []
     for m in re.finditer(r'<p(?: class="(?:lede)")?>(?:(?!</p>).)*</p>\s*(?:</div>\s*)?(?:<!--zn-->.*?<!--/zn-->)?\s*(?=<h[23][ >])', body, re.S):
         nh = re.match(r'<h[23][^>]*>(.*?)</h[23]>', body[m.end():].lstrip(), re.S)
@@ -266,11 +283,15 @@ def main():
             b = block(cur)
             h1 = RX.sub(lambda m: b, h, count=1) if RX.search(h) else h.replace('</body>', b + '\n</body>', 1)
             h1 = app_header(h1)
+            h1 = icons(h1)
             h1 = foot_links(h1)
             h1 = legend(h1, rel)
             h1 = glossary_link(h1, rel)
             h1 = ad_slots(h1, rel)
             if rel.startswith('report/'): h1 = report_links(h1)
+            if re.match(r'report/\d{4}-\d{2}\.html$', rel):   # 리뉴얼 사이클 2: 이미 낸 호도 질문형 소제목 + 도입부 훅(tools/report_copy.py)
+                import report_copy
+                h1 = report_copy.add_hook(report_copy.retitle(h1), int(rel[12:14]))
             # 26차: 글꼴 CSS를 늦게 붙여 봤지만(/z TBT) 나아지지 않아 원래대로(첫 그림부터 같은 글꼴 · CLS 0)
             h1 = re.sub(r'<link rel="stylesheet" href="(https://cdn\.jsdelivr\.net/gh/orioncactus/pretendard[^"]+)" media="print" onload="this\.media=\'all\'" crossorigin>', lambda m: f'<link rel="stylesheet" href="{m.group(1)}" crossorigin>', h1)
             # 22차 접근성: 옆으로 밀리는 표 상자(.tw)는 키보드로도 밀 수 있게(초점 + 이름) — axe scrollable-region-focusable

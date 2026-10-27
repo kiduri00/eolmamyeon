@@ -228,9 +228,8 @@ main .ad-slot::before{content:"광고";display:block;text-align:left;font-size:1
 /* 운영자 소개·편집 원칙(about) */
 .op{margin:18px 0 8px;padding:18px 18px 8px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface)}
 .op-h{display:flex;align-items:center;gap:12px;margin:0 0 10px}
-.op-av{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--brand);position:relative}
-.op-av svg{width:24px;height:24px}
-.op-av::after{content:"";position:absolute;right:1px;bottom:1px;width:11px;height:11px;border-radius:50%;background:var(--pin-y);box-shadow:0 0 0 2px var(--surface)}
+.op-av{flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#1F3A87}
+.op-av svg{width:20px;height:28px}
 .op-h b{display:block;font-size:17px;line-height:1.3}
 .op-h small{display:block;color:var(--text-3);font-size:13px}
 .op dl{margin:8px 0 10px;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px}
