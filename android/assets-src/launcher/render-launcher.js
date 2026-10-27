@@ -1,15 +1,16 @@
-// Launcher icon (adaptive + legacy) for the 재개픽 TWA — brand v7 (navy tile, white geometric pin, navy house,
-// yellow door + yellow dot). Geometry: ../brand-mark.js (same as brand_v7/logo/jaegaegak_mark_*.svg and the Play icon).
+// Launcher icon (adaptive + legacy) for the 재개픽 TWA — brand v7 "Pick" mark (navy tile, white house + yellow door,
+// yellow "picked" check badge). Geometry: ../brand-mark.js (generated from brand_v7/src/pick.py, same as
+// brand_v7/logo/jaegaepick_mark_*.svg and the Play icon).
 //
 // Writes into <res> (default: ../../app/src/main/res):
 //   values/ic_launcher_background.xml           #1F3A87 (brand navy, = Play icon / PWA maskable background)
-//   drawable/ic_launcher_foreground.xml         vector, 108dp canvas, mark 44dp tall, centred; every ink point lies
-//                                               inside the 66dp safe-zone circle (checked below, the script fails otherwise)
-//   drawable/ic_launcher_monochrome.xml         vector, same geometry, single colour, house knocked out (Android 13 themed icons)
+//   drawable/ic_launcher_foreground.xml         vector, 108dp canvas, mark 42dp wide, centred; every ink point lies
+//                                               inside the 66dp safe-zone circle (checked below, the script fails otherwise).
+//                                               The check and the gap around the badge are holes: the navy background shows through.
+//   drawable/ic_launcher_monochrome.xml         vector, same geometry, single colour, door/check/gap knocked out (Android 13 themed icons)
 //   mipmap-anydpi-v26/ic_launcher.xml, ic_launcher_round.xml   adaptive icon (bg + fg + monochrome)
-//   mipmap-{mdpi..xxxhdpi}/ic_launcher.png, ic_launcher_round.png   48dp legacy (Android 7.x), rounded square / circle;
-//                                               mdpi/hdpi drop the dot and enlarge the pin (dot would be < 2px)
-//   drawable-{mdpi..xxxhdpi}/ic_notification_icon.png   24dp white silhouette (house knocked out)
+//   mipmap-{mdpi..xxxhdpi}/ic_launcher.png, ic_launcher_round.png   48dp legacy (Android 7.x), rounded square / circle
+//   drawable-{mdpi..xxxhdpi}/ic_notification_icon.png   24dp white silhouette (door and check knocked out)
 // and removes the old mipmap-*/ic_launcher_monochrome.png and ic_maskable.png (no longer referenced).
 //
 // Usage: NODE_PATH=$(npm root -g) node android/assets-src/launcher/render-launcher.js [resDir] [preview.png]
@@ -21,15 +22,16 @@ const M = require('../brand-mark');
 
 const RES = path.resolve(process.argv[2] || path.join(__dirname, '../../app/src/main/res'));
 const PREVIEW = process.argv[3];
-const BG = M.NAVY, HOUSE = M.NAVY, WHITE = '#FFFFFF', YELLOW = M.YELLOW;
+const BG = M.NAVY, WHITE = '#FFFFFF', YELLOW = M.YELLOW;
 
 // ---- adaptive geometry (108dp canvas, 72dp visible, 66dp safe circle)
-const GLYPH_DP = 44;                                   // mark ink height incl. dot = 61% of the 72dp visible area (Play icon: 60%)
+const GLYPH_DP = 42;                                   // mark ink width = 58% of the 72dp visible area (= Play icon)
 const SAFE_R = 33;
-const BH = M.BOX.y1 - M.BOX.y0, BCY = (M.BOX.y0 + M.BOX.y1) / 2;
-const K = GLYPH_DP / BH;
-const TX = +(54 - 32 * K).toFixed(4), TY = +(54 - BCY * K).toFixed(4), KS = +K.toFixed(5);
-const reach = M.maxRadius(32, BCY) * K;               // farthest ink point from the canvas centre, in dp
+const BW = M.BOX.x1 - M.BOX.x0, BH = M.BOX.y1 - M.BOX.y0;
+const BCX = (M.BOX.x0 + M.BOX.x1) / 2, BCY = (M.BOX.y0 + M.BOX.y1) / 2;
+const place = (size, cx, cy) => { const k = size / Math.max(BW, BH); return [+(cx - BCX * k).toFixed(4), +(cy - BCY * k).toFixed(4), +k.toFixed(5)]; };
+const [TX, TY, KS] = place(GLYPH_DP, 54, 54);
+const reach = M.maxRadius(BCX, BCY) * KS;             // farthest ink point from the canvas centre, in dp
 if (reach > SAFE_R - 1) throw new Error(`foreground reaches ${reach.toFixed(2)}dp, outside the 66dp safe zone`);
 
 const vec = (comment, body) => `<?xml version="1.0" encoding="utf-8"?>
@@ -44,12 +46,12 @@ ${body}
     </group>
 </vector>
 `;
-const p = (fill, d, extra = '') => `        <path android:fillColor="${fill}"${extra} android:pathData="${d}" />`;
-const FG_XML = vec(`재개픽 mark, adaptive foreground. 108dp canvas, mark ${GLYPH_DP}dp tall,
+const p = (fill, d) => `        <path android:fillColor="${fill}" android:fillType="evenOdd" android:pathData="${d}" />`;
+const FG_XML = vec(`재개픽 mark, adaptive foreground. 108dp canvas, mark ${GLYPH_DP}dp wide,
      farthest ink point ${reach.toFixed(1)}dp from the centre (safe zone: 33dp radius).`,
-  [p(WHITE, M.PIN), p(HOUSE, M.HOUSE), p(YELLOW, M.DOOR), p(YELLOW, M.DOT)].join('\n'));
-const MONO_XML = vec('재개픽 mark, monochrome layer (Android 13 themed icons): pin with the house knocked out, door, dot.',
-  [p(WHITE, M.PIN + M.HOUSE, ' android:fillType="evenOdd"'), p(WHITE, M.DOOR), p(WHITE, M.DOT)].join('\n'));
+  [p(WHITE, M.BODY), p(YELLOW, M.DOOR), p(YELLOW, M.BADGE)].join('\n'));
+const MONO_XML = vec('재개픽 mark, monochrome layer (Android 13 themed icons): house + badge, door and check knocked out.',
+  [p(WHITE, M.BODY), p(WHITE, M.BADGE)].join('\n'));
 const ADAPTIVE_XML = `<?xml version="1.0" encoding="utf-8"?>
 <!-- Generated by assets-src/launcher/render-launcher.js (matches the Play icon: navy #1F3A87 + white 재개픽 mark). -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
@@ -65,34 +67,22 @@ const BG_XML = `<?xml version="1.0" encoding="utf-8"?>
 `;
 
 // ---- SVG equivalents (PNG rendering + preview)
-const markSvg = (tx, ty, ks, { pin = WHITE, house = HOUSE, door = YELLOW, dot = YELLOW, knock = false } = {}) =>
-  `<g transform="translate(${tx} ${ty}) scale(${ks})">` +
-  (knock ? `<path fill="${pin}" fill-rule="evenodd" d="${M.PIN}${M.HOUSE}"/>` : `<path fill="${pin}" d="${M.PIN}"/><path fill="${house}" d="${M.HOUSE}"/>`) +
-  (door ? `<path fill="${door}" d="${M.DOOR}"/>` : '') + (dot ? `<path fill="${dot}" d="${M.DOT}"/>` : '') + '</g>';
+const markSvg = (tx, ty, ks, { body = WHITE, door = YELLOW, badge = YELLOW } = {}) =>
+  `<g transform="translate(${tx} ${ty}) scale(${ks})" fill-rule="evenodd"><path fill="${body}" d="${M.BODY}"/>` +
+  (door ? `<path fill="${door}" d="${M.DOOR}"/>` : '') + `<path fill="${badge}" d="${M.BADGE}"/></g>`;
 const FG_SVG = markSvg(TX, TY, KS);
-const MONO_SVG = markSvg(TX, TY, KS, { pin: '#fff', door: '#fff', dot: '#fff', knock: true });
+const MONO_SVG = markSvg(TX, TY, KS, { body: '#fff', door: null, badge: '#fff' });
 const svg = (px, viewBox, inner) => `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="${viewBox}">${inner}</svg>`;
 
 // Legacy = the 72dp visible part of the adaptive icon under a rounded square (r 22%) or a circle.
-// Small densities: no dot, pin enlarged to the same visual weight.
-const legacy = (px, round, small) => {
-  let tx = TX, ty = TY, ks = KS, dot = YELLOW;
-  if (small) {
-    const b = M.BOX_NODOT, h = b.y1 - b.y0, k = (GLYPH_DP * 0.98) / h;
-    ks = +k.toFixed(5); tx = +(54 - 32 * k).toFixed(4); ty = +(54 - ((b.y0 + b.y1) / 2) * k).toFixed(4); dot = null;
-  }
+const legacy = (px, round) => {
   const shape = round ? `<circle cx="54" cy="54" r="36" fill="${BG}"/>` : `<rect x="18" y="18" width="72" height="72" rx="${(72 * 0.22).toFixed(2)}" fill="${BG}"/>`;
-  return svg(px, '18 18 72 72', shape + markSvg(tx, ty, ks, { dot }));
+  return svg(px, '18 18 72 72', shape + markSvg(TX, TY, KS));
 };
-// Notification: 24dp, white on transparent, pin with house knocked out, no door/dot (too small), 22dp tall.
-const notif = (px) => {
-  const b = M.BOX_NODOT, k = 22 / (b.y1 - b.y0);
-  return svg(px, '0 0 24 24', markSvg(+(12 - 32 * k).toFixed(4), +(12 - ((b.y0 + b.y1) / 2) * k).toFixed(4), +k.toFixed(5),
-    { pin: '#fff', door: null, dot: null, knock: true }));
-};
+// Notification: 24dp, white on transparent, 22dp wide; door and check are holes.
+const notif = (px) => { const [tx, ty, k] = place(22, 12, 12); return svg(px, '0 0 24 24', markSvg(tx, ty, k, { body: '#fff', door: null, badge: '#fff' })); };
 
 const DENS = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
-const SMALL = { mdpi: true, hdpi: true };
 
 async function shot(page, markup, out) {
   await page.setContent(`<html><body style="margin:0;background:transparent">${markup}</body></html>`);
@@ -111,8 +101,8 @@ async function shot(page, markup, out) {
   w('mipmap-anydpi-v26/ic_launcher_round.xml', ADAPTIVE_XML);
   for (const [d, s] of Object.entries(DENS)) {
     const dir = path.join(RES, 'mipmap-' + d); fs.mkdirSync(dir, { recursive: true });
-    await shot(page, legacy(48 * s, false, SMALL[d]), path.join(dir, 'ic_launcher.png'));
-    await shot(page, legacy(48 * s, true, SMALL[d]), path.join(dir, 'ic_launcher_round.png'));
+    await shot(page, legacy(48 * s, false), path.join(dir, 'ic_launcher.png'));
+    await shot(page, legacy(48 * s, true), path.join(dir, 'ic_launcher_round.png'));
     fs.rmSync(path.join(dir, 'ic_launcher_monochrome.png'), { force: true });
     fs.rmSync(path.join(dir, 'ic_maskable.png'), { force: true });
     const nd = path.join(RES, 'drawable-' + d); fs.mkdirSync(nd, { recursive: true });
