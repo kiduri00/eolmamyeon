@@ -402,7 +402,8 @@ async function staticLane(api) {
     const sum = [...lede.replace(/,/g, "").matchAll(/(\d+)곳/g)].reduce((s, m) => s + +m[1], 0);
     // 18차: 표 → 앱 목록 같은 줄(<ol class="gl"><li class="gr">) · 예전 표도 읽는다
     const tb = (/<tbody>([\s\S]*?)<\/tbody>/i.exec(r.text) || [])[1] || "";
-    const gl = (/<ol class="gl"[^>]*>([\s\S]*?)<\/ol>/i.exec(r.text) || [])[1] || "";
+    // 리뉴얼 A2: 목록이 묶음 여러 개(분석 글 · 자료 넉넉 · 접힌 얇은 구역)로 나뉜다 → <ol class="gl"> 전부를 이어 읽는다
+    const gl = [...r.text.matchAll(/<ol class="gl"[^>]*>([\s\S]*?)<\/ol>/gi)].map((m) => m[1]).join("");
     const rows = gl ? [...gl.matchAll(/<li class="gr">([\s\S]*?)<\/li>/gi)].map((m) => m[1]) : [...tb.matchAll(/<tr>([\s\S]*?)<\/tr>/gi)].map((m) => m[1]);
     expect(head === sum, "gu.sum", "/gu 단계 요약 합 == 머리 곳 수 == 표 줄 수", `${where}: h1 ${head}곳 vs 단계 요약 합 ${sum} ("${lede.slice(0, 80)}")`);
     expect(head === rows.length, "gu.sum", "/gu 단계 요약 합 == 머리 곳 수 == 표 줄 수", `${where}: h1 ${head}곳 vs 표 ${rows.length}줄`);

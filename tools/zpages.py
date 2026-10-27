@@ -656,6 +656,10 @@ def zsegs(h):
     b = html.unescape(re.sub(r'<[^>]+>', '', _SEGX.sub('\n', b)))
     return [x.strip() for x in re.split(r'\n|(?<=[.요다])\s', b) if x.strip()]
 _tpl = lambda x: re.sub(r'[\d,.%]+', '0', x)
+eok_m = __import__('zsample').eok_m
+# 리뉴얼 A1: 손으로 쓴 구역 분석 글(content/z/*.json) → public/z/<id>.html (아래 손글 처리 hand_fix가 최신 숫자 상자·계산 덩이를 채운다)
+import zhand
+ZH_IDS = set(zhand.render_all(globals()))
 made = kept = 0
 AUTO = {}
 for r in R:
@@ -673,7 +677,14 @@ for rid, (r, h) in AUTO.items():
     if thin: h = h.replace('<meta name="emr-auto" content="1">', '<meta name="emr-auto" content="1">\n' + NOIDX, 1)
     open(os.path.join(ZD, rid + '.html'), 'w', encoding='utf-8').write(h); made += 1
 _ni = sum(1 for v in THIN.values() if v['noindex'])
-json.dump({'rule': {'needs_calc': True, 'score_min': THIN_SIG, 'weights': THIN_W, 'unique_chars_min': THIN_TXT, 'template_pages': THIN_TPL}, 'auto': len(THIN), 'indexed': len(THIN) - _ni, 'noindex': _ni, 'hand': kept, 'pages': THIN},
+# 리뉴얼 A1: 손글(content/z)도 같은 잣대로 잰다(자료 점수 · 다른 페이지와 겹치지 않는 본문 글자) — 손글은 늘 색인이지만 tools/zhand_check.py가 기준(점수 4·고유 800자) 통과를 확인
+HANDM = {}
+for rid in sorted(ZH_IDS):
+    _h = open(os.path.join(ZD, rid + '.html'), encoding='utf-8').read(); _sg = zsegs(_h)
+    _c2 = collections.Counter(_CNT); _c2.update({_tpl(x) for x in _sg})
+    _sig = zsignals(_BY[rid])
+    HANDM[rid] = {'sig': [k for k, v in _sig.items() if v], 'score': sum(THIN_W[k] for k, v in _sig.items() if v), 'uniq': sum(len(x) for x in _sg if _c2[_tpl(x)] <= THIN_TPL)}
+json.dump({'rule': {'needs_calc': True, 'score_min': THIN_SIG, 'weights': THIN_W, 'unique_chars_min': THIN_TXT, 'template_pages': THIN_TPL}, 'auto': len(THIN), 'indexed': len(THIN) - _ni, 'noindex': _ni, 'hand': kept, 'pages': THIN, 'handPages': HANDM},
           open(os.path.join(ROOT, 'pipeline/cache/zthin.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print(f'zpages thin control: auto {len(THIN)} · indexed {len(THIN) - _ni} · noindex {_ni} · hand(always indexed) {kept}')
 _RID = {r['id'] for r in R}
@@ -853,7 +864,11 @@ def guPage(g, L):
         stg = esc(c(x).get("stage") or x.get("sr") or "")
         return (f'<li class="gr"><a href="{x["id"]}"{tt}><span class="gr-l"><b>{esc(nm)}</b><span class="gr-s">{f"<em>{stg}</em>" if stg else ""}{esc(KIND.get(x["k"], x["k"]))}</span></span>'
                 f'<span class="gr-r">{f'<span class="gr-v"><i>지금</i> <b class="gr-now">{nowT(x)}</b></span>' if nowT(x) else f'<span class="gr-v gr-na"><i>전세 끼고</i> <b class="gr-now">{whyT(x)}</b></span>'}{f'<small>입주까지 현금 <b class="gr-tot">{tot(x)}</b></small>' if tot(x) != '–' else '<small class="gr-hold">입주까지 현금 계산 보류</small>'}{'<small class="gr-ex">참고값 · 추정 신뢰 낮아 목록에서 뺐어요</small>' if EXCL(x) else ''}</span></a></li>')
-    rows = ''.join(grow(x) for x in sorted(L, key=rowkey))
+    # 리뉴얼 A2: 분석 글(손글)이 있는 구역 먼저 → 자료가 넉넉해 색인되는 구역 → 자료가 적은 구역(얇은 페이지)은 접어서 아래에 · 각 묶음 안은 예전 순서(필요한 돈 적은 순)
+    _hs = zhand.HANDSET or _HID
+    gH = [x for x in sorted(L, key=rowkey) if x['id'] in _hs]
+    gI = [x for x in sorted(L, key=rowkey) if x['id'] not in _hs and not (THIN.get(x['id']) or {}).get('noindex', True)]
+    gT = [x for x in sorted(L, key=rowkey) if x['id'] not in _hs and (THIN.get(x['id']) or {}).get('noindex', True)]
     GCSS = ('<style>.gl{list-style:none;margin:12px 0;padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden}'
             '.gl li+li{border-top:1px solid var(--border)}.gl a{display:flex;align-items:center;gap:12px;min-height:72px;padding:10px 14px 10px 16px;color:var(--text-1);text-decoration:none!important}'
             '.gl a:hover{background:var(--surface-2)}.gr-l{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:5px}.gr-l>b{font-size:16px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
@@ -862,7 +877,13 @@ def guPage(g, L):
             '.gr-na b{font-size:13px!important;font-weight:600!important;color:var(--text-2)!important}main p a,.eyebrow a{text-decoration:none!important;color:var(--brand,#1f3a87);font-weight:600}'
             '.gr-r small{font-size:12px;color:var(--text-2)}.gr-r small.gr-ex{color:var(--warn-ink,#8a4b00);font-weight:600}.gr-r small b{font-weight:700;color:var(--text-1)}.gr-r small small{font-size:11px;color:var(--text-3)}</style>')
     o.append(gu_note(g, L))
-    o.append(f'{GCSS}<ol class="gl" aria-label="{esc(g)} 구역 목록 · 전세 끼고 지금 필요한 돈 적은 순">{rows}</ol>')
+    o.append(zhand.gu_prose(g, L, globals()))
+    GCSS = GCSS.replace('</style>', '.gl-h{margin:22px 0 4px;font-size:16px}.gthin{margin:14px 0}.gthin>summary{cursor:pointer;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);font-weight:700;font-size:14.5px}.gthin[open]>summary{margin-bottom:4px}.gr-l>b em{font-style:normal;margin-left:6px;padding:1px 6px;border-radius:6px;background:var(--brand-soft,#e8edf9);color:var(--brand,#1f3a87);font-size:11.5px;font-weight:700;vertical-align:2px}</style>')
+    _ol = lambda xs, lab: f'<ol class="gl" aria-label="{esc(g)} {lab} · 전세 끼고 지금 필요한 돈 적은 순">' + ''.join(grow(x).replace(f'<b>{esc(short(x["n"]))}</b>', f'<b>{esc(short(x["n"]))}<em>분석 글</em></b>', 1) if x['id'] in _hs else grow(x) for x in xs) + '</ol>'
+    o.append(GCSS)
+    if gH: o.append(f'<h3 class="gl-h">기사·고시로 대조한 분석 글이 있는 구역 {len(gH)}곳</h3>' + _ol(gH, '분석 글이 있는 구역'))
+    if gI: o.append(f'<h3 class="gl-h">{"그 밖에 " if gH else ""}거래·인가 자료가 넉넉한 구역 {len(gI)}곳</h3>' + _ol(gI, '자료가 넉넉한 구역'))
+    if gT: o.append(f'<details class="gthin"{"" if gH or gI else " open"}><summary>자료가 적은 구역 {len(gT)}곳 더 보기</summary>' + _ol(gT, '자료가 적은 구역') + '</details>')
     o.append('<p class="meta">입주까지 현금(입주 잔금대출 제외): 전세 끼고 갈 수 있는 곳은 <b>전세 끼고 산 경우</b>(앱 첫 화면과 같은 값), 전세를 낄 수 없는 곳은 <b>대출 끼고</b> 산 금액이에요(앱 ‘대출 끼고’와 같은 값).' + (' <sup>*</sup><b>토허제</b> = 토지거래허가구역. 사면 2년 동안 직접 살아야 해서 전세를 끼고 살 수 없어요.' if any((gapWhy(c(x)) or ('',))[0] == '토허제' for x in L) else '') + '</p>')
     why = collections.Counter(gapWhy(c(x))[0] for x in L if not c(x).get('gapOk') and gapWhy(c(x)))
     EXP = {'토허제': '토지거래허가구역이라 사면 2년 실거주해야 해서 전세를 끼고 살 수 없어요', '세입자 없음': '이주·철거가 시작돼 전세를 낄 세입자가 없어요(입주권으로 사야 해요)',
@@ -874,7 +895,7 @@ def guPage(g, L):
     o.append(FOOT.format(upd=UPD))
     return ''.join(o)
 for g in sorted(byg): open(os.path.join(GD, g + '.html'), 'w', encoding='utf-8').write(MONEY(guPage(g, byg[g])))
-print('gu pages', len(byg))
+print('gu pages', len(byg)); zhand.save_cache()
 # 구 목록 페이지: public/gu/index.html (/gu/ 가 404가 나지 않게)
 def gu_compare():
     """25차: 구별 비교 글(자료로만) — 구역 수 · 전세 끼고 지금 필요한 돈이 가장 적은 구 · 단계 분포 · 토지거래허가로 전세를 못 끼는 곳"""
