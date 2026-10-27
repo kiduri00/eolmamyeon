@@ -103,7 +103,7 @@ KIND = {'재개발': '재개발', '재건축': '재건축', '도시정비형 재
 DTK = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 승인'), ('조합설립', '조합설립인가'), ('시행자지정', '사업시행자 지정'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가'), ('착공', '착공'), ('준공', '준공')]
 SKEY = {2: ('구역지정',), 3: ('추진위',), 4: ('조합설립', '시행자지정'), 5: ('사업시행',), 6: ('관리처분',), 7: ('관리처분',), 8: ('착공',)}
 PSRC = {'villa': '빌라 실거래 가운데 값', 'complex': '단지 실거래 가운데 값', 'apt': '단지 실거래 가운데 값', 'est': '구 평균 시세로 추정'}
-from zsample import ro, isEst, cash, manT, smpTxt, trust, short, headline, noTicket, LBL, josa, auc_use, auc_uses, auc_jb, auc_amt, key3, set_dup
+from zsample import ro, isEst, cash, manT, smpTxt, trust, short, headline, noTicket, LBL, josa, auc_use, auc_uses, auc_jb, auc_amt, key3, set_dup, stall_yrs
 set_dup(D)  # 22차: '언제 입주' 가로·소규모 보정(화면과 같은 값)   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
 def gapWhy(c):   # 전세 끼고 계산이 안 되는 이유(화면 gapBlock과 같은 문구에서) → (표 칸 짧은 말, 설명)
     b = str(c.get('gapBlock') or '')
@@ -193,7 +193,8 @@ def _sdate(x):   # 지금 단계의 인가·고시일(SKEY) — 없으면 None
     dt = (P.get(x['id']) or {}).get('dt') or {}
     return next((dt[k] for k in SKEY.get(x.get('s', 0)) or () if dt.get(k)), None)
 def _yrs(d):
-    try: return (datetime.date.today() - datetime.date.fromisoformat(d[:10])).days / 365.25
+    # 사이클 2: 경과 연수 한 곳(zsample.yrs_since = 화면 ZF.yrsSince · 데이터 갱신일 기준) — 전엔 오늘 날짜로 세어 시트·/z가 0.1년씩 어긋났다
+    try: return __import__('zsample').yrs_since(d, D.get('upd') or D.get('asOf'))
     except Exception: return None
 def _stats():
     """같은 단계(서울 전체) 경과 연수 가운데 값 · 구×단계 묶음"""
@@ -253,7 +254,7 @@ def glance(r, c, k3):
     if y is not None and y >= 0 and m and not r.get('stale'):
         d = round(y, 1) - round(m[0], 1)   # 27차: 차이는 화면에 쓴(반올림한) 두 값으로 — '3.7년째, 4.7년보다 0.9년 짧아요' 같은 어긋남 없게
         tail = f"가운데 값 {m[0]:.1f}년과 비슷해요" if abs(d) < 0.5 else f"가운데 값 {m[0]:.1f}년보다 {abs(d):.1f}년 {'길어요' if d > 0 else '짧아요'}"
-        S_.append((min(1.2, abs(d) / max(1.0, m[0])) + 0.1, f"{sd[:4]}년 {int(sd[5:7])}월 {stg} 뒤 {y:.1f}년째로, 서울 같은 단계 {m[1]:,}곳의 {tail}."))
+        S_.append((min(1.2, abs(d) / max(1.0, m[0])) + 0.1, f"{sd[:4]}년 {int(sd[5:7])}월 {stg} 뒤 {y:.1f}년째로, 서울에서 지금 같은 단계에 있는 {m[1]:,}곳이 이 단계에 머문 기간 {tail}(다음 단계까지 걸린 기간은 '몇 년 걸리나' 표 기준이 따로 있어요)."))
     if t.get('n12') is not None:
         if t['n12']:
             s = f"{inb(r)}에서 최근 12개월 동안 신고된 거래는 {t['n12']}건이에요"
@@ -325,7 +326,7 @@ def page(r):
     lede = f"{esc(nm)}{josa(nm)} 지금 <b>{esc(stage)}</b> 단계예요" + (f" ({sd} 인가·고시)." if sd else ".")
     stl = r.get('stale')
     if stl: lede += f" 다만 {esc(stl['why'])}. 준공됐는지 멈췄는지 자료로 확인되지 않아 준공 가능성과 입주 시점은 싣지 않았어요."
-    elif c.get('p10') is not None: lede += f" 10년 안 준공 가능성은 {'1% 미만이' if c['p10'] < 0.01 else f"약 {prob(c['p10'])}%"}예요(서울 사업장 기록 통계)."
+    elif c.get('p10') is not None and not stall_yrs(r, dt, D.get('upd')): lede += f" 10년 안 준공 가능성은 {'1% 미만이' if c['p10'] < 0.01 else f"약 {prob(c['p10'])}%"}예요(서울 사업장 기록 통계)."
     o.append(f'<p class="lede">{lede} 기본 가정(무주택·84㎡·전세 끼고)으로 낸 추정이고 투자 권유가 아니에요. <a href="../#{rid}">내 조건으로 열기</a></p>')
     gl = glance(r, c, k3)
     if gl: o.append(f'<h2>이 구역 한눈에</h2><p class="glance">{esc(" ".join(gl))}</p>')
@@ -632,9 +633,12 @@ def hand_kpi(r, h):
     if c.get('st'):
         b = f"{esc(c['st']['n'])} 도보 {walk_min(c['st']['d'])}분"; sm = ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])
         h = re.sub(r'(<div class="kpi"><span>가까운 역</span><b>)[^<]*(</b><small>)[^<]*(</small>)', lambda m: m.group(1) + b + m.group(2) + sm + m.group(3), h, count=1)
-    if c.get('p10') is not None:
+    stl = stall_yrs(r, (P.get(r['id']) or {}).get('dt') or {}, D.get('upd'))   # 사이클 2: 장기 정체(8년) — 시트 '산정 불가'와 같은 판정이면 숫자 대신 '통계 생략'
+    if stl:
+        h = re.sub(r'(<div class="kpi"><span>10년 안 준공 가능성</span><b>)[^<]*(</b><small>)[^<]*(</small>)', lambda m: m.group(1) + '통계 생략' + m.group(2) + f'{stl}년째 같은 단계라 통계를 싣지 않았어요(8년 이상이면 생략)' + m.group(3), h, count=1)
+    elif c.get('p10') is not None:
         h = re.sub(r'(<div class="kpi"><span>10년 안 준공 가능성</span><b>)[^<]*(</b>)', lambda m: m.group(1) + prob_txt(c['p10']) + m.group(2), h, count=1)
-        if c['p10'] >= 0.01:   # 글 속 '이 페이지 통계로 본 10년 안 준공 가능성은 약 N%' — 같은 통계라 오늘 값으로(1% 미만이 되면 문장 꼴이 달라 그대로 두고 QA가 알림)
+        if c['p10'] >= 0.01 and not stl:   # 글 속 '이 페이지 통계로 본 10년 안 준공 가능성은 약 N%' — 같은 통계라 오늘 값으로(1% 미만이 되면 문장 꼴이 달라 그대로 두고 QA가 알림)
             h = re.sub(r'(10년 안 준공 가능성은 약 )\d+(%)', lambda m: m.group(1) + str(prob(c['p10'])) + m.group(2), h)
         if re.match(r'\d{4}-\d{2}', str(c.get('eMid') or '')):
             em = f"{c['eMid'][:4]}년 {int(c['eMid'][5:7])}월"
@@ -678,6 +682,12 @@ eok_m = __import__('zsample').eok_m
 # 리뉴얼 A1: 손으로 쓴 구역 분석 글(content/z/*.json) → public/z/<id>.html (아래 손글 처리 hand_fix가 최신 숫자 상자·계산 덩이를 채운다)
 import zhand
 ZH_IDS = set(zhand.render_all(globals())); _ZX = zhand.Ctx(globals()); _ZX._HANDSET = zhand.HANDSET
+# 사이클 2(F3): 손글 주요 일정의 계획 세대·최고 층수 → public/data/zplan.json(앱 조합·사업 정보 카드가 '기사 기준'으로 보인다)
+try:
+    _ZP = {k: v for k, v in zhand.plan_all(_ZX.ZD).items() if k in _LIVE and (k in ZH_IDS or is_hand(k))}
+    json.dump(_ZP, open(os.path.join(ROOT, 'public/data/zplan.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'), sort_keys=True)
+    print('  zplan:', len(_ZP))
+except Exception as e: print('  zplan: skip', e)
 made = kept = 0
 AUTO = {}
 for r in R:
@@ -1013,7 +1023,7 @@ def _ld_put(fp, obj):
 def _meta(h, name):
     m = re.search(r'<title>(.*?)</title>', h, re.S) if name == 'title' else re.search(r'<meta name="description" content="([^"]*)"', h)
     return html.unescape(m.group(1)).strip() if m else ''
-_pub = {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icon-512.png"}
+_pub = {"@type": "Organization", "name": (BRAND), "url": SITE, "logo": f"{SITE}/icons/icon-512.png"}
 RD = os.path.join(ROOT, 'public/report')
 if os.path.isdir(RD):
     iss = sorted((f for f in os.listdir(RD) if re.match(r'\d{4}-\d{2}\.html$', f)), reverse=True)

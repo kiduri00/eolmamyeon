@@ -598,3 +598,11 @@ html.is-tapp.t-big #sugg .x-h,html.is-tapp.t-big #sugg .s-none{white-space:norma
 
 /* tabfix: 탭을 바꾸는 동안(기록 되감기 → 목적 화면 열기) 본문을 가려 홈이 비치지 않게 — 바탕(#FFFFFF·다크 #101215)과 머리·아래 탭만 */
 html.is-tapp.t-sw main.wrap{visibility:hidden!important}
+/* 사이클 2: 넓은 화면(981px~) 앱 헤더의 가로 탭 — 새 소식 점·관심 수 배지가 '소식' 글자 위에 겹치던 것(아래 탭용 위치 left:50%+7px가 헤더에도 걸림) → 버튼 오른쪽 위 여백으로 */
+@media (min-width:981px){
+  html.is-tapp .hdr-r .s-nav button{padding-right:18px}
+  html.is-tapp .hdr-r .s-nav .nb-dot{display:none!important}
+  html.is-tapp .hdr-r .s-nav .t-bn{position:absolute;top:7px;right:5px;left:auto;width:8px;height:8px;min-width:0;padding:0;border-radius:50%;background:var(--t-badge);box-shadow:0 0 0 2px var(--t-pg);font-size:0;line-height:0;color:transparent;pointer-events:none}
+  html.is-tapp .hdr-r .s-nav .t-bn[hidden]{display:none}
+  html.is-tapp .hdr-r .s-nav .pn-nb{top:1px;right:0;left:auto}
+}

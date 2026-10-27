@@ -126,6 +126,20 @@ def short0(n):   # 사업 종류 꼬리를 뗀다(옛 규칙 · 대체용)
 def _ymd(s):
     m = re.match(r'(\d{4})-?(\d\d)-?(\d\d)', str(s or ''))
     return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+def yrs_since(d, upd):
+    """사이클 2: 경과 연수 한 곳(화면 ZF.yrsSince와 같은 셈) — (데이터 갱신일 − 날짜) 일수 ÷ 365.25 · 날짜는 'YYYY-MM(-DD)' / 'YYYY.MM(.DD)'."""
+    m = re.match(r'(\d{4})[.-](\d{1,2})(?:[.-](\d{1,2}))?', str(d or '')); n = _ymd(upd) if upd else None
+    if not m or not n: return None
+    return (n - datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3) or 1))).days / 365.25
+def stall_yrs(r, dt=None, upd=None):
+    """같은 단계 8년 이상(장기 정체) — 화면 app.js stallYrs와 같은 판정 · 아니면 0. /z 카드·본문·입주 시점이 이것 하나로 통계를 생략한다."""
+    s = r.get('s', 0) or 0
+    if not (2 <= s <= 6): return 0
+    dt = dt or {}
+    k = {2: '구역지정', 3: '추진위', 4: '시행자지정' if r.get('trust') else '조합설립', 5: '사업시행', 6: '관리처분'}.get(s)
+    d = dt.get(k) or ((dt.get('조합설립') or dt.get('시행자지정')) if s == 4 else None) or r.get('sd')
+    t = yrs_since(d, upd)
+    return int(t) if t is not None and t >= 8 else 0
 # 22차: 가로·소규모 입주 시점 보정 — 화면 app.js(ETA_ADJ)와 같은 규칙: 사업시행계획인가에 관리처분이 포함되므로 '사업시행→관리처분' 대기(DUP년)를 뺀다.
 # 예전엔 /z·api가 보정 전 값을 써서 22곳에서 '언제 입주'가 화면(7~10년 뒤)과 /z(10~15년 뒤)로 갈렸다.
 DUP = None
@@ -163,12 +177,7 @@ def eta_show(r, dt=None, as_of=None, upd=None):
     if not e or e.get('na'):
         if s <= 2: pre = True
         else: return '산정 불가'
-    if not pre and 2 <= s <= 6:   # stallYrs: 지금 단계 날짜가 8년 넘게 그대로면 산정 불가
-        dt = dt or {}
-        k = {2: '구역지정', 3: '추진위', 4: '시행자지정' if r.get('trust') else '조합설립', 5: '사업시행', 6: '관리처분'}.get(s)
-        d = dt.get(k) or ((dt.get('조합설립') or dt.get('시행자지정')) if s == 4 else None) or r.get('sd')
-        m = re.match(r'(\d{4})[.-](\d\d)', str(d or ''))
-        if m and today.year + (today.month - 1) / 12 - (int(m.group(1)) + (int(m.group(2)) - 1) / 12) >= 8: return '산정 불가'
+    if not pre and stall_yrs(r, dt, upd or as_of): return '산정 불가'   # 장기 정체(8년) — 화면 stallYrs와 같은 셈(stall_yrs)
     if not pre and not e.get('eMid'): return '산정 불가'
     if pre:
         return '4~7년 뒤' if s >= 6 else '7~10년 뒤' if s == 5 else '10~15년 뒤' if s == 4 else '15년 넘게'

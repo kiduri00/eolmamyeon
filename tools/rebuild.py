@@ -146,7 +146,7 @@ opts = ''.join(f'<option value="{esc(g)}">{esc(g)} ({n})</option>' for g, n in s
 desc = f"준공 30년이 지난 서울 아파트 {len(rows):,}단지의 실거래 가운데 값·거래 수·준공연도. 이미 정비사업이 진행 중인 {zN}단지는 구역 페이지로 연결. 데이터 기준 {UPD}."
 LD = json.dumps({"@context": "https://schema.org", "@type": "Article", "headline": f"준공 30년 넘은 서울 아파트 {len(rows):,}단지", "description": desc, "inLanguage": "ko", "datePublished": "2026-10-17", "dateModified": UPD.replace('.', '-'),
                  "mainEntityOfPage": "https://jaegaebal.alwaysquestions.kr/guide/rebuild-30y", "image": "https://jaegaebal.alwaysquestions.kr/og.png", "author": {"@type": "Organization", "name": (BRAND + " 편집"), "url": "https://jaegaebal.alwaysquestions.kr/about#principles"},
-                 "publisher": {"@type": "Organization", "name": (BRAND), "url": "https://jaegaebal.alwaysquestions.kr", "logo": "https://jaegaebal.alwaysquestions.kr/icon-512.png"}}, ensure_ascii=False).replace('</', '<\\/')
+                 "publisher": {"@type": "Organization", "name": (BRAND), "url": "https://jaegaebal.alwaysquestions.kr", "logo": "https://jaegaebal.alwaysquestions.kr/icons/icon-512.png"}}, ensure_ascii=False).replace('</', '<\\/')
 page = f'''<!doctype html>
 <html lang="ko">
 <head>

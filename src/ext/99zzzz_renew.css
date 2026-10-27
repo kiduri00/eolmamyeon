@@ -3,3 +3,19 @@
 .rules-dg a{display:flex;align-items:center;min-height:48px;padding:10px 16px;border-radius:14px;background:var(--brand-soft,#EEF2FB);color:var(--brand,#1F3A87);font-weight:700;font-size:14.5px;line-height:1.45;text-decoration:none;word-break:keep-all}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .rules-dg a{background:rgba(142,168,245,.14);color:#C5D3FA}}
 :root[data-theme="dark"] .rules-dg a{background:rgba(142,168,245,.14);color:#C5D3FA}
+/* 사이클 2: 관심 카드 — 금액 대신 판정 이름(계산 보류·입주권 없음) */
+.pn-now .pn-hold{font-size:13px;font-weight:600;color:var(--text-3)}
+/* 사이클 2: 매물진단·지번 확인 — 판정마다 '추정·확인 필요' 꼬리표 · 본문 속 근거 링크 밑줄(axe link-in-text-block) */
+.dg-est{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:999px;background:#FFF4E5;color:#7A4300;font:600 11px/16px var(--font,inherit);font-style:normal;vertical-align:1px;white-space:nowrap}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dg-est{background:rgba(255,170,60,.16);color:#FFC37A}}
+:root[data-theme="dark"] .dg-est{background:rgba(255,170,60,.16);color:#FFC37A}
+.dg-l small a,.acl a{text-decoration:underline;text-underline-offset:2px}
+/* 사이클 2: 매물진단 검색 — 지번 결과와 이름이 비슷한 구역을 나누는 소제목 */
+.tl-s .tl-g{padding:8px 12px 2px;font-size:12px;font-weight:700;color:var(--text-3);list-style:none}
+/* 사이클 2 접근성: 큰 글씨(130%)·360px — 시트 계산식 줄은 줄바꿈(가로 넘침 0) · 첫 화면 대표 문장(h1)은 말줄임 대신 두 줄 */
+.cash-br span{white-space:normal;overflow-wrap:anywhere}.cash-br b{white-space:nowrap}
+@media (max-width:640px){.s-gauge .s-h1{white-space:normal;overflow:visible;text-overflow:clip;text-wrap:balance}.s-ghead{align-items:flex-start}}
+/* 사이클 2: 구역 카드 '노후도 N%'(F8) · 시트 '비교에 담기'(F6) */
+.s-card .s-b-old{color:var(--text-2);background:var(--surface-2,#F2F4F6);font-weight:600}
+.dt-acts .dt-cmp[aria-pressed="true"]{color:var(--brand);border-color:var(--brand)}
+.pace small a{text-decoration:underline;text-underline-offset:2px}

@@ -81,7 +81,9 @@ function curTab() {
   return "home";
 }
 function navMark() {
-  const k = curTab();
+  // 사이클 2: 입주 계산(#planner · 앱 숏컷 · 모으면 언제 포함)은 MY 메뉴 화면 — 아래 탭 표시만 MY(웹 60_simple TAB_OF와 같게) · 탭 동작(curTab)은 그대로
+  let k = curTab();
+  if (k === "home" && H.classList.contains("s-view") && T(() => S().cur(), "") === "planner") k = "my";
   document.querySelectorAll("#sNav [data-nav]").forEach((b) => {
     const on = b.dataset.nav === k;
     if (on && b.getAttribute("aria-current") !== "page") b.setAttribute("aria-current", "page");

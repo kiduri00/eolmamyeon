@@ -125,7 +125,7 @@ PH = '구역·동·지번·역 검색'   # 앱 검색칸과 같은 글
 FORM = f'<form class="tsr" action="/" method="get" role="search"><label class="sr-only" for="tq">구역 검색</label><input id="tq" name="q" type="search" placeholder="{PH}" autocomplete="off" enterkeyhint="search" maxlength="40"></form>'
 
 
-LOGO_SVG = '<svg class="logo-i" width="28" height="28" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M32 61C25.5 52.5 12.5 40.5 12.5 24.5a19.5 19.5 0 0 1 39 0C51.5 40.5 38.5 52.5 32 61z" fill="#1F3A87" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M32 12.6 44.4 23.7h-3.9V35.2H23.5V23.7h-3.9z" fill="#fff" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><rect x="28.6" y="26.6" width="6.8" height="8.6" rx="1.2" fill="#1F3A87"/></svg>'
+# (사이클 2: 쓰이지 않던 옛 핀 마크 LOGO_SVG를 뺐다 — 마크는 tools/brand.py의 파일 참조(MARK_FILE·wordmark_svg)만)
 
 
 def app_header(h):

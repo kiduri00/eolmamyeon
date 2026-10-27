@@ -128,7 +128,7 @@ const SIMPLE = (() => {
     return { st: "far", need, total };
   }
   // 모자란 돈: 지금 필요한 돈(화면에 보이는 올림 값) − 내 돈 → '+2,000만' · '+0.2억'(ZF 꼴, 1억 아래 만 단위)
-  const shortTxt = (need) => "+" + ZF.short(need - CASH);
+  const shortTxt = (need) => "+" + ZF.gap(need, CASH);
   // 예산 시트 −/+ 한 번에 가는 금액(2억까지 1,000만 · 그 위 5,000만 칸에 맞춤) — 단추 이름(aria-label)도 이 값으로(29차: 2.1억에서 '5,000만 줄이기'인데 1,000만 내려가던 것)
   const bStepTo = (c0, d) => { let v = d < 0 ? (c0 <= 2 + 1e-9 ? Math.ceil(c0 * 10 - 1e-9) / 10 - 0.1 : Math.ceil(c0 * 2 - 1e-9) / 2 - 0.5) : (c0 <= 2 + 1e-9 ? Math.floor(c0 * 10 + 1e-9) / 10 + 0.1 : Math.floor(c0 * 2 + 1e-9) / 2 + 0.5); return Math.min(15, Math.max(0.5, Math.round(v * 100) / 100)); };   // 28차: 정확한 만 원(표시 올림 값끼리 뺀 100만 단위가 아님 · 최소 1만)
   // 단계 칩: 짧은 이름
@@ -163,7 +163,9 @@ const SIMPLE = (() => {
     // 동은 좁으면 먼저 줄어들고(…) 역·분은 늘 다 보인다
     const sub = `<span class="s-dg${wk ? " s-dgw" : ""}">${esc(dongOf(r) || r.g)}${wk ? " ·\u00a0" : tag}</span>${wk ? `<span class="s-wk">${(() => { const m = /^(.*?)(역 \d+분)$/.exec(wk); return m ? `<span class="s-wn">${esc(m[1])}</span><span class="s-wm">${esc(m[2])}${tag}</span>` : esc(wk) + tag; })()}</span>` : ""}`;   // 23차: 좁으면 역 이름만 줄고(…) '역 N분'은 늘 다 보인다
     // 입주권 ✓는 화면 읽기 이름에만(카드 2줄을 동·역에 양보) · ✕만 주황 배지
-    const bdg = `${tk === "n" ? '<em class="s-b s-b-no">입주권 ✕</em>' : ""}${nw ? '<em class="s-b s-b-new">NEW</em>' : ""}`;
+    // 사이클 2(F8): 구역 카드에 '노후도 N%' — 시트 노후도 게이지(64_overview oldHTML)와 같은 값·같은 조건(재개발 계열 · 이주 전 · 사용승인연도 확인 건물 있음)
+    const old = r.tx && r.tx.old && r.tx.old.k && r.s < 7 && !/재건축/.test(r.k) && r.src !== "moa" ? r.tx.old.pol : null;
+    const bdg = `${tk === "n" ? '<em class="s-b s-b-no">입주권 ✕</em>' : ""}${nw ? '<em class="s-b s-b-new">NEW</em>' : ""}${old != null ? `<em class="s-b s-b-old">노후도 ${old}%</em>` : ""}`;
     const mt = main != null ? eokS(main) : "–";
     // 27차: 좁은 폰(≤420)은 '현금 '을 숨겨 오른쪽 칸을 줄인다(글은 그대로 · 화면 읽기는 aria-label) — 2줄 역 이름이 잘리던 것
     const line2 = nowK ? (z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : `입주까지 <span class="s-nah">현금 </span>계산 보류<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(z.need)}`;
@@ -173,7 +175,7 @@ const SIMPLE = (() => {
     const fit = left != null && (document.documentElement.classList.contains("is-tapp") ? left <= 0.1 + 1e-9 : left <= CASH * 0.1 + 1e-9);
     const fitH = left == null ? "" : fit ? '<em class="s-fit">예산 거의 다 씀</em>' : left >= 0.01 ? `<span class="s-left">예산에서 남는 돈 ${esc(eokS(left))}</span>` : "";
     const word = ST_WORD[z.st], gapT = z.st === "near" && z.need != null ? `, ${shortTxt(z.need).slice(1)} 더 필요` : "";
-    const lab = `${nm}, ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} ${mt}, ${word}${gapT}${z.total != null && nowK ? `, ${LBL.cashToMoveIn} ${eokS(z.total)}` : ""}, ${stg}${tk === "n" ? ", 입주권 안 나옴" : tk === "y" ? ", 입주권 나옴" : ""}${nw ? ", 이번 주 새로 가능" : ""}${left == null ? "" : fit ? ", 예산 거의 다 씀" : left >= 0.01 ? `, 예산에서 남는 돈 ${eokS(left)}` : ""}`;
+    const lab = `${nm}, ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} ${mt}, ${word}${gapT}${z.total != null && nowK ? `, ${LBL.cashToMoveIn} ${eokS(z.total)}` : ""}, ${stg}${tk === "n" ? ", 입주권 안 나옴" : tk === "y" ? ", 입주권 나옴" : ""}${nw ? ", 이번 주 새로 가능" : ""}${old != null ? `, 노후도 ${old}%` : ""}${left == null ? "" : fit ? ", 예산 거의 다 씀" : left >= 0.01 ? `, 예산에서 남는 돈 ${eokS(left)}` : ""}`;
     // 지도 고른 카드(#lmPick): 두 칸 — 왼쪽 이름 한 줄 · 배지 · 남는 돈 / 오른쪽 '지금 X' 위 '입주까지 현금 Y' · 끝에 ›
     if (o.peek) return `<li class="s-card s-peek st-${z.st}${fav ? " fav" : ""}" data-zid="${r.id}"><a href="#${r.id}" data-id="${r.id}" data-zid="${r.id}" class="pk-a" aria-label="${esc(lab)} · 눌러서 자세히"><span class="pk-l"><b class="pk-n">${esc(nm)}</b><span class="pk-b"><em class="s-b s-stg">${esc(stg)}</em>${bdg}${fit ? '<em class="s-fit">예산 거의 다 씀</em>' : ""}</span>${!fit && left != null && left >= 0.01 ? `<small class="pk-left">예산에서 남는 돈 ${esc(eokS(left))}</small>` : z.st === "near" && z.need != null ? `<small class="pk-left">${esc(shortTxt(z.need))} 더 필요</small>` : ""}</span><span class="pk-r"><span class="pk-v"><i>${nowK ? "지금" : "입주까지"}</i> <b>${mt}</b></span>${nowK ? `<small>${z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : NA_L}</small>` : ""}</span><span class="pk-go" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span></a></li>`;
     return `<li class="s-card st-${z.st}${fav ? " fav" : ""}${o.cls ? " " + o.cls : ""}" data-zid="${r.id}"${left != null ? ` data-need="${needR}"` : ""}><a href="#${r.id}" data-id="${r.id}" class="s-cm" aria-label="${esc(lab)}"><span class="s-nm"><b title="${esc(nm)}">${esc(listNm(nm))}</b></span><span class="s-l2"><span class="s-mt"><em class="s-b s-stg">${esc(stg)}</em>${bdg}<small class="s-sub">${sub}</small></span><span class="s-fx">${fitH}</span></span></a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(nm)} ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} 추정 ${mt}${z.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · ${LBL.cashToMoveIn} ${eokS(z.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog"><span class="s-av"><i class="s-al" aria-hidden="true">${nowK ? "지금" : "입주까지"}</i><b>${mt}</b></span><small${z.total == null && nowK ? ' class="s-na"' : ""}>${z.st === "near" ? `<span class="s-gapt">${shortTxt(z.need)} 더 필요</span>` : line2}</small></button><button type="button" class="s-heart" data-heart="${r.id}" aria-pressed="${fav}" aria-label="${esc(heartLbl(r, fav))}">${HEART(fav)}</button></li>`;

@@ -316,6 +316,7 @@ async function staticLane(api) {
       let h = fs.readFileSync(p, "utf8");
       if (rel === "about.html") h = h.replace(/<!--zp-rename-->[\s\S]*?<!--\/zp-rename-->/, "");
       if (rel === "corrections.html" || rel === "about.html") h = h.split(BN.RENAME_LINE).join("");   // 예외: 이름 변경 안내 한 줄(brand.RENAME_LINE)
+      h = h.replace(/"alternateName"\s*:\s*(\[[^\]]*\])/g, (x, a) => { try { return JSON.stringify(JSON.parse(a)) === JSON.stringify(BN.ALT_NAMES || []) ? "" : x; } catch (e) { return x; } });   // 사이클 2 예외: JSON-LD alternateName = brand.ALT_NAMES 그대로
       BN.OLD_RX.lastIndex = 0; const m = BN.OLD_RX.exec(h); if (m) bad.push(`${rel}: …${h.slice(Math.max(0, m.index - 30), m.index + 10).replace(/\s+/g, " ")}`); } };
     try { walk(PUBD); } catch (e) { bad.push("walk: " + e.message); }
     expect(!bad.length, "brand.static", T, `${bad.length} files · ${bad.slice(0, 3).join(" ; ")}`);
@@ -4793,7 +4794,7 @@ const UNITS = {
   r30: { est: 140, limit: 400, files: [/^src\/ext\/(10_lmap|56_toheo|20_zone|99zzzzzzzz_r30)/, /^tools\/(report|zpages|toheo)\.py$/] },
   r31: { est: 70, limit: 300, files: [/^src\/(app\.js|app\.css|shell\.html)$/, /^tools\/(zpages|report)\.py$/] },
   // 리뉴얼 통합: 따로 만든 검사 도구를 단위로(같은 PASS/FAIL·JSON에 합침) — feat.*(qa_feat.js) · data.sync.*(qa_sync.js) · brand.residual(qa_brand.js) · zhand.*(zhand_check.py)
-  feat: { est: 420, limit: 1200, browser: false, ext: ["node", "tools/qa_feat.js", "$BASE"], files: [/^src\/feat\//, /^src\/ext\/(20_zone|66_tools|70_pins|72_inbox|74_my)\./, /^src\/app\.js$/, /^tools\/(qa_feat|qa_feat_ref|qa_feat_split)\./] },
+  feat: { est: 420, limit: 1200, browser: false, ext: ["node", "tools/qa_feat.js", "$BASE"], files: [/^src\/featx?\//, /^src\/ext\/(05_facts|20_zone|60_simple|66_tools|70_pins|72_inbox|74_my|76_detail|78_cx)\./, /^src\/app\.js$/, /^public\/sw\.js$/, /^tools\/(qa_feat|qa_feat_ref|qa_feat_split|zsample|agexy)\./] },
   sync: { est: 60, limit: 400, browser: false, ext: ["node", "tools/qa_sync.js", "$BASE"], files: [/^src\/app\.js$/, /^src\/ext\/(20_zone|30_api)\./, /^tools\/(api|zpages|report|stfix|jsnum|calc|build|enrich|zsample)\./, /^public\/(z|api)\//] },
   brand: { est: 10, limit: 120, browser: false, ext: ["node", "tools/qa_brand.js"], files: [/./] },
   zhand: { est: 60, limit: 400, browser: false, ext: ["python3", "tools/zhand_check.py"], files: [/^content\//, /^tools\/(zhand|zhand_check|zpages)\./, /^public\/(z|gu)\//] },

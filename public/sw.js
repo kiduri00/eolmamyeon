@@ -1,7 +1,7 @@
 /* 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "df7af243"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "d8e6806b"; // tools/build.py가 빌드 해시로 바꿔 씀
 const BRAND = "재개픽", BRAND_EN = "JaegaePick"; // 서비스 이름 — tools/build.py가 tools/brand.py 값으로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
@@ -14,7 +14,7 @@ const PRE = ["/", "/manifest.webmanifest", "/icons/favicon.svg", "/icons/favicon
 // 구 페이지(목록 + 25개 구)는 설치 때 미리 저장 → 오프라인에서도 구별 구역 목록을 연다
 const GUS = "강남구 강동구 강북구 강서구 관악구 광진구 구로구 금천구 노원구 도봉구 동대문구 동작구 마포구 서대문구 서초구 성동구 성북구 송파구 양천구 영등포구 용산구 은평구 종로구 중구 중랑구".split(" ");
 const PRE_PAGES = ["/gu/"].concat(GUS.map((g) => "/gu/" + encodeURIComponent(g)));
-const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30, [BUND]: 12, [PAGES]: 80 };
+const CAP = { [DATA]: 120, [TILE]: 300, [CDN]: 40, [SHELL]: 30, [BUND]: 24, [PAGES]: 80 };
 const isDoc = (p) => /^\/(z|gu|report|guide|feed)\//.test(p) || /^\/(years|about|method|contact|terms|privacy|faq)(\.html)?$/.test(p);
 // 앱 첫 화면 주소("/" · "/index.html")만 앱 저장본으로 대신한다 — 그 밖(/faq 등)은 저장본이 없으면 오프라인 안내(앱 첫 화면을 다른 주소로 보이지 않게)
 const isApp = (p) => p === "/" || p === "/index.html";
@@ -136,7 +136,7 @@ self.addEventListener("fetch", (e) => {
     if (u.pathname.startsWith("/api/contact") || /^\/admin(\.html)?$/.test(u.pathname)) return; // 문의 양식·운영자 화면은 저장하지 않는다(늘 네트워크)
     if (req.mode === "navigate") return e.respondWith(page(e));
     if (u.pathname.startsWith("/b/")) return e.respondWith(cacheFirst(e, BUND)); // 해시가 박힌 앱 코드·데이터
-    if (u.pathname.startsWith("/data/") || u.pathname.startsWith("/api/") || /^\/(premium\.json|manifest\.webmanifest|icon[^/]*\.(png|svg)|og\.png)$/.test(u.pathname)) return e.respondWith(swr(e, u.pathname.startsWith("/icon") || u.pathname.startsWith("/manifest") ? SHELL : DATA));
+    if (u.pathname.startsWith("/data/") || u.pathname.startsWith("/api/") || /^\/(premium\.json|manifest\.webmanifest|icons?[^/]*\.(png|svg|ico)|icons\/[^/]+\.(png|svg|ico)|og\.png)$/.test(u.pathname)) return e.respondWith(swr(e, u.pathname.startsWith("/icon") || u.pathname.startsWith("/manifest") ? SHELL : DATA));
     if (u.pathname === "/pages.css") return e.respondWith(swr(e, SHELL, { ignoreSearch: true })); // 정적 페이지 모양(오프라인에서도)
     return; // 그 밖의 같은 출처 파일은 브라우저 기본 동작
   }
@@ -151,7 +151,7 @@ self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : "" }; }
   const url = typeof d.url === "string" && d.url.startsWith("/") ? d.url : "/#inbox";
-  e.waitUntil(self.registration.showNotification(d.title || `${BRAND} · 새 소식`, { body: d.body || "핀 꽂은 구역에 새 소식이 있어요", icon: "/icons/icon-192.png", badge: "/icon-badge-96.png", tag: d.tag || "zp", lang: "ko", data: { url } }));
+  e.waitUntil(self.registration.showNotification(d.title || `${BRAND} · 새 소식`, { body: d.body || "관심 구역에 새 소식이 있어요", icon: "/icons/icon-192.png", badge: "/icon-badge-96.png", tag: d.tag || "zp", lang: "ko", data: { url } }));
 });
 // 알림을 누르면: 열린 앱 창이 있으면 그 창에서 구역을 열고(앱이 메시지를 받아 #id로 이동), 없으면 새 창
 self.addEventListener("notificationclick", (e) => {

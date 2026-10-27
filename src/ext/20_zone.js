@@ -55,20 +55,20 @@
     function pace(r) {
       if (r.dn || r.s >= 9 || r.src === "moa") return null;
       const k = PACE_KEY[r.s], dk = STAGE_DT[r.s];
-      const st0 = (/가로|소규모/.test(r.k) && D.stats.small[k]) || D.stats.large[k];
+      const st0 = k ? ZF.stageStat(r, k) : null;   // 사이클 2: 단계 기간 통계 한 곳(/years·F2 타임라인과 같은 기준)
       const d = r.dt && (r.dt[dk] || (r.s === 4 && r.dt["시행자지정"]));
       if (!k || !st0 || !d) return null;
-      const yrs = (Date.now() - new Date(d).getTime()) / (365.25 * 864e5);
+      const yrs = ZF.yrsSince(d);   // 사이클 2: 경과 연수 한 곳(F2 타임라인·장기 정체 판정과 같은 셈)
       if (!(yrs >= 0)) return null;
       const lvl = yrs > st0.p75 * 1.5 ? "slow2" : yrs > st0.p75 ? "slow" : yrs < st0.p25 ? "fast" : "norm";
-      return { yrs, med: st0.med, p25: st0.p25, p75: st0.p75, lvl, from: d, k };
+      return { yrs, med: st0.med, p25: st0.p25, p75: st0.p75, n: st0.n, na: st0.na, st: st0, lvl, from: d, k };
     }
     function paceHTML(r) {
       const p = pace(r);
       if (!p) return "";
       const T = { fast: "빠른 편", norm: "보통", slow: "늦은 편", slow2: "많이 늦음" };
       const w = Math.min(100, (p.yrs / Math.max(p.p75 * 1.6, p.yrs)) * 100), m = Math.min(100, (p.med / Math.max(p.p75 * 1.6, p.yrs)) * 100);
-      return `<div class="pace ${p.lvl}"><div class="pace-h"><b>현재 단계 ${p.yrs < 1 ? Math.round(p.yrs * 12) + "개월" : p.yrs.toFixed(1) + "년"}째</b><span class="pace-t">${T[p.lvl]}</span></div><div class="pace-bar" role="img" aria-label="서울 같은 단계 가운데 값 ${p.med}년 대비 ${p.yrs.toFixed(1)}년"><i style="width:${w.toFixed(1)}%"></i><s style="left:${m.toFixed(1)}%"></s></div><small>${esc(p.k.replace(">", " → "))} 서울 실제 소요 가운데 값 ${p.med}년 (보통 ${p.p25}~${p.p75}년) · ${esc(p.from.replaceAll("-", "."))}부터</small></div>`;
+      return `<div class="pace ${p.lvl}"><div class="pace-h"><b>현재 단계 ${ZF.dur(p.yrs)}째</b><span class="pace-t">${T[p.lvl]}</span></div><div class="pace-bar" role="img" aria-label="서울 같은 구간 가운데 값 ${ZF.durS(p.med)} 대비 ${ZF.dur(p.yrs)}"><i style="width:${w.toFixed(1)}%"></i><s style="left:${m.toFixed(1)}%"></s></div><small>${esc(p.k.replace(">", " → "))} 서울 실제 소요 ${ZF.stageStatTxt(p.st)} · ${esc(p.from.replaceAll("-", "."))}부터 · 같은 기준 <a href="years">몇 년 걸리나</a></small></div>`;
     }
 
     // ---------- 공급 계획 ----------
@@ -93,12 +93,13 @@
       const R0 = 6371000, t = Math.PI / 180, x = Math.sin(((b[0] - a[0]) * t) / 2) ** 2 + Math.cos(a[0] * t) * Math.cos(b[0] * t) * Math.sin(((b[1] - a[1]) * t) / 2) ** 2;
       return 2 * R0 * Math.asin(Math.sqrt(x));
     }
+    // 사이클 2: 비교 표 돈도 시트 첫 칸 판정(DTL.shown) 하나로 — 고른 사는 방식 값만(전세 끼고면 대출 끼고 값 'lnow'는 섞지 않고 '–')
     function needOf(r) {
       if (r.src === "moa") return null;
       try {
-        if (gapMode()) { const g = gapOf(r); return g && !g.block && !g.na ? g.now : null; }
-        const x = investC(r);
-        return effBasis() === "total" ? (x.ok ? x.needTotal : null) : x.needBuy;
+        const w = DTL.shown(r);
+        if (w.kind !== "need" && !(w.kind === "lnow" && !gapMode())) return null;
+        return !gapMode() && effBasis() === "total" ? (w.total ?? null) : w.v;
       } catch (e) { return null; }
     }
     function nearbyHTML(r) {
@@ -359,9 +360,11 @@
             const yr = x[4];
             const rdY = ri.k === "set" ? +ri.d.slice(0, 4) : null;
             const yrLine = !yr ? `<li class="na"><b>준공연도 미확인</b> 최근 거래 신고가 없어 준공연도를 몰라요. 건축물대장으로 사용승인일을 확인하세요.</li>`
-              : rdY && yr > rdY ? `<li class="bad"><b>${yr}년 준공 · 권리산정기준일(${esc(ri.d)}) 뒤</b> 기준일 뒤 신축이면 입주권이 안 나오거나 나눠 받을 수 있어요.</li>`
-              : rdY && yr === rdY ? `<li class="warn"><b>${yr}년 준공 · 기준일과 같은 해</b> 사용승인일이 ${esc(ri.d)} 전인지 건축물대장으로 확인하세요.</li>`
-              : `<li class="ok"><b>${yr}년 준공</b> ${rdY ? `권리산정기준일(${esc(ri.d)}) 전에 지은 건물이에요.` : "권리산정기준일이 정해지면 그 전 준공인지가 중요해요."}${2026 - yr <= 10 ? " 10년 이하 신축이라 지분 쪼개기 여부를 꼭 확인하세요." : ""}</li>`;
+              : rdY && yr > rdY ? `<li class="bad"><b>${yr}년 준공 · 권리산정기준일(${esc(ri.d)}) 뒤 <em class="dg-est">추정·확인 필요</em></b> 기준일 뒤 신축이면 입주권이 안 나오거나 나눠 받을 수 있어요.</li>`
+              : rdY && yr === rdY ? `<li class="warn"><b>${yr}년 준공 · 기준일과 같은 해 <em class="dg-est">추정·확인 필요</em></b> 사용승인일이 ${esc(ri.d)} 전인지 건축물대장으로 확인하세요.</li>`
+              // 사이클 2: ✓는 확정 근거(기준일이 정해졌고 그 전 준공)일 때만 · 기준일 미확정이면 ?(회색) · 연도 하드코딩·'10년 이하 신축' 경험칙은 뺌 · '추정·확인 필요'
+              : rdY ? `<li class="ok"><b>${yr}년 준공 · 권리산정기준일(${esc(ri.d)}) 전 <em class="dg-est">추정·확인 필요</em></b> 연도 기준이라 사용승인일·등기일을 건축물대장으로 확인하세요.</li>`
+              : `<li class="na"><b>${yr}년 준공 <em class="dg-est">추정·확인 필요</em></b> 권리산정기준일이 정해지지 않아 견줄 수 없어요. 기준일 고시 뒤 그 전 준공인지가 중요해요.</li>`;
             return `<li class="ok"><b>구역 경계 안</b> ${esc(dn)} ${esc(x[1])} · 지목 ${esc(x[3])} · 필지 면적 ${fmt(x[2])}㎡${x[2] < 90 && /^대/.test(x[3]) ? " (90㎡ 미만 과소필지)" : ""}</li>${yrLine}`;
           }).join("")}</ul>`;
         });
@@ -470,7 +473,7 @@
         return u(v) < 0.75 * m || u(v) > 1.35 * m;
       };
       const flr = (v) => (v[6] ? ` ${+v[6] < 0 ? "지하" + -v[6] : esc(String(v[6]))}층` : "");
-      const flag = (v) => (v[2] >= 2016 && v[4] > 0 && v[4] <= 15 ? ' <em class="flag" title="최근 준공·대지 15㎡ 이하: 지분 쪼개기 신축일 수 있어요">쪼개기 의심</em>' : rdY && v[2] > rdY && v[1] <= 1 ? ' <em class="flag" title="권리산정기준일 뒤 준공">기준일 뒤 준공</em>' : odd(v) ? ' <em class="flag" title="같은 면적대 시세와 크게 달라 큰 숫자·추이 계산에서 뺀 거래(직거래·특수관계 등일 수 있어요)">시세와 다름</em>' : "");
+      const flag = (v) => (rdY && v[2] > rdY && v[1] <= 1 ? ' <em class="flag" title="권리산정기준일 뒤 준공">기준일 뒤 준공</em>' : odd(v) ? ' <em class="flag" title="같은 면적대 시세와 크게 달라 큰 숫자·추이 계산에서 뺀 거래(직거래·특수관계 등일 수 있어요)">시세와 다름</em>' : "");
       // 빌라·단독(대지 3.3㎡당)과 아파트·입주권(전용 3.3㎡당)은 기준이 달라 표를 나눈다
       // 좁은 화면(360px)에서도 가로로 잘리지 않게 3칸: [계약일 · 유형 층 / 준공 · 전용 · 대지] [가격] [3.3㎡당]
       const SV = S.filter((v) => v[1] <= 1), SA = S.filter((v) => v[1] >= 2);
@@ -520,7 +523,7 @@
         ${calcNote}
         ${ageOk ? `<details class="sect ov-alt"><summary><h3>다른 기준 보기 · 연식별 대지 3.3㎡당 <small>구역 안 빌라·단독 전체 기간이라 위 큰 숫자와 기준이 달라요 · 권리산정기준일 뒤 신축이면 입주권이 문제될 수 있어요</small></h3></summary><dl class="facts">
           ${[["a", "10년 이하"], ["b", "11~30년"], ["c", "31년 이상"]].filter(([k]) => age[k] != null).map(([k, l]) => `<div><dt>${l}</dt><dd>${eok(age[k])}<small>${agn[k] || 0}건</small></dd></div>`).join("")}
-          <div><dt>쪼개기 의심 거래</dt><dd>${t.split ? t.split + "건" : "없음"}<small>2016년 이후 준공 · 대지 15㎡ 이하</small></dd></div></dl></details>` : ""}
+</dl></details>` : ""}
         ${t.old && t.old.k && r.s < 7 ? `<div class="sect"><h3>노후도 <small>구역 경계 안 건축물 ${fmt(t.old.n)}동 전수 · 사용승인연도 확인 ${fmt(t.old.k)}동 · 서울도시공간포털 건물 정보(사용승인 2022년까지 반영)</small></h3><div class="oldbar" role="img" aria-label="노후·불량 건축물 ${t.old.pol}%, 기준선 60%"><i style="width:${t.old.pol}%"></i><s style="left:60%"></s></div><dl class="facts"><div><dt>노후·불량 건축물</dt><dd>${t.old.pol}%<small>철근콘크리트·철골조 30년, 그 밖의 구조 20년 이상(서울 조례 기준 단순화) · 구역지정 요건 60% 이상</small></dd></div><div><dt>30년 이상 건물</dt><dd>${t.old.p30}%<small>평균 ${t.old.avg}년 된 건물</small></dd></div><div><dt>10년 이하 신축</dt><dd>${fmt(t.old.new10)}동<small>권리산정기준일 뒤 신축이면 입주권 문제 확인</small></dd></div></dl></div>` : ""}
         ${pc ? `<div class="sect"><h3>구역 필지 현황 <small>서울도시공간포털 연속지적 ${fmt(pc.n)}필지 · 합계 ${fmt(pc.ar)}㎡</small></h3><dl class="facts">
           <div><dt>과소필지 (90㎡ 미만)</dt><dd>${pc.sm}%<small>도로·하천 제외 · 재개발 지정 요건 40% 이상</small></dd></div>

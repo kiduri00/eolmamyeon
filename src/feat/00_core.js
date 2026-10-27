@@ -25,7 +25,7 @@
     return n;
   };
   F.pane = (tab, r, pane, ctx) => {
-    F.css();
+    F.css(); if (ctx.dur) F.dur = ctx.dur;   // 기간 꼴은 앱과 하나(ZF.dur)
     Object.values(F.mods).forEach((m) => { if (m.tab === tab) { try { m.run(r, pane, ctx); } catch (e) { console.warn("feat", m.key, e); } } });
   };
 })();
