@@ -108,7 +108,7 @@ for rid, vals in sorted(V.get('old', {}).items()):
     chk(not re.search(r'분담금 [\d.]+억', re.sub(r'<[^>]+>', '', h)), f'{rid}: 분담금을 한 숫자로 씀')
     if vals.get('eta') == '산정 불가':
         kp = re.search(r'<span>10년 안 준공 가능성</span><b>([^<]*)</b>', h)
-        chk(not kp or kp.group(1) == '–', f'{rid}: 준공 통계 생략 구역인데 머리 칸에 {kp and kp.group(1)}')
+        chk(not kp or kp.group(1) in ('–', '통계 생략'), f'{rid}: 준공 통계 생략 구역인데 머리 칸에 {kp and kp.group(1)}')   # renew-feat 사이클 2: 장기 정체(stall_yrs)는 '통계 생략'
         car = re.search(r'<section class="zh-car".*?</section>', h, re.S)
         chk(not car or not re.search(r'10년 안 준공 가능성 \d', car.group(0)), f'{rid}: 준공 통계 생략 구역인데 요약 카드에 가능성 숫자')
 # /gu 해설은 '한눈에' 자동 문단이 이미 말한 숫자(곳 수·방식별 수·관리처분 뒤 곳 수·계산된 곳 수·가운데 값·토지거래허가 곳 수·거래 건수·가장 오래 머문 곳·가장 많은 단계)를 다시 쓰지 않는다(애드센스 레드팀 c1: 영등포 6 vs 9)
