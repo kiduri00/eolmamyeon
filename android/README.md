@@ -1,4 +1,4 @@
-# 집핀 Android 앱 (Trusted Web Activity)
+# 재개픽 Android 앱 (Trusted Web Activity)
 
 https://jaegaebal.alwaysquestions.kr 를 그대로 띄우는 TWA 래퍼입니다. 웹사이트 코드는 건드리지 않습니다.
 
