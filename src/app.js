@@ -1,5 +1,8 @@
 (function () {
   "use strict";
+  // 서비스 이름: tools/brand.py 한 곳에서 정하고 빌드가 자리를 채운다(화면 문구에 이름을 직접 쓰지 않는다)
+  const BRAND = "__BRAND__", BRAND_EN = "__BRAND_EN__";
+  window.ZP_BRAND = { ko: BRAND, en: BRAND_EN };
   const D = window.__ZPD || JSON.parse(document.getElementById("data").textContent);
   const $ = (id) => document.getElementById(id);
   // 첫 화면 섬(boot.js) 없이 전체 앱으로 바로 뜬 경우: 글꼴은 <link>로 이미 받으니 바로 웹글꼴(app.css :root:not(.fo))
@@ -3999,7 +4002,7 @@
       $("sheetClose").onclick = closeSheet;
       $("sheetClose2").onclick = closeSheet;
       // 구역 페이지(/z/<id>)가 있는 곳은 그 주소로: 미리보기 카드·검색 노출이 구역마다 붙는다
-      $("zoneShare").onclick = () => shareLink(r.src !== "moa" && !(r.s >= 9 || (r.dn && r.s < 7)) && /^[\w-]+$/.test(r.id) ? `https://jaegaebal.alwaysquestions.kr/z/${r.id}` : pageURL() + condQuery() + "#" + r.id, $("zoneShareFb"), `${shortName(r.n)} · 집핀`);
+      $("zoneShare").onclick = () => shareLink(r.src !== "moa" && !(r.s >= 9 || (r.dn && r.s < 7)) && /^[\w-]+$/.test(r.id) ? `https://jaegaebal.alwaysquestions.kr/z/${r.id}` : pageURL() + condQuery() + "#" + r.id, $("zoneShareFb"), `${shortName(r.n)} · ${BRAND}`);
       const tabs = [...rp.querySelectorAll("[role=tab]")];
       tabs.forEach((b, i) => {
         b.onclick = () => setTab(b.dataset.tab);
@@ -4127,6 +4130,28 @@
     $("pane").setAttribute("aria-labelledby", "tab-" + k);
     renderPane();
   }
+  // renew-feat: 새 기능(단계 타임라인·사업 정보 카드·근처 구역 추천·가격 흐름·매수 전 진단)은 따로 된 묶음(/b/f.*.js)을 처음 쓸 때 받는다
+  // 기능 묶음은 앱 닫힘 범위 밖이라 쓰는 값·함수를 아래 ctx로만 건넨다(숫자는 시트·/z와 같은 함수: DTL.nums · ZX.pace · ZX.rights)
+  let FEAT_P = null;
+  const featLoad = () => FEAT_P || (FEAT_P = new Promise((res, rej) => {
+    if (window.ZPF && window.ZPF.v) return res(window.ZPF);
+    const s = document.createElement("script"); s.src = "__FEAT__"; s.async = true;
+    s.onload = () => (window.ZPF && window.ZPF.v ? res(window.ZPF) : rej(new Error("feat")));
+    s.onerror = () => { FEAT_P = null; rej(new Error("feat load")); };
+    document.head.appendChild(s);
+  }));
+  const featCtx = () => ({
+    D, R, byId, ZF, esc, fmt, stageName, shortName, isDone, probTxt, projection,
+    nums: (r) => DTL.nums(r), pace: (r) => ZX.pace(r), rights: (r) => ZX.rights(r), tx: () => ZX.loadTx(), shape: (r) => shapeOf(r), SHAPE,
+    cash: () => CASH, gap: () => gapMode(), tapp: () => document.documentElement.classList.contains("is-tapp"),
+    open: (id) => { curTab = "money"; select(id, true, false, { scroll: true }); },
+    brand: BRAND, etaShow: (r) => etaShow(r), pcl: (id) => ZX.loadPcl(id), rules: () => { const el = $("rules"); if (el && !el.innerHTML.trim()) drawRules(); }, cur: () => cur, tab: () => curTab, areaBad: (r) => areaSuspect(r), ok: (r) => !!(window.ZP_ok && window.ZP_ok(r)),
+  });
+  const featHook = (tab, r) => {
+    if (!["biz", "tx", "loc"].includes(tab) || !r || r.src === "moa") return;
+    featLoad().then((F) => { if (cur === r && curTab === tab && $("pane")) F.pane(tab, r, $("pane"), featCtx()); }).catch(() => {});
+  };
+  window.ZP_feat = { load: featLoad, ctx: featCtx, hook: featHook };
   function renderPane() {
     if (!$("pane")) return;
     if (PREM_TABS.has(curTab) && !cur._prem) {
@@ -4134,6 +4159,7 @@
       return;
     }
     ({ loc: paneLoc, biz: paneBiz, money: paneMoney, req: paneReq, near: paneNear, tx: paneTx })[curTab](cur);
+    if (curTab === "biz" || curTab === "loc") featHook(curTab, cur);
     if (curTab === "money" && gapMode()) {
       const h = gapPaneHTML(cur);
       if (h) {
@@ -4743,7 +4769,7 @@
     // 6라운드: 구역 밖 안내 = 빈 화면 문법(그림 · 14px 본문 · 설명 한 줄)
     const outHTML = () => pclAdm
       ? `<div class="s-none sg-out" role="presentation"><b>법정동 이름(예: 면목동)으로 찾아 주세요</b><br>지번은 행정동(면목본동·면목2동)이 아니라 법정동 이름으로 찾아요.</div>`
-      : `<div class="s-none sg-out" role="presentation"><b>이 지번은 집핀이 아는 재개발 구역 밖이에요</b><br>${esc(pq ? `${(pr && pr.dong) || pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : ""}` : "")} · 정비구역·모아타운 경계 안 필지만 찾아요.</div>`;
+      : `<div class="s-none sg-out" role="presentation"><b>이 지번은 지도에 있는 재개발 구역 밖이에요</b><br>${esc(pq ? `${(pr && pr.dong) || pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : ""}` : "")} · 정비구역·모아타운 경계 안 필지만 찾아요.</div>`;
     const noneHTML = () => {
       const near = qc.length >= 2 ? idx.filter((x) => !(x.r.s >= 9) && x.r.src !== "moa" && shortName(x.r.n).includes(qc.slice(0, 2))).slice(0, 4).map((x) => x.r) : [];
       const pop = R.filter((r) => r.tx && r.tx.n3 && !(r.s >= 9) && r.src !== "moa" && !near.includes(r)).sort((a, b) => b.tx.n3 - a.tx.n3).slice(0, 6);
@@ -5359,7 +5385,7 @@
         }),
       );
     $("rules").innerHTML =
-      `<h3 class="rules-g">매수 전에 확인할 것 <small>지위양도·재당첨·대출·세금</small></h3><div class="rules-col">${buyer.join("")}</div><h3 class="rules-g">사업 진행 요건 <small>구역지정·동의율·모아타운</small></h3><div class="rules-col">${biz.join("")}</div>`;
+      `<p class="rules-dg" data-rules-dg><a href="#diagTop" data-menu="diagTop">구역을 골라 입주권·토지거래허가·신축 쪼개기 위험까지 한 번에 보기 → 매물진단</a></p><h3 class="rules-g">매수 전에 확인할 것 <small>지위양도·재당첨·대출·세금</small></h3><div class="rules-col">${buyer.join("")}</div><h3 class="rules-g">사업 진행 요건 <small>구역지정·동의율·모아타운</small></h3><div class="rules-col">${biz.join("")}</div>`;
     markNewWin($("rules"));
     drawSources();
   }
@@ -7309,7 +7335,7 @@
         ? `<table class="sm-t"><caption class="sr-only">${cap}</caption><thead><tr><th scope="col">구역</th><th scope="col">단계</th><th scope="col" class="n">① 지금</th><th scope="col" class="n">③ 입주까지</th><th scope="col" class="n">10년 준공</th><th scope="col">입주(추정)</th><th scope="col">가까운 역</th></tr></thead><tbody>${rows.map((x) => `<tr><th scope="row">${esc(shortName(x.r.n))}<small>${esc(x.r.g)}</small></th><td>${esc(x.stg)}</td><td class="n">${eok(x.now)}</td><td class="n"><b>${eok(x.tot)}</b></td><td class="n">${pc(x.p10)}</td><td>${yr(x.eta)}</td><td>${esc(x.stn)}</td></tr>`).join("")}</tbody></table>`
         : "";
     const nowLab = gap ? "전세 끼고 지금 드는 돈(매수가 − 전세금 + 취득세)" : "지금 드는 돈(매수가 + 취득세 − 매수 대출)";
-    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">집핀 · 내 조건 한 장 요약</p><h2 id="smT">현금 ${ZF.cash(CASH)}으로 ${gap ? "전세 끼고 지금 갈 수 있는" : P.basis === "now" ? "지금 갈 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>${LBL.cashToMoveIn}이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>관심 구역 ${fav.length}곳</h3>${tbl(fav, "관심 구역")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
+    return `<div class="sm-in">\n    <div class="sm-bar no-print"><button type="button" class="btn primary" id="svPrint">PDF로 저장 · 인쇄</button><button type="button" class="btn secondary" id="svClose">닫기</button><span class="sm-tip">인쇄 창에서 대상을 'PDF로 저장'으로 고르면 파일로 남아요</span></div>\n    <article class="sm-page" aria-labelledby="smT">\n      <header class="sm-h"><p class="sm-k">${BRAND} · 내 조건 한 장 요약</p><h2 id="smT">현금 ${ZF.cash(CASH)}으로 ${gap ? "전세 끼고 지금 갈 수 있는" : P.basis === "now" ? "지금 갈 수 있는" : "입주까지 감당할 수 있는"} 구역 <b>${fmt(ok.length)}곳</b></h2>\n        <p class="sm-c">${esc(condText())}</p>\n        <p class="sm-d">만든 날 ${today} · 데이터 기준 ${ASOF}</p></header>\n      ${top.length ? `<h3>${LBL.cashToMoveIn}이 적은 순 ${top.length < ok.length ? `상위 ${top.length}곳 <small>(전체 ${fmt(ok.length)}곳은 사이트에서)</small>` : `${top.length}곳`}</h3>${tbl(top, "조건에 맞는 구역")}` : `<p class="sm-empty">이 조건으로는 아직 맞는 구역이 없어요. 사이트의 답 카드에서 다음 금액이나 다른 조건을 확인해 보세요.</p>`}\n      ${fav.length ? `<h3>관심 구역 ${fav.length}곳</h3>${tbl(fav, "관심 구역")}` : ""}\n      <ul class="sm-n">\n        <li>① ${nowLab} · ③ 입주까지 현금(분담금·세금·이자 더하고 입주 잔금대출 뺀 값)</li>\n        <li>모두 추정치예요. 시세 상승 0% 가정 · 대출 한도는 현행 규제 기준 · 조합원 분양가·감정가 계수는 작성자 가정값</li>\n        <li>10년 준공 확률·입주 시점은 서울 사업장 실제 인가일 생존분석(해제 구역이 빠져 다소 낙관적)</li>\n        <li>투자 권유가 아니에요. 사기 전에 조합·구청 공고와 실제 매물가를 꼭 확인하세요.</li>\n      </ul>\n      <p class="sm-f">jaegaebal.alwaysquestions.kr</p>\n    </article></div>`;
   }
   function sumOpen() {
     if (!isMember()) {
@@ -7498,7 +7524,7 @@
       });
     });
   }
-  async function shareLink(url, fb, title = "집핀 · 서울 재개발 지도") {
+  async function shareLink(url, fb, title = `${BRAND} · 서울 재개발 지도`) {
     try {
       if (navigator.share && matchMedia("(pointer:coarse)").matches) {
         await navigator.share({ title, url });

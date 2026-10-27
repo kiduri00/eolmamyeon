@@ -57,7 +57,7 @@
     var src = e.filename || "";
     if (!ours(src) || !e.error) return;
     W.ZP_err.n++;
-    try { console.warn("[집핀] 처리하지 못한 오류:", e.error); } catch (x) {}
+    try { console.warn("[__BRAND__] 처리하지 못한 오류:", e.error); } catch (x) {}
     show();
   });
   W.addEventListener("unhandledrejection", function (e) {
@@ -66,7 +66,7 @@
     var st = String(r.stack || "");
     if (st && st.indexOf(location.origin) < 0) return;
     W.ZP_err.n++;
-    try { console.warn("[집핀] 처리하지 못한 약속 오류:", r); } catch (x) {}
+    try { console.warn("[__BRAND__] 처리하지 못한 약속 오류:", r); } catch (x) {}
     show();
   });
 })();

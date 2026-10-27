@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """src/ → public/index.html 조립. 사용: python3 tools/build.py"""
-import json, hashlib, os, re
+import json, hashlib, os, re, sys
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(R, 'tools')); import brand   # 서비스 이름은 tools/brand.py 한 곳
 S = lambda p: open(os.path.join(R, 'src', p), encoding='utf-8').read()
-shell = S('shell.html')
+shell = brand.sub(S('shell.html'))
 EN = os.path.join(R, 'pipeline', 'data.enriched.json')
 D = json.load(open(EN, encoding='utf-8')) if os.path.exists(EN) else json.loads(S('data.json'))
 # 첫 화면 정적 글자(눈썹·요약·읽을거리 소개)의 '진행 중 N곳'을 자료와 같게(앱이 그린 뒤의 숫자 · /api count와 같은 기준) — 같은 곳 합치기 등으로 수가 바뀌어도 어긋나지 않게
@@ -125,52 +126,8 @@ def _md(x):
 _t, _u = _md((D.get('txAsOf') or {}).get('sale')), _md(D.get('upd') or D.get('asOf'))
 FRESH = (f'실거래 {_t} 신고분까지' + (f' · {_u} 갱신' if _u else '')) if _t else f'{_u} 갱신'
 shell = shell.replace('<span class="asof" id="asof"></span>', f'<span class="asof" id="asof">{FRESH}</span>', 1).replace('<span id="footAsof"></span>', f'<span id="footAsof">{FRESH}</span>', 1)
-# 역 이름 고치기·새 역 넣기·가까운 역 다시 고르기(예전엔 앱이 켤 때마다 1,300곳을 돌며 ~200ms) — 빌드에서 한 번(src/app.js D.stFix 분기와 같은 규칙)
-def st_fix(D):
-    import math
-    if D.get('stFix') or not isinstance(D.get('stations'), list): return
-    ST_FIX = {'당고개역': '불암산역', '구회의사당역': '국회의사당역', '영등포 구청역': '영등포구청역', '잠실시내역': '잠실새내역', '시가정역': '사가정역'}
-    LN_FIX = {'경의중앙': '경의중앙선', '김포 골드라인': '김포골드라인', '신림역': '신림선'}
-    stName = lambda n: ST_FIX.get(n) or re.sub(r'(\S) (구청역|시청역)$', r'\1\2', n)
-    uniq = lambda a: list(dict.fromkeys(a))
-    for st in D['stations']:
-        st[0] = stName(st[0]); st[3] = uniq([LN_FIX.get(l, l) for l in st[3]])
-    NEW_ST = [['천왕역', 37.486637, 126.838713, ['7호선']], ['온수역', 37.492262, 126.823555, ['1호선', '7호선']], ['오류동역', 37.494526, 126.845365, ['1호선']], ['개봉역', 37.494594, 126.85968, ['1호선']],
-              ['사당역', 37.476746, 126.981597, ['2호선', '4호선']], ['영등포역', 37.515504, 126.907628, ['1호선']], ['여의나루역', 37.527098, 126.932901, ['5호선']], ['마포역', 37.539574, 126.945932, ['5호선']],
-              ['가좌역', 37.568491, 126.915487, ['경의중앙선']], ['서강대역', 37.551881, 126.935711, ['경의중앙선']], ['압구정로데오역', 37.527381, 127.040534, ['수인분당선']], ['남태령역', 37.463873, 126.989134, ['4호선']],
-              ['중앙보훈병원역', 37.529191, 127.148739, ['9호선']], ['보라매공원역', 37.495569, 126.918083, ['신림선']]]
-    jr = lambda v: math.floor(v + 0.5)
-    for n, la, lo, ln in NEW_ST:
-        x = jr((2272.72439 * lo - 0.00834955 * la - 288078.866) * 10) / 10; y = jr((-0.0013117628 * lo - 2866.9639 * la + 108107.651) * 10) / 10
-        D['stations'].append([n, la, lo, ln, int(x) if x == int(x) else x, int(y) if y == int(y) else y])
-    def hav(a, b):
-        t = math.pi / 180; dl = (b[0] - a[0]) * t; dn = (b[1] - a[1]) * t
-        x = math.sin(dl / 2) ** 2 + math.cos(a[0] * t) * math.cos(b[0] * t) * math.sin(dn / 2) ** 2
-        return 12742e3 * math.asin(math.sqrt(x))
-    for r in D['recs']:
-        if r.get('st'): r['st']['n'] = stName(r['st']['n'])
-        for x in (r.get('s3') or []):
-            x[0] = stName(x[0]); x[2] = uniq([LN_FIX.get(l, l) for l in (x[2] or [])])
-        if r.get('s3'):
-            seen = set(); o = []
-            for x in r['s3']:
-                k = re.sub(r'\s', '', x[0])
-                if k in seen: continue
-                seen.add(k); o.append(x)
-            r['s3'] = o
-        if r.get('ln'): r['ln'] = uniq([LN_FIX.get(l, l) for l in r['ln']])
-        if not r.get('ll') or not r.get('st'): continue
-        worst = r['s3'][2][1] if r.get('s3') and len(r['s3']) >= 3 else float('inf')
-        if not any((lambda d: d < worst or d <= 1e3)(hav(r['ll'], [s[1], s[2]])) for s in NEW_ST): continue
-        al = sorted(((s, hav(r['ll'], [s[1], s[2]])) for s in D['stations']), key=lambda z: z[1])
-        seen = set(); s3 = []
-        for s, d in al:
-            if s[0] in seen: continue
-            seen.add(s[0]); s3.append([s[0], jr(d), s[3]])
-            if len(s3) == 3: break
-        r['st'] = {'n': s3[0][0], 'd': s3[0][1]}; r['s3'] = s3
-        r['ln'] = uniq([l for s, d in al if d <= 1e3 for l in s[3]])
-    D['stFix'] = 1
+# 역 이름 고치기·새 역 넣기·가까운 역 다시 고르기 — tools/stfix.py 한 곳(api.py도 같은 함수 · 앱 화면·/z·API의 '가까운 역'이 같게)
+from stfix import st_fix
 st_fix(D)
 data = json.dumps(D, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
 EXT = os.path.join(R, 'src', 'ext')
@@ -295,6 +252,7 @@ B = os.path.join(R, 'public', 'b'); os.makedirs(B, exist_ok=True)
 _cf = os.path.join(R, 'public', 'cf.js')
 if not os.path.exists(_cf) or open(_cf, encoding='utf-8').read() != CONTACT_JS: open(_cf, 'w', encoding='utf-8').write(CONTACT_JS)
 def emit(prefix, body, ext='js'):
+    body = brand.sub(body)
     h = hashlib.md5(body.encode()).hexdigest()[:10]; fn = f'{prefix}.{h}.{ext}'
     open(os.path.join(B, fn), 'w', encoding='utf-8').write(body)
     return '/b/' + fn
@@ -315,6 +273,18 @@ _parts = [pre_js + 'window.__ZPDp=[' + JP(_core) + '];'] + ['window.__ZPDp.push(
 _parts[-1] += '(function(){var p=window.__ZPDp,D=p[0];D.recs=[].concat.apply([],p.slice(1));window.__ZPD=D;window.__ZPDp=null})();'
 d_urls = [emit('d', x) for x in _parts]
 d_url = d_urls[0]
+# renew-feat: 새 기능 묶음(src/feat/*.js · *.css) → /b/f.*.js — 구역 시트의 일정·거래·입지 탭과 도구를 처음 열 때 받는다(웹·앱 첫 화면 a.js 무게에 넣지 않음)
+# 기능 CSS는 같은 파일 안 문자열로(처음 쓸 때 <style>로 붙임) — 앱 CSS 정리(prune)와 섞이지 않게
+_FD = os.path.join(R, 'src', 'feat')
+f_js = ''.join(open(os.path.join(_FD, f), encoding='utf-8').read() for f in sorted(os.listdir(_FD)) if f.endswith('.js')) if os.path.isdir(_FD) else ''
+f_css = ''.join(open(os.path.join(_FD, f), encoding='utf-8').read() for f in sorted(os.listdir(_FD)) if f.endswith('.css')) if os.path.isdir(_FD) else ''
+if ESB and not os.environ.get('NO_MINIFY'): f_js = mini(f_js, 'js'); f_css = mini(f_css, 'css')
+assert f_js.count('"__FCSS__"') == 1, 'src/feat: "__FCSS__" 자리 하나'
+f_js = f_js.replace('"__FCSS__"', json.dumps(f_css, ensure_ascii=False).replace('</', '<\\/'))
+f_url = emit('f', f_js)
+assert js.count('__FEAT__') == 1 and js_y.count('__FEAT__') == 1, 'app.js: __FEAT__ 자리 하나'
+js = js.replace('__FEAT__', f_url); js_y = js_y.replace('__FEAT__', f_url)
+print('feat', f_url, len(f_js.encode()), 'bytes')
 a_url = emit('a', js)
 aa_url = emit('ta', js_y)   # pre-adsense 5: 설치 앱 전용(덩이로 나눠 실행) — 이름이 't'로 시작해 웹 서비스 워커의 미리 받기(/b/[a-su-z].*)에 안 걸린다(웹 방문자는 받지 않음)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
@@ -341,7 +311,7 @@ if os.path.isdir(_KD):
             s = s.replace(f'id="{i}"', f'id="{k}__U__{i}"').replace(f'url(#{i})', f'url(#{k}__U__{i})').replace(f'href="#{i}"', f'href="#{k}__U__{i}"')
         _kit[k] = s
     if os.path.exists(os.path.join(_KD, 'tokens.css')): t_css += open(os.path.join(_KD, 'tokens.css'), encoding='utf-8').read()
-t_js = '(function(){"use strict";\nconst TKIT = ' + json.dumps(_kit, ensure_ascii=False) + ';\n' + t_js + '\n})();'
+t_js = '(function(){"use strict";\nconst BRAND = "__BRAND__";\nconst TKIT = ' + json.dumps(_kit, ensure_ascii=False) + ';\n' + t_js + '\n})();'
 if ESB and not os.environ.get('NO_MINIFY'): t_js = mini(t_js, 'js'); t_css = mini(t_css, 'css')
 t_url = emit('t', t_js); tc_url = emit('t', t_css, 'css')
 assert shell.count('__TJS__') == 1 and shell.count('__TCSS__') == 1
@@ -349,7 +319,7 @@ shell = shell.replace('__TJS__', t_url).replace('__TCSS__', tc_url)
 # 지난 빌드 파일은 이번 것 + 바로 전 것만 남김(배포 직후 옛 화면이 잠깐 참조할 수 있게)
 KEEP = 2
 def prune():
-    for pre, ext in (('d', 'js'), ('a', 'js'), ('ta', 'js'), ('c', 'css'), ('h', 'js'), ('r', 'json'), ('t', 'js'), ('t', 'css')):
+    for pre, ext in (('d', 'js'), ('a', 'js'), ('ta', 'js'), ('f', 'js'), ('c', 'css'), ('h', 'js'), ('r', 'json'), ('t', 'js'), ('t', 'css')):
         fs = sorted([f for f in os.listdir(B) if f.startswith(pre + '.') and f.endswith('.' + ext)], key=lambda f: os.path.getmtime(os.path.join(B, f)), reverse=True)
         cur = {u.split('/')[-1] for u in d_urls} if pre == 'd' else set()
         for f in [x for x in fs if x not in cur][KEEP * (len(d_urls) if pre == 'd' else 1) - len(cur):]:
@@ -485,6 +455,7 @@ except Exception as e: print('og_site 건너뜀:', e)
 try:
     import static_tabs; static_tabs.main()
 except Exception as e: print('static tabs 건너뜀:', e)
+out = brand.sub(out)
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)
 print('public/index.html', len(out.encode()), 'bytes', '(island)' if out is not full else '(full)')
 # 서비스 워커 캐시 이름 = 이번 빌드 내용 해시(배포마다 옛 캐시를 비운다)
@@ -492,4 +463,17 @@ SW = os.path.join(R, 'public', 'sw.js')
 if os.path.exists(SW):
     sw0 = open(SW, encoding='utf-8').read(); swv = hashlib.md5(out.encode()).hexdigest()[:8]
     sw1 = re.sub(r'^const V = "[^"]*";', f'const V = "{swv}";', sw0, count=1, flags=re.M)
+    sw1 = re.sub(r'^const BRAND = "[^"]*", BRAND_EN = "[^"]*";', f'const BRAND = "{brand.BRAND}", BRAND_EN = "{brand.BRAND_EN}";', sw1, count=1, flags=re.M)
     if sw1 != sw0: open(SW, 'w', encoding='utf-8').write(sw1); print('sw.js cache', swv)
+# 서비스 이름(tools/brand.py) → 앱 정보 파일(manifest · assetlinks)
+_MF = os.path.join(R, 'public', 'manifest.webmanifest')
+if os.path.exists(_MF):
+    m0 = open(_MF, encoding='utf-8').read()
+    m1 = re.sub(r'("name": ")[^"]*(")', lambda m: m.group(1) + brand.APP_NAME + m.group(2), m0, count=1)
+    m1 = re.sub(r'("short_name": ")[^"]*(")', lambda m: m.group(1) + brand.BRAND + m.group(2), m1, count=1)
+    if m1 != m0: open(_MF, 'w', encoding='utf-8').write(m1); print('manifest brand', brand.BRAND)
+_AL = os.path.join(R, 'public', '.well-known', 'assetlinks.json')
+if os.path.exists(_AL):
+    a0 = open(_AL, encoding='utf-8').read()
+    a1 = re.sub(r'("package_name": ")[^"]*(")', lambda m: m.group(1) + brand.APP_PKG + m.group(2), a0)
+    if a1 != a0: open(_AL, 'w', encoding='utf-8').write(a1); print('assetlinks package', brand.APP_PKG)

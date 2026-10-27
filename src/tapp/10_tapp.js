@@ -562,7 +562,7 @@ function onbHTML() {
     // 키를 아직 받는 중이고 온라인이면 켤 수 있는 쪽으로 본다(받기가 끝나면 다시 그림) · 막혔거나 지원 안 하는 기기만 '켤 수 없어요'
     const st = T(() => X0.inbox().st(), null), can = st && st.perm !== "denied" && st.perm !== "unsupported" && (st.can || (obKey === "pending" && navigator.onLine !== false));
     body = `<span class="tob-art${tKit("onb-3") ? " k" : ""}">${tIcon("bell", 68, "", "onb-3")}</span><p class="tob-k">3 / 3 · 알림</p><h2 id="tobT" tabindex="-1">새 소식을 알림으로 받을까요?</h2><p class="tob-p">관심 구역에 새 실거래·단계·경매 소식이 생기면 매일 아침 한 번 알려 드려요. 종류는 MY › 알림 설정에서 골라요.</p>` +
-      (st && st.on ? `<p class="tob-ok" role="status">알림이 켜져 있어요</p>` : can ? `<p class="tob-ok" id="tobMsg" role="status" hidden></p>` : `<p class="tob-ok" role="status">${st && st.perm === "denied" ? "알림이 막혀 있어요 · 폰 설정 → 애플리케이션(또는 앱) → 집핀 → 알림에서 허용할 수 있어요" : "지금은 이 기기에서 폰 알림을 켤 수 없어요 · 새 소식은 소식 탭에 모아 드려요"}</p>`);
+      (st && st.on ? `<p class="tob-ok" role="status">알림이 켜져 있어요</p>` : can ? `<p class="tob-ok" id="tobMsg" role="status" hidden></p>` : `<p class="tob-ok" role="status">${st && st.perm === "denied" ? `알림이 막혀 있어요 · 폰 설정 → 애플리케이션(또는 앱) → ${BRAND} → 알림에서 허용할 수 있어요` : "지금은 이 기기에서 폰 알림을 켤 수 없어요 · 새 소식은 소식 탭에 모아 드려요"}</p>`);
     foot = (can && !(st && st.on) ? `<button type="button" class="tob-go" data-oalert>알림 켜기</button><button type="button" class="tob-sub" data-odone>나중에</button>` : `<button type="button" class="tob-go" data-odone>시작하기</button>`);
   }
   return `${top}<div class="tob-body">${body}</div><div class="tob-foot">${foot}</div>`;
@@ -623,11 +623,11 @@ function myBuild() {
   const g = $("myG6"), grp = g && g.closest(".my-g");
   if (grp && !$("tGov")) {
     const p = document.createElement("p"); p.className = "t-gov"; p.id = "tGov";
-    p.textContent = "집핀은 정부·서울시·공공기관과 관련이 없고 이들을 대표하지 않아요. 숫자는 공개 자료로 낸 추정이에요. 공식 정보는 서울시 정비사업 정보몽땅(cleanup.seoul.go.kr)·국토교통부 실거래가 공개시스템(rt.molit.go.kr) 원문에서 확인하세요.";
+    p.textContent = "이 앱은 정부·서울시·공공기관과 관련이 없고 이들을 대표하지 않아요. 숫자는 공개 자료로 낸 추정이에요. 공식 정보는 서울시 정비사업 정보몽땅(cleanup.seoul.go.kr)·국토교통부 실거래가 공개시스템(rt.molit.go.kr) 원문에서 확인하세요.";
     grp.appendChild(p);
   }
   // 2라운드: 알림이 막혀 있으면 종류 스위치는 '꺼짐' 모양 + aria-disabled(누를 수 없음) · 흐리게(opacity) 하지 않는다(글자 대비) · 안내는 한 줄
-  const DENY_T = `폰 ${/iPhone|iPad|iPod/.test(navigator.userAgent) ? "설정 → 알림 → 집핀" : "설정 → 애플리케이션(또는 앱) → 집핀 → 알림"}에서 허용해 주세요`;
+  const DENY_T = `폰 ${/iPhone|iPad|iPod/.test(navigator.userAgent) ? `설정 → 알림 → ${BRAND}` : `설정 → 애플리케이션(또는 앱) → ${BRAND} → 알림`}에서 허용해 주세요`;
   let busy = false;
   T(() => { const a = document.querySelector('#my a[data-menu="diagTop"] .my-t'); if (a) { a.querySelector("b").textContent = "입주권 나오나"; const sm = a.querySelector("small"); if (sm) sm.textContent = "이 매물을 사면 입주권이 나오는지"; } });
   const deny = () => {

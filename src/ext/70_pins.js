@@ -432,7 +432,7 @@ const PINS = (() => {
     const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#1f3a87"); gr.addColorStop(1, "#142659");
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
     const L = all().filter((n) => n.r);
-    g.fillStyle = "rgba(255,255,255,.65)"; g.font = F(600, 36); g.fillText("집핀 · 내 관심 구역", 80, 120);
+    g.fillStyle = "rgba(255,255,255,.65)"; g.font = F(600, 36); g.fillText(`${BRAND} · 내 관심 구역`, 80, 120);
     g.fillStyle = "#fff"; g.font = F(800, 84); g.fillText(`관심 구역 ${L.length}곳`, 80, 222);
     // 서울 지도
     const S = 0.86, OX = (W - D.map.w * S) / 2, OY = 270;
@@ -475,14 +475,14 @@ const PINS = (() => {
     });
     if (L.length > 8) { g.fillStyle = "rgba(255,255,255,.6)"; g.fillText(`외 ${L.length - 8}곳`, 80, top + 4 * 46); }
     g.fillStyle = "rgba(255,255,255,.55)"; g.font = F(500, 26);
-    g.fillText(money ? `${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 필요한 돈 추정 · 투자 권유 아님` : "집핀 · 서울 재개발 지도", 80, H - 96);
+    g.fillText(money ? `${gapMode() ? "전세 끼고" : "대출 끼고"} 지금 필요한 돈 추정 · 투자 권유 아님` : `${BRAND} · 서울 재개발 지도`, 80, H - 96);
     g.fillStyle = "#fff"; g.font = F(700, 34); g.fillText("jaegaebal.alwaysquestions.kr", 80, H - 48);
     return cv;
   }
   async function shareMap() {
     try { await (document.fonts && document.fonts.ready); } catch (e) {}
     const fb = $("pnShareFb"); if (fb) fb.textContent = "";
-    await EXTRA.shareCv(mapCard(MONEY), "zippin_my_pins.png", "내 관심 구역", `내 관심 구역 ${FAV.length}곳 · 소식이 생기면 알려 주는 집핀 https://jaegaebal.alwaysquestions.kr/`, fb);
+    await EXTRA.shareCv(mapCard(MONEY), "my_pins.png", "내 관심 구역", `내 관심 구역 ${FAV.length}곳 · 소식이 생기면 알려 주는 ${BRAND} https://jaegaebal.alwaysquestions.kr/`, fb);
   }
 
 
@@ -561,6 +561,9 @@ const PINS = (() => {
   }
   const condUnread = (n) => !!n.sig && n.c.seen !== n.sig;
   const condsAll = () => CONDS.map(condNews);
+  // renew-feat F9: 알림에서 끈 조건(zp-alert-mute.c)은 '갈 수 있게 된 곳' 셈·폰 알림에서 뺀다(관심 화면의 조건 목록에는 그대로)
+  const condMuted = (id) => { try { const m = JSON.parse(localStorage.getItem("zp-alert-mute") || "null"); return !!(m && Array.isArray(m.c) && m.c.includes(id)); } catch (e) { return false; } };
+  const condsOn = () => CONDS.filter((c) => !condMuted(c.id)).map(condNews);
   const cashT = ZF.cash;
   const stShort = (m) => (STAGES.find((x) => x[0] === m) || [0, ""])[1];
   const autoName = (c) => [`${cashT(c.cash)} ${c.mode === "gap" ? "전세" : "대출"}`, c.gu ? c.gu.replace(/구$/, "") : "", c.kind ? KINDS.find((k) => k[0] === c.kind)[1] : "", c.minS ? stShort(c.minS) : "", c.firm ? "확실성 높음" : "", c.cm ? `출퇴근 ${c.cm.max}분` : ""].filter(Boolean).reduce((a, x) => (a && (a + " · " + x).length > 30 ? a : a ? a + " · " + x : x), "");
@@ -818,7 +821,7 @@ const PINS = (() => {
   // 본 적 없는 새 구역만: seen(마지막으로 본 sig)의 '새로 들어온' id 목록을 빼고 센다
   // 알림함(72_inbox)에서 조건 핀 새 구역을 보여 줬을 때: 조건 핀만 '읽음'(핀 소식 배지는 그대로)
   function markCondSeen() { let ch = 0; condsAll().forEach((n) => { if (n.c.seen !== n.sig) { n.c.seen = n.sig; ch = 1; } }); if (ch) { saveC(); badges(); } }
-  const freshIds = () => [...new Set(condsAll().flatMap((n) => { const sn = new Set(String(n.c.seen || "").split("/")[0].split(",").filter(Boolean)); return n.add.filter((id) => !sn.has(id)); }))];
+  const freshIds = () => [...new Set(condsOn().flatMap((n) => { const sn = new Set(String(n.c.seen || "").split("/")[0].split(",").filter(Boolean)); return n.add.filter((id) => !sn.has(id)); }))];
 
   // ---------- 화면 이벤트 ----------
   function onClick(e) {
@@ -912,7 +915,7 @@ const PINS = (() => {
   const cmpShown = () => CMPON;
   // MY > 관심 구역 내보내기: 관심 구역 화면의 '링크 복사'와 같은 링크·같은 복사/공유
   const move = (fb) => moveURL().then((u) => shareLink(u, fb));
-  return { move, moveURL, init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
+  return { move, moveURL, init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), condsOn, cname: (c) => c.name || autoName(c), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
 })();
 window.PINS = { list: PINS.list, has: PINS.has, on: PINS.on, newIds: PINS.newIds };
 window.ZP_ok = PINS.zpOk;   // 홈 '갈 수 있는 곳' 숫자와 같은 판정(지도 핀·게이지 토스트용)

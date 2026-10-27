@@ -34,9 +34,7 @@
   html.is-tapp .hdr,html.is-tapp .hdr-top{background:var(--t-pg)!important;border-bottom:0!important;box-shadow:none!important}
   html.is-tapp.scrolled .hdr{box-shadow:0 1px 0 var(--t-line)!important}
   html.is-tapp .hdr .logo{gap:6px}
-  html.is-tapp .hdr .logo svg{width:24px;height:24px}
-  html.is-tapp .hdr .logo-t{font-size:21px!important;font-weight:800!important;letter-spacing:-.04em!important;color:var(--t-ink)!important}
-  html.is-tapp .hdr .logo-en{font-size:14px!important;font-weight:700!important;letter-spacing:-.01em!important;opacity:.9}
+  html.is-tapp .hdr .logo svg.logo-wm{width:auto;height:28px}
   html.is-tapp .hdr .logo-s,html.is-tapp #hdrDate,html.is-tapp .hdr .asof{display:none!important}
   html.is-tapp.simple #hdrBell{display:inline-grid!important;margin:0 -10px 0 0;background:none!important;border:0!important;box-shadow:none!important;color:var(--t-ink)}
   html.is-tapp #hdrBell svg{width:24px;height:24px}

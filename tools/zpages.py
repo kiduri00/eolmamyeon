@@ -20,6 +20,7 @@ GEO = J('public/data/geo.json', {}) or {}   # 앱 지도와 같은 정비구역�
 GUG = {x['n']: x['r'] for x in (GEO.get('gu') or [])}
 import sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import zmap   # 구역 위치 지도(SVG)·공유 카드(OG PNG) — tools/zmap.py
+from jsnum import walk_min, prob   # 역 도보 분·준공 가능성 %(앱과 같은 반올림) — tools/jsnum.py
 OG_OK = zmap.og_ok()
 # 돈 꼴: 숫자 뒤 '만원·억원' → '만·억'(앱 ZF와 같은 꼴 · '476만' '6,920만') — 글 속(자료 원문 인용 포함) 화면 글자에만, 태그 속성은 그대로
 import re as _re
@@ -226,7 +227,7 @@ def _rk(k, n, big, small):
     return f'{n - k + 1}번째로 ' + small
 def _walk(x):
     st = (C.get(x['id']) or {}).get('st') or {}
-    return max(1, round(st['d'] * 1.3 / 67)) if st.get('d') is not None else None
+    return walk_min(st['d']) if st.get('d') is not None else None
 def glance(r, c, k3):
     """→ 문장 목록(26차: 그 구역에서 가장 눈에 띄는 신호부터). 자료가 없는 문장은 만들지 않는다(지어내지 않음).
     · 순위는 비교 대상이 5곳 이상일 때만 · 가운데보다 위면 'N번째로 많아요/넓어요' · 비교 묶음을 밝힌다
@@ -324,7 +325,7 @@ def page(r):
     lede = f"{esc(nm)}{josa(nm)} 지금 <b>{esc(stage)}</b> 단계예요" + (f" ({sd} 인가·고시)." if sd else ".")
     stl = r.get('stale')
     if stl: lede += f" 다만 {esc(stl['why'])}. 준공됐는지 멈췄는지 자료로 확인되지 않아 준공 가능성과 입주 시점은 싣지 않았어요."
-    elif c.get('p10') is not None: lede += f" 10년 안 준공 가능성은 {'1% 미만이' if c['p10'] < 0.01 else f"약 {min(97, round(c['p10'] * 100))}%"}예요(서울 사업장 기록 통계)."
+    elif c.get('p10') is not None: lede += f" 10년 안 준공 가능성은 {'1% 미만이' if c['p10'] < 0.01 else f"약 {prob(c['p10'])}%"}예요(서울 사업장 기록 통계)."
     o.append(f'<p class="lede">{lede} 기본 가정(무주택·84㎡·전세 끼고)으로 낸 추정이고 투자 권유가 아니에요. <a href="../#{rid}">내 조건으로 열기</a></p>')
     gl = glance(r, c, k3)
     if gl: o.append(f'<h2>이 구역 한눈에</h2><p class="glance">{esc(" ".join(gl))}</p>')
@@ -336,7 +337,7 @@ def page(r):
     elif c.get('winT'):   # 23차: 착공 뒤 입주권 거래가 있으면 머리 칸('조합원 입주권을 사야 해요')과 같은 말 — '입주권 없음'과 부딪치지 않게
         _t = r.get('tx') or {}
         k.append(('입주권', '조합원 입주권 매매로', '지금 사는 집은 입주권 없음 · 기본 가정 판정') if c['winT'] == '입주권 없음' and r.get('s', 0) >= 8 and _t.get('im') else ('입주권', esc(c['winT']), '기본 가정 판정'))
-    if c.get('st'): k.append(('가까운 역', f"{esc(c['st']['n'])} 도보 {max(1, round(c['st']['d'] * 1.3 / 67))}분", ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])))
+    if c.get('st'): k.append(('가까운 역', f"{esc(c['st']['n'])} 도보 {walk_min(c['st']['d'])}분", ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])))
     if c.get('owners'): k.append(('토지등소유자', f"{int(c['owners']):,}명", f"구역 면적 {int((r.get('sm') or {}).get('area') or 0):,}㎡" if (r.get('sm') or {}).get('area') else ''))
     o.append('<div class="kpis">' + ''.join(f'<div class="kpi"><span>{a}</span><b>{b}</b><small>{s}</small></div>' for a, b, s in k) + '</div>')
     o.append(minimap(r))
@@ -726,7 +727,7 @@ def _gu_seoul():
         cg = lambda x: C.get(x['id']) or {}
         late = sum(1 for x in R if _stage(x) in ('관리처분인가', '이주·철거', '착공·분양')) / max(1, len(R))
         per = sorted(sum((x.get('tx') or {}).get('n12') or 0 for x in R if x['g'] == g) for g in {x['g'] for x in R})
-        wk = [max(1, round(cg(x)['st']['d'] * 1.3 / 67)) for x in R if (cg(x).get('st') or {}).get('d') is not None]
+        wk = [walk_min(cg(x)['st']['d']) for x in R if (cg(x).get('st') or {}).get('d') is not None]
         _GSE = {'late': late, 'tx': statistics.median(per) if per else 0, 'w10': sum(1 for v in wk if v <= 10) / max(1, len(wk))}
     return _GSE
 _UNQ = None
@@ -816,7 +817,7 @@ def gu_note(g, L):
     if ys:
         x, y = max(ys, key=lambda z: z[1])
         if y >= 3: blocks.append((min(1.4, y / 12), f"같은 단계에 가장 오래 머문 곳은 {short(x['n'])}{ro(short(x['n']))}, {_stage(x)} 뒤 {y:.1f}년째예요."))
-    wk = [max(1, round(cg(x)['st']['d'] * 1.3 / 67)) for x in L if (cg(x).get('st') or {}).get('d') is not None]
+    wk = [walk_min(cg(x)['st']['d']) for x in L if (cg(x).get('st') or {}).get('d') is not None]
     if len(wk) >= 3:
         n10 = sum(1 for v in wk if v <= 10)
         blocks.append((abs(n10 / len(wk) - SE['w10']) * 2, f"역까지 걸어서 10분 안(직선거리로 추정)인 구역은 {n10}곳으로 {round(n10 / len(wk) * 100)}%예요."))

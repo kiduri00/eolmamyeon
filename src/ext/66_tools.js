@@ -87,13 +87,26 @@ const TOOLS = (() => {
   let dSel = null;
   function diagRender() {
     const out = document.getElementById("diagTopOut"); if (!out) return;
-    out.innerHTML = `<p class="tl-lead">구역을 고르면 지금 사도 입주권이 나오는지, 막히는 규정이 있는지 한 번에 봐요.</p><label class="tl-q"><span>구역 이름</span><input id="dgQ" type="search" placeholder="예: 미아11, 봉천14" autocomplete="off"></label><ul class="tl-s" id="dgS"></ul><div id="dgR"></div>`;
+    // renew-feat: 열린 직후 한 번 더 그려질 때(첫 화면 → 앱 붙기) 이미 친 검색어·초점을 지우지 않는다(main에도 있던 일)
+    const q0 = document.getElementById("dgQ"), qv0 = q0 ? q0.value : "", qf0 = !!q0 && document.activeElement === q0;
+    out.innerHTML = `<p class="tl-lead">구역을 고르면 지금 사도 입주권이 나오는지, 막히는 규정이 있는지 한 번에 봐요.</p><label class="tl-q"><span>구역 이름 · 지번</span><input id="dgQ" type="search" placeholder="구역 이름 또는 지번(예: 미아11, 미아동 791-2)" autocomplete="off"></label><ul class="tl-s" id="dgS"></ul><div id="dgR"></div>`;
     const q = document.getElementById("dgQ"), sl = document.getElementById("dgS");
+    const pick = (b) => (b.onclick = () => { dSel = byId[b.dataset.d]; sl.innerHTML = ""; q.value = shortName(dSel.n); diagShow(); });
+    // renew-feat F1: 지번으로도 찾기('미아동 791-2' · 검색창과 같은 필지 색인 public/pcli)
+    const byJibun = (raw, pq) => {
+      const h = pcliHits(pq);
+      if (h === null) { sl.innerHTML = '<li class="tl-e">지번 찾는 중…</li>'; Promise.all(pcliAlt(pq.dong).map(pcliLoad)).then(() => { if (q.value === raw) byJibun(raw, pq); }); return; }
+      const L = h.own.filter((r) => r.src !== "moa" && !(r.s >= 9)).slice(0, 8), jb = `${h.dong || pq.dong} ${pq.san ? "산" : ""}${pq.bon}${pq.bu ? "-" + pq.bu : ""}`;
+      sl.innerHTML = L.map((r) => `<li><button type="button" data-d="${r.id}">${esc(shortName(r.n))}<small>${esc(r.g)} · ${esc(stageName(r))} · ${esc(jb)} 포함</small></button></li>`).join("") || `<li class="tl-e">${esc(window.ZP_josa ? ZP_josa(jb, "은", "는") : jb + "은")} 지도에 있는 진행 중 재개발 구역 밖이에요</li>`;
+      sl.querySelectorAll("[data-d]").forEach(pick);
+    };
     q.oninput = () => {
       const v = q.value.replace(/\s/g, ""); if (!v) { sl.innerHTML = ""; return; }
       const hits = R.filter((r) => r.src !== "moa" && !(r.s >= 9) && (shortName(r.n).replace(/\s/g, "").includes(v) || (r.n || "").replace(/\s/g, "").includes(v))).slice(0, 8);
+      // 이름으로 하나도 안 걸리고 '동 + 번지' 꼴이면 지번으로(이름에 지번이 든 구역 '미아동 791-2882번지 일대'는 이름으로 먼저 찾힌다)
+      const pq = !hits.length && /\d/.test(v) ? pcliQ(q.value) : null; if (pq) { byJibun(q.value, pq); return; }
       sl.innerHTML = hits.map((r) => `<li><button type="button" data-d="${r.id}">${esc(shortName(r.n))}<small>${esc(r.g)} · ${esc(stageName(r))}</small></button></li>`).join("") || '<li class="tl-e">찾는 구역이 없어요</li>';
-      sl.querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => { dSel = byId[b.dataset.d]; sl.innerHTML = ""; q.value = shortName(dSel.n); diagShow(); }));
+      sl.querySelectorAll("[data-d]").forEach(pick);
     };
     // 처음 열면 빈 화면 대신 예시 구역을 보여 준다
     let ex = false;
@@ -103,6 +116,8 @@ const TOOLS = (() => {
       ex = !!dSel;
     }
     if (dSel) { q.value = shortName(dSel.n); diagShow(ex); }
+    if (qv0 && qv0 !== q.value) { q.value = qv0; q.oninput(); }
+    if (qf0) q.focus({ preventScroll: true });
     q.addEventListener("focus", () => { if (ex) { q.select(); } }, { once: true });
   }
   // 매물진단 판정 목록(구역 리포트 '규제' 탭도 이 함수를 그대로 쓴다): [cls, 항목, 설명, 출처 링크?]
@@ -141,6 +156,8 @@ const TOOLS = (() => {
     box.innerHTML = `${ex ? '<p class="dg-ex">예시로 한 곳을 보여 드려요 · 구역 이름으로 다른 곳을 찾아 보세요</p>' : ""}<div class="dg-h"><b>${esc(shortName(r.n))}</b><span>${esc(r.g)} · ${esc(stageName(r))}</span><button type="button" class="btn text sm" data-open="${r.id}">구역 보기 →</button></div>
       <ul class="dg-l">${items.map(dgLi).join("")}</ul>`;
     box.querySelector("[data-open]").onclick = () => { curTab = "money"; select(r.id, true, false, { scroll: true }); };
+    // renew-feat F1: 신축 쪼개기 위험(필지 준공연도 vs 권리산정기준일) · 매수 전 규정(모든 구역 공통) 펼치기 — 기능 묶음 /b/f
+    try { window.ZP_feat.load().then((F) => { if (dSel === r && F.diag) F.diag(r, box, window.ZP_feat.ctx()); }).catch(() => {}); } catch (e) {}
   }
   // ---------- 입주 물량: 연도별 예상 입주 세대(진행 단계가 늦은 곳만) ----------
   let supGu = "";

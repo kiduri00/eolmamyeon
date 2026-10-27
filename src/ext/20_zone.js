@@ -422,6 +422,7 @@
       if (!p || p.querySelector("#aucSec") || /불러오는 중/.test(p.textContent.slice(0, 40))) return;
       p.insertAdjacentHTML("beforeend", auctionHTML(r));
       bindAuction();
+      try { window.ZP_feat && window.ZP_feat.hook("tx", r); } catch (e) {}   // renew-feat F5: 가격 흐름(산점도·전세가율·분기 가운데 값)
     }
     function paneTx0(r) {
       const p = $("pane"), z = GEO_Z && GEO_Z[r.id];
@@ -600,7 +601,7 @@
       const hj = p.querySelector(".hjl"); if (hj) moreRows(hj.parentElement, 3);
       p.querySelectorAll(".nc-go").forEach((b) => (b.onclick = () => { curTab = "money"; select(b.dataset.go, false, false, { scroll: !MQ_SHEET.matches }); }));
     };
-    return { chartSVG, paneTx, rights, rightsHTML, pace, geoReady, loadTx, loadNear, near: nearOf, moreRows, geoZ: () => GEO_Z };
+    return { chartSVG, paneTx, rights, rightsHTML, pace, loadPcl, geoReady, loadTx, loadNear, near: nearOf, moreRows, geoZ: () => GEO_Z };
   })();
   function paneTx(r) { ZX.geoReady(); ZX.paneTx(r); }
   // 매수가가 없을 때 이유(짧게 · 20자 안팎). 자세한 설명은 실거래·입주 현금 탭에

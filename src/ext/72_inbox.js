@@ -29,7 +29,11 @@ const INBOX = (() => {
       .catch(() => { CHP = null; return null; }));
   }
   const pinIds = () => { try { return PINS.list(); } catch (e) { return []; } };
-  const conds = () => { try { return PINS.condsAll(); } catch (e) { return []; } };
+  // renew-feat F9: 구역별·조건별 끄기(zp-alert-mute {z:[구역 id], c:[조건 id]}) — 끈 구역·조건은 소식 목록·배지·폰 알림(서버로 보내는 목록)에서 뺀다 · 관심 구역·조건 자체는 그대로
+  const MUK = "zp-alert-mute";
+  const mute = () => { const v = lsR(MUK, {}); return { z: Array.isArray(v && v.z) ? v.z : [], c: Array.isArray(v && v.c) ? v.c : [] }; };
+  const pinOn = () => { const m = new Set(mute().z); return pinIds().filter((id) => !m.has(id)); };
+  const conds = () => { try { return PINS.condsOn ? PINS.condsOn() : PINS.condsAll(); } catch (e) { return []; } };
   function seen() {
     // 처음 쓰는 기기: 지난 7일 소식만 '새 소식'으로(30일치가 한꺼번에 뜨지 않게)
     if (!SEEN || typeof SEEN.at !== "string" || !Array.isArray(SEEN.k)) { SEEN = { at: addDay((CH && CH.asOf) || day(), -7), k: [] }; lsW(SK, SEEN); }
@@ -37,7 +41,7 @@ const INBOX = (() => {
   }
   function pinEvents() {
     if (!CH) return [];
-    const P = new Set(pinIds());
+    const P = new Set(pinOn());
     const O = off();
     return uniq(CH.items.filter((e) => P.has(e.id) && TY[e.type] && byId[e.id] && !O.includes(e.type)));
   }
@@ -158,7 +162,7 @@ const INBOX = (() => {
   const u8 = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const swReady = (ms = 8000) => Promise.race([navigator.serviceWorker.getRegistration("/").then((r) => r || navigator.serviceWorker.register("/sw.js", { scope: "/" })).then(() => navigator.serviceWorker.ready), new Promise((_, no) => setTimeout(() => no(new Error("sw")), ms))]);
-  const payload = (sub) => ({ sub: sub.toJSON(), o: off(), zones: pinIds().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.slice(0, 150) })) });
+  const payload = (sub) => ({ sub: sub.toJSON(), o: off(), zones: pinOn().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.slice(0, 150) })) });
   // 시간 제한: 구독·서버 저장이 멈춰도 '켜는 중…'에 갇히지 않게(8초)
   const tmo = (p, ms, tag) => { let t; return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(new Error(tag || "timeout")), ms); })]).finally(() => clearTimeout(t)); };
   const postSub = (sub) => {
@@ -178,7 +182,7 @@ const INBOX = (() => {
   let P_FAIL = "이 브라우저에선 폰 알림을 켤 수 없어요 · 소식 탭에 모아 드려요";
   // 설치 앱(html.is-tapp · 안드로이드 앱)에는 주소창이 없다 → 폰 설정에서 푸는 길
   const TAPP = () => document.documentElement.classList.contains("is-tapp");
-  const TSET = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? "설정 → 알림 → 집핀" : "설정 → 애플리케이션(또는 앱) → 집핀 → 알림");
+  const TSET = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? `설정 → 알림 → ${BRAND}` : `설정 → 애플리케이션(또는 앱) → ${BRAND} → 알림`);
   let P_DENY = "알림이 막혀 있어요 · 주소창 왼쪽 자물쇠(사이트 설정)에서 알림을 허용해 주세요";
   if (TAPP()) P_DENY = `알림이 막혀 있어요 · 폰 ${TSET()}에서 허용해 주세요`;
   if (TAPP()) P_FAIL = "이 기기에선 폰 알림을 켤 수 없어요 · 소식 탭에 모아 드려요";
@@ -261,8 +265,8 @@ const INBOX = (() => {
       <p id="wsD">${push ? "이런 일이 생기면 폰 알림으로 알려 드려요" : "이런 일이 생기면 소식 탭에 모아 알려 드려요"}</p>
       <ul class="ws-l">${items.map(([k, t]) => `<li><span class="ws-li ${k}">${ic(k)}</span>${t}</li>`).join("")}</ul>
       ${push ? `<button type="button" class="btn primary ws-go" data-wson>${bellSvg(18)}알림 받기</button>` : ios && canI ? "" : `<p class="ws-note">새 소식은 아래 ${bellSvg(14)} 소식 탭에 모아 드려요</p>`}
-      ${canI ? `<button type="button" class="btn ${push ? "secondary" : "primary"} ws-in" data-wsin aria-expanded="false"><img src="/icon-192.png" alt="" width="22" height="22">앱으로 설치하면 놓치지 않아요</button>
-        <div class="ws-ios" data-wsios hidden><b>홈 화면에 추가하는 법</b><ol><li>Safari 아래 <svg viewBox="0 0 24 24" width="15" height="15" aria-label="공유"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 공유 버튼</li><li><b>홈 화면에 추가</b></li><li>홈 화면의 집핀을 열고 소식 탭에서 <b>알림 받기</b></li></ol><small>iPhone은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요</small></div>` : ""}
+      ${canI ? `<button type="button" class="btn ${push ? "secondary" : "primary"} ws-in" data-wsin aria-expanded="false"><img src="/icons/icon-192.png" alt="" width="22" height="22">앱으로 설치하면 놓치지 않아요</button>
+        <div class="ws-ios" data-wsios hidden><b>홈 화면에 추가하는 법</b><ol><li>Safari 아래 <svg viewBox="0 0 24 24" width="15" height="15" aria-label="공유"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 공유 버튼</li><li><b>홈 화면에 추가</b></li><li>홈 화면의 ${BRAND} 앱을 열고 소식 탭에서 <b>알림 받기</b></li></ol><small>iPhone은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요</small></div>` : ""}
       <button type="button" class="btn text sm ws-x" data-wsx>${push || canI ? "나중에" : "확인"}</button></div>`;
     let closed = false;
     const close = (later, pop) => { if (closed) return; closed = true; if (pop !== true) ZL.done("ws"); ov.remove(); document.removeEventListener("keydown", kd); removeEventListener("hashchange", close); if (later === true && canI) try { IN.later(); } catch (e) {} try { back && back.focus && back.focus(); } catch (e) {} };
@@ -284,7 +288,7 @@ const INBOX = (() => {
       const ins = e.target.closest("[data-wsin]");
       if (ins) {
         if (ios) { const box = ov.querySelector("[data-wsios]"); box.hidden = !box.hidden; ins.setAttribute("aria-expanded", String(!box.hidden)); return; }
-        const ok = await IN.prompt(); if (ok) { tst("집핀을 설치했어요", "홈 화면에서 바로 열 수 있어요"); close(); }
+        const ok = await IN.prompt(); if (ok) { tst(`${BRAND} 앱을 설치했어요`, "홈 화면에서 바로 열 수 있어요"); close(); }
       }
     });
     try { IN && IN.seen(); } catch (e) {}
@@ -332,8 +336,10 @@ const INBOX = (() => {
   const week = () => { const d0 = addDay(day(), -6); return pinEvents().filter((e) => e.date >= d0); };
   // MY > 알림 설정에서 쓰는 것: 폰 알림 상태(st) · 켜기/끄기 · 종류별 끄기
   const st = () => ({ can: (!!KEY || KNET || (KEY === undefined && navigator.onLine === false)) && canPush(), on: isOn() && canPush() && Notification.permission === "granted", perm: canPush() ? Notification.permission : "unsupported", msg: PMSG });
+  function setMute(t, id, on) { const m = mute(), L = new Set(m[t]); if (on) L.delete(id); else L.add(id); m[t] = [...L]; lsW(MUK, m); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
+  const isMuted = (t, id) => mute()[t].includes(id);
   function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
-  return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind };
+  return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind, setMute, isMuted, d0: () => addDay(day(), -6), asOf: () => (CH ? CH.asOf || "" : ""), pinEvents: () => pinEvents(), condAuc: () => condAuc(), payloadOf: () => payload({ toJSON: () => ({}) }) };
 })();
 window.ZP_INBOX = INBOX;   // 점검(QA): 폰 알림 상태·종류 끄기
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", INBOX.init) : setTimeout(INBOX.init, 0);
