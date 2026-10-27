@@ -110,7 +110,7 @@ if os.path.exists(_AB):
         _h = open(os.path.join(_RD, _f), encoding='utf-8').read()
         if 'name="robots" content="noindex' in _h: continue
         _m = re.search(r'<h1[^>]*>(.*?)</h1>', _h, re.S); _no = re.search(r'리포트 · (\d+)호 · ', _h)
-        if _m and _no: _L.append(f'<li><a href="report/{_f[:-5]}">{_f[:4]}년 {int(_f[5:7])}월분 ({_no.group(1)}호)</a> — {re.sub(r"<[^>]+>", "", _m.group(1)).strip()}</li>')
+        if _m and _no: _L.append(f'<li><a href="report/{_f[:-5]}">{_f[:4]}년 {int(_f[5:7])}월분 ({_no.group(1)}호)</a>: {re.sub(r"<[^>]+>", "", _m.group(1)).strip()}</li>')
     if _L:
         _a2 = re.sub(r'(<h2>지금까지 낸 리포트</h2>\n<ul>).*?(</ul>)', lambda m: m.group(1) + ''.join(_L) + m.group(2), _a, count=1, flags=re.S)
         if _a2 != _a: open(_AB, 'w', encoding='utf-8').write(_a2); print('about: 리포트', len(_L), '호')

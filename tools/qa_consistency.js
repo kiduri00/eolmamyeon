@@ -246,6 +246,21 @@ async function stableText(page, sel, maxMs = 4000, need = 1) {
 // 첫 화면 3칸 이름: 셋째 칸은 '언제 입주'(입주권 없는 곳은 '입주권' · 20차 G3)
 const LAB3 = /^지금 필요한 돈\|입주까지 현금\|(언제 입주|입주권)$/;
 async function staticLane(api) {
+  // --- brand.static (리뉴얼 2026-10-27 '집핀' → '재개각'): 정적 페이지·피드·공개 API에 예전 이름이 없음 — 허용 예외는 이름 변경 안내(about #rename · 오류 수정 기록 '이름' 항목)뿐.
+  //     첫 화면(index.html)·앱 묶음(/b)·manifest·sw·assetlinks는 기능 트랙이 맡는다(같은 검사를 그쪽에서 켠다)
+  {
+    const T = "정적 페이지·피드·API에 예전 서비스 이름(집핀·Zippin·zippin) 0곳 — 이름 변경 안내 한 줄(about·/corrections)만 예외";
+    const P = require("path"), PUBD = P.join(__dirname, "..", "public"), bad = [];
+    const walk = (d) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = P.join(d, f.name), rel = P.relative(PUBD, p);
+      if (f.isDirectory()) { if (!/^(b|data|pcli|og|\.well-known)$/.test(rel)) walk(p); continue; }
+      if (!/\.(html|xml|json|css)$/.test(f.name) || rel === "index.html") continue;
+      let h = fs.readFileSync(p, "utf8");
+      if (rel === "about.html") h = h.replace(/<!--zp-rename-->[\s\S]*?<!--\/zp-rename-->/, "");
+      if (rel === "corrections.html") h = h.replace(/<li><p class="cx-d"><time datetime="2026-10-27">[^]*?<\/li>/, "");
+      const m = /집핀|Zippin|zippin/.exec(h); if (m) bad.push(`${rel}: …${h.slice(Math.max(0, m.index - 30), m.index + 10).replace(/\s+/g, " ")}`); } };
+    try { walk(PUBD); } catch (e) { bad.push("walk: " + e.message); }
+    expect(!bad.length, "brand.static", T, `${bad.length} files · ${bad.slice(0, 3).join(" ; ")}`);
+  }
   const T = (id, t) => [id, t];
   // --- 매니페스트·첫 화면 HTML
   const idx = await get(BASE + "/");
@@ -1938,21 +1953,6 @@ async function r19Lane(browser, api, errs) {
       } catch (e) { bad("runtime", "검사 실행", "guDeepLink crashed: " + String(e.message || e).split("\n")[0]); }
       finally { await ctx.close().catch(() => {}); }
     }
-  }
-  // --- brand.static (리뉴얼 2026-10-27 '집핀' → '재개각'): 정적 페이지·피드·공개 API에 예전 이름이 없음 — 허용 예외는 이름 변경 안내(about #rename · 오류 수정 기록 '이름' 항목)뿐.
-  //     첫 화면(index.html)·앱 묶음(/b)·manifest·sw·assetlinks는 기능 트랙이 맡는다(같은 검사를 그쪽에서 켠다)
-  {
-    const T = "정적 페이지·피드·API에 예전 서비스 이름(집핀·Zippin·zippin) 0곳 — 이름 변경 안내 한 줄(about·/corrections)만 예외";
-    const P = require("path"), PUBD = P.join(__dirname, "..", "public"), bad = [];
-    const walk = (d) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = P.join(d, f.name), rel = P.relative(PUBD, p);
-      if (f.isDirectory()) { if (!/^(b|data|pcli|og|\.well-known)$/.test(rel)) walk(p); continue; }
-      if (!/\.(html|xml|json|css)$/.test(f.name) || rel === "index.html") continue;
-      let h = fs.readFileSync(p, "utf8");
-      if (rel === "about.html") h = h.replace(/<!--zp-rename-->[\s\S]*?<!--\/zp-rename-->/, "");
-      if (rel === "corrections.html") h = h.replace(/<li><p class="cx-d"><time datetime="2026-10-27">[^]*?<\/li>/, "");
-      const m = /집핀|Zippin|zippin/.exec(h); if (m) bad.push(`${rel}: …${h.slice(Math.max(0, m.index - 30), m.index + 10).replace(/\s+/g, " ")}`); } };
-    try { walk(PUBD); } catch (e) { bad.push("walk: " + e.message); }
-    expect(!bad.length, "brand.static", T, `${bad.length} files · ${bad.slice(0, 3).join(" ; ")}`);
   }
   // --- seo.noEmail (20차 13): 공개 페이지·앱 묶음 어디에도 개인 메일 주소·mailto 없음(운영자 화면 admin.html만 예외)
   {
