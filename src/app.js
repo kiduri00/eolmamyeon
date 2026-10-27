@@ -4173,7 +4173,7 @@
       const tag = k === "hp" ? (o.t === "t" ? "상급종합병원" : "종합병원급(추정)") : k === "e" && o.d <= 300 ? "초품아" : "";
       return `<li><span class="if-k">${lab}</span><span class="if-n">${esc(o.n)}${tag ? ` <em class="if-t${o.t === "t" || tag === "초품아" ? " on" : ""}">${tag}</em>` : ""}</span><span class="if-d mono">${kmTxt(o.d)}<small>도보 약 ${walk2(o.d)}분</small></span></li>`;
     };
-    p.innerHTML = `\n    <div class="locbox">\n      <div class="lb-top"><div class="lb-v"><b>${r.score}</b><span>/100 입지 점수</span></div><p class="lb-pos">${posTxt(Math.round(((scored.length - Math.max(1, rankAll)) / scored.length) * 100))} <small>위치 확인된 진행 중 ${fmt(scored.length)}곳 중 약 ${fmt(Math.max(1, rankAll))}위 · ${esc(r.g)} ${rankGu ? `${rankGu}위/${sameGu.length}곳` : ""}</small></p></div>\n      ${ptsBar(r, "pb-lg")}\n      <div class="lb-key">${locKeyHTML()}</div>\n      <table class="lb-t"><caption class="sr-only">입지 점수 항목별 점수</caption><thead><tr><th scope="col">항목</th><th scope="col" class="n">가중치</th><th scope="col" class="n">항목 점수</th><th scope="col" class="n">얻은 점수</th></tr></thead><tbody>\n        ${LOC_AX.map((a, i) => `<tr><th scope="row"><i class="${LOC_G[a.g]}"></i>${a.k}<small>${esc(a.why)}</small></th><td class="n">${Math.round(a.w * 100)}</td><td class="n">${r.ax[i] == null ? "–" : r.ax[i]}</td><td class="n"><b>${r.pts[i].toFixed(1)}</b></td></tr>`).join("")}\n      </tbody></table>\n      <p class="sc-why">가중치와 거리별 점수는 작성자 가정값이에요. 교통·일자리·생활 편의를 거리로만 본 값이라 학군 수준·병원 진료과·상권 질은 반영하지 않아요. 투자 등급이 아니에요.${r.comp != null && !r.dn ? ` 입지·진척 점수 ${r.comp} = 입지 ${r.compAx[0]}×50% + 사업 진척 ${r.compAx[1]}×30% + 추진력 ${r.compAx[2]}×20%.` : ""}</p>\n    </div>\n    <div class="sect infra"><h3>생활 인프라 <small>가장 가까운 곳 · 직선거리 기준 · 도보는 직선×1.3, 분당 67m 추정</small></h3>\n      ${inf ? `<ul class="iflist">${irow("e", "초등학교")}${irow("m", "중학교")}${irow("h", "고등학교")}${irow("hp", "대형병원")}${irow("mt", "대형마트")}</ul>\n      <p class="note">학교: OpenStreetMap 학교 이름 기준(배정 학교와 다를 수 있음) · 대형병원: 보건복지부 제5기 상급종합병원 서울 14곳 + OSM 병원 중 이름 규칙으로 고른 종합병원급(추정) · 대형마트: 영업 중 지점 목록(나무위키 지점 문서)과 OSM 좌표를 맞춘 이마트·홈플러스·롯데마트·코스트코·트레이더스 · ${INF.asOf.replaceAll("-", ".")} 기준 · © OpenStreetMap contributors (ODbL)</p>` : '<p class="note">대표 좌표가 없어 생활 인프라 거리를 계산하지 못했어요.</p>'}</div>\n    <dl class="facts">\n      <div><dt>가장 가까운 역</dt><dd>${(() => {
+    p.innerHTML = `\n    <div class="locbox">\n      <div class="lb-top"><div class="lb-v"><b>${r.score}</b><span>/100 입지 점수</span></div><p class="lb-pos">${posTxt(Math.round(((scored.length - Math.max(1, rankAll)) / scored.length) * 100))} <small>위치 확인된 진행 중 ${fmt(scored.length)}곳 중 약 ${fmt(Math.max(1, rankAll))}위 · ${esc(r.g)} ${rankGu ? `${rankGu}위/${sameGu.length}곳` : ""}</small></p></div>\n      ${ptsBar(r, "pb-lg")}\n      <div class="lb-key">${locKeyHTML()}</div>\n      <table class="lb-t"><caption class="sr-only">입지 점수 항목별 점수</caption><thead><tr><th scope="col">항목</th><th scope="col" class="n">가중치</th><th scope="col" class="n">항목 점수</th><th scope="col" class="n">얻은 점수</th></tr></thead><tbody>\n        ${LOC_AX.map((a, i) => `<tr><th scope="row"><i class="${LOC_G[a.g]}"></i>${a.k}<small>${esc(a.why)}</small></th><td class="n">${Math.round(a.w * 100)}</td><td class="n">${r.ax[i] == null ? "–" : r.ax[i]}</td><td class="n"><b>${r.pts[i].toFixed(1)}</b></td></tr>`).join("")}\n      </tbody></table>\n      <p class="sc-why">가중치와 거리별 점수는 작성자 가정값이에요. 교통·일자리·생활 편의를 거리로만 본 값이라 학군 수준·병원 진료과·상권 질은 반영하지 않아요. 투자 등급이 아니에요.${r.comp != null && !r.dn ? ` 입지·진척 점수 ${r.comp} = 입지 ${r.compAx[0]}×50% + 사업 진척 ${r.compAx[1]}×30% + 추진력 ${r.compAx[2]}×20%.` : ""}</p>\n    </div>\n    <div class="sect infra"><h3>생활 인프라 <small>가장 가까운 곳 · 직선거리 기준 · 도보는 직선×1.3, 분당 67m 추정</small></h3>\n      ${inf ? `<ul class="iflist">${irow("e", "초등학교")}${irow("m", "중학교")}${irow("h", "고등학교")}${irow("hp", "대형병원")}${irow("mt", "대형마트")}</ul>\n      <p class="note">학교: OpenStreetMap 학교 이름 기준(배정 학교와 다를 수 있음) · 대형병원: 보건복지부 제5기 상급종합병원 서울 14곳 + OSM 병원 중 이름 규칙으로 고른 종합병원급(추정) · 대형마트: 이마트·홈플러스·롯데마트·코스트코·트레이더스 대형 매장(영업 여부: 서울시 대규모점포 인허가 정보 · 공공누리 제1유형) · ${INF.asOf.replaceAll("-", ".")} 기준 · © OpenStreetMap contributors (ODbL)</p>` : '<p class="note">대표 좌표가 없어 생활 인프라 거리를 계산하지 못했어요.</p>'}</div>\n    <dl class="facts">\n      <div><dt>가장 가까운 역</dt><dd>${(() => {
       const x = stnInfo(r);
       return x ? `${esc(x.n)}역 ${fmt(x.d)}m<small>도보 약 ${x.min}분 · 직선거리 기준</small>` : "–";
     })()}</dd></div>\n      <div><dt>한강 중심선까지</dt><dd>${(r.h / 1e3).toFixed(2)}km</dd></div>\n      <div><dt>주변 호재 (1.5km)</dt><dd>${nearHojae(r).length}건<small>아래 '주변 호재'에서 목록</small></dd></div>\n      ${r.jg ? `<div><dt>주변 150m 대지 공시지가 가운데 값</dt><dd>㎡당 ${fmt(r.jg / 1e4)}만<small>3.3㎡당 약 ${fmt((r.jg * 3.3058) / 1e4)}만 · 진행 중 사업장 중 ${posTxt(jgPct(r.jg))}</small></dd></div>` : ""}\n    </dl>\n    <div class="sect"><h3>주변 역 <small>반경 1km 노선 ${r.ln.length ? r.ln.map(esc).join(", ") : "없음"}</small></h3>\n      <ul class="list">${r.s3.map(([n, d, l]) => `<li><span>${esc(n)} <small>${l.map(esc).join("·")}</small></span><span class="mono">${fmt(d)}m</span></li>`).join("")}</ul></div>\n    <div class="sect"><h3>업무지구까지 직선거리</h3>\n      <ul class="list">${Object.entries(
@@ -5375,7 +5375,7 @@
     "https://cleanup.seoul.go.kr/cleanup/view/moaTown.do": { d: "수집 2026.9" },
     "https://urban.seoul.go.kr": { d: "수집 2026.9" },
     "https://www.law.go.kr": { d: "현행본 확인 2026.9" },
-    "https://gist.github.com/jhj0517/9bd253175c4410493af024d5e0a1c01f": { d: "수집 2026.9", g: "etc" },
+    "https://data.seoul.go.kr/dataList/OA-21232/S/1/datasetView.do": { d: "내려받음 2026.10 · 공공누리 제1유형" },
     "https://news.seoul.go.kr/citybuild/archives/531417": { g: "press", t: "서울시 보도자료 · 광진구 자양동 227-147 일대 재개발" },
   };
   const SRC_ADD = [
@@ -5404,16 +5404,16 @@
       u: "https://www.openstreetmap.org/copyright",
     },
     {
-      g: "etc",
-      t: "누락 역 좌표 보완(천왕·온수·오류동·개봉·사당 등 14개 역) · 위키백과 역 문서 좌표",
-      d: "확인 2026.9",
-      u: "https://en.wikipedia.org/wiki/Cheonwang_station",
+      g: "pub",
+      t: "서울시 대규모점포 인허가 정보 · 대형마트 영업 여부·좌표(서울 열린데이터광장 OA-16096)",
+      d: "내려받음 2026.10 · 공공누리 제1유형",
+      u: "https://data.seoul.go.kr/dataList/OA-16096/S/1/datasetView.do",
     },
     {
       g: "etc",
-      t: "누락 역 좌표 교차 확인 · gaussian37 「수도권 지하철 좌표」",
-      d: "확인 2026.9",
-      u: "https://gaussian37.github.io/python-etc-%EC%88%98%EB%8F%84%EA%B6%8C-%EC%A7%80%ED%95%98%EC%B2%A0/",
+      t: "학교·병원·대형마트 위치 © OpenStreetMap contributors (ODbL)",
+      d: "Overpass API 2026.10.1 조회",
+      u: "https://www.openstreetmap.org/copyright",
     },
   ];
   function drawSources() {
