@@ -1676,8 +1676,8 @@ async function r3Lane(browser, errs) {
       await goTo(10.4, [126.98, 37.55]);
       const g = await page.evaluate(() => { const M = window.ZP_simple.guMins(); return (window.ZP_lmx.gus ? window.ZP_lmx.gus() : []).map((x) => ({ ...x, want: window.ZP_simple.guCount(x.n), wm: M[x.n] != null ? window.ZP_G.MT(M[x.n]) : "", list: window.ZP_simple.guCount(x.n) })); });
       expect(g.length > 0, "map.guCluster", T, `no 구 clusters at zoom 10.4`);
-      // 21차: 두 줄 '강북 1곳' / '7,400만~'(그 구 갈 수 있는 곳 중 가장 적은 지금 필요한 돈)
-      for (const x of g) expect(x.c === x.want && x.c > 0 && new RegExp(`${x.c}곳`).test(x.t) && !!x.wm && x.t.includes(x.wm) && x.lab.includes(x.n), "map.guCluster", T, `${x.n}: cluster ${x.c} "${x.t}" vs list ${x.want} min ${x.wm}`);
+      // 21차: 두 줄 '강북 1곳' / '7,400만~'(그 구 갈 수 있는 곳 중 가장 적은 지금 필요한 돈) · 사이클 4 새 전체 지도: 한 줄 '강북 1곳'이고 가장 적은 금액은 이름표(접근 이름)에 — 보이는 글자에 '~'가 없을 때만 그렇게 본다
+      for (const x of g) expect(x.c === x.want && x.c > 0 && new RegExp(`${x.c}곳`).test(x.t) && !!x.wm && (x.t.includes(x.wm) || (!/~/.test(x.t) && x.lab.includes("가장 적게 드는 곳 " + x.wm.replace(/~$/, "")))) && x.lab.includes(x.n), "map.guCluster", T, `${x.n}: cluster ${x.c} "${x.t}" vs list ${x.want} min ${x.wm}`);
       if (g.length) {
         const pk = g[0];
         await page.evaluate((n) => { const b = document.querySelector(`.zgu[data-gu="${n}"]`); if (b) b.click(); }, pk.n); await page.waitForTimeout(1200); await settle(page, 300);
@@ -1698,11 +1698,13 @@ async function r3Lane(browser, errs) {
         await goTo(z, await firstLL());
         const P = await page.evaluate(() => window.ZP_lmx.pills());
         const where = `${mode} ${c}억 z${z}`;
-        expect(P.length > 0 && P.length <= 40, "map.pills", T, `${where}: ${P.length} pills`);
+        const vw = await page.evaluate(() => innerWidth);
+        expect(P.length > 0 && P.length <= (vw < 981 ? 24 : 40), "map.pills", T, `${where}: ${P.length} pills (사이클 4: 폰 24 · PC 40)`);
         for (const p of P) {
           const lab = /지금 필요한 돈/.test(p.lab) && p.lab.length > 12;
-          if (p.st === "ok") expect(p.need <= c + 1e-9 && list[p.id] != null && p.t === list[p.id] && p.t === zfCash(p.need) && lab && /가능/.test(p.lab), "map.pills", T, `${where} ${p.id}: pill "${p.t}" list "${list[p.id]}" need ${p.need} label "${p.lab}"`);
-          else if (p.st === "near") { const want = zfGap(p.need, c) + " 부족"; /* 28차 정확한 만 원 → 사이클 2: 보인 금액(3.6억) − 내 돈(3억) = '6,000만 부족' (ZF.gap · 목록·시트와 같은 한 함수) */ expect(p.need > c && p.need <= c * 1.2 + 1e-9 && p.t === want && list[p.id] == null && /조금 모자람/.test(p.lab), "map.pills", T, `${where} ${p.id}: near pill "${p.t}" want "${want}" need ${p.need} in list ${list[p.id] != null}`); }
+          if (p.st === "ok") expect(p.need <= c + 1e-9 && list[p.id] != null && p.t === list[p.id] && p.t === zfCash(p.need) && lab && /갈 수 있음/.test(p.lab), "map.pills", T, `${where} ${p.id}: pill "${p.t}" list "${list[p.id]}" need ${p.need} label "${p.lab}"`);
+          else if (p.st === "near") { const want = "+" + zfGap(p.need, c);   /* 사이클 4(SPEC C2): 조금 부족 말풍선 = '+모자란 돈'(테두리 말풍선 + 범례 '+ 조금 부족') */ /* 28차 정확한 만 원 → 사이클 2: 보인 금액(3.6억) − 내 돈(3억) = '6,000만 부족' (ZF.gap · 목록·시트와 같은 한 함수) */ expect(p.need > c && p.need <= c * 1.2 + 1e-9 && p.t === want && list[p.id] == null && /조금 부족/.test(p.lab), "map.pills", T, `${where} ${p.id}: near pill "${p.t}" want "${want}" need ${p.need} in list ${list[p.id] != null}`); }
+          else if (p.st === "na") { const want = p.need != null ? "보류 " + zfCash(p.need) : "보류"; expect(p.t === want && list[p.id] == null && /계산 보류/.test(p.lab), "map.pills", T, `${where} ${p.id}: 보류 말풍선 "${p.t}" want "${want}" label "${p.lab}"`); }   // 사이클 4: 계산 보류 = 점선 말풍선
           else bad("map.pills", T, `${where} ${p.id}: pill with state ${p.st}`);
         }
         // 알약끼리 겹치지 않음(보이는 알약 상자)
@@ -1712,7 +1714,7 @@ async function r3Lane(browser, errs) {
       // 금액을 바꾸면 알약이 바로(다음 몇 프레임 안에) 따라옴
       await setMode(page, "gap"); await setCash(page, 3);
       await goTo(12.6, await firstLL());
-      const t0 = await page.evaluate(async () => { const s = document.getElementById("sCash"); const fits = (c) => { const P = window.ZP_lmx.pills(); return P.length > 0 && P.every((p) => (p.st === "ok" ? p.need <= c + 1e-9 : p.need > c && p.need <= c * 1.2 + 1e-9)); }; if (!fits(3)) return -2; s.value = String(window.ZP_simple.toPos(2)); s.dispatchEvent(new Event("input", { bubbles: true })); for (let i = 1; i <= 30; i++) { await new Promise((r) => requestAnimationFrame(r)); if (fits(2)) return i; } return -1; });
+      const t0 = await page.evaluate(async () => { const s = document.getElementById("sCash"); const fits = (c) => { const P = window.ZP_lmx.pills().filter((p) => p.st !== "na"); return P.length > 0 && P.every((p) => (p.st === "ok" ? p.need <= c + 1e-9 : p.need > c && p.need <= c * 1.2 + 1e-9)); }; if (!fits(3)) return -2; s.value = String(window.ZP_simple.toPos(2)); s.dispatchEvent(new Event("input", { bubbles: true })); for (let i = 1; i <= 30; i++) { await new Promise((r) => requestAnimationFrame(r)); if (fits(2)) return i; } return -1; });
       // 금액 입력 → 다음 프레임(목록과 같은 프레임)에 알약이 새 금액 기준 · 기계가 바빠도 프레임 수로 잰다(실기기 한 프레임 ≈ 16ms)
       expect(t0 >= 1 && t0 <= 2, "map.pills", T, `pills did not follow a budget change within 2 frames (${t0} frames)`);
       await setCash(page, 3);
@@ -2277,7 +2279,7 @@ async function r21Lane(browser, api, errs) {
         const r = await page.evaluate(() => { const P = ZP_lmx.pills(), ok = ZP_lmx.okVis(); const okP = P.filter((p) => p.st === "ok"); return { ok, okP: okP.map((p) => p.id), more: P.reduce((a, p) => a + p.more, 0), key: (document.getElementById("lmKey") || {}).textContent || "", keyS: [...document.querySelectorAll("#lmKey .k-p")].map((e) => e.textContent), pt: P.map((p) => p.t), view: document.getElementById("mapbox").dataset.view }; });
         const missing = r.ok.filter((id) => !r.okP.includes(id));
         expect(r.view === "gu" && r.ok.length > 0 && missing.length <= r.more && r.ok.includes("o430") === r.okP.includes("o430"), "map.pillVisible", TP, `${where} ${tag}: ok in view ${r.ok.length} · pills ${r.okP.length} · +N ${r.more} · no pill ${missing.join(",")}`);
-        expect(!/멀다|정보 부족/.test(r.key) && r.keyS.every((t) => r.pt.includes(t)) && (r.okP.length ? /내 돈으로 가능/.test(r.key) : !/내 돈으로 가능/.test(r.key)), "map.legend", TK, `${where} ${tag}: key "${r.key}" samples ${JSON.stringify(r.keyS)} pills ${JSON.stringify(r.pt.slice(0, 6))}`);
+        expect(!/멀다|정보 부족/.test(r.key) && r.keyS.every((t) => r.pt.includes(t)) && (r.okP.length ? /갈 수 있음/.test(r.key) : !/갈 수 있음/.test(r.key)) && !/더 필요해요/.test(r.key), "map.legend", TK, `${where} ${tag}: key "${r.key}" samples ${JSON.stringify(r.keyS)} pills ${JSON.stringify(r.pt.slice(0, 6))}`);
         return r;
       };
       const r0 = await chk("first");
@@ -3286,11 +3288,16 @@ async function tappLane(browser, api, errs) {
         const key = R(document.querySelector("#mapbox .lm-key")), fx = R(document.getElementById("sFullX")), gm = R(document.querySelector("#mapbox .lm-gumore-b"));
         const ov = (a, b) => a && b && a.width && b.width && !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
         w.scrollLeft = 9999; const last = R(ch[ch.length - 1]); w.scrollLeft = 0;
-        return { rep: as && as.backgroundRepeat, aw: ar && [Math.round(ar.width), Math.round(ar.height)], zgap: zr && zr.height && ar ? Math.round(ar.top - zr.bottom) : 99, before: ch.filter((b) => { const c = getComputedStyle(b, "::before").content; return c && c !== "none" && c !== "normal"; }).length, hs: [...new Set(ch.map((b) => Math.round(R(b).height)))], labels: ch.map((b) => b.textContent.trim()).filter(Boolean).length, lastIn: last.right <= innerWidth, keyFx: ov(key, fx), gmKey: ov(gm, key) };
+        // 사이클 4(SPEC C5): 레이어 6칸 격자 46px(넘기지 않아도 6개가 다 보임 · 스크롤 없음) · 아래 내 돈 막대 64px · 둥근 단추 48px · 범례·막대·단추·ⓘ·확대 버튼 서로 안 겹침
+        const bar = R(document.getElementById("sMini")), fab = R(document.querySelector(".mx-fabs")), cnt = R(document.querySelector(".mx-cnt")), cash = R(document.querySelector(".mx-cash")), sq = R(document.querySelector(".mx-q"));
+        const fb = [...document.querySelectorAll(".mx-fab")].map((b) => [Math.round(R(b).width), Math.round(R(b).height)]);
+        const ctl = [key, bar, fab, ar, zr].filter((x) => x && x.width);
+        let ovN = 0; for (let i = 0; i < ctl.length; i++) for (let j = i + 1; j < ctl.length; j++) if (ov(ctl[i], ctl[j])) ovN++;
+        return { rep: as && as.backgroundRepeat, aw: ar && [Math.round(ar.width), Math.round(ar.height)], zgap: zr && zr.height && ar ? Math.round(zr.top - ar.bottom) : 99, before: ch.filter((b) => { const c = getComputedStyle(b, "::before").content; return c && c !== "none" && c !== "normal"; }).length, hs: [...new Set(ch.map((b) => Math.round(R(b).height)))], labels: ch.map((b) => b.textContent.trim()).filter(Boolean).length, lastIn: last.right <= innerWidth && w.scrollWidth <= w.clientWidth + 1, rows: [...new Set(ch.map((b) => Math.round(R(b).top)))].length, keyFx: ov(key, fx), gmKey: ov(gm, key), barH: bar && Math.round(bar.height), fb, ovN, cntOk: !!(cnt && cnt.width && cash && cash.width), sqH: sq && Math.round(sq.height), barIn: bar && bar.bottom <= innerHeight && bar.left >= 0 && bar.right <= innerWidth };
       });
-      expect(mc.rep === "no-repeat" && mc.aw && mc.aw[0] === 44 && mc.aw[1] === 44 && mc.zgap >= 8 && mc.before === 0 && mc.hs.length === 1 && mc.hs[0] === 36 && mc.labels === 6 && mc.lastIn && !mc.keyFx && !mc.gmKey, "tapp.mapCtl", "설치 앱 지도 탭: ⓘ 한 번(no-repeat)·44×44(4라운드)·확대 버튼과 8px 이상 · 레이어 칩 겹선(::before) 없음·36px·이름표 6개·마지막 칩까지 스크롤 · 범례·목록 보기·+N곳 안 겹침", JSON.stringify(mc));
+      expect(mc.rep === "no-repeat" && mc.aw && mc.aw[0] === 44 && mc.aw[1] === 44 && mc.zgap >= 8 && mc.before === 0 && mc.hs.length === 1 && mc.hs[0] === 46 && mc.rows === 1 && mc.labels === 6 && mc.lastIn && !mc.keyFx && !mc.gmKey && mc.barH === 64 && mc.barIn && mc.cntOk && mc.sqH === 48 && mc.fb.length === 2 && mc.fb.every((x) => x[0] === 48 && x[1] === 48) && !mc.ovN, "tapp.mapCtl", "설치 앱 지도 탭(사이클 4 새 조작부): ⓘ 한 번(no-repeat)·44×44·확대 버튼과 8px 이상 · 레이어 6칸 격자 46px·한 줄·이름표 6개·넘김 없음 · 검색 48px · 아래 내 돈 막대 64px(금액·곳 수 단추) · 둥근 단추 48×48 둘 · 범례·막대·단추·ⓘ·확대 버튼 안 겹침", JSON.stringify(mc));
       // tapp.mapList(13): 지도 탭 '목록 보기' = 아래 탭 '지도' 그대로 · 목록에서 연 구역을 닫으면 목록(지도 탭)
-      await page.click("#sFullX"); await page.waitForTimeout(900);
+      await page.click((await page.$(".mx-cnt:visible")) ? ".mx-cnt" : "#sFullX"); await page.waitForTimeout(900);   // 사이클 4: 떠 있는 '목록 보기'를 아래 막대 곳 수에 합침
       const l1 = await page.evaluate(() => ({ cur: (document.querySelector('#sNav [aria-current="page"]') || {}).dataset?.nav, full: document.documentElement.classList.contains("s-full") }));
       const row = await page.$("#sList a[data-id], #sList [data-id]");
       if (row) { await row.click(); await page.waitForTimeout(1300); await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(900); }
@@ -3429,7 +3436,7 @@ async function tappLane(browser, api, errs) {
       const wb = await page.$("#sList [data-why]");
       if (wb) { await wb.click(); await page.waitForTimeout(500); o.whyOpen = await page.evaluate(() => !!document.querySelector(".s-why:not([hidden])")); await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(700); o.whyBack = await page.evaluate(() => ({ closed: !document.querySelector(".s-why:not([hidden])"), home: location.pathname === "/" && document.documentElement.classList.contains("tapp-on") })); }
       await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1200);
-      await page.click("#sFullX"); await page.waitForTimeout(900);
+      await page.click((await page.$(".mx-cnt:visible")) ? ".mx-cnt" : "#sFullX"); await page.waitForTimeout(900);   // 사이클 4: 떠 있는 '목록 보기'를 아래 막대 곳 수에 합침
       await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(900);
       o.listBack = await page.evaluate(() => ({ full: document.documentElement.classList.contains("s-full"), cur: (document.querySelector('#sNav [aria-current="page"]') || {}).dataset?.nav }));
       await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(1000);
@@ -4819,6 +4826,8 @@ const UNITS = {
   sync: { est: 60, limit: 400, browser: false, ext: ["node", "tools/qa_sync.js", "$BASE"], files: [/^src\/app\.js$/, /^src\/ext\/(20_zone|30_api)\./, /^tools\/(api|zpages|report|stfix|jsnum|calc|build|enrich|zsample)\./, /^public\/(z|api)\//] },
   brand: { est: 10, limit: 120, browser: false, ext: ["node", "tools/qa_brand.js"], files: [/./] },
   zhand: { est: 60, limit: 400, browser: false, ext: ["python3", "tools/zhand_check.py"], files: [/^content\//, /^tools\/(zhand|zhand_check|zpages)\./, /^public\/(z|gu)\//] },
+  // 사이클 4(M): 새 지도(mapx.* · tools/qa_mapx.js) — 줌별 이름표 상한·겹침 · 상태 5종 모양·글자 · 다이얼 색 시간 · 다크 대비 · 44px · 3탭 흐름 · 바탕 레벨 2 · 레이어 6칸
+  mapx: { est: 300, limit: 900, solo: true, browser: false, ext: ["node", "tools/qa_mapx.js", "$BASE"], files: [/^src\/ext\/(10_lmap|11_ghost|12_mapx|65_pills|60_simple|99zzzzzzzzzz_c4map)\./, /^src\/(ghost|island|boot)\.js$/, /^src\/tapp\//, /^tools\/qa_mapx\.js$/] },
   r22: { est: 590, limit: 1500, deps: ["core"], files: [/^src\/(app\.js|data\.json|premium\.json)$/, /^src\/ext\/68_app\./, /^tools\/(enrich|calc|api)\./] },
 };
 const NHF_N = Math.min(5, +process.env.QAC_NHF_RUNS || 5);

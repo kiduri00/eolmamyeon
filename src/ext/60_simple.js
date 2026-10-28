@@ -133,6 +133,7 @@ const SIMPLE = (() => {
   const bStepTo = (c0, d) => { let v = d < 0 ? (c0 <= 2 + 1e-9 ? Math.ceil(c0 * 10 - 1e-9) / 10 - 0.1 : Math.ceil(c0 * 2 - 1e-9) / 2 - 0.5) : (c0 <= 2 + 1e-9 ? Math.floor(c0 * 10 + 1e-9) / 10 + 0.1 : Math.floor(c0 * 2 + 1e-9) / 2 + 0.5); return Math.min(15, Math.max(0.5, Math.round(v * 100) / 100)); };   // 28차: 정확한 만 원(표시 올림 값끼리 뺀 100만 단위가 아님 · 최소 1만)
   // 단계 칩: 짧은 이름
   const stgShort = (r) => { let t = ""; try { t = stageName(r) || ""; } catch (e) {} return /주민합의/.test(t) ? "합의체" : /후보지|대상지/.test(t) ? "후보지" : /정비계획/.test(t) ? "정비계획" : /구역\s?지정/.test(t) ? "구역지정" : /추진위|주민대표/.test(t) ? "추진위" : /조합|시행자 지정/.test(t) ? "조합설립" : /사업시행/.test(t) ? "사업시행" : /관리처분/.test(t) ? "관리처분" : /이주|철거/.test(t) ? "이주·철거" : /착공|분양/.test(t) ? "착공" : /준공|입주/.test(t) ? "준공" : t.slice(0, 5); };
+  window.ZP_stgShort = stgShort;   // 사이클 4(M): 지도 구역 카드 단계 칩도 목록 카드와 같은 짧은 이름
   const walkTxt = (r) => { if (!r.st || !r.st.n || !isFinite(r.st.d)) return ""; const m = ZF.walkMin(r.st.d); return m > 30 ? "" : `${String(r.st.n).replace(/역$/, "")}역 ${m}분`; };
   const tkOf = (r) => { try { const c = buyWindow(r).cls; return c === "ok" ? "y" : c === "no" ? "n" : ""; } catch (e) { return ""; } };
   // NEW: 이번 주(7일)에 '지금 필요한 돈'이 내려가 지금 내 돈으로 새로 갈 수 있게 된 곳(data/changes.json price 사건 · 없으면 표시 안 함)
@@ -801,7 +802,7 @@ const SIMPLE = (() => {
     const k = condK();
     if (!hist || histK !== k) {
       // 처음(첫 화면)·조건이 바뀐 때: 37개 금액 곳 수 계산은 한가한 때에(첫 그리기·LCP를 막지 않게). 시트가 열려 있거나 끄는 중이면 바로
-      if (!bsOpen() && !scr && !histIdle) { histIdle = 1; (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 2500 }) : (f) => setTimeout(f, 600))(() => { const fin = () => { histIdle = 0; histData(); scrubPaint(R.filter(okR).length); }; if (document.documentElement.classList.contains("is-tapp")) histSlices().then(fin, fin); else fin(); }); }
+      if (!bsOpen() && !scr && !histIdle) { histIdle = 1; (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 2500 }) : (f) => setTimeout(f, 600))(() => { const fin = () => { histIdle = 0; histData(); scrubPaint(R.filter(okR).length); }; histSlices().then(fin, fin);   /* 사이클 4(M): 웹도 몇 칸씩 나눠서(같은 표 · 4×CPU ~180ms 한 작업이던 것) */ }); }
       if (bsOpen() || scr) histData();
     }
     const c = +$("pCash").value || 1, H = hist && histK === k ? hist : null, mx = H ? Math.max(1, ...H.map((h) => h[1])) : 1, ps = STOPS.map(toPos);
@@ -1134,7 +1135,7 @@ const SIMPLE = (() => {
     build();
     try { budgetInit(); } catch (e) {}
     // 메뉴(⋯)는 shell.html에 도구·자료·사이트로 묶어 둔다
-    try { SECT.mapTop(); } catch (e) {}
+    try { mapTopLazy(); } catch (e) {}   // 사이클 4(M): 옛 SVG 지도는 필요할 때(app.js mapTopLazy)
     // 첫 지도도 실제 지도(구역 경계·지하철)로 — 앱이 먼저 #map-구 주소로 구 화면에 들어갔으면 그 구 그대로(20차 G2: 새로 열기·새로고침)
     try { if (mapView === "gu" && mapGu) LMX.enter(mapGu); else LMX.seoul(); } catch (e) {}
     if (location.hash === "#map") fullMap(true);   // /#map 링크 = 전체 지도로 바로

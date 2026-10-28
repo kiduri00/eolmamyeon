@@ -7,9 +7,9 @@
 .zp-ph .zgu{position:absolute;top:0;left:0}
 .zp-ph .zgu.zg-busy{animation:zgBusy .9s ease-in-out infinite}
 @keyframes zgBusy{50%{filter:brightness(1.18);box-shadow:0 0 0 4px color-mix(in srgb,var(--zn,#1F3A87) 25%,transparent)}}
-.zg-land{fill:#F1F2F5}
-.zg-river{fill:none;stroke:#BFD9EC;stroke-linecap:round;stroke-linejoin:round}
-.zg-gu{fill:none;stroke:#AEB7C4;stroke-width:.9px;stroke-dasharray:2 2}
+.zg-land{fill:#ECEEF1}
+.zg-river{fill:none;stroke:#B0CCE6;stroke-linecap:round;stroke-linejoin:round}
+.zg-gu{fill:none;stroke:#7F8A99;stroke-width:1.2px;stroke-dasharray:2 2}
 .zg-mask{fill:#fff;fill-opacity:.75}
 /* 21차: 정비구역 면 — 실제 지도 zone-fill과 같은 농도(전체 8% 위에 가능 구역 남색을 겹쳐 합이 45%) */
 .zg-zall{fill:#1F3A87;fill-opacity:.08}
@@ -27,9 +27,9 @@
 .zp-ph .zg-attr{position:absolute;right:10px;bottom:10px;width:24px;height:24px;border-radius:12px;background:color-mix(in srgb,var(--surface,#fff) 85%,transparent) url("data:image/svg+xml;charset=utf-8,%3Csvg width='24' height='24' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg' fill-rule='evenodd'%3E%3Cpath d='M4 10a6 6 0 1 0 12 0 6 6 0 1 0-12 0m5-3a1 1 0 1 0 2 0 1 1 0 1 0-2 0m0 3a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0'/%3E%3C/svg%3E") center/24px no-repeat}
 :root[data-theme="dark"] .zg-dim{fill:#000;fill-opacity:.5}
 :root[data-theme="dark"] .zg-sel{stroke:#9FB3FF}
-:root[data-theme="dark"] .zg-land{fill:#121821}
-:root[data-theme="dark"] .zg-river{stroke:#15283A}
-:root[data-theme="dark"] .zg-gu{stroke:#3B4656}
+:root[data-theme="dark"] .zg-land{fill:#10161E}
+:root[data-theme="dark"] .zg-river{stroke:#183A58}
+:root[data-theme="dark"] .zg-gu{stroke:#5E6B7E}
 :root[data-theme="dark"] .zg-mask{fill:#0B0F14;fill-opacity:.7}
 :root[data-theme="dark"] .zg-seoul{stroke:#8A95A5}
 :root[data-theme="dark"] .zg-t text{fill:#8A95A5;stroke:#11161D}
@@ -37,9 +37,9 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]) .zg-dim{fill:#000;fill-opacity:.5}
   :root:not([data-theme="light"]) .zg-sel{stroke:#9FB3FF}
-  :root:not([data-theme="light"]) .zg-land{fill:#121821}
-  :root:not([data-theme="light"]) .zg-river{stroke:#15283A}
-  :root:not([data-theme="light"]) .zg-gu{stroke:#3B4656}
+  :root:not([data-theme="light"]) .zg-land{fill:#10161E}
+  :root:not([data-theme="light"]) .zg-river{stroke:#183A58}
+  :root:not([data-theme="light"]) .zg-gu{stroke:#5E6B7E}
   :root:not([data-theme="light"]) .zg-mask{fill:#0B0F14;fill-opacity:.7}
   :root:not([data-theme="light"]) .zg-seoul{stroke:#8A95A5}
   :root:not([data-theme="light"]) .zg-t text{fill:#8A95A5;stroke:#11161D}
