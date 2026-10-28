@@ -1,0 +1,56 @@
+{
+ "_doc": "사이클 3 B: 사각지대 QA(tools/qa_brand.js brand.residual 이미지 · brand.shots)의 기준. oldMark = main(8b8851b04)의 옛 핀 마크 그림(아이콘·대표 공유 그림) 바이트 해시 — public 어디에도 같은 바이트가 있으면 실패. mainShots = main의 manifest 스크린샷 — 같은 바이트면 실패(사이클 4에 새로 찍기 전까지 알려진 실패). 옛 핀 SVG 모양은 해시 대신 경로(호 반지름 19 · 19.5: 'A19,19' / 'a19.5 19.5')로도 막는다.",
+ "ref": "8b8851b04",
+ "oldMark": [
+  {
+   "from": "public/icon-180.png",
+   "sha256": "53d5dd2fa21e714adfd6657c32881a97288a08ed88c5b8fd3dbed89b586e1dc5"
+  },
+  {
+   "from": "public/icon-192.png",
+   "sha256": "89ec2e36c5bf93cdcb2a43d977530a415aa630998984731f8147f8fd2731a0df"
+  },
+  {
+   "from": "public/icon-512.png",
+   "sha256": "4ed5ab0b7b63355035ffa9efae5afc42f05db910bbc5933e6e1d0fef4db1dea0"
+  },
+  {
+   "from": "public/icon-badge-96.png",
+   "sha256": "2797011aa1305d5107646d981bf8c019fa8ebb2ac6074a95fefb6dd4dae93875"
+  },
+  {
+   "from": "public/icon-maskable-512.png",
+   "sha256": "5ce3bc49b7fa529725f31e808326c1d009f7a364ecf62d62f9f4bc6b6d8debfa"
+  },
+  {
+   "from": "public/icon-mono-512.png",
+   "sha256": "955b9fa406b8d48fb7f01b94e8c306a26f60d8cf85b1e332729e1b988b12c4ce"
+  },
+  {
+   "from": "public/icon-small.svg",
+   "sha256": "e8d737fddcb3c62b30cfd4873676ecf72eef2d90e824b6145c4b4a397276c9cc"
+  },
+  {
+   "from": "public/icon.svg",
+   "sha256": "83d1651c2fc4551e181efe6ebd115fd4fd7b2ab101675b8b8cd2bd213918c6cb"
+  },
+  {
+   "from": "public/og.png",
+   "sha256": "a628e53f2436eab40b7df7fa0b111b21667d51e8b4787c187764a514f600451d"
+  }
+ ],
+ "mainShots": [
+  {
+   "file": "public/screenshot-home.png",
+   "sha256": "3ce271e50d79093fd7318ab16a30acc902376bfb9099909099280853167ed695"
+  },
+  {
+   "file": "public/screenshot-map.png",
+   "sha256": "03d440948c73276b24b83bb6ff8adca0876c590db315025ecb33fefc727feb8a"
+  },
+  {
+   "file": "public/screenshot-wide.png",
+   "sha256": "fa45599fd2eae3cb1fef58bb20805aa30c01ff2afb2db8beee034b2f027d141f"
+  }
+ ]
+}

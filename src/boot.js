@@ -30,7 +30,9 @@
     }
     qFire();
   };
-  var QUI = ["pointerdown", "touchstart", "keydown", "wheel", "scroll", "input", "focusin"];
+  // 사이클 3(B): 'scroll'은 뺀다 — 앱이 스스로 하는 스크롤(#map 딥링크·지도 칸으로 맞춤)도 scroll을 내서, 사람이 손대기 전(붙기도 전)에 '조용해짐'이 켜졌다.
+  //   사람의 스크롤은 그 앞에 touchstart·wheel·keydown·pointerdown이 오므로 그대로 잡힌다(스크롤 막대 끌기만 5.5초 조용함 규칙으로).
+  var QUI = ["pointerdown", "touchstart", "keydown", "wheel", "input", "focusin"];
   QUI.forEach(function (t) { W.addEventListener(t, qEv, { capture: true, passive: true }); });
   var qArm = function () { clearTimeout(qT); qT = setTimeout(qFire, 5500); };
   try { new PerformanceObserver(function () { if (B.hyd && !qOn) qArm(); }).observe({ type: "longtask" }); } catch (e) {}
@@ -43,13 +45,22 @@
     //       맨 위 칸들(머리·지도 칸 아이들·나머지)에 .fp(--font = 웹글꼴)를 한가할 때 하나씩 — 뿌리(html·body)는 건드리지 않는다. 나중에 붙는 칸(시트·알림)도 .fp
     var FP = ["#hdr,#sNav", "#sGauge,#sListW", "#mapbox>*", "#mapTop .main>*", "#mapTop>*", "main.wrap>*:not(#mapTop)", "body>*:not(main):not(#hdr):not(#sNav):not(script):not(style)"];
     var fpAdd = function (e) { if (e && e.nodeType === 1 && e.classList && !/^(SCRIPT|STYLE|LINK)$/.test(e.tagName)) e.classList.add("fp"); };
+    // 사이클 3(B): 조각 하나가 크면(#map 아래 본문 전체 등 · 4×CPU에서 한 조각 200ms 넘는 다시 짜기) 그 아이들로 나눠 묶음마다 요소 약 FPN개씩 —
+    //   아이들 먼저, 그 칸 자신은 맨 뒤(바뀌는 글꼴·끝 상태는 예전과 같음: 모든 글자가 .fp 조상의 --font · 본문 CSS는 글꼴을 var(--font)/inherit로만 씀)
+    var FPN = 260, fq = [];
+    var fpOk = function (e) { return e && e.nodeType === 1 && e.classList && !/^(SCRIPT|STYLE|LINK)$/.test(e.tagName); };
+    var fpQ = function (e) { if (!fpOk(e) || e.classList.contains("fp")) return; var n = e.getElementsByTagName("*").length; if (n > FPN && e.children.length) { [].forEach.call(e.children, fpQ); fq.push([e, 0]); } else fq.push([e, n + 1]); };
     var fpStep = function (i) {
-      if (i >= FP.length) {
+      if (!fq.length && i >= FP.length) {
         try { var mo = new MutationObserver(function (L) { L.forEach(function (m) { [].forEach.call(m.addedNodes, fpAdd); }); }); [document.body, document.querySelector("main.wrap"), document.getElementById("mapTop")].forEach(function (x) { if (x) mo.observe(x, { childList: true }); }); } catch (e) {}
         B.fp = 1; return;
       }
       // 조각마다 그 자리에서 스타일·배치를 끝내고(offsetHeight) 다음 프레임 뒤 한가할 때 다음 조각 — 여러 조각이 한 프레임에 몰려 다시 긴 작업 하나가 되지 않게
-      (W.requestIdleCallback || setTimeout)(function () { [].forEach.call(document.querySelectorAll(FP[i]), fpAdd); void document.body.offsetHeight; requestAnimationFrame(function () { setTimeout(function () { fpStep(i + 1); }, 0); }); }, { timeout: 1500 });
+      (W.requestIdleCallback || setTimeout)(function () {
+        if (!fq.length) { [].forEach.call(document.querySelectorAll(FP[i]), fpQ); i++; }
+        var n = 0; while (fq.length && (n === 0 || n + fq[0][1] <= FPN)) { var x = fq.shift(); fpAdd(x[0]); n += x[1] || 1; }
+        void document.body.offsetHeight; requestAnimationFrame(function () { setTimeout(function () { fpStep(i); }, 0); });
+      }, { timeout: 1500 });
     };
     var on = function () { if (on.d) return; on.d = 1; B.quiet(function () { fpStep(0); }); };
     css(B.f, function () {

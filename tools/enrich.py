@@ -321,6 +321,9 @@ def _entry_span(rid, t):
             u = int(st.median([x[5] / x[4] * 3.3058 for x in L]) + 0.5) if len(L) >= max(1, -(-len(old) // 2)) else None
             return f(min(x[0] for x in old)), f(max(x[0] for x in old)), u, len(L)
     return None
+# 사이클 3(리드 결정 10.28): 구역 안 아파트 단지가 관리처분 대상인지 확인되기 전까지는 (a0)(구역 안 아파트 매매)를 쓰지 않고 구역 안 빌라 표본으로 —
+#   표본이 적어 lc(참고값) · lcw 'few' · tag '표본 적음'. 확인되면 여기서 빼면 예전 규칙으로 돌아간다.
+NO_A0 = {'o189': '구역 안 아파트(1992년 준공 단지 · 전용 84.9㎡)가 관리처분 대상인지 확인 전이라 빌라 표본 기준'}
 def apt_dom(t):
     return bool(t) and ((t.get('hd') or {}).get('b') == 'a' or (t.get('na', 0) >= 3 and t.get('na', 0) >= 3 * t.get('nv', 0)))
 for r in R:
@@ -340,7 +343,7 @@ for r in R:
                or (en.get('src') == 'complex' and (en.get('yr') or 0) >= 2005) or (en.get('match') == 'name' and (en.get('radius') or 0) > 50)):
         mk.pop('entry', None); en = None; stat['entry_drop_bad'] += 1
     # (a0) 아파트 위주 구역(재개발 안 기존 아파트 단지 등): 구역 경계 안 아파트 매매로
-    if t and villa_kind and apt_dom(t) and t.get('ae'):
+    if t and villa_kind and apt_dom(t) and t.get('ae') and r['id'] not in NO_A0:
         a = t['ae']
         mk['entry'] = {'src': 'complex', 'scope': '구역 경계 안 아파트', 'n': a['n'], 'p25': a['p25'], 'med': a['med'], 'p75': a['p75'], 'radius': 0, 'area_med': a['area_med'],
                        'name': '구역 안 아파트', 'yr': a['yr'], 'last': a['last'][2:4] + '.' + a['last'][4:6] + '.' + a['last'][6:8], 'match': 'zone', 'by_area': {}, 'fill': 'zoneapt',
@@ -359,6 +362,7 @@ for r in R:
             mk['entry']['f'], mk['entry']['t'] = fr[0], fr[1]
             if fr[2]: mk['entry']['u'], mk['entry']['nl'] = fr[2], fr[3]
         if t['no'] < 5 or apt_dom(t): mk['entry']['lc'] = 1; r['lc'] = 1; stat['entry_lc'] += 1
+        if r['id'] in NO_A0: mk['entry'].update({'lc': 1, 'lcw': 'few', 'tag': '표본 적음', 'why': NO_A0[r['id']]}); r['lc'] = 1; stat['entry_no_a0'] += 1
         continue
     # (b) 주변 빌라 표본(반경 300·500·800m): tools/near.py가 원자료에서 다시 뽑은 값으로(거래 하나하나가 public/data/near.json에 남아 거래 탭에서 확인 가능)
     #     예전 기준 자료의 반경 값은 어떤 거래였는지 남아 있지 않았다. 다시 뽑은 표본이 3건 미만이면 예전 값을 그대로 둔다
@@ -598,6 +602,36 @@ if os.path.exists(_SLP):
         a_ = v['a']; k = '평지' if a_ < 3 else '완만' if a_ < 7 else '경사' if a_ < 12 else '급경사'
         r['sl'] = {'a': v['a'], 'd': v.get('d'), 'p': v.get('p'), 'k': k}; _ns += 1
     print('slope', _ns)
+# ---------- 사이클 3(리드 결정 10.28): 세대수 출처 라벨(sm.uL) · 원천으로 다시 확인한 세대수 · 같은 대표지번 사업장(sj) ----------
+#   세대수(sm.units)는 첫 가져오기 값이다. 출처를 화면이 그대로 말하게 라벨을 붙인다 —
+#   premium sm.unitsSrc '신통 추진현황'이면 '계획 세대수(신통 추진현황)', 그 밖은 정보몽땅 사업개요 '분양 세대수'(임대 포함이면 '총 세대수(정보몽땅 분양+임대)').
+#   UNITS_SRC: 정보몽땅 사업개요(주택공급계획 분양 전용면적별 세대수)를 다시 열어 확인한 값 — 확인 날짜·주소를 남긴다. 확인 못 한 곳에 숫자를 지어 넣지 않는다.
+#   UNITS_TBD: 원천으로 확인되지 않아 숫자 대신 '확인 중'으로 둘 곳(sm.units를 지우고 sm.uTbd = 1).
+UNITS_SRC = {'o840': {'units': 1573, 'd': '2026-10-28', 'url': 'https://cleanup.seoul.go.kr/cafe/mastr-cleanup-bsnsSumry/execute.do?cafeId=350100002017D33&stepSeCode=102&div=sumry',
+                      'note': '분양 60㎡ 이하 677 · 60~85㎡ 792 · 85㎡ 초과 104 (예전 값 4,591은 신통 추진현황 표 값)'}}
+UNITS_TBD = {}
+_PB = J('pipeline/premium.base.json') if os.path.exists(os.path.join(ROOT, 'pipeline/premium.base.json')) else {}
+for r in D['recs']:
+    sm = r.get('sm')
+    if r['id'] in UNITS_SRC:
+        u = UNITS_SRC[r['id']]; sm = r.setdefault('sm', {})
+        sm['units'] = u['units']; sm.pop('saleUnits', None); sm['uL'] = '분양 세대수(정보몽땅)'; sm['uD'] = u['d']; sm['uU'] = u['url']; stat['units_src'] += 1
+        continue
+    if r['id'] in UNITS_TBD and sm:
+        sm.pop('units', None); sm.pop('saleUnits', None); sm['uTbd'] = 1; sm['uL'] = '세대수 확인 중'; stat['units_tbd'] += 1; continue
+    if not sm or not sm.get('units'): continue
+    src = ((_PB.get(r['id']) or {}).get('sm') or {}).get('unitsSrc')
+    if src == '신통 추진현황': sm['uL'] = '계획 세대수(신통 추진현황)'
+    elif sm.get('rental') and sm.get('saleUnits') and sm['units'] == sm['saleUnits'] + sm['rental']: sm['uL'] = '총 세대수(정보몽땅 분양+임대)'
+    else: sm['uL'] = '분양 세대수(정보몽땅)'
+    stat['units_lbl'] += 1
+_SJ = collections.defaultdict(list)
+for r in D['recs']:
+    if act(r) and r.get('j') and r.get('src') != 'moa': _SJ[(r.get('g'), r['j'])].append(r['id'])
+for r in D['recs']:
+    r.pop('sj', None)
+    L = _SJ.get((r.get('g'), r.get('j'))) if act(r) and r.get('src') != 'moa' else None
+    if L and len(L) > 1: r['sj'] = [i for i in L if i != r['id']]; stat['same_jibun'] += 1   # 같은 구·같은 대표지번에 따로 등록된 사업장(예: o38 면목동172-1 재건축 추진위 ↔ o39 면목8구역) — 근거 없이 합치지 않고 안내만
 json.dump(D, open(os.path.join(ROOT, 'pipeline/data.enriched.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print(dict(stat))
 miss = [(r['id'], r['n'], r['k'], r.get('j')) for r in R if act(r) and r.get('src') != 'moa' and not (r.get('mk') or {}).get('entry') and r.get('nx') not in ('biz', 'mk')]
