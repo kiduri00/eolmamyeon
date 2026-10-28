@@ -240,7 +240,7 @@ def glance(r, c, k3):
     AD = {'넓': ('넓고', '넓어요'), '좁': ('좁고', '좁아요'), '높': ('높고', '높아요'), '낮': ('낮고', '낮아요'), '많': ('많고', '많아요'), '적': ('적고', '적어요')}
     if stg and len(L) >= 5:
         bits = []
-        for f, sub, big, small, unit in ((_area, '면적은', '넓', '좁', lambda v: f'{round(v):,}㎡'), (_pol, '노후도는', '높', '낮', lambda v: f'{v}%'), (_units, {'분양': '분양 세대는', '총': '세대수는'}.get(str(((r.get('sm') or {}).get('uL') or '계획'))[:2].strip(), '계획 세대는'), '많', '적', lambda v: f'{int(v):,}세대')):   # 사이클 3 통합: 세대수 출처 라벨(enrich sm.uL)
+        for f, sub, big, small, unit in ((_area, '면적은', '넓', '좁', lambda v: f'{int(math.floor(v + 0.5)):,}㎡'), (_pol, '노후도는', '높', '낮', lambda v: f'{v}%'), (_units, {'분양': '분양 세대는', '총': '세대수는'}.get(str(((r.get('sm') or {}).get('uL') or '계획'))[:2].strip(), '계획 세대는'), '많', '적', lambda v: f'{int(v):,}세대')):   # 사이클 3 통합: 세대수 출처 라벨(enrich sm.uL)
             if len(bits) >= 2: break
             k = _rank(L, f, r)
             if not k or k[1] < 5: continue
@@ -344,7 +344,7 @@ def page(r):
         _t = r.get('tx') or {}
         k.append(('입주권', '조합원 입주권 매매로', '지금 사는 집은 입주권 없음 · 기본 가정 판정') if c['winT'] == '입주권 없음' and r.get('s', 0) >= 8 and _t.get('im') else ('입주권', esc(c['winT']), '기본 가정 판정'))
     if c.get('st'): k.append(('가까운 역', f"{esc(c['st']['n'])} 도보 {walk_min(c['st']['d'])}분", ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])))
-    if c.get('owners'): k.append(('토지등소유자', f"{int(c['owners']):,}명", f"구역 면적 {round((r.get('sm') or {}).get('area') or 0):,}㎡" if (r.get('sm') or {}).get('area') else ''))
+    if c.get('owners'): k.append(('토지등소유자', f"{int(c['owners']):,}명", f"구역 면적 {int(math.floor(((r.get('sm') or {}).get('area') or 0) + 0.5)):,}㎡" if (r.get('sm') or {}).get('area') else ''))
     o.append('<div class="kpis">' + ''.join(f'<div class="kpi"><span>{a}</span><b>{b}</b><small>{s}</small></div>' for a, b, s in k) + '</div>')
     o.append(minimap(r))
     # 인가 이력

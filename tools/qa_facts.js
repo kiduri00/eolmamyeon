@@ -73,8 +73,8 @@ function sameRules(id, f, S, bad, where) {
 // /z 한 쪽 안: 참고 시세(ZoneFacts num.ref) · 면적 · 빌라 전세 · 보류면 '살 수 없' 금지 · 범위 파생
 function sameZ(id, f, t, bad) {
   const N = f.num || {}, E = (m) => bad.push(`${id} /z ${m}`);
-  const ref = /참고 시세 · [^·]+?(?:값|건)\)? [\d.,]+(?:억|만)/.exec(t); if (ref && N.ref && norm(ref[0]) !== norm(N.ref.txt)) E(`참고 시세 '${ref[0]}' ≠ '${N.ref.txt}'`);
-  if (ref && !N.ref) E(`참고 시세 '${ref[0]}'인데 ZoneFacts에 없음`);
+  // 참고 시세 줄(있으면 모두) = ZoneFacts num.ref.txt
+  for (let i = t.indexOf("참고 시세 · "); i >= 0; i = t.indexOf("참고 시세 · ", i + 1)) { if (!N.ref) { E(`참고 시세 '${t.slice(i, i + 50)}'인데 ZoneFacts에 없음`); break; } if (!t.startsWith(norm(N.ref.txt), i)) E(`참고 시세 '${t.slice(i, i + norm(N.ref.txt).length + 4)}' ≠ '${N.ref.txt}'`); }
   if (N.area) { const L = uniqs(allM(/구역 면적 ([\d,]+㎡)/, t)); if (L.some((v) => v !== N.area.txt)) E(`구역 면적 ${L.join("/")} ≠ ${N.area.txt}`); }
   if (N.jeonse) { const L = uniqs(allM(/빌라 전세 ([\d.,]+(?:억|만))/, t)); if (L.some((v) => v !== N.jeonse.txt)) E(`빌라 전세 ${L.join("/")} ≠ ${N.jeonse.txt}`); }
   const hn = f.hold.now; if (hn && hn.code !== "gapBlock" && hn.code !== "nt" && /살 수 없/.test(t.replace(/토지거래허가[^.]{0,80}살 수 없/g, ""))) E(`보류(${hn.code})인데 '살 수 없' 문구`);

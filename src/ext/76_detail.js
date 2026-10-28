@@ -213,7 +213,7 @@ const DTL = (() => {
     // 사이클 4: 이름 옆 노란 체크(비교에 담았으면 · 공용 고른 상태 00_pick.css) — CX.paint가 켜고 끈다
     { const tt = head.querySelector("#repTitle"); if (tt && !head.querySelector(".dt-pick")) tt.insertAdjacentHTML("afterend", '<i class="zp-check dt-pick" aria-hidden="true" hidden></i><span class="sr-only dt-pick-sr" hidden>비교에 담음</span>'); }
     // 사이클 4: 최근 보도 경고(데이터 필드 r.notice · tools/notices.json) — 관리처분 임박 등 자료(정보몽땅) 반영 전 변화
-    if (r.notice && r.notice.t) box.insertAdjacentHTML("afterbegin", `<p class="dt-notice" role="note"><b>${r.notice.k === "soon" ? "확인 필요 · 최근 보도" : "확인 필요"}</b> ${esc(String(r.notice.t).replace(/^최근 보도:\s*/, ""))}${r.notice.src ? ` <a href="${esc(r.notice.src)}" target="_blank" rel="noopener">${esc(r.notice.srcT || "출처")}</a>` : ""}</p>`);
+    if (r.notice && r.notice.t) box.insertAdjacentHTML("afterbegin", `<p class="dt-notice" role="note"><b>${r.notice.k === "soon" ? "확인 필요 · 최근 보도" : "확인 필요"}</b> ${esc(String(r.notice.t).replace(/^최근 보도:\s*/, ""))}${r.notice.src ? ` <a href="${esc(r.notice.src)}" target="_blank" rel="noopener">${esc(r.notice.srcT || "출처")}</a>` : ""}${r.notice.src2 ? ` · <a href="${esc(r.notice.src2)}" target="_blank" rel="noopener">${esc(r.notice.src2T || "보도")}</a>` : ""}</p>`);
     // 사이클 3(F6): '비교에 담기'는 시트 위 행동 줄(핵심 숫자 바로 아래) — 긴 본문 뒤 맨 아래에 있어 찾기 어렵던 것
     try { if (typeof CX !== "undefined" && r.src !== "moa") { box.insertAdjacentHTML("beforeend", '<div class="dt-acts dt-acts-top"></div>'); CX.btn(box, r); } } catch (e) {}
     place();

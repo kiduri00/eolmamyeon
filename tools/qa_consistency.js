@@ -791,7 +791,7 @@ async function zoneLane(browser, api, errs, shared, zoneIds) {
         if (Z.buyV && R.buyV) expect(eqMoney(Z.buyV, R.buyV), "zone.vsZ", "리포트 큰 숫자·표본 n·계산 매수가·입주까지 현금 == /z 페이지", `${where}: 계산 매수가 app ${fm(R.buyV)} vs /z ${fm(Z.buyV)}`);
         if (Z.trustN && R.trustN) expect(Z.trustN === R.trustN, "zone.vsZ", "리포트 큰 숫자·표본 n·계산 매수가·입주까지 현금 == /z 페이지", `${where}: 신뢰 표본 app ${R.trustN} vs /z ${Z.trustN}`);
         // 첫 화면 3숫자: 앱 상세 == /z (같은 이름 · 같은 값 · 전세 끼고 기본)
-        { const K = await page.evaluate(() => { const k = document.querySelector("#report .dt-k"); if (!k) return null; const g = (q) => { const e = k.querySelector(`[data-k="${q}"] .dt-v`); return e ? e.textContent.trim() : null; }; return { now: g("now"), tot: g("tot"), eta: g("eta"), labs: [...k.querySelectorAll(".dt-l")].map((e) => e.textContent.trim()) }; });
+        { const K = await page.evaluate(() => { const k = document.querySelector("#report .dt-k"); if (!k) return null; const g = (q) => { const e = k.querySelector(`[data-k="${q}"] .dt-v`); return e ? e.textContent.trim() : null; }; return { now: g("now"), tot: g("tot"), eta: g("eta"), labs: ["now", "tot", "eta"].map((q) => { const e = k.querySelector(`[data-k="${q}"] .dt-l`); return e ? e.textContent.trim() : ""; }).filter(Boolean) }; });   /* 사이클 4: 시트 상단 3칸(판정 띠·입주권·다음 단계·입주까지 현금)은 보이는 차례가 달라 data-k 차례(now·tot·eta)로 견준다 */
           const T = "첫 화면 3숫자(지금 필요한 돈 · 입주까지 현금 · 언제 입주) 앱 == /z 페이지(이름·값)";
           if (!K) bad("zone.key3", T, `${where}: no .dt-k in report head`);
           else if (!Z.key) bad("zone.key3", T, `/z/${zid}: no key3 block`);
@@ -1835,12 +1835,14 @@ async function r4Lane(browser, api, errs) {
         return { H, bh: Math.round(bh), its, trBot: tb ? Math.round(tb.bottom) : null, trTxt: tr ? tr.innerText.replace(/\s+/g, " ") : "", ip: ip ? ip.innerText.replace(/\s+/g, " ") : "", est, noip: !!rp.querySelector(".dt-top .ov-noip"), eta: eta ? eta.textContent.trim() : "", nt: !!rp.querySelector(".dt-k .dt-nt"), ipN: top ? (top.innerText.match(/입주권 없음/g) || []).length : 0, why: top ? (top.innerText.match(/이유 보기/g) || []).length : 0, okN: top ? (top.innerText.match(/가능/g) || []).length : 0 };
       });
       const lim = f.H - f.bh;
+      f.its.sort((a, b) => ["now", "tot", "eta"].indexOf(a.k) - ["now", "tot", "eta"].indexOf(b.k));   // 사이클 4: data-k 차례(판정 띠 now · 3칸 eta·tot)
       const labs = f.its.map((x) => x.l).join("|");
       const ntZ = f.its.length === 3 && f.its[2].l === "입주권";
       expect(f.its.length === 3 && LAB3.test(labs), "zone.fold3", T3, `#${zid}: items ${labs}`);
       expect(f.its.every((x) => x.v && x.bot <= lim), "zone.fold3", T3, `#${zid}: item bottoms ${f.its.map((x) => x.bot).join("/")} > fold ${lim} (viewport ${f.H} − bar ${f.bh})`);
       if (!ntZ) expect(f.trBot != null && f.trBot <= lim, "zone.fold3", T3, `#${zid}: trust line bottom ${f.trBot} > fold ${lim}`);
-      expect(f.its.every((x) => x.fs >= 24 && x.fw >= 700 && /tabular-nums/.test(x.tab)), "zone.fold3", T3, `#${zid}: number style ${f.its.map((x) => `${x.fs}/${x.fw}/${x.tab}`).join(" ")}`);
+      // 사이클 4(D3): 판정 띠 값 28px 이상 · 3칸 값 18px 이상(굵게 · 같은 너비 숫자)
+      expect(f.its.every((x) => x.fs >= (x.k === "now" ? 28 : 18) && x.fw >= 700 && /tabular-nums/.test(x.tab)), "zone.fold3", T3, `#${zid}: number style ${f.its.map((x) => `${x.fs}/${x.fw}/${x.tab}`).join(" ")}`);
       expect(f.est <= 1, "zone.fold3", T3, `#${zid}: '추정' ${f.est} times on first screen`);
       // 입주권 없는 곳: '언제 입주' 칸이 '입주권 없음' + 일반분양 한 줄(입주권 이야기는 첫 화면에 한 번 · 몇 년 뒤 입주 숫자 없음) · 신뢰 줄 '계산 안 함'
       // 입주권 없는 곳(셋째 칸 '입주권'): 값 '없음'·'조합원 입주권을 사야 해요' · 이유 한 줄 한 번 · '입주권 없음' 반복·'이유 보기' 줄 없음(20차 G3)

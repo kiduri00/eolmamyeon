@@ -30,6 +30,13 @@
     const PhiInv = (p) => { let a = -8, b = 8; for (let i = 0; i < 80; i++) { const m = (a + b) / 2; if (Phi2(m) < p) a = m; else b = m; } return (a + b) / 2; };
     const condQ = (el, st) => { const mu = Math.log(st.med), sg = Math.max(0.05, (Math.log(st.p75) - Math.log(st.p25)) / 1.349), F0 = Phi2((Math.log(Math.max(el, 1e-6)) - mu) / sg); return [0.25, 0.5, 0.75].map((q) => Math.exp(mu + sg * PhiInv(F0 + q * (1 - F0)))); };
     const statOf = (r, k) => { const s = ZF.stageStat(r, k); return s && s.med != null && s.p25 != null ? s : null; };
+    // 사이클 4: 가로·소규모·모아 사업장의 다음 구간에 자기 통계(uses small)가 없는가 — 단계 날짜(premium)가 오기 전후로 같은 판정(입주 범위 숨김에 씀)
+    function smallNostat(r) {
+      if (!r || r.src === "moa" || r.dn || r.s >= 9 || !smallK(r)) return false;
+      let k = NEXT[r.s]; if (r.s === 5 || r.s === 6) k = "사업시행>착공"; if (!k) return false;
+      const ts = (((D.etaMeta || {}).transitions || {}).small || {})[k];
+      return !(ts && ts.uses === "small" && statOf(r, k));
+    }
     function nextOf(r) {
       if (!r || r.src === "moa" || r.dn || r.s >= 9) return null;
       const sm = smallK(r);
@@ -156,6 +163,10 @@
     //   tx.hd(대표 거래: 1년/2년/최근 거래 창 w) 있으면 그것 · 없으면 쓴 값의 실제 기간(tools/tx.py: am 12개월 · im iw개월 · med nwin개월 · pp 2023.11 뒤 전체)
     function refOf(r) {
       const t = r.tx || {}, h = t.hd;
+      // 거래 탭 맨 위 큰 숫자가 매수가 표본(ZF.headline 'u'·'p')이면 참고 시세도 그것 — 같은 화면에 두 기준이 '참고 시세'·'맨 위 숫자'로 갈리지 않게
+      let H = null; try { H = ZF.headline(r, h && h.u ? h : null); } catch (e) {}
+      if (H && H.kind === "u") return { k: "u", lab: "빌라·단독 대지 3.3㎡당", v: H.v, n: H.n, win: "", basis: H.basis, vt: fmt("m2p", H.v), txt: `참고 시세 · 빌라·단독 대지 3.3㎡당(${H.basis}) ${fmt("m2p", H.v)}` };
+      if (H && H.kind === "p") return { k: "p", lab: H.label, v: H.v, n: H.n, win: "", basis: H.basis, vt: fmt("won", H.v / 1e4), txt: `참고 시세 · ${H.label}(${H.basis}) ${fmt("won", H.v / 1e4)}` };
       if (h && h.u) {
         const BN = { i: "입주권", a: "아파트", v: "빌라·단독 대지" }[h.b] || "대지", win = h.w === 0 ? "최근 거래" : h.w === 24 ? "2년" : "1년";
         const basis = h.n === 1 ? `${win} 구역 안 거래 1건` : `${win} 대표 거래 ${h.n}건 가운데 값`;
@@ -221,43 +232,35 @@
     //   매수 시점 규칙(도시정비법 제39조② · 소규모주택정비법 제24조②)은 '산 때 그 구가 투기과열지구였는지'로 갈린다고 본다(추정·확인 필요)
     const TG = () => (D.policy && D.policy.tgj) || null;
     const dT = (s) => String(s || "").replace(/^(\d{4})-(\d{2})-(\d{2})$/, (m, y, a, b) => `${y}.${+a}.${+b}`);
-    // 구 하나의 지정 기간 [[from, to|null], …] (확인한 구간만 · 이어지는 구간은 합침)
+    //   2023년 21개 구 해제 효력일은 공식 출처로 확인 못 해 날짜를 쓰지 않는다(seg.toTxt '2023년 초(해제일 확인 필요)')
+    const FOUR = () => (TG() && TG().four) || ["강남구", "서초구", "송파구", "용산구"];
+    const isFour = (gu) => FOUR().includes(gu);
+    // 구 하나의 지정 기간 [{from, to, toTxt}] (확인한 구간만)
     function tgjSegs(gu) {
       const T = TG(); if (!T) return [];
-      const L = T.seg.filter((s) => s.gu === "*" || (Array.isArray(s.gu) && s.gu.includes(gu))).map((s) => [s.from, s.to]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
-      const out = [];
-      L.forEach(([f, t]) => { const p = out[out.length - 1]; const nx = (d) => { const z = new Date(d + "T00:00:00Z"); z.setUTCDate(z.getUTCDate() + 1); return z.toISOString().slice(0, 10); }; if (p && (p[1] == null || nx(p[1]) >= f)) { if (p[1] != null && (t == null || t > p[1])) p[1] = t; } else out.push([f, t]); });
-      return out;
+      return T.seg.filter((s) => s.gu === "*" || (s.gu === "rest" && !isFour(gu)) || (Array.isArray(s.gu) && s.gu.includes(gu))).map((s) => ({ from: s.from, to: s.to || null, toTxt: s.toTxt || null })).sort((a, b) => (a.from < b.from ? -1 : 1));
     }
-    const segTxt = (s) => `${dT(s[0])}${s[1] ? `~${dT(s[1])}` : "부터"}`;
-    // 기간 글: '강동구 지정 기간 2017.8.3~2023.1.4 · 2025.10.16부터' · 4개 구 '2017.8.3부터 계속'
+    const segTxt = (s) => `${dT(s.from)}${s.to ? `~${dT(s.to)}` : s.toTxt ? `~${s.toTxt}` : "부터"}`;
+    // 기간 글: '강동구 투기과열지구 지정 기간 2017.8.3~2023년 초(해제일 확인 필요) · 2025.10.16부터' · 4개 구 '2017.8.3부터 계속 지정'
     function tgjTxt(gu) {
       const S2 = tgjSegs(gu); if (!S2.length) return "";
-      return S2.length === 1 && !S2[0][1] ? `${gu} 투기과열지구 ${dT(S2[0][0])}부터 계속 지정` : `${gu} 투기과열지구 지정 기간 ${S2.map(segTxt).join(" · ")}`;
+      return S2.length === 1 && !S2[0].to && !S2[0].toTxt ? `${gu} 투기과열지구 ${dT(S2[0].from)}부터 계속 지정` : `${gu} 투기과열지구 지정 기간 ${S2.map(segTxt).join(" · ")}`;
     }
-    // 날짜 d0(조합설립인가·관리처분인가 등 제한 시작) 뒤로 지정이 풀려 있던 구간(그때 산 집은 제한을 받지 않았을 수 있음)
-    function tgjOff(gu, d0) {
-      const S2 = tgjSegs(gu), T = TG(); if (!S2.length || !d0 || !T) return [];
-      const today = (T.checked || "").slice(0, 10), out = [];
-      const day = (d, k) => { const z = new Date(d + "T00:00:00Z"); z.setUTCDate(z.getUTCDate() + k); return z.toISOString().slice(0, 10); };
-      let cur = d0 < "2017-08-03" ? "2017-08-03" : d0;
-      for (const s of S2) { if (s[1] && s[1] < cur) continue; if (s[0] > cur) out.push([cur, day(s[0], -1)]); cur = s[1] ? day(s[1], 1) : "9999-12-31"; if (cur > today) break; }
-      if (cur < today) out.push([cur, null]);
-      return out;
-    }
-    // 구역 하나의 매수 시점 판정: 제한이 시작되는 인가(재개발 관리처분인가 · 재건축·가로·소규모 조합설립인가)와 그 뒤 지정이 풀려 있던 구간
+    // 구역 하나의 매수 시점 판정: 제한이 시작되는 인가(재개발 관리처분인가 · 재건축·가로·소규모 조합설립인가) 뒤 지정이 풀려 있던 기간이 있었는가
     function buyOf(r) {
       if (!r || r.src === "moa" || r.dn || r.s >= 9) return null;
       const g = /가로|소규모|모아/.test(r.k || "") ? "small" : r.k === "재건축" ? "rebuild" : /재개발/.test(r.k || "") ? "redev" : null;
       if (!g) return null;
       const dt = r.dt || {}, lab = g === "redev" ? "관리처분인가" : "조합설립인가", d0 = String((g === "redev" ? dt["관리처분"] : dt["조합설립"] || dt["시행자지정"]) || "").slice(0, 10);
-      const T = TG(), gu = r.g || "", segs = tgjSegs(gu), off = /^\d{4}-\d{2}-\d{2}$/.test(d0) ? tgjOff(gu, d0) : [];
-      const pre = d0 && d0 < "2017-08-03";
-      const tg = tgjTxt(gu) + (T ? ` · 2017.8.3 전 이력은 확인 필요` : "");
-      let txt = "";
-      if (d0) txt = off.length ? `${lab}(${dT(d0)}) 뒤에 샀어도 ${off.map((s) => `${dT(s[0])}~${s[1] ? dT(s[1]) : ""}`).join(" · ")}에 산 집은 ${gu}가 투기과열지구가 아니어서 이 제한을 받지 않았을 수 있어요` + (pre ? ` · ${dT(d0)}~2017.8.2 매수는 확인 필요` : "") : `${lab}(${dT(d0)}) 뒤 ${gu}는 계속 투기과열지구라 그 뒤에 산 집은 이 제한을 받아요` + (pre ? ` · ${dT(d0)}~2017.8.2 매수는 확인 필요` : "");
-      else txt = `${lab} 뒤 매수일이 ${gu} 투기과열지구 지정 기간(${segs.map(segTxt).join(" · ")})이면 이 제한을 받아요`;
-      return { g, lab, d0: d0 || null, gu, off: off.map((s) => [s[0], s[1]]), tg, txt, src: T ? T.seg.map((s) => s.src[0].u) : [] };
+      const T = TG(), gu = r.g || "", four = isFour(gu), has = /^\d{4}-\d{2}-\d{2}$/.test(d0);
+      const pre = has && d0 < "2017-08-03" ? ` · ${dT(d0)}~2017.8.2 매수는 그때 지정 여부를 확인 필요` : "";
+      const tg = tgjTxt(gu) + (T ? " · 2017.8.3 전 이력은 확인 필요" : "");
+      // 해제 기간(2023년 초 해제 ~ 2025.10.15)이 인가 뒤에 있었는가: 4개 구는 없음 · 2025.10.16 뒤 인가면 없음
+      const off = !four && !(has && d0 >= "2025-10-16");
+      const txt = four ? `${lab}${has ? `(${dT(d0)})` : ""} 뒤 ${gu}는 계속 투기과열지구라 그 뒤에 산 집은 이 제한을 받아요${pre}`
+        : off ? `${lab}${has ? `(${dT(d0)})` : ""} 뒤에 샀어도 ${gu}가 투기과열지구가 아니던 기간(2023년 초 해제 ~ 2025.10.15)에 산 집은 제한이 달랐을 수 있어요 · 확인 필요${pre}`
+        : `${lab}(${dT(d0)}) 뒤 ${gu}는 계속 투기과열지구라 그 뒤에 산 집은 이 제한을 받아요`;
+      return { g, lab, d0: has ? d0 : null, gu, off, tg, txt, src: T ? [...new Set(T.seg.flatMap((s) => s.src.map((x) => x.u)))] : [] };
     }
 
     // ---------- 한 객체 ----------
@@ -287,6 +290,6 @@
     // 전세가율 짧은 꼴(시트 첫 칸 · /z 첫 칸 같은 글): '3.4% · 구역 실측' · '56.6% · 서울 평균'
     const JRS = { user: "직접 설정", zone: "구역 실측", zoneLow: "구역 실측", gu: "구 평균", seoul: "서울 평균" };
     const jrShort = (r) => { const j = jrInfo(r); return `${String(Math.round(j.v * 10) / 10)}% · ${JRS[j.src] || ""}`; };
-    return { of, clear, jrInfo, jrShort, JRS, nextOf, ym, ymd, yr, condQ, NM, refOf, spanTxt, rngOf, tgjSegs, tgjTxt, buyOf, fmt, ro };
+    return { of, clear, jrInfo, jrShort, JRS, nextOf, smallNostat, ym, ymd, yr, condQ, NM, refOf, spanTxt, rngOf, tgjSegs, tgjTxt, buyOf, fmt, ro };
   })();
   window.ZP_facts = (id) => { try { return ZFX.of(byId[id]); } catch (e) { return null; } };   // 점검(QA): 문장 대조

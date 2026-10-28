@@ -152,7 +152,7 @@ def vals(X, r):
     v['owners'] = f"{int(sm['owners']):,}" if sm.get('owners') else None
     v['members'] = f"{int(sm['members']):,}" if sm.get('members') else None
     v['units'] = f"{int(sm['units']):,}" if sm.get('units') else None
-    v['area'] = f"{sm['area']:,.0f}" if sm.get('area') else None
+    v['area'] = f"{int(math.floor(sm['area'] + 0.5)):,}" if sm.get('area') else None   # 사이클 4: 화면(Math.round)과 같은 0.5 올림 — '.0f'는 짝수 반올림(76,090.5 → 76,090)
     v['rental'] = f"{int(sm['rental']):,}" if sm.get('rental') else None
     v['areaPy'] = f"{sm['area'] / 3.3058:,.0f}" if sm.get('area') else None
     psm = p.get('sm') or {}

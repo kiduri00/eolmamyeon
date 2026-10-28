@@ -3583,7 +3583,7 @@
     if (!e.eMid) return { nodata: true };
     // 사이클 4: 가로·소규모·모아 사업장은 다음 단계 서울 기록이 적으면(ZoneFacts next 'nostat') 입주 범위·10년 확률도 내지 않는다
     //   — 큰 재개발·재건축 통계를 빌려 '다음 단계는 모름, 입주는 4~7년 · 86%'라 서로 다른 말을 하던 것(o27) · 계산(etaYears)은 그대로 '계산용 가정'
-    try { if (/가로|소규모|모아/.test(r.k || "")) { const nx = ZFX.nextOf(r); if (nx && nx.state === "nostat") return { nostat: true }; } } catch (er) {}
+    try { if (ZFX.smallNostat(r)) return { nostat: true }; } catch (er) {}
     const d = (x) => new Date(x + "-15T00:00:00");
     const eMid = d(e.eMid);
     const o = {
@@ -6754,7 +6754,8 @@
     const all = baseList(),
       gs = all.map(gapOf);
     const ok = gs.filter((g) => !g.r.lc && !g.block && !g.na && g.now <= CASH);   // 홈 숫자와 같게 참고값(lc) 제외
-    const blocked = gs.filter((g) => g.block && !g.na && g.block !== "계산 대상 아님" && g.now <= CASH);
+    // 사이클 4: 전세가율 표본 부족 '보류'(jrLow · '전세 끼고 계산 보류')는 '전세 낀 매수 불가' 묶음에 넣지 않는다(불가 ≠ 보류)
+    const blocked = gs.filter((g) => g.block && !g.na && g.block !== "계산 대상 아님" && !/^전세 끼고 계산 보류/.test(String(g.block)) && g.now <= CASH);
     AFF = new Set(ok.map((g) => g.r.id));
     LAST = ok.map((g) => g.x);
     const withTot = ok.filter((g) => g.x.ok);
