@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /* QA brand.residual — 옛·검토 이름(tools/brand.py OLD_NAMES)이 public 전체와 src에 0건인지.
-   예외: 소개(about)와 오류 수정 기록(corrections)의 '이름 변경' 안내(같은 줄 앞뒤 80자 안에 새 이름과 '이름'이 함께 있을 때만).
+   예외: 소개(about)·오류 수정 기록(corrections)·자주 묻는 질문(faq, 사이클 3 이름 변경 문답)의 '이름 변경' 안내(같은 줄 앞뒤 80자 안에 새 이름과 '이름'이 함께 있을 때만).
    public/b는 지금 빌드가 쓰는 묶음만 본다(index.html·sw.js에서 이어지는 /b/ 파일 — 옛 묶음은 캐시용으로 남겨 둔 것).
    사용: node tools/qa_brand.js  (실패하면 파일별 건수와 첫 몇 곳을 찍고 종료 코드 1) */
 const fs = require("fs"), path = require("path");
 const R = path.resolve(__dirname, "..");
 const BN = require("./brand_names")(), OLD = BN.OLD_RX, NEW = BN.BRAND;   // 금지어·새 이름·안내 문구 = tools/brand.py
-const EXC = /^public\/(about|corrections)(\.html|\/index\.html)$/;
+const EXC = /^public\/(about|corrections|faq)(\.html|\/index\.html)$/;
 const TXT = /\.(html?|js|mjs|css|json|webmanifest|xml|txt|svg|md|py)$/i;
 const walk = (d, out = []) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p, out); else if (TXT.test(e.name)) out.push(p); } return out; };
 const rel = (p) => path.relative(R, p).split(path.sep).join("/");

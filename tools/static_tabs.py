@@ -304,6 +304,10 @@ def ad_slot(k, kind):
 
 
 AD_GAP = 600   # 사이클 2(애드센스 레드팀): mid와 bottom 사이 본문 글자가 이보다 적으면 bottom은 두지 않는다(폰 한 화면에 칸 둘 방지)
+# 사이클 3(화면 높이 기준): PC(1280×900) 한 화면에도 칸 둘이 함께 보이지 않게 — 칸 사이가 900px 이상이어야 한다.
+#   실측(칸 250px로 채움 · scratchpad c3/write/geo_sim.json): 본문 위주 페이지는 1280px에서 글자당 1.29px 이상 → 700자면 900px를 넘는다.
+#   표가 많은 글(글자당 0.78px · guide/ipju·sigongsa)은 이 셈이 맞지 않아 손 지정 자리(<!--zp-ad-at:mid-->)로 칸 하나만 둔다.
+AD_GAP_DESK = 700
 
 
 def _txt_len(s):
@@ -333,13 +337,13 @@ def ad_slots(h, rel):
             cand.append(m.end())
         L = len(body); out, last = [], -1
         for k, frac in (('mid', .35), ('bottom', .7)):
-            p = next((x for x in cand if x >= L * frac and x > last and (k == 'mid' or not out or _txt_len(body[out[-1][0]:x]) >= AD_GAP)), None)
+            p = next((x for x in cand if x >= L * frac and x > last and (k == 'mid' or not out or _txt_len(body[out[-1][0]:x]) >= max(AD_GAP, AD_GAP_DESK))), None)
             if p is None: continue
             out.append((p, k)); last = p
-    # 칸 사이 간격 규칙(손 지정 자리에도): 앞 칸과 본문 AD_GAP자 미만이면 뒤 칸은 뺀다
+    # 칸 사이 간격 규칙(손 지정 자리에도): 앞 칸과 본문 AD_GAP(폰)·AD_GAP_DESK(PC 한 화면)자 미만이면 뒤 칸은 뺀다
     keep = []
     for p, k in sorted(out):
-        if keep and _txt_len(body[keep[-1][0]:p]) < AD_GAP: continue
+        if keep and _txt_len(body[keep[-1][0]:p]) < max(AD_GAP, AD_GAP_DESK): continue
         keep.append((p, k))
     for p, k in reversed(keep): body = body[:p] + ad_slot(k, kind) + body[p:]
     return h[:a] + body + h[b:]
