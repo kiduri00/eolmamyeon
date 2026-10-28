@@ -80,7 +80,7 @@
     const CASH_LAB = { y: null, n: "현금 부족", u: "계산 보류", e: "구 평균 시세 추정", x: "" };
     function palette() {
       const v = (n, d) => probe(`var(${n}, ${d})`);
-      return { y: v("--brand", "#2B59F0"), n: v("--text-3", "#5c6573"), u: v("--text-4", "#8B95A1"), e: v("--acc2", "#8B6FE8"), x: v("--text-4", "#8B95A1"), ink: v("--text-1", "#191F28"), sub: v("--text-3", "#5F6B7A"), surf: v("--surface", "#fff"), line: v("--border", "#E5E8EB"), sel: v("--focus", "#2B59F0") };
+      return { y: v("--brand", "#2B59F0"), n: v("--text-3", "#5c6573"), u: v("--text-4", "#8B95A1"), e: v("--acc2", "#8B6FE8"), x: v("--text-4", "#8B95A1"), ink: v("--text-1", "#191F28"), sub: v("--text-3", "#5F6B7A"), surf: v("--surface", "#fff"), line: v("--border", "#E5E8EB"), sel: v("--focus", "#2B59F0"), pick: v("--zp-pick", "#F5C33B") };   // 사이클 4 통합: 고른 곳 노랑 = 공용 토큰 --zp-pick(00_pick.css)
     }
     // 겹쳐 보기 아이콘 색: [동그라미, 글자]. 남색(구역)·파랑과 겹치지 않는 청록·빨강·자홍
     const POIC = (dk) => (dk ? { edu: ["#2BA894", "#6FD8C6"], med: ["#E0484E", "#F59A9A"], mart: ["#C2479A", "#F09ACD"] } : { edu: ["#0B8070", "#0A6F61"], med: ["#D0343A", "#B4232A"], mart: ["#B0327F", "#9A2470"] });
@@ -246,7 +246,7 @@
         L({ id: p + "-line-moa", type: "line", source: src, minzoom: 11, filter: TY("moa"), layout: { "line-join": "round" }, paint: { "line-color": ML, "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 15, 2.2], "line-opacity": 0.9, "line-dasharray": [2.5, 1.6] } });
       }
       // 다이얼(아이디어 A): 다이얼을 연 뒤 새로 갈 수 있게 된 곳 = 노란 테두리
-      for (const src of ["zest", "zones"]) L({ id: src + "-nw", type: "line", source: src, minzoom: 10, layout: { "line-join": "round" }, paint: { "line-color": "#F5C33B", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2, 14, 3], "line-opacity": ["case", ["boolean", ["feature-state", "nw"], false], 1, 0] } });
+      for (const src of ["zest", "zones"]) L({ id: src + "-nw", type: "line", source: src, minzoom: 10, layout: { "line-join": "round" }, paint: { "line-color": P.pick, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2, 14, 3], "line-opacity": ["case", ["boolean", ["feature-state", "nw"], false], 1, 0] } });
       // 서울 보기에서 너무 작은 '가능' 구역(면적 9만㎡ 아래 = 줌 10.5에서 8px 안)은 같은 색 작은 원(반지름 4px)으로
       L({ id: "zone-okdot", type: "circle", source: "zokp", paint: { "circle-radius": 4, "circle-color": ZC, "circle-opacity": dk ? 0.45 : 0.5, "circle-stroke-color": ZL, "circle-stroke-width": 1.5, "circle-stroke-opacity": 0.9 } });
       // 말풍선·카드가 없는 구역의 표식(구 단계 · SPEC C2): 부족 = 3.6px 회색 점 · 조건 밖 = ✕ · 계산 보류 = 점선 고리 · 자리가 없는 가능·조금 부족 = 남색 점·고리 · 관심 = 하트
@@ -270,7 +270,7 @@
       L({ id: "foc-line", type: "line", source: "fline", layout: { "line-cap": "round" }, paint: { "line-color": dk ? "#9DB8FF" : "#1F3A87", "line-width": 2.6, "line-dasharray": [1.6, 1.4] } });
       L({ id: "sel-fill", type: "fill", source: "sel", paint: { "fill-color": ZC, "fill-opacity": dk ? 0.34 : 0.3 } });
       L({ id: "sel-case", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": dk ? "#10161E" : "#FFFFFF", "line-width": 8, "line-blur": 1, "line-opacity": 0.95 } });
-      L({ id: "sel-line", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": "#F5C33B", "line-width": 3.6 } });
+      L({ id: "sel-line", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": P.pick, "line-width": 3.6 } });
       L({ id: "stn", type: "circle", source: "stn", minzoom: 14, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 3.5, 16, 5.5], "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 14, 2, 16, 2.6] } });
       // 큰 역(환승역)은 12부터 작은 점 + '○○역'
       L({ id: "stn-mj", type: "circle", source: "stn", minzoom: 11, maxzoom: 14, filter: [">=", ["get", "t"], 2], paint: { "circle-radius": 2.6, "circle-color": dk ? "#151B23" : "#ffffff", "circle-stroke-color": dk ? "#8A95A5" : "#5F6B7A", "circle-stroke-width": 1.4 } });
@@ -734,8 +734,8 @@
       return z;
     };
     // 상태 말(SPEC C2 · '더 필요해요' 하나에 섞이던 것을 나눔) — 말풍선·카드·범례가 같은 말
-    const SW = { ok: "갈 수 있음", near: "조금 부족", far: "부족", no: "조건 밖", na: "계산 보류", moa: "사업구역별" };
-    const SCHIP = { ok: "가능", near: "+ 부족", far: "부족", no: "✕ 조건 밖", na: "보류", moa: "모아타운" };
+    const SW = ST_WORD;   // 사이클 4 통합: 05_facts.js 한 곳
+    const SCHIP = { ok: ST_WORD.ok, near: "+ " + ST_WORD.near, far: ST_WORD.far, no: "✕ " + ST_WORD.no, na: ST_WORD.na, moa: "모아타운" };   // 사이클 4 통합: 카드 칩도 ST_WORD 한 곳(목록·범례·시트와 같은 말)
     // 지도 보기 방식(아이디어 C·D): ok = 갈 수 있는 곳만 · yr = N년 뒤(준공 예상 범위) · dial = 다이얼을 끄는 중(색만) · base = 다이얼을 연 때의 '갈 수 있는' 집합(새로 = 노란 테두리)
     const MX = { ok: false, names: false, yr: 0, dial: false, base: null };
     // N년 뒤(아이디어 D): 시트 '언제 입주'와 같은 ZoneFacts 글자(eta.txt)를 그대로 쓰고, 고른 해가 그 범위 안인지만 읽는다('2027~28년' · '7~10년 뒤'는 자료 기준 해부터)
@@ -860,11 +860,13 @@
     const PILL_MAX_M = 24, CARD_MAX = 14;
     // 카드(구역 단계) 크기 어림: 큰 카드 = 이름·사업 방식 / 단계 칩·입주권·대략 범위 / 상태 칩·금액 · 작은 카드 = 이름 / 상태 칩·금액
     const TYW = { rd: "재개발", rb: "재건축", sm: "가로·소규모", moa: "모아타운" };
+    // 사이클 4 통합(SPEC C2 모아타운 머리표): '안에 가로주택 N곳' — 앱이 묶은 하위 사업구역(r.kids · 시트 moaHTML 목록과 같은 셈) · 가로주택만이 아니면 '안에 사업구역 N곳'
+    const moaKids = (r) => { const K = (r.kids || []).map((id) => byId[id]).filter(Boolean); if (!K.length) return ""; const g = K.filter((k) => /가로/.test(`${k.k || ""} ${k.n || ""}`)).length; return g === K.length ? `안에 가로주택 ${K.length}곳` : `안에 사업구역 ${K.length}곳`; };
     function cardInfo(r, s) {
       const zf = zfOf(r), ty = tyOf(r), est = !!(geo.z[r.id] && geo.z[r.id].e);
       let tk = ""; try { const c = (zf.no ? "no" : ""); tk = c === "no" ? "n" : (buyWindow(r).cls === "ok" ? "y" : ""); } catch (e) {}
       const stg = (() => { try { return window.ZP_stgShort ? ZP_stgShort(r) : zf.stage; } catch (e) { return zf.stage; } })();
-      const amt = s.st === "near" ? gapT(s) : s.st === "no" ? "입주권 안 나옴" : s.st === "na" ? (zf.hold || "계산 보류") : s.st === "moa" ? (zf.stage || "") : s.need != null ? ZF.cash(s.need) : "금액 없음";
+      const amt = s.st === "near" ? gapT(s) : s.st === "no" ? "입주권 안 나옴" : s.st === "na" ? (zf.hold || "계산 보류") : s.st === "moa" ? [zf.stage, moaKids(r)].filter(Boolean).join(" · ") : s.need != null ? ZF.cash(s.need) : "금액 없음";
       const big = (s.st === "ok" || s.st === "near") && !MX.yr;
       const nm = s.st === "moa" ? cardName(r) : mapName(r);
       const tyw = s.st === "moa" ? "" : TYW[ty] || "";
@@ -964,7 +966,7 @@
       return o;
     }
     const KEYI = { ok: '<i class="k-ok"></i>', near: '<i class="k-near"></i>', far: '<i class="k-far"></i>', no: '<i class="k-no" aria-hidden="true">✕</i>', na: '<i class="k-na"></i>', moa: '<i class="k-moa"></i>', sel: '<i class="k-sel"></i>', nw: '<i class="k-nw"></i>' };
-    const KEYT = { ok: "갈 수 있음", near: "+ 조금 부족", far: "부족", no: "조건 밖", na: "계산 보류", moa: "모아타운", sel: "고른 곳", nw: "새로 갈 수 있음" };
+    const KEYT = { ok: ST_WORD.ok, near: "+ " + ST_WORD.near, far: ST_WORD.far, no: ST_WORD.no, na: ST_WORD.na, moa: "모아타운", sel: "고른 곳", nw: "새로 갈 수 있음" };
     const KEYL = { ok: "남색 채운 말풍선은 내 돈으로 갈 수 있는 곳, 숫자는 지금 필요한 돈", near: "테두리 말풍선은 조금 부족, 숫자는 모자란 돈", far: "작은 회색 점은 돈이 더 필요한 곳(부족)", no: "✕ 표시는 지금 사면 입주권이 안 나와 조건 밖인 곳", na: "점선 고리·점선 말풍선은 계산 보류", moa: "점선 네모·점선 경계는 모아타운 관리지역(사업구역별로 봐요)", sel: "노란 테두리는 고른 곳", nw: "노란 테두리 말풍선은 이번에 새로 갈 수 있게 된 곳" };
     function keyDraw(city, o) {
       let el = $("lmKey");
@@ -1067,7 +1069,7 @@
       const dong = String(r.j || "").trim().split(/\s+/)[0] || "";
       const amt = s.need != null ? ZF.cash(s.need) : "–";
       const hold = (f && f.hold && f.hold.one && f.hold.one.short) || "";
-      const vd = s.st === "ok" ? `내 돈 ${ZF.cash(CASH)}으로 갈 수 있어요` : s.st === "near" ? `${SIMPLE.shortTxt(s.need)} 더 필요해요` : s.st === "no" ? "지금 사면 입주권이 안 나와요" : s.st === "na" ? `계산 보류${hold ? " · " + hold : ""}` : s.st === "moa" ? "사업구역마다 따로 봐요" : `${SIMPLE.shortTxt(s.need)} 더 필요해요`;
+      const vd = s.st === "ok" ? `내 돈 ${ZF.cash(CASH)}으로 ${ST_VERB.ok}` : (s.st === "near" || s.st === "far") && s.need != null ? `${SIMPLE.shortTxt(s.need).slice(1)} 더 필요해요` : s.st === "no" ? `${ST_WORD.no} · 지금 사면 입주권이 안 나와요` : s.st === "na" ? `${ST_WORD.na}${hold ? " · " + hold : ""}` : s.st === "moa" ? "사업구역마다 따로 봐요" : "";   // 사이클 4 통합: 시트 판정 띠(76_detail)와 같은 문장 꼴 · 상태 말은 ST_WORD/ST_VERB
       const w = f && f.win, tkT = w ? (w.cls === "ok" ? "나와요" : w.cls === "no" ? "안 나와요" : "확인 필요") : "–";
       const nx = f && f.next, nxT = nx ? (ZFX.NM[nx.to] || nx.to || "–") : (r.s >= 9 ? "준공" : "–");
       const nxS = nx && nx.txt ? String(nx.txt).replace(/^[^·]*·\s*/, "") : "";
@@ -1133,7 +1135,7 @@
       const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, obs = obstacles(), phone = MQ_SHEET.matches;
       // 칩 자리(범례 바로 위 왼쪽): 칩이 필요할 때만 비워 두고 다시 놓는다
       const chipBox = () => { if (phone && !document.documentElement.classList.contains("s-full")) return [4, 6, 120, 46];   // 27차: 폰은 왼쪽 위(ghost.js와 같은 규칙)
-        const k = $("lmKey"), nt = $("lmNotes"), cb = cv.getBoundingClientRect(); let y = H - 40; try { if (k && k.offsetWidth) y = k.getBoundingClientRect().top - cb.top - 6; if (nt && !nt.hidden && nt.offsetWidth && nt.parentNode === $("lmap")) { const b = nt.getBoundingClientRect(); if (b.left - cb.left < 130) y = Math.min(y, b.top - cb.top - 6); } } catch (e) {} return [4, y - 40, 120, y]; };   // 레이어 범례가 왼쪽 아래에 있으면 그 위로
+        const k = $("lmKey"), nt = $("lmNotes"), cb = cv.getBoundingClientRect(); let y = H - 40; try { if (k && k.offsetWidth) y = k.getBoundingClientRect().top - cb.top - 6; if (nt && !nt.hidden && nt.offsetWidth && nt.parentNode === $("lmap")) { const b = nt.getBoundingClientRect(); if (b.left - cb.left < 130) y = Math.min(y, b.top - cb.top - 6); } } catch (e) {} const chh = document.documentElement.classList.contains("t-big") ? 54 : 40; return [4, y - chh, 120, y]; };   // 사이클 4 통합: 큰 글씨 칩 높이   // 레이어 범례가 왼쪽 아래에 있으면 그 위로
       // 자리 잡기는 지도 자리 그림(ghost.js)과 같은 함수 — 같은 카메라면 같은 자리
       const { keep, left } = ZP_G.place({ W, H, obs, phone, gus: GUL.map((g) => ({ n: g.n, ll: g.ll, c: cnt[g.n] || 0, m: min[g.n] != null ? min[g.n] : null, nr: (nearByGu()[g.n]) || 0 })), proj: (ll) => map.project(ll), chip: chipBox() });
       gusSet(keep);
@@ -1466,10 +1468,10 @@
       const note = { old: "노후도 = 경계 안 건축물 중 사용승인 후 30년(철근콘크리트)·20년(그 외) 지난 비율 · 서울도시공간포털 건물 레이어(사용승인 2022년까지 반영)로 직접 계산 · 이주·철거 이후 구역과 연도 확인 건물이 적은 곳은 빼요", vol: "최근 12개월 구역 안 연립·다세대 매매 건수(단독·아파트 제외, 서울시 실거래)", yoy: "대지지분 3.3㎡당 매매가 가운데 값, 최근 12개월 vs 그 전 12개월 · 두 기간 5건 이상" }[colorBy];
       const ex = { ok: "7,400만", near: "500만 부족" };
       el.innerHTML = `<b class="lm-lgt">지금 필요한 돈 · 내 돈 기준</b>`
-        + `<span><i class="lg-pill zpill st-ok"><span class="zp-in"><b class="zp-v">${ex.ok}</b></span></i>가능 · 내 돈으로 돼요</span>`
-        + `<span><i class="lg-pill zpill st-near"><span class="zp-in"><b class="zp-v">${ex.near}</b></span></i>조금 모자람 · 모자란 돈</span>`
-        + `<span><i class="lg-dot far"></i>더 필요해요 · 20% 넘게 더 필요</span>`
-        + `<span><i class="lg-dot na"></i>자료 없음 · 계산할 자료가 아직 없어요</span>`
+        + `<span><i class="lg-pill zpill st-ok"><span class="zp-in"><b class="zp-v">${ex.ok}</b></span></i>${ST_WORD.ok} · 내 돈으로 돼요</span>`
+        + `<span><i class="lg-pill zpill st-near"><span class="zp-in"><b class="zp-v">${ex.near}</b></span></i>${ST_WORD.near} · 모자란 돈</span>`
+        + `<span><i class="lg-dot far"></i>${ST_WORD.far} · 20% 넘게 모자람</span>`
+        + `<span><i class="lg-dot na"></i>${ST_WORD.na} · 계산할 자료가 아직 없어요</span>`
         + `<span><i class="lg-heart" aria-hidden="true">${HEART_S}</i>관심 구역 · 굵은 테두리</span>`
         + `<span><i class="lg-gu"></i>서울 보기 · 구 묶음 숫자 = 갈 수 있는 곳 수</span>`
         + `<span class="lm-est"><i></i>점선 테두리 = 대략 범위 · 공식 경계 없음(면적 기준 추정)</span>${note ? `<small class="lm-note">${esc(note)}</small>` : ""}`;

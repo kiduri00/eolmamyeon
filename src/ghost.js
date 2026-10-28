@@ -14,6 +14,17 @@
   var lx = function (x) { return x * 360 - 180; };
   var ly = function (y) { var t = Math.PI * (1 - 2 * y); return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(t) - Math.exp(-t))); };
   // 글자 폭 어림(글꼴이 아직 안 와도 같은 값 — 실제 지도와 자리 그림이 같은 크기 원을 쓰게)
+  // 사이클 4 통합: 큰 글씨(안드로이드 글꼴 크게 · text-size-adjust) 배율 — 앱은 10_tapp bigCheck가 html.t-big을 붙이지만 웹은 아무도 안 붙여
+  //   웹 폰 큰 글씨에서 서울 라벨 글자가 상자를 넘쳐 겹치던 것. 100px 글자의 계산 크기·실제 폭으로 한 번 재고(1.15배 넘으면) html.t-big
+  function bigK() {
+    var H0 = Dc.documentElement;
+    if (bigK.v == null) {
+      bigK.v = 1;
+      try { var p = Dc.createElement("i"); p.setAttribute("aria-hidden", "true"); p.style.cssText = "position:absolute;left:-999px;top:0;visibility:hidden;white-space:nowrap;font-size:100px;line-height:1;font-style:normal"; p.textContent = "가가가가"; (Dc.body || H0).appendChild(p); var k1 = (parseFloat(W.getComputedStyle(p).fontSize) || 100) / 100, k2 = p.getBoundingClientRect().width / 400; p.remove(); bigK.v = Math.max(k1, k2 >= 1.15 ? k2 : 1); } catch (e) {}
+      if (bigK.v >= 1.15) H0.classList.add("t-big");
+    }
+    return H0.classList.contains("t-big") ? Math.max(1.3, bigK.v) : 1;
+  }
   function tw(t, px) { var w = 0; t = String(t); for (var i = 0; i < t.length; i++) { var c = t.charCodeAt(i); w += c >= 0xac00 && c <= 0xd7a3 ? 0.95 : c === 32 ? 0.28 : c >= 48 && c <= 57 ? 0.6 : 0.62; } return Math.ceil(w * px); }
   // 첫 화면 범위: 서울 가운데(CORE) + 갈 수 있는 곳 + 그 구 묶음 자리(폰) · PC는 서울 전체(10_lmap.js affBB와 같은 규칙)
   function bb(okLL, cnt, phone) {
@@ -125,7 +136,7 @@
     // 8차: 폰은 16방향(바른 8방향 먼저) — 좁은 지도에서 비킬 자리를 더 찾는다
     var ANG = (phone ? [0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15].map(function (k) { return (k * Math.PI) / 8 + Math.PI / 2; }) : [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return (k * Math.PI) / 4 + Math.PI / 2; }));
     // 폰: 맨 아래 20px 띠에는 묶음을 두지 않는다(범례·ⓘ는 따로 피함 · 20차)
-    var TB = Dc.documentElement.classList.contains("t-big") ? 1.3 : 1;
+    var TB = bigK();
     var MXF = Dc.documentElement.classList.contains("mx") && Dc.documentElement.classList.contains("s-full"), bot = phone && !MXF ? 20 : 2, EX = phone && appFull() ? 8 : MXF ? 7 : 2, AF36 = phone && appFull();   // 4라운드: 앱 지도 탭은 묶음이 화면 가장자리 8px 안으로(양천 묶음이 왼쪽 끝 2px에 반쯤 잘려 보이던 것)
     var GAP = AF36 ? 4 : 6, MAXOFF = 48, MAXOFF2 = 72, MK = 1.0;
     if (Dc.documentElement.classList.contains("mx") && Dc.documentElement.classList.contains("s-full")) { GAP = 3; MAXOFF = 72; }   // 사이클 4(M): 한 줄 라벨이라 조금 더 비켜도 제 구 안   // 7차: 폰은 제 구 중심에서 48px 안 · 다른 구 중심보다 가깝지 않은 자리만(130px·2.5배로 풀었더니 마포 묶음이 강서 땅에 서던 것) · 묶음 사이 실제 2px 넘게(어림 폭보다 글자가 조금 넓어 4px 띄움이 1px로 닿던 것)
@@ -204,6 +215,13 @@
       return { keep: keep, left: left };
     };
     var r = run(null);
+    // 사이클 4 통합: 새 전체 지도(한 줄 라벨) 폰에서 못 놓인 구(390 종로·강동)가 있으면 그 구를 먼저 놓는 차례로 한 번 더 — 숨는 곳 수가 줄 때만 바꾼다(같으면 원래 차례)
+    if (MXF && phone && r.left.length) {
+      var sum = function (x) { return x.left.reduce(function (a, g) { return a + (g.c || 0); }, 0); }, L0 = L, ln = r.left.map(function (g) { return g.n; });
+      L = L0.filter(function (g) { return ln.indexOf(g.n) >= 0; }).concat(L0.filter(function (g) { return ln.indexOf(g.n) < 0; }));
+      var r1 = run(null);
+      if (sum(r1) < sum(r) || (sum(r1) === sum(r) && r1.left.length < r.left.length)) r = r1; else L = L0;
+    }
     if (r.left.length) {
       // 칩이 필요해도 이미 놓인 묶음은 그대로 — 칩 자리에 걸린 것만 다시 자리 잡는다(성북·동작처럼 화면 안 묶음이 칩으로 밀려 들어가지 않게 · 20차)
       var ch = o.chip, stay = [], redo = {}, n0 = r.left.slice();
@@ -283,10 +301,11 @@
     if (rail && rail.offsetWidth) add(rail.getBoundingClientRect());
     else if (box.classList.contains("lm-short")) add({ left: cb.left + w - 6 - 122, right: cb.left + w - 6, top: cb.top + 6, bottom: cb.top + 88 });
     else if (!phoneQ()) add({ left: cb.left + w - 12 - 94, right: cb.left + w - 12, top: cb.top + 12, bottom: cb.top + 146 });
-    el.querySelectorAll(".lm-zoom, .lm-key, .zg-attr").forEach(function (e) { if (e.offsetWidth) add(e.getBoundingClientRect()); });
+    var vis = function (e) { return e.offsetWidth && W.getComputedStyle(e).visibility !== "hidden"; };   // 사이클 4 통합: 숨긴(visibility:hidden) 확대 단추가 서울 단계 강동 자리를 막던 것
+    el.querySelectorAll(".lm-zoom, .lm-key, .zg-attr").forEach(function (e) { if (vis(e)) add(e.getBoundingClientRect()); });
     var full = Dc.documentElement.classList.contains("s-full");
     Dc.querySelectorAll(".s-mini, .s-fullx").forEach(function (e) { if (e.classList.contains("s-mini") && !full) return; if (e.offsetWidth && !e.hidden) add(e.getBoundingClientRect()); });
-    if (mxf()) Dc.querySelectorAll(".mx-top, .mx-chips .mx-c, .mx-fabs, #mxGKey:not([hidden]), .lm-gumore:not([hidden]), #mapbox .lm-zoom").forEach(function (e) { if (e.offsetWidth && !e.closest(".zp-ph")) add(e.getBoundingClientRect()); });   // 사이클 4(M): 새 조작부 밑에 라벨을 두지 않는다
+    if (mxf()) Dc.querySelectorAll(".mx-top, .mx-chips .mx-c, .mx-fabs, #mxGKey:not([hidden]), .lm-gumore:not([hidden]), #mapbox .lm-zoom").forEach(function (e) { if (vis(e) && !e.closest(".zp-ph")) add(e.getBoundingClientRect()); });   // 사이클 4(M): 새 조작부 밑에 라벨을 두지 않는다
     return out;
   }
   // 8차: 폰 서울 보기 카메라 위 여백에 12px 더(아래 범례 쪽 여백은 그만큼 덜) — 맨 북쪽 구 중심(도봉)이 겹쳐 보기 띠 바로 밑에 서서 그 묶음이 띠에 걸려 '+N곳'으로 빠지던 것(390) · 10_lmap.js fitPad도 같은 값
@@ -376,7 +395,8 @@
     try { if (key.offsetWidth) ky = key.getBoundingClientRect().top - cb.top - 6; } catch (e) {}
     // 27차: 폰 서울 보기는 '+N곳' 칩을 왼쪽 위(서울 밖 고양 쪽 빈 자리)에 — 왼쪽 아래에 두면 구로·양천 묶음 자리를 칩이 차지했다(10_lmap.js chipBox와 같은 규칙)
     var ctop = phone && !Dc.documentElement.classList.contains("s-full");
-    var R = place({ W: w, H: h, obs: obsOf(el, box), gus: gus, proj: P, phone: phone, chip: ctop ? [4, 6, 120, 46] : [4, ky - 40, 120, ky] });
+    var CHH = bigK() > 1 ? 54 : 40;   // 사이클 4 통합: 큰 글씨면 '+N곳' 칩이 40px보다 커서 범례에 겹치던 것
+    var R = place({ W: w, H: h, obs: obsOf(el, box), gus: gus, proj: P, phone: phone, chip: ctop ? [4, 6, 120, 6 + CHH] : [4, ky - CHH, 120, ky] });
     var mk = el.querySelector(".zg-mk"), have = {};
     [].forEach.call(mk.children, function (b) { have[b.dataset.gu] = b; });
     R.keep.forEach(function (g) {
@@ -390,7 +410,7 @@
     var ch = el.querySelector(".lm-gumore"), c = S.dim ? 0 : R.left.reduce(function (a, g) { return a + g.c; }, 0);
     ch.hidden = !c;
     if (S.dim) [].forEach.call(mk.children, function (b) { b.classList.add("zg-busy"); });
-    if (c) { var kk = R.left.map(function (g) { return g.n + g.c + ":" + g.m; }).join(",") + (appFull() ? "f" : ""); /* 5라운드: 지도 탭이 된 뒤 다시 그려 최저가를 붙인다(실제 지도 칩과 같은 글) */ if (ch.dataset.k !== kk) { ch.dataset.k = kk; ch.innerHTML = chipHTML(R.left, c); ch.classList.remove("open"); } ch.dataset.n = String(c); ch.style.top = (ctop ? 6 : Math.max(6, Math.round(ky - 40))) + "px"; ch.classList.toggle("top", !!ctop); }
+    if (c) { var kk = R.left.map(function (g) { return g.n + g.c + ":" + g.m; }).join(",") + (appFull() ? "f" : ""); /* 5라운드: 지도 탭이 된 뒤 다시 그려 최저가를 붙인다(실제 지도 칩과 같은 글) */ if (ch.dataset.k !== kk) { ch.dataset.k = kk; ch.innerHTML = chipHTML(R.left, c); ch.classList.remove("open"); } ch.dataset.n = String(c); ch.style.top = (ctop ? 6 : Math.max(6, Math.round(ky - CHH))) + "px"; ch.classList.toggle("top", !!ctop); }
     // 바탕: 땅 · 한강 · 구 경계(점선) · 서울 밖 옅게 · 서울 경계 · 묶음 없는 구 이름
     var txt = "", used = R.keep.map(function (g) { var x = g.q.x + g.dx, y = g.q.y + g.dy; return [x - g.w / 2, y - g.h / 2, x + g.w / 2, y + g.h / 2]; }).concat(obsOf(el, box));
     var fs = C.z <= 10 ? 10.5 : C.z >= 12.5 ? 12.5 : 10.5 + (C.z - 10) * 0.8;

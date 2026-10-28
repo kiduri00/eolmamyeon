@@ -249,8 +249,9 @@ css = S('app.css') + ext_css
 # 22차: 죽은 CSS 규칙 빼기 — 선택자에 꼭 있어야 하는 class·id가 앱 코드·첫 화면 HTML·생성기 어디에도 없는 규칙(21번의 덧칠로 남은 옛 화면 규칙).
 # 한 낱말이라도 남아 있거나("pre-" + x 처럼 이어 붙이는 앞부분 포함) 확신이 없는 선택자(\ 이스케이프·:is·:where 안)는 그대로 둔다.
 def prune_css(css):
+    # 사이클 4 통합: src/tapp·src/feat·src/featx 안에서만 쓰는 클래스(.tob-cash 등)도 살린다 — 예전엔 스캔 밖이라 규칙이 지워졌다
     import glob
-    src = ''.join(open(f, encoding='utf-8').read() for f in [os.path.join(R, 'src', p) for p in ('app.js', 'shell.html', 'island.js', 'boot.js', 'ghost.js', 'hmini.js', 'contact.js', 'net.js')] + sorted(glob.glob(os.path.join(R, 'src', 'ext', '*.js'))) + sorted(glob.glob(os.path.join(R, 'tools', '*.py'))) + [os.path.join(R, 'tools', 'prerender.js')] if os.path.exists(f))
+    src = ''.join(open(f, encoding='utf-8').read() for f in [os.path.join(R, 'src', p) for p in ('app.js', 'shell.html', 'island.js', 'boot.js', 'ghost.js', 'hmini.js', 'contact.js', 'net.js')] + sorted(glob.glob(os.path.join(R, 'src', 'ext', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'tapp', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'feat', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'featx', '*.js'))) + sorted(glob.glob(os.path.join(R, 'tools', '*.py'))) + [os.path.join(R, 'tools', 'prerender.js')] if os.path.exists(f))
     words = set(re.findall(r'[\w-]+', src))
     pre = set(re.findall(r'(?<![\w-])([\w-]+-)(?=["\'`]|\$\{)', src))
     def alive(t):

@@ -4,6 +4,11 @@
      정적 쪽 같은 규칙: tools/zsample.py (LBL · smpTxt · headline) — 둘을 같이 고친다.
      3.3㎡당 표본 값(entry.u·nl)은 tools/enrich.py가 매수가 표본에서 한 번 계산해 둔 것(화면이 거래 목록으로 다시 찾지 않는다). */
   const LBL = { cashToMoveIn: "입주까지 현금", gap: "전세 끼고", loan: "대출 끼고" };
+  // 사이클 4 통합: 상태 말 한 곳 — 지도 말풍선·범례·목록 카드·시트 판정 띠가 같은 말(SPEC C2: 갈 수 있음 · 조금 부족 · 부족 · 조건 밖 · 계산 보류)
+  //   ST_WORD = 이름표·범례·화면 읽기 꼴 · ST_VERB = 시트 판정 띠 문장 꼴(시안 '내 돈 2억으로 갈 수 있어요')
+  const ST_WORD = { ok: "갈 수 있음", near: "조금 부족", far: "부족", no: "조건 밖", na: "계산 보류", moa: "사업구역별" };
+  const ST_VERB = { ok: "갈 수 있어요", near: "조금 부족해요", far: "부족해요", no: "조건 밖이에요", na: "계산 보류예요" };
+  try { window.ZP_ST = { word: ST_WORD, verb: ST_VERB }; } catch (e) {}
   const ZF = (() => {
     // 만원 → '3,905만' · '1.5억'(큰 숫자·표) / 억 → '1억 5,450만'(계산 매수가)
     const eok = (m) => (m == null || !isFinite(m) ? "–" : m >= 10000 ? (Math.round(m / 1000) / 10).toLocaleString("ko-KR") + "억" : Math.round(m).toLocaleString("ko-KR") + "만");

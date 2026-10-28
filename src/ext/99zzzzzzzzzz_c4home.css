@@ -134,3 +134,5 @@ html.onb-on #sGauge>.bc-line{margin-top:0;padding-top:0;border-top:0}
 @media (max-width:980px){html.is-tapp #sList li.s-card:not(.s-peek):has(.s-b-new,.s-b-no) .s-sub .s-wn,html.is-tapp #hmBestL li.s-card:not(.s-peek):has(.s-b-new,.s-b-no) .s-sub .s-wn{display:inline!important}}
 /* 웹 폰: '가장 맞는 곳'은 실제 지도 바로 아래(지도 = 서울 보기 구별 숫자 · 목록 앞) */
 html.simple #mapTop>#hmBest{order:1}
+/* 사이클 4 통합: 큰 글씨(html.t-big · 웹은 ghost.js bigK) 첫 방문 금액 칩 — 4칸에서 '5,000만'이 칸을 넘쳐 '1억' 칩에 겹치던 것 → 3칸 */
+html.t-big .onb-c,html.t-big .onb-c:not(.all){grid-template-columns:repeat(3,minmax(0,1fr))}

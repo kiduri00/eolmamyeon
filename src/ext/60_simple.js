@@ -117,7 +117,7 @@ const SIMPLE = (() => {
   // ---------- 구역 상태 4가지(지도 알약·점·목록 카드가 같은 함수) ----------
   // ok 가능(지금 필요한 돈 ≤ 내 돈 · 목록 '갈 수 있는 곳'과 같은 판정 okR) · near 조금 모자람(내 돈 × 1.2 안) · far 멀다 · na 정보 부족(계산 보류·구 평균 추정)
   const NEAR_K = 1.2;
-  const ST_WORD = { ok: "가능", near: "조금 모자람", far: "더 필요해요", na: "자료 없음" };   // 21차: '멀다'(거리로 읽힘)·'정보 부족' → 쉬운 말
+  // 사이클 4 통합: 상태 말은 05_facts.js ST_WORD 한 곳(지도·시트·범례와 같은 말)
   function zstate(r) {
     let need = null, total = null;
     try { const n = needOf(r); need = n.now != null && isFinite(n.now) ? n.now : null; total = n.total != null && isFinite(n.total) ? n.total : null; } catch (e) {}
@@ -183,7 +183,7 @@ const SIMPLE = (() => {
     // 사이클 4 D4: 카드 맨 아래 줄 = '입주까지 현금 Y'(왼쪽) · '예산에서 남는 돈'(오른쪽) — 첫 화면 섬(island.js fx)·빌드 첫 페인트가 data-ft로 같은 글을 다시 만든다
     const ftA = nowK ? (z.total != null ? [LBL.cashToMoveIn, eokS(z.total)] : ["입주까지 계산 보류", ""]) : ["계약", eokS(z.need)];
     const ftH = `<span class="s-ftl${ftA[1] ? "" : " s-na"}">${esc(ftA[0])}${ftA[1] ? ` <b>${esc(ftA[1])}</b>` : ""}</span>`;
-    const stc = z.st === "ok" ? '<em class="s-stc">갈 수 있음</em>' : z.st === "near" && z.need != null ? `<em class="s-stc s-stc-n">${esc(shortTxt(z.need))} 더 필요</em>` : "";
+    const stc = z.st === "ok" ? `<em class="s-stc">${ST_WORD.ok}</em>` : z.st === "near" && z.need != null ? `<em class="s-stc s-stc-n">${esc(shortTxt(z.need))} 더 필요</em>` : "";
     return `<li class="s-card st-${z.st}${fav ? " fav" : ""}${o.cls ? " " + o.cls : ""}" data-zid="${r.id}"${left != null ? ` data-need="${needR}"` : ""} data-ft="${esc(ftA.join("|"))}"><a href="#${r.id}" data-id="${r.id}" class="s-cm" aria-label="${esc(lab)}"><span class="s-nm"><b title="${esc(nm)}">${esc(listNm(nm))}</b></span><span class="s-l2"><span class="s-mt"><em class="s-b s-stg">${esc(stg)}</em>${bdg}<small class="s-sub">${sub}</small></span><span class="s-fx">${ftH}${fitH}</span></span></a><button type="button" class="s-amt" data-why="${r.id}" aria-label="${esc(nm)} ${nowK ? "지금 필요한 돈" : LBL.cashToMoveIn} 추정 ${mt}${z.total == null ? ` · ${NA_L}: ${NA_WHY}` : ` · ${LBL.cashToMoveIn} ${eokS(z.total)}`} · 왜 이 금액인지 보기" aria-haspopup="dialog"><span class="s-av"><i class="s-al" aria-hidden="true">${nowK ? "지금" : "입주까지"}</i><b>${mt}</b></span>${stc}<small${z.total == null && nowK ? ' class="s-na"' : ""}>${z.st === "near" ? `<span class="s-gapt">${shortTxt(z.need)} 더 필요</span>` : line2}</small></button><button type="button" class="s-heart" data-heart="${r.id}" aria-pressed="${fav}" aria-label="${esc(heartLbl(r, fav))}">${HEART(fav)}</button></li>`;
   }
   // ♡ 누르면 관심 구역(핀과 같은 toggleFav → 되돌리기 토스트·관심 탭·지도 하트 모두 같은 길)

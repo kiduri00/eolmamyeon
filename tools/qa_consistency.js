@@ -1834,7 +1834,7 @@ async function r4Lane(browser, api, errs) {
         const ip = rp.querySelector('.dt-k [data-k="eta"] .dt-ip');
         const head = rp.querySelector(".rep-head"); const est = head ? (head.innerText.match(/추정/g) || []).length : 0;
         const top = rp.querySelector(".dt-top"), eta = rp.querySelector('.dt-k [data-k="eta"] .dt-v');
-        return { H, bh: Math.round(bh), its, trBot: tb ? Math.round(tb.bottom) : null, trTxt: tr ? tr.innerText.replace(/\s+/g, " ") : "", ip: ip ? ip.innerText.replace(/\s+/g, " ") : "", est, noip: !!rp.querySelector(".dt-top .ov-noip"), eta: eta ? eta.textContent.trim() : "", nt: !!rp.querySelector(".dt-k .dt-nt"), ipN: top ? (top.innerText.match(/입주권 없음/g) || []).length : 0, why: top ? (top.innerText.match(/이유 보기/g) || []).length : 0, okN: top ? (top.innerText.match(/가능/g) || []).length : 0 };
+        return { H, bh: Math.round(bh), its, trBot: tb ? Math.round(tb.bottom) : null, trTxt: tr ? tr.innerText.replace(/\s+/g, " ") : "", ip: ip ? ip.innerText.replace(/\s+/g, " ") : "", est, noip: !!rp.querySelector(".dt-top .ov-noip"), eta: eta ? eta.textContent.trim() : "", nt: !!rp.querySelector(".dt-k .dt-nt"), ipN: top ? (top.innerText.match(/입주권 없음/g) || []).length : 0, why: top ? (top.innerText.match(/이유 보기/g) || []).length : 0, okN: top ? (top.innerText.match(/가능|갈 수 있어요/g) || []).length : 0 };   /* 사이클 4 통합: 판정 띠 '갈 수 있어요'(ST_VERB) — 판정 줄 하나 */
       });
       const lim = f.H - f.bh;
       f.its.sort((a, b) => ["now", "tot", "eta"].indexOf(a.k) - ["now", "tot", "eta"].indexOf(b.k));   // 사이클 4: data-k 차례(판정 띠 now · 3칸 eta·tot)
@@ -1850,7 +1850,7 @@ async function r4Lane(browser, api, errs) {
       // 입주권 없는 곳(셋째 칸 '입주권'): 값 '없음'·'조합원 입주권을 사야 해요' · 이유 한 줄 한 번 · '입주권 없음' 반복·'이유 보기' 줄 없음(20차 G3)
       if (ntZ) { noIp++; expect(/^(없음|조합원 입주권을 사야 해요)$/.test(f.eta) && !f.ip && f.nt && !f.noip && f.ipN <= 1 && !f.why && !f.trTxt, "zone.fold3", T3, `#${zid}: no-입주권 zone: eta "${f.eta}" chip "${f.ip}" note ${f.nt}/${f.noip} '입주권 없음' ×${f.ipN} '이유 보기' ×${f.why} trust "${f.trTxt}"`); }
       else { expect(/^입주권 /.test(f.ip), "zone.fold3", T3, `#${zid}: 입주권 chip "${f.ip}"`); expect(!/✕/.test(f.ip), "zone.fold3", T3, `#${zid}: '입주권 ✕' chip but 언제 입주 "${f.eta}"`); }
-      expect(f.okN <= 1, "zone.fold3", T3, `#${zid}: '가능' ${f.okN} times on first screen (one status row)`);
+      expect(f.okN <= 1, "zone.fold3", T3, `#${zid}: '가능·갈 수 있어요' ${f.okN} times on first screen (one status row)`);
       // ---- zone.report: '이 숫자가 틀렸어요' → 메일(구역 ID 자동) · 주소 복사 · 고마워요 ----
       if (FOLD.indexOf(zid) < 3) {
         const TR = "'이 숫자가 틀렸어요': 사이트 안 문의 양식(시트) · 이유 5가지 · 보내면 구역 ID·주소·데이터 기준·화면 숫자·고른 이유가 함께 감 · '잘 받았어요' · 메일 주소 안 보임";
@@ -2456,12 +2456,12 @@ async function r17bLane(browser, api, errs) {
         // 사이클 4 D1: 폰 서울 보기는 이름 줄 3장 대신 '내 돈에 가장 맞는 곳' 카드(#hmBestL · 맞춤순 첫 줄) — 이름·금액이 첫 화면에 보여야 하는 건 같다
         const cards = [...document.querySelectorAll("#sSum .s-rail3 button[data-id], #hmBestL li.s-card")].filter((b) => b.getClientRects().length).map((b) => { const r = (b.querySelector(".s-nm b") || b).getBoundingClientRect(); return { n: ((b.querySelector(".s-rn") || b.querySelector(".s-nm b")) || {}).textContent || "", v: ((b.querySelector(".s-rv") || b.querySelector(".s-amt .s-av b")) || {}).textContent || "", top: Math.round(r.top), bot: Math.round(r.bottom), l: Math.round(r.left), vis: r.width > 0 && getComputedStyle(b).visibility !== "hidden" }; });
         const hb = document.getElementById("hmBest"), hn = document.getElementById("hmNext"), hm = [document.getElementById("hmMap"), document.getElementById("mapbox")].find((e) => e && e.getClientRects().length);   // 설치 앱 = 미니 지도 · 웹 폰 = 실제 지도 서울 보기
-        return { hero: hm && hb && hb.getClientRects().length ? { map: Math.round(hm.getBoundingClientRect().top), next: hn ? hn.textContent : "", best: hb && !hb.hidden ? Math.round(hb.getBoundingClientRect().top) : null } : null, nb: Math.round(nb), cards, n: +document.getElementById("sN").textContent.replace(/\D/g, ""), first: ((document.querySelector("#sList .s-card .s-nm b") || {}).textContent || "") };
+        return { hero: hm && hb && hb.getClientRects().length ? { map: Math.round(hm.getBoundingClientRect().top), next: hn ? hn.textContent : "", nextBot: hn && hn.getClientRects().length ? Math.round(hn.getBoundingClientRect().bottom) : 1e9, best: hb && !hb.hidden ? Math.round(hb.getBoundingClientRect().top) : null } : null, nb: Math.round(nb), cards, n: +document.getElementById("sN").textContent.replace(/\D/g, ""), first: ((document.querySelector("#sList .s-card .s-nm b") || {}).textContent || "") };
       });
       // 사이클 4 D1(SPEC 오너 채택): 폰 첫 화면 = 내 돈 카드(곳 수 · 다음 문턱) → 미니 서울 지도 → '내 돈에 가장 맞는 곳'. 이름 카드는 지도 바로 밑(첫 화면 + 화면 0.6장 안),
       //   첫 화면 안에는 곳 수 · 다음 문턱 · 미니 지도 머리가 있어야 한다. 구·지도 범위로 거른 동안의 이름 줄(.s-rail3)은 예전처럼 첫 화면 안.
-      const inFold = f.cards.filter((c) => c.vis && c.l < w && /[가-힣]/.test(c.n) && /\d/.test(c.v) && /(억|만)/.test(c.v) && (f.hero ? c.bot <= f.nb + h * 0.6 : c.bot <= f.nb));
-      if (!dark && f.hero) expect(f.hero.map < f.nb - 40 && /\d+곳/.test(f.hero.next) && f.hero.best != null && f.hero.best > f.hero.map, "home.namesFold", TN, `${where}: 첫 화면 지도 머리 ${f.hero.map} < ${f.nb - 40} · 다음 문턱 "${f.hero.next}" · 가장 맞는 곳 ${f.hero.best}`);
+      const inFold = f.cards.filter((c) => c.vis && c.l < w && /[가-힣]/.test(c.n) && /\d/.test(c.v) && /(억|만)/.test(c.v) && (f.hero ? c.bot <= f.nb + h * 0.5 : c.bot <= f.nb));
+      if (!dark && f.hero) expect(f.hero.map < f.nb - 40 && /\d+곳/.test(f.hero.next) && f.hero.nextBot <= f.nb && f.hero.best != null && f.hero.best > f.hero.map, "home.namesFold", TN, `${where}: 첫 화면 지도 머리 ${f.hero.map} < ${f.nb - 40} · 다음 문턱 "${f.hero.next}"(아래 끝 ${f.hero.nextBot} ≤ ${f.nb}) · 가장 맞는 곳 ${f.hero.best}`);   // 사이클 4 통합: 다음 문턱 줄이 첫 화면 안에 실제로 보이는지까지 · 이름 카드 허용은 0.6 → 0.5장(실측 최대 0.43장 · 웹 360)
       if (!dark) {
         expect(inFold.length >= 1, "home.namesFold", TN, `${where}: rail cards above fold ${inFold.length} (cards ${JSON.stringify(f.cards.slice(0, 2))}, nav top ${f.nb})`);
         expect(!f.cards.length || f.cards[0].n === f.first.trim() || f.first === "" || (f.cards[0].n && f.first.trim().startsWith(f.cards[0].n)), "home.namesFold", TN, `${where}: rail first "${(f.cards[0] || {}).n}" ≠ list first "${f.first}" (맞춤순 위 3곳)`);
@@ -3997,7 +3997,7 @@ async function r26Lane(browser, api, errs) {
   }
   // --- zone.eligibleConsistent: 2억 · 지금 필요한 돈이 2억 안인 모든 구역 — 곳 수에 드는 곳(ZP_ok)만 상세 '가능해요' · 빠지는 곳(추정·참고값)은 상세·검색·/z 모두 '추정 신뢰 낮아 목록에서 뺐어요'
   {
-    const T = "한 판정: 2억에서 상세 '가능해요' ⇔ 곳 수에 듦(ZP_ok) · 추정 신뢰가 낮아 빠지는 곳은 상세·검색·/z가 같은 말 '추정 신뢰 낮아 목록에서 뺐어요'";
+    const T = "한 판정: 2억에서 상세 '갈 수 있어요' ⇔ 곳 수에 듦(ZP_ok) · 추정 신뢰가 낮아 빠지는 곳은 상세·검색·/z가 같은 말 '추정 신뢰 낮아 목록에서 뺐어요'";
     const EX = "추정 신뢰 낮아 목록에서 뺐어요";
     const cand = api.zones.filter((z) => z.need && z.need.gap && z.need.gap.now != null && Math.ceil(z.need.gap.now * 100 - 1e-6) / 100 <= 2 + 1e-9).map((z) => z.id);
     const { ctx, page } = await newPage(browser, mob(390, 844), errs);
@@ -4021,7 +4021,7 @@ async function r26Lane(browser, api, errs) {
       }, cand);
       const bad1 = [], exIds = [];
       for (const [id, v] of Object.entries(got)) {
-        const says = /가능해요/.test(v.vd);
+        const says = /갈 수 있어요/.test(v.vd);   // 사이클 4 통합: 판정 띠 '내 돈 N으로 갈 수 있어요'(ST_VERB.ok) — 예전 '가능해요'
         if (v.ok !== says) bad1.push(`${id} ok ${v.ok} vd "${v.vd}"`);
         if (!v.ok && v.now && v.now !== "계산 보류") { if (!v.vd.includes(EX) && !/더 필요/.test(v.vd)) bad1.push(`${id} excluded but vd "${v.vd}"`); if (v.vd.includes(EX)) exIds.push(id); }
       }

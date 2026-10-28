@@ -681,6 +681,7 @@ function coverWatch() {
 // 5라운드: 지도 탭 '+N곳' 칩은 범례의 실제 높이 위에(큰 글씨에서 범례가 두 줄로 자라 칩을 덮던 것 · CSS는 한 줄 28px로 가정)
 function chipLift() {
   if (!H.classList.contains("s-full")) return;
+  if (H.classList.contains("mx")) { document.querySelectorAll(".lm-gumore").forEach((c) => c.style.removeProperty("bottom")); return; }   // 사이클 4 통합: 새 지도(mx)는 CSS --mx-keyh(12_mapx keyH)가 칩을 범례 위에 둔다
   document.querySelectorAll(".lm-gumore").forEach((c) => {
     const box = c.parentElement, k = box && box.querySelector(":scope > .lm-key"); if (!k || !k.offsetHeight || c.hidden) return;
     const kb = k.getBoundingClientRect(), bb = box.getBoundingClientRect(), v = Math.round(bb.bottom - kb.top + 8) + "px";

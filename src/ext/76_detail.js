@@ -78,7 +78,7 @@ const DTL = (() => {
         if (dn) { v = "입주 완료"; sub = "일반 매매"; }
         // 6라운드: 입주권 없는 하위 구역 = 시트·정적 /z와 같은 '계산 보류'(5라운드의 '일반 매매 · N'은 다른 화면과 숫자가 달라 뺌) · 보조 줄은 입주권 화면 말투
         else if (w.kind === "nt") { v = "계산 보류"; sub = "입주권 원칙적으로 없음 · 예외 매물만"; }
-        else if (w.kind === "need") { v = C(w.v); sub = upC(w.v) <= CASH + 1e-9 && !(k.lc) ? `내 돈 ${C(CASH)}으로 가능` : `${ZF.gap(w.v, CASH)} 더 필요`; }
+        else if (w.kind === "need") { v = C(w.v); sub = upC(w.v) <= CASH + 1e-9 && !(k.lc) ? `내 돈 ${C(CASH)}으로 ${ST_VERB.ok}` : `${ZF.gap(w.v, CASH)} 더 필요`; }
         else if (w.kind === "lnow") { v = C(w.v); sub = "대출 끼고"; }
         else { v = "계산 보류"; sub = ""; }
       } catch (e) { v = "계산 보류"; }
@@ -88,7 +88,7 @@ const DTL = (() => {
     return `<section class="dt-k dt-moa" aria-label="핵심 숫자">
       <p class="dt-mg">모아타운은 사업구역마다 금액·입주 시점이 달라요</p>
       ${kids.length ? `<ul class="dt-kids" aria-label="안의 사업구역 ${kids.length}곳">${kids.map(row).join("")}</ul>` : `<p class="dt-mg0">아직 정보몽땅에 등록된 사업구역(개별 조합)이 없어요</p>`}
-      <p class="dt-ref">${n.ref != null ? `관리지역 참고값 ${esc(C(n.ref))} · 관리지역 전체를 한 구역으로 보고 ${esc((() => { let t = "빌라 실거래"; try { t = ZF.smpTxt(r) || t; } catch (e) {} return t + ZFX.ro(t); })())} 낸 지금 필요한 돈이에요(사업구역 값이 아님) · ` : ""}곳 수와 '가능' 판정에는 넣지 않아요</p>
+      <p class="dt-ref">${n.ref != null ? `관리지역 참고값 ${esc(C(n.ref))} · 관리지역 전체를 한 구역으로 보고 ${esc((() => { let t = "빌라 실거래"; try { t = ZF.smpTxt(r) || t; } catch (e) {} return t + ZFX.ro(t); })())} 낸 지금 필요한 돈이에요(사업구역 값이 아님) · ` : ""}곳 수와 '${ST_WORD.ok}' 판정에는 넣지 않아요</p>
     </section>`;
   }
   function keyHTML(r) {
@@ -103,7 +103,7 @@ const DTL = (() => {
     // 판정 한 줄(가능 · 사는 방법): '✓ 가능'과 '전세 끼고 ✓ 가능' 칩을 따로 두지 않는다
     const how = gapMode() ? "전세 끼고" : "대출 끼고";
     const CK = '<svg class="dt-ck" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const vd1 = n.need == null ? "" : excl && upC(n.need) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>${ZF.EXCL}</b><small> · 숫자는 참고만</small></em>` : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 가능해요</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : ZF.gap(n.need, CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
+    const vd1 = n.need == null ? "" : excl && upC(n.need) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>${ZF.EXCL}</b><small> · 숫자는 참고만</small></em>` : fit ? `<em class="dt-vd ok">${CK}<b>내 돈 ${C(CASH)}으로 ${ST_VERB.ok}</b><small> · ${how}</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.need).slice(1) : ZF.gap(n.need, CASH))} 더 필요해요</b><small> · ${how}</small></em>`;
     // 30차: 전세 끼고는 못 사는 곳(토허 등) — 대출 끼고 값에도 판정 한 줄(대출 끼고 보기와 같은 말) · '대출 끼고'를 두 번 쓰지 않는다
     const lv = n.need == null && n.lnow != null && !excl ? (upC(n.lnow) <= CASH + 1e-9 ? `<em class="dt-vd na"><b>내 돈 ${C(CASH)} 안이에요</b><small> · 전세 끼고 목록엔 없어요</small></em>` : `<em class="dt-vd no"><b>${(SIMPLE.shortTxt ? SIMPLE.shortTxt(n.lnow).slice(1) : ZF.gap(n.lnow, CASH))} 더 필요해요</b></em>`) : "";
     const sub2 = n.total == null ? (n.ltot != null ? (upC(n.ltot) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.gap(n.ltot, CASH)}</b> 더 필요해요 · 잔금대출 뺀 값` : `내 돈 ${C(CASH)} 안이에요 · 잔금대출 뺀 값`) : esc(n.why2)) : upC(n.total) > CASH + 1e-9 ? `내 돈 빼면 <b>${ZF.gap(n.total, CASH)}</b> 더 필요해요` : `내 돈 ${C(CASH)} 안이에요`;

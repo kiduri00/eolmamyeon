@@ -101,7 +101,11 @@
       if (chips.dataset.h !== h) { chips.dataset.h = h; chips.innerHTML = h; }
       // 서울 단계(자리 그림 SVG)의 범례: 자리 그림 안 범례는 화면 고정이 안 돼(변환된 칸) 조작부 쪽에 같은 글을 둔다
       { const gh = !!document.querySelector(".zp-ph") && ZP_G.on && ZP_G.on(); let k = $("mxGKey"); if (!k) { k = document.createElement("p"); k.id = "mxGKey"; k.className = "lm-key mx-gkey"; $("mapbox").appendChild(k); } if (gh && ZP_G.KEY2) { if (k.dataset.h !== ZP_G.KEY2) { k.dataset.h = ZP_G.KEY2; k.innerHTML = ZP_G.KEY2; k.setAttribute("aria-label", ZP_G.KEY2_L); } } k.hidden = !gh; }
+      keyH();
     }
+    // 사이클 4 통합: '+N곳' 칩은 범례의 실제 높이 위에(큰 글씨에서 범례가 두 줄로 자라 칩과 겹치던 것 · CSS는 --mx-keyh)
+    function keyH() { try { const k = [$("mxGKey"), $("lmKey")].find((e) => e && !e.hidden && e.offsetHeight), v = (k ? k.offsetHeight : 30) + "px"; if (document.documentElement.style.getPropertyValue("--mx-keyh") !== v) document.documentElement.style.setProperty("--mx-keyh", v); } catch (e) {} }
+    try { const ro = new ResizeObserver(() => keyH()); setTimeout(() => { [$("mxGKey"), $("lmKey")].forEach((e) => e && ro.observe(e)); }, 0); } catch (e) {}
     function onChip(e) {
       const b = e.target.closest("[data-c]"); if (!b) return;
       const c = b.dataset.c, mx = (LMX.mx && LMX.mx()) || {};
