@@ -70,7 +70,7 @@ html.mx .zp-ph .zg-land{fill:var(--mx-bg)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .zp-ph .zg-gf path{fill:#7FA6FF}}
 
 /* ---------- 범례(12px 한 줄 · 그린 것만) ---------- */
-#lmKey.lm-key{font:600 12px/1.2 var(--font)!important;color:var(--mx-ink);gap:8px}
+html.mx.s-full #lmKey.lm-key{font:600 12px/1.2 var(--font)!important;color:var(--mx-ink);gap:8px}   /* 사이클 4 통합: 새 전체 지도만 — 홈 지도 범례까지 12px/1.2로 바뀌어 두 줄로 자라 실제 지도 구 묶음(구로·동작)이 자리 그림과 달라지던 것(map.staticMatch) */
 #lmKey i.k-ok,#lmKey i.k-near,#lmKey i.k-sel,#lmKey i.k-nw{display:inline-block;width:22px;height:12px;border-radius:6px;margin-right:4px;vertical-align:-2px;background:var(--mx-ok);border:2px solid var(--mx-ok);box-sizing:border-box}
 #lmKey i.k-near{background:var(--mx-near-bg);border-color:var(--mx-near-line)}
 #lmKey i.k-sel{background:var(--mx-pick);border-color:var(--mx-pick)}
