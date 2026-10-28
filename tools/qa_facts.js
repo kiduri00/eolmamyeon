@@ -16,7 +16,7 @@ const OUTJ = (() => { const i = process.argv.indexOf("--json"); return i > 0 ? p
 const ROOT = path.join(__dirname, "..");
 const ONLY = process.env.QAF_IDS ? process.env.QAF_IDS.split(",") : null, MIN = ONLY ? 0 : 900;
 const fails = [], res = {}, log = (...a) => console.log(...a);
-const check = (ok, id, msg, n) => { log(`${ok ? "PASS" : "FAIL"} ${id}${n != null ? ` (${n})` : ""}${ok ? "" : " — " + msg}`); res[id] = { ok, msg: ok ? "" : msg, n }; if (!ok) fails.push(id); };
+const check = (ok, id, msg, n) => { log(`${ok ? "PASS" : "FAIL"} ${id}${ok ? "" : " — " + msg}`); if (n != null) log(`  ${id}: ${n}곳`); res[id] = { ok, msg: ok ? "" : msg, n }; if (!ok) fails.push(id); };
 const norm = (s) => String(s || "").replace(/\s+/g, " ").trim();
 const GLUE = [/[가-힣]\)\s*뒤에 산/, /\b0곳뿐/, /·\s*·/, /이전 이전/, /\(\s*\)/, /undefined|NaN|null원|\[object/];
 // 보류 이유 코드별 문장(다른 코드의 문장이 같은 머리에 나오면 '이유 여럿')

@@ -133,7 +133,7 @@
         const enough = m.how === "bld" ? m.n >= 5 : m.n >= 5 && m.no >= 5;
         if (enough) return { v: Math.max(1, m.v), src: "zoneLow", txt: m.how === "bld" ? `구역 안 같은 건물 매매·전세 ${m.n}곳 비교(실측 · ${r.g ? (JR_GU[r.g] != null ? r.g : "서울") : "서울"} 평균 ${base}%보다 크게 낮아 실측을 써요)` : `구역 안 구축 빌라 전세 ${m.n}건·매매 ${m.no}건 ㎡당 비교(실측 · ${JR_GU[r.g] != null ? r.g : "서울"} 평균 ${base}%보다 크게 낮아 실측을 써요)`, zone: m, hold: false };
         return { v: base, src: JR_GU[r.g] != null ? "gu" : "seoul", txt: JR_GU[r.g] != null ? `${r.g} 연립·다세대 평균(2026.3)` : "서울 연립·다세대 평균(2026.3)", zone: m, hold: true,
-          holdTxt: `구역 안 전세 실측(전세 ${m.n}건·매매 ${m.no != null ? m.no + "건" : "–"})이 ${m.v}%로 평균 ${base}%보다 크게 낮은데 표본이 적어 전세 끼고 계산을 보류해요 · 실제 전세금을 넣으면 계산해요` };
+          holdTxt: `구역 안 전세 실측(${m.how === "bld" ? `같은 건물 매매·전세 ${m.n}곳 비교` : `전세 ${m.n}건·매매 ${m.no}건`})이 ${m.v}%로 평균 ${base}%보다 크게 낮은데 표본이 적어 전세 끼고 계산을 보류해요 · 실제 전세금을 넣으면 계산해요` };
       }
       return { v: base, src: JR_GU[r.g] != null ? "gu" : "seoul", txt: JR_GU[r.g] != null ? `${r.g} 연립·다세대 평균(2026.3)` : "서울 연립·다세대 평균(2026.3)", zone: m, hold: false };
     }

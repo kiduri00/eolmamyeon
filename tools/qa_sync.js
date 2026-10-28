@@ -21,7 +21,7 @@ const eq = (a, b) => (a == null && b == null) || (a != null && b != null && Math
   await p.route("**/*", (r) => (/^http:\/\/localhost/.test(r.request().url()) ? r.continue() : r.abort()));
   await p.goto(BASE + "/#map", { waitUntil: "domcontentloaded" });
   await p.waitForFunction(() => window.ZP_feat && window.ZP_boot && ZP_boot.hyd === 1, null, { timeout: 60000 });
-  const app = await p.evaluate(() => { const c = ZP_feat.ctx(), o = {}; c.R.forEach((r) => { let et = null; try { et = c.etaShow(r); } catch (e) {} o[r.id] = { st: r.st ? [r.st.n, r.st.d] : null, ln: r.ln || [], e: r.eta ? [r.eta.p10 ?? null, r.eta.eLo ?? null, r.eta.eMid ?? null, r.eta.eHi ?? null] : null, pt: r.eta && r.eta.p10 != null ? c.probTxt(r.eta.p10) : null, et }; }); return o; });
+  const app = await p.evaluate(() => { const c = ZP_feat.ctx(), o = {}; c.R.forEach((r) => { let et = null; try { et = c.etaShow(r); } catch (e) {} o[r.id] = { st: r.st ? [r.st.n, r.st.d] : null, ln: r.ln || [], e: (() => { if (!r.eta) return null; const f = c.facts(r), h = f && f.eta && f.eta.hid; return [f && f.eta ? f.eta.p10 : null, h ? null : r.eta.eLo ?? null, h ? null : r.eta.eMid ?? null, h ? null : r.eta.eHi ?? null]; })(), em: r.eta ? r.eta.eMid ?? null : null, pr: r.eta ? r.eta.p10 ?? null : null, pt: (() => { const f = c.facts(r); return f && f.eta ? f.eta.p10Txt : null; })(), et }; }); return o; });   // 사이클 3: 화면에 싣는 확률·범위는 ZoneFacts(정체면 null · 범위가 10년 확률과 어긋나면 범위 null)
   await b.close();
   const C = JSON.parse(fs.readFileSync(path.join(ROOT, "pipeline", "calc.json"), "utf8"));
   const ZD = path.join(ROOT, "public", "api", "v1", "zones");
@@ -34,12 +34,12 @@ const eq = (a, b) => (a == null && b == null) || (a != null && b != null && Math
     if (!!S !== !!xs || (S && (S.name !== xs[0] || S.walkMin !== wm(xs[1])))) bad.st.push(`${id} API ${S && S.name} ${S && S.walkMin}분 vs 앱 ${xs && xs[0]} ${xs && wm(xs[1])}분`);
     if (S && JSON.stringify(S.lines || []) !== JSON.stringify(x.ln)) bad.ln.push(`${id} API ${S.lines} vs 앱 ${x.ln}`);
     const K = a.completion, xe = x.e;
-    if (K && xe && !(eq(K.p10, xe[0]) && K.lo == xe[1] && K.mid == xe[2] && K.hi == xe[3])) bad.eta.push(`${id} API ${JSON.stringify(K)} vs 앱 ${JSON.stringify(xe)}`);
+    if (xe && (K ? !(eq(K.p10, xe[0]) && (K.lo ?? null) == xe[1] && (K.mid ?? null) == xe[2] && (K.hi ?? null) == xe[3]) : xe[0] != null)) bad.eta.push(`${id} API ${JSON.stringify(K)} vs 앱 ${JSON.stringify(xe)}`);
     if (K && !xe) bad.eta.push(`${id} API에만 준공 값`);
     if (c) {
       if (!!c.st !== !!xs || (c.st && (c.st.n !== xs[0] || c.st.d !== xs[1]))) bad.calc.push(`${id} calc 역 ${JSON.stringify(c.st)} vs 앱 ${xs}`);
       if (JSON.stringify(c.ln || []) !== JSON.stringify(x.ln)) bad.calc.push(`${id} calc 노선`);
-      if (xe && !(eq(c.p10, xe[0]) && (c.eMid ?? null) == xe[2])) bad.calc.push(`${id} calc p10/eMid ${c.p10}/${c.eMid} vs 앱 ${xe[0]}/${xe[2]}`);
+      if (xe && !(eq(c.p10, xe[0]) && eq(c.p10raw ?? null, x.pr) && (c.eMid ?? null) == x.em)) bad.calc.push(`${id} calc p10/eMid ${c.p10}/${c.eMid} vs 앱 ${xe[0]}/${xe[2]}`);
     }
     const zf = path.join(ROOT, "public", "z", id + ".html");
     if (fs.existsSync(zf)) {
