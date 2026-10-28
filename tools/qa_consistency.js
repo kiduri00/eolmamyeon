@@ -4872,7 +4872,7 @@ async function runUnit(name, api, shortSrc, zoneIds, errs) {
       case "r30": await guard("r30Lane", r30Lane(browser, api, errs)); break;
       case "r31": await guard("r31Lane", Promise.all([r31Lane(browser, api, errs), r31Static(api)])); break;
       case "r22": { const lm = getShared("listMap"); if (lm) shared.listMap = new Map(lm); await guard("r22Lane", r22Lane(browser, api, errs, shared)); break; }
-      case "feat": case "facts": case "sync": case "brand": case "zhand": extUnit(name, u); break;
+      case "feat": case "facts": case "sync": case "brand": case "zhand": case "mapx": extUnit(name, u); break;   // 사이클 4 통합: mapx 단위 실행기가 빠져 있던 것(no runner)
       default: if (/^(tapp|nhf)\d+$/.test(name)) { await guard("tappLane", tappLane(browser, api, errs)); break; } throw new Error("no runner for " + name);
     }
   } finally { if (browser) await browser.close().catch(() => {}); }

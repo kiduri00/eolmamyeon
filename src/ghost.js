@@ -301,11 +301,10 @@
     if (rail && rail.offsetWidth) add(rail.getBoundingClientRect());
     else if (box.classList.contains("lm-short")) add({ left: cb.left + w - 6 - 122, right: cb.left + w - 6, top: cb.top + 6, bottom: cb.top + 88 });
     else if (!phoneQ()) add({ left: cb.left + w - 12 - 94, right: cb.left + w - 12, top: cb.top + 12, bottom: cb.top + 146 });
-    var vis = function (e) { return e.offsetWidth && W.getComputedStyle(e).visibility !== "hidden"; };   // 사이클 4 통합: 숨긴(visibility:hidden) 확대 단추가 서울 단계 강동 자리를 막던 것
-    el.querySelectorAll(".lm-zoom, .lm-key, .zg-attr").forEach(function (e) { if (vis(e)) add(e.getBoundingClientRect()); });
+    el.querySelectorAll(".lm-zoom, .lm-key, .zg-attr").forEach(function (e) { if (e.offsetWidth) add(e.getBoundingClientRect()); });   // 숨긴 확대 단추도 장애물(실제 지도는 그 자리에 단추가 보임 · 자리 그림 = 실제 지도 같은 자리)
     var full = Dc.documentElement.classList.contains("s-full");
     Dc.querySelectorAll(".s-mini, .s-fullx").forEach(function (e) { if (e.classList.contains("s-mini") && !full) return; if (e.offsetWidth && !e.hidden) add(e.getBoundingClientRect()); });
-    if (mxf()) Dc.querySelectorAll(".mx-top, .mx-chips .mx-c, .mx-fabs, #mxGKey:not([hidden]), .lm-gumore:not([hidden]), #mapbox .lm-zoom").forEach(function (e) { if (vis(e) && !e.closest(".zp-ph")) add(e.getBoundingClientRect()); });   // 사이클 4(M): 새 조작부 밑에 라벨을 두지 않는다
+    if (mxf()) Dc.querySelectorAll(".mx-top, .mx-chips .mx-c, .mx-fabs, #mxGKey:not([hidden]), .lm-gumore:not([hidden]), #mapbox .lm-zoom").forEach(function (e) { if (e.offsetWidth && !e.closest(".zp-ph")) add(e.getBoundingClientRect()); });   // 사이클 4(M): 새 조작부 밑에 라벨을 두지 않는다
     return out;
   }
   // 8차: 폰 서울 보기 카메라 위 여백에 12px 더(아래 범례 쪽 여백은 그만큼 덜) — 맨 북쪽 구 중심(도봉)이 겹쳐 보기 띠 바로 밑에 서서 그 묶음이 띠에 걸려 '+N곳'으로 빠지던 것(390) · 10_lmap.js fitPad도 같은 값
