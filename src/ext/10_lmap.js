@@ -871,7 +871,7 @@
       const nm = s.st === "moa" ? cardName(r) : mapName(r);
       const tyw = s.st === "moa" ? "" : TYW[ty] || "";
       const chips = big ? [stg, tk === "y" ? "입주권 ✓" : tk === "n" ? "입주권 ✕" : "", est ? "대략 범위" : ""].filter(Boolean) : [];
-      const w1 = measure(nm, 13.5, 700) + (tyw ? measure(tyw, 11, 500) + 6 : 0), w2 = chips.reduce((a, c) => a + measure(c, 11.5, 600) + 18, 0), w3 = measure(SCHIP[s.st], 11.5, 700) + 14 + measure(amt, s.st === "ok" || s.st === "near" ? 14.5 : 12.5, 800) + 6;
+      const w1 = measure(nm, 13.5, 700) + (tyw ? measure(tyw, 11, 500) + 6 : 0), w2 = chips.reduce((a, c) => a + measure(c, 12, 600) + 18, 0), w3 = measure(SCHIP[s.st], 12, 700) + 14 + measure(amt, s.st === "ok" || s.st === "near" ? 14.5 : 12.5, 800) + 6;
       const w = Math.min(220, Math.max(w1, w2, w3) + 22), h = big ? 76 : 50;
       return { nm, tyw, chips, amt, big, w, h, tk, est };
     }

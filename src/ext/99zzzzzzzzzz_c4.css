@@ -50,3 +50,6 @@
 .s-list .s-card .s-l2,.s-card .s-l2{flex-wrap:wrap;row-gap:2px}
 .s-list .s-card .s-l2 .s-fx,.s-card .s-l2 .s-fx{height:auto;min-height:20px;max-width:100%}
 .s-card .s-left{white-space:nowrap;flex:none;min-width:auto}
+/* 사이클 4 통합: 판정 띠 연남색 바탕(#EAEEF6) 위 '더 필요해요' 주황 글자 대비 4.45 → 5.3(axe) — 라이트만(다크는 따로 통과) */
+:root:not([data-theme="dark"]) #report .dt-k4 .dt-band .dt-vd.no{color:#8F5206}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #report .dt-k4 .dt-band .dt-vd.no{color:var(--warn-ink)}}

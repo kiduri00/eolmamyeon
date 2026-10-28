@@ -257,6 +257,7 @@
   function guEl(el, g) {
     el.className = "zgu t" + g.t + (g.sm ? " sm" : "") + (g.xs ? " xs" : "") + (g.tt ? " tt" : "") + (g.l2 ? "" : " one") + (g.c ? "" : " nr");
     el.dataset.n = String(g.c); el.dataset.gu = g.n;
+    if (g.m != null) el.dataset.m = String(g.m); else delete el.dataset.m;   // 사이클 4 통합: 한 줄 라벨이라 최저 금액은 이름표(접근 이름)와 data-m(실제 지도 gusSet과 같음)
     el.style.setProperty("--w", g.w + "px"); el.style.setProperty("--h", g.h + "px");
     el.innerHTML = "<b>" + esc(g.l1) + "</b>" + (g.l2 ? "<span>" + esc(g.l2) + "</span>" : "");
     el.setAttribute("aria-label", g.c ? GU_LBL(g.n, g.c, g.m) : g.n + ", 갈 수 있는 곳은 없고 조금 부족한 곳 " + fmt(g.nr || 0) + "곳, 눌러서 " + g.n + " 보기");

@@ -2979,7 +2979,7 @@ async function tappLane(browser, api, errs) {
     const R = []; let nT = 0;
     const PROBE = () => { window.__fr = []; window.__pr = 0; try { if (sessionStorage.getItem("__prOn") === "1") { window.__pr = 1; sessionStorage.removeItem("__prOn"); } } catch (e) {}
       const HS = "#tHome,#sGauge,#sListW,#sMini,.th-b", pts = [[0.5, 0.25], [0.5, 0.45], [0.5, 0.65], [0.25, 0.5], [0.75, 0.5], [0.5, 0.85]];
-      const tick = () => { if (window.__pr) { let hit = 0; for (const [x, y] of pts) { const e = document.elementFromPoint(innerWidth * x, innerHeight * y); if (e && e.closest && e.closest(HS)) { hit = 1; break; } } const c = document.documentElement.className; window.__fr.push([hit, /tapp-cover/.test(c) ? 1 : 0, /tapp-tab/.test(c) ? 1 : 0]); } requestAnimationFrame(tick); }; requestAnimationFrame(tick); };
+      const tick = () => { if (window.__pr) { let hit = 0; for (const [x, y] of pts) { const e = document.elementFromPoint(innerWidth * x, innerHeight * y); if (e && e.closest && e.closest(HS) && !(e.closest("#sMini") && /(^| )mx( |$)/.test(document.documentElement.className) && /(^| )s-full( |$)/.test(document.documentElement.className))) { hit = 1; break; } }   /* 사이클 4 통합: 새 지도(mx)는 #sMini를 지도 아래 막대(내 돈·사는 방식·곳 수)로 씀 — 전체 지도일 때 그 막대는 홈 비침이 아님 */ const c = document.documentElement.className; window.__fr.push([hit, /tapp-cover/.test(c) ? 1 : 0, /tapp-tab/.test(c) ? 1 : 0]); } requestAnimationFrame(tick); }; requestAnimationFrame(tick); };
     const mk = async () => {
       const r = await newPage(browser, mob(390, 844), errs);
       await r.ctx.addInitScript(() => { let fs = 0; try { fs = sessionStorage.getItem("__prOn") === "1"; } catch (e) {} if (!fs) try { Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.twa/" }); } catch (e) {} try { sessionStorage.setItem("zp.tapp", "1"); localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
@@ -3288,7 +3288,7 @@ async function tappLane(browser, api, errs) {
       // tapp.mapCtl(2·3·4): 지도 ⓘ 그림 한 번(반복 없음)·40×40·확대 버튼과 8px · 레이어 칩 ::before 없음·36px·6개 이름표·마지막 칩까지 스크롤 · 범례 ↔ 목록 보기 ↔ +N곳 겹치지 않음
       await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1500);
       const mc = await page.evaluate(() => {
-        const R = (e) => e && e.getBoundingClientRect(), ab = document.querySelector("#mapbox .maplibregl-ctrl-attrib-button"), as = ab && getComputedStyle(ab), zm = document.querySelector("#mapbox .lm-zoom"), ar = R(ab), zr = R(zm);
+        const R = (e) => e && e.getBoundingClientRect(), ab = document.querySelector("#mapbox .maplibregl-ctrl-attrib-button") || document.querySelector("#mapbox .zp-ph .zg-attr"), as =   /* 사이클 4 통합: 서울 단계는 WebGL을 늦게 붙여 ⓘ가 자리 그림(.zg-attr) — 보이는 ⓘ를 같은 잣대로 */ ab && getComputedStyle(ab), zm = [...document.querySelectorAll("#mapbox .lm-zoom")].find((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden"), ar = R(ab)   /* 사이클 4 통합: 서울 단계 자리 그림의 숨긴(visibility:hidden) 확대 단추는 빼고 보이는 것만 */, zr = R(zm);
         const ch = [...document.querySelectorAll("#mapbox .s-rail > button")], w = document.querySelector("#mapbox .s-rail-w");
         const key = R(document.querySelector("#mapbox .lm-key")), fx = R(document.getElementById("sFullX")), gm = R(document.querySelector("#mapbox .lm-gumore-b"));
         const ov = (a, b) => a && b && a.width && b.width && !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
@@ -3637,9 +3637,9 @@ async function tappLane(browser, api, errs) {
           const r = await page.evaluate(() => {
             const mins = ZP_simple.guMins(), cnt = ZP_simple.guCounts(); let hm = 1e9, tot = 0; for (const k in mins) if (cnt[k]) hm = Math.min(hm, mins[k]); for (const k in cnt) tot += cnt[k];
             const W = innerWidth, H = innerHeight, vis = [], off = [];
-            document.querySelectorAll("#lmap .zgu").forEach((e) => { const r = e.getBoundingClientRect(); (r.left >= 0 && r.right <= W && r.top >= 0 && r.bottom <= H ? vis : off).push({ g: e.dataset.gu, m: +e.dataset.m, n: +e.dataset.n, l: Math.round(r.left), r: Math.round(W - r.right) }); });
-            const mo = document.getElementById("lmGuMore"), mb = mo && !mo.hidden ? mo.querySelector(".lm-gumore-b") : null;
-            const vm = vis.length ? Math.min(...vis.map((v) => v.m)) : null;
+            document.querySelectorAll("#lmap .zgu, #mapbox .zp-ph .zgu").forEach((e) => { if (!e.getClientRects().length) return; const r = e.getBoundingClientRect(); (r.left >= 0 && r.right <= W && r.top >= 0 && r.bottom <= H ? vis : off).push({ g: e.dataset.gu, m: +e.dataset.m, n: +e.dataset.n, l: Math.round(r.left), r: Math.round(W - r.right) }); });
+            const mo = [document.getElementById("lmGuMore"), document.querySelector("#mapbox .zp-ph .lm-gumore")].find((x) => x && !x.hidden && x.getClientRects().length), mb = mo ? mo.querySelector(".lm-gumore-b") : null;   // 사이클 4 통합: 새 지도 서울 단계는 자리 그림(.zp-ph)이 묶음·칩을 그림(WebGL은 구를 누를 때)
+            const vmL = vis.filter((v) => v.n > 0 && isFinite(v.m)), vm = vmL.length ? Math.min(...vmL.map((v) => v.m)) : null;
             return { hm, vm, tot, sum: vis.reduce((a, v) => a + v.n, 0) + (mb ? +mo.dataset.n : 0), more: mb ? mb.textContent.replace(/\s+/g, " ").trim() : "", moreVis: mb ? getComputedStyle(mb.querySelector("small")).display !== "none" : true, edge: vis.filter((v) => v.l < 8 || v.r < 8).map((v) => v.g), off: off.map((v) => v.g) };
           });
           if (Math.abs(r.vm - r.hm) > 1e-9 || r.edge.length || r.off.length || r.sum !== r.tot || (r.more && (!/만~|억~/.test(r.more) || !r.moreVis))) R.push(`${W} ${m} ${c}억 ${JSON.stringify(r)}`);
