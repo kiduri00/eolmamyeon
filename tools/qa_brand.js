@@ -50,11 +50,37 @@ console.log(`  SPA·앱 범위 ${nSpa}건 · 정적 페이지 범위 ${n - nSpa}
 {
   const BW = new RegExp((BN.BANNED || ['될랑가']).map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g"), th = [];
   for (const f of files) { if (/\.py$/.test(f)) continue; const s = fs.readFileSync(path.join(R, f), "utf8"); for (const m of s.matchAll(BW)) { if (EXC.test(f) && s.slice(Math.max(0, m.index - 40), m.index + 40).includes(BN.RENAME_LINE)) continue; th.push(`${f}: '${s.slice(Math.max(0, m.index - 20), m.index + 20).replace(/\s+/g, " ")}'`); } }
-  console.log(th.length ? `FAIL tone.banned — ${th.length}곳: ${th.slice(0, 4).join(" ; ")}` : `PASS tone.banned (${(BN.BANNED || []).join("·")})`);
+  console.log(th.length ? `FAIL tone.banned — ${th.length}곳: ${th.slice(0, 4).join(" ; ")}` : `PASS tone.banned — ${(BN.BANNED || []).join("·")}`);
   if (th.length) process.exitCode = 1;
 }
-if (!n) { console.log(`PASS brand.residual: 옛 이름 0건 (파일 ${files.length}개 · 지금 묶음 ${cur.size}개 · 이름 변경 안내 예외 ${okEx}곳)`); process.exit(process.exitCode || 0); }
-console.log(`FAIL brand.residual: 옛 이름 ${n}건 · 파일 ${files_n}개 (이름 변경 안내 예외 ${okEx}곳)`);
+// 사이클 3(B) 사각지대: 글자가 아닌 그림(PNG·SVG)에 남은 옛 핀 마크 — public 전체(+src의 SVG).
+//   ① 바이트 해시가 main의 옛 마크 그림(tools/fixtures/old_mark_hashes.json oldMark)과 같은 파일
+//   ② SVG 안 옛 핀 물방울 경로(호 반지름 19·19.5: 'A19,19' · 'a19.5 19.5' 꼴) — 새 마크 경로는 'M27.34,7.44'로 시작
+//   manifest 스크린샷(mainShots)은 따로 brand.shots에서 본다(사이클 4에 새로 찍기 전까지 알려진 실패 · 숨기지 않음)
+let nImg = 0;
+{
+  const crypto = require("crypto"), FX = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "old_mark_hashes.json"), "utf8"));
+  const OLDH = new Map(FX.oldMark.map((x) => [x.sha256, x.from])), SHOT = new Map(FX.mainShots.map((x) => [x.sha256, x.file]));
+  const IMG = /\.(png|svg)$/i, OLDPIN = /[Aa]\s*19(?:\.5)?[\s,]+19(?:\.5)?[\s,]/;
+  const walkI = (d, out = []) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walkI(p, out); else if (IMG.test(e.name)) out.push(p); } return out; };
+  const imgs = [...walkI(path.join(R, "public")), ...walkI(path.join(R, "src")).filter((p) => /\.svg$/i.test(p))].map(rel);
+  const shotSame = [];
+  for (const f of imgs) {
+    const b = fs.readFileSync(path.join(R, f)), h = crypto.createHash("sha256").update(b).digest("hex");
+    if (SHOT.has(h)) { shotSame.push(f); continue; }
+    if (OLDH.has(h)) { (bad[f] = bad[f] || []).push(`옛 핀 마크 그림(main ${OLDH.get(h)}와 같은 바이트)`); n++; nImg++; continue; }
+    if (/\.svg$/i.test(f)) { const m = OLDPIN.exec(b.toString("utf8")); if (m) { (bad[f] = bad[f] || []).push(`옛 핀 마크 SVG 경로('${m[0].trim()}')`); n++; nImg++; } }
+  }
+  console.log(`  그림 ${imgs.length}개 검사(옛 마크 해시 ${OLDH.size}개 · SVG 옛 핀 경로) · 걸린 것 ${nImg}개`);
+  // manifest가 실제로 내는 스크린샷 파일이 main과 같은 바이트면 실패(옛 이름·옛 화면)
+  let mf = {}; try { mf = JSON.parse(fs.readFileSync(path.join(R, "public", "manifest.webmanifest"), "utf8")); } catch (e) {}
+  const used = (mf.screenshots || []).map((x) => "public/" + String(x.src || "").replace(/^\//, ""));
+  const same = used.filter((f) => shotSame.includes(f));
+  console.log(same.length ? `FAIL brand.shots — 알려진 실패(사이클 4에 새로 찍음): manifest 스크린샷 ${same.length}/${used.length}장이 main과 같은 바이트(${same.join(", ")})` : `PASS brand.shots — manifest 스크린샷 ${used.length}장 · main과 같은 바이트 0`);
+  if (same.length) process.exitCode = 1;
+}
+if (!n) { console.log(`PASS brand.residual — 옛 이름·옛 마크 0건 (파일 ${files.length}개 · 지금 묶음 ${cur.size}개 · 이름 변경 안내 예외 ${okEx}곳)`); process.exit(process.exitCode || 0); }
+console.log(`FAIL brand.residual — 옛 이름·옛 마크 ${n}건(그림 ${nImg}) · 파일 ${Object.keys(bad).length}개 (이름 변경 안내 예외 ${okEx}곳)`);
 const byDir = {}; for (const f of Object.keys(bad)) { const d = f.replace(/\/[^/]*$/, ""); byDir[d] = (byDir[d] || 0) + bad[f].length; }
 for (const [d, c] of Object.entries(byDir).sort((a, b) => b[1] - a[1])) console.log(`  ${d}/ ${c}건`);
 for (const f of Object.keys(bad).filter((f) => !/^public\/(z|gu|feed|guide)\//.test(f)).slice(0, 40)) console.log(`  - ${f} ${bad[f].length}건: ${bad[f][0]}`);

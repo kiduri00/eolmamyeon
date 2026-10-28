@@ -510,13 +510,14 @@
       ZP_G.draw({ cnt, min, ok: ok.filter((r) => r.ll).map((r) => [r.ll[0], r.ll[1], r.g]), ids, pad: fitPad(false, el.getBoundingClientRect()) });
     }
     // 실제 지도가 바탕 타일·구 묶음까지 다 그린 첫 '한가함(idle)' 뒤에 자리 그림을 200ms 동안 걷어 낸다(빈 회색 화면 없음)
-    let fadeT = 0, prFull = 0;
+    let fadeT = 0, prFull = 0, cvHid = false;
+    const cvShow = () => { if (!cvHid) return; cvHid = false; try { map.getCanvas().style.visibility = ""; } catch (e) {} };
     function fadeSoon() {
       if (!map || !ghostOn()) return;
       clearTimeout(fadeT);
       const chk = () => {
         if (!map || !ghostOn()) return;
-        if (ready && !revealing && !STG.length && map.loaded() && map.areTilesLoaded() && !map.isMoving()) { map.once("render", () => requestAnimationFrame(() => requestAnimationFrame(() => { try { performance.mark("zp-fade"); } catch (e) {} ZP_G.fade(); [60, 320].forEach((t) => setTimeout(() => { try { map.triggerRepaint(); } catch (e) {} }, t));   /* 걷힌 뒤(캔버스가 실제로 보일 때) 다시 그려 화면에 올린다 */ try { if (cur && !MQ_SHEET.matches && !map.isMoving()) focus("soft"); } catch (e) {}   /* 28차: PC 딥링크(#o…)가 붙는 동안 다른 맞춤(구·서울)에 밀렸으면 자리 그림이 걷힐 때 그 구역으로 */ if (pendZ) { const z = pendZ; pendZ = 0; if (z > 0) map.zoomIn(); else map.zoomOut(); } }))); try { if (prFull) { const r = prFull; prFull = 0; map.setPixelRatio(r); } else map.triggerRepaint(); } catch (e) {} return; }
+        if (ready && !revealing && !STG.length && map.loaded() && map.areTilesLoaded() && !map.isMoving()) { map.once("render", () => requestAnimationFrame(() => requestAnimationFrame(() => { try { performance.mark("zp-fade"); } catch (e) {} ZP_G.fade(); [60, 320].forEach((t) => setTimeout(() => { try { map.triggerRepaint(); } catch (e) {} }, t));   /* 걷힌 뒤(캔버스가 실제로 보일 때) 다시 그려 화면에 올린다 */ try { if (cur && !MQ_SHEET.matches && !map.isMoving()) focus("soft"); } catch (e) {}   /* 28차: PC 딥링크(#o…)가 붙는 동안 다른 맞춤(구·서울)에 밀렸으면 자리 그림이 걷힐 때 그 구역으로 */ if (pendZ) { const z = pendZ; pendZ = 0; if (z > 0) map.zoomIn(); else map.zoomOut(); } }))); cvShow(); try { if (prFull) { const r = prFull; prFull = 0; map.setPixelRatio(r); } else map.triggerRepaint(); } catch (e) {} return; }
         map.once("idle", () => { fadeT = setTimeout(chk, 30); });
       };
       fadeT = setTimeout(chk, 30);
@@ -1395,13 +1396,14 @@
     }
     // GPU 없이 CPU로 그리는 WebGL(SwiftShader·llvmpipe 등)이면 지도 픽셀 수를 1배로 — 한 장 그리는 데 수백 ms씩 걸려 첫 화면 뒤 긴 작업이 이어지던 것(17차 성능)
     let swgl = null;
-    const SWGL = () => { if (swgl != null) return swgl; swgl = false; try { const c = document.createElement("canvas"), g = c.getContext("webgl"), e = g && g.getExtension("WEBGL_debug_renderer_info"), r = e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL) || "") : ""; swgl = /SwiftShader|llvmpipe|softpipe|Software|Microsoft Basic Render/i.test(r); const lc = g && g.getExtension("WEBGL_lose_context"); if (lc) lc.loseContext(); } catch (e) {} return swgl; };
+    // 사이클 3(B): 따로 WebGL 맥락을 하나 더 만들지 않고(4×CPU ~35ms + GPU 쪽 맥락 생성·폐기) 지도가 만든 캔버스의 맥락에서 읽는다 — 같은 종류로 getContext하면 그 맥락이 돌아온다
+    const SWGL = (cv) => { if (swgl != null) return swgl; swgl = false; try { const g = cv && (cv.getContext("webgl2") || cv.getContext("webgl")), e = g && g.getExtension("WEBGL_debug_renderer_info"), r = e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL) || "") : ""; swgl = /SwiftShader|llvmpipe|softpipe|Software|Microsoft Basic Render/i.test(r); } catch (e) {} return swgl; };
     function init() {
       if (map) return true;
       STAGE = ghostOn() && MQ_SHEET.matches;   // 글자 레이어 나눠 켜기는 폰만(PC는 바로 · 마우스 연결이 늦지 않게)
       try {
         map = new maplibregl.Map({ validateStyle: false,
-          container: "lmap", style: style(), ...((() => { const C = (window.ZP_G && ZP_G.on() && ZP_G.last()) || null; return C ? { center: C.c, zoom: C.z } : { bounds: SEOUL_BB }; })()), fadeDuration: 0, ...(SWGL() ? { pixelRatio: 1 } : {}), fitBoundsOptions: { padding: 12 },
+          container: "lmap", style: style(), ...((() => { const C = (window.ZP_G && ZP_G.on() && ZP_G.last()) || null; return C ? { center: C.c, zoom: C.z } : { bounds: SEOUL_BB }; })()), fadeDuration: 0, fitBoundsOptions: { padding: 12 },
           minZoom: 8.8, maxZoom: 17.6, maxBounds: [[126.2, 37.05], [127.75, 38.05]], attributionControl: false,
           localIdeographFontFamily: "'Pretendard Variable','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif",
           cooperativeGestures: false, dragRotate: false, pitchWithRotate: false, touchPitch: false,
@@ -1411,7 +1413,13 @@
       // 사이클 2 성능(B): 자리 그림(불투명 · 지도 칸 전체)이 덮고 있는 동안은 아주 작은 해상도(픽셀 비 0.1)로 그린다 — 자리 그림 밑이라 안 보이고,
       // 타일 고르기·배치·자료 처리는 CSS 픽셀 기준이라 그대로다. 덮인 동안 원래 해상도로 그리던 70여 장의 합성(Commit)이 4×CPU 폰에서 프레임당 150~500ms였다.
       // 걷기 직전에 원래 픽셀 비로 되돌려(크기 맞춤 + 다시 그리기) 그 한 장이 그려진 뒤 걷는다(fadeSoon) — 걷힌 뒤 픽셀은 예전 그대로.
-      try { if (ghostOn() && typeof map.setPixelRatio === "function") { prFull = map.getPixelRatio(); map.setPixelRatio(0.1); } } catch (e) { prFull = 0; }
+      // GPU 없이 CPU로 그리는 WebGL이면 픽셀 비 1(예전엔 만들 때 pixelRatio:1 · 첫 프레임 전이라 같은 결과)
+      try { if (typeof map.setPixelRatio === "function" && SWGL(map.getCanvas()) && !ghostOn()) map.setPixelRatio(1); } catch (e) {}
+      try { if (ghostOn() && typeof map.setPixelRatio === "function") { prFull = swgl ? 1 : map.getPixelRatio(); map.setPixelRatio(0.1); } } catch (e) { prFull = 0; }
+      // 사이클 3 성능(B): 덮인 동안은 캔버스도 화면 합성에서 뺀다(visibility:hidden · 자리는 그대로라 크기·좌표 계산은 같음).
+      //   GPU 합성이 없는 기기(소프트웨어 합성)는 보이는 WebGL 캔버스를 프레임마다 주 스레드에서 읽어 오는데(Commit → ReadPixels → GPU 끝날 때까지 대기),
+      //   4×CPU 폰 측정에서 덮인 동안 이 대기가 프레임당 120~350ms(#map TBT의 절반 가까이)였다. 걷기 직전(cvShow)에 다시 보이게 해 그 뒤 픽셀은 예전 그대로.
+      try { if (ghostOn()) { map.getCanvas().style.visibility = "hidden"; cvHid = true; } } catch (e) {}
       // 22차: 관심·소식·MY 화면으로 가면 지도 칸이 숨어 크기가 0 → 지도가 400×300으로 줄었다가 찾기로 돌아올 때 다시 키우며 캔버스를 새로 잡고 전부 다시 그렸다(탭 전환마다).
       // 숨은 동안(0 크기)과 크기가 그대로일 때는 크기 맞추기를 건너뛴다(돌아오면 같은 크기라 그대로 보인다).
       try {
@@ -1428,6 +1436,7 @@
             if (DRAG) { if (!held) { held = true; const w = () => (DRAG ? setTimeout(w, 80) : (held = false, map && map.triggerRepaint())); setTimeout(w, 80); } return this; }
             // 27차: 자리 그림(ghost)이 실제 지도를 덮고 있는 동안(타일이 하나씩 오는 몇 초)은 0.45초에 한 번만 그린다 — 안 보이는 프레임마다 그리기·합성이 이어져 시작 뒤 긴 작업이 줄줄이 생기던 것.
             //       글자 자리 잡기(placement)가 진행 중이거나 스타일이 바뀐 프레임은 건너뛰지 않는다(레이어를 나눠 붙이는 중 자리 잡기가 끊기면 maplibre 오류)
+            if (cvHid && !ghostOn()) { cvShow(); if (prFull) setTimeout(() => { try { if (prFull && map) { const r = prFull; prFull = 0; map.setPixelRatio(r); } } catch (e) {} }, 0); }   // 다른 길로 자리 그림이 걷혔으면(drop 등) 캔버스·해상도를 바로 되돌린다
             if (ghostOn()) {
               const st = this.style, busy = !st || st._changed || (st.pauseablePlacement && !st.pauseablePlacement.isDone());
               const now = performance.now();

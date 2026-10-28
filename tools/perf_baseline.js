@@ -18,7 +18,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf("--" + k); return i >= 0 ? argv[i + 1] : d; };
 const has = (k) => argv.includes("--" + k);
 const EXE = process.env.QA_CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const PAGES = [["home", "/"], ["map", "/#map"], ["z", opt("z", "/z/o1176")]];
+const PAGES = [["home", "/"], ["map", "/#map"], ["z", opt("z", "/z/o1176")]].filter(([k]) => !opt("only", "") || opt("only", "").split(",").includes(k));   // --only map,home : 일부만 재기(빠른 실험)
 const LIMIT = { jsPct: 10, longMs: 100, lcpPct: 20, tbtMs: 300 };
 
 const median = (a) => { const s = a.filter((x) => x != null).sort((x, y) => x - y); return s.length ? s[(s.length - 1) >> 1] : null; };
