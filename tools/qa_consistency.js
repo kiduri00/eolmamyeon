@@ -2654,7 +2654,7 @@ async function r22Lane(browser, api, errs, shared) {
               location.hash = "#" + id;
               const ok = await wait(() => { const e = document.getElementById("repTitle"); return e && !e.__fz && e.textContent.trim(); }, 4000);
               const k = document.querySelector("#report .dt-k"), g = (q) => { const e = k && k.querySelector(`[data-k="${q}"] .dt-v`); return e ? e.textContent.trim() : null; };
-              out[id] = { ok: !!ok, now: g("now"), tot: g("tot"), eta: g("eta"), labs: k ? [...k.querySelectorAll(".dt-l")].map((e) => e.textContent.trim()).join("|") : "" };
+              out[id] = { ok: !!ok, now: g("now"), tot: g("tot"), eta: g("eta"), labs: k ? ["now", "tot", "eta"].map((q) => { const e = k.querySelector(`[data-k="${q}"] .dt-l`); return e ? e.textContent.trim() : ""; }).filter(Boolean).join("|") : "" };   /* 사이클 4: data-k 차례(시트 상단 3칸은 보이는 차례가 다름) */
             }
             return out;
           }, ids.slice(i, i + 40));

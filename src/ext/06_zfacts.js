@@ -150,9 +150,11 @@
     // ===================== 사이클 4: ZoneFacts v2 — 화면에 나오는 숫자 =====================
     //   같은 양은 객체에서 한 번 만들고, 문자열도 반올림 함수 하나(fmt)로 여기서 만든다. 화면·정적 생성기(calc.json f.num)는 문자열만 꽂는다.
     //   c3까지 남은 불일치(참고 시세 '1년' vs 12개월 0건 · 입주 칸 vs 범위 · 정체인데 이주 칸 · 분담금 반올림/올림 · 면적·전세 반올림)가 모두 '표시 숫자'를 화면마다 따로 만든 데서 났다.
-    //   fmt 종류: cash(억 금액 · 화면 올림 규칙 ZF.cash) · won(정확한 만 원 ZF.manT) · m2p(만원 단위 시세 ZF.eok) · area(㎡ 반올림) · n(개수)
+    //   fmt 종류: r1(분담금 · 0.1억 반올림 · 1억 아래 만 원) · cash(억 금액 · 화면 올림 규칙 ZF.cash) · won(정확한 만 원 ZF.manT) · m2p(만원 단위 시세 ZF.eok) · area(㎡ 반올림) · n(개수)
     const FMT = {
       cash: (v) => ZF.cash(v), won: (v) => ZF.manT(v), m2p: (m) => ZF.eok(m),
+      // 분담금(돈 탭 요약·비례율 표·ZoneFacts): 1억 아래는 정확한 만 원, 1억부터 0.1억 반올림 — app.js won()과 같은 규칙(입주까지 현금 needTotal 반올림과 같은 결)
+      r1: (v) => { const a = Math.abs(v); if (a < 1 && Math.round(a * 1e4) < 1e4) return Math.round(a * 1e4) === 0 ? "0원" : `${Math.round(v * 1e4).toLocaleString("ko-KR")}만`; return `${(Math.round(v * 10) / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억`; },
       area: (v) => `${Math.round(v).toLocaleString("ko-KR")}㎡`, n: (v) => Math.round(v).toLocaleString("ko-KR"),
     };
     const fmt = (k, v) => (v == null || !isFinite(v) ? null : FMT[k](v));
@@ -218,7 +220,7 @@
       let nt = false; try { nt = noTicket(r); } catch (e) {}
       const o = { ref: refOf(r), tl: r.src === "moa" ? null : tlOf(r, eta) };
       // 분담금(기본 가정 · 비례율 100%) — 요약 칸·비례율 표 100% 줄·'이미 가진 집이면'이 같은 fmt('cash')
-      if (!nt && x && x.ok && isFinite(x.contrib)) o.contrib = { v: x.contrib, refund: x.contrib < 0, txt: fmt("cash", Math.abs(x.contrib)), exact: ZF.exact(Math.abs(x.contrib)) };
+      if (!nt && x && x.ok && isFinite(x.contrib)) o.contrib = { v: x.contrib, refund: x.contrib < 0, txt: fmt("r1", Math.abs(x.contrib)), exact: ZF.exact(Math.abs(x.contrib)) };
       // 매수가(계산 매수가) — 정확한 만 원 하나(카드 '3.2억' vs /z '3억 1,050만'이 갈리던 것)
       if (!nt && x && x.price != null && isFinite(x.price)) o.price = { v: x.price, txt: fmt("won", x.price) };
       if (sm.area) o.area = { v: Math.round(sm.area), txt: fmt("area", sm.area) };

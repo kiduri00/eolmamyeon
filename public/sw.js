@@ -1,7 +1,7 @@
 /* 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "097c066b"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "32b13b5c"; // tools/build.py가 빌드 해시로 바꿔 씀
 const BRAND = "재개픽", BRAND_EN = "JaegaePick"; // 서비스 이름 — tools/build.py가 tools/brand.py 값으로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
@@ -31,7 +31,7 @@ self.addEventListener("activate", (e) => {
     const ks = await caches.keys();
     await Promise.all(ks.filter((k) => k.startsWith("eolma-") && !KEEP.includes(k)).map((k) => caches.delete(k)));
     if (self.registration.navigationPreload) { try { await self.registration.navigationPreload.enable(); } catch (_) {} }
-    // 사이클 4: 이름을 바꾸기 전(옛 태그 zippin-…)에 받은 알림은 업데이트 직후 한 번 닫는다 — 다음 알림이 올 때까지 서랍에 남던 것(push 처리 때와 같은 규칙)
+    // 사이클 4: 이름을 바꾸기 전 옛 태그(jp·zp로 시작하지 않는 태그)로 받은 알림은 업데이트 직후 한 번 닫는다 — 다음 알림이 올 때까지 서랍에 남던 것(push 처리 때와 같은 규칙)
     try { const ns = await self.registration.getNotifications(); ns.forEach((n) => { if (n.tag && !/^(jp|zp)/.test(n.tag)) n.close(); }); } catch (_) {}
     await self.clients.claim();
   })());
