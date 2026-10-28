@@ -8190,11 +8190,11 @@
   const done = {};
   // 사이클 4(M · 성능): 옛 SVG 구 지도(initMap · 4×CPU ~130ms)는 실제 지도를 쓰는 간단 화면에서 보이지 않는다(자리 그림·실제 지도가 덮음) →
   //   사람이 처음 손댈 때(누르기·키) 또는 조용한 12초 뒤에 그린다. 그 전에 구로 들어가면 enterGu가 기다렸다가(pendingGu) 그린 뒤 이어서 들어간다.
-  //   간단 지도를 고른 사람·딥링크(#구역·#map-구)·간단 화면이 아니면 예전처럼 바로.
+  //   간단 지도를 고른 사람·딥링크(#구역·#map-구)면 예전처럼 바로.
   const mapTopLazy = () => {
     if (done.map) return;
     let svgPref = false; try { svgPref = localStorage.getItem("emr.map") === "svg"; } catch (e) {}
-    if (!document.documentElement.classList.contains("simple") || svgPref || (hash0 && hash0 !== "map")) { SECT.mapTop(); return; }
+    if (typeof SIMPLE === "undefined" || svgPref || (hash0 && hash0 !== "map")) { SECT.mapTop(); return; }
     if (window.ZP_mapInit) return;
     let t = 0;
     const go = () => { clearTimeout(t); window.ZP_mapInit = null; ["pointerdown", "keydown"].forEach((k) => removeEventListener(k, soon, true)); try { SECT.mapTop(); } catch (e) {} };

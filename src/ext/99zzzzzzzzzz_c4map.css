@@ -215,7 +215,7 @@ html.mx #lmPick.mx-peek[hidden]{display:none}
   html.mx.mx.mx.s-full .zp-ph .lm-key{display:none!important}
 .mx-gkey{display:none}
 html.mx.mx.mx.s-full #mxGKey.mx-gkey[hidden]{display:none!important}
-html.mx.mx.mx.s-full #lmKey.lm-key,html.mx.mx.mx.s-full #mxGKey.mx-gkey{position:fixed!important;left:calc(var(--mx-ml,0px) + 12px)!important;right:auto!important;max-width:560px!important;bottom:16px!important}
+html.mx.mx.mx.s-full #lmKey.lm-key,html.mx.mx.mx.s-full #mxGKey.mx-gkey{position:fixed!important;left:calc(var(--mx-ml,0px) + 12px)!important;right:auto!important;max-width:min(560px,calc(100vw - var(--mx-ml,0px) - var(--mx-mr,0px) - 500px))!important;bottom:16px!important}
   html.mx.mx.mx.s-full #mapbox .lm-zoom{position:fixed!important;bottom:184px!important;right:calc(var(--mx-mr,0px) + 12px)!important}
   html.mx.mx.mx.s-full #lmap .maplibregl-ctrl-bottom-right{position:fixed!important;bottom:130px!important;right:calc(var(--mx-mr,0px) + 14px)!important}
   html.mx #lmPick.mx-peek{position:fixed;left:auto;right:calc(var(--mx-mr,0px) + 76px);bottom:16px!important;width:400px;border-radius:20px;box-shadow:var(--mx-sh)}
