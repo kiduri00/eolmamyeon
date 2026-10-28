@@ -7,6 +7,10 @@ S = lambda p: open(os.path.join(R, 'src', p), encoding='utf-8').read()
 shell = brand.sub(S('shell.html'))
 EN = os.path.join(R, 'pipeline', 'data.enriched.json')
 D = json.load(open(EN, encoding='utf-8')) if os.path.exists(EN) else json.loads(S('data.json'))
+# 사이클 4 D1: 홈 미니 서울 지도(SVG 구 채움 · 숫자 단추 자리) — tools/hm_map.py · 숫자는 섬·앱이 src/hmini.js로 채운다
+import hm_map
+assert shell.count('/*HMMAP*/') == 1
+shell = shell.replace('/*HMMAP*/', hm_map.build(D), 1)
 # 사이클 2(부칙 판정 · app.js b18Of): 재개발 사업시행인가일이 2018.1.25~2020.1.24인데 신청일(b18p) 자료가 없는 구역 → b18a(인가일)
 #   첫 화면 엔진(목록·calc.json)과 시트가 같은 판정('신청일 확인 필요')을 내게 — premium.json(나중에 받음)의 날짜를 기다리지 않는다
 try:
@@ -224,6 +228,9 @@ import ghost_geo
 GHOST_JS = S('ghost.js'); assert GHOST_JS.count('/*GHOST*/ null') == 1
 GHOST_JS = GHOST_JS.replace('/*GHOST*/ null', json.dumps(ghost_geo.build(D), ensure_ascii=False, separators=(',', ':')))
 js = GHOST_JS + js; js_y = GHOST_JS + js_y
+# 사이클 4 D1: 홈 미니 지도·다음 문턱(src/hmini.js) — 섬(h)과 앱(a)이 같은 코드
+HMINI_JS = S('hmini.js')
+js = HMINI_JS + js; js_y = HMINI_JS + js_y
 # 문의하기 양식(src/contact.js): 앱 묶음에 넣고, 정적 페이지(/contact · /faq · /z)용으로 public/cf.js 로도 낸다(같은 코드)
 CONTACT_JS = S('contact.js')
 js = CONTACT_JS + js; js_y = CONTACT_JS + js_y
@@ -234,7 +241,7 @@ css = S('app.css') + ext_css
 # 한 낱말이라도 남아 있거나("pre-" + x 처럼 이어 붙이는 앞부분 포함) 확신이 없는 선택자(\ 이스케이프·:is·:where 안)는 그대로 둔다.
 def prune_css(css):
     import glob
-    src = ''.join(open(f, encoding='utf-8').read() for f in [os.path.join(R, 'src', p) for p in ('app.js', 'shell.html', 'island.js', 'boot.js', 'ghost.js', 'contact.js', 'net.js')] + sorted(glob.glob(os.path.join(R, 'src', 'ext', '*.js'))) + sorted(glob.glob(os.path.join(R, 'tools', '*.py'))) + [os.path.join(R, 'tools', 'prerender.js')] if os.path.exists(f))
+    src = ''.join(open(f, encoding='utf-8').read() for f in [os.path.join(R, 'src', p) for p in ('app.js', 'shell.html', 'island.js', 'boot.js', 'ghost.js', 'hmini.js', 'contact.js', 'net.js')] + sorted(glob.glob(os.path.join(R, 'src', 'ext', '*.js'))) + sorted(glob.glob(os.path.join(R, 'tools', '*.py'))) + [os.path.join(R, 'tools', 'prerender.js')] if os.path.exists(f))
     words = set(re.findall(r'[\w-]+', src))
     pre = set(re.findall(r'(?<![\w-])([\w-]+-)(?=["\'`]|\$\{)', src))
     def alive(t):
@@ -450,7 +457,7 @@ def island():
     T = lambda i: None if i is None or i < 0 else P['strs'][i]
     f0, c0 = P['def']['f'], P['def']['c']; i0 = P['stops'].index(c0)
     st = P['st'][f0][i0]; t = st[0]
-    isl = GHOST_JS + S('island.js'); boot = S('boot.js')
+    isl = GHOST_JS + HMINI_JS + S('island.js'); boot = S('boot.js')
     if ESB and not os.environ.get('NO_MINIFY'): isl = mini(isl, 'js'); boot = mini(boot, 'js')
     # 23차: 금액마다 미리 그린 목록 줄(rows · 압축 31KB)은 첫 화면 JS에서 빼서 JSON 파일로 — 섬이 시작하자마자 받아 두고, 오기 전에 금액을 바꾸면 줄만 받는 대로 채운다
     #       (기본 금액의 줄은 HTML에 이미 있음 → 첫 페인트는 그대로). 첫 화면 JS 95KB → 64KB 안팎
@@ -486,6 +493,31 @@ def island():
     k = iter(st[2]); inner = re.sub(r'<button type="button"', lambda m: f'<button type="button" aria-pressed="{next(k, "false")}"', mb.group(1))
     x = x[:mb.start(1)] + inner + x[mb.end(1):]
     rep('<div class="s-sum" id="sSum"></div>', f'<div class="s-sum" id="sSum">{T(t[5])}</div>')
+    # 사이클 4 D1: 홈 금액 칩 · 다음 문턱 · 미니 지도 · 가장 맞는 곳 — 기본 금액의 첫 페인트(island.js hero · 60_simple heroR와 같은 값·같은 글)
+    STP = P['stops']
+    def cnt_at(f, i):
+        s0 = P['st'][f][i] if 0 <= i < len(P['st'][f]) else None
+        return int(re.sub(r'\D', '', T(s0[0][0]) or '') or 0) if s0 else None
+    n0, up, skip = cnt_at(f0, i0), None, False
+    if c0 < 15 - 1e-9:
+        for d in (0.5, 1, 1.5, 2, 3, 5):
+            c2 = round((c0 + d) * 10) / 10
+            if c2 > 15: break
+            if c2 not in STP: skip = True; break
+            n2 = cnt_at(f0, STP.index(c2))
+            if n2 > n0: up = (d, c2, n2); break
+    f1 = 'cash' if f0 == 'gap' else 'gap'
+    rep('<div class="hm-next" id="hmNext"></div>', '<div class="hm-next" id="hmNext"' + ('' if skip else f' data-k="{f0}|{c0:g}"') + '>' + ('' if skip else hm_map.next_html(up, f1, cnt_at(f1, i0))) + '</div>')
+    for v in ('1', '1.5', '2', '2.5', '3'):
+        if abs(float(v) - c0) < 1e-9: rep(f'data-hc="{v}" aria-pressed="false"', f'data-hc="{v}" aria-pressed="true"')
+    if P.get('thr'):
+        cnt = {}
+        for k, z in enumerate(P['zones']):
+            tk = P['thr'][f0][k]
+            if tk is not None and 0 <= tk <= i0: cnt[z[0]] = cnt.get(z[0], 0) + 1
+        x = re.sub(r'<div class="hm-mw" id="hmMw".*?</div>', lambda m: hm_map.paint(m.group(0), cnt), x, count=1, flags=re.S)
+    rep('<ol class="s-list hm-bl" id="hmBestL"></ol>', '<ol class="s-list hm-bl" id="hmBestL">' + (P['rows'][st[1][0]] if st[1] else '') + '</ol>')
+    if not st[1]: rep('<section class="hm-best" id="hmBest"', '<section class="hm-best" id="hmBest" hidden')
     rep(r'<h2 id="sLT">[^<]*</h2>', f'<h2 id="sLT">{E(T(t[2]))}</h2>', rx=True)
     rep(r'<span id="sLS">[^<]*</span>', f'<span id="sLS">{E(T(t[3]))}</span>', rx=True)
     rep(r'<ol class="s-list" id="sList">.*?</ol>', lambda m: '<ol class="s-list" id="sList">' + ''.join(P['rows'][r] for r in st[1]) + '</ol>', rx=True)
@@ -498,8 +530,10 @@ def island():
             'while(l.children.length>n)l.removeChild(l.lastElementChild);'
             # 29차: 줄 오른쪽 '예산 거의 다 씀 · 예산에서 남는 돈'(island.js fx와 같은 식)도 첫 페인트 전에 — 섬이 붙을 때 줄이 8px씩 자라 PC 첫 화면이 밀리던 것
             f'var c={json.dumps(P["def"]["c"])},cT=function(v){{var a=Math.abs(v),m=Math.ceil(a*100-1e-6);if(a<0.005)return"0원";if(m<100)return(m*100).toLocaleString("ko-KR")+"만";var u=Math.ceil(a*10-1e-6)/10;return u.toLocaleString("ko-KR",{{maximumFractionDigits:1}})+"억"}};'
-            '[].forEach.call(l.querySelectorAll("li[data-need]"),function(li){var x=+li.getAttribute("data-need"),el=li.querySelector(".s-fx");if(!el||!isFinite(x)||el.firstChild)return;var lf=Math.max(0,Math.round((c-x)*100)/100);'
-            'el.innerHTML=lf<=c*0.1+1e-9?\'<em class="s-fit">예산 거의 다 씀</em>\':lf>=0.01?\'<span class="s-left">예산에서 남는 돈 \'+cT(lf)+"</span>":""});'
+            'var es=function(v){return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;")},fH=function(li){var f=li.getAttribute("data-ft");if(f==null)return"";var p=f.split("|");return\'<span class="s-ftl\'+(p[1]?"":" s-na")+\'">\'+es(p[0])+(p[1]?" <b>"+es(p[1])+"</b>":"")+"</span>"};'
+            # 사이클 4 D4: 맨 아래 줄 왼쪽 '입주까지 현금 Y'(data-ft · island.js fx와 같은 식)
+            '[].forEach.call(document.querySelectorAll("#sList li[data-ft],#sList li[data-need],#hmBestL li[data-ft],#hmBestL li[data-need]"),function(li){var x=li.hasAttribute("data-need")?+li.getAttribute("data-need"):NaN,el=li.querySelector(".s-fx");if(!el||el.firstChild)return;if(!isFinite(x)){el.innerHTML=fH(li);return}var lf=Math.max(0,Math.round((c-x)*100)/100);'
+            'el.innerHTML=fH(li)+(lf<=c*0.1+1e-9?\'<em class="s-fit">예산 거의 다 씀</em>\':lf>=0.01?\'<span class="s-left">예산에서 남는 돈 \'+cT(lf)+"</span>":"")});'
             f'var t={tot};if(m&&t>n){{m.hidden=false;m.textContent={json.dumps(more, ensure_ascii=False)}.replace("{{n}}",(t-n).toLocaleString("ko-KR"))}}'
             '})()</script>')
     mv = re.search(r'<script>/\* 넓은 화면: 목록을 지도 오른쪽 칸으로[^<]*</script>', x)

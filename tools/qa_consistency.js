@@ -612,7 +612,7 @@ async function countsLane(browser, api, errs, shared) {
     // 15억 전세 끼고: 목록 전체를 펼쳐 각 줄 숫자 == /api/v1/zones.json (지금·입주까지 현금)
     await setMode(page, "gap"); await setCash(page, 15);
     for (let i = 0; i < 40; i++) { const more = await page.evaluate(() => { const m = document.getElementById("sMore"); if (!m || m.hidden) return false; m.click(); return true; }); if (!more) break; await page.waitForTimeout(160); }
-    const rowsG = await page.evaluate(() => [...document.querySelectorAll("#sList li")].map((li) => { const a = li.querySelector("a[data-id]"), b = li.querySelector(".s-amt"); return a && b ? { id: a.dataset.id, name: (li.querySelector(".s-nm b") || {}).textContent, amt: b.innerText } : null; }).filter(Boolean));
+    const rowsG = await page.evaluate(() => [...document.querySelectorAll("#sList li")].map((li) => { const a = li.querySelector("a[data-id]"), b = li.querySelector(".s-amt"); return a && b ? { id: a.dataset.id, name: (li.querySelector(".s-nm b") || {}).textContent, amt: b.innerText + "\n" + ((li.querySelector(".s-fx .s-ftl") || {}).innerText || "") } : null; }).filter(Boolean));   // 사이클 4 D4: '입주까지 현금'은 카드 맨 아래 줄(.s-ftl)
     const apiById = new Map(api.zones.map((z) => [z.id, z]));
     const listMap = new Map();
     const misN = [], misT = [];
@@ -668,7 +668,7 @@ async function countsLane(browser, api, errs, shared) {
       for (const zid of ids) {
         const r = await page.evaluate(async (zid) => {
           const b = document.querySelector(`#sList .s-amt[data-why="${zid}"]`); if (!b) return null;
-          const amt = b.innerText; b.click(); await new Promise((r) => setTimeout(r, 250));
+          const ft = b.closest("li") && b.closest("li").querySelector(".s-fx .s-ftl"), amt = b.innerText + "\n" + (ft ? ft.innerText : ""); b.click(); await new Promise((r) => setTimeout(r, 250));
           const w = document.getElementById("sWhy"); if (!w || w.hidden) return { amt, missing: 1 };
           const lines = [...w.querySelectorAll("li")].filter((li) => li.querySelector("b")).map((li) => ({ op: ((li.querySelector("span i") || {}).textContent || "").trim(), k: (li.querySelector("span") || {}).textContent, v: li.querySelector("b").textContent, sum: li.classList.contains("s-wsum") }));
           const tail = (w.querySelector("p") || {}).textContent || "";
@@ -2449,10 +2449,15 @@ async function r17bLane(browser, api, errs) {
       await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(400);
       const f = await page.evaluate(() => {
         const nav = document.getElementById("sNav"), nb = nav && nav.offsetHeight ? nav.getBoundingClientRect().top : innerHeight;
-        const cards = [...document.querySelectorAll("#sSum .s-rail3 button[data-id]")].map((b) => { const r = b.getBoundingClientRect(); return { n: (b.querySelector(".s-rn") || {}).textContent || "", v: (b.querySelector(".s-rv") || {}).textContent || "", top: Math.round(r.top), bot: Math.round(r.bottom), l: Math.round(r.left), vis: r.width > 0 && getComputedStyle(b).visibility !== "hidden" }; });
-        return { nb: Math.round(nb), cards, n: +document.getElementById("sN").textContent.replace(/\D/g, ""), first: ((document.querySelector("#sList .s-card .s-nm b") || {}).textContent || "") };
+        // 사이클 4 D1: 폰 서울 보기는 이름 줄 3장 대신 '내 돈에 가장 맞는 곳' 카드(#hmBestL · 맞춤순 첫 줄) — 이름·금액이 첫 화면에 보여야 하는 건 같다
+        const cards = [...document.querySelectorAll("#sSum .s-rail3 button[data-id], #hmBestL li.s-card")].filter((b) => b.getClientRects().length).map((b) => { const r = (b.querySelector(".s-nm b") || b).getBoundingClientRect(); return { n: ((b.querySelector(".s-rn") || b.querySelector(".s-nm b")) || {}).textContent || "", v: ((b.querySelector(".s-rv") || b.querySelector(".s-amt .s-av b")) || {}).textContent || "", top: Math.round(r.top), bot: Math.round(r.bottom), l: Math.round(r.left), vis: r.width > 0 && getComputedStyle(b).visibility !== "hidden" }; });
+        const hb = document.getElementById("hmBest"), hn = document.getElementById("hmNext"), hm = [document.getElementById("hmMap"), document.getElementById("mapbox")].find((e) => e && e.getClientRects().length);   // 설치 앱 = 미니 지도 · 웹 폰 = 실제 지도 서울 보기
+        return { hero: hm && hb && hb.getClientRects().length ? { map: Math.round(hm.getBoundingClientRect().top), next: hn ? hn.textContent : "", best: hb && !hb.hidden ? Math.round(hb.getBoundingClientRect().top) : null } : null, nb: Math.round(nb), cards, n: +document.getElementById("sN").textContent.replace(/\D/g, ""), first: ((document.querySelector("#sList .s-card .s-nm b") || {}).textContent || "") };
       });
-      const inFold = f.cards.filter((c) => c.vis && c.bot <= f.nb && c.l < w && /[가-힣]/.test(c.n) && /\d/.test(c.v) && /(억|만)/.test(c.v));
+      // 사이클 4 D1(SPEC 오너 채택): 폰 첫 화면 = 내 돈 카드(곳 수 · 다음 문턱) → 미니 서울 지도 → '내 돈에 가장 맞는 곳'. 이름 카드는 지도 바로 밑(첫 화면 + 화면 0.6장 안),
+      //   첫 화면 안에는 곳 수 · 다음 문턱 · 미니 지도 머리가 있어야 한다. 구·지도 범위로 거른 동안의 이름 줄(.s-rail3)은 예전처럼 첫 화면 안.
+      const inFold = f.cards.filter((c) => c.vis && c.l < w && /[가-힣]/.test(c.n) && /\d/.test(c.v) && /(억|만)/.test(c.v) && (f.hero ? c.bot <= f.nb + h * 0.6 : c.bot <= f.nb));
+      if (!dark && f.hero) expect(f.hero.map < f.nb - 40 && /\d+곳/.test(f.hero.next) && f.hero.best != null && f.hero.best > f.hero.map, "home.namesFold", TN, `${where}: 첫 화면 지도 머리 ${f.hero.map} < ${f.nb - 40} · 다음 문턱 "${f.hero.next}" · 가장 맞는 곳 ${f.hero.best}`);
       if (!dark) {
         expect(inFold.length >= 1, "home.namesFold", TN, `${where}: rail cards above fold ${inFold.length} (cards ${JSON.stringify(f.cards.slice(0, 2))}, nav top ${f.nb})`);
         expect(!f.cards.length || f.cards[0].n === f.first.trim() || f.first === "" || (f.cards[0].n && f.first.trim().startsWith(f.cards[0].n)), "home.namesFold", TN, `${where}: rail first "${(f.cards[0] || {}).n}" ≠ list first "${f.first}" (맞춤순 위 3곳)`);
@@ -3758,7 +3763,7 @@ async function tappLane(browser, api, errs) {
       } finally { await ctx.close().catch(() => {}); } }
       { const { ctx, page } = await appPage(mob(390, 844)); try {
         await appHome(page, "/?src=app&cash=3");
-        const hm = await page.evaluate(() => { const a = document.querySelector("#sGauge .s-arrow"), h = [...document.querySelectorAll("h2")].find((x) => /^갈 수 있는 곳 ·/.test(x.textContent.trim())), nav = document.getElementById("sNav"); const meta = [...document.querySelectorAll("#sList li.s-card .s-mt")].slice(0, 8).map((m) => Math.round(m.getBoundingClientRect().height)); return { arrBg: a ? getComputedStyle(a).backgroundColor : "", t: h ? Math.round(h.getBoundingClientRect().bottom) : 0, n: Math.round(nav.getBoundingClientRect().top), meta, big: document.documentElement.classList.contains("t-big") }; });
+        const hm = await page.evaluate(() => { const a = document.querySelector("#sGauge .s-arrow"), h = document.getElementById("hmMapH") || [...document.querySelectorAll("h2")].find((x) => /^갈 수 있는 곳 ·/.test(x.textContent.trim())), nav = document.getElementById("sNav"); const meta = [...document.querySelectorAll("#sList li.s-card .s-sub")].slice(0, 8).map((m) => Math.round(m.getBoundingClientRect().height)); /* 사이클 4 D1·D4: 첫 화면 제목 = 미니 지도 머리(목록 제목은 아이콘 아래) · 역 줄은 한 줄(칩은 따로 한 줄) */ return { arrBg: a ? getComputedStyle(a).backgroundColor : "", t: h ? Math.round(h.getBoundingClientRect().bottom) : 0, n: Math.round(nav.getBoundingClientRect().top), meta, big: document.documentElement.classList.contains("t-big") }; });
         if (hm.arrBg !== "rgba(0, 0, 0, 0)" || hm.t > hm.n || hm.big || hm.meta.some((x) => x > 22)) R.push("홈 " + JSON.stringify(hm));
         await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(2500);
         const ib = await page.evaluate(() => { const e = document.querySelector(".zp-ph .zg-attr"); if (!e || !e.offsetWidth) return "none"; const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), /stroke/.test(decodeURIComponent(getComputedStyle(e).backgroundImage))]; });
@@ -4100,7 +4105,9 @@ async function r27Lane(browser, api, errs) {
         await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1, null, { timeout: 20000 }).catch(() => {});
         await page.waitForTimeout(2500);
         const r = await page.evaluate(() => { const o = document.getElementById("onb"), s = document.getElementById("sSum"), m = document.getElementById("mapbox"), nav = document.getElementById("sNav"); const R = (e) => (e ? e.getBoundingClientRect() : null); const sr = R(s), mr = R(m), nr = R(nav);
-          return { cls: +window.__cls.toFixed(4), src: window.__clsS.slice(0, 3), onb: !!o && !o.hidden && o.offsetHeight > 0, names: s ? s.querySelectorAll(".s-rail3 [data-id]").length : 0, namesIn: !!sr && sr.height > 0 && sr.bottom <= innerHeight, pv: !!document.getElementById("onbPv"), peek: mr && nr ? Math.round(nr.top - mr.top) : null }; });
+          // 사이클 4 D1: 이름은 '내 돈에 가장 맞는 곳' 카드(#hmBestL · 미니 지도 바로 밑, 화면 0.6장 안) · 지도 머리는 미니 서울 지도(#hmMap)
+          const bl = document.querySelector("#hmBestL li.s-card .s-nm b"), br = R(bl), hm = R(document.getElementById("hmMap"));
+          return { cls: +window.__cls.toFixed(4), src: window.__clsS.slice(0, 3), onb: !!o && !o.hidden && o.offsetHeight > 0, names: (s ? s.querySelectorAll(".s-rail3 [data-id]").length : 0) + (bl ? 1 : 0), namesIn: (!!sr && sr.height > 0 && sr.bottom <= innerHeight && !!s.querySelector(".s-rail3 [data-id]")) || (!!br && br.height > 0 && br.bottom <= innerHeight * 1.6), pv: !!document.getElementById("onbPv"), peek: hm && hm.height && nr ? Math.round(nr.top - hm.top) : mr && nr ? Math.round(nr.top - mr.top) : null }; });
         expect(r.cls < (w === 360 ? 0.005 : 0.02) && r.onb && r.names >= 1 && r.namesIn && !r.pv && (w !== 360 || (r.peek != null && r.peek >= 150)), "fresh.cls", T + " · 29차: 360은 CLS < 0.005 · 지도 150px 이상", `${w}: ${JSON.stringify(r)}`);
       } catch (e) { bad("fresh.cls", T, `${w} crashed: ` + String(e.message || e).split("\n")[0]); }
       finally { await ctx.close().catch(() => {}); }
