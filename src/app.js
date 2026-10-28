@@ -4013,7 +4013,7 @@
       $("sheetClose").onclick = closeSheet;
       $("sheetClose2").onclick = closeSheet;
       // 구역 페이지(/z/<id>)가 있는 곳은 그 주소로: 미리보기 카드·검색 노출이 구역마다 붙는다
-      $("zoneShare").onclick = () => shareLink(r.src !== "moa" && !(r.s >= 9 || (r.dn && r.s < 7)) && /^[\w-]+$/.test(r.id) ? `https://jaegaebal.alwaysquestions.kr/z/${r.id}` : pageURL() + condQuery() + "#" + r.id, $("zoneShareFb"), `${shortName(r.n)} · ${BRAND}`);
+      $("zoneShare").onclick = () => shareLink(r.src !== "moa" && !(r.s >= 9 || (r.dn && r.s < 7)) && /^[\w-]+$/.test(r.id) ? `https://jaegaebal.alwaysquestions.kr/z/${r.id}` : condLink(r.id), $("zoneShareFb"), `${shortName(r.n)} · ${BRAND}`);
       const tabs = [...rp.querySelectorAll("[role=tab]")];
       tabs.forEach((b, i) => {
         b.onclick = () => setTab(b.dataset.tab);
@@ -4157,7 +4157,7 @@
     cash: () => CASH, gap: () => gapMode(), tapp: () => document.documentElement.classList.contains("is-tapp"),
     open: (id) => { curTab = "money"; select(id, true, false, { scroll: true }); },
     brand: BRAND, etaShow: (r) => etaShow(r), yrsSince: (d) => ZF.yrsSince(d), dur: (y) => ZF.dur(y), stall: (r) => stallYrs(r), shown: (r) => DTL.shown(r), win: (r) => buyWindow(r), b18: (r) => b18Of(r), calc: (r) => { try { const x = investC(r); return x ? { ok: !!x.ok, appr: x.appr, ratio: x.ratio, unitPrice: x.unitPrice, unitArea: x.unitArea, contrib: x.contrib, apprWhy: x.apprWhy } : null; } catch (e) { return null; } },
-    stageDate: (r) => curStageDate(r), condURL: () => location.href.split(/[?#]/)[0] + condQuery(), condQ: () => condQuery(), share: (url, fb, t) => shareLink(url, fb, t), ZL: typeof ZL !== "undefined" ? ZL : null, spark: (id) => { try { return SIMPLE.spark(id); } catch (e) { return ""; } }, gapMode: () => gapMode(), evOf: (id) => { try { return typeof INBOX !== "undefined" ? INBOX.evOf(id) : []; } catch (e) { return []; } }, inboxLoad: () => { try { return typeof INBOX !== "undefined" && INBOX.load ? INBOX.load() : Promise.resolve(); } catch (e) { return Promise.resolve(); } }, ntLoad: () => ntLoad(), geo: (id) => { try { const g = ZX.geoZ(); return g ? g[id] : null; } catch (e) { return null; } }, news: (id) => { try { if (typeof INBOX === "undefined") return ""; const e = INBOX.evOf(id)[0]; return e ? `${INBOX.dLabel(e.date).replace(/ \(.\)$/, "")} ${INBOX.TY[e.type][0]}` : ""; } catch (e) { return ""; } }, pcl: (id) => ZX.loadPcl(id), rules: () => { const el = $("rules"); if (el && !el.innerHTML.trim()) drawRules(); }, cur: () => cur, tab: () => curTab, areaBad: (r) => areaSuspect(r), ok: (r) => !!(window.ZP_ok && window.ZP_ok(r)),
+    stageDate: (r) => curStageDate(r), condLink: (route, search) => condLink(route, search), condQ: () => condQuery(), share: (url, fb, t) => shareLink(url, fb, t), ZL: typeof ZL !== "undefined" ? ZL : null, spark: (id) => { try { return SIMPLE.spark(id); } catch (e) { return ""; } }, gapMode: () => gapMode(), evOf: (id) => { try { return typeof INBOX !== "undefined" ? INBOX.evOf(id) : []; } catch (e) { return []; } }, inboxLoad: () => { try { return typeof INBOX !== "undefined" && INBOX.load ? INBOX.load() : Promise.resolve(); } catch (e) { return Promise.resolve(); } }, ntLoad: () => ntLoad(), geo: (id) => { try { const g = ZX.geoZ(); return g ? g[id] : null; } catch (e) { return null; } }, news: (id) => { try { if (typeof INBOX === "undefined") return ""; const e = INBOX.evOf(id)[0]; return e ? `${INBOX.dLabel(e.date).replace(/ \(.\)$/, "")} ${INBOX.TY[e.type][0]}` : ""; } catch (e) { return ""; } }, pcl: (id) => ZX.loadPcl(id), rules: () => { const el = $("rules"); if (el && !el.innerHTML.trim()) drawRules(); }, cur: () => cur, tab: () => curTab, areaBad: (r) => areaSuspect(r), ok: (r) => !!(window.ZP_ok && window.ZP_ok(r)),
   });
   const featHook = (tab, r) => {
     if (!["biz", "tx", "loc"].includes(tab) || !r || (r.src === "moa" && tab !== "biz")) return;
@@ -6518,7 +6518,7 @@
     const w = buyWindow(r);
     if (w.cls === "no") return `지금 사면 입주권 없음 · ${w.due || ""}`.replace(/ · $/, "");
     if (w.cls === "chk") return `입주권 판정 보류 · ${w.t}`;
-    if (P.jr == null && ZFX.jrInfo(r).hold) return "전세 끼고 계산 보류 · 구역 전세 실측이 평균보다 크게 낮음(표본 적음)";
+    if (P.jr == null && ZFX.jrInfo(r).hold && (() => { try { return investC(r).price != null; } catch (e) { return false; } })()) return "전세 끼고 계산 보류 · 구역 전세 실측이 평균보다 크게 낮음(표본 적음)";
     return null;
   }
   let GCACHE = new Map(),
@@ -7583,8 +7583,9 @@
       i.select();
     }
   }
+  // 사이클 3(개인정보): 조건 문자열은 주소의 ?가 아니라 window.ZP_CQ(첫 스크립트가 # 뒤·옛 ?에서 읽음)에서 — 서버 요청에 금액·연소득이 실리지 않게
   function condQuery() {
-    const q = new URLSearchParams(location.search);
+    const q = new URLSearchParams(window.ZP_CQ || "");
     const set = (k, v, def) => {
       if (v == null || v === "" || String(v) === String(def)) q.delete(k);
       else q.set(k, v);
@@ -7604,7 +7605,9 @@
     return s ? "?" + s : "";
   }
   const pageURL = () => location.href.split(/[?#]/)[0];
-  $("shareBtn").onclick = () => shareLink(pageURL() + condQuery(), $("shareFb"));
+  // 공유 주소: 조건은 # 뒤('/#o61?cash=3&mode=jeonse') — 받은 사람이 열어도 서버에는 조건이 가지 않는다
+  const condLink = (route, search) => pageURL() + (search ? "?" + search : "") + "#" + (route || "") + condQuery();
+  $("shareBtn").onclick = () => shareLink(condLink(""), $("shareFb"));
   let urlT = 0;
   function syncURL() {
     clearTimeout(urlT);
@@ -7612,7 +7615,10 @@
       // 첫 실행 질문(shell.html #onb)이 떠 있는 동안은 저장하지 않는다(답하기 전 기본값이 '저장된 조건'으로 남지 않게)
       if (document.documentElement.classList.contains("onb-on")) return;
       try {
-        history.replaceState(history.state, "", location.pathname + condQuery() + location.hash);
+        window.ZP_CQ = condQuery();
+        // 주소에는 조건을 싣지 않는다(옛 ?cash= 가 남아 있으면 지움 · 다른 ?값은 그대로)
+        const q = new URLSearchParams(location.search); ["cash", "mode", "fund", "homes", "first", "unit", "inc", "income", "basis", "kind", "jr"].forEach((k) => q.delete(k));
+        if (q.toString() !== location.search.replace(/^\?/, "")) history.replaceState(history.state, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
       } catch (e) {}
       try {
         localStorage.setItem("jg-cond", condQuery());
@@ -7622,7 +7628,7 @@
   // 4라운드: 뒤로 가기로 돌아간 칸의 주소(?cash=…)는 그 칸을 쌓을 때의 조건 → 지금 조건으로 다시 맞춘다(새로고침·앱 복원 때 고른 금액이 사라지지 않게)
   addEventListener("popstate", () => syncURL());
   function restoreURL() {
-    let qs = location.search;
+    let qs = window.ZP_CQ || "";
     if (!/[?&](cash|mode|fund|inc|income)=/.test(qs)) {
       try {
         const sv = localStorage.getItem("jg-cond");
@@ -8310,9 +8316,7 @@
   }
   if (!CMP.length) CMP = FAV.slice(0, 3);
   function favShareURL() {
-    const q = new URLSearchParams(condQuery().slice(1));
-    q.set("fav", (CMP.length >= 2 ? CMP : FAV).join("."));
-    return pageURL() + "?" + q.toString() + "#favTop";
+    return condLink("favTop", "fav=" + (CMP.length >= 2 ? CMP : FAV).join("."));   // 사이클 3: 조건은 # 뒤
   }
   // 내 핀: 목록·소식은 PINS(ext/70_pins.js), 나란히 보기 표는 여기서
   function favCmpTable(sel) {

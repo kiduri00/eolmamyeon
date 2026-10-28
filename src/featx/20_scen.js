@@ -12,11 +12,11 @@
     const x = {}; XID.forEach(([k, id]) => { const el = document.getElementById(id); const v = el && String(el.value || "").trim(); if (v) x[k] = v.slice(0, 12); });
     return { n: String(name || "").trim().slice(0, 20), q: ctx.condQ(), x, at: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10) };   // 사이클 3: 저장일은 서울 날짜(KST) — UTC라 아침에 어제 날짜로 찍히던 것
   };
-  // 시나리오 → 주소(?조건&sv=…#planner)
+  // 시나리오 → 주소(#planner?조건&sv=…) — 사이클 3: 금액·연소득은 # 뒤(서버 요청에 실리지 않음)
   X.scenURL = (ctx, s) => {
     const base = location.href.split(/[?#]/)[0], q = new URLSearchParams((s.q || "").replace(/^\?/, ""));
     XID.forEach(([k]) => { if (s.x && s.x[k] != null && s.x[k] !== "") q.set(k, s.x[k]); });
-    return base + "?" + q.toString() + "#planner";
+    return base + "#planner?" + q.toString();
   };
   // 한 줄 요약(저장 목록·공유 미리보기)
   X.scenSum = (ctx, s) => {
@@ -31,9 +31,8 @@
     return b.join(" · ");
   };
   X.scenApply = (ctx, s) => {
-    const u = new URL(X.scenURL(ctx, s));
-    if (u.search === location.search) { location.hash = "planner"; location.reload(); }
-    else location.assign(u.toString());
+    // 같은 문서의 # 바꾸기 → 첫 스크립트(hashchange)가 조건을 읽고 다시 연다
+    location.assign(X.scenURL(ctx, s));
   };
   const html = (ctx) => {
     const esc = ctx.esc, L = X.scenList();

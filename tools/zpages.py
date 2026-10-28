@@ -295,7 +295,7 @@ def hold_line(r, c, k3):
     t = r.get('tx') or {}; w = gapWhy(c)
     h = __import__('zsample').hold_of(r, 'now')   # 사이클 3: 보류 이유 하나(ZoneFacts · 앱 시트 첫 칸과 같은 문장)
     if noTicket(r, c): why = '착공 뒤라 조합원 입주권을 사야 해요' if r.get('s', 0) >= 8 and t.get('im') else (h['txt'] if h else '지금 사면 새 아파트 입주권이 안 나와서 계산하지 않아요')
-    elif h and h.get('code') == 'jrLow': why = h['txt']
+    elif h and h.get('code') != 'gapBlock': why = h['txt']   # 매수가부터 못 정한 곳·전세가율 보류: 보류 이유 하나
     elif w and w[0] == '토허제': why = '토지거래허가구역이라 2년 실거주해야 해서 전세를 끼고 살 수 없어요'
     elif w and w[0] != '대상 아님': why = f'전세를 끼고 계산하지 않아요. {w[1]}'
     elif k3['basis']: why = k3['basis'].replace(' · ', ', ')
@@ -614,7 +614,7 @@ def hand_calc(r, h):
            + ('<div class="kpis">' + ''.join(f'<div class="kpi"><span>{a}</span><b>{b}</b><small>{s}</small></div>' for a, b, s in kp) + '</div>' if kp else '')
            + ''.join(f'<p>{esc(x)}</p>' for x in p)
            + f'<p class="note">가정: 무주택·84㎡·비례율 100%·연소득 미입력. 바꾸면 결과가 크게 달라져요(<a href="../method">계산 가정 전체</a>).</p>'
-           + f'<div class="cta"><a class="btn primary" href="../?from=z{"" if gap else "&fund=cash"}&cash={cc}#{rid}">내 돈으로 다시 계산하기</a></div>'
+           + f'<div class="cta"><a class="btn primary" href="../?from=z#{rid}?{"" if gap else "fund=cash&"}cash={cc}">내 돈으로 다시 계산하기</a></div>'
            + (f'<h3>비교용 자료: 같은 {esc(g)}에서 전세 끼고 지금 드는 돈이 {"더 적은" if gap else "계산되는"} 구역</h3><p class="meta">추천 목록이 아니에요. 단계·준공 가능성은 구역마다 달라요.</p><ul class="links">' + ''.join(cmp_) + '</ul>' if cmp_ else '')
            + '<!--/zc-->')
     h = h[:m.start()] + blk + h[m.end():]

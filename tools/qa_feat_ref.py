@@ -62,8 +62,14 @@ for r in D['recs']:
         gaps.append([a[0], b[0], round(y, 4), st['med'] if st else None, lvl])
     nxt = None
     nk = NEXT.get(r.get('s')) if not r.get('dn') and not (r.get('s', 0) >= 9) else None
+    # 사이클 3(ZoneFacts): 가로·소규모·모아 사업시행 다음 = 이주·착공(사업시행>착공) · 소규모는 자기 통계(uses small)가 있을 때만 기간 · 통계 없으면 nostat
+    import re as _re
+    smk = bool(_re.search('가로|소규모|모아', r.get('k') or ''))
+    if nk and smk and r.get('s') in (5, 6): nk = '사업시행>착공'
     if nk:
-        fr = nk.split('>')[0]; fd = dt.get(fr) or (dt.get('시행자지정') if fr == '조합설립' else None); st = stat(rr, nk)
+        fr = nk.split('>')[0]; fd = (dt.get('관리처분') or dt.get('사업시행') if fr == '사업시행' and r.get('s') == 6 else dt.get(fr)) or (dt.get('시행자지정') if fr == '조합설립' else None) or r.get('sd')
+        st = stat(rr, nk) if not smk or ((TRS.get('small') or {}).get(nk) or {}).get('uses') == 'small' else None
+        if fd and not st and yr(fd) is not None: nxt = [nk, None, None, 'nostat']
         if fd and st and yr(fd) is not None:
             # 사이클 2: 경과 = zsample.yrs_since(데이터 갱신일 기준 · 화면 ZF.yrsSince와 같은 셈) · 장기 정체 = zsample.stall_yrs
             y0 = yr(fd); el = zs.yrs_since(fd, UPD)

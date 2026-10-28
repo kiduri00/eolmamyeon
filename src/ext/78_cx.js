@@ -36,10 +36,11 @@ const CX = (() => {
   addEventListener("storage", (e) => { if (e.key === KEY) paint(); });
   // 주소로 받은 비교·시나리오(공유 링크)
   function boot() {
-    let q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    let q, cq; try { q = new URLSearchParams(location.search); cq = new URLSearchParams(window.ZP_CQ || ""); } catch (e) { return; }
     const XID = [["sv", "svMon"], ["ar", "aRatio"], ["ag", "aGrowth"], ["at", "aRate"]];
     let hit = false;
-    XID.forEach(([k, id]) => { const v = q.get(k); if (v == null) return; hit = true; q.delete(k); const el = document.getElementById(id); if (el && /^-?[\d.,]{1,12}$/.test(v)) { el.value = v; try { el.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) {} } });
+    // 사이클 3: 시나리오 값은 # 뒤 조건(ZP_CQ)에서 읽고 지운다(주소 ?에는 없음)
+    XID.forEach(([k, id]) => { const v = cq.get(k); if (v == null) return; cq.delete(k); try { window.ZP_CQ = cq.toString() ? "?" + cq : ""; } catch (e) {} const el = document.getElementById(id); if (el && /^-?[\d.,]{1,12}$/.test(v)) { el.value = v; try { el.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) {} } });
     const c = q.get("cmp");
     if (c != null) { hit = true; q.delete("cmp"); }
     if (hit) try { history.replaceState(history.state, "", location.pathname + (q.toString() ? "?" + q : "") + (location.hash === "#cmp" ? "" : location.hash)); } catch (e) {}

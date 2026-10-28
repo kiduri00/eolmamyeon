@@ -102,8 +102,8 @@
       if (!x || x.price == null) out.now = priceHold(r, x);
       else if (gap) {
         let g = null; try { g = gapOf(r); } catch (e) {}
-        const jr = jrInfo(r);
-        if (jr.hold) out.now = H("jrLow", "전세가율 확인 필요", jr.holdTxt);
+        const jr = jrInfo(r), jb = g && g.block && /^전세 끼고 계산 보류/.test(String(g.block));
+        if (jb && jr.hold) out.now = H("jrLow", "전세가율 확인 필요", jr.holdTxt);
         else if (g && g.block && g.block !== "계산 대상 아님") {
           // 전세 끼고는 못 사는 곳: 지금 필요한 돈은 대출 끼고 값으로 보여 준다(보류 아님) · 입주권 판정 보류만 이유로
           if (!(x && x.needBuy != null && isFinite(x.needBuy) && !r.lc && r.tag !== "mk")) out.now = H("gapBlock", "전세 끼고 불가", String(g.block).replace(/\s*\(.*\)\s*$/, ""));

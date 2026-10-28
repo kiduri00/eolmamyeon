@@ -143,14 +143,14 @@ const CH = {
   assert.equal(match({ z: [], c: [{ cash: 1.5, mode: "gap" }] }, CH.items).cond.length, 0, "아직 모자라면 아님");
   assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", minS: 4 }] }, CH.items).cond.length, 0, "단계 조건");
   const one = compose(match({ z: ["o354"], c: [] }, CH.items), "2026-10-19");
-  assert.deepEqual(one, { title: "목동4단지 · 단계", body: "조합설립인가 → 사업시행인가", url: "/#o354", tag: "zippin-2026-10-19" });
+  assert.deepEqual(one, { title: "목동4단지 · 단계", body: "조합설립인가 → 사업시행인가", url: "/#o354", tag: "jp-2026-10-19" });
   const many = compose(m, "2026-10-19");
   assert.match(many.title, /관심 구역 1곳에 새 소식 · 알림 조건 1곳/); assert.equal(many.url, "/#inbox"); assert.match(many.body, /고덕강일1 · 전세 끼고 1\.7억 → 내 돈으로 살 수 있게 됐어요/);
   // 경매: 핀 구역이면 zone, 조건에 맞는 구역(c.z)이면 cond
   const AU = { id: "o337", date: "2026-10-19", type: "auction", text: "경매 물건 등장 · 다세대 최저 2.6억 · 입찰 10.28", n: "신정1-3", g: "양천구", k: "e" };
   assert.deepEqual(match({ z: ["o337"], c: [] }, [AU]).zone.map((e) => e.id), ["o337"]);
   const ca = match({ z: [], c: [{ n: "x", cash: 2, mode: "gap", z: ["o337"] }] }, [AU]);
-  assert.equal(ca.cond.length, 1); assert.deepEqual(compose(ca, "2026-10-19"), { title: "신정1-3 · 경매 물건 등장", body: "신정1-3 · 경매 물건 등장 · 다세대 최저 2.6억 · 입찰 10.28", url: "/#o337", tag: "zippin-2026-10-19" });
+  assert.equal(ca.cond.length, 1); assert.deepEqual(compose(ca, "2026-10-19"), { title: "신정1-3 · 경매 물건 등장", body: "신정1-3 · 경매 물건 등장 · 다세대 최저 2.6억 · 입찰 10.28", url: "/#o337", tag: "jp-2026-10-19" });
   assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o1"] }] }, [AU]).cond.length, 0);
   assert.equal(compose(match({ z: ["o337"], c: [] }, [AU]), "d").title, "신정1-3 · 경매");
   assert.equal(compose(match({ z: ["zzz"], c: [] }, CH.items), "x"), null);

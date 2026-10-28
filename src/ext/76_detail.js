@@ -35,7 +35,8 @@ const DTL = (() => {
       if (g && g.block && g.block !== "계산 대상 아님") {
         // 전세 끼고는 못 사는 곳: 전세 낀 숫자는 내지 않고(머리 '전세 끼고 사기 불가'와 같은 판정) 대출 끼고 사는 길을 한 줄로 — /z 페이지(zsample.key3)와 같은 글
         o.need = null; o.total = null; o.why2 = "전세 끼고는 계산하지 않아요";
-        o.basis = /^전세 끼고 계산 보류/.test(g.block) ? ZFX.of(r).hold.now.txt : `전세를 안고는 살 수 없어요 · ${String(g.block).replace(/\s*\(.*\)\s*$/, "").replace(/^전세 낀 매수 불가\s*·\s*/, "")}`;
+        const hn = ZFX.of(r).hold.now;   // 사이클 3: 매수가부터 못 정한 곳(이주·철거 등)·전세가율 보류는 보류 이유 하나(ZoneFacts)로
+        o.basis = hn && hn.code !== "gapBlock" ? hn.txt : `전세를 안고는 살 수 없어요 · ${String(g.block).replace(/\s*\(.*\)\s*$/, "").replace(/^전세 낀 매수 불가\s*·\s*/, "")}`;
         // 27차: 대출 끼고 사는 값을 칸의 큰 값으로(+ '대출 끼고' 꼬리표) — '계산 보류' 칸과 아래 한 줄이 같은 말을 두 번 하던 것(/z zsample.key3 lnow·ltot와 같은 값)
         if (x && ok(x.needBuy) && !r.lc && r.tag !== "mk") { o.lnow = x.needBuy; if (x.ok && ok(x.needTotal)) o.ltot = x.needTotal; }
       } else if (!g || g.na || !g.x || !ok(g.x.price)) o.basis = holdTxt(r);
@@ -172,6 +173,9 @@ const DTL = (() => {
     // 입주권 없는 곳은 '계산 안 함 · 이유 보기' 줄을 두지 않는다(이유는 셋째 칸에서 한 번 · 20차 G3)
     let ntR = false; try { ntR = noTicket(r); } catch (e) {}
     if (!ntR && r.src !== "moa") box.insertAdjacentHTML("beforeend", trustLine(r));
+    // 사이클 3: 같은 대표지번에 다른 사업장(면목동 172-1: 재건축 추진위 o38 · 민간재개발 o39) — 같은 땅이 두 사업으로 등록된 걸 알린다
+    { const jb = String(r.j || "").replace(/\s+/g, ""), tw = jb && r.src !== "moa" ? R.filter((q) => q !== r && q.src !== "moa" && !q.dn && String(q.j || "").replace(/\s+/g, "") === jb && shortName(q.n) !== shortName(r.n)) : [];
+      if (tw.length) { box.insertAdjacentHTML("beforeend", `<p class="dt-same" role="note"><b>같은 대표지번(${esc(r.j)}) 사업장 있음</b> ${tw.map((q) => `<button type="button" class="linklike" data-go="${esc(q.id)}">${esc(shortName(q.n))}</button>(${esc(q.k)} · ${esc(stageName(q))})`).join(", ")} · 정보몽땅에 따로 등록된 사업장이라 단계·금액이 서로 달라요 · 어느 사업이 진행되는지 구청에 확인하세요</p>`); box.querySelectorAll(".dt-same [data-go]").forEach((b) => (b.onclick = () => { curTab = "money"; select(b.dataset.go); })); } }
     // 첫 화면에서 내리는 것: 입지 점수(입지 탭 맨 위에 있음) · 머리 현금 띠(3숫자와 같은 값) · 공식 이름(맨 아래 출처로) · 판정 줄 자리
     head.querySelectorAll(".rep-t > .gb, .cstrip, .hjsum").forEach((e) => e.classList.add("dt-hide"));
     const vdw = w && w.querySelector(".ov-vdw"); if (vdw) vdw.remove();

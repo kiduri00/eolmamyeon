@@ -389,6 +389,7 @@ def main():
             h1 = glossary_link(h1, rel)
             h1 = ad_slots(h1, rel)
             if rel.startswith('report/'): h1 = report_links(h1)
+            import condlink; h1 = condlink.fix(h1)   # 사이클 3: 앱 링크의 계산 조건(금액·연소득)은 # 뒤로(서버 요청에 실리지 않게)
             if re.match(r'report/\d{4}-\d{2}\.html$', rel):   # 리뉴얼 사이클 2: 이미 낸 호도 질문형 소제목 + 도입부 훅(tools/report_copy.py)
                 import report_copy
                 h1 = report_copy.add_hook(report_copy.retitle(h1), int(rel[12:14]))

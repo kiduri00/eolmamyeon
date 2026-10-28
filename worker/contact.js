@@ -74,7 +74,7 @@ async function notifyAdmin(env, v, opts = {}) {
   const sub = await env.PUSH.get("admin:sub", "json");
   if (!sub || !sub.endpoint) return 0;
   const keys = await vapidKeys(env);
-  const msg = { title: `새 문의 1건 · ${KINDS[v.kind]}`, body: v.text.slice(0, 80) + (v.text.length > 80 ? "…" : ""), url: "/admin.html", tag: "zippin-admin-" + Date.now() };
+  const msg = { title: `새 문의 1건 · ${KINDS[v.kind]}`, body: v.text.slice(0, 80) + (v.text.length > 80 ? "…" : ""), url: "/admin.html", tag: "jp-admin-" + Date.now() };
   let code = 0;
   try { code = await sendPush(sub, msg, keys, subject(env), { fetch: opts.fetch }); } catch (e) { code = -1; }
   if (code === 404 || code === 410) await env.PUSH.delete("admin:sub");

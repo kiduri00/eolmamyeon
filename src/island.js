@@ -107,9 +107,10 @@
         // 주소 꼴 ?cash=1&mode=jeonse(앱 condQuery와 같음) — 금액·방식은 늘 적는다
         c.delete("fund"); c.set("cash", String(STOPS[cur.i])); c.set("mode", cur.f === "cash" ? "loan" : "jeonse");
         if (cur.f === "gap") c.delete("basis");
-        c.forEach(function (v, k) { q.set(k, v); });
+        // 사이클 3: 조건은 주소에 싣지 않는다(window.ZP_CQ · jg-cond만) — 서버 요청에 금액이 실리지 않게
         var cq = new URLSearchParams(); c.forEach(function (v, k) { cq.set(k, v); });
         var s = cq.toString() ? "?" + cq.toString() : "", qs = q.toString();
+        window.ZP_CQ = s;
         history.replaceState(history.state, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
         localStorage.setItem("jg-cond", s);
       } catch (e) {}
@@ -119,7 +120,7 @@
   // 저장된 조건 → 섬이 그릴 수 있는 상태면 그 상태로(아니면 그대로 두고 전체 앱을 기다린다 — boot.js가 이미 부름)
   function initial() {
     try {
-      var qs = location.search;
+      var qs = window.ZP_CQ || "";
       if (!/[?&](cash|mode|fund|inc|income)=/.test(qs)) qs = localStorage.getItem("jg-cond") || "";
       var q = new URLSearchParams(qs), f = "gap";
       if (["homes", "first", "unit", "inc", "income", "kind", "jr"].some(function (k) { return q.has(k); })) return;

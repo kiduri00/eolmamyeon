@@ -230,7 +230,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         else: o['eta'] = '없음'; o['esub'] = '새 아파트를 원하면 일반분양·분양권을 알아봐야 해요'
     elif c.get('gapBlock') and c['gapBlock'] not in ('계산 대상 아님', 'na'):   # 'na' = 매수가 자료 없음(아래 마지막 갈래)
         h = hold_of(r, 'now')
-        o['basis'] = h['txt'] if h and h.get('code') == 'jrLow' else '전세를 안고는 살 수 없어요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
+        o['basis'] = h['txt'] if h and h.get('code') != 'gapBlock' else '전세를 안고는 살 수 없어요 · ' + re.sub(r'^전세 낀 매수 불가\s*·\s*', '', re.sub(r'\s*\(.*\)\s*$', '', c['gapBlock']))
         if c.get('now') is not None and not r.get('lc') and r.get('tag') != 'mk':
             o['alt'] = f"대출 끼고 사면 지금 {cash(c['now'])}" + (f" · 입주까지 {cash(c['need'])}" if c.get('need') is not None else '')
             # 27차: 대출 끼고 사는 값을 칸의 큰 값으로(앱 76_detail.js keyHTML과 같은 꼴: 값 + '대출 끼고' 꼬리표) — '계산 보류' 칸과 아래 한 줄이 겹치던 것

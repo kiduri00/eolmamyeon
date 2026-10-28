@@ -2,7 +2,7 @@
 // KV(env.PUSH) 키: "vapid"(키쌍) · "state"({last, pend}) · "sub:<엔드포인트 해시>"({s, z, c, o, at}) · o = 끈 알림 종류
 import { vapidKeys, sendPush, b64u } from "./webpush.js";
 
-const MAXZ = 20, MAXC = 3, MAXCZ = 150, MAXBODY = 16384;
+const MAXZ = 20, MAXC = 3, MAXCZ = 500, MAXBODY = 32768;   // 사이클 3: 조건 구역 150 → 500(경매 있는 구역 먼저 · 앱 72_inbox payload와 같은 상한)
 const ID = /^[A-Za-z0-9_-]{1,24}$/;
 const KINDS = ["", "redev", "rebuild", "small"];
 // 푸시 서비스 주소만 받는다(아무 주소로나 POST를 보내게 되지 않도록)
@@ -114,7 +114,7 @@ export function compose(m, date) {
   else if (!m.zone.length && m.cond.length === 1) { const e = m.cond[0].e; title = e.type === "auction" ? `${e.n} · 경매 물건 등장` : "이 돈으로 살 수 있는 곳이 생겼어요"; url = "/#" + e.id; }
   else { title = zIds.length ? `관심 구역 ${zIds.length}곳에 새 소식${m.cond.length ? ` · 알림 조건 ${m.cond.length}곳` : ""}` : `알림 조건에 맞는 새 소식 ${m.cond.length}곳`; url = zIds.length === 1 && !m.cond.length ? "/#" + zIds[0] : "/#inbox"; }
   const body = (m.zone.length === 1 && !m.cond.length ? [m.zone[0].text] : L.slice(0, 3)).join("\n") + (L.length > 3 ? `\n외 ${L.length - 3}건` : "");
-  return { title, body: body.slice(0, 600), url, tag: "zippin-" + date };
+  return { title, body: body.slice(0, 600), url, tag: "jp-" + date };
 }
 
 async function loadChanges(env) {

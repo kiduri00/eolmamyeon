@@ -1331,9 +1331,9 @@ async function r14Lane(browser, api, errs) {
       await page.waitForTimeout(250);
       await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.ZP_count === "function", null, { timeout: 20000 }).catch(() => {});
       await settle(page, 900);
-      const b = await page.evaluate(() => ({ hidden: document.getElementById("onb").hidden, lock: document.documentElement.classList.contains("onb-on"), v: document.getElementById("sCashV").textContent.trim(), n: document.getElementById("sN").textContent, zc: window.ZP_count(2), zcNow: window.ZP_count(), pc: (document.getElementById("pCash") || {}).value, url: location.search, cond: localStorage.getItem("jg-cond"), vt: document.getElementById("sCash").getAttribute("aria-valuetext") }));
+      const b = await page.evaluate(() => ({ hidden: document.getElementById("onb").hidden, lock: document.documentElement.classList.contains("onb-on"), v: document.getElementById("sCashV").textContent.trim(), n: document.getElementById("sN").textContent, zc: window.ZP_count(2), zcNow: window.ZP_count(), pc: (document.getElementById("pCash") || {}).value, url: (window.ZP_CQ || "") + "|" + location.search, cond: localStorage.getItem("jg-cond"), vt: document.getElementById("sCash").getAttribute("aria-valuetext") }));
       expect(b.hidden && !b.lock && b.v === "2억" && +b.pc === 2 && intOf(b.n) === b.zc && b.zcNow === b.zc, "ui.onboard", T, `after 2억: onb hidden ${b.hidden} lock ${b.lock} · card "${b.v}" · #sN ${b.n} vs ZP_count(2) ${b.zc} · pCash ${b.pc}`);
-      expect(/[?&]cash=2(&|$)/.test(b.url) && /[?&]mode=jeonse/.test(b.url) && /cash=2/.test(b.cond || ""), "url.cash", "조건이 주소(?cash=&mode=)·localStorage에 남고, ?cash=2로 열면 2억(카드·계산기·곳 수)", `after onboarding: url "${b.url}" · jg-cond "${b.cond}"`);
+      expect(!/[?&](cash|mode)=/.test(String(b.url).split("|").pop()) && /cash=2/.test(b.cond || ""), "url.cash", "사이클 3: 조건은 주소 ?에 싣지 않고(# 뒤·ZP_CQ·localStorage) · 옛 ?cash=2 링크로 열면 2억(카드·계산기·곳 수) · 읽은 뒤 주소에서 지움", `after onboarding: url "${b.url}" · jg-cond "${b.cond}"`);
       expect(b.vt === `2억, ${b.n}곳`, "ui.budgetSheet", "예산 시트: 고른 금액 막대 곳 수 == 카드 == 시트 숫자 == ZP_count · 슬라이더 aria-valuetext '2억, N곳'", `aria-valuetext "${b.vt}" vs "2억, ${b.n}곳"`);
       // 두 번째 방문(주소 없이 /): 질문 없이 2억 그대로
       await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(400);
@@ -1364,13 +1364,13 @@ async function r14Lane(browser, api, errs) {
       await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1 && typeof window.ZP_count === "function", null, { timeout: 20000 }).catch(() => {});
       await settle(page, 700);
       const g = await page.evaluate(() => ({ onb: !document.getElementById("onb").hidden, v: document.getElementById("sCashV").textContent.trim(), pc: (document.getElementById("pCash") || {}).value, n: document.getElementById("sN").textContent, zc: window.ZP_count(2), url: location.search, hash: location.hash }));
-      expect(!g.onb && g.v === "2억" && +g.pc === 2 && intOf(g.n) === g.zc && /cash=2/.test(g.url), "url.cash", "조건이 주소(?cash=&mode=)·localStorage에 남고, ?cash=2로 열면 2억(카드·계산기·곳 수)", `?cash=2: onb ${g.onb} · card "${g.v}" · pCash ${g.pc} · #sN ${g.n} vs ZP_count(2) ${g.zc} · url "${g.url}"`);
+      expect(!g.onb && g.v === "2억" && +g.pc === 2 && intOf(g.n) === g.zc && !/cash=/.test(g.url), "url.cash", "사이클 3: 조건은 주소 ?에 싣지 않고(# 뒤·ZP_CQ·localStorage) · 옛 ?cash=2 링크로 열면 2억(카드·계산기·곳 수) · 읽은 뒤 주소에서 지움", `?cash=2: onb ${g.onb} · card "${g.v}" · pCash ${g.pc} · #sN ${g.n} vs ZP_count(2) ${g.zc} · url "${g.url}"`);
       // 해시 딥링크와 함께: ?cash=3&mode=loan#news → 소식 화면 + 대출 끼고 3억(replaceState가 #을 지우지 않음)
       await page.goto(BASE + "/?cash=3&mode=loan#news", { waitUntil: "domcontentloaded" });
       await page.waitForFunction(() => window.ZP_boot && window.ZP_boot.hyd === 1, null, { timeout: 20000 }).catch(() => {});
       await page.waitForTimeout(1200);
       const h = await page.evaluate(() => ({ hash: location.hash, on: (document.getElementById("news") || {}).classList?.contains("s-on"), mode: (document.querySelector('.s-mode button[aria-pressed="true"]') || {}).dataset?.f, pc: (document.getElementById("pCash") || {}).value, url: location.search }));
-      expect(h.hash === "#news" && h.on && h.mode === "cash" && +h.pc === 3 && /mode=loan/.test(h.url), "url.cash", "조건이 주소(?cash=&mode=)·localStorage에 남고, ?cash=2로 열면 2억(카드·계산기·곳 수)", `?cash=3&mode=loan#news: hash ${h.hash} · news on ${h.on} · mode ${h.mode} · pCash ${h.pc} · url "${h.url}"`);
+      expect(h.hash === "#news" && h.on && h.mode === "cash" && +h.pc === 3 && !/mode=loan/.test(h.url), "url.cash", "사이클 3: 조건은 주소 ?에 싣지 않고(# 뒤·ZP_CQ·localStorage) · 옛 ?cash=2 링크로 열면 2억(카드·계산기·곳 수) · 읽은 뒤 주소에서 지움", `?cash=3&mode=loan#news: hash ${h.hash} · news on ${h.on} · mode ${h.mode} · pCash ${h.pc} · url "${h.url}"`);
     } catch (e) { bad("ui.onboard", T, "crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
@@ -3588,7 +3588,7 @@ async function tappLane(browser, api, errs) {
         await page.click('#bSheet [data-bc="3"]'); await page.waitForTimeout(500);
         if (how === "back") await page.goBack().catch(() => {}); else if (how === "x") await page.click("#bSheet button.bs-x"); else await page.click("#bGo");
         await page.waitForTimeout(900);
-        const s = await page.evaluate(() => ({ q: new URLSearchParams(location.search).get("cash"), v: (document.getElementById("pCash") || {}).value, open: !document.getElementById("bSheet").hidden }));
+        const s = await page.evaluate(() => ({ q: new URLSearchParams(window.ZP_CQ || "").get("cash"), v: (document.getElementById("pCash") || {}).value, open: !document.getElementById("bSheet").hidden }));
         await page.goBack().catch(() => {}); await page.waitForTimeout(700);
         const ex = page.url();
         if (s.q !== "3" || String(s.v) !== "3" || s.open || ex !== "about:blank") R.push(`${app ? "app" : "web"} ${how} ${JSON.stringify(s)} → ${ex}`);
@@ -3601,7 +3601,7 @@ async function tappLane(browser, api, errs) {
         await page.goto(BASE + "/#saveTop", { waitUntil: "load", timeout: 30000 }); await page.waitForTimeout(2500);
         await page.click("#tSvCash button"); await page.waitForTimeout(500);
         await page.click('#bSheet [data-bc="3"]'); await page.waitForTimeout(400); await page.click("#bSheet button.bs-x"); await page.waitForTimeout(900);
-        const s = await page.evaluate(() => ({ q: new URLSearchParams(location.search).get("cash"), h: location.hash, view: document.documentElement.classList.contains("s-view") }));
+        const s = await page.evaluate(() => ({ q: new URLSearchParams(window.ZP_CQ || "").get("cash"), h: location.hash, view: document.documentElement.classList.contains("s-view") }));
         await page.goBack().catch(() => {}); await page.waitForTimeout(900);
         const b = await page.evaluate(() => ({ h: location.hash, view: document.documentElement.classList.contains("s-view") })).catch(() => null);
         if (s.q !== "3" || s.h !== "#saveTop" || !s.view || !b || b.h || b.view) R.push(`save ${W} ${JSON.stringify({ s, b })}`);
@@ -4058,10 +4058,10 @@ async function r26Lane(browser, api, errs) {
       const a = await page.evaluate(() => { const o = document.getElementById("onb"), b1 = o && o.querySelector('[data-oc="1"]'), x = o && o.querySelector("[data-olater]"); return { on: !!o && !o.hidden, p1: b1 ? b1.getAttribute("aria-pressed") : null, lh: x ? Math.round(x.getBoundingClientRect().height) : 0 }; });
       await page.focus("#sScrub"); await page.keyboard.press("ArrowRight"); await page.keyboard.press("ArrowRight");
       await page.waitForTimeout(1400); await settle(page, 400);
-      const b = await page.evaluate(() => ({ hidden: document.getElementById("onb").hidden, v: document.getElementById("sCashV").textContent.trim(), url: location.search, cond: localStorage.getItem("jg-cond") || "", onb: localStorage.getItem("zp.onb") }));
+      const b = await page.evaluate(() => ({ hidden: document.getElementById("onb").hidden, v: document.getElementById("sCashV").textContent.trim(), url: (window.ZP_CQ || "") + "|" + location.search, cond: localStorage.getItem("jg-cond") || "", onb: localStorage.getItem("zp.onb") }));
       await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(500);
       const c = await page.evaluate(() => ({ on: !document.getElementById("onb").hidden, v: document.getElementById("sCashV").textContent.trim() }));
-      expect(a.on && a.p1 === "true" && a.lh >= 44 && b.hidden && b.v !== "1억" && /[?&]cash=/.test(b.url) && /cash=/.test(b.cond) && !c.on && c.v === b.v, "ui.onboardKey", T, `first ${JSON.stringify(a)} · after keys ${JSON.stringify(b)} · revisit ${JSON.stringify(c)}`);
+      expect(a.on && a.p1 === "true" && a.lh >= 44 && b.hidden && b.v !== "1억" && /^[?&]?cash=|[?&]cash=/.test(b.url.split("|")[0]) && !/cash=/.test(b.url.split("|")[1]) && /cash=/.test(b.cond) && !c.on && c.v === b.v, "ui.onboardKey", T, `first ${JSON.stringify(a)} · after keys ${JSON.stringify(b)} · revisit ${JSON.stringify(c)}`);
     } catch (e) { bad("ui.onboardKey", T, "crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
@@ -4810,6 +4810,8 @@ const UNITS = {
   r31: { est: 70, limit: 300, files: [/^src\/(app\.js|app\.css|shell\.html)$/, /^tools\/(zpages|report)\.py$/] },
   // 리뉴얼 통합: 따로 만든 검사 도구를 단위로(같은 PASS/FAIL·JSON에 합침) — feat.*(qa_feat.js) · data.sync.*(qa_sync.js) · brand.residual(qa_brand.js) · zhand.*(zhand_check.py)
   feat: { est: 420, limit: 1200, browser: false, ext: ["node", "tools/qa_feat.js", "$BASE"], files: [/^src\/featx?\//, /^src\/ext\/(05_facts|20_zone|60_simple|66_tools|70_pins|72_inbox|74_my|76_detail|78_cx)\./, /^src\/app\.js$/, /^public\/sw\.js$/, /^tools\/(qa_feat|qa_feat_ref|qa_feat_split|zsample|agexy)\./] },
+  // 사이클 3: ZoneFacts 문장 대조(facts.* · tools/qa_facts.js) — 앱 판단 객체 = calc.json f = 시트 화면 = /z = API · 이어 붙인 문장 · 공유 주소에 조건 쿼리 없음
+  facts: { est: 900, limit: 2400, browser: false, ext: ["node", "tools/qa_facts.js", "$BASE"], files: [/^src\//, /^tools\/(qa_facts|zsample|zpages|zhand|api|calc|static_tabs|condlink)\./, /^public\/(z|api)\//] },
   sync: { est: 60, limit: 400, browser: false, ext: ["node", "tools/qa_sync.js", "$BASE"], files: [/^src\/app\.js$/, /^src\/ext\/(20_zone|30_api)\./, /^tools\/(api|zpages|report|stfix|jsnum|calc|build|enrich|zsample)\./, /^public\/(z|api)\//] },
   brand: { est: 10, limit: 120, browser: false, ext: ["node", "tools/qa_brand.js"], files: [/./] },
   zhand: { est: 60, limit: 400, browser: false, ext: ["python3", "tools/zhand_check.py"], files: [/^content\//, /^tools\/(zhand|zhand_check|zpages)\./, /^public\/(z|gu)\//] },

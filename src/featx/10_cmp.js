@@ -69,7 +69,7 @@
     const bind = () => {
       D.body.querySelectorAll("[data-cx-rm]").forEach((b) => (b.onclick = () => { X.cmpSet(X.cmpIds().filter((x) => x !== b.dataset.cxRm)); D.body.innerHTML = X.cmpHTML(X.cmpIds(), ctx); bind(); }));
       D.body.querySelectorAll("[data-cx-go]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); D.close(); setTimeout(() => ctx.open(a.dataset.cxGo), 0); }));
-      const sh = D.body.querySelector("[data-cx-share]"); if (sh) sh.onclick = () => { const u = new URL(ctx.condURL()); u.searchParams.set("cmp", X.cmpIds().join(".")); u.hash = "cmp"; ctx.share(u.toString(), D.body.querySelector("[data-cx-fb]"), `구역 비교 · ${X.cmpIds().length}곳`); };
+      const sh = D.body.querySelector("[data-cx-share]"); if (sh) sh.onclick = () => { const u = ctx.condLink("cmp", "cmp=" + X.cmpIds().join(".")); ctx.share(u, D.body.querySelector("[data-cx-fb]"), `구역 비교 · ${X.cmpIds().length}곳`); };
       const cl = D.body.querySelector("[data-cx-clear]"); if (cl) cl.onclick = () => { X.cmpSet([]); D.body.innerHTML = X.cmpHTML([], ctx); bind(); };
     };
     bind();

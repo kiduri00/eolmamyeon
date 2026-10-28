@@ -1,7 +1,7 @@
 /* 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "7f417d4f"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "070113c9"; // tools/build.py가 빌드 해시로 바꿔 씀
 const BRAND = "재개픽", BRAND_EN = "JaegaePick"; // 서비스 이름 — tools/build.py가 tools/brand.py 값으로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
@@ -151,7 +151,8 @@ self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : "" }; }
   const url = typeof d.url === "string" && d.url.startsWith("/") ? d.url : "/#inbox";
-  e.waitUntil(self.registration.showNotification(d.title || `${BRAND} · 새 소식`, { body: d.body || "관심 구역에 새 소식이 있어요", icon: "/icons/icon-192.png", badge: "/icon-badge-96.png", tag: d.tag || "zp", lang: "ko", data: { url } }));
+  // 사이클 3: 알림 태그 jp-(옛 이름 태그) — 새 알림을 띄울 때 jp-·zp가 아닌 옛 태그 알림은 닫는다(같은 날 알림이 두 묶음으로 남지 않게)
+  e.waitUntil(self.registration.getNotifications().then((ns) => ns.forEach((n) => { if (n.tag && !/^(jp|zp)/.test(n.tag)) n.close(); })).catch(() => {}).then(() => self.registration.showNotification(d.title || `${BRAND} · 새 소식`, { body: d.body || "관심 구역에 새 소식이 있어요", icon: "/icons/icon-192.png", badge: "/icon-badge-96.png", tag: d.tag || "jp", lang: "ko", data: { url } })));
 });
 // 알림을 누르면: 열린 앱 창이 있으면 그 창에서 구역을 열고(앱이 메시지를 받아 #id로 이동), 없으면 새 창
 self.addEventListener("notificationclick", (e) => {

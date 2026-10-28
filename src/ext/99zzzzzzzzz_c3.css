@@ -1,0 +1,15 @@
+/* ===== 사이클 3: 360px · 글자 130%(큰 글씨) ===== */
+/* 일정 탭 동의율 막대 '법정 기준 75%' 이름표가 오른쪽 밖으로(369px) — 선 왼쪽에 붙인다 */
+.meter .th span{left:auto;right:6px}
+/* 웹 홈 대표 문장 h1: 말줄임 대신 두 줄 */
+#sSite.s-site,h1.s-site{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;word-break:keep-all}
+/* 목록 '예산에서 남는 돈 1,300만'이 숫자 중간에서 잘리던 것: 꼬리표는 줄바꿈 허용(금액 한 덩이는 그대로) */
+.s-card .s-left{white-space:normal;flex:0 1 auto;min-width:0}
+/* 앱 첫 방문 금액 칩 '5,000만' 두 줄 꺾임 */
+html.is-tapp .tob-cash button{white-space:nowrap;padding:0 2px;font-size:15px;letter-spacing:-.04em}
+/* 시트 위 행동 줄('비교에 담기') */
+.dt-acts-top{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.dt-acts-top .btn{min-height:40px}
+/* 같은 대표지번 사업장 안내 */
+.dt-same{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:var(--surface-2,#F2F4F6);font-size:13px;line-height:1.5;color:var(--text-2,#4E5968);word-break:keep-all;overflow-wrap:anywhere}
+.dt-same b{color:var(--text-1,#191F28)}

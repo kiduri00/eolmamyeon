@@ -271,6 +271,25 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
         await c4.close();
       }
       check(!bad4.length, "feat.alerts", bad4.slice(0, 6).join(" ; "));
+      // 사이클 3: 넓은 조건(15억 · 대출 끼고 — 곳이 150을 넘음)에서도 앱 condAuc 구역 = 서버 match 경매 구역 · payload가 서버 한도(MAXBODY) 안
+      { const bw = [];
+        const c5 = await b.newContext({ viewport: { width: 390, height: 844 } });
+        const WIDE = [{ id: "cqaw", cash: 15, mode: "loan", base: [], at: Date.now() - 60 * 864e5, seen: "", asOf: "" }];
+        await c5.addInitScript((cond) => { try { if (!sessionStorage.getItem("qa5")) { sessionStorage.setItem("qa5", "1"); localStorage.clear(); localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); localStorage.setItem("zp-cond", JSON.stringify(cond)); } } catch (e) {} }, WIDE);
+        await c5.route("**/*", (r) => (/^http:\/\/(localhost|127\.0\.0\.1)/.test(r.request().url()) ? r.continue() : r.abort()));
+        const pg5 = await c5.newPage();
+        try {
+          await wd(pg5.goto(BASE + "/#my", { waitUntil: "domcontentloaded" }), 60000, "goto");
+          await wd(pg5.waitForFunction(() => window.ZP_INBOX && ZP_INBOX.ready && ZP_INBOX.ready(), null, { timeout: 30000 }), 31000, "inbox");
+          const s5 = await pg5.evaluate(() => { const I = window.ZP_INBOX, pl = I.payloadOf(), d0 = I.d0(); return { pl, size: JSON.stringify(pl).length, nIds: (window.PINS.condsAll ? window.PINS.condsAll() : []).map((n) => n.ids.length), aucK: I.condAuc().filter((e) => e.date >= d0).map((e) => `${e.id}|${e.date}|${e.text}`) }; });
+          const sub = { z: s5.pl.zones, o: s5.pl.o || [], c: s5.pl.conds }, m = PUSH.match(sub, CH.items.filter((e) => e.date >= d0));
+          const ak = [...new Set(m.cond.filter((x) => x.e.type === "auction").map((x) => `${x.e.id}|${x.e.date}|${x.e.text}`))].sort(), pa = [...new Set(s5.aucK)].sort();
+          if (JSON.stringify(ak) !== JSON.stringify(pa)) bw.push(`넓은 조건 서버 경매 ${ak.length} vs 앱 ${pa.length} · 앱만 ${pa.filter((x) => !ak.includes(x)).slice(0, 3)}`);
+          if (s5.size > 32768) bw.push(`payload ${s5.size}B > 32768`);
+          log(`  f9 wide: 조건 구역 ${JSON.stringify(s5.nIds)} · 서버로 ${s5.pl.conds.map((c) => c.z.length)} · 경매 앱 ${pa.length} 서버 ${ak.length} · payload ${s5.size}B`);
+        } catch (e) { bw.push("crash " + String(e.message || e).split("\n")[0]); }
+        await c5.close();
+        check(!bw.length, "feat.f9wide", bw.join(" ; ")); }
       check(!perr4.length, "feat.errors4", perr4.slice(0, 3).join(" | "));
     }
     // ---------- 6) 화면끼리 전수 대조(사이클 2 핵심 원칙: 판정·계산 함수 하나) — 구역 전체 · 기본 사는 방식(전세 끼고) ----------

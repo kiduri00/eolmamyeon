@@ -193,7 +193,7 @@ const PINS = (() => {
     const u8 = new TextEncoder().encode(js);
     let s = "j" + b64u(u8);
     try { if (typeof CompressionStream !== "undefined") { const z = "z" + b64u(await zpipe(u8, CompressionStream)); if (z.length < s.length) s = z; } } catch (e) {}
-    const u = pageURL() + condQuery() + "#pins=" + s;
+    const u = pageURL() + "#pins=" + s + condQuery();   // 사이클 3: 조건은 # 뒤(첫 스크립트가 읽고 지운 뒤 pinHash가 #pins=만 읽는다)
     MV = { k: js, u };
     return u;
   }

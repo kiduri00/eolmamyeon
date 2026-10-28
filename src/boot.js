@@ -107,7 +107,7 @@
   };
   var now = "";
   try {
-    var q = location.search, fav = ls("jg-fav"), so = ls("emr.sort");
+    var q = window.ZP_CQ || "", fav = ls("jg-fav"), so = ls("emr.sort");   // 사이클 3: 조건은 # 뒤·ZP_CQ(주소 ?에는 없음)
     if (ls("zp_full") === "1") now = "flag";
     else if (location.hash.length > 1) now = "hash";
     else if ((/[?&](cash|mode|homes|first|unit|inc|income|basis|kind|fund|jr)=/.test(q) || ls("jg-cond")) && !islOk(/[?&](cash|mode|fund|inc|income)=/.test(q) ? q : ls("jg-cond") || "")) now = "cond";

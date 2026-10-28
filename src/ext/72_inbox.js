@@ -164,7 +164,10 @@ const INBOX = (() => {
   const u8 = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const swReady = (ms = 8000) => Promise.race([navigator.serviceWorker.getRegistration("/").then((r) => r || navigator.serviceWorker.register("/sw.js", { scope: "/" })).then(() => navigator.serviceWorker.ready), new Promise((_, no) => setTimeout(() => no(new Error("sw")), ms))]);
-  const payload = (sub) => { const muteZ = new Set(mute().z); return { sub: sub.toJSON(), o: off(), zones: pinOn().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: n.ids.filter((id) => !muteZ.has(id)).slice(0, 150) })) }; };   // 사이클 2: 끈 구역은 조건 경로(conds[].z)에서도 뺀다(서버가 조건 경매로 보내던 누수)
+  const payload = (sub) => { const muteZ = new Set(mute().z); return { sub: sub.toJSON(), o: off(), zones: pinOn().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: condZ(n.ids, muteZ) })) }; };
+  // 사이클 3(F9): 조건 구역은 경매 소식이 있는 구역 먼저, 상한 500(worker/push.js MAXCZ와 같음) — 150에서 잘려 앱 소식(condAuc)에는 있는데 폰 알림이 오지 않던 것
+  const CZMAX = 500;
+  const condZ = (ids, muteZ) => { const A = new Set(CH ? CH.items.filter((e) => e.type === "auction").map((e) => e.id) : []), L = ids.filter((id) => !muteZ.has(id)); return L.filter((id) => A.has(id)).concat(L.filter((id) => !A.has(id))).slice(0, CZMAX); };   // 사이클 2: 끈 구역은 조건 경로(conds[].z)에서도 뺀다(서버가 조건 경매로 보내던 누수)
   // 시간 제한: 구독·서버 저장이 멈춰도 '켜는 중…'에 갇히지 않게(8초)
   const tmo = (p, ms, tag) => { let t; return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(new Error(tag || "timeout")), ms); })]).finally(() => clearTimeout(t)); };
   const postSub = (sub) => {
