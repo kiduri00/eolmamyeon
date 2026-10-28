@@ -310,6 +310,17 @@ AD_GAP = 600   # 사이클 2(애드센스 레드팀): mid와 bottom 사이 본�
 AD_GAP_DESK = 700
 
 
+AD_LEN_MIN, AD_PER_SLOT = 3000, 1500
+
+
+def main_len(h):
+    """본문 글자 수(공백 포함) — tools/zhand_check.py text()·애드센스 레드팀 audit.py와 같은 셈(<main> 안 · script·style·svg·nav·footer·header·template 뺌)"""
+    m = re.search(r'<main\b[^>]*>(.*)</main>', h, re.S); b = m.group(1) if m else h
+    b = re.sub(r'<(script|style|svg|nav|footer|header|template)\b[^>]*>.*?</\1>', ' ', b, flags=re.S)
+    t = re.sub(r'<[^>]+>', ' ', b); t = re.sub(r'&[a-z#0-9]+;', ' ', t)
+    return len(re.sub(r'\s+', ' ', t).strip())
+
+
 def _txt_len(s):
     s = re.sub(r'<(script|style|svg)\b.*?</\1>|<!--.*?-->', ' ', s, flags=re.S)
     return len(re.sub(r'\s+', '', re.sub(r'<[^>]+>', ' ', s)))
@@ -345,6 +356,9 @@ def ad_slots(h, rel):
     for p, k in sorted(out):
         if keep and _txt_len(body[keep[-1][0]:p]) < max(AD_GAP, AD_GAP_DESK): continue
         keep.append((p, k))
+    # 사이클 4(애드센스 레드팀 c3: 짧은 손글 7편이 칸 2개 · 칸당 본문 1,268~1,422자): 본문이 AD_LEN_MIN자 미만이거나 칸 하나당 AD_PER_SLOT자 미만이면 칸 1개(앞 칸)만
+    n = main_len(h)
+    if len(keep) > 1 and (n < AD_LEN_MIN or n / len(keep) < AD_PER_SLOT): keep = keep[:1]
     for p, k in reversed(keep): body = body[:p] + ad_slot(k, kind) + body[p:]
     return h[:a] + body + h[b:]
 
