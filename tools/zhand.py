@@ -196,6 +196,11 @@ def vals(X, r):
         v[lab] = f"{hb[kk] / 1000:.1f}km" if hb.get(kk) else None
     v['kind'] = X.KIND.get(r['k'], r['k']); v['name'] = X.short(r['n']); v['gu'] = g
     v['upd'] = X.UPD
+    # 사이클 3 통합: 판단 문장 값은 ZoneFacts(calc.json f)에서만 — 손글이 전세가율·다음 단계·입주 글자를 따로 만들지 않게
+    fx = c.get('f') or {}; jr = fx.get('jr') or {}; jz = jr.get('zone') or {}; nx = fx.get('next') or {}; et = fx.get('eta') or {}
+    v['jrUse'] = f"{jr['v']:g}%" if jr.get('v') is not None and not jr.get('hold') else None   # 계산에 쓴 전세가율(구역 실측이면 실측)
+    v['jrZone'] = f"{jz['v']:g}%" if jz.get('v') is not None else None; v['jrZoneN'] = f"{jz['n']:,}" if jz.get('n') else None   # 구역 안 전세 실측과 비교 표본 수
+    v['nextTo'] = nx.get('toName'); v['etaFx'] = et.get('txt')
     return v
 
 def fill(text, V, rid, plain=False):

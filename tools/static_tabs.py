@@ -150,7 +150,7 @@ def app_header(h):
 FOOT_LINKS = [('/about', '소개'), ('/method', '계산 방법'), ('/faq', '자주 묻는 질문'), ('/contact', '문의'), ('/terms', '이용약관'), ('/privacy', '<b>개인정보처리방침</b>'),
               ('/gu/', '구별 페이지'), ('/guide/', '가이드'), ('/report/', '월간 리포트'), ('/z/', '구역별 페이지'), ('/years', '몇 년 걸리나'),
               ('/glossary', '용어집'), ('/corrections', '오류 수정 기록')]
-FOOT_P = ' · '.join(f'<a href="{u}">{t}</a>' for u, t in FOOT_LINKS) + ' · <a href="https://blog.naver.com/always_questions" rel="noopener">블로그</a>'
+FOOT_P = ' · '.join(f'<a href="{u}">{t}</a>' for u, t in FOOT_LINKS)   # 사이클 3 리드 결정: 운영자 블로그 링크 없음(운영자 개인 정보 원칙)
 RF1 = re.compile(r'(<footer class="f"><p>).*?(</p>)', re.S)
 RF2 = re.compile(r'(<footer id="contact">.*?<p class="fl">).*?(</p>)', re.S)
 

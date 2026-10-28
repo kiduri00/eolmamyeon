@@ -46,6 +46,9 @@ APIMAP = {   # 글 키 → /api/v1 값(그 키의 글자 꼴로)
     'station': lambda a: {(a.get('station') or {}).get('name')}, 'walk': lambda a: {f"{a['station']['walkMin']}분"} if a.get('station') else {None},
     'rdx': lambda a: {ymd(a.get('rightsDate'))} if a.get('rightsDate') else {None}, 'pol': lambda a: {f"{a['oldPct']}%"} if a.get('oldPct') is not None else {None},
     'sampleN': lambda a: {f"{a['priceSample']['n']:,}"} if (a.get('priceSample') or {}).get('n') else {None},
+    # 사이클 3 통합: ZoneFacts 값(/api/v1 facts)
+    'jrUse': lambda a: {f"{a['facts']['jeonseRatio']['pct']:g}%"} if ((a.get('facts') or {}).get('jeonseRatio') or {}).get('pct') is not None and not a['facts']['jeonseRatio'].get('held') else {None},
+    'nextTo': lambda a: {((a.get('facts') or {}).get('next') or {}).get('to')}, 'etaFx': lambda a: {(a.get('facts') or {}).get('eta')},
 }
 # 고유 문장 비율(textstats.py와 같은 셈)
 def text(s):

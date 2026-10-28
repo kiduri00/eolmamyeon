@@ -134,7 +134,7 @@ const DTL = (() => {
     const en = (r.mk && r.mk.entry) || {};
     const basis = x && x.priceSrc === "user" && !est ? "내가 넣은 매수가 기준"
       : est ? `같은 구(${r.g}) 빌라 시세 기준`
-      : en.n ? `${en.src === "complex" ? (en.fill === "zoneapt" ? "구역 안 아파트" : "단지") : en.fill === "dong" ? "같은 동 빌라" : en.radius ? "주변 빌라" : en.m === "jibun" ? "같은 본번 빌라" : "구역 안 빌라"} ${en.n}건 기준` : "실거래 기준";
+      : en.n ? `${en.src === "complex" ? (en.fill === "zoneapt" ? "구역 안 아파트" : "단지") : en.fill === "dong" ? "같은 동 빌라" : en.radius ? "주변 빌라" : en.m === "jibun" ? "같은 본번 빌라" : "구역 안 빌라"} ${en.n}건 기준${en.tag ? ` · ${en.tag}` : ""}` : "실거래 기준";   // 사이클 3 통합: enrich tag('표본 적음')
     return `<button type="button" class="dt-trust ${cls}" data-dttrust><span class="dt-tc">추정</span><span class="dt-tt">${esc(basis)} · 믿을 만함: <b>${esc(lv)}</b></span><i aria-hidden="true">›</i></button>`;
   }
   function toTrust() {
@@ -174,7 +174,7 @@ const DTL = (() => {
     let ntR = false; try { ntR = noTicket(r); } catch (e) {}
     if (!ntR && r.src !== "moa") box.insertAdjacentHTML("beforeend", trustLine(r));
     // 사이클 3: 같은 대표지번에 다른 사업장(면목동 172-1: 재건축 추진위 o38 · 민간재개발 o39) — 같은 땅이 두 사업으로 등록된 걸 알린다
-    { const jb = String(r.j || "").replace(/\s+/g, ""), tw = jb && r.src !== "moa" ? R.filter((q) => q !== r && q.src !== "moa" && !q.dn && String(q.j || "").replace(/\s+/g, "") === jb && shortName(q.n) !== shortName(r.n)) : [];
+    { const jb = String(r.j || "").replace(/\s+/g, ""), tw = Array.isArray(r.sj) && r.sj.length ? r.sj.map((i) => R.find((q) => q.id === i)).filter(Boolean) : jb && r.src !== "moa" ? R.filter((q) => q !== r && q.src !== "moa" && !q.dn && String(q.j || "").replace(/\s+/g, "") === jb && shortName(q.n) !== shortName(r.n)) : [];
       if (tw.length) { box.insertAdjacentHTML("beforeend", `<p class="dt-same" role="note"><b>같은 대표지번(${esc(r.j)}) 사업장 있음</b> ${tw.map((q) => `<button type="button" class="linklike" data-go="${esc(q.id)}">${esc(shortName(q.n))}</button>(${esc(q.k)} · ${esc(stageName(q))})`).join(", ")} · 정보몽땅에 따로 등록된 사업장이라 단계·금액이 서로 달라요 · 어느 사업이 진행되는지 구청에 확인하세요</p>`); box.querySelectorAll(".dt-same [data-go]").forEach((b) => (b.onclick = () => { curTab = "money"; select(b.dataset.go); })); } }
     // 첫 화면에서 내리는 것: 입지 점수(입지 탭 맨 위에 있음) · 머리 현금 띠(3숫자와 같은 값) · 공식 이름(맨 아래 출처로) · 판정 줄 자리
     head.querySelectorAll(".rep-t > .gb, .cstrip, .hjsum").forEach((e) => e.classList.add("dt-hide"));

@@ -252,7 +252,7 @@ def key3(r, c, dt=None, as_of=None, upd=None):
     if c.get('price') is not None and (c.get('priceSrc') in PSRC or isEst(r, c)) and not nt and r.get('src') != 'moa' and not done:
         lv, _ = trust(r, c)
         est = isEst(r, c)
-        basis = f"같은 구({r.get('g', '')}) 빌라 시세 기준" if est else (f"{('구역 안 아파트' if en.get('fill') == 'zoneapt' else '단지') if en.get('src') == 'complex' else '같은 동 빌라' if en.get('fill') == 'dong' else '주변 빌라' if en.get('radius') else '같은 본번 빌라' if en.get('m') == 'jibun' else '구역 안 빌라'} {en['n']}건 기준" if en.get('n') else '실거래 기준')
+        basis = f"같은 구({r.get('g', '')}) 빌라 시세 기준" if est else (f"{('구역 안 아파트' if en.get('fill') == 'zoneapt' else '단지') if en.get('src') == 'complex' else '같은 동 빌라' if en.get('fill') == 'dong' else '주변 빌라' if en.get('radius') else '같은 본번 빌라' if en.get('m') == 'jibun' else '구역 안 빌라'} {en['n']}건 기준" + (f" · {en['tag']}" if en.get('tag') else '') if en.get('n') else '실거래 기준')   # 사이클 3 통합: enrich tag('표본 적음')
         o['trust'] = ('추정', f'{basis} · 믿을 만함: ', lv, {'높음': 'hi', '보통': 'md', '낮음': 'lo'}.get(lv, ''))
     else:
         h = hold_of(r, 'one')   # 사이클 3: 화면 신뢰 줄과 같은 짧은 이유(ZoneFacts hold.one.short)

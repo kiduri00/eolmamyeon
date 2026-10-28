@@ -147,7 +147,7 @@ HEAD = ('''<!doctype html>
 <main>
 ''')
 FOOT = ('''</main>
-<footer class="f"><p><a href="../report/">월간 리포트</a> · <a href="../z/">구역별 페이지</a> · <a href="../guide/">가이드·분석</a> · <a href="../years">몇 년 걸리나</a> · <a href="../about">소개</a> · <a href="../contact">문의하기</a> · <a href="../method">출처·계산 방법</a> · <a href="../terms">이용약관</a> · <a href="../privacy"><b>개인정보처리방침</b></a> · <a href="https://blog.naver.com/always_questions" rel="noopener">블로그</a></p><p class="f-c">© 2026 ''' + BRAND + ''' · 데이터 기준 {upd}</p></footer>
+<footer class="f"><p><a href="../report/">월간 리포트</a> · <a href="../z/">구역별 페이지</a> · <a href="../guide/">가이드·분석</a> · <a href="../years">몇 년 걸리나</a> · <a href="../about">소개</a> · <a href="../contact">문의하기</a> · <a href="../method">출처·계산 방법</a> · <a href="../terms">이용약관</a> · <a href="../privacy"><b>개인정보처리방침</b></a></p><p class="f-c">© 2026 ''' + BRAND + ''' · 데이터 기준 {upd}</p></footer>
 <script>/* 오프라인에서도 다시 열 수 있게: 서비스 워커를 붙이고 이 페이지를 저장해 달라고 알린다 */if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname==="localhost"))addEventListener("load",function(){{navigator.serviceWorker.register("/sw.js",{{scope:"/"}}).then(function(){{return navigator.serviceWorker.ready}}).then(function(r){{r.active&&r.active.postMessage({{t:"keep",u:[location.pathname]}})}}).catch(function(){{}})}});</script>
 </body>
 </html>
@@ -239,7 +239,7 @@ def glance(r, c, k3):
     AD = {'넓': ('넓고', '넓어요'), '좁': ('좁고', '좁아요'), '높': ('높고', '높아요'), '낮': ('낮고', '낮아요'), '많': ('많고', '많아요'), '적': ('적고', '적어요')}
     if stg and len(L) >= 5:
         bits = []
-        for f, sub, big, small, unit in ((_area, '면적은', '넓', '좁', lambda v: f'{int(v):,}㎡'), (_pol, '노후도는', '높', '낮', lambda v: f'{v}%'), (_units, '계획 세대는', '많', '적', lambda v: f'{int(v):,}세대')):
+        for f, sub, big, small, unit in ((_area, '면적은', '넓', '좁', lambda v: f'{int(v):,}㎡'), (_pol, '노후도는', '높', '낮', lambda v: f'{v}%'), (_units, {'분양': '분양 세대는', '총': '세대수는'}.get(str(((r.get('sm') or {}).get('uL') or '계획'))[:2].strip(), '계획 세대는'), '많', '적', lambda v: f'{int(v):,}세대')):   # 사이클 3 통합: 세대수 출처 라벨(enrich sm.uL)
             if len(bits) >= 2: break
             k = _rank(L, f, r)
             if not k or k[1] < 5: continue
@@ -332,6 +332,8 @@ def page(r):
     o.append(f'<p class="lede">{lede} 기본 가정(무주택·84㎡·전세 끼고)으로 낸 추정이고 투자 권유가 아니에요. <a href="../#{rid}">내 조건으로 열기</a></p>')
     gl = glance(r, c, k3)
     if gl: o.append(f'<h2>이 구역 한눈에</h2><p class="glance">{esc(" ".join(gl))}</p>')
+    tw = [_BY[i] for i in (r.get('sj') or []) if i in _BY]   # 사이클 3 통합: 같은 구·같은 대표지번에 따로 등록된 사업장(enrich sj · 앱 시트 '같은 대표지번 사업장 있음'과 같은 안내)
+    if tw: o.append(f'<p class="note same-j"><b>같은 대표지번({esc(r.get("j") or "")}) 사업장 있음</b> ' + ', '.join((f'<a href="{x["id"]}">{esc(short(x["n"]))}</a>' if x['id'] in _LIVE else esc(short(x['n']))) + f'({esc(KIND.get(x["k"], x["k"]))} · {esc(_stage(x))})' for x in tw) + ' · 정보몽땅에 따로 등록된 사업장이라 단계·금액이 서로 달라요 · 어느 사업이 진행되는지 구청에 확인하세요</p>')
     k = []
     k.append(('현재 단계', esc(stage), f'{sd} 인가·고시' if sd else ('진행 확인 필요' if stl else '아직 구역지정 전이라 인가일이 없어요' if r.get('s', 0) <= 1 else f'이 단계 인가일 기록 없음 · 직전 {prevd[0]} {prevd[1][:7].replace("-", ".")}' if prevd else '이 단계 인가일 기록 없음')))
     if c.get('gapOk') and c.get('gapTotal') is not None:   # 첫 화면 기본 모드(전세 끼고)와 같은 숫자
