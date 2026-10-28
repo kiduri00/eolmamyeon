@@ -193,10 +193,11 @@
   .tob-k{margin:0 0 8px;color:var(--t-navy);font:700 13.5px var(--font);letter-spacing:-.01em}
   .tob h2{margin:0 0 10px;color:var(--t-ink);font:800 26px/1.32 var(--font);letter-spacing:-.045em;word-break:keep-all}
   .tob-p{margin:0 0 24px;color:var(--t-sub);font:500 15.5px/1.55 var(--font);letter-spacing:-.02em;word-break:keep-all}
-  .tob-cash{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-  .tob-cash button{min-height:52px;border:0;border-radius:14px;background:var(--t-fill);color:var(--t-ink);font:700 16px var(--font);letter-spacing:-.02em;cursor:pointer;white-space:nowrap;word-break:keep-all;padding:0 2px}
-  @media (max-width:380px){.tob-cash button{font-size:15px;letter-spacing:-.04em}}   /* 사이클 4: 360 큰 글씨 '5,000만' 두 줄 꺾임 — 칩 글자는 한 덩이 */
+  /* 사이클 4: 칸 폭을 글자 크기(em)에 맞춰 — 큰 글씨 360에서 '5,000만'이 두 줄로 꺾이지 않게 4칸 → 3칸 · 고른 칩 = 노란 체크(00_pick.css 토큰) */
+  .tob-cash{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(64px,4.4em),1fr));gap:8px}
+  .tob-cash button{position:relative;min-height:52px;padding:0 2px;border:0;border-radius:14px;background:var(--t-fill);color:var(--t-ink);font:700 16px var(--font);letter-spacing:-.03em;white-space:nowrap;cursor:pointer}
   .tob-cash button[aria-pressed="true"]{background:var(--t-navy);color:var(--t-on)}
+  .tob-cash button[aria-pressed="true"]::after{content:"";position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;pointer-events:none;background:var(--zp-pick,#F5C33B) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M6.4 11.4l3.1 3.1 6.1-6.4' fill='none' stroke='%2313265E' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 0 0/100% 100%;box-shadow:0 0 0 1px var(--zp-pick-edge,#B07A00),0 0 0 2.5px var(--t-pg)}
   .tob-res{margin:16px 0 0;padding:16px 18px;border-radius:16px;background:var(--t-sec);border:0;font:600 15px/1.5 var(--font);color:var(--t-sub)}
   .tob-res b{color:var(--t-navy);font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
   .tob-zl{list-style:none;margin:0;padding:0;border:0;background:none}

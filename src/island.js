@@ -28,13 +28,17 @@
   var show0 = function () { try { return matchMedia("(min-width:981px)").matches ? Math.max(6, Math.min(12, Math.floor((Math.min(innerHeight - 79, 902) - 120) / 84) + 2)) : 8; } catch (e) { return 8; } };
   // 목록 줄 '남는 돈 · 딱 맞아요'(60_simple cardHTML과 같은 식·같은 ZF.cash 꼴) — 미리 뜬 줄에는 비워 두고 여기서 채운다
   var cashT = function (v) { var a = Math.abs(v), m = Math.ceil(a * 100 - 1e-6); if (a < 0.005) return "0원"; if (m < 100) return (m * 100).toLocaleString("ko-KR") + "만"; var u = Math.ceil(a * 10 - 1e-6) / 10; return u.toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + "억"; };
+  // 사이클 4 D4: 맨 아래 줄 왼쪽 '입주까지 현금 Y'(data-ft = 60_simple cardHTML ftA) — 미리 뜬 줄에는 비워 두고 여기서 다시 만든다
+  var esc = function (x) { return String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;"); };
+  var ftH = function (li) { var f = li.getAttribute("data-ft"); if (f == null) return ""; var p = f.split("|"); return '<span class="s-ftl' + (p[1] ? "" : " s-na") + '">' + esc(p[0]) + (p[1] ? " <b>" + esc(p[1]) + "</b>" : "") + "</span>"; };
   function fx(L, c) {
-    var li = L ? L.querySelectorAll("li[data-need]") : [];
+    var li = L ? L.querySelectorAll("li[data-need],li[data-ft]") : [];
     for (var k = 0; k < li.length; k++) {
-      var n = +li[k].getAttribute("data-need"), el = li[k].querySelector(".s-fx"), a = li[k].querySelector("a.s-cm");
-      if (!el || !isFinite(n)) continue;
+      var n = li[k].hasAttribute("data-need") ? +li[k].getAttribute("data-need") : NaN, el = li[k].querySelector(".s-fx"), a = li[k].querySelector("a.s-cm");
+      if (!el) continue;
+      if (!isFinite(n)) { el.innerHTML = ftH(li[k]); continue; }
       var left = Math.max(0, Math.round((c - n) * 100) / 100), fit = left <= c * 0.1 + 1e-9, t = fit ? "예산 거의 다 씀" : left >= 0.01 ? "예산에서 남는 돈 " + cashT(left) : "";
-      el.innerHTML = fit ? '<em class="s-fit">예산 거의 다 씀</em>' : t ? '<span class="s-left">' + t + "</span>" : "";
+      el.innerHTML = ftH(li[k]) + (fit ? '<em class="s-fit">예산 거의 다 씀</em>' : t ? '<span class="s-left">' + t + "</span>" : "");
       if (a && t && !/, (예산 거의 다 씀|예산에서 남는 돈)/.test(a.getAttribute("aria-label") || "")) a.setAttribute("aria-label", (a.getAttribute("aria-label") || "") + ", " + t);
     }
   }
@@ -93,6 +97,25 @@
     el = $("pCash"); if (el) el.value = String(STOPS[i]);
     dots();
     fit();
+    try { hero(f, i); } catch (e) {}
+  }
+  // 사이클 4 D1: 홈 금액 칩 · 다음 문턱 · 미니 지도 · 가장 맞는 곳 — 앱(60_simple heroR)과 같은 값(미리 뜬 곳 수 · 구별 수 · 목록 첫 줄)
+  var cntAt = function (f, i) { var s0 = P.st[f] && P.st[f][i]; return s0 ? num(S(s0[0][0]) + "곳") : null; };
+  function hero(f, i) {
+    var c = STOPS[i], el, k;
+    var hc = document.querySelectorAll("#hmChips [data-hc]");
+    for (k = 0; k < hc.length; k++) hc[k].setAttribute("aria-pressed", String(Math.abs(+hc[k].getAttribute("data-hc") - c) < 1e-9));
+    el = $("hmNext");
+    if (el && W.ZP_HM) {
+      var n0 = cntAt(f, i), up = null, skip = false, D5 = [0.5, 1, 1.5, 2, 3, 5];
+      if (c < 15 - 1e-9) for (k = 0; k < D5.length; k++) { var c2 = Math.round((c + D5[k]) * 10) / 10; if (c2 > 15) break; var j = STOPS.indexOf(c2); if (j < 0) { skip = true; break; } var n2 = cntAt(f, j); if (n2 > n0) { up = { d: D5[k], c: c2, n: n2 }; break; } }
+      var f1 = f === "cash" ? "gap" : "cash";
+      el.innerHTML = skip ? "" : W.ZP_HM.next(up, f1, cntAt(f1, i));
+      if (skip) el.removeAttribute("data-k"); else el.setAttribute("data-k", f + "|" + c);   // 앱(60_simple heroR)이 같은 상태면 다시 세지 않게
+    }
+    if (W.ZP_HM && P.thr) W.ZP_HM.paint(ghostSt().cnt);
+    el = $("hmBestL");
+    if (el && P.rows) { var st = P.st[f][i]; el.innerHTML = st[1].length ? P.rows[st[1][0]] : ""; fx(el, c); if ($("hmBest")) $("hmBest").hidden = !st[1].length; }
   }
   // 앱과 같은 자리(주소 ?cash=…·localStorage jg-cond)에 남겨 → 앱이 붙을 때 그대로 이어받는다
   var saveT = 0;
@@ -173,6 +196,12 @@
     var t = e.target, b = t.closest && t.closest("button,[role=button],[role=tab]");
     if (!b) return;
     if (b.closest(".zp-ph")) { wait(); return; }   // 지도 자리 그림의 누르기는 ghost.js가 받아 두었다가 앱에 넘긴다(ZP_G.onTap)
+    var hb = b.closest("#hmChips [data-hc], #hmNext .hm-nb");
+    if (hb) {
+      var hj = STOPS.indexOf(+(hb.getAttribute("data-hc") || hb.getAttribute("data-hup") || NaN));
+      if (hj >= 0) { apply(cur.f, hj); save(true); return; }
+      var hm = hb.getAttribute("data-hmode"); if (hm) { apply(hm === "cash" ? "cash" : "gap", cur.i); save(true); return; }
+    }
     var mo = b.closest(".s-mode");
     if (mo && b.dataset.f) { apply(b.dataset.f === "cash" ? "cash" : "gap", cur.i); save(true); return; }
     if (b.closest("#sSum") && b.dataset.id) { location.hash = "#" + b.dataset.id; wait(); return; }
