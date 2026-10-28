@@ -27,10 +27,13 @@ const HOLD_ALT = ["매수가로 쓸 거래가 없어", "이주·철거가 시작
   const b = await chromium.launch();
   const cx = await b.newContext({ viewport: { width: 390, height: 844 } });
   await cx.addInitScript(() => { try { localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp.onb", "1"); } catch (e) {} });
+  // 통합 c3: QAF_TAPP=1이면 앱 모드(TWA)로 — 첫 문서에서만 referrer를 앱으로 · sessionStorage zp.tapp=1 (rt_common '앱 모드 켜는 법')
+  if (process.env.QAF_TAPP) await cx.addInitScript(() => { try { if (!sessionStorage.getItem("zp.tapp")) Object.defineProperty(Document.prototype, "referrer", { get: () => "android-app://kr.alwaysquestions.jaegaepick/" }); sessionStorage.setItem("zp.tapp", "1"); } catch (e) {} });
   await cx.route("**/*", (r) => (/^http:\/\/(localhost|127\.0\.0\.1)/.test(r.request().url()) ? r.continue() : r.abort()));
   const p = await cx.newPage(); const perr = []; p.on("pageerror", (e) => perr.push(e.message)); p.on("console", (m) => { if (/^sheet /.test(m.text())) log("  " + m.text()); });
   await p.goto(BASE + "/?cash=3", { waitUntil: "domcontentloaded" });
   await p.waitForFunction(() => window.ZP_boot && ZP_boot.hyd === 1 && window.ZP_facts && window.ZP_feat, null, { timeout: 90000 });
+  if (process.env.QAF_TAPP) { const on = await p.evaluate(() => document.documentElement.classList.contains("is-tapp")); log(`  tapp mode: html.is-tapp ${on}`); if (!on) { check(false, "facts.tapp", "html.is-tapp가 붙지 않음"); } }
   // ---------- 1) 앱 ZoneFacts = calc.json f ----------
   const ids = ONLY || (await p.evaluate(() => ZP_feat.ctx().R.filter((r) => !(r.s >= 9) && !r.dn).map((r) => r.id)));
   log(`  zones ${ids.length}`); const t0 = Date.now();
