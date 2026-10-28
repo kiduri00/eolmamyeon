@@ -318,7 +318,7 @@ async function staticLane(api) {
       if (!/\.(html|xml|json|css)$/.test(f.name) || rel === "index.html") continue;
       let h = fs.readFileSync(p, "utf8");
       if (rel === "about.html") h = h.replace(/<!--zp-rename-->[\s\S]*?<!--\/zp-rename-->/, "");
-      if (rel === "corrections.html" || rel === "about.html") h = h.split(BN.RENAME_LINE).join("");   // 예외: 이름 변경 안내 한 줄(brand.RENAME_LINE)
+      if (rel === "corrections.html" || rel === "about.html" || rel === "faq.html") h = h.split(BN.RENAME_LINE).join("");   // 예외: 이름 변경 안내 한 줄(brand.RENAME_LINE · 사이클 3: FAQ 이름 변경 문답)
       h = h.replace(/"alternateName"\s*:\s*(\[[^\]]*\])/g, (x, a) => { try { return JSON.stringify(JSON.parse(a)) === JSON.stringify(BN.ALT_NAMES || []) ? "" : x; } catch (e) { return x; } });   // 사이클 2 예외: JSON-LD alternateName = brand.ALT_NAMES 그대로
       BN.OLD_RX.lastIndex = 0; const m = BN.OLD_RX.exec(h); if (m) bad.push(`${rel}: …${h.slice(Math.max(0, m.index - 30), m.index + 10).replace(/\s+/g, " ")}`); } };
     try { walk(PUBD); } catch (e) { bad.push("walk: " + e.message); }
@@ -4703,7 +4703,9 @@ async function r31Static(api) {
     const q = (/<ul class="rd-q">([\s\S]*?)<\/ul>/.exec(h) || [])[1] || "";
     const ns = [...q.matchAll(/진행 중인?(?: 정비사업)? ([\d,]+)곳/g)].map((m) => +m[1].replace(/,/g, ""));
     const tot = /([\d,]+)곳\(9\.26 기준 진행 중인 ([\d,]+)곳 \+ 모아타운 ([\d,]+)곳\)/.exec(q);
-    expect(ns.length >= 2 && new Set(ns).size === 1 && tot && +tot[1].replace(/,/g, "") === +tot[2].replace(/,/g, "") + +tot[3].replace(/,/g, "") && +tot[2].replace(/,/g, "") === ns[0] && /9\.26 기준/.test(q), "home.r31", T, `가이드 카드 진행 중 ${ns.join("/")} · ${tot ? tot[0] : "1,084 문장 없음"}`);
+    // 사이클 3: 입주권 판정 가이드는 10.28 판정 기준으로 다시 세어 카드에 진행 중 곳 수를 따로 쓰지 않음(1,087곳 · 진행 중 + 모아타운) — 진행 중 곳 수가 쓰인 카드끼리만 한 기준, 9.26 꼴 합계 문장이 있으면 그 합이 맞는지
+    const tot2 = /서울 정비사업 ([\d,]+)곳\(진행 중 구역 \+ 모아타운 · 10\.28 판정 기준\)/.test(q) || /정비사업과 모아타운 관리지역 ([\d,]+)곳\(10\.28 판정 기준\)/.test(q);
+    expect(ns.length >= 1 && new Set(ns).size === 1 && (tot ? +tot[1].replace(/,/g, "") === +tot[2].replace(/,/g, "") + +tot[3].replace(/,/g, "") && +tot[2].replace(/,/g, "") === ns[0] : tot2) && /9\.26 기준/.test(q), "home.r31", T, `가이드 카드 진행 중 ${ns.join("/")} · ${tot ? tot[0] : tot2 ? "입주권 카드 10.28 기준" : "입주권 카드 곳 수 문장 없음"}`);
     if (pubs.length) {
       const ym = pubs[0].ym;
       expect(new RegExp(`<article class="rd-card"><span class="rd-k">월간 리포트 ${pubs[0].no}호[^<]*</span><h3><a href="report/${ym}"`).test(h), "home.r31", T, `홈 읽을거리 리포트 카드가 최신 ${ym}(${pubs[0].no}호)가 아님`);
