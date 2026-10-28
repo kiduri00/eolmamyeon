@@ -96,8 +96,22 @@
       a = a.replace(/\(변경\)\s*/, chg ? "변경" : "").replace(/(인가|승인)(신청|고시)/, "$1 $2").replace(/계약\(변경\)/, "계약 변경").replace(/\s*:\s*/, " ");
       b = b.replace(/동의율\s*:\s*(\d+(?:\.\d+)?)\s*%?/, "동의율 $1%").replace(/동의율\s*:\s*(해당없음|[.\-]?)\s*$/, "").replace(/\(최초인가시\)/, " (최초 인가 때)")
         .replace(/(\S*?)일자\s*:\s*/, (x, p) => (p.endsWith("일") ? p : p + "일") + " ").replace(/선정업체명\s*:\s*/, "").replace(/(\d{4})-(\d{2})-(\d{2})/g, "$1.$2.$3").replace(/\b(20\d\d)(\d\d)(\d\d)\b/g, "$1.$2.$3").replace(/\s*:\s*/g, " ").trim();
+      b = b.replace(/\s*·?\s*동의율 0(?:\.0+)?%/, "").trim();   // 사이클 4: 원자료 '동의율 0%'(입력 빠짐)는 숨긴다(o839)
       if (b && a && b.replace(/\s/g, "") === a.replace(/\s/g, "")) b = "";
       return { txt: b ? (a ? `${a} · ${b}` : b) : a, chg };
+    }
+    // 사이클 4: 동의율 하나 — 사업장 정보(cs)와 추진경과 기록(ev '조합설립인가 변경인가 · 동의율 87.0056%') 가운데 날짜가 가장 늦은 값(0%·빈 값은 버림)
+    //   시트 '조합설립 동의율 81.9%'와 바로 아래 기록 '87.0056%'가 어긋나던 것(o27) · 동의율 막대·조합·사업 정보 칸이 같은 값
+    function consent(r) {
+      const cs = (r && r.cs) || {}, k = cs["조합설립"] ? "조합설립" : cs["추진위"] ? "추진위" : null, c = k ? cs[k] : null;
+      let o = c && c.v != null && +c.v > 0 ? { v: +c.v, d: c.d || "", k, first: c.first, src: "cs" } : null;
+      (Array.isArray(r && r.ev) ? r.ev : []).forEach(([d, sec, t]) => {
+        const kk = /추진위/.test(sec || "") ? "추진위" : /조합설립/.test(sec || "") ? "조합설립" : null; if (!kk || (k && kk !== k && !(kk === "조합설립" && k === "추진위"))) return;
+        const m = /동의율\s*:?\s*(\d+(?:\.\d+)?)/.exec(String(t || "")); if (!m || !(+m[1] > 0) || +m[1] > 100) return;
+        if (!o || (d && (!o.d || String(d) > String(o.d)))) o = { v: +m[1], d: String(d || ""), k: kk, first: o ? (o.first != null ? o.first : o.v) : null, src: "ev" };
+      });
+      if (o) o.v = +(+o.v).toFixed(2);
+      return o;
     }
     // 역에서 걸어서 N분 안 구역 — 검색 '○○역 걸어서 15분 안'과 지도 역 고리·안내가 같은 함수·같은 문구
     // 분속 67m, 길 돌아가는 몫 1.3배 → 직선 515m(10분)·773m(15분). 그 역이 가장 가까운 역인 구역은 구역 자료의 역 거리(r.st.d), 아니면 구역 중심까지 직선
@@ -146,7 +160,7 @@
     const aucAmt = (v) => (v == null || !isFinite(v) || v <= 0 ? "–" : v >= 1e8 ? `${(Math.round(v / 1e7) / 10).toLocaleString("ko-KR")}억` : `${Math.round(v / 1e4).toLocaleString("ko-KR")}만`);
     // 26차: 경계가 없을 때 이유는 자료로 — 구역지정 이후(면적·인가가 있는 곳)는 '경계 도면 자료가 아직 없어', 그 전은 '공식 경계가 없는 곳(후보지 등)'
     const bndTxt = (r, what) => { const a = r && r.sm && r.sm.area; return (r && (r.s >= 2 || a)) ? `구역 면적${a ? `(${Math.round(a).toLocaleString("ko-KR")}㎡)` : ""}은 정보몽땅에 등록돼 있지만 경계 도면(서울도시공간포털)을 아직 받지 못해 ${what}` : `아직 공식 경계가 없는 곳(후보지 등)이라 ${what}`; };
-    return { EXCL: "추정 신뢰 낮아 목록에서 뺐어요", bndTxt, aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, left, short, gap, shown, yrsSince, dur, stageStat, stageStatTxt, durS, exact, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
+    return { EXCL: "추정 신뢰 낮아 목록에서 뺐어요", consent, bndTxt, aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, left, short, gap, shown, yrsSince, dur, stageStat, stageStatTxt, durS, exact, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope };
   })();
   // 정적 HTML(shell.html)의 방식 버튼 글자도 LBL에서: data-lbl="gap|loan|cashToMoveIn"
   { const lbl = () => document.querySelectorAll("[data-lbl]").forEach((e) => { const t = LBL[e.dataset.lbl]; if (t && e.textContent !== t) e.textContent = t; }); document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", lbl) : lbl(); }

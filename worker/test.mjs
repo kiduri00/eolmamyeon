@@ -114,6 +114,8 @@ const mkSub = (ua, ep) => ({ endpoint: ep, keys: { p256dh: ua.p256dh, auth: ua.a
   assert.deepEqual(await r.json(), { ok: true, zones: 2, conds: 1 });
   const saved = [...E.PUSH.m.entries()].find(([k]) => k.startsWith("sub:"));
   assert.ok(saved); assert.deepEqual(JSON.parse(saved[1]).z, ["o354", "o1"]); assert.deepEqual(JSON.parse(saved[1]).c[0].z, ["o1", "o2"]);
+  r = await worker.fetch(post("/api/push/sub", { sub: mkSub(ua, "https://fcm.googleapis.com/fcm/send/A"), zones: ["o354"], mz: ["o913", "<x>", "o913"] }), E);
+  assert.deepEqual(JSON.parse([...E.PUSH.m.entries()].find(([k]) => k.startsWith("sub:"))[1]).mz, ["o913"], "끈 구역 목록(mz) 저장 · 형식 검사 · 중복 제거");
   r = await worker.fetch(post("/api/push/sub", { sub: mkSub(ua, "https://fcm.googleapis.com/fcm/send/A"), zones: ["o9"] }), E);
   assert.equal([...E.PUSH.m.keys()].filter((k) => k.startsWith("sub:")).length, 1, "같은 구독은 덮어쓴다");
   r = await worker.fetch(post("/api/push/unsub", { endpoint: "https://fcm.googleapis.com/fcm/send/A" }), E); assert.equal(r.status, 200);
@@ -154,7 +156,12 @@ const CH = {
   assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o1"] }] }, [AU]).cond.length, 0);
   assert.equal(compose(match({ z: ["o337"], c: [] }, [AU]), "d").title, "신정1-3 · 경매");
   assert.equal(compose(match({ z: ["zzz"], c: [] }, CH.items), "x"), null);
-  ok("match + compose");
+  // 사이클 4: 끈 구역(mz) = 그 구역 알림 전부 끔 — 조건 price 경로·조건 경매 경로·핀 경로 모두
+  assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap" }], mz: ["o1129"] }, CH.items).cond.length, 0, "끈 구역은 price 조건 경로에서도 빠짐");
+  assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o337"] }], mz: ["o337"] }, [AU]).cond.length, 0, "끈 구역은 조건 경매에서도 빠짐");
+  assert.equal(match({ z: ["o354"], c: [], mz: ["o354"] }, CH.items).zone.length, 0, "끈 구역은 핀 경로에서도 빠짐");
+  assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap" }], mz: ["o9"] }, CH.items).cond.length, 1, "다른 구역을 끈 건 영향 없음");
+  ok("match + compose · 끈 구역(mz) 전 경로 제외");
 }
 {
   const E = env(CH), sent = [];

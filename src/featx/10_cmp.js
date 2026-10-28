@@ -30,9 +30,10 @@
         p10: (() => { try { const f = ctx.facts(r); return f && f.eta ? (f.eta.p10Txt || f.eta.why || "–") : "–"; } catch (e) { return "–"; } })(),
         stage: ctx.stageName(r), stageYrs: p && p.yrs != null ? ctx.ZF.dur(p.yrs) : null,
         win: win ? { cls: win.cls, t: win.t } : null,
-        rd: rt && rt.k === "set" ? rt.d + (rt.old || rt.c === "low" ? "? 추정" : "") : rt && rt.k === "pre" ? "아직 없음" : "확인 필요",
+        rd: rt && rt.k === "set" ? rt.d + (rt.old || rt.c === "low" ? " (추정)" : "") : rt && rt.k === "pre" ? "아직 없음" : "확인 필요",
         st: r.st && r.st.n ? `${r.st.n} 걸어서 ${ctx.ZF.walkMin(r.st.d)}분` : "–",
-        u33: u ? u.v : null, spark: ctx.spark ? ctx.spark(r.id) : "",
+        // 사이클 4: 3.3㎡당 값과 그 기준 글자는 ZoneFacts num.u33 하나(거래 탭 맨 위와 같으면 '거래 탭 맨 위' · 아니면 '구역 1년 대표 거래 N건')
+        u33: u ? u.v : null, u33T: (() => { try { const q = ctx.facts(r).num.u33; return q ? q.txt : null; } catch (e) { return null; } })(), u33B: (() => { try { const q = ctx.facts(r).num.u33; return q ? (q.same ? "거래 탭 맨 위 값" : q.basis.replace(/\(.*\)$/, "")) : ""; } catch (e) { return ""; } })(), spark: ctx.spark ? ctx.spark(r.id) : "",
       };
     });
   };
@@ -58,7 +59,7 @@
         ${row("입주권<small>추정·확인 필요</small>", (z) => `<td>${z.win ? `<span class="zx-w ${winC[z.win.cls] || ""}">${esc(z.win.t)}</span>` : "–"}</td>`)}
         ${row("권리산정기준일", (z) => `<td>${esc(z.rd)}</td>`)}
         ${row("가까운 역", (z) => `<td>${esc(z.st)}</td>`)}
-        ${row("3.3㎡당 실거래<small>값: 거래 탭 맨 위와 같은 기준 · 선: 최근 8분기 분기별 가운데 값</small>", (z) => `<td>${z.u33 != null ? esc(ctx.ZF.eok(z.u33)) : "–"}${z.spark ? `<span class="zx-sp">${z.spark}</span>` : ""}</td>`)}
+        ${row("3.3㎡당 실거래<small>값: 칸 아래 적은 기준(구역마다 다를 수 있어요) · 선: 최근 8분기 분기별 가운데 값</small>", (z) => `<td>${z.u33 != null ? esc(z.u33T || ctx.ZF.eok(z.u33)) : "–"}${z.u33 != null && z.u33B ? `<small class="zx-b">${esc(z.u33B)}</small>` : ""}${z.spark ? `<span class="zx-sp">${z.spark}</span>` : ""}</td>`)}
       </tbody></table></div>
       <div class="zx-acts"><button type="button" class="btn secondary" data-cx-share>비교 링크 공유</button><span class="share-fb" data-cx-fb aria-live="polite"></span><button type="button" class="btn secondary" data-cx-clear>모두 비우기</button></div>
       <p class="zx-src">숫자는 각 구역 시트 첫 칸과 같은 계산이에요 · 입주권·권리산정기준일은 공개 자료로 낸 추정이라 조합·구청 확인이 필요해요 · 투자 권유가 아니에요</p>`;

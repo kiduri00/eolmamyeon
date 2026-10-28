@@ -164,6 +164,12 @@ def vals(X, r):
     v['eMidK'] = f"{e['eMid'][:4]}년 {int(e['eMid'][5:7])}월" if e.get('eMid') else None
     if stalled(X, r):   # 8년 넘게 같은 단계(앱 etaShow '산정 불가'): 준공 통계를 싣지 않는다 — 카드·본문·일정표가 같은 규칙(장위14 모순)
         for k in ('p10', 'eLo', 'eMid', 'eHi', 'eLoY', 'eHiY', 'eMidK'): v[k] = None
+    # 사이클 4: 범위·확률은 ZoneFacts 하나 — 화면이 범위를 싣지 않는 곳(eta.rng 없음: 범위 숨김·가로·소규모 기록 부족 등)은 손글 값도 비우고, 10년 확률은 ZoneFacts p10
+    _zs = __import__('zsample'); _f = _zs.facts(r.get('id'))
+    if _f is not None:
+        _p = (_f.get('eta') or {}).get('p10'); v['p10'] = prob_txt(_p) if _p is not None and not r.get('stale') else None
+        if _zs.eta_hidden(r):
+            for k in ('eLo', 'eMid', 'eHi', 'eLoY', 'eHiY', 'eMidK'): v[k] = None
     st = c.get('st') or r.get('st') or {}   # 가까운 역: 앱 화면·/api/v1·자동 /z와 같은 값(calc.json = 빌드에서 고친 역 · tools/stfix.py)
     v['station'] = st.get('n'); v['walk'] = f"{walk_min(st['d'])}분" if st.get('d') is not None else None   # 앱과 같은 반올림(tools/jsnum.py)
     v['rdx'] = ymd((r.get('rdx') or {}).get('d')) if (r.get('rdx') or {}).get('d') else None
@@ -280,7 +286,8 @@ def checklist(items, V, rid, title='사기 전에 이것 3가지만 확인하세
 def carousel(X, r, src, V):
     c = X.C.get(r['id']) or {}; k3 = X.key3(r, c, (X.P.get(r['id']) or {}).get('dt') or {}, X.D.get('asOf'), X.D.get('upd'))
     hv = bool(k3.get('lnow'))
-    if hv: m1 = (k3['lnow'], '대출 끼고 · 전세를 안고는 살 수 없는 곳' + (f' · 입주까지 {k3["ltot"]}' if k3.get('ltot') else ''))
+    _hn = __import__('zsample').hold_of(r, 'now')   # 사이클 4: 보류(전세가율 표본 적음 등)는 '살 수 없는 곳'(토허 등 금지)과 다른 말 — ZoneFacts 보류 이유 하나
+    if hv: m1 = (k3['lnow'], ('대출 끼고 · 전세 끼고 계산 보류(' + _hn['short'] + ')' if _hn and _hn.get('code') not in (None, 'gapBlock') else '대출 끼고 · 전세를 안고는 살 수 없는 곳') + (f' · 입주까지 {k3["ltot"]}' if k3.get('ltot') else ''))
     elif k3['now'] != '계산 보류': m1 = (k3['now'], k3['basis'] + (f' · 입주까지 {k3["tot"]}' if k3['tot'] != '계산 보류' else ''))
     else: m1 = ('계산 보류', (k3.get('esub') or k3.get('basis') or '') + (f' · {k3["alt"]}' if k3.get('alt') else ''))
     e = __import__('zsample').eta_adj(r, X.D.get('asOf')) or {}   # 앱·/api/v1과 같은 가로·소규모 보정
@@ -313,14 +320,27 @@ def nextcards(X, r, src, title=None):
     # 사이클 2: 카드 돈은 한 가지 사는 방식(첫 화면 기본 = 전세 끼고)으로만 — 대출 끼고 값과 섞지 않는다 · 계산 보류 카드는 뒤로(단계는 그대로 보임)
     def k3of(y):
         c = X.C.get(y['id']) or {}; return c, X.key3(y, c, (X.P.get(y['id']) or {}).get('dt') or {}, X.D.get('asOf'), X.D.get('upd'))
-    pick = [y for y in pick[:4] if k3of(y)[1]['now'] != '계산 보류'] + [y for y in pick[:4] if k3of(y)[1]['now'] == '계산 보류']
+    # 사이클 4: 돈이 계산되는 구역을 2장 이상 — 4장 안에 모자라면 2.5km 안 나머지 → 5km 안 순으로 계산되는 구역을 끼운다(계산 보류 카드 자리를 바꿈)
+    ok = lambda y: k3of(y)[1]['now'] != '계산 보류'
+    top = pick[:4]
+    if sum(1 for y in top if ok(y)) < 2:
+        more = [y for d, y in rest if y not in top and ok(y)]
+        if sum(1 for y in top if ok(y)) + len(more) < 2:
+            far = sorted(((X.dist(r['ll'][0], r['ll'][1], y['ll'][0], y['ll'][1]), y) for y in X.R if y['id'] != rid and y.get('ll') and y not in top and y not in more), key=lambda z: z[0])
+            more += [y for d, y in far if d <= 5000 and ok(y)]
+        for y in more:
+            if sum(1 for q in top if ok(q)) >= 2: break
+            hold = [q for q in top if not ok(q)]
+            if len(top) < 4: top.append(y)
+            elif hold: top[top.index(hold[-1])] = y
+    pick = [y for y in top if ok(y)] + [y for y in top if not ok(y)]
     def card(y):
         c, k3 = k3of(y)
         mon = f'전세 끼고 지금 {k3["now"]}' if k3['now'] != '계산 보류' else ('전세 끼고 불가 · 계산 보류' if k3.get('lnow') else '지금 필요한 돈 계산 보류')
         d = X.dist(r['ll'][0], r['ll'][1], y['ll'][0], y['ll'][1]) if y.get('ll') else None
         tag = '<em>분석 글</em>' if y['id'] in hand else ''
         return f'<a class="zh-nc" href="{y["id"]}"><b>{esc(X.short(y["n"]))}{tag}</b><span>{esc(X.KIND.get(y["k"], y["k"]))} · {esc(c.get("stage") or y.get("sr") or "")}{f" · {d / 1000:.1f}km" if d is not None else ""}</span><small>{esc(mon)}</small></a>'
-    return '<!--zd--><nav class="zh-next" aria-labelledby="zh-nx"><h2 id="zh-nx">' + esc(title or src.get('nextTitle') or '다음에 볼 구역') + '</h2><div class="zh-ng">' + ''.join(card(y) for y in pick[:4]) + '</div><p class="zh-cap">가까운 곳 가운데 분석 글이 있는 구역을 먼저 놓았어요(돈이 계산 보류인 곳은 뒤에). 돈은 기본 가정(전세 끼고) 값이에요. 추천 목록이 아니에요.</p></nav><!--/zd-->'
+    return '<!--zd--><nav class="zh-next" aria-labelledby="zh-nx"><h2 id="zh-nx">' + esc(title or src.get('nextTitle') or '다음에 볼 구역') + '</h2><div class="zh-ng">' + ''.join(card(y) for y in pick[:4]) + '</div><p class="zh-cap">가까운 곳 가운데 분석 글이 있는 구역을 먼저 놓았어요(돈이 계산되는 곳을 2곳 이상 · 계산 보류인 곳은 뒤에 · 가까운 곳에 모자라면 5km 안에서). 돈은 기본 가정(전세 끼고) 값이에요. 추천 목록이 아니에요.</p></nav><!--/zd-->'
 
 CSS = ('<style>'
        '.zh-car{margin:18px 0 6px}.zh-tr{list-style:none;margin:0;padding:2px 2px 8px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(232px,82%);gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}'

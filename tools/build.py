@@ -15,6 +15,15 @@ try:
         _a = str(((_PD.get(_r['id']) or {}).get('dt') or {}).get('사업시행') or '')[:10]
         if '재개발' in (_r.get('k') or '') and (_r.get('s') or 0) < 9 and not _r.get('b18') and not _r.get('b18p') and '2018-01-25' <= _a < '2020-01-25': _r['b18a'] = _a
 except Exception as _e: print('b18a 건너뜀:', _e)
+# 사이클 4: 투기과열지구 구별 지정 이력(tools/tgj.json · 출처·확인일 포함) → D.policy.tgj · 매수 시점 규칙(ZFX.tgj)이 이것만 읽는다
+#   최근 보도 경고(tools/notices.json · 관리처분 임박 등) → r.notice — 단계·날짜 자료는 바꾸지 않는다(enrich를 다시 돌리지 않고 빌드 때 붙임)
+try:
+    D.setdefault('policy', {})['tgj'] = {k: v for k, v in json.load(open(os.path.join(R, 'tools', 'tgj.json'), encoding='utf-8')).items() if k != '_doc'}
+    _NTC = {k: v for k, v in json.load(open(os.path.join(R, 'tools', 'notices.json'), encoding='utf-8')).items() if k != '_doc'}
+    for _r in D['recs']:
+        _r.pop('notice', None)
+        if _r['id'] in _NTC: _r['notice'] = _NTC[_r['id']]
+except Exception as _e: print('tgj·notice 건너뜀:', _e)
 # 첫 화면 정적 글자(눈썹·요약·읽을거리 소개)의 '진행 중 N곳'을 자료와 같게(앱이 그린 뒤의 숫자 · /api count와 같은 기준) — 같은 곳 합치기 등으로 수가 바뀌어도 어긋나지 않게
 _LIVE = sum(1 for r in D['recs'] if not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n'))
 shell = re.sub(r'(진행 중(?: 정비사업)? |<span class="eb-s">서울 정비사업 )[\d,]+(곳)', lambda m: f"{m.group(1)}{_LIVE:,}{m.group(2)}", shell)

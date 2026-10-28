@@ -140,8 +140,12 @@ def facts(rid):
         try: _FX = {k: v.get('f') for k, v in json.load(open(os.path.join(_ROOT, 'pipeline/calc.json'), encoding='utf-8')).items() if isinstance(v, dict) and v.get('f')}
         except Exception: _FX = {}
     return _FX.get(rid)
-def eta_hidden(r):   # 입주 범위를 숨긴 구역(범위가 10년 확률과 어긋남 · ZoneFacts eta.hid) — 정적 페이지도 범위(eLo~eHi)를 싣지 않는다
-    f = facts(r.get('id')); return bool(f and (f.get('eta') or {}).get('hid'))
+def eta_hidden(r):   # 입주 범위를 싣지 않는 구역 — 사이클 4: ZoneFacts eta.rng(화면이 범위를 싣는 곳)이 없으면 정적 페이지도 범위(eLo~eHi)를 싣지 않는다
+    #   (범위가 10년 확률과 어긋남 hid · 장기 정체 · 가로·소규모 기록 부족 nostat · 자료 부족) — 화면 '언제 입주' 칸과 같은 판단 하나
+    f = facts(r.get('id'))
+    if not f: return False
+    e = f.get('eta') or {}
+    return bool(e.get('hid') or not e.get('rng'))
 def hold_of(r, which='one'):   # 보류 이유 하나({code, short, txt}) — 화면과 같은 문장
     f = facts(r.get('id')); return ((f or {}).get('hold') or {}).get(which)
 def stall_yrs(r, dt=None, upd=None):
@@ -211,6 +215,8 @@ def eok_m(m):   # 만원 → '9,587만' · '9.5억'(화면 ZF.eok와 같은 반�
     if m >= 10000: v = math.floor(m / 1000 + 0.5) / 10; return (f"{v:,.1f}".rstrip('0').rstrip('.')) + '억'
     return f"{math.floor(m + 0.5):,}만"
 def ref_price(r):   # 지금 필요한 돈을 내지 않는 곳의 참고 시세 한 줄(화면 76_detail.js refPrice와 같은 규칙)
+    f = facts(r.get('id'))   # 사이클 4: ZoneFacts num.ref(거래 탭 큰 숫자와 같은 값·표본 기간) 글자 그대로
+    if f is not None and isinstance(f.get('num'), dict): return ((f['num'].get('ref') or {}).get('txt')) or ''
     t = r.get('tx') or {}; s = r.get('s', 0) or 0
     L = ('입주권 매매', t['im']) if s >= 8 and t.get('im') else ('아파트 매매', t['am']) if t.get('am') and ('재건축' in (r.get('k') or '') or (not t.get('pp') and not t.get('med'))) else ('빌라 매매', t['med']) if t.get('med') else ('대지 3.3㎡당', t['pp']) if t.get('pp') else None
     return f'참고 시세 · {L[0]} 1년 가운데 값 {eok_m(L[1])}' if L else ''

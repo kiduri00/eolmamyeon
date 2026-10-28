@@ -10,8 +10,10 @@
     const sm = r.sm || {}, cs = r.cs || {};
     const units = sm.units ?? (sm.saleUnits != null && sm.rental != null ? sm.saleUnits + sm.rental : null);
     const owners = sm.owners || sm.members || null;
-    const ck = cs["조합설립"] ? "조합설립" : cs["추진위"] ? "추진위" : null, c = ck ? cs[ck] : null;
-    const cv = c ? (c.v != null ? c.v : c.first != null ? c.first : null) : null;
+    // 사이클 4: 동의율은 ZF.consent 하나(추진경과 기록의 가장 늦은 값 · 일정 탭 막대와 같은 값 · 0%는 버림)
+    const co = ctx && ctx.ZF && ctx.ZF.consent ? ctx.ZF.consent(r) : null;
+    const ck = co ? co.k : null, c = co ? { v: co.v, d: co.d } : null;
+    const cv = c ? c.v : null;
     const areaBad = !!(sm.area && ctx && ctx.areaBad && ctx.areaBad(r));
     const sale = units && owners && units > owners ? (units - owners - (sm.rental || 0)) / units : null;
     return {
@@ -49,7 +51,9 @@
           ${cell("시공사", o.builder ? esc(o.builder) : null, o.builder ? "추진경과·기사 대조" : r.s < 5 ? "보통 사업시행인가 앞뒤로 선정" : "")}
           ${cell(o.consent && o.consent.k === "추진위" ? "추진위 동의율" : "조합설립 동의율", o.consent ? `${o.consent.v}%` : null, o.consent && o.consent.d ? `${F.ymd(o.consent.d)} 기록` : "")}
           ${cell(reb ? "조합원 수" : "토지등소유자", o.owners ? `${fmt(o.owners)}명` : null, o.members ? `조합원 ${fmt(o.members)}명` : "")}
-          ${cell("계획 세대", o.units ? `${o.uA ? "약 " : ""}${fmt(o.units)}세대` : null, o.uSrc || (o.rental ? `임대 ${fmt(o.rental)} 포함` : "정보몽땅 등록값 없음"))}
+          ${(() => { const U = (() => { try { return ctx.facts(r).num.units; } catch (e) { return null; } })();   // 사이클 4: 세대수 출처 라벨(sm.uL) = 칸 이름(분양 세대 · 계획 세대 · 총 세대) · ZoneFacts num.units
+            if (U && !o.uSrc) return cell(U.lab, U.v == null ? U.txt : `${fmt(U.v)}세대`, [U.src, o.rental ? `임대 ${fmt(o.rental)} 포함` : ""].filter(Boolean).join(" · "));
+            return cell(o.uSrc ? "계획 세대" : "세대수", o.units ? `${o.uA ? "약 " : ""}${fmt(o.units)}세대` : null, o.uSrc || (o.rental ? `임대 ${fmt(o.rental)} 포함` : "정보몽땅 등록값 없음")); })()}
           ${cell("일반분양 비율", o.sale != null ? `${o.sale}% <em class="zorg-est">추정</em>` : null, o.sale != null ? "(세대 − 소유자 − 임대) ÷ 세대" : "")}
           ${cell("구역 면적", o.area ? (o.areaBad ? "확인 중" : `${fmt(o.area)}㎡`) : null, o.areaBad ? `원자료 ${fmt(o.area)}㎡는 계획 세대에 비해 너무 작아 필지 하나의 면적일 수 있어요` : pyeong)}
           ${cell("용적률 · 층수", o.far || o.floors ? `${o.far ? o.far + "%" : "용적률 –"}${o.floors ? ` · ${esc(o.fSrc ? o.floors : F.floors(o.floors))}` : ""}` : null, o.fSrc || "정비계획 고시")}

@@ -31,6 +31,8 @@
       const zEarly = dz && ["조합설립", "시행자지정", "사업시행", "관리처분", "착공"].find((k) => dt0[k] && dt0[k] < dz);
       if (zEarly) return { k: "chg", b: `등록된 구역지정일(${dz.replaceAll("-", ".")})이 ${zEarly}(${dt0[zEarly].slice(0, 7).replace("-", ".")})보다 늦어 변경 지정일로 보여요. 최초 지정 고시일이나 따로 고시된 기준일을 구청에 확인하세요.`, u: "https://www.law.go.kr/법령/도시및주거환경정비법/제77조" };
       if (dz && r.s >= 2) return { d: dz.replaceAll("-", "."), b: "정비구역 지정 고시일(도시정비법 제77조 원칙) · 별도 고시가 있었다면 그 날짜", u: "https://www.law.go.kr/법령/도시및주거환경정비법/제77조", c: "mid", k: "set" };
+      // 사이클 4: 모아타운 안의 사업구역(가로주택·모아주택)은 소속 모아타운 관리지역의 권리산정기준일 고시를 물려받는다(상위 시트 2022.01.20 · 하위 시트 '확인 필요'로 갈리던 것 · o27)
+      if (r.src !== "moa" && /가로|모아/.test(r.k || "") && r.parent && byId[r.parent] && byId[r.parent] !== r) { const pr = byId[r.parent], pv = rights0(pr); if (pv && pv.k === "set") return { ...pv, b: `소속 모아타운(${shortName(pr.n)})의 권리산정기준일 · ${pv.b}`, inh: pr.id }; }
       if (r.src === "moa" || /가로|모아/.test(r.k))
         return { k: "moa", b: "모아타운은 대상지 선정 뒤 서울시가 권리산정기준일을 따로 고시해요(2026.10.12부터 구역계 공개일로 앞당김). 가로주택·모아주택 개별 사업의 기준일은 소규모주택정비법과 서울시 기준에 따라 정해져 구청 확인이 필요해요.", u: "https://news.seoul.go.kr/citybuild/archives/525003" };
       if ((r.pg || []).some((p) => p.startsWith("신속통합기획")) || r.src === "sintong")
@@ -43,7 +45,7 @@
       const conf = x.old ? "추정 · 서울시 조례 부칙(2010.7.16 이전 지정) 확인 필요" : x.c === "high" ? "고시·보도자료 확인" : x.c === "mid" ? "법 원칙으로 추정" : x.c === "low" ? "추정 · 확인 필요" : "";
       const old = x.old ? " 2010.7.16 전에 지정된 구역은 옛 서울시 조례 부칙(2003.12.30 다세대 전환 기준·2008.7.30 지분 쪼개기 기준 등)이 적용될 수 있어 이 날짜가 아닐 수 있어요. 구청에 확인하세요." : "";
       if (x.k === "set" && x.old)
-        return `<div class="rdx"><div class="rdx-h"><span class="rdx-l">권리산정기준일</span><b class="mono">${esc(x.d)}?</b><span class="rdx-c low">${conf}</span></div>${compact ? "" : `<p>지정 고시일(${esc(x.d)})로 추정했어요.${old} <a href="${esc(x.u)}" target="_blank" rel="noopener">근거</a></p>`}</div>`;
+        return `<div class="rdx"><div class="rdx-h"><span class="rdx-l">권리산정기준일</span><b class="mono">${esc(x.d)}</b><span class="rdx-c low">${conf}</span></div>${compact ? "" : `<p>지정 고시일(${esc(x.d)})로 추정했어요.${old} <a href="${esc(x.u)}" target="_blank" rel="noopener">근거</a></p>`}</div>`;
       if (x.k === "set")
         return `<div class="rdx"><div class="rdx-h"><span class="rdx-l">권리산정기준일</span><b class="mono">${esc(x.d)}</b>${conf ? `<span class="rdx-c ${x.c}">${conf}</span>` : ""}</div>${compact ? "" : `<p>${esc(x.b)} · 이날 뒤에 새로 짓거나 쪼갠 지분(신축 빌라·지분 분할)은 입주권이 안 나오거나 여럿이 하나를 나눠 받을 수 있어요.${old} <a href="${esc(x.u)}" target="_blank" rel="noopener">근거</a></p>`}</div>`;
       return `<div class="rdx none"><div class="rdx-h"><span class="rdx-l">권리산정기준일</span><b>${x.k === "pre" ? "아직 없음" : x.k === "chg" ? "확인 필요" : "구청 확인 필요"}</b></div>${compact ? "" : `<p>${esc(x.b)} <a href="${esc(x.u)}" target="_blank" rel="noopener">근거</a></p>`}</div>`;
@@ -81,12 +83,14 @@
       const units = sm.units ?? (sm.saleUnits != null && sm.rental != null ? sm.saleUnits + sm.rental : null);
       const own = sm.members || sm.owners;
       if (!units || !own || units < own * 0.6) return "";
-      if (sm.rental == null) return `<div class="sect supply"><h3>공급 계획 <small>계획 세대 ${fmt(units)} · 소유자 ${fmt(own)}명</small></h3><p class="note">임대 세대 수 자료가 없어 일반분양 비율을 계산하지 않았어요. 재개발은 보통 계획 세대의 15~20% 안팎이 임대예요. 정비계획 결정 고시문의 '주택 규모별 건설계획'으로 확인하세요.</p></div>`;
+      // 사이클 4: 임대 세대 수가 없으면 나눌 수 없어 절을 내지 않는다(제목만 남던 빈 '공급 계획' · 세대수는 '조합·사업 정보' 칸에 출처 라벨과 함께)
+      if (sm.rental == null) return "";
       const rent = sm.rental, mem = Math.min(own, units - rent), gen = Math.max(0, units - rent - mem);
       const pc = (v) => Math.round((v / units) * 1000) / 10;
       const genR = gen / units;
       const hint = genR >= 0.3 ? "일반분양이 많아 분담금 부담이 줄어드는 쪽이에요" : genR >= 0.15 ? "서울 정비사업 보통 수준이에요" : "일반분양이 적어 사업비를 조합원이 더 나눠 내야 할 수 있어요(비례율 낮아질 가능성)";
-      return `<div class="sect supply"><h3>공급 계획 <small>계획 세대 ${fmt(units)} · ${r.k === "재건축" ? "조합원" : "토지등소유자"} ${fmt(own)}명 기준 추정</small></h3>
+      const UL = (() => { try { return ZFX.of(r).num.units; } catch (e) { return null; } })();
+      return `<div class="sect supply"><h3>공급 계획 <small>${UL ? UL.lab : "계획 세대"} ${fmt(units)}${UL && UL.src ? `(${UL.src})` : ""} · ${r.k === "재건축" ? "조합원" : "토지등소유자"} ${fmt(own)}명 기준 추정</small></h3>
         <div class="sp-bar" role="img" aria-label="조합원 ${pc(mem)}%, 일반분양 ${pc(gen)}%, 임대 ${pc(rent)}%"><i class="m" style="width:${pc(mem)}%"></i><i class="g" style="width:${pc(gen)}%"></i><i class="t" style="width:${pc(rent)}%"></i></div>
         <ul class="sp-key"><li><i class="m"></i>조합원 몫 ${fmt(mem)}세대 · ${pc(mem)}%</li><li><i class="g"></i>일반분양 ${fmt(gen)}세대 · ${pc(gen)}%</li><li><i class="t"></i>임대 ${fmt(rent)}세대 · ${pc(rent)}%</li></ul>
         <p class="note">일반분양 ${pc(gen)}%: ${hint}. 조합원 몫은 소유자 1명당 1세대로 단순 계산했고, 실제 분양 신청자 수·상가 조합원에 따라 달라요.</p></div>`;
@@ -517,7 +521,7 @@
         // 머리 카드·/z/ 페이지와 같은 한 문장(64_overview.js OVX.smp)
         const one = typeof OVX !== "undefined" && OVX.smp && x.priceSrc !== "user" ? OVX.smp(r, x) : "";
         if (one) return `${warn}<p class="note"><b>계산 매수가 ${OVX.manT(x.price)}</b> = ${esc(one)} · '돈' 탭에서 바꿀 수 있어요${lc}</p>`;
-        return `${warn}<p class="note"><b>계산에 쓴 매수가 ${ZF.cash(x.price)}</b> ${x.priceSrc === "user" ? "직접 입력한 값" : en?.scope ? esc(en.scope) + ` 실거래 가운데 값${en.n ? ` (${fmt(en.n)}건${en.area_med ? ` · 전용 ${en.area_med}㎡` : ""})` : ""}` : x.priceSrc === "complex" ? "같은 단지 아파트 실거래" : "구역 주변 구축 빌라 실거래"} · '돈' 탭에서 바꿀 수 있어요${lc}</p>`;
+        return `${warn}<p class="note"><b>계산에 쓴 매수가 ${ZF.manT(x.price)}</b> ${x.priceSrc === "user" ? "직접 입력한 값" : en?.scope ? esc(en.scope) + ` 실거래 가운데 값${en.n ? ` (${fmt(en.n)}건${en.area_med ? ` · 전용 ${en.area_med}㎡` : ""})` : ""}` : x.priceSrc === "complex" ? "같은 단지 아파트 실거래" : "구역 주변 구축 빌라 실거래"} · '돈' 탭에서 바꿀 수 있어요${lc}</p>`;
       })();
       p.innerHTML = `
         ${h || S.length ? "" : noTxHTML(r, t, z) + secN}

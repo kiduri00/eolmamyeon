@@ -89,7 +89,8 @@ const INBOX = (() => {
   function condHTML() {
     const A = CH ? uniq(CH.items.filter((e) => e.type === "auction" && byId[e.id])) : [], P = new Set(pinIds());
     const noAu = isOff("auction"), noAdd = isOff("price");
-    const L = conds().map((n) => { const I = new Set(n.ids); if (noAdd) n = Object.assign({}, n, { add: [] }); return Object.assign(n, { au: noAu ? [] : A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0) && !(e.mn > n.c.cash * 1.1 + 1e-9)) })   /* 경매: 조건 현금(+10%)을 넘는 물건은 '갈 수 있는 곳'에 넣지 않는다(condAuc·푸시와 같은 기준) */; }).filter((n) => n.add.length || n.au.length);
+    const MZ = new Set(mute().z);   // 사이클 4: 끈 구역 = 그 구역 알림 전부 끔(조건 '새로 갈 수 있게 된 곳'·경매 경로 포함 · 워커 match와 같은 규칙)
+    const L = conds().map((n) => { const I = new Set(n.ids.filter((id) => !MZ.has(id))); n = Object.assign({}, n, { add: noAdd ? [] : (n.add || []).filter((id) => !MZ.has(id)) }); return Object.assign(n, { au: noAu ? [] : A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0) && !(e.mn > n.c.cash * 1.1 + 1e-9)) })   /* 경매: 조건 현금(+10%)을 넘는 물건은 '갈 수 있는 곳'에 넣지 않는다(condAuc·푸시와 같은 기준) */; }).filter((n) => n.add.length || n.au.length);
     if (!L.length) return "";
     const F = new Set(freshN() ? PINS.freshIds() : []);
     return `<section class="ib-sec" aria-labelledby="ibCT"><h4 id="ibCT">내 돈으로 새로 갈 수 있게 된 곳</h4>${L.map((n) => {
@@ -164,7 +165,8 @@ const INBOX = (() => {
   const u8 = (s) => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const swReady = (ms = 8000) => Promise.race([navigator.serviceWorker.getRegistration("/").then((r) => r || navigator.serviceWorker.register("/sw.js", { scope: "/" })).then(() => navigator.serviceWorker.ready), new Promise((_, no) => setTimeout(() => no(new Error("sw")), ms))]);
-  const payload = (sub) => { const muteZ = new Set(mute().z); return { sub: sub.toJSON(), o: off(), zones: pinOn().slice(0, 20), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: condZ(n.ids, muteZ) })) }; };
+  // 사이클 4: mz = 끈 구역(서버가 조건·경매·필요한 돈(price) 경로에서도 그 구역을 빼게 · worker/push.js match)
+  const payload = (sub) => { const muteZ = new Set(mute().z); return { sub: sub.toJSON(), o: off(), zones: pinOn().slice(0, 20), mz: [...muteZ].slice(0, 200), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: condZ(n.ids, muteZ) })) }; };
   // 사이클 3(F9): 조건 구역은 경매 소식이 있는 구역 먼저, 상한 500(worker/push.js MAXCZ와 같음) — 150에서 잘려 앱 소식(condAuc)에는 있는데 폰 알림이 오지 않던 것
   const CZMAX = 500;
   const condZ = (ids, muteZ) => { const A = new Set(CH ? CH.items.filter((e) => e.type === "auction").map((e) => e.id) : []), L = ids.filter((id) => !muteZ.has(id)); return L.filter((id) => A.has(id)).concat(L.filter((id) => !A.has(id))).slice(0, CZMAX); };   // 사이클 2: 끈 구역은 조건 경로(conds[].z)에서도 뺀다(서버가 조건 경매로 보내던 누수)

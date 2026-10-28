@@ -25,6 +25,9 @@ const CX = (() => {
       b.textContent = on ? `비교에 담음 (${L.length}/${MAX})` : full ? `비교는 ${MAX}곳까지` : `비교에 담기${L.length ? ` (${L.length}/${MAX})` : ""}`;
     });
     document.querySelectorAll(".dt-cmpv[data-cx-open]").forEach((b) => { b.hidden = L.length < 2; b.textContent = `비교 ${L.length}곳 보기`; });
+    // 사이클 4: 담은 구역 = 노란 체크(공용 고른 상태 · 버튼 노란 테두리 + 체크 · 시트 이름 옆 체크)
+    document.querySelectorAll("[data-cx-add]").forEach((b) => { b.classList.add("zp-pk"); b.classList.toggle("is-picked", L.includes(b.dataset.cxAdd)); });
+    { let cid = null; try { cid = window.ZP_feat && ZP_feat.ctx().cur() ? ZP_feat.ctx().cur().id : null; } catch (e) {} const on = !!cid && L.includes(cid); document.querySelectorAll("#report .dt-pick, #report .dt-pick-sr").forEach((i) => { i.hidden = !on; }); }
   }
   document.addEventListener("click", (e) => {
     const a = e.target.closest && e.target.closest("[data-cx-add]");

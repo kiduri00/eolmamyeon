@@ -26,22 +26,24 @@
   };
   // 사이클 3: 언제 산 집인지(매수 시점 규칙) 한 줄 — 재건축 도시정비법 제39조② · 재개발 같은 조항(관리처분인가 뒤)과 부칙〈법률 제14943호〉 제2조 · 가로·소규모·모아 소규모주택정비법 제24조②
   const L39 = "https://www.law.go.kr/법령/도시및주거환경정비법/제39조", L24 = "https://www.law.go.kr/법령/빈집및소규모주택정비에관한특례법/제24조";
-  const TG = "서울 전역 투기과열지구 효력 2025.10.16(강남·서초·송파·용산은 2017.8.3부터)";
+  // 사이클 4: 투기과열지구 기간은 구별 이력(ZoneFacts buy · tools/tgj.json 출처·확인일) — '2025.10.16 전에 산 집은 다를 수 있어요' 한 줄이
+  //   다른 21개 구도 2017.8.3~2023.1.4에 지정돼 있었다는 점을 빠뜨리던 것. 인가일이 있으면 그 뒤 지정이 풀려 있던 구간을 날짜로 쓴다
+  const TGL = (r) => { let b = null; try { b = ZFX.buyOf(r); } catch (e) {} if (b) return `${b.txt} · ${b.tg}`; let t = ""; try { t = ZFX.tgjTxt(r.g); } catch (e) {} return t ? `매수일이 ${t}에 들면 이 제한을 받아요` : "매수일이 투기과열지구 지정 기간에 들면 이 제한을 받아요"; };
   F.buyRule = (r, ctx) => {
     const dt = r.dt || {}, d = (k) => (dt[k] ? F.ymd(dt[k]) : "");
     let f = null; try { f = ctx.facts(r); } catch (e) {}
     const g = f && f.kind ? f.kind.g : "";
     const ex = "매도인이 10년 보유·5년 거주한 1세대 1주택 같은 예외가 있어요";
-    if (g === "moa") return { law: "소규모주택정비법 제24조②", u: L24, t: `안의 사업구역(가로주택·모아주택 조합)마다 따로예요 · 그 조합의 설립인가 뒤에 산 집은 조합원이 될 수 없어요 · ${ex} · ${TG} 전에 산 집은 적용이 다를 수 있어요` };
+    if (g === "moa") return { law: "소규모주택정비법 제24조②", u: L24, t: `안의 사업구역(가로주택·모아주택 조합)마다 따로예요 · 그 조합의 설립인가 뒤에 산 집은 조합원이 될 수 없어요 · ${ex} · ${(() => { let t = ""; try { t = ZFX.tgjTxt(r.g); } catch (e) {} return t ? `매수일이 ${t}에 들면 이 제한을 받아요` : ""; })()}` };
     const when = (lab, cd) => (cd ? ` · 이 구역 ${lab} ${cd}` : r.s >= 4 && lab === "조합설립인가" ? ` · 이 구역은 ${lab} 단계인데 인가일 기록이 없어요` : ` · 이 구역은 아직 ${lab} 전이에요`);
-    if (g === "small") return { law: "소규모주택정비법 제24조②", u: L24, t: `조합설립인가 뒤에 산 집은 조합원이 될 수 없어요${when("조합설립인가", d("조합설립"))} · ${ex} · ${TG} 전에 산 집은 적용이 다를 수 있어요` };
-    if (g === "rebuild") return { law: "도시정비법 제39조②", u: L39, t: `조합설립인가 뒤에 산 집은 조합원 지위를 넘겨받지 못해 입주권 대신 현금청산될 수 있어요${when("조합설립인가", d("조합설립") || d("시행자지정"))} · ${ex} · ${TG} 전에 산 집은 적용이 다를 수 있어요` };
+    if (g === "small") return { law: "소규모주택정비법 제24조②", u: L24, t: `조합설립인가 뒤에 산 집은 조합원이 될 수 없어요${when("조합설립인가", d("조합설립"))} · ${TGL(r)} · ${ex}` };
+    if (g === "rebuild") return { law: "도시정비법 제39조②", u: L39, t: `조합설립인가 뒤에 산 집은 조합원 지위를 넘겨받지 못해 입주권 대신 현금청산될 수 있어요${when("조합설립인가", d("조합설립") || d("시행자지정"))} · ${TGL(r)} · ${ex}` };
     if (g === "redev") {
       let b = null; try { b = ctx.b18(r); } catch (e) {}
       const md = d("관리처분");
       const bx = b && b.st === "ex" ? ` · 다만 이 구역은 사업시행인가${b.by === "app" ? " 신청" : ""}(${F.ymd(b.d)})이 2018.1.24 이전이라 관리처분인가 뒤에 산 집도 이 제한을 받지 않는 것으로 보여요(부칙〈법률 제14943호, 2017.10.24〉 제2조 · 법제처 해석 19-0079)`
         : b && b.st === "unk" ? ` · 사업시행인가(${F.ymd(b.d)})가 2018.1.25 시행 직후라, 신청이 2018.1.24까지였다면 이 제한을 받지 않아요(부칙〈법률 제14943호〉 제2조) · 신청일은 조합·구청에 확인하세요` : "";
-      return { law: "도시정비법 제39조②", u: L39, t: `관리처분인가 뒤에 산 집은 조합원이 될 수 없어 현금청산될 수 있어요${md ? ` · 이 구역 관리처분인가 ${md}` : r.s >= 6 ? "" : " · 이 구역은 아직 관리처분인가 전이에요"} · ${ex} · ${TG} 전에 산 집은 적용이 다를 수 있어요${bx}` };
+      return { law: "도시정비법 제39조②", u: L39, t: `관리처분인가 뒤에 산 집은 조합원이 될 수 없어 현금청산될 수 있어요${md ? ` · 이 구역 관리처분인가 ${md}` : r.s >= 6 ? "" : " · 이 구역은 아직 관리처분인가 전이에요"} · ${TGL(r)} · ${ex}${bx}` };
     }
     return null;
   };
@@ -77,7 +79,7 @@
         const rg = o.rg;
         const fee = rg ? `<p>분담금(추정 범위) <b>${signed(Math.min(rg.lo, rg.hi), ctx)} ~ ${signed(Math.max(rg.lo, rg.hi), ctx)}</b></p>
             <p class="zow-mut">근거: 조합원 분양가 추정 ${ctx.ZF.cash(rg.uLo)}~${ctx.ZF.cash(rg.uHi)}(${rg.area}㎡ · 가운데 ${ctx.ZF.cash(rg.unit)}에 ±10%) − 종전자산 감정가 × 비례율 ${Math.round((rg.ratio - 0.1) * 100)}~${Math.round((rg.ratio + 0.1) * 100)}% · 분양가 ±10%는 관리처분계획 전이라 정해지지 않은 몫을 넣은 이 사이트의 가정이에요 · 감정가(${ctx.ZF.cash(rg.appr)})는 이 구역 빌라 표본으로 낸 추정이라 <b>내 집 감정가가 아니에요</b> · 실제 분담금은 감정평가·관리처분계획으로 정해져요 · 돈 탭 '숫자 바꿔 보기'에 내 집 감정가를 넣으면 다시 계산돼요</p>`
-          : `<p class="zow-mut">분담금은 조합원 분양가·감정가 추정에 필요한 시세 자료가 부족해 범위를 내지 않아요.</p>`;
+          : `<p class="zow-mut">분담금 범위를 내지 않아요 · ${esc((() => { let f = null; try { f = ctx.facts(r); } catch (e) {} const h = f && f.hold && (f.hold.now || f.hold.tot || f.hold.one); if (h) return h.txt; let x = null; try { x = ctx.calc(r); } catch (e) {} return x && x.price != null ? ctx.ZF.noCalcTxt(r, x) : "조합원 분양가·감정가 추정에 필요한 시세 자료가 부족해요"; })())}.</p>`;
         const html = `<div class="sect zow"><h3>이미 가진 집이면 <small>이 구역에 집·땅을 가진 분용 · 모두 추정·확인 필요</small></h3>
           <div class="zow-b"><h4>입주권 대상</h4>${elig}${rl}</div>
           <div class="zow-b"><h4>다음 일정</h4>${nx}${evH}</div>

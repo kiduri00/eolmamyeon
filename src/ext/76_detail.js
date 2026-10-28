@@ -62,10 +62,9 @@ const DTL = (() => {
     return { kind: "hold", v: null, mode: null };
   }
   // 지금 필요한 돈을 내지 않는 곳(입주권 없음·전세 끼고 불가·매수가 없음): 첫 화면에 참고 시세 한 줄(실거래 탭 큰 숫자와 같은 1년 가운데 값 · /z zsample.ref_price와 같은 규칙)
+  //   사이클 4: ZoneFacts num.ref 하나 — 거래 탭 맨 위 큰 숫자와 같은 값·같은 표본 기간(예전엔 늘 '1년 가운데 값'이라 12개월 0건 구역과 부딪침 · o61)
   function refPrice(r) {
-    const t = r.tx || {};
-    const L = r.s >= 8 && t.im ? ["입주권 매매", t.im] : t.am && (/재건축/.test(r.k) || (!t.pp && !t.med)) ? ["아파트 매매", t.am] : t.med ? ["빌라 매매", t.med] : t.pp ? ["대지 3.3㎡당", t.pp] : null;
-    return L ? `참고 시세 · ${L[0]} 1년 가운데 값 ${ZF.eok(L[1])}` : "";
+    try { const f = ZFX.of(r).num; return (f && f.ref && f.ref.txt) || ""; } catch (e) { return ""; }
   }
   const upC = (v) => Math.ceil(v * 100 - 1e-6) / 100;   // 화면 금액(올림)으로 판정 — 목록 '+2,000만'과 같은 셈
   // 2라운드: 모아타운 관리지역 = 큰 숫자 대신 안내 한 줄 + 안의 사업구역 목록(첫 화면 안 · 각 줄 단계·지금 필요한 돈) + 평균 참고값 한 줄(웹·앱 같음)
@@ -89,7 +88,7 @@ const DTL = (() => {
     return `<section class="dt-k dt-moa" aria-label="핵심 숫자">
       <p class="dt-mg">모아타운은 사업구역마다 금액·입주 시점이 달라요</p>
       ${kids.length ? `<ul class="dt-kids" aria-label="안의 사업구역 ${kids.length}곳">${kids.map(row).join("")}</ul>` : `<p class="dt-mg0">아직 정보몽땅에 등록된 사업구역(개별 조합)이 없어요</p>`}
-      <p class="dt-ref">${n.ref != null ? `관리지역 참고값 ${esc(C(n.ref))} · 관리지역 전체를 한 구역으로 보고 ${esc((() => { try { return ZF.smpTxt(r) || "빌라 실거래"; } catch (e) { return "빌라 실거래"; } })())}로 낸 지금 필요한 돈이에요(사업구역 값이 아님) · ` : ""}곳 수와 '가능' 판정에는 넣지 않아요</p>
+      <p class="dt-ref">${n.ref != null ? `관리지역 참고값 ${esc(C(n.ref))} · 관리지역 전체를 한 구역으로 보고 ${esc((() => { let t = "빌라 실거래"; try { t = ZF.smpTxt(r) || t; } catch (e) {} return t + ZFX.ro(t); })())} 낸 지금 필요한 돈이에요(사업구역 값이 아님) · ` : ""}곳 수와 '가능' 판정에는 넣지 않아요</p>
     </section>`;
   }
   function keyHTML(r) {
@@ -112,10 +111,21 @@ const DTL = (() => {
     // 입주권 없는 곳: 셋째 칸 이름 '입주권' · 이유는 그 아래 한 번 · 착공 뒤처럼 입주권 거래가 있으면 '조합원 입주권을 사야 해요'(참고 시세) — '입주권 없음'과 시세가 부딪치지 않게(20차 G3)
     const TAPP = document.documentElement.classList.contains("is-tapp");
     if (n.nt) eta = n.im ? "조합원 입주권을 사야 해요" : TAPP ? "입주권 원칙적으로 없음" : "없음";   /* 6라운드 7: 앱만 입주권 화면 말투 */   // 웹은 /z 정적 페이지(key3 '입주권 · 없음')와 같은 글 — 정적 페이지는 simple-home과 같게 두므로 앱에서만   // 2라운드: '지금 사면 / 입주권 없음'(이미 가진 집은 해당 없음 — 아래 한 줄)
-    return `<section class="dt-k" aria-label="핵심 숫자">
-      <div class="dt-i" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b>${n.lnow != null ? MODE : ""}<span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && n.lnow == null && !n.moa && !n.done && !n.im && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1 || lv}<span class="dt-slot" data-slot="gap"></span></span></div>
+    // 사이클 4(시트 상단 D3): 판정 띠(지금 필요한 돈 ↔ 내 돈 판정) + 3칸(입주권·언제 입주 · 다음 단계 · 입주까지 현금)
+    //   숫자 칸(.dt-i now·eta·tot)은 /z 첫 칸(zsample.key3)과 같은 이름·같은 값 그대로 · 다음 단계 칸(.dt-c)은 ZoneFacts next 하나(일정 탭·F2·'이미 가진 집이면'과 같은 판단)
+    let F0 = null; try { F0 = ZFX.of(r); } catch (e) {}
+    const NX = F0 && F0.next, BY = F0 && F0.buy;
+    const nxSub = !NX ? "" : NX.state === "before" || NX.state === "in" ? `${NX.loTxt} ~ ${NX.hiTxt}${NX.n ? ` · 서울 ${NX.n.toLocaleString("ko-KR")}곳 기록` : ""}` : NX.state === "over" ? "서울 보통 범위를 넘었어요" : NX.state === "stall" ? `같은 단계 ${ZF.dur(NX.el)}째 · 예상 시점 안 냄` : "서울 기록이 적어 예상 시점 안 냄";
+    const nxC = NX && !n.nt && !n.done ? `<div class="dt-c" data-c="next"><span class="dt-cl">다음 단계</span><b class="dt-cv">${esc(NX.toName)}</b><span class="dt-s">${esc(nxSub)}</span></div>` : "";
+    const law = BY ? (BY.g === "small" ? "소규모주택정비법 §24②" : "도시정비법 §39②") : "";
+    const ipSub = BY && !n.nt ? `<span class="dt-s dt-law">${esc(BY.lab)} 전 매수 · ${esc(law)}</span>` : "";
+    return `<section class="dt-k dt-k4${nxC ? "" : " dt-k4n"}${n.nt ? " dt-k4nt" : ""}" aria-label="핵심 숫자">
+      <div class="dt-i dt-band" data-k="now"><span class="dt-l">지금 필요한 돈</span><b class="dt-v">${v1}</b>${n.lnow != null ? MODE : ""}<span class="dt-s">${esc(n.basis)}</span>${n.alt ? `<span class="dt-s dt-alt">${esc(n.alt)}</span>` : n.need == null && n.lnow == null && !n.moa && !n.done && !n.im && refPrice(r) ? `<span class="dt-s dt-alt">${esc(refPrice(r))}</span>` : ""}<span class="dt-m">${vd1 || lv}<span class="dt-slot" data-slot="gap"></span></span></div>
+      <div class="dt-g3">
+      <div class="dt-i" data-k="eta"><span class="dt-l">${n.nt ? (n.im || !TAPP ? "입주권" : "지금 사면") : "언제 입주"}</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `${n.im ? `<span class="dt-s dt-alt">참고 입주권 시세 ${ZF.eok(n.im)}</span>` : ""}<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 알아봐야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>${ipSub}`}</div>
+      ${nxC}
       <div class="dt-i" data-k="tot"><span class="dt-l">${LBL.cashToMoveIn}</span><b class="dt-v">${v2}</b>${n.ltot != null ? MODE : ""}<span class="dt-s">${sub2}</span></div>
-      <div class="dt-i" data-k="eta"><span class="dt-l">${n.nt ? (n.im || !TAPP ? "입주권" : "지금 사면") : "언제 입주"}</span><b class="dt-v dt-eta">${esc(eta)}</b>${n.nt ? `${n.im ? `<span class="dt-s dt-alt">참고 입주권 시세 ${ZF.eok(n.im)}</span>` : ""}<span class="dt-s dt-nt">새 아파트를 원하면 일반분양·분양권을 알아봐야 해요</span>` : `<span class="dt-m"><span class="dt-slot" data-slot="ip"></span></span>`}</div>
+      </div>
     </section>`;
   }
   // ---------- 신뢰 한 줄: 추정 칩 하나 · 표본 · 믿을 만함 › (누르면 '돈' 탭의 '이 숫자 믿어도 될까'로) ----------
@@ -200,6 +210,10 @@ const DTL = (() => {
     const src = w && w.querySelector(".ov-srcw"); if (src) end.querySelector(".dt-src").appendChild(src);
     const fm = head.querySelector(".ov-formal") || head.querySelector(".formal"); if (fm) { fm.classList.add("dt-fm"); end.querySelector(".dt-src").appendChild(fm); }
     if (card) { card.className = "btn secondary dt-card"; card.textContent = "공유 이미지 저장하기"; end.querySelector(".dt-acts").appendChild(card); }
+    // 사이클 4: 이름 옆 노란 체크(비교에 담았으면 · 공용 고른 상태 00_pick.css) — CX.paint가 켜고 끈다
+    { const tt = head.querySelector("#repTitle"); if (tt && !head.querySelector(".dt-pick")) tt.insertAdjacentHTML("afterend", '<i class="zp-check dt-pick" aria-hidden="true" hidden></i><span class="sr-only dt-pick-sr" hidden>비교에 담음</span>'); }
+    // 사이클 4: 최근 보도 경고(데이터 필드 r.notice · tools/notices.json) — 관리처분 임박 등 자료(정보몽땅) 반영 전 변화
+    if (r.notice && r.notice.t) box.insertAdjacentHTML("afterbegin", `<p class="dt-notice" role="note"><b>${r.notice.k === "soon" ? "확인 필요 · 최근 보도" : "확인 필요"}</b> ${esc(String(r.notice.t).replace(/^최근 보도:\s*/, ""))}${r.notice.src ? ` <a href="${esc(r.notice.src)}" target="_blank" rel="noopener">${esc(r.notice.srcT || "출처")}</a>` : ""}</p>`);
     // 사이클 3(F6): '비교에 담기'는 시트 위 행동 줄(핵심 숫자 바로 아래) — 긴 본문 뒤 맨 아래에 있어 찾기 어렵던 것
     try { if (typeof CX !== "undefined" && r.src !== "moa") { box.insertAdjacentHTML("beforeend", '<div class="dt-acts dt-acts-top"></div>'); CX.btn(box, r); } } catch (e) {}
     place();

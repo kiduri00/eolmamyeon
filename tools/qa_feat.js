@@ -228,13 +228,17 @@ const wd = (p, ms, m) => Promise.race([p, new Promise((_, r) => setTimeout(() =>
           });
           // 사이클 2: 서버(worker/push.js match)가 이 payload로 보낼 것 = 앱 화면(소식·조건 경매)과 같은지 · 끈 구역은 서버 목록(zones·conds[].z)에 0
           const srv = (s, tag) => {
-            const sub = { z: s.pl.zones, o: s.pl.o || [], c: s.pl.conds }, m = PUSH.match(sub, CH.items.filter((e) => e.date >= d0));
+            const sub = { z: s.pl.zones, o: s.pl.o || [], c: s.pl.conds, mz: s.pl.mz || [] }, m = PUSH.match(sub, CH.items.filter((e) => e.date >= d0));
             const zk = [...new Set(m.zone.filter((e) => TY.has(e.type)).map((e) => `${e.id}|${e.date}|${e.type}|${e.text}`))].sort(), ak = [...new Set(m.cond.filter((x) => x.e.type === "auction").map((x) => `${x.e.id}|${x.e.date}|${x.e.text}`))].sort();
             const pz = [...new Set(s.pinEv)].sort(), pa = [...new Set(s.aucK)].sort(), mz = new Set((s.mute && s.mute.z) || []);
             if (JSON.stringify(zk) !== JSON.stringify(pz)) bad4.push(`${w} ${tag} 서버 구역 소식 ${zk.length} vs 앱 ${pz.length}`);
             if (JSON.stringify(ak) !== JSON.stringify(pa)) bad4.push(`${w} ${tag} 서버 조건 경매 ${ak.length} vs 앱 ${pa.length}`);
             const leak = sub.z.filter((id) => mz.has(id)).concat(...sub.c.map((c) => (c.z || []).filter((id) => mz.has(id))));
             if (leak.length) bad4.push(`${w} ${tag} 끈 구역이 서버 목록에 ${leak.slice(0, 3)}`);
+            // 사이클 4: 끈 구역 = 그 구역 알림 전부 끔 — payload mz가 끈 목록과 같고, 서버가 그 구역의 '필요한 돈(price)' 조건 사건도 보내지 않음(가짜 사건으로 확인)
+            const mzP = new Set(sub.mz); if ([...mz].some((id) => !mzP.has(id)) || [...mzP].some((id) => !mz.has(id))) bad4.push(`${w} ${tag} payload mz ${[...mzP].join(",")} ≠ 끈 구역 ${[...mz].join(",")}`);
+            const fake = [...mz].map((id) => ({ id, date: d0, type: "price", text: "x", n: id, g: "", v: { g: [99, 0], c: [99, 0] }, kd: "", s: 9 })), mf = PUSH.match(sub, fake);
+            if (mf.cond.length || mf.zone.length) bad4.push(`${w} ${tag} 끈 구역 price 사건이 서버 알림에 ${mf.cond.map((x) => x.e.id).concat(mf.zone.map((e) => e.id)).slice(0, 3)}`);
           };
           let s = await st(); srv(s, "처음");
           if (s.d0 !== d0) bad4.push(`${w} d0 ${s.d0} vs ${d0}`);

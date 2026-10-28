@@ -8,19 +8,79 @@
    facts.z      정적 /z/<id>.html: '언제 입주'·보류 이유·10년 확률(정체·숨김이면 % 없음)
    facts.api    /api/v1/zones.json: facts·completion = ZoneFacts
    facts.glue   이어 붙인 문장 패턴(괄호 뒤 '뒤에', '0곳뿐', '· ·', '이전 이전') — 시트·/z 글자 전체
-   facts.urls   앱이 만드는 공유 주소(공유 버튼·구역 공유·관심 링크·비교·시나리오·옮기기)의 ? 부분에 cash·inc·sv 같은 조건이 없음 */
+   facts.urls   앱이 만드는 공유 주소(공유 버튼·구역 공유·관심 링크·비교·시나리오·옮기기)의 ? 부분에 cash·inc·sv 같은 조건이 없음
+   facts.same   사이클 4 · 같은 화면 정합: 시트 한 장(머리·돈·일정·거래 탭)과 /z 한 쪽 안에서 같은 양(라벨 사전 SAME)이 두 번 나오면 문자열이 같아야 한다
+                 + 파생 규칙: '1년 …' 참고 시세면 12개월 표본 > 0 · '언제 입주' 글자 = 범위(eLo~eHi) 양 끝 · 정체·생략이면 이주·입주 칸 모두 시점 없음 ·
+                 보류(전세가율 등)면 '살 수 없는' 금지 · 분담금 요약 = 비례율 표 100% 줄 · ZoneFacts num 문자열(참고 시세·면적·전세·세대 라벨)과 같음 */
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
 const BASE = process.argv[2] || "http://localhost:8941";
 const OUTJ = (() => { const i = process.argv.indexOf("--json"); return i > 0 ? process.argv[i + 1] : null; })();
 const ROOT = path.join(__dirname, "..");
 const ONLY = process.env.QAF_IDS ? process.env.QAF_IDS.split(",") : null, MIN = ONLY ? 0 : 900;
+const SAME = process.env.QAF_SAME !== "0";   // 사이클 4: 같은 화면 정합(거래 탭까지 연다 · 끄려면 QAF_SAME=0)
 const fails = [], res = {}, log = (...a) => console.log(...a);
 const check = (ok, id, msg, n) => { log(`${ok ? "PASS" : "FAIL"} ${id}${ok ? "" : " — " + msg}`); if (n != null) log(`  ${id}: ${n}곳`); res[id] = { ok, msg: ok ? "" : msg, n }; if (!ok) fails.push(id); };
 const norm = (s) => String(s || "").replace(/\s+/g, " ").trim();
 const GLUE = [/[가-힣]\)\s*뒤에 산/, /\b0곳뿐/, /·\s*·/, /이전 이전/, /\(\s*\)/, /undefined|NaN|null원|\[object/];
 // 보류 이유 코드별 문장(다른 코드의 문장이 같은 머리에 나오면 '이유 여럿')
 const HOLD_ALT = ["매수가로 쓸 거래가 없어", "이주·철거가 시작됐어요", "입주 시점·신축 시세 자료가 부족해요", "주변 신축 실거래가 없어 입주 때 시세를 못 정했어요"];
+// ===================== 사이클 4: 같은 화면 정합 규칙 =====================
+//   라벨 사전(SAME_LAB): 같은 양을 가리키는 라벨들 → 화면 글자에서 값 문자열을 뽑아 모두 같은지 + ZoneFacts num 문자열과 같은지
+const MONEY = "(\\d+(?:\\.\\d)?억(?: [\\d,]+만)?|[\\d,]+만|0원)";
+const allM = (re, t) => { const o = []; let m; const g = new RegExp(re.source, "g"); while ((m = g.exec(t || ""))) o.push(m[1]); return o; };
+const uniqs = (a) => [...new Set(a)];
+function sameRules(id, f, S, bad, where) {
+  const N = f.num || {}, E = (m) => bad.push(`${id} ${where} ${m}`);
+  // ① 참고 시세: 머리 '참고 시세' 줄 = ZoneFacts num.ref.txt · '1년 …' 이면 12개월 표본 > 0
+  const ref = /참고 시세 · [^\n]+/.exec(S.head || "");
+  if (ref) { if (!N.ref || norm(ref[0]) !== norm(N.ref.txt)) E(`참고 시세 '${ref[0]}' ≠ '${N.ref && N.ref.txt}'`);
+    if (/1년 (대표 거래|가운데 값)/.test(ref[0]) && !(N.ref && N.ref.k === "hd") && !(S.n12 > 0)) E(`'1년' 참고 시세인데 12개월 표본 ${S.n12}건`);
+    // 거래 탭 맨 위 큰 숫자 = 참고 시세 값(표본 없는 곳은 같은 표본이 큰 숫자)
+    if (N.ref && S.tx && !S.tx.includes(N.ref.vt)) E(`거래 탭에 참고 시세 값 ${N.ref.vt} 없음`); }
+  // ② 언제 입주 = 범위 양 끝(파생) · 일정 탭 '빠르면 …, 늦으면 …'과 같은 끝
+  const er = f.eta.rng, et = f.eta.txt;
+  if (er) { const m = /^(?:약 )?(\d+)(?:~(\d+))?년 뒤$/.exec(et);
+    if (m) { const a = +m[1], b = +(m[2] || m[1]); if (a !== Math.max(1, Math.round(er.lo)) || b !== Math.max(a, Math.round(er.hi))) E(`언제 입주 '${et}' ≠ 범위 ${er.txt}(${er.lo}~${er.hi}년)`); }
+    else if (/^\d{4}(~\d\d)?년$/.test(et)) { const y = +et.slice(0, 4), y2 = et.length > 6 ? 2000 + +et.slice(5, 7) : y; if (y2 !== +er.eHi.slice(0, 4) || y > +er.eHi.slice(0, 4)) E(`언제 입주 '${et}' ≠ 범위 ${er.txt}`); }
+    else if (et !== "15년 넘게") E(`언제 입주 '${et}' 꼴이 범위 파생이 아님`);
+    if (S.biz && /예상 준공·입주 범위/.test(S.biz)) { const ym = (x) => `${+x.slice(0, 4)}.${+x.slice(5, 7)}`; const bz = /빠르면 ([^,]+), 늦으면 ([^\n]+)/.exec(S.biz); if (bz && !(norm(bz[1]) === ym(er.eLo) || bz[1] === "곧") ) E(`일정 탭 빠르면 '${bz[1]}' ≠ ${ym(er.eLo)}`); if (bz && !(norm(bz[2]).startsWith(ym(er.eHi)) || /15년 넘게/.test(bz[2]))) E(`일정 탭 늦으면 '${bz[2]}' ≠ ${ym(er.eHi)}`); } }
+  // 머리 '언제 입주' 칸 = 돈 탭 시간표 입주 칸
+  const gin = (S.gtw || []).find((x) => /^입주/.test(x)), gmv = (S.gtw || []).find((x) => /^이주/.test(x));
+  if (gin && !/^입주$/.test(gin)) { const v = gin.replace(/^입주 · /, "").replace(/ \(계산용 가정\)$/, ""); if (f.hold.one?.code !== "nt" && v !== et) E(`돈 탭 입주 칸 '${v}' ≠ 언제 입주 '${et}'`); }
+  // ③ 정체·자료 부족·범위 숨김(입주 시점을 내지 않음)이면 이주 칸도 시점 없음
+  const omit = !er; if (omit && gmv && /\d+(~\d+)?년 뒤|\d{4}년/.test(gmv)) E(`입주 시점 생략(${et})인데 이주 칸 '${gmv}'`);
+  if (er && gmv && /\d/.test(gmv)) { const mm = /(\d+)~?(\d+)?년 뒤/.exec(gmv); if (mm && et && /년 뒤$/.test(et)) { const b = +(mm[2] || mm[1]), eb = +((/~(\d+)년/.exec(et) || [])[1] || (/(\d+)년/.exec(et) || [])[1]); if (b > eb) E(`이주 칸 '${gmv}'가 입주 '${et}'보다 늦음`); } }
+  // ④ 보류면 '살 수 없는'(금지) 문구 금지
+  const hn = f.hold.now; if (hn && hn.code !== "gapBlock" && hn.code !== "nt" && /살 수 없/.test(S.all)) E(`보류(${hn.code})인데 '살 수 없' 문구`);
+  // ⑤ 분담금: 요약 칸 = 비례율 표 100% 줄 = ZoneFacts num.contrib
+  if (S.money && N.contrib) { const sm = /(?:추가 분담금|환급 추정)\n([^\n]+)/.exec(S.money), tb = /\n100%\t[^\t\n]*\t(?:환급 )?([^\n]+)/.exec(S.money);
+    if (sm && sm[1].trim() !== N.contrib.txt) E(`추가 분담금 '${sm[1].trim()}' ≠ ${N.contrib.txt}`);
+    if (sm && tb && sm[1].trim() !== tb[1].trim()) E(`분담금 요약 '${sm[1].trim()}' ≠ 비례율 100% '${tb[1].trim()}'`); }
+  // ⑥ 라벨 사전: 계산 매수가(정확한 만 원 하나)
+  if (N.price) { const L = uniqs(allM(new RegExp(`(?:계산 매수가|매수가)\\s?\\n?${MONEY}`), S.all)).filter((v) => !/^0원$/.test(v)); const odd = L.filter((v) => v !== N.price.txt); if (odd.length && f.hold.one?.code !== "nt") E(`매수가 표기 ${odd.join("/")} ≠ ${N.price.txt}`); }
+  // 구역 면적 · 빌라 전세 가운데 값 · 세대 라벨
+  if (N.area && S.biz) { const L = uniqs(allM(/구역 면적\n([\d,]+㎡)/, S.biz)); if (L.some((v) => v !== N.area.txt)) E(`구역 면적 ${L.join("/")} ≠ ${N.area.txt}`); }
+  if (N.jeonse && S.tx) { const L = uniqs(allM(/빌라 전세 가운데 값\n([^\n]+)/, S.tx)); if (L.some((v) => v.trim() !== N.jeonse.txt)) E(`빌라 전세 가운데 값 ${L.join("/")} ≠ ${N.jeonse.txt}`); }
+  if (N.units && S.biz && /조합·사업 정보/.test(S.biz) && !new RegExp(`\\n${N.units.lab}\\n`).test(S.biz) && !/\n계획 세대\n약 /.test(S.biz)) E(`세대수 칸 이름 '${N.units.lab}' 없음`);
+  // 동의율: 일정 탭 막대 = 조합·사업 정보 칸(같은 값 하나)
+  if (S.biz) { const L = uniqs(allM(/(?:조합설립|추진위원회|추진위) 동의율\n(?:법정 기준 \d+%\n)?([\d.]+%)/, S.biz)); if (L.length > 1) E(`동의율 ${L.join(" vs ")}`); if (/동의율 0%/.test(S.biz)) E("동의율 0% 원자료 노출"); }
+  // 다음 단계: 머리 칸 = 일정 탭(이미 가진 집이면)
+  if (f.next && S.head && /다음 단계\n/.test(S.head)) { const m = /다음 단계\n([^\n]+)/.exec(S.head); if (m && m[1].trim() !== f.next.toName) E(`머리 다음 단계 '${m[1]}' ≠ ${f.next.toName}`); }
+  // 권리산정기준일 '?'·'추정' 겹침
+  if (/\d{4}\.\d\d\.\d\d\?/.test(S.all)) E("권리산정기준일 '?' 표기");
+}
+// /z 한 쪽 안: 참고 시세(ZoneFacts num.ref) · 면적 · 빌라 전세 · 보류면 '살 수 없' 금지 · 범위 파생
+function sameZ(id, f, t, bad) {
+  const N = f.num || {}, E = (m) => bad.push(`${id} /z ${m}`);
+  const ref = /참고 시세 · [^·]+?(?:값|건)\)? [\d.,]+(?:억|만)/.exec(t); if (ref && N.ref && norm(ref[0]) !== norm(N.ref.txt)) E(`참고 시세 '${ref[0]}' ≠ '${N.ref.txt}'`);
+  if (ref && !N.ref) E(`참고 시세 '${ref[0]}'인데 ZoneFacts에 없음`);
+  if (N.area) { const L = uniqs(allM(/구역 면적 ([\d,]+㎡)/, t)); if (L.some((v) => v !== N.area.txt)) E(`구역 면적 ${L.join("/")} ≠ ${N.area.txt}`); }
+  if (N.jeonse) { const L = uniqs(allM(/빌라 전세 ([\d.,]+(?:억|만))/, t)); if (L.some((v) => v !== N.jeonse.txt)) E(`빌라 전세 ${L.join("/")} ≠ ${N.jeonse.txt}`); }
+  const hn = f.hold.now; if (hn && hn.code !== "gapBlock" && hn.code !== "nt" && /살 수 없/.test(t.replace(/토지거래허가[^.]{0,80}살 수 없/g, ""))) E(`보류(${hn.code})인데 '살 수 없' 문구`);
+  if (f.eta.rng) { const m = /(\d{4})~(\d{4})년 준공 예상 범위|준공 예상 범위\(추정\)[^\d]{0,20}(\d{4})\.\d+~(\d{4})/.exec(t); if (m) { const a = m[1] || m[3], b = m[2] || m[4]; if (a !== f.eta.rng.eLo.slice(0, 4) || b !== f.eta.rng.eHi.slice(0, 4)) E(`준공 예상 범위 ${a}~${b} ≠ ${f.eta.rng.txt}`); } }
+  if (/\d{4}\.\d\d\.\d\d\?/.test(t)) E("권리산정기준일 '?' 표기");
+}
 (async () => {
   const C = JSON.parse(fs.readFileSync(path.join(ROOT, "pipeline/calc.json"), "utf8"));
   const API = JSON.parse(fs.readFileSync(path.join(ROOT, "public/api/v1/zones.json"), "utf8")); const A = {}; (API.items || []).forEach((z) => (A[z.id] = z));
@@ -42,7 +102,8 @@ const HOLD_ALT = ["매수가로 쓸 거래가 없어", "이주·철거가 시작
   { const bad = []; let n = 0;
     for (const id of ids) { const a = F[id], c = (C[id] || {}).f; if (!a) continue; n++;
       if (!c) { bad.push(`${id} calc.json f 없음`); continue; }
-      const k = (f) => JSON.stringify([f.eta.txt, f.eta.p10 == null ? null : Math.round(f.eta.p10 * 1000), f.stall, f.next ? [f.next.toName, f.next.state, f.next.txt] : null, f.hold.one ? [f.hold.one.code, f.hold.one.txt] : null, Math.round(f.jr.v * 10), f.jr.hold]);
+      const nk = (n) => (n ? [n.ref ? n.ref.txt : null, n.area ? n.area.txt : null, n.jeonse ? n.jeonse.txt : null, n.units ? [n.units.lab, n.units.txt] : null, n.tl ? [n.tl.move, n.tl.in] : null] : null);   // 사이클 4: 표시 숫자(ZoneFacts v2 num)도 정적 생성기와 같은 문자열
+      const k = (f) => JSON.stringify([f.eta.txt, f.eta.p10 == null ? null : Math.round(f.eta.p10 * 1000), f.stall, f.next ? [f.next.toName, f.next.state, f.next.txt] : null, f.hold.one ? [f.hold.one.code, f.hold.one.txt] : null, Math.round(f.jr.v * 10), f.jr.hold, nk(f.num), f.eta.rng ? f.eta.rng.txt : null]);
       if (k(a) !== k(c)) bad.push(`${id} 앱 ${k(a)} ≠ calc ${k(c)}`);
       // 같은 객체 안 모순: 범위를 숨기지 않았는데 '10년 안'을 말하는 범위 + 10년 확률 50% 미만
       if (!a.eta.hid && a.eta.p10 != null && a.eta.p10 < 0.5 && /^(4~7년 뒤|7~10년 뒤|20\d\d)/.test(a.eta.txt)) bad.push(`${id} 범위 ${a.eta.txt} vs 10년 ${a.eta.p10Txt}`);
@@ -53,7 +114,7 @@ const HOLD_ALT = ["매수가로 쓸 거래가 없어", "이주·철거가 시작
     check(!bad.length && n > MIN, "facts.calc", `${bad.length} 불일치 · ${bad.slice(0, 5).join(" ; ")}`, n); res["facts.calc"].bad = bad; }
   // ---------- 2) 시트 화면 ----------
   const sheetIds = ids.filter((id) => F[id] && F[id].kind.g !== "moa");
-  const SH = await p.evaluate(async (ids) => {
+  const SH = await p.evaluate(async ([ids, SAME]) => {
     const ctx = ZP_feat.ctx(), out = {}, wait = (f, ms) => new Promise((res) => { const t0 = Date.now(); const k = () => { let v = null; try { v = f(); } catch (e) {} if (v || Date.now() - t0 > ms) return res(v); setTimeout(k, 30); }; k(); });
     await ZP_feat.load();
     let k0 = 0; for (const id of ids) { if (++k0 % 100 === 0) console.log("sheet", k0, Date.now());
@@ -71,11 +132,17 @@ const HOLD_ALT = ["매수가로 쓸 거래가 없어", "이주·철거가 시작
       o.biz = pn ? pn.innerText : "";
       const tm = document.getElementById("tab-money"); if (tm) tm.click();
       await wait(() => ctx.tab() === "money" ? 1 : null, 500);
+      // 돈 탭 비례율 표(#mSens)는 같은 틱 뒤에 채워진다
+      await wait(() => { const pn = document.getElementById("pane"); return pn && (!pn.querySelector("#mSens") || pn.querySelector("#mSens tr")) ? 1 : null; }, 800);
       o.money = (document.getElementById("pane") || {}).innerText || "";
+      o.gtw = [...document.querySelectorAll("#pane .gtl .gt-w")].map((e) => e.textContent.trim());   // 돈 탭 시간표 칸 이름(지금 · 이주 · 입주)
+      // 사이클 4: 같은 화면 정합 — 거래 탭 글자 · 구역 자료(12개월 표본)
+      if (SAME) { const tx = document.getElementById("tab-tx"); if (tx) { tx.click(); await wait(() => { const pn = document.getElementById("pane"); return ctx.tab() === "tx" && pn && pn.querySelector(".ov-tx, .sect") ? 1 : null; }, 2500); await wait(() => { const pn = document.getElementById("pane"); return pn && pn.querySelector(".zpx") ? 1 : null; }, 600); o.tx = (document.getElementById("pane") || {}).innerText || ""; }
+        const rr = ctx.R.find((q) => q.id === id) || {}; o.n12 = rr.tx ? rr.tx.n12 : null; }
       out[id] = o;
     }
     return out;
-  }, sheetIds);
+  }, [sheetIds, SAME]);
   { const bad = [], glue = [];
     for (const id of sheetIds) { const f = F[id], s = SH[id]; if (!s || s.head == null) { bad.push(`${id} 시트 안 열림`); continue; }
       const H = norm(s.head), nt = f.hold.one && f.hold.one.code === "nt";
@@ -93,8 +160,15 @@ const HOLD_ALT = ["매수가로 쓸 거래가 없어", "이주·철거가 시작
       for (const t of [s.head, s.biz, s.money]) GLUE.forEach((re) => { const m = re.exec(t || ""); if (m) glue.push(`${id} '${String(t).slice(Math.max(0, m.index - 20), m.index + 20).replace(/\n/g, " ")}'`); });
     }
     check(!bad.length && sheetIds.length > MIN, "facts.sheet", `${bad.length} 불일치 · ${bad.slice(0, 6).join(" ; ")}`, sheetIds.length); res["facts.sheet"].bad = bad;
+    // ---------- 2b) 사이클 4 · 같은 화면 정합(시트 한 장 안) ----------
+    if (SAME) { const sb = []; let sn = 0;
+      for (const id of sheetIds) { const f = F[id], s = SH[id]; if (!s || s.head == null || s.tx == null) continue; sn++;
+        const all = [s.head, s.money, s.biz, s.tx].join("\n");
+        sameRules(id, f, { head: s.head, money: s.money, biz: s.biz, tx: s.tx, all, n12: s.n12, gtw: s.gtw || [] }, sb, "시트");
+      }
+      check(!sb.length && sn > MIN, "facts.same", `${sb.length} 불일치 · ${sb.slice(0, 8).join(" ; ")}`, sn); res["facts.same"].bad = sb; }
     // ---------- 3) /z ----------
-    const zb = []; let zn = 0;
+    const zb = [], zsb = []; let zn = 0, zsn = 0;
     for (const id of sheetIds) { const fp = path.join(ROOT, "public/z", id + ".html"); if (!fs.existsSync(fp)) continue; const f = F[id];
       let h = fs.readFileSync(fp, "utf8"); if (/http-equiv="refresh"/.test(h)) continue; zn++;
       const t = norm(h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&nbsp;|&#160;/g, " "));
@@ -105,9 +179,11 @@ const HOLD_ALT = ["매수가로 쓸 거래가 없어", "이주·철거가 시작
       if (f.eta.p10 != null && /준공 가능성은 약 (\d+)%/.test(t) && RegExp.$1 + "%" !== f.eta.p10Txt) zb.push(`${id} /z 10년 ${RegExp.$1}% ≠ ${f.eta.p10Txt}`);
       if (f.eta.hid && /준공 예상 범위\(추정\)/.test(t)) zb.push(`${id} /z 숨긴 범위가 실림`);
       HOLD_ALT.forEach((x) => { if (t.includes(x) && !(f.hold.one && f.hold.one.txt.includes(x))) zb.push(`${id} /z 다른 보류 이유 '${x}'`); });
+      if (SAME) { zsn++; sameZ(id, f, t, zsb); }
       GLUE.forEach((re) => { const m = re.exec(t); if (m) glue.push(`${id} /z '${t.slice(Math.max(0, m.index - 20), m.index + 20)}'`); });
     }
     check(!zb.length && zn > MIN / 2, "facts.z", `${zb.length} 불일치 · ${zb.slice(0, 6).join(" ; ")}`, zn); res["facts.z"].bad = zb;
+    if (SAME) { check(!zsb.length && zsn > MIN / 2, "facts.sameZ", `${zsb.length} 불일치 · ${zsb.slice(0, 8).join(" ; ")}`, zsn); res["facts.sameZ"].bad = zsb; }
     check(!glue.length, "facts.glue", `${glue.length}곳 · ${glue.slice(0, 6).join(" ; ")}`); res["facts.glue"].bad = glue;
   }
   // ---------- 4) API ----------

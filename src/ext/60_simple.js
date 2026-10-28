@@ -165,7 +165,8 @@ const SIMPLE = (() => {
     // 입주권 ✓는 화면 읽기 이름에만(카드 2줄을 동·역에 양보) · ✕만 주황 배지
     // 사이클 2(F8): 구역 카드에 '노후도 N%' — 시트 노후도 게이지(64_overview oldHTML)와 같은 값·같은 조건(재개발 계열 · 이주 전 · 사용승인연도 확인 건물 있음)
     const old = r.tx && r.tx.old && r.tx.old.k && r.s < 7 && !/재건축/.test(r.k) && r.src !== "moa" ? r.tx.old.pol : null;
-    const bdg = `${tk === "n" ? '<em class="s-b s-b-no">입주권 ✕</em>' : ""}${nw ? '<em class="s-b s-b-new">NEW</em>' : ""}${old != null ? `<em class="s-b s-b-old" title="노후도: 구역 안 오래된 건물 비율(건물 사용승인연도로 낸 추정) · 구역 화면 일정 탭 노후도와 같은 값">노후도 ${old}%</em>` : ""}`;
+    // 사이클 4(D4 이유 칩): 단계 · 입주권 ✓/✕ · 노후도 · '이번 주 새로 가능'(노란 바탕 · 공용 고른 상태 zp-soft) — 좁으면 rowFit이 NEW·✓ → 노후도 → 역 이름 차례로 뺀다
+    const bdg = `${tk === "n" ? '<em class="s-b s-b-no">입주권 ✕</em>' : tk === "y" ? '<em class="s-b s-b-ok">입주권 ✓</em>' : ""}${nw ? '<em class="s-b s-b-new zp-soft">이번 주 새로 가능</em>' : ""}${old != null ? `<em class="s-b s-b-old" title="노후도: 구역 안 오래된 건물 비율(건물 사용승인연도로 낸 추정) · 구역 화면 일정 탭 노후도와 같은 값">노후도 ${old}%</em>` : ""}`;
     const mt = main != null ? eokS(main) : "–";
     // 27차: 좁은 폰(≤420)은 '현금 '을 숨겨 오른쪽 칸을 줄인다(글은 그대로 · 화면 읽기는 aria-label) — 2줄 역 이름이 잘리던 것
     const line2 = nowK ? (z.total != null ? `입주까지 현금 <b>${eokS(z.total)}</b>` : `입주까지 <span class="s-nah">현금 </span>계산 보류<i class="s-nai" aria-hidden="true">i</i>`) : `계약 ${eokS(z.need)}`;

@@ -69,7 +69,10 @@
       const p10 = show && pr.p10 != null ? pr.p10 : null;
       let why = ""; try { why = p10Why(r); } catch (e) {}
       const o = { txt: etaShow(r), p10, p10Txt: p10 != null ? probTxt(p10) : null, why, hid: pr.unsure ? "range" : null, done: !!pr.done };
-      if (pr.unsure) o.note = `준공되는 경우만 보면 가운데 값이 ${pr.unsure}이지만, 준공하지 못하는 경우까지 넣은 10년 안 준공 가능성이 ${probTxt(p10)}라 입주 범위를 싣지 않아요`;
+      if (pr.unsure) o.note = `준공되는 경우만 보면 ${pr.unsure}이지만, 준공하지 못하는 경우까지 넣은 10년 안 준공 가능성이 ${probTxt(p10)}라 입주 범위를 싣지 않아요`;
+      // 사이클 4: 칸 글자(txt)가 파생된 범위 — 범위를 싣는 곳만(숨김·정체·자료 부족이면 null)
+      if (show && !pr.unsure) { const g = rngOf(r); if (g) o.rng = { txt: g.txt, eLo: g.eLo, eHi: g.eHi, lo: g.lo, hi: g.hi }; }
+      if (pr.nostat) o.why = o.why || "가로·소규모 서울 기록 적음";
       return o;
     }
     // ---------- 계산 보류 이유(하나) ----------
@@ -137,6 +140,126 @@
       }
       return { v: base, src: JR_GU[r.g] != null ? "gu" : "seoul", txt: JR_GU[r.g] != null ? `${r.g} 연립·다세대 평균(2026.3)` : "서울 연립·다세대 평균(2026.3)", zone: m, hold: false };
     }
+    // ===================== 사이클 4: ZoneFacts v2 — 화면에 나오는 숫자 =====================
+    //   같은 양은 객체에서 한 번 만들고, 문자열도 반올림 함수 하나(fmt)로 여기서 만든다. 화면·정적 생성기(calc.json f.num)는 문자열만 꽂는다.
+    //   c3까지 남은 불일치(참고 시세 '1년' vs 12개월 0건 · 입주 칸 vs 범위 · 정체인데 이주 칸 · 분담금 반올림/올림 · 면적·전세 반올림)가 모두 '표시 숫자'를 화면마다 따로 만든 데서 났다.
+    //   fmt 종류: cash(억 금액 · 화면 올림 규칙 ZF.cash) · won(정확한 만 원 ZF.manT) · m2p(만원 단위 시세 ZF.eok) · area(㎡ 반올림) · n(개수)
+    const FMT = {
+      cash: (v) => ZF.cash(v), won: (v) => ZF.manT(v), m2p: (m) => ZF.eok(m),
+      area: (v) => `${Math.round(v).toLocaleString("ko-KR")}㎡`, n: (v) => Math.round(v).toLocaleString("ko-KR"),
+    };
+    const fmt = (k, v) => (v == null || !isFinite(v) ? null : FMT[k](v));
+    // 받침 있으면 '으로', 없거나 ㄹ이면 '로' — 괄호·숫자 뒤 조사(가운데 값(26.05–26.10)으로)
+    const ro = (w) => { const s = String(w || "").replace(/[)\]\s]+$/, ""), c = s.charCodeAt(s.length - 1); if (c >= 0xac00 && c <= 0xd7a3) { const j = (c - 0xac00) % 28; return j === 0 || j === 8 ? "로" : "으로"; } return /[013678]$/.test(s) ? "으로" : "로"; };
+    const ymT = (d) => { const s = String(d || ""); return s.length >= 6 ? `${s.slice(2, 4)}.${s.slice(4, 6)}` : ""; };
+    // ---------- 참고 시세(시트 첫 칸 '참고 시세' 줄 = 거래 탭 맨 위 큰 숫자) — 표본 기간·건수를 숫자와 함께 ----------
+    //   tx.hd(대표 거래: 1년/2년/최근 거래 창 w) 있으면 그것 · 없으면 쓴 값의 실제 기간(tools/tx.py: am 12개월 · im iw개월 · med nwin개월 · pp 2023.11 뒤 전체)
+    function refOf(r) {
+      const t = r.tx || {}, h = t.hd;
+      if (h && h.u) {
+        const BN = { i: "입주권", a: "아파트", v: "빌라·단독 대지" }[h.b] || "대지", win = h.w === 0 ? "최근 거래" : h.w === 24 ? "2년" : "1년";
+        const basis = h.n === 1 ? `${win} 구역 안 거래 1건` : `${win} 대표 거래 ${h.n}건 가운데 값`;
+        return { k: "hd", lab: `${BN} 3.3㎡당`, v: h.u, n: h.n, win, basis, to: h.to || "", vt: fmt("m2p", h.u), txt: `참고 시세 · ${BN} 3.3㎡당 ${basis} ${fmt("m2p", h.u)}` };
+      }
+      const A = !!t.am && (/재건축/.test(r.k || "") || (!t.pp && !t.med));
+      const L = r.s >= 8 && t.im ? ["입주권 매매", t.im, `${t.iw === 24 ? "2년" : "1년"} 가운데 값`, t.in]
+        : A ? ["아파트 매매", t.am, "1년 가운데 값", t.an]
+        : t.med ? ["빌라 매매", t.med, `${t.nwin || 18}개월 가운데 값`, t.no]
+        : t.pp ? ["대지 3.3㎡당", t.pp, "2023.11 뒤 거래 전체 가운데 값", t.n]
+        : t.am ? ["아파트 매매", t.am, "1년 가운데 값", t.an] : null;
+      if (!L) return null;
+      return { k: "tx", lab: L[0], v: L[1], n: L[3] || null, win: L[2], basis: `${L[2]}${L[3] ? ` · ${L[3]}건` : ""}`, vt: fmt("m2p", L[1]), txt: `참고 시세 · ${L[0]} ${L[2]}${L[3] ? `(${L[3]}건)` : ""} ${fmt("m2p", L[1])}` };
+    }
+    // ---------- 입주 시기 글자(범위에서 파생) — '언제 입주' 칸 = 준공 범위(eLo~eHi)를 '지금부터 몇 년'으로 반올림한 것 ----------
+    //   c3까지는 가운데 값으로 '10~15년 뒤' 같은 칸을 골라 범위(2036~2043 · 10~17년)와 어긋났다. 이제 칸 글자 = 범위 양 끝(반올림 1년)
+    const YN = () => { try { return ETA_NOW.getFullYear() + (ETA_NOW.getMonth() + (ETA_NOW.getDate() - 0.5) / 30.44) / 12; } catch (e) { return new Date().getFullYear(); } };
+    const yOf = (ym2) => { const m = /^(\d{4})-(\d{2})/.exec(String(ym2 || "")); return m ? +m[1] + (+m[2] - 0.5) / 12 : null; };
+    function spanTxt(lo, hi) {
+      if (lo == null || hi == null) return null;
+      const a = Math.max(1, Math.round(lo)), b = Math.max(a, Math.round(hi));
+      if (a > 15) return "15년 넘게";
+      return a === b ? `약 ${a}년 뒤` : `${a}~${b}년 뒤`;
+    }
+    // 범위 글자(정적 /z '준공 예상 범위'·시트 '빠르면 … 늦으면 …'과 같은 끝값)와 그 지금부터의 햇수
+    function rngOf(r) {
+      const e = r.eta; if (!e || !e.eLo || !e.eHi) return null;
+      const n = YN(), lo = yOf(e.eLo) - n, hi = yOf(e.eHi) - n;
+      return { eLo: e.eLo, eHi: e.eHi, lo, hi, txt: `${e.eLo.replace("-", ".")}~${e.eHi.replace("-", ".")}` };
+    }
+    // ---------- 돈 탭 시간표 칸(지금 · 이주 · 입주) ----------
+    //   입주 칸 = eta.txt · 이주 칸 = 같은 범위에서 공사 기간(착공→준공 가운데 값)을 뺀 것 · 입주를 내지 않는 곳(정체·자료 부족·범위 숨김·가로·소규모 기록 부족)은 이주 칸도 '시점 미정'
+    function tlOf(r, eta) {
+      let pr = {}; try { pr = projection(r); } catch (e) {}
+      const omit = !hasEta(pr) || !!pr.unsure;
+      if (omit) return { omit: true, move: "시점 미정", in: eta.txt, calc: !!(pr.stall || pr.nodata || pr.nostat) };
+      const g = rngOf(r); let cj = 3; try { cj = CJ(); } catch (e) {}
+      const near = /^\d{4}(~\d\d)?년$/.test(eta.txt);
+      let move = null;
+      if (g && !near) move = spanTxt(Math.max(0.25, g.lo - cj), Math.max(0.25, g.hi - cj));
+      else if (g) { const a = Math.max(ETA_NOW.getFullYear(), Math.floor(g.lo - cj + YN())); move = `${a}년 무렵`; }
+      return { omit: false, move: move || "시점 미정", in: eta.txt, calc: false };
+    }
+    // ---------- 그 밖의 표시 숫자 ----------
+    const UL = { "분양 세대수(정보몽땅)": ["분양 세대", "정보몽땅 분양 세대수"], "계획 세대수(신통 추진현황)": ["계획 세대", "신통 추진현황 계획 세대수"], "총 세대수(정보몽땅 분양+임대)": ["총 세대", "정보몽땅 분양+임대"], "세대수 확인 중": ["세대수", "원천 확인 중"] };
+    function numOf(r, eta) {
+      const t = r.tx || {}, sm = r.sm || {};
+      let x = null; try { x = investC(r); } catch (e) {}
+      let nt = false; try { nt = noTicket(r); } catch (e) {}
+      const o = { ref: refOf(r), tl: r.src === "moa" ? null : tlOf(r, eta) };
+      // 분담금(기본 가정 · 비례율 100%) — 요약 칸·비례율 표 100% 줄·'이미 가진 집이면'이 같은 fmt('cash')
+      if (!nt && x && x.ok && isFinite(x.contrib)) o.contrib = { v: x.contrib, refund: x.contrib < 0, txt: fmt("cash", Math.abs(x.contrib)), exact: ZF.exact(Math.abs(x.contrib)) };
+      // 매수가(계산 매수가) — 정확한 만 원 하나(카드 '3.2억' vs /z '3억 1,050만'이 갈리던 것)
+      if (!nt && x && x.price != null && isFinite(x.price)) o.price = { v: x.price, txt: fmt("won", x.price) };
+      if (sm.area) o.area = { v: Math.round(sm.area), txt: fmt("area", sm.area) };
+      if (t.jm) o.jeonse = { v: t.jm, n: t.jn || null, txt: fmt("m2p", t.jm) };
+      // 3.3㎡당(1km 표·비교 표): 머리 큰 숫자가 3.3㎡당이면 그 값(같은 표본), 아니면 구역 대표 거래 — 기준을 글로
+      try { const u = ZF.u33(r), h = t.hd; if (u && u.v) { const win = h && h.w === 0 ? "최근 거래" : h && h.w === 24 ? "2년" : "1년"; o.u33 = { v: u.v, txt: fmt("m2p", u.v), same: !u.zone && !!(ZF.headline(r, h) || {}).kind && (ZF.headline(r, h) || {}).kind === "u", basis: (ZF.headline(r, h) || {}).kind === "u" ? "거래 탭 맨 위와 같은 값(매수가 표본의 대지 3.3㎡당)" : `구역 ${win} 대표 거래 ${u.n || ""}건 가운데 값(거래 탭 '다른 기준 보기'의 대표 거래 값)`.replace(" 건", "건") }; } } catch (e) {}
+      if (sm.units || sm.uTbd) { const L = UL[sm.uL] || ["계획 세대", ""]; o.units = { v: sm.units || null, lab: L[0], src: L[1], txt: sm.uTbd ? "확인 중" : `${fmt("n", sm.units)}세대` }; }
+      return o;
+    }
+    // ===================== 사이클 4: 투기과열지구 기간(구별 · tools/tgj.json → D.policy.tgj) =====================
+    //   매수 시점 규칙(도시정비법 제39조② · 소규모주택정비법 제24조②)은 '산 때 그 구가 투기과열지구였는지'로 갈린다고 본다(추정·확인 필요)
+    const TG = () => (D.policy && D.policy.tgj) || null;
+    const dT = (s) => String(s || "").replace(/^(\d{4})-(\d{2})-(\d{2})$/, (m, y, a, b) => `${y}.${+a}.${+b}`);
+    // 구 하나의 지정 기간 [[from, to|null], …] (확인한 구간만 · 이어지는 구간은 합침)
+    function tgjSegs(gu) {
+      const T = TG(); if (!T) return [];
+      const L = T.seg.filter((s) => s.gu === "*" || (Array.isArray(s.gu) && s.gu.includes(gu))).map((s) => [s.from, s.to]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+      const out = [];
+      L.forEach(([f, t]) => { const p = out[out.length - 1]; const nx = (d) => { const z = new Date(d + "T00:00:00Z"); z.setUTCDate(z.getUTCDate() + 1); return z.toISOString().slice(0, 10); }; if (p && (p[1] == null || nx(p[1]) >= f)) { if (p[1] != null && (t == null || t > p[1])) p[1] = t; } else out.push([f, t]); });
+      return out;
+    }
+    const segTxt = (s) => `${dT(s[0])}${s[1] ? `~${dT(s[1])}` : "부터"}`;
+    // 기간 글: '강동구 지정 기간 2017.8.3~2023.1.4 · 2025.10.16부터' · 4개 구 '2017.8.3부터 계속'
+    function tgjTxt(gu) {
+      const S2 = tgjSegs(gu); if (!S2.length) return "";
+      return S2.length === 1 && !S2[0][1] ? `${gu} 투기과열지구 ${dT(S2[0][0])}부터 계속 지정` : `${gu} 투기과열지구 지정 기간 ${S2.map(segTxt).join(" · ")}`;
+    }
+    // 날짜 d0(조합설립인가·관리처분인가 등 제한 시작) 뒤로 지정이 풀려 있던 구간(그때 산 집은 제한을 받지 않았을 수 있음)
+    function tgjOff(gu, d0) {
+      const S2 = tgjSegs(gu), T = TG(); if (!S2.length || !d0 || !T) return [];
+      const today = (T.checked || "").slice(0, 10), out = [];
+      const day = (d, k) => { const z = new Date(d + "T00:00:00Z"); z.setUTCDate(z.getUTCDate() + k); return z.toISOString().slice(0, 10); };
+      let cur = d0 < "2017-08-03" ? "2017-08-03" : d0;
+      for (const s of S2) { if (s[1] && s[1] < cur) continue; if (s[0] > cur) out.push([cur, day(s[0], -1)]); cur = s[1] ? day(s[1], 1) : "9999-12-31"; if (cur > today) break; }
+      if (cur < today) out.push([cur, null]);
+      return out;
+    }
+    // 구역 하나의 매수 시점 판정: 제한이 시작되는 인가(재개발 관리처분인가 · 재건축·가로·소규모 조합설립인가)와 그 뒤 지정이 풀려 있던 구간
+    function buyOf(r) {
+      if (!r || r.src === "moa" || r.dn || r.s >= 9) return null;
+      const g = /가로|소규모|모아/.test(r.k || "") ? "small" : r.k === "재건축" ? "rebuild" : /재개발/.test(r.k || "") ? "redev" : null;
+      if (!g) return null;
+      const dt = r.dt || {}, lab = g === "redev" ? "관리처분인가" : "조합설립인가", d0 = String((g === "redev" ? dt["관리처분"] : dt["조합설립"] || dt["시행자지정"]) || "").slice(0, 10);
+      const T = TG(), gu = r.g || "", segs = tgjSegs(gu), off = /^\d{4}-\d{2}-\d{2}$/.test(d0) ? tgjOff(gu, d0) : [];
+      const pre = d0 && d0 < "2017-08-03";
+      const tg = tgjTxt(gu) + (T ? ` · 2017.8.3 전 이력은 확인 필요` : "");
+      let txt = "";
+      if (d0) txt = off.length ? `${lab}(${dT(d0)}) 뒤에 샀어도 ${off.map((s) => `${dT(s[0])}~${s[1] ? dT(s[1]) : ""}`).join(" · ")}에 산 집은 ${gu}가 투기과열지구가 아니어서 이 제한을 받지 않았을 수 있어요` + (pre ? ` · ${dT(d0)}~2017.8.2 매수는 확인 필요` : "") : `${lab}(${dT(d0)}) 뒤 ${gu}는 계속 투기과열지구라 그 뒤에 산 집은 이 제한을 받아요` + (pre ? ` · ${dT(d0)}~2017.8.2 매수는 확인 필요` : "");
+      else txt = `${lab} 뒤 매수일이 ${gu} 투기과열지구 지정 기간(${segs.map(segTxt).join(" · ")})이면 이 제한을 받아요`;
+      return { g, lab, d0: d0 || null, gu, off: off.map((s) => [s[0], s[1]]), tg, txt, src: T ? T.seg.map((s) => s.src[0].u) : [] };
+    }
+
     // ---------- 한 객체 ----------
     let CACHE = new Map(), KEY = "";
     function build(r) {
@@ -146,13 +269,16 @@
       let stall = 0; try { stall = r.src === "moa" ? 0 : stallYrs(r) || 0; } catch (e) {}
       const gap = gapMode();
       const jr = jrInfo(r); jr.short = `${String(Math.round(jr.v * 10) / 10)}% · ${JRS[jr.src] || ""}`;
-      return { id: r.id, s: r.s, stage, kind: { g: g0, t: SHAPE[shapeOf(r)] || "" }, eta: etaOf(r), stall, next: nextOf(r), hold: holdOf(r, gap), jr, win, mode: gap ? "gap" : "cash" };
+      const eta = etaOf(r);
+      let num = null; try { num = numOf(r, eta); } catch (e) { num = { err: String(e && e.message) }; }
+      let buy = null; try { buy = buyOf(r); } catch (e) {}
+      return { id: r.id, s: r.s, stage, kind: { g: g0, t: SHAPE[shapeOf(r)] || "" }, eta, stall, next: nextOf(r), hold: holdOf(r, gap), jr, win, mode: gap ? "gap" : "cash", num, buy, notice: r.notice || null };
     }
     function of(r) {
       if (!r) return null;
       const k = condKey() + "|" + P.fund + "|" + P.jr + "|" + P.est;
       if (k !== KEY) { CACHE = new Map(); KEY = k; }
-      const ck = r.id + "|" + JSON.stringify(OV[r.id] || 0);
+      const ck = r.id + "|" + (r._prem ? 1 : 0) + "|" + JSON.stringify(OV[r.id] || 0);   // 사이클 4: 단계 날짜(premium)가 오면 다시 만든다(매수 시점·다음 단계가 dt를 읽음)
       let f = CACHE.get(ck);
       if (!f) { f = build(r); CACHE.set(ck, f); }
       return f;
@@ -161,6 +287,6 @@
     // 전세가율 짧은 꼴(시트 첫 칸 · /z 첫 칸 같은 글): '3.4% · 구역 실측' · '56.6% · 서울 평균'
     const JRS = { user: "직접 설정", zone: "구역 실측", zoneLow: "구역 실측", gu: "구 평균", seoul: "서울 평균" };
     const jrShort = (r) => { const j = jrInfo(r); return `${String(Math.round(j.v * 10) / 10)}% · ${JRS[j.src] || ""}`; };
-    return { of, clear, jrInfo, jrShort, JRS, nextOf, ym, ymd, yr, condQ, NM };
+    return { of, clear, jrInfo, jrShort, JRS, nextOf, ym, ymd, yr, condQ, NM, refOf, spanTxt, rngOf, tgjSegs, tgjTxt, buyOf, fmt, ro };
   })();
   window.ZP_facts = (id) => { try { return ZFX.of(byId[id]); } catch (e) { return null; } };   // 점검(QA): 문장 대조

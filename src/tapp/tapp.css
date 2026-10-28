@@ -194,7 +194,8 @@
   .tob h2{margin:0 0 10px;color:var(--t-ink);font:800 26px/1.32 var(--font);letter-spacing:-.045em;word-break:keep-all}
   .tob-p{margin:0 0 24px;color:var(--t-sub);font:500 15.5px/1.55 var(--font);letter-spacing:-.02em;word-break:keep-all}
   .tob-cash{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-  .tob-cash button{min-height:52px;border:0;border-radius:14px;background:var(--t-fill);color:var(--t-ink);font:700 16px var(--font);letter-spacing:-.02em;cursor:pointer}
+  .tob-cash button{min-height:52px;border:0;border-radius:14px;background:var(--t-fill);color:var(--t-ink);font:700 16px var(--font);letter-spacing:-.02em;cursor:pointer;white-space:nowrap;word-break:keep-all;padding:0 2px}
+  @media (max-width:380px){.tob-cash button{font-size:15px;letter-spacing:-.04em}}   /* 사이클 4: 360 큰 글씨 '5,000만' 두 줄 꺾임 — 칩 글자는 한 덩이 */
   .tob-cash button[aria-pressed="true"]{background:var(--t-navy);color:var(--t-on)}
   .tob-res{margin:16px 0 0;padding:16px 18px;border-radius:16px;background:var(--t-sec);border:0;font:600 15px/1.5 var(--font);color:var(--t-sub)}
   .tob-res b{color:var(--t-navy);font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
@@ -492,7 +493,7 @@
 /* 13 시트 작은 글자 12px(앱): 타임라인 이름표(지금·매수 …) · 판정 꼬리표 · 표 머리 · 보조 글(차트 그림 안 글자는 제외) */
 @media (max-width:980px){html.is-tapp #report :is(.gt-w,.vd-t,dt,th,small,.if-t,.hjb,.dim,.ov-chn,.auc-k,.auc-f,.auc-s,.ev-s,.s-sp i){font-size:12px!important}}
 /* 13 목록: 꼬리표(NEW·입주권 ✕)가 있는 줄은 역 이름을 빼고 '역 12분'만(이름이 '강…'으로 잘리던 것) */
-@media (max-width:980px){html.is-tapp #sList li:has(.s-b-new,.s-b-no) .s-wn{display:none!important}}
+/* 사이클 4: 앱도 웹과 같은 빼는 차례(rowFit: NEW·입주권 ✓ → 노후도 → 역 이름) — NEW가 있으면 역 이름부터 숨기던 규칙을 뺐다 */
 /* ===================== 4라운드 ===================== */
 /* 4 넓은 화면(1024·1280): 가치 한 줄(#tVal)은 폰 첫 화면 전용 → 숨김(스타일 없는 회색 버튼으로 나오던 것) */
 @media (min-width:981px){html.is-tapp .th-val{display:none!important}}

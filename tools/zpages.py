@@ -96,9 +96,10 @@ def evtext(dt, d, sec, t):
 def eok(v, d=1):   # 억 금액 — 화면 ZF.cash와 같은 꼴(tools/zsample.cash)
     from zsample import cash
     return cash(v)
-def man(v):
+def man(v):   # 사이클 4: 화면 ZF.eok와 같은 반올림(0.5 올림) — 파이썬 '.1f'(2.15 → 2.1)와 화면(2.2억)이 갈리던 것(o61 빌라 전세)
     if v is None: return '–'
-    return f"{v/10000:.1f}억".replace('.0억', '억') if v >= 10000 else f"{v:,.0f}만"
+    from zsample import eok_m
+    return eok_m(v)
 KIND = {'재개발': '재개발', '재건축': '재건축', '도시정비형 재개발': '도시정비형 재개발', '가로주택(모아주택)': '가로주택정비', '소규모재건축': '소규모재건축', '소규모재개발': '소규모재개발'}
 DTK = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 승인'), ('조합설립', '조합설립인가'), ('시행자지정', '사업시행자 지정'), ('사업시행', '사업시행인가'), ('관리처분', '관리처분인가'), ('착공', '착공'), ('준공', '준공')]
 SKEY = {2: ('구역지정',), 3: ('추진위',), 4: ('조합설립', '시행자지정'), 5: ('사업시행',), 6: ('관리처분',), 7: ('관리처분',), 8: ('착공',)}
@@ -239,7 +240,7 @@ def glance(r, c, k3):
     AD = {'넓': ('넓고', '넓어요'), '좁': ('좁고', '좁아요'), '높': ('높고', '높아요'), '낮': ('낮고', '낮아요'), '많': ('많고', '많아요'), '적': ('적고', '적어요')}
     if stg and len(L) >= 5:
         bits = []
-        for f, sub, big, small, unit in ((_area, '면적은', '넓', '좁', lambda v: f'{int(v):,}㎡'), (_pol, '노후도는', '높', '낮', lambda v: f'{v}%'), (_units, {'분양': '분양 세대는', '총': '세대수는'}.get(str(((r.get('sm') or {}).get('uL') or '계획'))[:2].strip(), '계획 세대는'), '많', '적', lambda v: f'{int(v):,}세대')):   # 사이클 3 통합: 세대수 출처 라벨(enrich sm.uL)
+        for f, sub, big, small, unit in ((_area, '면적은', '넓', '좁', lambda v: f'{round(v):,}㎡'), (_pol, '노후도는', '높', '낮', lambda v: f'{v}%'), (_units, {'분양': '분양 세대는', '총': '세대수는'}.get(str(((r.get('sm') or {}).get('uL') or '계획'))[:2].strip(), '계획 세대는'), '많', '적', lambda v: f'{int(v):,}세대')):   # 사이클 3 통합: 세대수 출처 라벨(enrich sm.uL)
             if len(bits) >= 2: break
             k = _rank(L, f, r)
             if not k or k[1] < 5: continue
@@ -343,7 +344,7 @@ def page(r):
         _t = r.get('tx') or {}
         k.append(('입주권', '조합원 입주권 매매로', '지금 사는 집은 입주권 없음 · 기본 가정 판정') if c['winT'] == '입주권 없음' and r.get('s', 0) >= 8 and _t.get('im') else ('입주권', esc(c['winT']), '기본 가정 판정'))
     if c.get('st'): k.append(('가까운 역', f"{esc(c['st']['n'])} 도보 {walk_min(c['st']['d'])}분", ' · '.join(esc(x) for x in (c.get('ln') or [])[:3])))
-    if c.get('owners'): k.append(('토지등소유자', f"{int(c['owners']):,}명", f"구역 면적 {int((r.get('sm') or {}).get('area') or 0):,}㎡" if (r.get('sm') or {}).get('area') else ''))
+    if c.get('owners'): k.append(('토지등소유자', f"{int(c['owners']):,}명", f"구역 면적 {round((r.get('sm') or {}).get('area') or 0):,}㎡" if (r.get('sm') or {}).get('area') else ''))
     o.append('<div class="kpis">' + ''.join(f'<div class="kpi"><span>{a}</span><b>{b}</b><small>{s}</small></div>' for a, b, s in k) + '</div>')
     o.append(minimap(r))
     # 인가 이력

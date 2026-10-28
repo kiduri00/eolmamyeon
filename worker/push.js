@@ -2,7 +2,7 @@
 // KV(env.PUSH) 키: "vapid"(키쌍) · "state"({last, pend}) · "sub:<엔드포인트 해시>"({s, z, c, o, at}) · o = 끈 알림 종류
 import { vapidKeys, sendPush, b64u } from "./webpush.js";
 
-const MAXZ = 20, MAXC = 3, MAXCZ = 500, MAXBODY = 32768;   // 사이클 3: 조건 구역 150 → 500(경매 있는 구역 먼저 · 앱 72_inbox payload와 같은 상한)
+const MAXZ = 20, MAXC = 3, MAXCZ = 500, MAXMZ = 200, MAXBODY = 32768;   // 사이클 4: MAXMZ = 끈 구역(mz) 상한(앱 72_inbox payload와 같음)   // 사이클 3: 조건 구역 150 → 500(경매 있는 구역 먼저 · 앱 72_inbox payload와 같은 상한)
 const ID = /^[A-Za-z0-9_-]{1,24}$/;
 const KINDS = ["", "redev", "rebuild", "small"];
 // 푸시 서비스 주소만 받는다(아무 주소로나 POST를 보내게 되지 않도록)
@@ -39,7 +39,9 @@ export function cleanSub(b, env) {
   })).filter((x) => x.cash > 0);
   // 끈 알림 종류(앱 MY > 알림 설정): 이 종류 사건은 보내지 않는다
   const o = [...new Set((Array.isArray(b.o) ? b.o : []).filter((x) => ["trade", "stage", "notice", "auction", "price"].includes(x)))];
-  return { s: { endpoint: s.endpoint, keys: { p256dh: k.p256dh, auth: k.auth } }, z, c, o, at: new Date().toISOString() };
+  // 사이클 4: 끈 구역(앱 MY > 알림 설정 · 구역별 끄기) — 그 구역 사건은 핀·조건·경매·필요한 돈(price) 어느 경로로도 보내지 않는다
+  const mz = [...new Set((Array.isArray(b.mz) ? b.mz : []).filter((x) => typeof x === "string" && ID.test(x)))].slice(0, MAXMZ);
+  return { s: { endpoint: s.endpoint, keys: { p256dh: k.p256dh, auth: k.auth } }, z, c, o, mz, at: new Date().toISOString() };
 }
 
 async function readBody(req) {
@@ -81,9 +83,10 @@ const TYPE_T = { stage: "단계", trade: "실거래", notice: "고시·공고", 
 const cashT = (v) => (v >= 1 ? `${Math.round(v * 10) / 10}억` : `${Math.round(v * 10)}천`);
 /** 구독 하나와 맞는 사건: 핀 구역의 단계·실거래·고시 + 조건 핀 금액 안으로 들어온 구역(price) */
 export function match(sub, items) {
-  const Z = new Set(sub.z || []), O = new Set(sub.o || []), zone = [], cond = [];
+  const Z = new Set(sub.z || []), O = new Set(sub.o || []), MZ = new Set(sub.mz || []), zone = [], cond = [];
   for (const e of items) {
     if (O.has(e.type)) continue;
+    if (MZ.has(e.id)) continue;   // 사이클 4: 끈 구역 = 그 구역 알림 전부 끔(price 조건 경로도)
     if (Z.has(e.id) && e.type !== "price") zone.push(e);
     if (e.type === "auction" && !Z.has(e.id)) {
       const c = (sub.c || []).find((x) => Array.isArray(x.z) && x.z.includes(e.id) && !(e.mn > x.cash * 1.1 + 1e-9));   // 대표 물건 최저가(억)가 조건 현금(+10%) 안일 때만

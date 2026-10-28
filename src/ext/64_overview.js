@@ -63,13 +63,13 @@ const OVX = (() => {
   const VD_CK = '<svg class="vd-ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   const VD_X = '<svg class="vd-ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>';
   const vdV = (v) => { const t = String(v || ""); return /^✓\s?/.test(t) ? VD_CK + `<span class="vd-t">${esc(t.replace(/^✓\s?/, ""))}</span>` : /^✕\s?/.test(t) ? VD_X + `<span class="vd-t">${esc(t.replace(/^✕\s?/, ""))}</span>` : esc(t); };
-  function vdHTML(V) {
+  function vdHTML(V, r) {
     // 입주권이 안 나오는 구역: 지금 사면 무엇을 사는 건지 맨 위에 한 번(아래 아파트·빌라 시세 카드에 헷갈리지 않게)
     const ip = V.find((x) => x.w && x.c === "no");
     // 사이클 3: due('조합설립인가 이후 매수분 · 인가일 기록 없음(…)')를 통째로 문장 앞에 붙여 '…(정보몽땅 목록 단계로 판정) 뒤에 산 집은'이 되던 것 — 단계와 꼬리 설명을 나눠 쓴다
     const dp = ip ? String(ip.w.due || "").split(" · ") : [], due = dp.length ? dp[0].replace(/\s*이후 매수분$/, "") : "", dx = dp.slice(1).join(" · ");
     const dxT = /인가일 기록 없음/.test(dx) ? " 인가일 기록이 없어 정보몽땅 목록 단계로 판정했어요." : "";
-    const nb = ip ? `<div class="ov-noip" role="note"><b>지금 사면 새 아파트 입주권이 안 나와요</b><span>${due ? `${esc(due)} 뒤에 산 집은` : "지금 산 집은"} 조합원이 될 수 없어요(예외 매물 빼고).${dxT} 새 아파트를 원하면 일반분양·분양권을 알아보세요. 아래 시세는 참고용이에요. 이미 가진 집(그 전에 산 집)은 해당 없어요.</span></div>` : "";
+    const nb = ip ? `<div class="ov-noip" role="note"><b>지금 사면 새 아파트 입주권이 안 나와요</b><span>${due ? `${esc(due)} 뒤에 산 집은` : "지금 산 집은"} 조합원이 될 수 없어요(예외 매물 빼고).${dxT} 새 아파트를 원하면 일반분양·분양권을 알아보세요. 아래 시세는 참고용이에요. 이미 가진 집은 산 날짜가 ${esc((r && r.g) || "그 구")} 투기과열지구 지정 기간이었는지에 따라 달라요(일정 탭 '이미 가진 집이면').</span></div>` : "";
     return `<div class="ov-vd" role="group" aria-label="판정">${V.map((x, i) => `<button type="button" class="ov-p ${x.c}" data-vi="${i}" aria-expanded="false"><span>${esc(x.k)}</span><b>${vdV(x.v)}</b></button>`).join("")}</div><p class="ov-why" hidden></p>${nb}`;
   }
   function vdBind(w, V) {
@@ -226,7 +226,7 @@ const OVX = (() => {
       <p class="ov-basis">기준 · ${esc(basis)}</p>
       ${P ? calcRow(r, false, H.v) : calcRow(r, U)}
       ${altHTML(alts, ch)}
-      ${li ? (NZ ? `<p class="ov-lh">매수가 표본 최근 거래 · 주변 ${NZ.r}m</p>` : P || nearB ? `<p class="ov-lh">구역 안 최근 거래(매수가 표본 아님)</p>` : "") : ""}${li}
+      ${li ? (NZ ? `<p class="ov-lh">매수가 표본 최근 거래 · 주변 ${NZ.r}m</p>` : P || nearB || (U && S.some((x) => x[1] >= 2)) ? `<p class="ov-lh">구역 안 최근 거래(매수가 표본 아님)</p>` : "") : ""}${li}
       <button type="button" class="ov-more" data-tab="tx">거래 전체 보기 →</button></div>`;
   }
   // 입주 현금 계산에 실제로 쓴 매수가와 그 표본 — /z/ 페이지·API와 같은 한 문장(ZF.smpTxt)
@@ -301,7 +301,9 @@ const OVX = (() => {
     const IP = r.s >= 8 && t.im;                                        // 착공 뒤엔 입주권 거래가 기준
     // 대표 거래 기준(hd)이 없는 빌라 구역도 계산 매수가가 있으면 그 표본이 큰 숫자(ZF.headline 'p' · /z/와 같은 규칙)
     const H = !IP && !A ? ZF.headline(r, null) : null, P = H && H.kind === "p";
-    const big = P ? [H.label, ZF.manT(H.v / 1e4)] : IP ? ["입주권 · 1년", eok(t.im)] : A ? ["아파트 매매 · 1년", eok(t.am)] : t.pp ? ["대지 3.3㎡당 · 1년", eok(t.pp)] : t.med ? ["빌라 매매 · 1년", eok(t.med)] : t.am ? ["아파트 매매 · 1년", eok(t.am)] : null;
+    // 사이클 4: 기간 글은 ZoneFacts refOf(시트 첫 칸 '참고 시세'와 같은 값·같은 기간) — pp는 2023.11 뒤 전체, med는 nwin개월(예전엔 모두 '1년'이라 12개월 0건과 부딪침)
+    const RF = (() => { try { return ZFX.refOf(r); } catch (e) { return null; } })();
+    const big = P ? [H.label, ZF.manT(H.v / 1e4)] : RF ? [`${RF.lab} · ${RF.basis}`, RF.vt] : null;
     const ser = IP ? [t.qi, "입주권"] : A || (!t.pp && t.am) ? [t.qa, "아파트 매매"] : t.pp ? [(t.q || []).filter((x) => x[2] >= 2), "대지 3.3㎡당"] : [null, ""];
     const nn = t.n12 || t.n, thin = P ? thinTag(H.n, H.to) : big ? thinTag(nn == null ? null : nn, S[0] ? S[0][0] : null) : "";
     const chips = [P && t.pp ? `구역 안 대지 3.3㎡ ${eok(t.pp)}` : "", !P && !IP && !A && t.med && big && !/빌라/.test(big[0]) ? `빌라 ${eok(t.med)}` : "", nn ? `구역 안 ${t.n12 ? "12개월 " : ""}거래 ${nn}건` : "", last && !thin ? `최근 ${last}` : ""].filter(Boolean);
@@ -385,7 +387,7 @@ const OVX = (() => {
     w.className = "ov-top"; w.id = "ovTop";
     const t0 = r.tx || {};
     const V = verdicts(r);
-    w.innerHTML = `<div class="ov-vdw">${vdHTML(V)}</div><div class="ov-map" id="ovMap" role="img" aria-label="${esc(shortName(r.n))} 위치"></div><div class="ov-row"><div class="ov-oldw">${oldHTML(t0, r)}</div><div class="ov-txw">${txHTML(t0, r, null)}</div></div><div class="ov-trw">${trustHTML(r)}</div><div class="ov-tlw">${tlHTML(r)}</div><div class="ov-srcw">${srcHTML(r)}</div>`;
+    w.innerHTML = `<div class="ov-vdw">${vdHTML(V, r)}</div><div class="ov-map" id="ovMap" role="img" aria-label="${esc(shortName(r.n))} 위치"></div><div class="ov-row"><div class="ov-oldw">${oldHTML(t0, r)}</div><div class="ov-txw">${txHTML(t0, r, null)}</div></div><div class="ov-trw">${trustHTML(r)}</div><div class="ov-tlw">${tlHTML(r)}</div><div class="ov-srcw">${srcHTML(r)}</div>`;
     vdBind(w, V);
     locWhy(head, w, r);
     // 공식 이름(/z/ 페이지 제목과 같은 규칙 · tools/zpages.py short)이 화면 이름과 다르면 한 줄
@@ -498,7 +500,7 @@ const OVX = (() => {
       const vis = [...p.children].filter((x) => !x.hidden && getComputedStyle(x).display !== "none" && !x.classList.contains("s-fold"));
       let noIpju = false; try { noIpju = buyWindow(r).cls === "no"; } catch (e) {}
       // 입주권이 안 나오는 구역은 위 '입주권 없음 · 계산 안 함'이 이유 하나·참고 시세 하나 — 여기서 다른 이유('자료 부족')·다른 값(계산 매수가)을 또 쓰지 않는다
-      if (!vis.length && !noIpju) { const cs = document.querySelector("#report .rep-head .cstrip"); p.insertAdjacentHTML("afterbegin", `<p class="ov-msg">${cs && cs.classList.contains("gblock") ? "전세 끼고는 살 수 없는 구역이에요. 위 '대출 끼고' 금액을 보세요." : (() => { let x = null; try { x = investC(r); } catch (e) {} let h = null; try { h = ZFX.of(r).hold; } catch (e) {} return x && x.price != null ? `지금 사는 값(계산 매수가 ${ZF.manT(x.price)})까지만 계산했어요. ${esc(((h && (h.tot || h.one)) || {}).txt || ZF.noCalcTxt(r, x))}.` : `${esc(((h && (h.now || h.one)) || {}).txt || "매수가로 쓸 거래가 없어 계산하지 않아요")}.`; })()}</p>`); }
+      if (!vis.length && !noIpju) { const cs = document.querySelector("#report .rep-head .cstrip"); p.insertAdjacentHTML("afterbegin", `<p class="ov-msg">${cs && cs.classList.contains("gblock") ? (() => { let hn = null; try { hn = ZFX.of(r).hold.now; } catch (e) {} return hn && hn.code !== "gapBlock" ? `전세 끼고 계산 보류(${esc(hn.short)})예요. 위 '대출 끼고' 금액을 보세요.` : "전세 끼고는 살 수 없는 구역이에요. 위 '대출 끼고' 금액을 보세요."; })() : (() => { let x = null; try { x = investC(r); } catch (e) {} let h = null; try { h = ZFX.of(r).hold; } catch (e) {} return x && x.price != null ? `지금 사는 값(계산 매수가 ${ZF.manT(x.price)})까지만 계산했어요. ${esc(((h && (h.tot || h.one)) || {}).txt || ZF.noCalcTxt(r, x))}.` : `${esc(((h && (h.now || h.one)) || {}).txt || "매수가로 쓸 거래가 없어 계산하지 않아요")}.`; })()}</p>`); }
     }
     p.querySelectorAll("dl.facts > div").forEach((d) => { const t = d.textContent; if (/자료 없음|미공개|계산 불가|일반분양 비율/.test(t)) d.hidden = true; });
   }
