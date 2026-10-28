@@ -272,15 +272,18 @@ def timeline(X, r, src):
     nx = ''
     if e.get('eLo') and e.get('eHi') and not r.get('stale') and not stalled(X, r) and not __import__('zsample').eta_hidden(r):   # 사이클 3: 범위가 10년 확률과 어긋나 숨긴 구역(ZoneFacts)은 싣지 않는다
         nx = f'<li class="nx"><b>{esc(ym(e["eLo"]))}~{esc(ym(e["eHi"])[2:])}</b><span>준공 예상 범위(추정)</span><small>서울 사업장 기록 통계 · 가운데 {esc(ym(e.get("eMid")))}</small></li>'
-    return f'<!--zd--><div class="zh-card zh-tl"><p class="zh-ct">단계 일정표</p><ol>{li}{nx}</ol><p class="zh-cap">줄마다 아래에 출처를 적었어요(정보몽땅 등록 날짜 · 기사·고시로 확인한 일). 예상 범위는 단정이 아니에요.</p></div><!--/zd-->'
+    return f'<!--zd--><div class="zh-card zh-tl"><p class="zh-ct">단계 일정표</p><ol>{li}{nx}</ol></div><!--/zd-->'   # 사이클 4: 줄 출처 안내는 글 끝 캡션 한 줄(HOWTO)로
 
 def checklist(items, V, rid, title='사기 전에 이것 3가지만 확인하세요'):
     return f'<div class="zh-card zh-ck"><p class="zh-ct">{esc(title)}</p><ol>' + ''.join(f'<li>{josa_fix(fill(x, V, rid))}</li>' for x in items) + '</ol></div>'
 
+def gap_no(k3): return (k3.get('basis') or '').startswith('전세를 안고는 살 수 없')   # 전세 끼고 '불가'(토허 등) — 아니면 '보류'
+
 def carousel(X, r, src, V):
     c = X.C.get(r['id']) or {}; k3 = X.key3(r, c, (X.P.get(r['id']) or {}).get('dt') or {}, X.D.get('asOf'), X.D.get('upd'))
     hv = bool(k3.get('lnow'))
-    if hv: m1 = (k3['lnow'], '대출 끼고 · 전세를 안고는 살 수 없는 곳' + (f' · 입주까지 {k3["ltot"]}' if k3.get('ltot') else ''))
+    # 사이클 4(design_re c3 결함 2): 전세 끼고 '보류'(표본 적음 · jrLow)를 '불가'(토허 등)처럼 쓰지 않는다 — key3 basis가 '전세를 안고는 살 수 없어요'로 시작할 때만 불가
+    if hv: m1 = (k3['lnow'], '대출 끼고 · ' + ('전세를 안고는 살 수 없는 곳' if gap_no(k3) else '전세 끼고는 계산 보류') + (f' · 입주까지 {k3["ltot"]}' if k3.get('ltot') else ''))
     elif k3['now'] != '계산 보류': m1 = (k3['now'], k3['basis'] + (f' · 입주까지 {k3["tot"]}' if k3['tot'] != '계산 보류' else ''))
     else: m1 = ('계산 보류', (k3.get('esub') or k3.get('basis') or '') + (f' · {k3["alt"]}' if k3.get('alt') else ''))
     e = __import__('zsample').eta_adj(r, X.D.get('asOf')) or {}   # 앱·/api/v1과 같은 가로·소규모 보정
@@ -293,9 +296,9 @@ def carousel(X, r, src, V):
     cards = [('지금 필요한 돈', m1[0], m1[1], 'm'), ('입주 시기 범위', m2[0], m2[1], 'm'), ('핵심 위험', None, src['cards']['risk'], 'r'), ('이런 사람에게 맞아요', None, src['cards']['fit'], 'f')]
     li = ''.join(f'<li class="zh-s zh-s{t}" aria-label="{i + 1}/{len(cards)} {esc(a)}"><span class="zh-sl">{esc(a)}</span>' + (f'<b class="zh-sv">{esc(b)}</b>' if b else '') + f'<p>{josa_fix(fill(s, V, r["id"])) if t in "rf" else esc(s)}</p></li>' for i, (a, b, s, t) in enumerate(cards))
     return (f'<!--zd--><section class="zh-car" aria-roledescription="캐러셀" aria-label="{esc(V["name"])} 요약 카드 {len(cards)}장"><ul class="zh-tr" tabindex="0" aria-label="요약 카드 · 옆으로 넘기거나 화살표 키로 이동">{li}</ul>'
-            f'<p class="zh-hint" aria-hidden="true">옆으로 넘겨 보세요 · 기본 가정(무주택·84㎡) 추정 · 데이터 기준 {X.UPD}</p></section><!--/zd-->')
+            f'<p class="zh-hint" aria-hidden="true">옆으로 넘겨 보세요 · 데이터 기준 {X.UPD}</p></section><!--/zd-->')
 
-def nextcards(X, r, src, title=None):
+def nextcards(X, r, src, title=None, cap=True):
     """다음에 볼 구역: 손글 있는 곳 먼저 → 같은 유형 → 거리 순(2.5km 안) · 4곳 · 직접 고른 목록(next)이 있으면 그것부터"""
     if not r.get('ll'): return ''
     rid = r['id']; hand = X._HANDSET
@@ -316,11 +319,14 @@ def nextcards(X, r, src, title=None):
     pick = [y for y in pick[:4] if k3of(y)[1]['now'] != '계산 보류'] + [y for y in pick[:4] if k3of(y)[1]['now'] == '계산 보류']
     def card(y):
         c, k3 = k3of(y)
-        mon = f'전세 끼고 지금 {k3["now"]}' if k3['now'] != '계산 보류' else ('전세 끼고 불가 · 계산 보류' if k3.get('lnow') else '지금 필요한 돈 계산 보류')
+        mon = f'전세 끼고 지금 {k3["now"]}' if k3['now'] != '계산 보류' else (('전세 끼고 불가 · 계산 보류' if gap_no(k3) else '전세 끼고 계산 보류') if k3.get('lnow') else '지금 필요한 돈 계산 보류')
         d = X.dist(r['ll'][0], r['ll'][1], y['ll'][0], y['ll'][1]) if y.get('ll') else None
         tag = '<em>분석 글</em>' if y['id'] in hand else ''
         return f'<a class="zh-nc" href="{y["id"]}"><b>{esc(X.short(y["n"]))}{tag}</b><span>{esc(X.KIND.get(y["k"], y["k"]))} · {esc(c.get("stage") or y.get("sr") or "")}{f" · {d / 1000:.1f}km" if d is not None else ""}</span><small>{esc(mon)}</small></a>'
-    return '<!--zd--><nav class="zh-next" aria-labelledby="zh-nx"><h2 id="zh-nx">' + esc(title or src.get('nextTitle') or '다음에 볼 구역') + '</h2><div class="zh-ng">' + ''.join(card(y) for y in pick[:4]) + '</div><p class="zh-cap">가까운 곳 가운데 분석 글이 있는 구역을 먼저 놓았어요(돈이 계산 보류인 곳은 뒤에). 돈은 기본 가정(전세 끼고) 값이에요. 추천 목록이 아니에요.</p></nav><!--/zd-->'
+    return '<!--zd--><nav class="zh-next" aria-labelledby="zh-nx"><h2 id="zh-nx">' + esc(title or src.get('nextTitle') or '다음에 볼 구역') + '</h2><div class="zh-ng">' + ''.join(card(y) for y in pick[:4]) + '</div><p class="zh-cap">' + ('가까운 곳 가운데 분석 글이 있는 구역을 먼저 놓았어요(돈이 계산 보류인 곳은 뒤에). 돈은 기본 가정(전세 끼고) 값이에요. 추천 목록이 아니에요.' if cap else '추천 목록이 아니에요.') + '</p></nav><!--/zd-->'
+
+# 사이클 4(애드센스 레드팀 c3: 새 손글 39편에 같은 안내 문단 5개): 일정표 줄 출처·요약 카드 가정·다음 구역 순서 안내 셋을 글 끝 캡션 한 줄로(자세한 기준은 method)
+HOWTO = '<p class="zh-cap">카드와 일정표의 돈·시기는 기본 가정(무주택·84㎡)으로 낸 추정이에요. <a href="../method">출처와 계산 방법 →</a></p>'
 
 CSS = ('<style>'
        '.zh-car{margin:18px 0 6px}.zh-tr{list-style:none;margin:0;padding:2px 2px 8px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(232px,82%);gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}'
@@ -357,7 +363,8 @@ def ad_spots(secs):
     """광고 칸 자리(승인 뒤 설정 · static_tabs.ad_slots가 <!--ad-slot--> 뒤에 칸을 둔다): 문단과 문단 사이에만(카드·그림·목차·버튼 옆은 아님).
     질문(절)이 4개 이상이면 둘째·넷째 절, 3개면 첫째·셋째 절(사이클 3: 세 절짜리 글이 공개 뒤 태그만 있고 칸 0이던 o403·o141·o535·o93).
     고른 절에 문단 둘이 이어진 곳이 없으면 둘째 절부터 처음 나오는 이어진 문단 사이 하나 — 태그가 있는 글은 칸이 늘 1개 이상(zhand_check 검사).
-    mid–bottom 사이 본문이 600자 미만이면 static_tabs가 뒤 칸을 뺀다(AD_GAP)."""
+    mid–bottom 사이 본문이 600자(PC 700자) 미만이면 static_tabs가 뒤 칸을 뺀다(AD_GAP·AD_GAP_DESK).
+    사이클 4: 본문이 3,000자 미만이거나 칸당 1,500자 미만이면 static_tabs가 앞 칸 하나만 둔다(AD_LEN_MIN·AD_PER_SLOT · 최종 HTML 글자 수로 셈)."""
     pairs = [(si, bi) for si, s in enumerate(secs) for bi in range(len(s['blocks']) - 1) if isinstance(s['blocks'][bi], str) and isinstance(s['blocks'][bi + 1], str)]
     want = (0, 2) if len(secs) == 3 else (1, 3)
     out = []
@@ -426,7 +433,8 @@ def page(X, r, src):
     o.append(car)
     o.append(toc)
     o.append('<div class="zh-body">' + ''.join(body) + '</div>')
-    o.append(nextcards(X, r, src))
+    o.append(nextcards(X, r, src, cap=False))
+    o.append(HOWTO)
     o.append(srcs)
     o.append(f'<p class="disc">출처: 정비사업 정보몽땅 추진경과·사업개요, 국토교통부 실거래가, 서울부동산정보광장 토지거래허가, 위 기사·고시. 금액은 기본 가정(무주택·84㎡·비례율 100%)으로 낸 추정이고 실제 분담금은 감정평가·관리처분계획으로 정해져요. 투자 권유가 아니에요. 서울시·국토교통부 등 정부·공공기관과 무관한 비공식 정보 서비스예요.</p>')
     o.append('<!--zr--><!--/zr-->')

@@ -8,6 +8,7 @@
   4. zthin 잣대: 자료 점수 4 이상 · 다른 페이지와 겹치지 않는 본문 800자 이상(pipeline/cache/zthin.json handPages)
   5. 글자 수 2,500자 이상 · 고유 문장 비율 70% 이상(renew/adsense/textstats.py와 같은 셈: 숫자를 지우고 2쪽 이하에만 나오는 문장)
   6. /gu 해설: 글 속 숫자 == 캐시 값, 구 곳 수(n) == h1, 예산대 곳 수(b2·b3·b5·b8) == 아래 목록에서 센 값
+  7. 광고 칸: 태그가 있는 정적 페이지는 칸 1개 이상 · 본문 3,000자 미만이거나 칸당 1,500자 미만이면 칸 1개
 나가는 값: 실패가 있으면 1"""
 import json, os, re, sys, html, math, collections, urllib.parse
 import sys as _sys, os as _os; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
@@ -155,7 +156,10 @@ for dp, _, fs in os.walk(PUB):
         rel = os.path.relpath(os.path.join(dp, f), PUB)
         if rel in ('index.html', 'admin.html'): continue   # SPA 홈은 src/shell.html 칸(정적 칸 규칙 밖)
         h = open(os.path.join(dp, f), encoding='utf-8').read(); hd = h[:h.find('</head>')]
-        if 'adsbygoogle.js' in hd: chk(h.count('class="ad-slot"') >= 1, f'{rel}: 광고 태그는 있는데 광고 칸 0')
+        if 'adsbygoogle.js' in hd:
+            ns = h.count('class="ad-slot"'); chk(ns >= 1, f'{rel}: 광고 태그는 있는데 광고 칸 0')
+            # 사이클 4(애드센스 레드팀 c3): 본문 3,000자 미만이거나 칸 하나당 1,500자 미만이면 칸은 1개(tools/static_tabs.py AD_LEN_MIN·AD_PER_SLOT)
+            nl = len(text(h)); chk(ns <= 1 or (nl >= 3000 and nl / ns >= 1500), f'{rel}: 본문 {nl:,}자에 광고 칸 {ns}개(칸당 {nl // max(ns, 1):,}자 · 기준 3,000자·칸당 1,500자)')
 # 원본 글에 '살 수 있'이 있으면 용어 통일(term_fix)이 '갈 수 있'으로 바꿔 문장이 깨진다('들어가 갈 수 있는') — 원본 단계에서 막는다
 import glob as _g
 for f in sorted(_g.glob(os.path.join(ROOT, 'content', '**', '*.json'), recursive=True)):
