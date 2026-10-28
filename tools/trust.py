@@ -14,7 +14,7 @@ PUB = os.path.join(R, 'public')
 SITE = 'https://jaegaebal.alwaysquestions.kr'
 
 # ---- 브랜드: tools/brand.py · 필명만 여기 ----
-from brand import BRAND, BRAND_EN, SITE_TAIL, RENAME_NOTE, RENAME_LINE, RENAME_DATE, TAGLINE, ICON_LINKS, wordmark_svg   # 서비스 이름은 tools/brand.py 한 곳에서
+from brand import BRAND, BRAND_EN, SITE_TAIL, TAGLINE, ICON_LINKS, wordmark_svg   # 서비스 이름은 tools/brand.py 한 곳에서
 from brand import EDITOR   # 글쓴이 = '<이름> 편집'(2026-10-27 오너: 개인 운영자 소개·필명 없이)
 OP = EDITOR
 _JE = lambda w: w + ('은' if (ord(w[-1]) - 0xAC00) % 28 else '는') if '가' <= w[-1] <= '힣' else w + '는'   # 받침 따라 은/는
@@ -137,9 +137,7 @@ FIXES = [
     ('2026-10-27', '', '자료', '지하철역 위치와 대형마트 목록을 공공데이터로 바꿨어요',
      '역 좌표를 출처가 분명하지 않은 정리본에서 가져와 서원역(2.4km)·석촌고분역(1.7km)처럼 크게 어긋난 역이 있었어요. 아직 개통하지 않은 계획 역 5곳이 「가까운 역」으로 나왔어요. 대형마트 목록은 비영리 조건이 붙은 위키 문서였어요.',
      '역 좌표는 서울시 역사마스터 정보로, 대형마트는 서울시 대규모점포 인허가 정보로 바꿨어요. 계획 역은 가까운 역 후보에서 뺐어요. 빠져 있던 마트 15곳도 더해졌어요.', '가까운 역·도보 시간·입지 점수·<a href="/about#sources">자료 출처</a>'),
-    (RENAME_DATE, '', '이름', RENAME_LINE,
-     '예전 이름이 다른 회사 상표와 겹칠 수 있었어요.',
-     f'영문 표기는 {BRAND_EN}이에요. 사이트 주소와 기능은 그대로예요.', '모든 페이지·앱 이름'),
+    # 사이클 4 통합(오너): 이름 변경 항목은 뺐다(예전 이름 흔적 없이)
     ('2026-10-26', '83f474089', '숫자', '모아타운 사업구역 줄의 금액이 구역 화면과 달랐어요',
      '모아타운 관리지역 화면의 사업구역(하위 조합) 줄이 「일반 매매 · 금액」을 보여 줬어요. 같은 사업구역의 구역 화면과 구역 페이지는 「계산 보류」였어요.',
      '지금 사면 입주권이 원칙적으로 없는 사업구역은 모든 화면에서 「계산 보류 · 입주권 원칙적으로 없음 · 예외 매물만」으로 맞췄어요.', '지도·목록의 모아타운 화면'),
@@ -268,10 +266,8 @@ def sources_html():
 def about():
     fp = os.path.join(PUB, 'about.html')
     h = open(fp, encoding='utf-8').read()
-    # 이름 변경 안내 한 줄(첫 소개 문단 바로 뒤) — 예전 이름이 남는 허용 예외
+    # 사이클 4 통합(오너 'Pick 콘셉트'): 예전 이름 안내 한 줄은 넣지 않고, 남아 있으면 지운다
     h = re.sub(r'<!--zp-rename-->.*?<!--/zp-rename-->', '', h, flags=re.S)
-    m = re.search(r'<p class="lede">.*?</p>\s*<p>.*?</p>', h, re.S)
-    if m: h = h[:m.end()] + f'<!--zp-rename--><p class="note" id="rename">{RENAME_NOTE}</p><!--/zp-rename-->' + h[m.end():]
     h = re.sub(r'<p class="byline">정리: (?:<a [^>]*>)?[^<·]*?(?:운영자|편집)(?:</a>)?', f'<p class="byline">정리: <a href="#principles">{EDITOR}</a>', h, count=1)   # 글쓴이 = 브랜드 편집
     if '<!--zp-op-->' in h:
         h2 = re.sub(r'<!--zp-op-->.*?<!--/zp-op-->', lambda m: OP_HTML, h, count=1, flags=re.S)

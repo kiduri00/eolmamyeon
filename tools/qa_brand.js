@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /* QA brand.residual — 옛·검토 이름(tools/brand.py OLD_NAMES)이 public 전체와 src에 0건인지.
-   예외: 소개(about)·오류 수정 기록(corrections)·자주 묻는 질문(faq, 사이클 3 이름 변경 문답)의 '이름 변경' 안내(같은 줄 앞뒤 80자 안에 새 이름과 '이름'이 함께 있을 때만).
+   사이클 4 통합(2026-10-29 오너 'Pick 콘셉트로 집핀·얼마면 재개발 흔적 모두 삭제'): 이름 변경 안내·JSON-LD alternateName 예외 없음.
+   남는 예외는 assetlinks의 예전 시험 앱 패키지 식별자(brand.OLD_PKGS · 화면에 안 보임 · Play 출시 뒤 뺌) 하나.
    public/b는 지금 빌드가 쓰는 묶음만 본다(index.html·sw.js에서 이어지는 /b/ 파일 — 옛 묶음은 캐시용으로 남겨 둔 것).
    사용: node tools/qa_brand.js  (실패하면 파일별 건수와 첫 몇 곳을 찍고 종료 코드 1) */
 const fs = require("fs"), path = require("path");
 const R = path.resolve(__dirname, "..");
 const BN = require("./brand_names")(), OLD = BN.OLD_RX, NEW = BN.BRAND;   // 금지어·새 이름·안내 문구 = tools/brand.py
-const EXC = /^public\/(about|corrections|faq)(\.html|\/index\.html)$/;
 const TXT = /\.(html?|js|mjs|css|json|webmanifest|xml|txt|svg|md|py)$/i;
 const walk = (d, out = []) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p, out); else if (TXT.test(e.name)) out.push(p); } return out; };
 const rel = (p) => path.relative(R, p).split(path.sep).join("/");
@@ -14,8 +14,7 @@ const rel = (p) => path.relative(R, p).split(path.sep).join("/");
 const cur = new Set(), q = ["public/index.html", "public/sw.js"];
 while (q.length) { const f = q.shift(); let s = ""; try { s = fs.readFileSync(path.join(R, f), "utf8"); } catch (e) { continue; } for (const m of s.matchAll(/\/b\/([a-z]+\.[0-9a-f]{6,}\.(?:js|css|json))/g)) { const k = "public/b/" + m[1]; if (!cur.has(k)) { cur.add(k); q.push(k); } } }
 const files = [...walk(path.join(R, "public")), ...walk(path.join(R, "src"))].map(rel).filter((f) => !f.startsWith("public/b/") || cur.has(f));
-// alternateName 배열이 brand.ALT_NAMES와 똑같을 때만 · assetlinks.json의 package_name이 brand.OLD_PKGS 가운데 하나일 때만
-const ALTOK = (s, i) => { const st = s.lastIndexOf('"alternateName"', i); if (st < 0 || i - st > 80) return false; const m = /^"alternateName"\s*:\s*(\[[^\]]*\])/.exec(s.slice(st)); if (!m || st + m[0].length < i) return false; try { return JSON.stringify(JSON.parse(m[1])) === JSON.stringify(BN.ALT_NAMES || []); } catch (e) { return false; } };
+// assetlinks.json의 package_name이 brand.OLD_PKGS 가운데 하나일 때만(예전 시험 앱 · 화면에 안 보이는 식별자)
 const PKGOK = (f, s, i) => f === "public/.well-known/assetlinks.json" && (BN.OLD_PKGS || []).some((p) => { const k = s.indexOf(`"${p}"`); return k >= 0 && i > k && i < k + p.length + 2; });
 const bad = {}; let n = 0, okEx = 0;
 for (const f of files) {
@@ -23,8 +22,7 @@ for (const f of files) {
   for (const m of s.matchAll(OLD)) {
     const ctx = s.slice(Math.max(0, m.index - 80), m.index + 80).split("\n");
     const near = s.slice(Math.max(0, m.index - 80), m.index + 80);
-    if (EXC.test(f) && s.slice(Math.max(0, m.index - 40), m.index + 40).includes(BN.RENAME_LINE)) { okEx++; continue; }   // 예외: 이름 변경 안내 한 줄(brand.RENAME_LINE 그대로)뿐
-    if (ALTOK(s, m.index) || PKGOK(f, s, m.index)) { okEx++; continue; }   // 사이클 2 예외: JSON-LD alternateName(brand.ALT_NAMES 그대로) · assetlinks 예전 앱 패키지(brand.OLD_PKGS)
+    if (PKGOK(f, s, m.index)) { okEx++; continue; }   // 남는 예외: assetlinks 예전 시험 앱 패키지(brand.OLD_PKGS)
     (bad[f] = bad[f] || []).push(near.replace(/\s+/g, " ").slice(40, 130)); n++;
   }
 }
@@ -49,7 +47,7 @@ console.log(`  SPA·앱 범위 ${nSpa}건 · 정적 페이지 범위 ${n - nSpa}
 // tone.banned(2026-10-28 오너 '유치한 건 빼고 세련되게'): 말장난·유행어 금지어(tools/brand.py BANNED — '될랑가' 등)가 public·src에 0건
 {
   const BW = new RegExp((BN.BANNED || ['될랑가']).map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g"), th = [];
-  for (const f of files) { if (/\.py$/.test(f)) continue; const s = fs.readFileSync(path.join(R, f), "utf8"); for (const m of s.matchAll(BW)) { if (EXC.test(f) && s.slice(Math.max(0, m.index - 40), m.index + 40).includes(BN.RENAME_LINE)) continue; th.push(`${f}: '${s.slice(Math.max(0, m.index - 20), m.index + 20).replace(/\s+/g, " ")}'`); } }
+  for (const f of files) { if (/\.py$/.test(f)) continue; const s = fs.readFileSync(path.join(R, f), "utf8"); for (const m of s.matchAll(BW)) { th.push(`${f}: '${s.slice(Math.max(0, m.index - 20), m.index + 20).replace(/\s+/g, " ")}'`); } }
   console.log(th.length ? `FAIL tone.banned — ${th.length}곳: ${th.slice(0, 4).join(" ; ")}` : `PASS tone.banned — ${(BN.BANNED || []).join("·")}`);
   if (th.length) process.exitCode = 1;
 }
@@ -79,8 +77,8 @@ let nImg = 0;
   console.log(same.length ? `FAIL brand.shots — 알려진 실패(사이클 4에 새로 찍음): manifest 스크린샷 ${same.length}/${used.length}장이 main과 같은 바이트(${same.join(", ")})` : `PASS brand.shots — manifest 스크린샷 ${used.length}장 · main과 같은 바이트 0`);
   if (same.length) process.exitCode = 1;
 }
-if (!n) { console.log(`PASS brand.residual — 옛 이름·옛 마크 0건 (파일 ${files.length}개 · 지금 묶음 ${cur.size}개 · 이름 변경 안내 예외 ${okEx}곳)`); process.exit(process.exitCode || 0); }
-console.log(`FAIL brand.residual — 옛 이름·옛 마크 ${n}건(그림 ${nImg}) · 파일 ${Object.keys(bad).length}개 (이름 변경 안내 예외 ${okEx}곳)`);
+if (!n) { console.log(`PASS brand.residual — 옛 이름·옛 마크 0건 (파일 ${files.length}개 · 지금 묶음 ${cur.size}개 · assetlinks 예전 시험 앱 패키지 예외 ${okEx}곳)`); process.exit(process.exitCode || 0); }
+console.log(`FAIL brand.residual — 옛 이름·옛 마크 ${n}건(그림 ${nImg}) · 파일 ${Object.keys(bad).length}개 (assetlinks 예전 시험 앱 패키지 예외 ${okEx}곳)`);
 const byDir = {}; for (const f of Object.keys(bad)) { const d = f.replace(/\/[^/]*$/, ""); byDir[d] = (byDir[d] || 0) + bad[f].length; }
 for (const [d, c] of Object.entries(byDir).sort((a, b) => b[1] - a[1])) console.log(`  ${d}/ ${c}건`);
 for (const f of Object.keys(bad).filter((f) => !/^public\/(z|gu|feed|guide)\//.test(f)).slice(0, 40)) console.log(`  - ${f} ${bad[f].length}건: ${bad[f][0]}`);

@@ -10,23 +10,20 @@ SITE_TAIL = f'{BRAND} - {TAGLINE}'   # <title> 꼬리
 EDITOR = f'{BRAND} 편집'   # 글쓴이 줄·JSON-LD author(2026-10-27 오너: 개인 운영자 소개 없이 브랜드 편집으로)
 SLOGAN = '내 돈으로 갈 수 있는 서울 재개발'
 WIT = '내 돈으로 어디까지 갈 수 있을까?'   # 홈 소개 블록 첫 줄(2026-10-28 오너: 말장난·유행어 없이 차분하게 · '될랑가'는 QA 금지어)
-# 예전 이름 — 아래 안내 문장(about·오류 수정 기록)에서만 쓴다. QA(브랜드 잔존 0)의 허용 예외
-OLD_NAMES = ('집핀', 'Zippin', 'zippin', '재개각', 'Jaegaegak', 'jaegaegak', '재개랩', 'JaegaeLab')   # brand.residual 금지어(재개각·재개랩은 공개된 적 없는 검토안 — 안내 문구에도 쓰지 않는다)
+# 예전 이름 — 사이클 4 통합(2026-10-29 오너 'Pick 콘셉트로 집핀·얼마면 재개발 흔적 모두 삭제'): 화면·검색 노출 어디에도 쓰지 않는다. QA(브랜드 잔존 0)의 금지어 목록(검사 장치라 남김)
+OLD_NAMES = ('집핀', 'Zippin', 'zippin', '얼마면 재개발', '얼마면재개발', '재개각', 'Jaegaegak', 'jaegaegak', '재개랩', 'JaegaeLab')   # brand.residual 금지어(재개각·재개랩은 공개된 적 없는 검토안 — 안내 문구에도 쓰지 않는다)
 # 쓰지 않는 말투(2026-10-28 오너: '유치한 건 빼고 세련되게') — QA tone.banned가 public·src 전체에서 0건인지 본다
 BANNED = ('될랑가', '각 나옴', '각 나왔다', '재개각')
-RENAME_DATE = '2026-10-27'
 def _batchim(w): c = ord(w[-1]) - 0xAC00; return 0 <= c < 11172 and c % 28   # 받침 번호(0 = 없음 · 8 = ㄹ)
 def josa_ro(w): b = _batchim(w); return w + ('으로' if b and b != 8 else '로')   # '…으로/로'
 def josa_eun(w): return w + ('은' if _batchim(w) else '는')
-RENAME_LINE = f'서비스 이름을 집핀에서 {josa_ro(BRAND)} 바꿨어요'   # 이름 변경 안내(about·오류 수정 기록 — 옛 이름이 남는 유일한 예외)
-RENAME_NOTE = f'2026.10 {RENAME_LINE}.'
 # ---- 기능 트랙(SPA·앱) ----
 APP_PKG = 'kr.alwaysquestions.jaegaepick'   # 안드로이드 앱 패키지(assetlinks · QA 기대값)
-LEGACY_PKG = 'kr.alwaysquestions.zippin'   # 이미 설치된 예전 앱(집핀) — assetlinks에 함께 둬야 그 앱의 주소 열기가 끊기지 않는다
+LEGACY_PKG = 'kr.alwaysquestions.zippin'   # 이미 설치된 예전 시험 앱(화면에 안 보이는 기술 식별자 · Play 출시 뒤 뺌) — assetlinks에 함께 둬야 그 앱의 주소 열기가 끊기지 않는다
 OLD_PKGS = (LEGACY_PKG,)   # QA brand.residual 허용 예외: assetlinks의 이 패키지 식별자만
 # assetlinks 서명 지문(두 패키지 공통) — 지금은 업로드 키 · Play 앱 서명 지문이 나오면 이 목록에 더한다
 SIGNING_SHA256 = ['CA:7E:87:4A:C9:9C:A4:AD:53:2F:24:4C:17:43:7A:5F:F2:03:B3:97:4F:01:78:C8:44:98:38:C7:54:15:0F:9B']
-ALT_NAMES = (BRAND_EN, '집핀')   # JSON-LD alternateName(검색엔진이 예전 이름으로 찾아도 이어지게 · QA 허용 예외: alternateName 배열 이 값만)
+ALT_NAMES = (BRAND_EN,)   # JSON-LD alternateName — 사이클 4 통합(오너): 예전 이름 없이 영문 이름만
 APP_NAME = BRAND                          # 설치 앱 이름(manifest name)
 import json as _json
 TOKENS = {'__ALT_NAMES__': _json.dumps(list(ALT_NAMES), ensure_ascii=False, separators=(',', ':')), '__BRAND_EN__': BRAND_EN, '__APP_PKG__': APP_PKG, '__BRAND__': BRAND}

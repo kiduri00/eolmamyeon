@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 집핀 숫자·용어 일관성 회귀 검사 (red-team 8~12회차에서 나온 '기계로 잴 수 있는' 결함 전부)
+/* 재개픽 숫자·용어 일관성 회귀 검사 (red-team 8~12회차에서 나온 '기계로 잴 수 있는' 결함 전부)
    실행:  NODE_PATH=$(npm root -g) node tools/qa_consistency.js [baseUrl]
           baseUrl 기본 http://localhost:8765  (python3 -m http.server 8765 -d public)
    FAIL이 하나라도 있으면 exit 1. 화면에는 검사별 PASS/FAIL 한 줄씩, 전체 결과는 JSON(QAC_OUT 또는 아래 기본 경로).
@@ -307,19 +307,17 @@ async function stableText(page, sel, maxMs = 4000, need = 1) {
 // 첫 화면 3칸 이름: 셋째 칸은 '언제 입주'(입주권 없는 곳은 '입주권' · 20차 G3)
 const LAB3 = /^지금 필요한 돈\|입주까지 현금\|(언제 입주|입주권)$/;
 async function staticLane(api) {
-  // --- brand.static (리뉴얼 2026-10-27 이름 변경 · 값은 tools/brand.py): 정적 페이지·피드·공개 API에 예전 이름이 없음 — 허용 예외는 이름 변경 안내(about #rename · 오류 수정 기록 '이름' 항목)뿐.
+  // --- brand.static (리뉴얼 2026-10-27 이름 변경 · 값은 tools/brand.py): 정적 페이지·피드·공개 API에 예전 이름이 없음 — 사이클 4(오너 Pick 콘셉트): 예외 없음.
   //     첫 화면(index.html)·앱 묶음(/b)·manifest·sw·assetlinks는 기능 트랙이 맡는다(같은 검사를 그쪽에서 켠다)
   {
     const BN = require("./brand_names")();
-    const T = `정적 페이지·피드·API에 옛·검토 이름(${BN.OLD_NAMES.join("·")}) 0곳 — 이름 변경 안내 한 줄(about·/corrections)만 예외`;
+    const T = `정적 페이지·피드·API에 옛·검토 이름(${BN.OLD_NAMES.join("·")}) 0곳 — 예외 없음(사이클 4 오너: Pick 콘셉트)`;
     const P = require("path"), PUBD = P.join(__dirname, "..", "public"), bad = [];
     const walk = (d) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = P.join(d, f.name), rel = P.relative(PUBD, p);
       if (f.isDirectory()) { if (!/^(b|data|pcli|og|\.well-known)$/.test(rel)) walk(p); continue; }
       if (!/\.(html|xml|json|css)$/.test(f.name) || rel === "index.html") continue;
       let h = fs.readFileSync(p, "utf8");
-      if (rel === "about.html") h = h.replace(/<!--zp-rename-->[\s\S]*?<!--\/zp-rename-->/, "");
-      if (rel === "corrections.html" || rel === "about.html" || rel === "faq.html") h = h.split(BN.RENAME_LINE).join("");   // 예외: 이름 변경 안내 한 줄(brand.RENAME_LINE · 사이클 3: FAQ 이름 변경 문답)
-      h = h.replace(/"alternateName"\s*:\s*(\[[^\]]*\])/g, (x, a) => { try { return JSON.stringify(JSON.parse(a)) === JSON.stringify(BN.ALT_NAMES || []) ? "" : x; } catch (e) { return x; } });   // 사이클 2 예외: JSON-LD alternateName = brand.ALT_NAMES 그대로
+      // 사이클 4 통합(오너 'Pick 콘셉트'): 이름 변경 안내·alternateName 예외 없음 — 예전 이름(집핀·Zippin·얼마면 재개발) 0건이 통과 조건
       BN.OLD_RX.lastIndex = 0; const m = BN.OLD_RX.exec(h); if (m) bad.push(`${rel}: …${h.slice(Math.max(0, m.index - 30), m.index + 10).replace(/\s+/g, " ")}`); } };
     try { walk(PUBD); } catch (e) { bad.push("walk: " + e.message); }
     expect(!bad.length, "brand.static", T, `${bad.length} files · ${bad.slice(0, 3).join(" ; ")}`);
@@ -3942,7 +3940,7 @@ async function tappLane(browser, api, errs) {
 async function r26Lane(browser, api, errs) {
   const mob = (w, h, cs = "light") => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs });
   const WEB = [".s-rd", ".s-reads", ".site-foot", ".ad-slot", ".s-about", ".s-read3", "#sAbout", "#sRead3"];
-  // --- home.readsTop: 브라우저 첫 화면(폰·PC) 검색칸 바로 밑 읽을거리 한 줄(리포트·가이드 두 링크 · 한 줄 · 누르는 높이 40px 이상)이 첫 화면 안에 · '재개발 공부하기'는 목록 뒤 · '집핀이 뭔가요' 상자 없음
+  // --- home.readsTop: 브라우저 첫 화면(폰·PC) 검색칸 바로 밑 읽을거리 한 줄(리포트·가이드 두 링크 · 한 줄 · 누르는 높이 40px 이상)이 첫 화면 안에 · '재개발 공부하기'는 목록 뒤 · '서비스 소개' 상자(예전 이름) 없음
   {
     const T = "홈 읽을거리: 검색칸 밑 한 줄(리포트·가이드 · 줄바꿈 없음 · 40px 이상)이 첫 화면 안 · 예전 공부하기 카드·푸터 가이드 링크 없음 · 소개 상자 없음 · 리뉴얼 A5: 목록 아래 서술형 소개(#sReads.s-story)는 보임";
     for (const [vp, tag] of [[mob(360, 740), "360"], [mob(390, 844), "390"], [mob(412, 915), "412"], [{ viewport: { width: 1440, height: 900 } }, "1440"]]) {

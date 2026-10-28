@@ -415,6 +415,9 @@ def prune(*cur_html):
                     if '/b/' in t: stat.append(t)
                 except OSError: pass
     keep = _refs(list(cur_html) + [prev, live] + stat)
+    # 사이클 4 통합(오너 'Pick 콘셉트'): 라이브(origin/main)가 부르는 옛 묶음 a.26ea0821e8.js · ta.230a56a8d6.js에는 예전 이름이 남아 있다.
+    #   배포 전까지는 라이브 화면이 부르므로 남기고(위 live), 리뉴얼 배포 뒤 첫 빌드에서 live가 새 index를 가리키면 이 정리에서 자동으로 지워진다.
+    #   (QA brand.residual은 지금 빌드가 쓰는 묶음만 본다 · 배포 뒤 첫 빌드 결과에서 두 파일이 없는지 확인)
     for f in keep:   # 배포본이 부르는데 디스크에 없는 묶음은 git(origin/main)에서 되살린다(배포 직후 옛 화면이 깨지지 않게)
         fp = os.path.join(B, f)
         if os.path.exists(fp): continue

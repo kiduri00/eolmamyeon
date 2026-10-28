@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 배포 전 자동 QA 게이트 (집핀)
+/* 배포 전 자동 QA 게이트 (재개픽)
    실행:  NODE_PATH=$(npm root -g) node tools/qa.js [baseUrl] [--update-baseline]
    기본 baseUrl = http://localhost:8765 (python3 -m http.server 8765 -d public)
    실패가 하나라도 있으면 exit 1. 요약은 stdout, 전체 결과는 JSON(QA_OUT 또는 아래 기본 경로).
