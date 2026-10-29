@@ -18,7 +18,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf("--" + k); return i >= 0 ? argv[i + 1] : d; };
 const has = (k) => argv.includes("--" + k);
 const EXE = process.env.QA_CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const PAGES = [["home", "/"], ["map", "/#map"], ["z", opt("z", "/z/o1176")]].filter(([k]) => !opt("only", "") || opt("only", "").split(",").includes(k));   // --only map,home : 일부만 재기(빠른 실험)
+const PAGES = [["home", "/"], ["map", "/#map"], ["z", opt("z", "/z/o1176")], ["drag", "/?cash=2&mode=jeonse#map"]].filter(([k]) => (opt("only", "") ? opt("only", "").split(",").includes(k) : k !== "drag"));   // drag(사이클 4 D+): 구 줌에서 지도 끌기 5번 → 손을 뗀 뒤 라벨 다시 배치(layout) 시간 · 그 뒤 긴 작업 — --only drag로만   // --only map,home : 일부만 재기(빠른 실험)
 const LIMIT = { jsPct: 10, longMs: 100, lcpPct: 20, tbtMs: 300 };
 
 const median = (a) => { const s = a.filter((x) => x != null).sort((x, y) => x - y); return s.length ? s[(s.length - 1) >> 1] : null; };
@@ -69,9 +69,28 @@ async function measure(BASE, RUNS, CPU) {
         new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt.push([Math.round(e.startTime), Math.round(e.duration)]))).observe({ type: "longtask", buffered: true });
         new PerformanceObserver((l) => l.getEntries().forEach((e) => (window.__lcp = Math.round(e.startTime)))).observe({ type: "largest-contentful-paint", buffered: true });
       });
-      const u = BASE + (p.includes("#") ? p.replace("#", "?pb=" + Date.now() + "#") : p + "?pb=" + Date.now());
+      const q0 = p.includes("?") ? "&" : "?", u = BASE + (p.includes("#") ? p.replace("#", q0 + "pb=" + Date.now() + "#") : p + q0 + "pb=" + Date.now());
       await pg.goto(u, { waitUntil: "load", timeout: 60000 }).catch(() => {});
       await pg.waitForTimeout(9000);
+      if (k === "drag") {
+        // 성북구로 들어가 실제 지도·태그가 뜬 뒤, 끌기 5번(각 120px) — 손을 뗀 뒤 2초 안 layout 시간(window.__mxLayT)과 긴 작업
+        await pg.evaluate(() => { const b = [...document.querySelectorAll(".zgu")].find((x) => x.dataset.gu === "성북구" && x.offsetWidth); if (b) b.click(); });
+        await pg.waitForFunction(() => { try { const m = ZP_lmx.map(); return m && m.loaded() && ZP_lmx.gu() === "성북구" && !document.querySelector(".zp-ph") && document.querySelectorAll("#lmap .zpill").length > 0; } catch (e) { return false; } }, null, { timeout: 60000 }).catch(() => {});
+        await pg.waitForTimeout(3000);
+        const D = [];
+        for (let j = 0; j < 5; j++) {
+          await pg.evaluate(() => { window.__mxLayT = []; window.__lt = []; });
+          const x0 = 195 + (j % 2 ? 60 : -60), y0 = 470;
+          await pg.mouse.move(x0, y0); await pg.mouse.down();
+          for (let s = 1; s <= 6; s++) { await pg.mouse.move(x0 + (j % 2 ? -20 : 20) * s, y0 + (j % 3 - 1) * 8 * s); await pg.waitForTimeout(30); }
+          const t0 = await pg.evaluate(() => performance.now());
+          await pg.mouse.up(); await pg.waitForTimeout(2200);
+          D.push(await pg.evaluate((t0) => ({ lay: (window.__mxLayT || []).slice(), long: window.__lt.filter((x) => x[0] >= t0 - 5).map((x) => x[1]) }), t0));
+        }
+        const lay = D.map((d) => (d.lay.length ? Math.max(...d.lay) : 0)), lg = D.map((d) => (d.long.length ? Math.max(...d.long) : 0));
+        const row = { layMs: median(lay), layMax: Math.max(...lay), longAfter: median(lg), longAfterMax: Math.max(...lg), raw: D };
+        runs[k].push(row); console.log(`drag  #${i + 1} ${JSON.stringify({ lay, lg })}`); await ctx.close(); continue;
+      }
       const r = await pg.evaluate(() => { const lt = window.__lt; return { lcp: window.__lcp, fcp: Math.round((performance.getEntriesByName("first-contentful-paint")[0] || {}).startTime || 0), longMs: lt.reduce((m, x) => Math.max(m, x[1]), 0), tbt: lt.reduce((s, x) => s + Math.max(0, x[1] - 50), 0), nLong: lt.length }; }).catch(() => ({}));
       await Promise.all(pend);
       const row = { ...r, kb: Math.round(bytes / 1024), jsWireKb: Math.round(js / 1024), jsKb: Math.round(jsGz / 1024), reqs };
@@ -82,7 +101,7 @@ async function measure(BASE, RUNS, CPU) {
   }
   await b.close();
   const pages = {};
-  for (const [k, p] of PAGES) { const R = runs[k]; pages[k] = { path: p }; for (const f of ["lcp", "fcp", "tbt", "longMs", "nLong", "kb", "jsKb", "jsWireKb", "reqs"]) pages[k][f] = median(R.map((x) => x[f])); }
+  for (const [k, p] of PAGES) { const R = runs[k]; pages[k] = { path: p }; for (const f of (k === "drag" ? ["layMs", "layMax", "longAfter", "longAfterMax"] : ["lcp", "fcp", "tbt", "longMs", "nLong", "kb", "jsKb", "jsWireKb", "reqs"])) pages[k][f] = median(R.map((x) => x[f])); }
   let load = null; try { load = require("os").loadavg().map((x) => +x.toFixed(2)); } catch (e) {}
   return { base: BASE, at: new Date().toISOString(), runs: RUNS, cpu: CPU, viewport: "390x844@2", observeMs: 9000, loadavg: load, pages, raw: runs };
 }
@@ -96,7 +115,7 @@ async function measure(BASE, RUNS, CPU) {
   const BASE = (argv.find((a, i) => !a.startsWith("--") && !(i && argv[i - 1].startsWith("--"))) || "http://localhost:8765").replace(/\/+$/, "");
   const res = await measure(BASE, +opt("runs", 3), +opt("cpu", 4));
   console.log("\nmedian of " + res.runs + " · load " + (res.loadavg || []).join(" "));
-  for (const [k, v] of Object.entries(res.pages)) console.log(`  ${k.padEnd(5)} ${v.path.padEnd(10)} LCP ${v.lcp}ms · TBT ${v.tbt}ms · 가장 긴 작업 ${v.longMs}ms · JS ${v.jsKb}KB(gzip) / 받은 ${v.jsWireKb}KB · 전체 ${v.kb}KB`);
+  for (const [k, v] of Object.entries(res.pages)) if (k === "drag") console.log(`  drag  끌기 뒤 라벨 다시 배치 가운데 ${v.layMs}ms(최대 ${v.layMax}) · 그 뒤 긴 작업 가운데 ${v.longAfter}ms(최대 ${v.longAfterMax})`); else console.log(`  ${k.padEnd(5)} ${v.path.padEnd(10)} LCP ${v.lcp}ms · TBT ${v.tbt}ms · 가장 긴 작업 ${v.longMs}ms · JS ${v.jsKb}KB(gzip) / 받은 ${v.jsWireKb}KB · 전체 ${v.kb}KB`);
   const out = opt("out", "/tmp/claude-0/-home-claude/887bff60-b663-5701-90e9-e402cebc9114/scratchpad/perf_last.json");
   fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, JSON.stringify(res, null, 1)); console.log("JSON " + out);
   const ag = opt("against", null);

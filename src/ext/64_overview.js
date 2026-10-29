@@ -362,8 +362,8 @@ const OVX = (() => {
   function addrChips(r) {
     const C = [];
     if (r.st && r.st.d) {
-      const wm = Math.max(1, Math.round(r.st.d * 1.3 / 67)), sn = r.st.n.replace(/역$/, "") + "역";
-      C.push({ c: "g", t: wm > 20 ? "역에서 멀어요" : `${sn} 걸어서 ${wm}분`, tip: `가까운 역 ${esc(sn)}까지 직선 ${Math.round(r.st.d).toLocaleString("ko-KR")}m · 걸어서 걸리는 시간은 직선×1.3을 분당 67m로 나눈 어림값이에요` });
+      const wm = ZF.walkMin(r.st.d), sn = r.st.n.replace(/역$/, "") + "역";   // 사이클 4 D+: 목록·지도와 같은 함수·같은 문턱(ZF.WALK_FAR)
+      C.push({ c: "g", t: wm > ZF.WALK_FAR ? "역에서 멀어요" : `${sn} 걸어서 ${wm}분`, tip: `가까운 역 ${esc(sn)}까지 직선 ${Math.round(r.st.d).toLocaleString("ko-KR")}m · 걸어서 걸리는 시간은 직선×1.3을 분당 67m로 나눈 어림값이에요` });
     }
     let x = null; try { x = investC(r); } catch (e) {}
     // 매수가 칩(추정·주변 시세)은 첫 화면 신뢰 한 줄(76_detail.js '추정 · 주변 빌라 n건 기준 · 믿을 만함')이 말한다 — 화면에 '추정' 칩은 하나만

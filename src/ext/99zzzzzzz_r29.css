@@ -1,6 +1,6 @@
 /* 29차(애드센스·제품 5차 레드팀) */
 /* 홈 h1 = 이 페이지의 진짜 제목: 첫 페인트부터 제자리(폰: 검색 위 · PC: 왼쪽 칸 맨 위, 읽을거리 줄 위) · 어두운 화면도 본문 글자색 */
-.s-site{margin:0;padding:2px 2px 0;font-size:19px;line-height:26px;height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800;letter-spacing:-.02em;color:var(--text-1,#191f28)}
+.s-site{margin:0;padding:2px 2px 0;font-size:19px;line-height:26px;height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;letter-spacing:-.02em;color:var(--text-1,#191f28)}
 @media (max-width:380px){.s-site{font-size:18px;line-height:24px;height:24px;padding:0 2px}}
 @media (min-width:981px){.s-site{font-size:22px;line-height:30px;height:auto;padding:14px 4px 0;margin:0;white-space:normal}html.simple #sListW>.s-site+.s-rd{margin-top:10px}}
 /* 구 화면 머리 숫자: 큰 숫자 = 그 구 곳 수 · 밑에 작은 '서울 전체 N곳' */

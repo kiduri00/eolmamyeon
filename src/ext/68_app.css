@@ -61,7 +61,7 @@ html.is-app .s-nav{-webkit-user-select:none;user-select:none;-webkit-touch-callo
 /* 오프라인 띠: 머리 바로 밑에 늘 */
 .off-bar{position:fixed;left:50%;top:calc(var(--hdr-h,56px) + 6px);z-index:70;transform:translateX(-50%);display:inline-flex;align-items:center;gap:6px;max-width:calc(100vw - 24px);padding:6px 12px;border-radius:999px;background:#14171c;color:#fff;font:600 13px/1.2 var(--font);box-shadow:0 4px 14px rgba(0,0,0,.2);white-space:nowrap}
 .off-bar[hidden]{display:none}
-.off-bar b{font-weight:800}
+.off-bar b{font-weight:700}
 @media (max-width:380px){.off-bar span{display:none}}
 :root[data-theme="dark"] .off-bar{background:#f1f3f5;color:#14171c}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .off-bar{background:#f1f3f5;color:#14171c}}

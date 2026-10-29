@@ -33,7 +33,7 @@ html.simple #sGauge>.bc-line{margin-top:8px;padding-top:10px;border-top:1px soli
 #hmNext>i{font-style:normal;color:var(--text-4,#8A929D)}
 #hmNext .hm-nb{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 6px;border:0;border-radius:10px;background:none;color:var(--text-2,#474F5B);font-family:inherit;font-size:14px;font-weight:500;letter-spacing:-.02em;white-space:nowrap;cursor:pointer}
 #hmNext .hm-nb:first-child{margin-left:-6px}
-#hmNext .hm-nb b{color:var(--brand,#1F3A87);font-weight:800;font-variant-numeric:tabular-nums}
+#hmNext .hm-nb b{color:var(--brand,#1F3A87);font-weight:700;font-variant-numeric:tabular-nums}
 #hmNext .hm-nb:hover{background:var(--brand-soft,#EAEEF6)}
 #hmNext .hm-nb:focus-visible{outline:2px solid var(--focus,#1F3A87);outline-offset:1px}
 
@@ -49,7 +49,7 @@ html.simple #sGauge>.bc-line{margin-top:8px;padding-top:10px;border-top:1px soli
   html.simple #hmBest[hidden]{display:none}
 }
 .hm-mh,.hm-bh{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px}
-.hm-mh h2,.hm-bh h2{margin:0;font-size:16px;line-height:22px;font-weight:800;letter-spacing:-.03em;color:var(--text-1,#14171C)}
+.hm-mh h2,.hm-bh h2{margin:0;font-size:16px;line-height:22px;font-weight:700;letter-spacing:-.03em;color:var(--text-1,#14171C)}
 .hm-mh h2 small{margin-left:4px;font-size:13px;font-weight:600;color:var(--text-3,#5C6573)}
 .hm-go{display:inline-flex;align-items:center;min-height:40px;padding:0 2px;color:var(--brand,#1F3A87);font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap}
 .hm-go:hover{text-decoration:underline}
@@ -61,7 +61,7 @@ html.simple #sGauge>.bc-line{margin-top:8px;padding-top:10px;border-top:1px soli
 .hm-g[data-b="3"]{fill:#8FA6DA}
 .hm-g.sel{stroke:var(--zp-pick);stroke-width:var(--zp-pick-map-w)}
 .hm-rv{fill:none;stroke:#B6CDE6;stroke-width:3;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
-.hm-gb{position:absolute;transform:translate(-50%,-50%);display:grid;place-items:center;box-sizing:border-box;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:none;color:var(--on-brand,#fff);font-family:inherit;font-size:12.5px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hm-gb{position:absolute;transform:translate(-50%,-50%);display:grid;place-items:center;box-sizing:border-box;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:none;color:var(--on-brand,#fff);font-family:inherit;font-size:12.5px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;cursor:pointer;-webkit-tap-highlight-color:transparent}
 /* 보이는 원은 지도 폭의 8.8%(최소 26px) · 누르는 칸은 44px */
 .hm-gb::before{content:"";position:absolute;left:50%;top:50%;z-index:-1;width:max(26px,8.8cqw);aspect-ratio:1;transform:translate(-50%,-50%);border:2px solid var(--surface,#fff);border-radius:50%;background:var(--brand,#1F3A87);box-shadow:0 1px 3px rgba(20,23,28,.18)}
 .hm-gb{z-index:1;isolation:isolate}
@@ -107,13 +107,13 @@ html.is-tapp .hm-gb{color:var(--t-on,#fff)}
 .s-list li.s-card:not(.s-peek) .s-fx{order:3;flex:0 0 100%;box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;margin:6px 0 0;padding:10px 40px 0 0;border-top:1px solid var(--divider,#EEF0F2);min-height:0}
 .s-list li.s-card:not(.s-peek) .s-fx:empty{display:none}
 .s-list li.s-card:not(.s-peek) .s-ftl{font-size:13px;line-height:18px;color:var(--text-3,#5C6573);white-space:nowrap}
-.s-list li.s-card:not(.s-peek) .s-ftl b{color:var(--text-1,#14171C);font-weight:800}
+.s-list li.s-card:not(.s-peek) .s-ftl b{color:var(--text-1,#14171C);font-weight:700}
 .s-list li.s-card:not(.s-peek) .s-ftl.s-na{color:var(--text-3,#5C6573)}
 .s-list li.s-card:not(.s-peek) .s-fx .s-left,.s-list li.s-card:not(.s-peek) .s-fx .s-fit{margin-left:auto;font-size:13px;line-height:18px;white-space:normal;text-align:right}
 /* 오른쪽 칸: '지금' + 금액(22px) + 상태 칩 — 칸 폭은 글자 크기(em)에 맞춰 고정, 금액은 줄이지 않는다 */
 .s-list li.s-card:not(.s-peek)>.s-amt{position:absolute;top:10px;right:10px;z-index:1;display:flex;flex-direction:column;align-items:flex-end;gap:3px;width:auto;max-width:var(--s-amw,7.2em);min-height:0;padding:4px 6px;margin:0;border-radius:12px;background:none}
 .s-list li.s-card:not(.s-peek)>.s-amt .s-av{display:flex!important;flex-direction:row!important;align-items:baseline;justify-content:flex-end;gap:4px;white-space:nowrap}
-.s-list li.s-card:not(.s-peek)>.s-amt .s-av b{font-size:22px;line-height:26px;font-weight:800;letter-spacing:-.03em;white-space:nowrap}
+.s-list li.s-card:not(.s-peek)>.s-amt .s-av b{font-size:22px;line-height:26px;font-weight:700;letter-spacing:-.03em;white-space:nowrap}
 .s-list li.s-card:not(.s-peek)>.s-amt>small{display:none}
 .s-card .s-stc{display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border-radius:999px;background:var(--brand,#1F3A87);color:var(--on-brand,#fff);font-size:12px;font-style:normal;font-weight:700;line-height:1;white-space:nowrap}
 .s-card .s-stc.s-stc-n{background:none;color:var(--brand,#1F3A87);box-shadow:inset 0 0 0 1.5px var(--brand,#1F3A87)}
@@ -121,7 +121,7 @@ html.is-tapp .hm-gb{color:var(--t-on,#fff)}
 .s-list li.s-card:not(.s-peek)>.s-heart{position:absolute;right:2px;bottom:0;z-index:1}
 /* 이유 칩 */
 .s-card .s-b.s-b-ok{background:var(--brand-soft,#EAEEF6);color:var(--brand,#1F3A87)}
-.s-card .s-b.s-b-new.zp-soft{font-weight:800}
+.s-card .s-b.s-b-new.zp-soft{font-weight:700}
 /* 담은 카드(관심 구역) = 노란 테두리 + 이름 옆 체크(고른 상태 공용 언어) */
 .s-list li.s-card.fav:not(.s-peek){border-radius:16px;box-shadow:inset 0 0 0 var(--zp-pick-w) var(--zp-pick),0 0 0 1px var(--zp-pick-edge)}
 .s-list li.s-card.fav:not(.s-peek) .s-nm b::after{content:"";display:inline-block;width:18px;height:18px;margin-left:6px;vertical-align:-3px;border-radius:50%;background-color:var(--zp-pick);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M6.4 11.4l3.1 3.1 6.1-6.4' fill='none' stroke='%2313265E' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-size:100% 100%;box-shadow:0 0 0 1px var(--zp-pick-edge)}

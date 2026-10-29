@@ -10,7 +10,7 @@ html.is-tapp [data-f]{--zf-ink:var(--t-ink);--zf-sub:var(--t-sub);--zf-mute:var(
 .ztl-nh span{font:600 13px/18px var(--font,inherit);color:var(--zf-sub)}
 .ztl-nh b{font:700 15px/20px var(--font,inherit);color:var(--zf-ink)}
 .ztl-rng{display:flex;align-items:baseline;gap:8px;margin:6px 0 4px;flex-wrap:wrap}
-.ztl-rng b{font:800 22px/28px var(--font,inherit);letter-spacing:-.02em;color:var(--zf-brand);font-variant-numeric:tabular-nums}
+.ztl-rng b{font:700 22px/28px var(--font,inherit);letter-spacing:-.02em;color:var(--zf-brand);font-variant-numeric:tabular-nums}
 .ztl-next.past .ztl-rng b{color:var(--zf-warn)}
 .ztl-rng small{font:500 13px/18px var(--font,inherit);color:var(--zf-sub)}
 .ztl-why{margin:0 0 6px;font:500 13.5px/20px var(--font,inherit);color:var(--zf-ink);word-break:keep-all}
@@ -52,7 +52,7 @@ html.is-tapp .zorg-c{background:var(--t-pg)}
 .znr-i{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 14px;border:0;border-radius:var(--zf-r);background:var(--zf-fill);color:var(--zf-ink);text-align:left;font:inherit;cursor:pointer}
 .znr-i:focus-visible{outline:2px solid var(--focus,var(--zf-brand));outline-offset:2px}
 .znr-n{flex:1;min-width:0}.znr-n b{display:block;font:700 15px/21px var(--font,inherit);word-break:keep-all}.znr-n small{display:block;font:500 12px/17px var(--font,inherit);color:var(--zf-mute)}
-.znr-v{flex:none;text-align:right}.znr-v b{display:block;font:800 16px/22px var(--font,inherit);color:var(--zf-brand);font-variant-numeric:tabular-nums}.znr-v small{display:block;font:500 11.5px/16px var(--font,inherit);color:var(--zf-mute)}
+.znr-v{flex:none;text-align:right}.znr-v b{display:block;font:700 16px/22px var(--font,inherit);color:var(--zf-brand);font-variant-numeric:tabular-nums}.znr-v small{display:block;font:500 11.5px/16px var(--font,inherit);color:var(--zf-mute)}
 .znr-v b.znr-hb{font:700 13px/20px var(--font,inherit);color:var(--zf-mute)}
 .znr-src{margin:8px 0 0;font:500 12px/17px var(--font,inherit);color:var(--zf-mute);word-break:keep-all}
 /* F5 가격 흐름 */
@@ -98,7 +98,7 @@ html.is-tapp .zpx-seg button[aria-pressed="true"]{background:var(--t-pg)}
 .zal-pv{margin:14px 0 0;padding:14px 16px;border:1px solid var(--zf-line);border-radius:16px;background:var(--surface,#fff)}
 .zal-pv h4{margin:0;font:700 14px/1.45 var(--font,inherit);color:var(--zf-ink);word-break:keep-all}
 .zal-c{margin:6px 0 0;font-size:14px;color:var(--zf-sub)}
-.zal-c b{font-size:20px;font-weight:800;color:var(--zf-ink);font-variant-numeric:tabular-nums;margin-right:2px}
+.zal-c b{font-size:20px;font-weight:700;color:var(--zf-ink);font-variant-numeric:tabular-nums;margin-right:2px}
 .zal-l{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
 .zal-l li{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;font-size:13.5px;line-height:1.45}
 .zal-d{color:var(--zf-mute);font-variant-numeric:tabular-nums;white-space:nowrap}

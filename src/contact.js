@@ -14,7 +14,7 @@
   var fmt = function (n) { try { return Number(n).toLocaleString("ko-KR"); } catch (e) { return String(n); } };
   var ls = { get: function () { try { return JSON.parse(localStorage.getItem(DK) || "null"); } catch (e) { return null; } }, set: function (v) { try { localStorage.setItem(DK, JSON.stringify(v)); } catch (e) {} }, del: function () { try { localStorage.removeItem(DK); } catch (e) {} } };
   var CSS = ".cf{display:flex;flex-direction:column;gap:12px;font:15px/1.5 var(--font,system-ui,-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif);color:var(--text-1,#141821)}"
-    + ".cf h3,.cf h2{margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em}.cf .cf-meta{margin:-6px 0 0;color:var(--text-2,#4a5361);font-size:13px}"
+    + ".cf h3,.cf h2{margin:0;font-size:19px;font-weight:700;letter-spacing:-.02em}.cf .cf-meta{margin:-6px 0 0;color:var(--text-2,#4a5361);font-size:13px}"
     + ".cf fieldset{margin:0;padding:0;border:0;min-width:0}.cf legend,.cf .cf-l{display:block;margin:0 0 6px;padding:0;font-weight:700;font-size:14px}.cf .cf-l small,.cf legend small{font-weight:500;color:var(--text-3,#6a7482)}"
     + ".cf .cf-k{display:flex;flex-wrap:wrap;gap:6px}.cf .cf-k label{position:relative}.cf .cf-k input,.cf .cf-r input{position:absolute;opacity:0;width:1px;height:1px;margin:0}"
     + ".cf .cf-k span{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--border,#d7dce5);border-radius:999px;background:var(--surface,#fff);font-weight:600;font-size:14px;cursor:pointer}"

@@ -42,7 +42,7 @@
 
 /* ---------- 구 묶음: 둥근 네모 두 줄 '강북 1곳'(12.5/800) / '7,400만~'(10.5/600) · 폭 = 글자(자리 잡기 ZP_G.place와 같은 값 --w) ---------- */
 .zgu{width:auto;min-width:var(--w,56px);height:var(--h,40px);padding:0 9px;border-radius:12px;box-sizing:border-box;white-space:nowrap}
-.zgu b{font:800 12.5px/1.15 var(--font);letter-spacing:-.03em}
+.zgu b{font:700 12.5px/1.15 var(--font);letter-spacing:-.03em}
 .zgu span{margin-top:2px;font:600 10.5px/1.1 var(--font);font-variant-numeric:tabular-nums;letter-spacing:-.02em;opacity:.95}
 .zgu.sm{min-width:var(--w,44px);height:40px;padding:0 6px;border-radius:10px;isolation:isolate;background:transparent!important;border-color:transparent!important;box-shadow:none!important}
 .zgu.sm::before{display:block;content:"";position:absolute;left:0;right:0;top:5px;bottom:5px;width:auto;height:auto;transform:none;z-index:-1;box-sizing:border-box;border-radius:10px;border:1.5px solid var(--zn);background:var(--zn);box-shadow:0 1px 3px rgba(15,23,42,.2)}
@@ -64,7 +64,7 @@
 @media (max-width:359px){.hdr-date{display:none}}
 .hdr.searching .hdr-date,.hdr.searching .hdr-bell{display:none}
 /* 새 소식 N 점: 빨강은 이 점에만 */
-.nb-dot{position:absolute;top:6px;right:5px;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#e5484d;color:#fff;font:800 10px/1 var(--font);font-style:normal;box-shadow:0 0 0 2px var(--surface);pointer-events:none}
+.nb-dot{position:absolute;top:6px;right:5px;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#e5484d;color:#fff;font:700 10px/1 var(--font);font-style:normal;box-shadow:0 0 0 2px var(--surface);pointer-events:none}
 .nb-dot[hidden]{display:none}
 #sNav [data-nav="news"]{position:relative}
 #sNav [data-nav="news"] .nb-dot{top:3px;right:auto;left:calc(50% + 5px)}

@@ -66,18 +66,18 @@ html.simple .s-gauge.bc .s-sum:empty{display:none!important}
 html.simple .s-sum .s-rail3 button{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:0;width:148px;height:88px;margin:0;padding:11px 12px 10px;border:1px solid var(--chip-bd);border-radius:14px;background:var(--surface);color:var(--text-1);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;box-sizing:border-box}
 html.simple .s-sum .s-rail3 button::before{display:none}
 .s-rail3 .s-rn{display:block;max-width:100%;font-size:15px;font-weight:700;line-height:1.25;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-1)}
-.s-rail3 .s-rv{display:flex;align-items:baseline;gap:4px;font-size:17px;font-weight:800;line-height:1.2;letter-spacing:-.02em;color:var(--navy-num);font-variant-numeric:tabular-nums}
+.s-rail3 .s-rv{display:flex;align-items:baseline;gap:4px;font-size:17px;font-weight:700;line-height:1.2;letter-spacing:-.02em;color:var(--navy-num);font-variant-numeric:tabular-nums}
 .s-rail3 .s-rv small{font-size:12px;font-weight:500;color:var(--text-3)}
 .s-rail3 .s-rs{display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:6px;background:var(--surface-2);color:var(--text-2);font:600 11px/1 var(--font);font-style:normal}
 html.simple .s-sum .s-rail3 .s-rmore button{width:96px;align-items:center;justify-content:center;gap:4px;background:var(--tile);border-color:transparent;text-align:center}
-.s-rail3 .s-rmore b{font-size:15px;font-weight:800;color:var(--tile-ink)}
+.s-rail3 .s-rmore b{font-size:15px;font-weight:700;color:var(--tile-ink)}
 .s-rail3 .s-rmore small{font-size:12px;font-weight:600;color:var(--text-3)}
 @media (hover:hover){html.simple .s-sum .s-rail3 button:hover{border-color:color-mix(in srgb,var(--sel) 45%,var(--chip-bd))}}
 html.simple .s-sum .s-rail3 button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 /* 0곳: '6,300만부터 있어요' + [7,000만으로 보기] */
 .s-zero{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 16px;padding:12px 14px;border-radius:14px;background:var(--tile)}
 .s-zero p{display:flex;flex-direction:column;gap:2px;margin:0;min-width:0}
-.s-zero b{font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--navy-num)}
+.s-zero b{font-size:20px;font-weight:700;letter-spacing:-.02em;color:var(--navy-num)}
 .s-zero small{font-size:13px;color:var(--text-2)}
 html.simple .s-sum .s-zbtn{flex:none;display:inline-flex;align-items:center;height:36px;padding:0 14px;border:1.5px solid var(--sel);border-radius:18px;background:transparent;color:var(--navy-num);font:700 14px var(--font);cursor:pointer}
 html.simple .s-sum .s-zbtn::before{display:none}
@@ -153,7 +153,7 @@ button.s-amt b{border-bottom:0!important}
 :root:not([data-theme="light"]) .s-card .s-av .s-al{color:#5c6573}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .s-card .s-av .s-al{color:#aab2bf}}
 :root[data-theme="dark"] .s-card .s-av .s-al{color:#aab2bf}
-.s-card button.s-amt .s-av b{font-size:20px;font-weight:800;line-height:1.15}
+.s-card button.s-amt .s-av b{font-size:20px;font-weight:700;line-height:1.15}
 .s-card.st-ok button.s-amt .s-av b{color:var(--navy-num)!important}
 .s-card button.s-amt small{font-size:13px;font-weight:500;color:var(--text-3)}
 .s-card button.s-amt small b{font-size:13px;font-weight:500;color:var(--text-3)}
@@ -167,11 +167,11 @@ button.s-amt b{border-bottom:0!important}
 
 /* ---------- ⑥ 탭 머리(관심·소식·MY): 큰 제목 28/800 · 막대 없음 ---------- */
 #favTop>.sec-h h2::before,#news>.sec-h h2::before,#my>.sec-h h2::before{display:none!important}
-#favTop>.sec-h h2,#news>.sec-h h2,#my>.sec-h h2{margin:4px 0 0;font-size:28px;font-weight:800;line-height:1.25;letter-spacing:-.03em}
+#favTop>.sec-h h2,#news>.sec-h h2,#my>.sec-h h2{margin:4px 0 0;font-size:28px;font-weight:700;line-height:1.25;letter-spacing:-.03em}
 
 /* ---------- ⑦ 구역 상세 ---------- */
-#report .dt-i:first-child .dt-v{font-size:34px;font-weight:800;color:var(--navy-num)}
-#report .dt-i:nth-child(2) .dt-v{font-size:28px;font-weight:800;color:var(--text-1)}
+#report .dt-i:first-child .dt-v{font-size:34px;font-weight:700;color:var(--navy-num)}
+#report .dt-i:nth-child(2) .dt-v{font-size:28px;font-weight:700;color:var(--text-1)}
 .ov-p .vd-ic{flex:none;vertical-align:-2px;margin-right:2px}
 .ov-p b .vd-t{vertical-align:baseline}
 @media (max-width:980px){
@@ -247,7 +247,7 @@ html.simple #bSheet input.scr-in{position:static!important;display:block;width:1
 .zpill.two .zp-in{flex-direction:column;align-items:center;gap:1px;height:auto;max-width:120px;padding:5px 10px 6px;border-radius:10px;box-sizing:border-box}
 .zpill.two .zp-n{display:block;max-width:100px;font-size:11px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}
 .zpill .zp-l{display:inline-flex;align-items:center;gap:3px}
-.zpill.two .zp-v{font-size:13px;font-weight:800;line-height:1.15}
+.zpill.two .zp-v{font-size:13px;font-weight:700;line-height:1.15}
 /* 구 묶음 범례: 진한 원(많음) · 옅은 원(적음) */
 .lm-key .k-gu.k-gu2{background:var(--zn-mid);border:1px solid var(--zn);box-sizing:border-box}
 .lm-key span+span{margin-left:0}

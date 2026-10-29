@@ -435,7 +435,7 @@ p {
 .logo {
   flex: none;
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text-1);
   text-decoration: none !important;
@@ -5061,7 +5061,7 @@ details.method summary::-webkit-details-marker {
     line-height: var(--lh-body);
   }
   .qans b {
-    font-weight: 800;
+    font-weight: 700;
   }
   .qans .qa-go {
     flex: none;
@@ -6216,7 +6216,7 @@ details.method summary::-webkit-details-marker {
   line-height: var(--lh-label);
 }
 .tip .tt-v strong {
-  font-weight: 800;
+  font-weight: 700;
 }
 .tip .tt-go {
   margin-top: 6px;
@@ -6921,7 +6921,7 @@ body::after {
 .intro h2.in-h {
   font-size: clamp(34px, 4.3vw, 54px);
   line-height: 1.14;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.04em;
   text-wrap: balance;
 }
@@ -6974,7 +6974,7 @@ body::after {
 .ist .dd b {
   font-size: 28px;
   line-height: 34px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   color: var(--text-1);
@@ -7088,7 +7088,7 @@ body::after {
   border-radius: 50%;
   font-style: normal;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   color: #fff;
   background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
 }
@@ -7285,7 +7285,7 @@ body::after {
   gap: 10px;
   font-size: var(--fs-h1);
   line-height: var(--lh-h1);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   margin-bottom: 4px;
 }
@@ -7572,7 +7572,7 @@ html.rv .rv.in {
   padding-right: 28px;
   font-size: var(--fs-body);
   line-height: 20px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-1);
 }
 .mpop small {
@@ -7838,7 +7838,7 @@ html.rv .rv.in {
 }
 .chk3 h3 {
   font-size: var(--fs-body);
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-1);
 }
 .chk3 ol {
@@ -7870,7 +7870,7 @@ html.rv .rv.in {
   background: var(--brand);
   color: var(--on-brand);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .chk3 li b {
   color: var(--text-1);
@@ -8156,7 +8156,7 @@ body {
 }
 .in-cap b {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 700;
 }
 /* 첫 화면이 안 보이면 지도 그림을 아예 그리지 않음(점 수백 개의 합성 레이어가 아래 지도 확대를 느리게 함) · 반복 효과는 멈춤 */
 .intro.idle .in-art::before,
@@ -8203,7 +8203,7 @@ body {
 .cstrip b {
   font-size: 28px;
   line-height: 34px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text-1);
   font-variant-numeric: tabular-nums;
@@ -8244,7 +8244,7 @@ body {
 .bigrow .big.cash b {
   font-size: 28px;
   line-height: 34px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .big.gain b {
   font-size: var(--fs-h2);
@@ -8583,7 +8583,7 @@ body {
   stroke-dasharray: 6 4;
 }
 #map #mlab text.sel {
-  font-weight: 800;
+  font-weight: 700;
 }
 /* 범례: 짧은 문장은 좁은 화면에서만 · 역 기호 칩 */
 .mlg .ml-ls {
@@ -8791,7 +8791,7 @@ body {
   color: var(--on-brand);
   font-size: 11px;
   line-height: 18px;
-  font-weight: 800;
+  font-weight: 700;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -8804,7 +8804,7 @@ body {
   font-style: normal;
   font-size: 11px;
   line-height: 14px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.04em;
   color: #fff;
   background: linear-gradient(100deg, var(--grad-a), var(--grad-b));
@@ -9112,7 +9112,7 @@ body {
 }
 .cm-sum b.cm-big {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .cm-sum b.y {
   color: var(--brand);
@@ -9174,7 +9174,7 @@ body {
 .cm-t b {
   font-size: 26px;
   line-height: 30px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-1);
   font-variant-numeric: tabular-nums;
@@ -9265,7 +9265,7 @@ body {
 .pr-k b {
   font-size: 24px;
   line-height: 30px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-1);
   font-variant-numeric: tabular-nums;
 }
@@ -9331,7 +9331,7 @@ body {
 }
 .sv-hook b {
   color: var(--text-1);
-  font-weight: 800;
+  font-weight: 700;
 }
 .sv-ch {
   position: relative;
@@ -9536,7 +9536,7 @@ body {
   background: none;
   color: var(--text-1);
   font: inherit;
-  font-weight: 800;
+  font-weight: 700;
   text-align: left;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -9759,7 +9759,7 @@ body {
   display: block;
   font-size: 20px;
   line-height: 26px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-1);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
@@ -9868,7 +9868,7 @@ html.gapm #resNote {
   font-size: 19px;
   line-height: 27px;
   letter-spacing: -0.02em;
-  font-weight: 800;
+  font-weight: 700;
 }
 @media (max-width: 640px) {
   .cstrip.gstrip b {
@@ -10447,7 +10447,7 @@ html.gapm #resNote {
   color: var(--on-brand);
   font-size: 11px;
   line-height: 18px;
-  font-weight: 800;
+  font-weight: 700;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -10626,7 +10626,7 @@ html.gapm #resNote {
   gap: 10px;
   font-size: 26px;
   line-height: 34px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 .pl-sub {
@@ -10665,7 +10665,7 @@ html.gapm #resNote {
   background: var(--brand-soft);
   color: var(--brand);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   flex: none;
 }
 .pl .cashfield {
@@ -10728,7 +10728,7 @@ html.gapm #resNote {
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.08),
     0 4px 12px -6px rgba(15, 23, 42, 0.25) !important;
-  font-weight: 800 !important;
+  font-weight: 700 !important;
 }
 .pl-seg button[aria-pressed="true"] {
   outline: 1.5px solid color-mix(in srgb, var(--brand) 55%, transparent);
@@ -10909,7 +10909,7 @@ html:not(.gapm) .gaponly {
 }
 .pa-l b {
   color: var(--text-1);
-  font-weight: 800;
+  font-weight: 700;
 }
 .pa-n {
   margin: 6px 0 0;
@@ -10921,7 +10921,7 @@ html:not(.gapm) .gaponly {
 .pa-n b {
   font-size: 64px;
   line-height: 68px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.04em;
   color: var(--text-1);
 }
@@ -10996,7 +10996,7 @@ html:not(.gapm) .gaponly {
 .pt-v {
   font-size: 22px;
   line-height: 28px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-1);
   white-space: nowrap;
@@ -11257,7 +11257,7 @@ html:not(.gapm) .gaponly {
   margin: 0;
   font-size: 16px;
   line-height: 22px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
@@ -11313,7 +11313,7 @@ html:not(.gapm) .gaponly {
 .zc-big {
   font-size: 30px;
   line-height: 34px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text-1);
 }
@@ -11655,7 +11655,7 @@ html:not(.gapm) .gaponly {
 .lb-v b {
   font-size: 40px;
   line-height: 44px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
@@ -11880,7 +11880,7 @@ html.gapm #pSort.chips-r {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 700;
 }
 @media (max-width: 640px) {
   .pt-k i {
@@ -12150,7 +12150,7 @@ html.gapm #pSort.chips-r {
   margin: 0;
   font-size: 16px;
   line-height: 24px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-1);
   letter-spacing: -0.01em;
 }
@@ -12237,7 +12237,7 @@ html.mb-open {
   margin: 2px 0 0;
   font-size: 28px;
   line-height: 36px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
@@ -12368,7 +12368,7 @@ html.mb-open {
   background: var(--brand);
   color: var(--on-brand);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .mbs-who {
   color: var(--text-1);
@@ -12392,7 +12392,7 @@ html.mb-open {
   background: #03c75a;
   color: #fff;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
 }
 .btn.naver:hover {
   background: var(--border);
@@ -12696,7 +12696,7 @@ html.mb-open {
   margin: 0;
   font-size: 20px;
   line-height: 26px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-1);
 }
 .mp-p small {
@@ -13379,7 +13379,7 @@ html.free .sb-lk {
 }
 .ist .ist-t b {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-1);
   font-variant-numeric: tabular-nums;
 }

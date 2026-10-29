@@ -18,7 +18,7 @@
 .dg-h b{font-size:19px}.dg-h span{color:var(--text-3);font-size:13px}.dg-h button{margin-left:auto}
 .dg-l{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .dg-l li{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--surface-2)}
-.dg-l li i{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;font-style:normal;font-weight:800;color:#fff;background:#94a3b8}
+.dg-l li i{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;font-style:normal;font-weight:700;color:#fff;background:#94a3b8}
 .dg-l li.ok i{background:#16a34a}.dg-l li.no i{background:#dc2626}.dg-l li.warn i{background:#f59e0b}
 .dg-l li span{display:flex;flex-direction:column;gap:2px}.dg-l li b{font-size:15px}.dg-l li small{font-size:13.5px;color:var(--text-2);line-height:1.5}
 .sp-ch{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;align-items:end;height:200px;margin:8px 0 14px}
