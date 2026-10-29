@@ -51,5 +51,8 @@
 .s-list .s-card .s-l2 .s-fx,.s-card .s-l2 .s-fx{height:auto;min-height:20px;max-width:100%}
 .s-card .s-left{white-space:nowrap;flex:none;min-width:auto}
 /* 사이클 4 통합: 판정 띠 연남색 바탕(#EAEEF6) 위 '더 필요해요' 주황 글자 대비 4.45 → 5.3(axe) — 라이트만(다크는 따로 통과) */
-:root:not([data-theme="dark"]) #report .dt-k4 .dt-band .dt-vd.no{color:#8F5206}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #report .dt-k4 .dt-band .dt-vd.no{color:var(--warn-ink)}}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) #report .dt-k4 .dt-band .dt-vd.no{color:#8F5206}}
+:root[data-theme="light"] #report .dt-k4 .dt-band .dt-vd.no{color:#8F5206}
+/* 사이클 4 통합(D+ v2 뒤): 보조 글자 #5F6A78이 '입주까지 현금' 큰 칸 연남색 바탕(#E1E5ED)에서 4.35 — 그 칸 이름표만 한 단계 진하게(axe) */
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .bigrow .big.cash > span{color:#4E5968}}
+:root[data-theme="light"] .bigrow .big.cash > span{color:#4E5968}

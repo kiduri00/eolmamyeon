@@ -2505,7 +2505,7 @@ async function r17bLane(browser, api, errs) {
           for (const e of document.querySelectorAll("body *")) {
             if (!vis(e)) continue;
             // 통합: 브랜드 v7 노란 점(::before 12px 이하 장식 · 홈 소개 블록 머리표)은 '노랑 바탕'이 아님
-            const bf = getComputedStyle(e, "::before"), tiny = parseFloat(bf.width) <= 12 && parseFloat(bf.height) <= 12;
+            const bf = getComputedStyle(e, "::before"), tiny = parseFloat(bf.width) <= 16 && parseFloat(bf.height) <= 16;   /* 사이클 4 통합: 시각 언어 v2 '갈 수 있음' 체크 배지 14px(노랑 = 갈 수 있음 체크 한 뜻)도 장식 — 바탕이 아님 */
             for (const c of [getComputedStyle(e).backgroundColor, tiny ? "" : bf.backgroundColor]) {
               const v = rgb(c); if (!v) continue;
               const [r, g, b] = v.map((x) => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn; if (d < 0.08) continue;
