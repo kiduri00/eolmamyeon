@@ -157,7 +157,12 @@
           if (free(bx)) got = { S: S0, k: k, dx: NU[j][0], dy: NU[j][1], bx: bx };
         }
       }
-      if (!got && g.c) { var S3 = sizeOf(g, 2), x3 = Math.max(EX + S3.bw / 2, Math.min(w - EX - S3.bw / 2, q.x)), y3 = Math.max(2 + S3.bh / 2, Math.min(h - 2 - S3.bh / 2, q.y)); got = { S: S3, k: 3, dx: x3 - q.x, dy: y3 - q.y, bx: [x3 - S3.bw / 2, y3 - S3.bh / 2, x3 + S3.bw / 2, y3 + S3.bh / 2] }; }   // ④ 겹쳐서라도
+      if (!got && g.c) {   // ④ 겹쳐서라도 — 사이클 4 통합: 가운데 고정 대신 둘레(NUDGE3 + 한 겹 더 36·44px) 가운데 이미 놓인 태그와 가장 적게 겹치는 자리(큰 글씨 360에서 '⑦'이 '양천 4'의 숫자를 덮던 것)
+        var S3 = sizeOf(g, 2), best = null, ov = function (bx) { var a = 0; placed.forEach(function (p) { var ox = Math.min(p[2], bx[2]) - Math.max(p[0], bx[0]), oy = Math.min(p[3], bx[3]) - Math.max(p[1], bx[1]); if (ox > 0 && oy > 0) a += ox * oy; }); obs.forEach(function (p) { var ox = Math.min(p[2], bx[2]) - Math.max(p[0], bx[0]), oy = Math.min(p[3], bx[3]) - Math.max(p[1], bx[1]); if (ox > 0 && oy > 0) a += 4 * ox * oy; }); return a; };
+        var NU4 = NUDGE3.concat([36, 44].reduce(function (a, r) { for (var k = 0; k < 8; k++) a.push([Math.round(r * Math.cos(k * Math.PI / 4)), Math.round(r * Math.sin(k * Math.PI / 4))]); return a; }, []));
+        NU4.forEach(function (d, i) { var x3 = Math.max(EX + S3.bw / 2, Math.min(w - EX - S3.bw / 2, q.x + d[0])), y3 = Math.max(2 + S3.bh / 2, Math.min(h - 2 - S3.bh / 2, q.y + d[1])), bx = [x3 - S3.bw / 2, y3 - S3.bh / 2, x3 + S3.bw / 2, y3 + S3.bh / 2], a = ov(bx) + i * 0.01; if (!best || a < best.a) best = { a: a, x3: x3, y3: y3, bx: bx }; });
+        got = { S: S3, k: 3, dx: best.x3 - q.x, dy: best.y3 - q.y, bx: best.bx };
+      }
       if (!got) return;
       if (g.c) steps[got.k]++;
       g.l1 = got.S.l1; g.l2 = ""; g.t = 2; g.q = q; g.w = got.S.w; g.h = got.S.h; g.sm = got.k === 1; g.xs = false; g.tt = false; g.num = got.k >= 2; g.frc = got.k === 3; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy);
