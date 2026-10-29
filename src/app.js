@@ -4788,7 +4788,7 @@
     const okZ = (r) => { try { return !!(window.ZP_ok && window.ZP_ok(r)); } catch (e) { return false; } };
     const row = (r, i, near) => {
       const n = needS(r), ok = okZ(r);
-      const same = r.st && r.st.n && r.st.n.replace(/역$/, "") === stn[0].replace(/역$/, "");   // 그 역이 구역의 가장 가까운 역이면 시트와 같은 글자(ZF.walkTxt)
+      const same = !!(stn && r.st && r.st.n && r.st.n.replace(/역$/, "") === stn[0].replace(/역$/, ""));   // 그 역이 구역의 가장 가까운 역이면 시트와 같은 글자(ZF.walkTxt)
       const wt = near || moaIn.has(r.id) ? (same && !moaIn.has(r.id) ? walkT(r) : `${esc(stn[0].replace(/역$/, ""))}역 ${ZF.walkMin(stnW(r))}분${moaIn.has(r.id) ? " · 15분 안" : ""}`) : r.st ? walkT(r) : "";
       // 27차: 보이는 이름에는 없고 공식 이름에만 검색어가 있으면(강북2구역 ← '미아중심재정비촉진지구…') 공식 이름을 한 줄 더
       const qn = String(q || "").replace(/\s+/g, ""), sn = shortName(r.n), offi = qn.length >= 2 && !near && !sn.replace(/\s+/g, "").includes(qn) && String(r.n || "").replace(/\s+/g, "").includes(qn) ? `<small class="sg-off">공식 이름: ${esc(String(r.n).trim())}</small>` : "";

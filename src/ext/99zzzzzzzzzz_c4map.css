@@ -31,7 +31,7 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0F1115;--surface:#171A20;--surface-2:#1F232A;--border:#2A2F37;--border-strong:#3A404A;
-  --text-1:#ECEEF2;--text-2:#AEB5C1;--text-3:#8E96A3;--text-4:#6B7380;
+  --text-1:#ECEEF2;--text-2:#AEB5C1;--text-3:#8E96A3;
   --brand-press:#26408A;--brand-soft:#1E2639;--brand-ink:#9DB3F0;--brand-fill:#2D4BA0;--far:#5F6B7A;
   --sh-1:0 1px 2px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.04);--sh-2:0 8px 24px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.05);--sh-sheet:0 -1px 0 rgba(255,255,255,.06),0 -8px 24px rgba(0,0,0,.4);
   --mx-far:#6B7380;--mx-ring:#111318;--mx-sel:#C7D6FF;--mx-tag-sh:0 1px 2px rgba(0,0,0,.5),0 3px 8px rgba(0,0,0,.35);--mx-tag-edge:#9DB3F0;
@@ -39,7 +39,7 @@
 }}
 :root[data-theme="dark"]{
   --bg:#0F1115;--surface:#171A20;--surface-2:#1F232A;--border:#2A2F37;--border-strong:#3A404A;
-  --text-1:#ECEEF2;--text-2:#AEB5C1;--text-3:#8E96A3;--text-4:#6B7380;
+  --text-1:#ECEEF2;--text-2:#AEB5C1;--text-3:#8E96A3;
   --brand-press:#26408A;--brand-soft:#1E2639;--brand-ink:#9DB3F0;--brand-fill:#2D4BA0;--far:#5F6B7A;
   --sh-1:0 1px 2px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.04);--sh-2:0 8px 24px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.05);--sh-sheet:0 -1px 0 rgba(255,255,255,.06),0 -8px 24px rgba(0,0,0,.4);
   --mx-far:#6B7380;--mx-ring:#111318;--mx-sel:#C7D6FF;--mx-tag-sh:0 1px 2px rgba(0,0,0,.5),0 3px 8px rgba(0,0,0,.35);--mx-tag-edge:#9DB3F0;

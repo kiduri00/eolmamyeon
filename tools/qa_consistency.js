@@ -1577,7 +1577,9 @@ async function navLane(browser, api, errs) {
           const P = ZP_lmx.pills().filter((p) => ids.has(p.id) && p.st === "ok"), pid = new Set(P.map((p) => p.id));
           const pt = (id) => { const ll = ZP_lmx.llOf(id); return ll ? m.project(ll) : null; };
           const anc = P.map((p) => pt(p.id)).filter(Boolean);
-          const stacked = own.filter((x) => !pid.has(x.id)).filter((x) => { const a = pt(x.id); return a && anc.some((b) => Math.abs(a.x - b.x) < 28 && Math.abs(a.y - b.y) < 28); }).length;
+          // 사이클 4 D+(SPEC J2-0): 자리를 못 잡은 곳은 상태를 지키는 점(zd-ok) — 태그 바로 곁(44px 안 · 손가락 한 자리)에 몰린 점만 '겹침'으로 셈(외딴 곳은 여전히 태그가 있어야)
+          const DK = new Set(ZP_lmx.dots ? ZP_lmx.dots().filter((d) => d.t === "ok").map((d) => d.id) : []);
+          const stacked = own.filter((x) => !pid.has(x.id)).filter((x) => { const a = pt(x.id); return a && anc.some((b) => { const r = DK.has(x.id) ? 44 : 28; return Math.abs(a.x - b.x) < r && Math.abs(a.y - b.y) < r; }); }).length;
           const more = P.reduce((a, p) => a + p.more, 0);
           const B = [...document.querySelectorAll("#lmap button.zpill[data-zid] .zp-in")].map((e) => e.getBoundingClientRect()); let ov = 0;
           for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) { const a = B[i], b = B[j]; if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 10 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 4) ov++; /* 둥근 모서리끼리 살짝 닿는 것(10×4 안)은 글자를 안 가림 */ }
@@ -2376,7 +2378,7 @@ async function r21Lane(browser, api, errs) {
           const wn = li.querySelector(".s-wn"), wnCut = !!wn && wn.offsetWidth > 0 && wn.scrollWidth > wn.clientWidth + 1;
           const cutM = !!wm && (m.width < 4 || m.right > c.right + 1 || m.right > a.right + 1 || wm.scrollWidth > wm.clientWidth + 1 || wnCut);
           const dgOn = !!dg && dg.getBoundingClientRect().width > 0 && innerWidth < 420;
-          return { id: li.dataset.zid, over: li.scrollHeight > li.clientHeight + 1, bad: bad.slice(0, 3), wk: wk ? wk.textContent : "", cut: !!wk && (!wm || cutM || sub.scrollWidth > sub.clientWidth + 1 || a.width < 4 || dgOn) };
+          return { id: li.dataset.zid, over: li.scrollHeight > li.clientHeight + 1, bad: bad.slice(0, 3), wk: wk ? wk.textContent : "", cut: !!wk && ((!wm && wk.textContent.trim() !== "역에서 멀어요") || cutM || sub.scrollWidth > sub.clientWidth + 1 || a.width < 4 || dgOn) };   /* 사이클 4 D+: 역 도보 = ZF.walkTxt 한 함수 — 20분 넘으면 시트와 같은 '역에서 멀어요'(이름 없음 · 끝까지 보여야 함) */
         }));
         const ob = r.filter((x) => x.over || x.bad.length), cut = r.filter((x) => x.cut);
         expect(r.length >= (cash >= 2 ? 6 : 1) && !ob.length, "list.noOverflow", TO, `${w} ${cs} ${cash}억: ${r.length} rows · overflow ${ob.map((x) => x.id + "[" + x.bad.join("|") + "]").join(", ")}`);
