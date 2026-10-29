@@ -3302,7 +3302,7 @@ async function tappLane(browser, api, errs) {
       });
       expect(mc.rep === "no-repeat" && mc.aw && mc.aw[0] === 44 && mc.aw[1] === 44 && mc.zgap >= 8 && mc.before === 0 && mc.hs.length === 1 && mc.hs[0] === 34 && mc.rows === 1 && mc.labels === 6 && mc.lastIn && !mc.keyFx && !mc.gmKey && mc.barH === 64 && mc.barIn && mc.cntOk && mc.sqH === 48 && mc.fb.length === 2 && mc.fb.every((x) => x[0] === 44 && x[1] === 44) /* 시각 언어 v2: 둥근 단추 44 · 반경 12 */ && !mc.ovN && /✓ 숫자 = (내 돈으로 )?갈 수 있는 곳/.test(mc.kt) && !/굵은 테두리|노란 테두리/.test(mc.kt) && mc.cx === "false", "tapp.mapCtl", "설치 앱 지도 탭(사이클 4 새 조작부): ⓘ 한 번(no-repeat)·44×44·확대 버튼과 8px 이상 · 레이어 6개 가로 칩 34px·한 줄·이름표 6개·마지막 칩까지 밀어서 보임(시각 언어 v2) · 검색 48px · 아래 내 돈 막대 64px(금액·곳 수 단추) · 둥근 단추 44×44 둘(v2) · 범례·막대·단추·ⓘ·확대 버튼 안 겹침", JSON.stringify(mc));
       // tapp.mapList(13): 지도 탭 '목록 보기' = 아래 탭 '지도' 그대로 · 목록에서 연 구역을 닫으면 목록(지도 탭)
-      await page.click((await page.$(".mx-cnt:visible")) ? ".mx-cnt" : "#sFullX"); await page.waitForTimeout(900);   // 사이클 4: 떠 있는 '목록 보기'를 아래 막대 곳 수에 합침
+      await page.click((await page.$(".mx-cnt:visible")) ? ".mx-cnt" : "#sFullX"); await page.waitForTimeout(700); if (await page.$("#mxStrip:not([hidden]) .ms-all")) { await page.click("#mxStrip .ms-all"); await page.waitForTimeout(900); }   // 사이클 4 D+: 곳 수 단추 = 카드 줄(SPEC J2-2) · 목록 화면은 카드 줄 머리 '목록 전체'로
       const l1 = await page.evaluate(() => ({ cur: (document.querySelector('#sNav [aria-current="page"]') || {}).dataset?.nav, full: document.documentElement.classList.contains("s-full") }));
       const row = await page.$("#sList a[data-id], #sList [data-id]");
       if (row) { await row.click(); await page.waitForTimeout(1300); await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(900); }
@@ -3441,7 +3441,7 @@ async function tappLane(browser, api, errs) {
       const wb = await page.$("#sList [data-why]");
       if (wb) { await wb.click(); await page.waitForTimeout(500); o.whyOpen = await page.evaluate(() => !!document.querySelector(".s-why:not([hidden])")); await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(700); o.whyBack = await page.evaluate(() => ({ closed: !document.querySelector(".s-why:not([hidden])"), home: location.pathname === "/" && document.documentElement.classList.contains("tapp-on") })); }
       await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1200);
-      await page.click((await page.$(".mx-cnt:visible")) ? ".mx-cnt" : "#sFullX"); await page.waitForTimeout(900);   // 사이클 4: 떠 있는 '목록 보기'를 아래 막대 곳 수에 합침
+      await page.click((await page.$(".mx-cnt:visible")) ? ".mx-cnt" : "#sFullX"); await page.waitForTimeout(700); if (await page.$("#mxStrip:not([hidden]) .ms-all")) { await page.click("#mxStrip .ms-all"); await page.waitForTimeout(900); }   // 사이클 4 D+: 곳 수 단추 = 카드 줄(SPEC J2-2) · 목록 화면은 카드 줄 머리 '목록 전체'로
       await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(900);
       o.listBack = await page.evaluate(() => ({ full: document.documentElement.classList.contains("s-full"), cur: (document.querySelector('#sNav [aria-current="page"]') || {}).dataset?.nav }));
       await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(1000);

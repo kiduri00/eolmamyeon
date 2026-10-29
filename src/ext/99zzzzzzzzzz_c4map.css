@@ -13,7 +13,7 @@
   --sh-1:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);--sh-2:0 2px 6px rgba(16,24,40,.05),0 8px 24px rgba(16,24,40,.08);--sh-sheet:0 -1px 0 rgba(16,24,40,.04),0 -8px 24px rgba(16,24,40,.08);
   --r-xs:6px;--r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:20px;
   --mo-fast:140ms cubic-bezier(.2,.8,.2,1);--mo-num:220ms;--mo-sheet:260ms cubic-bezier(.2,.8,.2,1);
-  --font-num:var(--font);--fw-1:400;--fw-2:500;--fw-3:600;--fw-4:700;
+  --seg-thumb:var(--surface);--seg-ink:var(--text-1);--font-num:var(--font);--fw-1:400;--fw-2:500;--fw-3:600;--fw-4:700;
   /* 지도 전용(--mx-*) */
   --mx-pick:var(--pick);--mx-pick-ink:var(--pick-ink);--mx-ok:var(--brand-fill);--mx-ok-ink:var(--on-fill);
   --mx-near-bg:var(--surface);--mx-near-ink:var(--brand-ink);--mx-near-line:var(--brand-ink);--mx-far:#7A8492;--mx-far-ink:var(--text-2);--mx-na:var(--text-4);--mx-moa:var(--text-2);
@@ -34,7 +34,7 @@
   --text-1:#ECEEF2;--text-2:#AEB5C1;--text-3:#8E96A3;
   --brand-press:#26408A;--brand-soft:#1E2639;--brand-ink:#9DB3F0;--brand-fill:#2D4BA0;--far:#5F6B7A;
   --sh-1:0 1px 2px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.04);--sh-2:0 8px 24px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.05);--sh-sheet:0 -1px 0 rgba(255,255,255,.06),0 -8px 24px rgba(0,0,0,.4);
-  --mx-far:#6B7380;--mx-ring:#111318;--mx-sel:#C7D6FF;--mx-tag-sh:0 1px 2px rgba(0,0,0,.5),0 3px 8px rgba(0,0,0,.35);--mx-tag-edge:#9DB3F0;
+  --seg-thumb:#3A404B;--seg-ink:#E5E8EB;--mx-far:#6B7380;--mx-ring:#111318;--mx-sel:#C7D6FF;--mx-tag-sh:0 1px 2px rgba(0,0,0,.5),0 3px 8px rgba(0,0,0,.35);--mx-tag-edge:#9DB3F0;
   --mx-bg:#111318;--mx-txt:#A3ABB8;--mx-gu-has:#253353;--mx-gu-none:#161A20;--mx-gu-line:#0F1115;--mx-gu-name:#AEB5C1;--mx-legend-bg:rgba(23,26,32,.94);--mxt-sh-badge:0 1px 2px rgba(0,0,0,.5);
 }}
 :root[data-theme="dark"]{
@@ -42,7 +42,7 @@
   --text-1:#ECEEF2;--text-2:#AEB5C1;--text-3:#8E96A3;
   --brand-press:#26408A;--brand-soft:#1E2639;--brand-ink:#9DB3F0;--brand-fill:#2D4BA0;--far:#5F6B7A;
   --sh-1:0 1px 2px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.04);--sh-2:0 8px 24px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.05);--sh-sheet:0 -1px 0 rgba(255,255,255,.06),0 -8px 24px rgba(0,0,0,.4);
-  --mx-far:#6B7380;--mx-ring:#111318;--mx-sel:#C7D6FF;--mx-tag-sh:0 1px 2px rgba(0,0,0,.5),0 3px 8px rgba(0,0,0,.35);--mx-tag-edge:#9DB3F0;
+  --seg-thumb:#3A404B;--seg-ink:#E5E8EB;--mx-far:#6B7380;--mx-ring:#111318;--mx-sel:#C7D6FF;--mx-tag-sh:0 1px 2px rgba(0,0,0,.5),0 3px 8px rgba(0,0,0,.35);--mx-tag-edge:#9DB3F0;
   --mx-bg:#111318;--mx-txt:#A3ABB8;--mx-gu-has:#253353;--mx-gu-none:#161A20;--mx-gu-line:#0F1115;--mx-gu-name:#AEB5C1;--mx-legend-bg:rgba(23,26,32,.94);--mxt-sh-badge:0 1px 2px rgba(0,0,0,.5);
 }
 
@@ -417,8 +417,7 @@ html.mx.mx.mx.s-full #mapbox .s-rail>button{flex:none!important;flex-direction:r
 html.mx.mx.mx.s-full #mapbox .s-rail>button svg{width:16px!important;height:16px!important}
 html.mx.mx.mx.s-full #mapbox .s-rail>button span{font-size:13px!important;font-weight:500!important}
 html.mx.mx.mx.s-full #mapbox .s-rail>button[aria-pressed="true"]{background:var(--text-1)!important;color:var(--surface)!important}
-html.mx.mx.mx.s-full #mapbox .s-rail>button[aria-pressed="true"]::after{content:none!important;display:none!important}
-html.mx.mx.mx.s-full #mapbox .s-rail>button::before{content:""!important;position:absolute!important;left:0;right:0;top:-5px;bottom:-5px;display:block!important;background:none!important}
+html.mx.mx.mx.s-full #mapbox .s-rail>button::after,html.mx.mx.mx.s-full #mapbox .s-rail>button[aria-pressed="true"]::after{content:""!important;position:absolute!important;left:0!important;right:0!important;top:-5px!important;bottom:-5px!important;width:auto!important;height:auto!important;border-radius:0!important;display:block!important;background:none!important;box-shadow:none!important}   /* 누르는 자리 44(보이는 34 + 위아래 5) · 켬 노란 점 없음 */
 html.mx.mx.mx.s-full #mapbox .s-rail-w{top:66px!important}
 html.mx.s-full .mx-chips{top:106px}
 .mx-c{height:32px;border-radius:16px;border:0;box-shadow:var(--sh-1);font-size:13px;font-weight:500;color:var(--text-2)}
@@ -430,7 +429,7 @@ html.mx.s-full .mx-chips{top:106px}
 /* 아래: 내 돈 막대(반경 16 · 분할 단추 = 흰 면이 떠오름) · 둥근 단추 44/12 */
 html.mx.mx.mx.s-full .s-mini{border-radius:var(--r-lg)!important;box-shadow:var(--sh-2)!important}
 html.mx.mx.mx.s-full .s-mini .s-mm{background:var(--surface-2)!important}
-html.mx.mx.mx.s-full:not(.is-tapp) #sMini.s-mini .s-mm button[aria-pressed="true"],html.mx.mx.mx.s-full #sMini.s-mini .s-mm button[aria-pressed="true"]{background:var(--surface)!important;color:var(--text-1)!important;box-shadow:var(--sh-1)!important;font-weight:600!important}
+html.mx.mx.mx.s-full:not(.is-tapp) #sMini.s-mini .s-mm button[aria-pressed="true"],html.mx.mx.mx.s-full #sMini.s-mini .s-mm button[aria-pressed="true"]{background:var(--seg-thumb)!important;color:var(--seg-ink)!important;box-shadow:var(--sh-1)!important;font-weight:600!important}
 html.mx.mx.mx.s-full #sMini.s-mini .s-mm button[aria-pressed="false"]{background:transparent!important;color:var(--text-3)!important;font-weight:500!important}
 html.mx.mx.mx.s-full .s-mini .s-mm button{font-size:13.5px!important}
 html.mx.s-full .mx-cash small,html.mx.s-full .mx-cnt small{font-weight:500;color:var(--text-3)}
@@ -439,7 +438,7 @@ html.mx.s-full .mx-cnt b{font-size:20px;font-weight:700}
 .mx-fab{width:44px;height:44px;border-radius:var(--r-md);box-shadow:var(--sh-1)}
 .mx-fab::before{content:"";position:absolute;inset:-2px}
 .mx-fab{position:relative}
-.mx-fab span{font-weight:500;font-size:11px}
+.mx-fab span{font-weight:500;font-size:12px;letter-spacing:-.05em}
 /* 범례: 한 줄 3칸 + '기호 전체'(누르면 펼침) · 반경 8 · 블러 없음 */
 html.mx.mx.mx.s-full #lmKey.lm-key,html.mx.mx.mx.s-full #mxGKey.mx-gkey{background:var(--mx-legend-bg)!important;border-radius:var(--r-sm)!important;box-shadow:var(--sh-1)!important;font-weight:500!important;flex-wrap:nowrap!important;overflow:hidden}
 html.mx.s-full #lmKey.lm-key:not(.k-all)>span.k-x2{display:none}
