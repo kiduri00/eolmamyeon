@@ -302,7 +302,7 @@
     if (g.m != null) el.dataset.m = String(g.m); else delete el.dataset.m;   // 사이클 4 통합: 한 줄 라벨이라 최저 금액은 이름표(접근 이름)와 data-m(실제 지도 gusSet과 같음)
     el.style.setProperty("--w", g.w + "px"); el.style.setProperty("--h", g.h + "px");
     // 사이클 4 D+: 새 전체 지도 서울 줌 = '✓ 은평 8'(노란 체크 + 남색 태그) · 자리가 없으면 숫자 원(노란 원 + 남색 숫자) — 접근 이름은 그대로 '…곳'
-    if (mxf() && !g.l2 && g.c) el.innerHTML = g.num ? '<b class="zg-num">' + fmt(g.c) + "</b>" : '<i class="zg-ck">' + CK17 + "</i><b>" + esc(g.l1) + "</b>";
+    if (mxf() && !g.l2 && g.c) el.innerHTML = g.num ? '<b class="zg-num">' + fmt(g.c) + "</b>" : '<i class="zg-ck">' + CK17 + '</i><b><span class="gn">' + esc(g.sn || g.l1.replace(/\s[\d,]+$/, "")) + '</span> <span class="mn">' + fmt(g.c) + "</span></b>";   // 시각 언어 v2: 이름 500 + 숫자 700
     else el.innerHTML = "<b>" + esc(g.l1) + "</b>" + (g.l2 ? "<span>" + esc(g.l2) + "</span>" : "");
     el.setAttribute("aria-label", g.c ? GU_LBL(g.n, g.c, g.m) : g.n + ", 갈 수 있는 곳은 없고 조금 부족한 곳 " + fmt(g.nr || 0) + "곳, 눌러서 " + g.n + " 보기");
   }
@@ -498,7 +498,7 @@
     if (+b.dataset.n === c && b.dataset.m === String(mn)) return;
     b.dataset.n = String(c); b.dataset.m = String(mn);
     var n = b.dataset.gu, sn = n.length > 2 ? n.replace(/구$/, "") : n, x = b.querySelector("b"), sp = b.querySelector("span");
-    if (x && (c || !b.classList.contains("nr"))) x.textContent = x.classList.contains("zg-num") ? fmt(c) : sn + " " + fmt(c) + (mxf() && b.classList.contains("one") ? "" : "곳");
+    if (x && (c || !b.classList.contains("nr"))) { if (x.classList.contains("zg-num")) x.textContent = fmt(c); else if (mxf() && b.classList.contains("one")) x.innerHTML = '<span class="gn">' + esc(sn) + '</span> <span class="mn">' + fmt(c) + "</span>"; else x.textContent = sn + " " + fmt(c) + "곳"; }
     if (sp) sp.textContent = mn != null ? MT(mn) : "";
     b.classList.remove("t1", "t2", "t3"); b.classList.add("t" + tier(c, mx)); b.classList.toggle("z0", !c);
     var sv = S.el && S.el.querySelector(".zg-bg"); if (sv && S.st && S.st.cnt) { S.st.cnt[n] = c; guFill(sv, S.st.cnt); }

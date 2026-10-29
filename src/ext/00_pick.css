@@ -78,3 +78,14 @@
   .zp-check, .zp-pk[aria-pressed="true"]::after, .zp-pk[aria-checked="true"]::after, .zp-pk[aria-current="true"]::after, .zp-pk[aria-selected="true"]::after, .zp-pk.is-picked::after { forced-color-adjust: none; }
   .zp-pk[aria-pressed="true"], .zp-pk[aria-checked="true"], .zp-pk[aria-current="true"], .zp-pk[aria-selected="true"], .zp-pk.is-picked, .zp-picked { outline: 2px solid Highlight; }
 }
+
+/* ===== 시각 언어 v2(리드 결정 10.29): 노랑 = '갈 수 있음 체크'(골라 줌) 한 가지 뜻 =====
+   사용자가 고른 것(금액 칩·담은 카드·고른 칩)은 노랑이 아니라 남색 — 고른 칩 = 남색 채움, 고른 카드·상자 = 남색 1.5px 테두리. 체크 배지(.zp-check)는 '갈 수 있음'에만 쓴다 */
+.zp-pk[aria-pressed="true"], .zp-pk[aria-checked="true"], .zp-pk[aria-current="true"], .zp-pk[aria-selected="true"], .zp-pk.is-picked {
+  border-color: var(--brand-ink) !important; box-shadow: inset 0 0 0 1.5px var(--brand-ink) !important;
+}
+.zp-pk[aria-pressed="true"]::after, .zp-pk[aria-checked="true"]::after, .zp-pk[aria-current="true"]::after, .zp-pk[aria-selected="true"]::after, .zp-pk.is-picked::after { content: none !important; display: none !important; }
+.zp-pk.zp-pk-fill[aria-pressed="true"], .zp-pk.zp-pk-fill[aria-checked="true"], .zp-pk.zp-pk-fill[aria-current="true"], .zp-pk.zp-pk-fill[aria-selected="true"], .zp-pk.zp-pk-fill.is-picked {
+  background: var(--brand-fill) !important; color: var(--on-fill, #FFFFFF) !important; border-color: var(--brand-fill) !important; box-shadow: none !important; font-weight: 600;
+}
+.zp-picked { border-color: var(--brand-ink) !important; box-shadow: inset 0 0 0 1.5px var(--brand-ink) !important; }

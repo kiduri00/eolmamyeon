@@ -5,7 +5,7 @@
 /* ---- 재개발 공부하기(#sReads): 폰은 목록 밑, PC는 왼쪽 칸 맨 아래 ---- */
 .s-reads{margin:24px 0 0}
 .s-reads .sr-h{padding:0 4px 10px}
-.s-reads .sr-h h2{margin:0;font-size:18px;line-height:1.35;font-weight:800;letter-spacing:-.02em;color:var(--text-1)}
+.s-reads .sr-h h2{margin:0;font-size:18px;line-height:1.35;font-weight:700;letter-spacing:-.02em;color:var(--text-1)}
 .s-reads .sr-h p{margin:2px 0 0;font-size:13px;line-height:1.45;color:var(--text-3)}
 .s-reads .sr-l{list-style:none;margin:0;padding:0;border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden}
 .s-reads .sr-l li+li{border-top:1px solid var(--divider,var(--border))}
@@ -34,7 +34,7 @@ html.simple .site-foot .f-grid{display:none}
 .site-foot .f-nav a{display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;padding:0 8px;border-radius:8px;font-size:13px;font-weight:600;line-height:1.2;color:var(--text-2);text-decoration:none!important}
 @media (hover:hover){.site-foot .f-nav a:hover{background:var(--surface-2);color:var(--brand)}}
 .site-foot .f-nav a:focus-visible{outline:2px solid var(--focus,var(--brand));outline-offset:-2px}
-.site-foot .f-nav .f-priv{color:var(--text-1);font-weight:800}
+.site-foot .f-nav .f-priv{color:var(--text-1);font-weight:700}
 .site-foot .f-meta{display:flex;flex-wrap:wrap;gap:2px 12px;margin:8px 0 0;font-size:12px;line-height:1.6;color:var(--text-3)}
 .site-foot .f-asof{font-variant-numeric:tabular-nums}
 @media (max-width:980px){html.simple .site-foot{padding-bottom:20px}}

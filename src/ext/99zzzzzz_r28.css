@@ -1,6 +1,6 @@
 /* 28차(애드센스·제품 4차 레드팀) */
 /* 홈 사이트 제목: 실제로 보이는 h1 한 줄(검색 위 · 작게) — 금액 카드 줄은 h1이 아니다 */
-.s-site{margin:0;padding:2px 2px 0;font-size:15px;line-height:20px;height:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800;letter-spacing:-.01em;color:var(--text,#191f28)}
+.s-site{margin:0;padding:2px 2px 0;font-size:15px;line-height:20px;height:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;letter-spacing:-.01em;color:var(--text,#191f28)}
 html.simple .s-hero{gap:8px}
 @media (min-width:981px){.s-site{font-size:16px;line-height:22px;height:auto;padding:10px 4px 0}}
 /* 구를 고른 동안 머리 숫자 이름표: '서울 전체 · 강북구 6곳'(한 줄 · 넘치면 말줄임) */

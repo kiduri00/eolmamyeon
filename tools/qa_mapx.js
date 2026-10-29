@@ -23,6 +23,8 @@
    map.farGapText    부족 시트 '+X 더 필요해요'의 X = 화면 금액 − 내 돈(ZF.gap)
    map.big130        글자 130%: 내 돈 막대 '2억' 한 줄 · 범례 단추 1개 · 가로 넘침 0
    map.stripDefault  처음 로드 때 카드 줄 닫힘 · 곳 수 단추 aria-expanded=false · 열면 카드에 숫자 번호 0 · 정렬 단추 2개
+   design.weight800  (시각 언어 v2) 홈·지도·시트 계산 굵기 800 이상 0 · GL text-font에 Bold 0
+   design.text3Contrast (시각 언어 v2) 보조 글자(--text-2·--text-3·--mx-sub) 대비 ≥ 4.5:1(라이트·다크·130%)
    map.contrast      부족 칩 ≥ 4.5 · 다크 가능 태그 테두리 대 채움 ≥ 3 · 빈 구 이름 ≥ 4.5 · axe serious·critical 0(지도 · 라이트·다크·130%) */
 "use strict";
 const { chromium } = require("playwright");
@@ -121,8 +123,8 @@ const LAB = () => {
         });
         expect(tc.n > 10 && !tc.bad.length, "mapx.touch", `${where}: ${tc.bad.slice(0, 6).join(" · ")} (n ${tc.n})`);
         // ---------------- 4. 레이어 6칸 ----------------
-        const ly = await p.evaluate(() => { const B = [...document.querySelectorAll("#mapbox .s-rail>button")].filter((e) => e.offsetWidth); const box = document.getElementById("mapbox").getBoundingClientRect(); const names = B.map((e) => e.textContent.trim()); const vis = B.every((e) => { const r = e.getBoundingClientRect(); return r.left >= box.left - 0.5 && r.right <= box.right + 0.5 && r.width >= 40; }); B[0].click(); const on = B[0]; const st = getComputedStyle(on), dot = getComputedStyle(on, "::after"); const r = { names, vis, pressed: on.getAttribute("aria-pressed"), bg: st.backgroundColor, dot: dot.content !== "none" && dot.backgroundColor }; on.click(); return r; });
-        expect(ly.names.join(",") === "호재,신고가,학교,학원가,상권,병원" && ly.vis && ly.pressed === "true" && ly.dot && lum(ly.bg) < 0.2, "mapx.layers6", `${where}: ${JSON.stringify(ly)}`);
+        const ly = await p.evaluate(() => { const B = [...document.querySelectorAll("#mapbox .s-rail>button")].filter((e) => e.offsetWidth); const rail = document.querySelector("#mapbox .s-rail"), box = document.getElementById("mapbox").getBoundingClientRect(); const names = B.map((e) => e.textContent.trim()); /* 시각 언어 v2: 레이어 = 가로 칩 줄(34px) — 넘치면 칩 줄을 밀어 마지막 칩까지 화면 안 */ const reach = B.every((e) => { e.scrollIntoView({ block: "nearest", inline: "nearest" }); const r = e.getBoundingClientRect(); return r.left >= box.left - 0.5 && r.right <= box.right + 0.5 && r.width >= 40 && r.height >= 33; }); rail.scrollLeft = 0; const bg0 = getComputedStyle(B[0]).backgroundColor; B[0].click(); const on = B[0]; const st = getComputedStyle(on); const r = { names, vis: reach, pressed: on.getAttribute("aria-pressed"), bg: st.backgroundColor, bg0, fg: st.color, rows: new Set(B.map((e) => Math.round(e.getBoundingClientRect().top))).size }; on.click(); return r; });
+        expect(ly.names.join(",") === "호재,신고가,학교,학원가,상권,병원" && ly.vis && ly.rows === 1 && ly.pressed === "true" && ratio(ly.bg, ly.bg0) >= 3 && ratio(ly.fg, ly.bg) >= 4.5, "mapx.layers6", `${where}: ${JSON.stringify(ly)}`);
         if (errs.length) bad("mapx.labels", `${where} 페이지 오류: ${errs[0]}`);
       } catch (e) { bad("mapx.labels", `${where} crashed: ${String(e.message || e).split("\n")[0]}`); }
       await ctx.close();
@@ -176,11 +178,11 @@ const LAB = () => {
       try {
         await toGu(p, "성북구");
         const s = await p.evaluate(() => { const st = ZP_lmx.map().getStyle(), L = {}; st.layers.forEach((l) => (L[l.id] = l)); const pc = (id, k) => L[id] && L[id].paint && L[id].paint[k]; return { bg: pc("bg", "background-color"), art: pc("art", "line-color"), artc: pc("art-c", "line-color"), water: pc("water", "fill-color"), park: pc("park", "fill-color"), place: !!L.place, yellow: JSON.stringify(st.layers).match(/#FBE3A6|#E0BE6A/gi), sub: [pc("subway", "line-opacity"), L.subway && L.subway.minzoom], dong: [L["dong-lab"] && L["dong-lab"].layout["text-size"], pc("dong-lab", "text-color"), pc("dong-lab", "text-halo-color")], stn: L["stn-mj-lab"] && L["stn-mj-lab"].layout["text-size"], zcase: !!L["zone-case"], sel: pc("sel-line", "line-color"), pick: (() => { const i = document.createElement("i"); i.style.color = "var(--zp-pick)"; document.body.appendChild(i); const c = getComputedStyle(i).color; i.remove(); return c; })() }; });   /* 사이클 4 통합: 고른 곳 노랑은 공용 토큰 --zp-pick에서 읽음(GL엔 rgb 문자열) */
-        const W = dark ? { bg: "#10161E", art: "#3A4759", artc: "#1A222D", water: "#183A58", park: "#193020" } : { bg: "#ECEEF1", art: "#D5DBE3", artc: "#A3ADBA", water: "#B0CCE6", park: "#CDE2C8" };
+        const W = dark ? { bg: "#111318", art: "#2E3440", artc: "#15181E", water: "#13263A", park: "#16201B" } : { bg: "#F1F2F4", art: "#E2E6EB", artc: "#B7BEC8", water: "#C8D8E8", park: "#DFE8DD" };   /* 시각 언어 v2 바탕(DESIGN_V2 §4-6) */
         const tokBad = Object.keys(W).filter((k) => String(s[k]).toUpperCase() !== W[k]);
         expect(!tokBad.length && !s.place && !s.yellow && s.sub[0] === 0.35 && s.sub[1] === 12 && s.dong[0] === 12 && s.stn === 12 && s.zcase && s.sel === (dark ? "#C7D6FF" : "#1F3A87") /* 사이클 4 D+: 고른 곳 = 남색 3px(노랑 아님) */, "mapx.base", `${dark ? "다크" : "라이트"}: ${tokBad.map((k) => `${k} ${s[k]}≠${W[k]}`).join(" ")} ${JSON.stringify(s)}`);
         // 바탕 글자(동·역) 대비: 가장 불리한 바탕(물·간선·공원·건물) 위
-        const bgs = dark ? ["#10161E", "#183A58", "#3A4759", "#193020", "#1B2430"] : ["#ECEEF1", "#B0CCE6", "#D5DBE3", "#CDE2C8", "#DADFE6"];
+        const bgs = dark ? ["#111318", "#13263A", "#2E3440", "#16201B", "#1A1E25"] : ["#F1F2F4", "#C8D8E8", "#E2E6EB", "#DFE8DD", "#E3E6EA"];
         const worst = Math.min(...bgs.map((x) => ratio(hexRgb(s.dong[1]), hexRgb(x))));
         expect(worst >= 4.5, "mapx.dark", `${dark ? "다크" : "라이트"} 동·역 글자 ${s.dong[1]} 가장 불리한 바탕 대비 ${worst.toFixed(2)}`);
         await p.evaluate(() => ZP_lmx.map().jumpTo({ center: [127.0072, 37.5888], zoom: 14.15 }));
@@ -314,6 +316,40 @@ const LAB = () => {
         expect(r1 >= 4.5 && r3 >= 4.5 && (!dark || r2 >= 3), "map.contrast", `${dark ? "다크" : "라이트"}: 부족 칩 ${r1.toFixed(2)} · 가능 태그 테두리/채움 ${r2.toFixed(2)} · 빈 구 이름 ${sw.name}/${sw.none} ${r3.toFixed(2)}`);
         const ax = await axeRun(p); if (ax) expect(!ax.length, "map.contrast", `${dark ? "다크" : "라이트"} 구 줌 axe: ${ax.join(" ; ")}`);
       } catch (e) { bad("map.contrast", `${dark ? "다크" : "라이트"} crashed: ${String(e.message || e).split("\n")[0]}`); }
+      await ctx.close();
+    }
+    // ======================= 시각 언어 v2(DESIGN_V2 · 리드 확정) =======================
+    //   design.weight800  홈·지도·시트에서 계산 font-weight ≥ 800인 보이는 글자 0 · GL text-font에 'Bold' 0(한글 900 방지)
+    //   design.text3Contrast  보조 글자(--text-2·--text-3·--mx-sub 색) 대비 ≥ 4.5:1(라이트·다크·130%)
+    const W800 = () => { const out = []; document.querySelectorAll("body *").forEach((e) => { if (!e.getClientRects().length || !e.childNodes.length) return; const has = [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()); if (!has) return; const cs = getComputedStyle(e); if (cs.visibility === "hidden" || +cs.opacity === 0) return; if (+cs.fontWeight >= 800) out.push(`${e.tagName.toLowerCase()}.${String(e.className && e.className.baseVal != null ? e.className.baseVal : e.className).slice(0, 24)} '${e.textContent.trim().slice(0, 10)}' ${cs.fontWeight}`); }); let gl = []; try { const m = window.ZP_lmx && ZP_lmx.map(); if (m) gl = m.getStyle().layers.filter((l) => l.layout && /bold/i.test(JSON.stringify(l.layout["text-font"] || ""))).map((l) => l.id); } catch (e) {} return { out, gl }; };
+    const T3 = () => {
+      const H = getComputedStyle(document.documentElement), norm = (v) => { const d = document.createElement("i"); d.style.color = v; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c; };
+      const want = new Set(["--text-2", "--text-3", "--mx-sub"].map((k) => norm(H.getPropertyValue(k).trim())));
+      const L = (c) => { const m = String(c).match(/[\d.]+/g); if (!m) return 1; const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(+m[0]) + 0.7152 * f(+m[1]) + 0.0722 * f(+m[2]); };
+      const R = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+      const bgOf = (e) => { while (e) { const c = getComputedStyle(e).backgroundColor; if (c && !/rgba\([^)]*,\s*0\)|transparent/.test(c)) { const a = /rgba\([^)]*,\s*([\d.]+)\)/.exec(c); if (!a || +a[1] > 0.85) return c; } e = e.parentElement; } return getComputedStyle(document.body).backgroundColor || "rgb(255,255,255)"; };
+      const low = []; let n = 0;
+      document.querySelectorAll("body *").forEach((e) => { if (!e.getClientRects().length) return; const has = [...e.childNodes].some((x) => x.nodeType === 3 && x.textContent.trim()); if (!has) return; const cs = getComputedStyle(e); if (cs.visibility === "hidden" || +cs.opacity < 0.95 || !want.has(cs.color)) return; const r = e.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) return; if (e.closest("#lmap canvas, .zp-ph svg")) return; n++; const k = R(cs.color, bgOf(e)); if (k < 4.5) low.push(`${String(e.className && e.className.baseVal != null ? e.className.baseVal : e.className).slice(0, 20)} '${e.textContent.trim().slice(0, 8)}' ${k.toFixed(2)}`); });
+      return { n, low };
+    };
+    for (const [dark, fs] of [[0, 100], [1, 100], [0, 130]]) {
+      const where = `${dark ? "다크" : "라이트"} ${fs}%`;
+      const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, colorScheme: dark ? "dark" : "light", isMobile: true, hasTouch: true, serviceWorkers: "block" });
+      await ctx.addInitScript(TAPP);
+      if (fs > 100) await ctx.addInitScript((k) => { const f = () => { const s = document.createElement("style"); s.textContent = `html{-webkit-text-size-adjust:${k}%!important;text-size-adjust:${k}%!important}`; (document.head || document.documentElement).appendChild(s); }; if (document.documentElement) f(); else document.addEventListener("DOMContentLoaded", f); }, fs);
+      await ctx.route(BLOCK, (r) => r.abort());
+      const p = await ctx.newPage();
+      try {
+        await p.goto(`${BASE}/?cash=2&mode=jeonse`, { waitUntil: "load", timeout: 60000 }); await p.waitForTimeout(2500);
+        for (let i = 0; i < 4; i++) { const n = await p.$('button:visible:has-text("건너뛰기")'); if (n) { await n.click().catch(() => {}); await p.waitForTimeout(400); } else break; }
+        await p.waitForTimeout(1500);
+        const scr = async (tag) => { const w = await p.evaluate(W800), t = await p.evaluate(T3); expect(!w.out.length && !w.gl.length, "design.weight800", `${where} ${tag}: 800 이상 ${w.out.length} · ${w.out.slice(0, 5).join(" · ")} · GL bold ${w.gl.join(",")}`); expect(t.n > 3 && !t.low.length, "design.text3Contrast", `${where} ${tag}: 보조 글자 ${t.n}개 중 4.5 미만 ${t.low.length} · ${t.low.slice(0, 5).join(" · ")}`); };
+        await scr("홈");
+        await p.evaluate(() => { const x = [...document.querySelectorAll("button,a")].find((e) => /^지도$/.test(e.innerText.trim()) && e.offsetWidth); if (x) x.click(); }); await p.waitForTimeout(2500);
+        await toGu(p, "성북구"); await p.waitForTimeout(800);
+        await scr("지도 구 줌");
+        const tid = await p.evaluate(() => { const e = document.querySelector("#lmap .zpill.st-ok"); if (!e) return null; e.querySelector(".zp-in").click(); return e.dataset.zid; }); if (tid) { await p.waitForTimeout(1500); await scr("미리보기 시트"); }
+      } catch (e) { bad("design.weight800", `${where} crashed: ${String(e.message || e).split("\n")[0]}`); }
       await ctx.close();
     }
   } finally { await b.close(); }

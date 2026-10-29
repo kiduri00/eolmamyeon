@@ -16,14 +16,14 @@ html:not(.simple) .s-back{display:none}
 
 /* 히어로: 제목 + 방식 + 게이지 + 곳 수 */
 .s-hero{display:flex;flex-direction:column;gap:12px;margin:0 0 14px}
-.s-h1{margin:2px 0 0;font-size:clamp(22px,3.6vw,34px);line-height:1.18;letter-spacing:-.03em;font-weight:800;color:var(--text-1);text-wrap:balance}
+.s-h1{margin:2px 0 0;font-size:clamp(22px,3.6vw,34px);line-height:1.18;letter-spacing:-.03em;font-weight:700;color:var(--text-1);text-wrap:balance}
 .s-gtop{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 6px}
 .s-mode{display:inline-flex;padding:3px;border-radius:999px;background:var(--surface-2)}
 .s-mode button{min-height:34px;padding:0 14px;border:0;border-radius:999px;background:none;color:var(--text-2);font:700 13.5px var(--font);cursor:pointer}
 .s-mode button[aria-pressed="true"]{background:var(--text-1);color:var(--surface)}
 .s-gauge{padding:18px 20px 12px;border:1px solid var(--border);border-radius:20px;background:var(--surface);box-shadow:0 1px 2px rgba(15,23,42,.04)}
 .s-cash{display:flex;align-items:baseline;gap:8px;margin:0;cursor:pointer}
-.s-cash b{font-size:clamp(40px,8vw,56px);line-height:1;font-weight:800;letter-spacing:-.04em;color:var(--brand);font-variant-numeric:tabular-nums}
+.s-cash b{font-size:clamp(40px,8vw,56px);line-height:1;font-weight:700;letter-spacing:-.04em;color:var(--brand);font-variant-numeric:tabular-nums}
 .s-cash span{font-size:16px;color:var(--text-2);font-weight:600}
 #sCash{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;cursor:pointer;--p:3.4%}
 #sCash::-webkit-slider-runnable-track{height:10px;border-radius:99px;background:linear-gradient(90deg,var(--brand) 0 var(--p),var(--surface-3) var(--p) 100%)}
@@ -35,7 +35,7 @@ html:not(.simple) .s-back{display:none}
 .s-ticks{display:flex;justify-content:space-between;margin-top:4px;font-size:12px;color:var(--text-3);font-variant-numeric:tabular-nums}
 .s-count{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;margin:10px 0 0;padding-top:10px;border-top:1px solid var(--divider)}
 .s-hint{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--text-3)}
-.s-count b{font-size:26px;color:var(--brand);font-weight:800;letter-spacing:-.03em;color:var(--text-1);font-variant-numeric:tabular-nums}
+.s-count b{font-size:26px;color:var(--brand);font-weight:700;letter-spacing:-.03em;color:var(--text-1);font-variant-numeric:tabular-nums}
 .s-count span{font-size:16px;font-weight:600;color:var(--text-2)}
 
 /* 목록: 지역 + 필요한 돈만 */
@@ -55,7 +55,7 @@ html:not(.simple) .s-back{display:none}
 .s-nm small{font-size:13px;color:var(--text-3)}
 .s-nm em{font-style:normal;color:var(--warn-ink)}
 .s-amt{flex:none;text-align:right;display:flex;flex-direction:column;gap:2px}
-.s-amt b{font-size:20px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.s-amt b{font-size:20px;font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .s-amt small{font-size:12px;color:var(--text-3)}
 /* 큰 숫자 앞 작은 이름표: '지금 1.9억' · 아래 줄 '입주까지 현금 8.2억' — 두 금액을 헷갈리지 않게 */
 .s-av{display:inline-flex;align-items:baseline;gap:4px;justify-content:flex-end}
@@ -119,7 +119,7 @@ html.simple .s-on>.sec-h p,html.simple .s-on .t-note,html.simple .s-on .loc-key{
 /* 한 줄 게이지(스크롤 중 머리 아래) */
 .s-mini{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));top:calc(var(--hdr-h,56px) + 6px);z-index:30;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:8px 14px;border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:0 6px 18px rgba(15,23,42,.12)}
 .s-mini[hidden]{display:none}
-.s-mini>b{font-size:22px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;min-width:3.2em}
+.s-mini>b{font-size:22px;font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums;min-width:3.2em}
 .s-mini span{font-size:13px;color:var(--text-2);white-space:nowrap}.s-mini span b{font-size:18px;color:var(--text-1);margin-right:2px}
 #sMiniR{-webkit-appearance:none;appearance:none;width:100%;height:24px;background:transparent}
 #sMiniR::-webkit-slider-runnable-track{height:8px;border-radius:99px;background:var(--surface-3)}
@@ -275,7 +275,7 @@ html.simple .s-hero{gap:10px}
   .s-ghead .s-mode button{min-height:28px;padding:0 9px;font-size:12px}
 }
 /* 카드 제목: 짧고 크게 */
-.s-gauge .s-h1{font-size:24px;font-weight:800;letter-spacing:-.035em;color:var(--text-1)}
+.s-gauge .s-h1{font-size:24px;font-weight:700;letter-spacing:-.035em;color:var(--text-1)}
 @media (max-width:640px){.s-gauge .s-h1{font-size:21px}}
 @media (min-width:641px){
   .s-gauge .s-h1{font-size:30px}
@@ -390,7 +390,7 @@ button.s-amt:focus-visible{outline:2px solid var(--focus);outline-offset:-4px;bo
 .s-why.bs{left:8px!important;right:8px;width:auto;top:auto!important;bottom:calc(72px + env(safe-area-inset-bottom,0px));border-radius:16px}
 html.sheet-open .s-why.bs,html.menu-open .s-why.bs{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
 .s-wh{display:flex;align-items:baseline;gap:8px;margin:0 0 6px}
-.s-wh b{font-size:14.5px;font-weight:800}
+.s-wh b{font-size:14.5px;font-weight:700}
 .s-wh span{flex:1;min-width:0;font-size:12.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .s-wh button{flex:none;width:32px;height:32px;margin:-8px -8px -8px 0;border:0;border-radius:50%;background:none;color:var(--text-2);font-size:20px;line-height:1;cursor:pointer}
 .s-why ul{list-style:none;margin:0;padding:0;font-variant-numeric:tabular-nums}
@@ -401,7 +401,7 @@ html.sheet-open .s-why.bs,html.menu-open .s-why.bs{bottom:calc(12px + env(safe-a
 .s-why li b{font-weight:700}
 .s-why li.s-wsum{margin-top:4px;padding-top:7px;border-top:1px solid var(--divider)}
 .s-why li.s-wsum span{color:var(--text-1);font-weight:700}
-.s-why li.s-wsum b{color:var(--brand);font-weight:800;font-size:16px}
+.s-why li.s-wsum b{color:var(--brand);font-weight:700;font-size:16px}
 .s-why li.s-wna{color:var(--text-2)}
 .s-why li.s-wbase{display:block;margin:-2px 0 2px 16px;padding:0;color:var(--text-2);font-size:12.5px;line-height:1.45}
 .s-why li.s-wbase small{display:block;font-size:12px}
@@ -500,12 +500,12 @@ html.simple #mapbox:not(.lm-on){min-height:560px}
   html.simple .s-gauge>.s-ticks{grid-column:1;grid-row:5}
   .s-sum{display:flex;flex-direction:column;grid-column:2;grid-row:2/7;align-self:stretch;min-height:206px;margin:12px 0 0;padding:12px 14px;border-radius:16px;background:var(--surface-2);border:1px solid var(--divider);box-sizing:border-box}
   .s-sum-h{display:flex;align-items:baseline;gap:8px;margin:0 0 4px;font-size:13px;color:var(--text-3)}
-  .s-sum-h b{font-size:14px;font-weight:800;color:var(--text-1)}
+  .s-sum-h b{font-size:14px;font-weight:700;color:var(--text-1)}
   .s-sum ol{list-style:none;margin:0;padding:0}
   .s-sum button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:40px;padding:0 8px;margin:0 -8px;width:calc(100% + 16px);border:0;border-radius:10px;background:none;color:var(--text-1);font:600 14.5px var(--font);text-align:left;cursor:pointer}
   .s-sum button span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .s-sum button small{margin-left:6px;font-size:12.5px;font-weight:500;color:var(--text-3)}
-  .s-sum button b{flex:none;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}
+  .s-sum button b{flex:none;font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums}
   .s-sum button:hover{background:var(--surface-3)}
   .s-sum button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
   .s-sum-f{display:flex;align-items:center;min-height:40px;margin:auto 0 0;font-size:13px;line-height:1.35;color:var(--text-2)}
@@ -530,7 +530,7 @@ html.simple #mapbox:not(.lm-on){min-height:560px}
   .s-sum button:focus-visible{outline:none}.s-sum button:focus-visible::before{outline:2px solid var(--focus);outline-offset:1px}
   .s-sum button span{max-width:9.5em;overflow:hidden;text-overflow:ellipsis}
   .s-sum button small{display:none}
-  .s-sum button b{font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}
+  .s-sum button b{font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums}
   .s-sum-f{display:none}
   .s-sum-e{margin:0;font-size:12.5px;color:var(--text-3)}
   .s-sum-e br{display:none}

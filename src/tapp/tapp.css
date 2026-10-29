@@ -104,7 +104,7 @@
   html.is-tapp #sList>li{border-color:var(--t-line)!important}
   html.is-tapp .s-flt button{border:0!important;background:var(--t-fill)!important;color:var(--t-lab)}
   html.is-tapp .s-flt button[aria-pressed="true"]{background:var(--t-ink)!important;color:var(--t-pg)!important}
-  html.is-tapp #sLT{font-weight:800;letter-spacing:-.035em}
+  html.is-tapp #sLT{font-weight:700;letter-spacing:-.035em}
 
   /* ---------- 아래 탭 5개: 활성 = 남색 채움 · 비활성 = 회색 외곽선 · 새 소식 = 작은 빨간 점 ---------- */
   html.is-tapp .s-nav{grid-template-columns:repeat(5,1fr);background:var(--t-pg)!important;backdrop-filter:none!important;border-top:1px solid var(--t-line)!important}
@@ -120,7 +120,7 @@
 
   /* ---------- 소식: 전체 소식 / 관심 구역 ---------- */
   html.is-tapp #news .tf-seg{display:grid}
-  html.is-tapp #news>.sec-h h2,html.is-tapp #my>.sec-h h2,html.is-tapp #favTop>.sec-h h2{font-weight:800;letter-spacing:-.04em}
+  html.is-tapp #news>.sec-h h2,html.is-tapp #my>.sec-h h2,html.is-tapp #favTop>.sec-h h2{font-weight:700;letter-spacing:-.04em}
   .tf-seg{grid-template-columns:1fr 1fr;gap:4px;margin:4px 0 16px;padding:4px;border-radius:14px;background:var(--t-fill);border:0}
   .tf-seg button{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border:0;border-radius:11px;background:none;color:var(--t-sub);font:700 15px var(--font);letter-spacing:-.02em;cursor:pointer}
   .tf-seg button[aria-selected="true"]{background:var(--t-pg);color:var(--t-ink);box-shadow:0 1px 2px rgba(15,23,42,.08)}
@@ -191,7 +191,7 @@
   .tob-art.k{width:100%;height:auto;margin:8px 0 24px;background:none;border-radius:0;place-items:center}
   .tob-art.k .ti{width:min(280px,100%);height:auto;aspect-ratio:280/200}
   .tob-k{margin:0 0 8px;color:var(--t-navy);font:700 13.5px var(--font);letter-spacing:-.01em}
-  .tob h2{margin:0 0 10px;color:var(--t-ink);font:800 26px/1.32 var(--font);letter-spacing:-.045em;word-break:keep-all}
+  .tob h2{margin:0 0 10px;color:var(--t-ink);font:700 26px/1.32 var(--font);letter-spacing:-.045em;word-break:keep-all}
   .tob-p{margin:0 0 24px;color:var(--t-sub);font:500 15.5px/1.55 var(--font);letter-spacing:-.02em;word-break:keep-all}
   /* 사이클 4: 칸 폭을 글자 크기(em)에 맞춰 — 큰 글씨 360에서 '5,000만'이 두 줄로 꺾이지 않게 4칸 → 3칸 · 고른 칩 = 노란 체크(00_pick.css 토큰) */
   .tob-cash{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(64px,4.4em),1fr));gap:8px}
@@ -199,7 +199,7 @@
   .tob-cash button[aria-pressed="true"]{background:var(--t-navy);color:var(--t-on)}
   .tob-cash button[aria-pressed="true"]::after{content:"";position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;pointer-events:none;background:var(--zp-pick,#F5C33B) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M6.4 11.4l3.1 3.1 6.1-6.4' fill='none' stroke='%2313265E' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 0 0/100% 100%;box-shadow:0 0 0 1px var(--zp-pick-edge,#B07A00),0 0 0 2.5px var(--t-pg)}
   .tob-res{margin:16px 0 0;padding:16px 18px;border-radius:16px;background:var(--t-sec);border:0;font:600 15px/1.5 var(--font);color:var(--t-sub)}
-  .tob-res b{color:var(--t-navy);font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+  .tob-res b{color:var(--t-navy);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
   .tob-zl{list-style:none;margin:0;padding:0;border:0;background:none}
   .tob-zl li{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--t-line)}
   .tob-zl li:first-child{border-top:0}
@@ -240,7 +240,7 @@
   html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>.s-sen,html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>#sGauge{order:2}
   html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>#tHome{order:3}
   .th-val{display:block;width:100%;margin:2px 0 14px;padding:0;border:0;background:none;color:var(--t-ink);text-align:left;font:700 17px/24px var(--font);letter-spacing:-.02em;cursor:pointer;word-break:keep-all;text-wrap:balance}
-  .th-val b{color:var(--t-navy);font-weight:800}
+  .th-val b{color:var(--t-navy);font-weight:700}
   .th-val:focus-visible{outline:2px solid var(--focus,var(--brand));outline-offset:2px;border-radius:8px}
   html.s-view .th-val,html.s-full .th-val{display:none}
   html.is-tapp.simple #mapTop>.s-gauge{margin:0 0 28px!important}
@@ -315,7 +315,7 @@
   .tob-zl{-webkit-mask-image:linear-gradient(#000 82%,transparent);mask-image:linear-gradient(#000 82%,transparent);padding-bottom:12px}
 
   /* 17 MY: 제목 28/36 · 제목 아래 24 · 알림이 막혀 있으면 아래 토글 흐리게 */
-  html.is-tapp #my>.sec-h h2,html.is-tapp #news>.sec-h h2,html.is-tapp #favTop>.sec-h h2{font-size:28px!important;line-height:36px!important;font-weight:800}
+  html.is-tapp #my>.sec-h h2,html.is-tapp #news>.sec-h h2,html.is-tapp #favTop>.sec-h h2{font-size:28px!important;line-height:36px!important;font-weight:700}
   html.is-tapp #my>.sec-h{margin-bottom:24px!important}
   /* 1(2라운드): 알림이 막혀 있으면 종류 스위치 = 꺼짐 모양 + aria-disabled(흐리게 하지 않음 · 글자 대비 유지) */
   html.is-tapp #my.t-pdeny #myKinds .my-sw .my-t b{color:#8B95A1}
@@ -456,7 +456,7 @@
   html.is-tapp.t-tool #planner.s-on .pl-in{padding-top:16px!important}
   /* 7 모으면 언제: 출발 현금 줄 */
   .t-svcash{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:12px 16px;border-radius:14px;background:var(--t-sec);color:var(--t-sub);font:600 15px/1.4 var(--font)}
-  .t-svcash b{color:var(--t-ink);font-weight:800}
+  .t-svcash b{color:var(--t-ink);font-weight:700}
   .t-svch{position:relative;min-height:36px;padding:0 14px;border:0;border-radius:10px;background:var(--t-fill);color:var(--t-ink);font:700 14px var(--font);cursor:pointer}
   .t-svch::after{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px}
   /* 금액 시트(#bSheet)를 도구 화면 위에서도 — 시트는 숨은 #mapTop 안에 있다 → 시트로 가는 길만 보이게 */
@@ -501,7 +501,7 @@
 /* 3 넓은 화면 모으면 언제: '지금 현금 · 바꾸기' 줄 모양 + 금액 시트가 숨은 #mapTop 안에서도 뜨게(폰과 같은 규칙) */
 @media (min-width:981px){
   html.is-tapp .t-svcash{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:12px 16px;border-radius:14px;background:var(--t-sec);color:var(--t-sub);font:600 15px/1.4 var(--font)}
-  html.is-tapp .t-svcash b{color:var(--t-ink);font-weight:800}
+  html.is-tapp .t-svcash b{color:var(--t-ink);font-weight:700}
   html.is-tapp .t-svch{position:relative;min-height:36px;padding:0 14px;border:0;border-radius:10px;background:var(--t-fill);color:var(--t-ink);font:700 14px var(--font);cursor:pointer}
   html.is-tapp.simple.s-view.bs-on #mapTop{display:block!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important}
   html.is-tapp.s-view.bs-on #mapTop>:not(#bSheet){display:none!important}

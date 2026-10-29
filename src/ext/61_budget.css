@@ -10,7 +10,7 @@ html.simple .s-gauge.bc .bc-line{display:flex;align-items:flex-end;gap:10px;marg
 .bc-cash{display:inline-flex;align-items:center;gap:4px;min-height:48px;margin:0 0 0 -10px;padding:0 10px 0 10px;border:0;border-radius:14px;background:color-mix(in srgb,var(--brand) 8%,var(--surface));color:var(--text-1);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .15s}
 .bc-cash:hover{background:color-mix(in srgb,var(--brand) 14%,var(--surface))}
 .bc-cash:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-.bc-cash b,.bc-num{font-size:34px;line-height:1;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.bc-cash b,.bc-num{font-size:34px;line-height:1;font-weight:700;letter-spacing:-.04em;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 .bc-cash b small,.bc-num i{margin-left:2px;font-size:.5em;font-style:normal;font-weight:700;letter-spacing:-.02em}
 .bc-chev{flex:none;color:var(--brand);margin-top:2px}
 .bc-cash[aria-expanded="true"] .bc-chev{transform:rotate(180deg)}
@@ -74,10 +74,10 @@ html.bs-on{overflow:hidden}
 .bsheet.in .bs-card{transform:none;opacity:1}
 .bs-grab{width:40px;height:5px;margin:2px auto 6px;border-radius:3px;background:var(--border)}
 .bs-h{display:flex;align-items:center;justify-content:space-between;gap:8px;touch-action:none}
-.bs-h h2{margin:0;font-size:17px;font-weight:800;letter-spacing:-.02em}
+.bs-h h2{margin:0;font-size:17px;font-weight:700;letter-spacing:-.02em}
 .bs-x{min-height:44px;min-width:44px;padding:0 6px;margin-right:-6px;border:0;background:none;color:var(--text-2);font:600 15px var(--font);cursor:pointer}
 .bs-big{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:4px 0 12px}
-.bs-cash{font-size:44px;line-height:1;font-weight:800;letter-spacing:-.045em;font-variant-numeric:tabular-nums;color:var(--text-1)}
+.bs-cash{font-size:44px;line-height:1;font-weight:700;letter-spacing:-.045em;font-variant-numeric:tabular-nums;color:var(--text-1)}
 .bs-cash small{margin-left:2px;font-size:.5em;font-weight:700}
 .bs-cnt{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:13px;font-weight:600;color:var(--text-3)}
 .bs-cnt .bc-num{padding:0;font-size:28px}
@@ -89,9 +89,9 @@ html.bs-on{overflow:hidden}
 /* 금액별 막대 = 금액 끌기(65_pills.css .scrub.lg) · 키보드용 #sCash는 숨겨 둔 채 초점만 */
 .bs-more{min-height:44px;margin:12px 0 6px;font-size:14px;color:var(--text-2)}
 .bs-more button{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;margin-left:-2px;border:0;border-radius:12px;background:var(--surface-2);color:var(--text-1);font:500 14px var(--font);cursor:pointer}
-.bs-more button b{font-weight:800;color:var(--brand)}
+.bs-more button b{font-weight:700;color:var(--brand)}
 .bs-more:not(:has(button)){display:flex;align-items:center}
-.bs-go{display:flex;align-items:center;justify-content:center;width:100%;min-height:54px;border-radius:14px;font-size:16.5px;font-weight:800}
+.bs-go{display:flex;align-items:center;justify-content:center;width:100%;min-height:54px;border-radius:14px;font-size:16.5px;font-weight:700}
 @media (min-width:641px){
   .bsheet{align-items:center;padding:24px}
   .bs-card{border-radius:22px;max-width:460px;padding:12px 24px 20px;box-shadow:0 24px 64px rgba(15,23,42,.3)}
@@ -100,7 +100,7 @@ html.bs-on{overflow:hidden}
 }
 
 /* ---- 빈 화면: 원인 · 다음 행동 · 대안 ---- */
-.s-empty .s-et{display:block;font-size:16px;font-weight:800;color:var(--text-1)}
+.s-empty .s-et{display:block;font-size:16px;font-weight:700;color:var(--text-1)}
 .s-empty .s-es{display:block;margin-top:4px;font-size:13.5px;color:var(--text-2)}
 .s-empty .s-eact{flex-direction:column;align-items:center;gap:4px}
 .s-empty .s-eact .btn.text{min-height:44px;color:var(--text-2);text-decoration:underline;text-underline-offset:3px}

@@ -52,15 +52,22 @@
     const metric = (r) => { const t = r.tx || {}; if (colorBy === "old") return t.old && r.s < 7 ? t.old.pol : null; if (colorBy === "vol") return t.n12 != null ? t.n12 : r.tx ? 0 : null; if (colorBy === "yoy") return t.yoy != null && t.yon && t.yon[0] >= 10 && t.yon[1] >= 10 ? t.yoy : null; return null; };
     const dark = () => { const t = document.documentElement.dataset.theme; return t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches); };
     // ===================== 지도 디자인 토큰(사이클 4 D+ · 시각 언어를 이 객체 하나로 바꿔 끼운다) =====================
+    //   시각 언어 v2: 'Bold'가 든 묶음 이름은 maplibre가 한글(TinySDF)을 900으로 그린다(GlyphManager /bold/i) → bold도 Regular(400) · OpenFreeMap에 Medium PBF가 없어 500은 자체 글리프가 있어야 함
+    //         wait = 지도 글자 레이어를 붙이기 전에 받아 둘 Pretendard 글꼴(조각) — 늦게 오면 대체 글꼴 모양이 굳는다
     //   font  GL 글자: glyphs(PBF 주소) · regular/bold/italic(fontstack) · localIdeo(한글·한자를 브라우저 글꼴로 그릴 때의 글꼴 목록 · false면 서버 glyph PBF)
     //         DOM 태그·카드 글꼴은 CSS 토큰 --mxt-label-font(99zzzzzzzzzz_c4map.css) — 폭 재기(measure)도 같은 값을 읽는다
     //   light/dark  GL 레이어·캔버스 그림 색(이름 = '레이어.속성' 또는 역할) · base = 바탕지도 · poi = 겹쳐 보기 아이콘
     //   바꾸기: window.ZP_MXT_OVR = { font: {…}, light: {…}, dark: {…} }를 지도보다 먼저 두면 덮어쓴다(시안·실험용)
     const MXT = (() => {
-      const o = { font: { glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", regular: ["Noto Sans Regular"], bold: ["Noto Sans Bold"], italic: ["Noto Sans Italic"], localIdeo: "'Pretendard Variable','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif", dom: "'Pretendard Variable',Pretendard,'Apple SD Gothic Neo','Noto Sans KR',sans-serif" },
-        light: {"base": {"bg": "#ECEEF1", "res": "#E5E8EC", "park": "#CDE2C8", "wood": "#C8DEC2", "water": "#B0CCE6", "wline": "#8FB3D6", "bld": "#DADFE6", "bldl": "#C9D0D9", "mn": "#FFFFFF", "mnc": "#D3D8DF", "sec": "#FFFFFF", "secc": "#BCC4CE", "art": "#D5DBE3", "artc": "#A3ADBA", "rail": "#A0A9B5", "txt": "#434E5D", "halo": "#ECEEF1", "wtxt": "#1D4E7A"}, "poi": {"edu": ["#0B8070", "#0A6F61"], "med": ["#D0343A", "#B4232A"], "mart": ["#B0327F", "#9A2470"]}, "mask.fill-color": "#ffffff", "gu-line.line-color": "#7F8A99", "pick-dim.fill-color": "#FFFFFF", "gu-fill.fill-color": "#6F87C8", "gu-fill.fill-color~2": "#F4F5F7", "zone-fav-o.line-color": "#1F3A87", "zone-fav-i.line-color": "#FFFFFF", "gu-dim.fill-color": "#F3F4F6", "gu-sel.line-color": "#1F3A87", "stn-dim.fill-color": "#F3F4F6", "stn-ring.line-color": "#1F3A87", "hov-fill.fill-color": "#1f3a87", "hov-line.line-color": "#1f3a87", "hov-pt.circle-stroke-color": "#1f3a87", "hov-pt.circle-color": "rgba(0,0,0,0)", "foc-mask.fill-color": "#F4F5F7", "foc-line.line-color": "#1F3A87", "sel-case.line-color": "#FFFFFF", "sel-line.line-color": "#1F3A87", "stn.circle-color": "#ffffff", "stn-mj.circle-color": "#ffffff", "stn-mj.circle-stroke-color": "#5F6B7A", "stn-mid.circle-color": "#ffffff", "stn-mid.circle-stroke-color": "#5F6B7A", "ly-biz-heat.heatmap-color": "rgba(240,160,70,.22)", "ly-biz-heat.heatmap-color~2": "rgba(226,128,32,.42)", "ly-biz-heat.heatmap-color~3": "rgba(205,105,15,.56)", "ly-biz-heat.heatmap-color~4": "rgba(180,85,5,.68)", "ly-biz.circle-color": "rgba(232,140,40,.12)", "ly-biz.circle-stroke-color": "rgba(200,110,20,.6)", "ly-biz-lab.text-color": "#9A4E0C", "ly-acad.circle-color": "rgba(122,63,184,.2)", "ly-acad.circle-stroke-color": "#7A3FB8", "ly-acad-lab.text-color": "#5E2A96", "ly-hj-lab.text-color": "#5B6472", "ly-hi.circle-color": "#D92D20", "spt-c.circle-color": "#FFFFFF", "spt-c.circle-stroke-color": "#1F3A87", "spt-rlab.text-color": "#1F3A87", "spt-lab.text-color": "#1F3A87", "hov-lab.text-color": "#1f3a87", "ly-biz-heat.heatmap-color~0": "rgba(232,140,40,0)", "zone-lab.name-on": "#FFFFFF", "poi.ring": "#FFFFFF", "poi.glyph": "#FFFFFF", "dot.navy-line": "#1F3A87", "dot.far": "#768190", "dot.na": "#6B7684", "dot.halo": "#FFFFFF", "dot.ok-fill": "#1F3A87", "label.halo": "#ECEEF1", "stn.line-default": "#7A8594", "zone.fill-ok": "#1F3A87", "zone.line-ok": "#1F3A87", "zone.line-far": "#9AA3AE", "zone.line-na": "#6B7684", "zone.line-moa": "#4E5968", "zone.fill-far": "#6B7684", "zone.pattern": "rgba(31,58,135,.42)", "card.lite-top": "#E8ECF4", "card.lite-edge": "#B8C2D6", "card.shadow": "rgba(15,30,70,.16)", "zone.case": "#FFFFFF", "label.text": "#434E5D", "card.hi": "#C0261B", "card.top": "#1F3A87", "card.bot": "#FFFFFF", "card.ink": "#191F28", "card.name-lite": "#2E3A55", "zone.outline-none": "rgba(0,0,0,0)"},
-        dark: {"base": {"bg": "#10161E", "res": "#151C26", "park": "#193020", "wood": "#193020", "water": "#183A58", "wline": "#21507A", "bld": "#1B2430", "bldl": "#25303D", "mn": "#222B37", "mnc": "#171E28", "sec": "#2C3745", "secc": "#19212B", "art": "#3A4759", "artc": "#1A222D", "rail": "#3E4959", "txt": "#AEB8C6", "halo": "#10161E", "wtxt": "#8FB8DA"}, "poi": {"edu": ["#2BA894", "#6FD8C6"], "med": ["#E0484E", "#F59A9A"], "mart": ["#C2479A", "#F09ACD"]}, "mask.fill-color": "#0B0F14", "gu-line.line-color": "#5E6B7E", "pick-dim.fill-color": "#0B1016", "gu-fill.fill-color": "#4A6FD6", "gu-fill.fill-color~2": "#141A22", "zone-fav-o.line-color": "#C7D6FF", "zone-fav-i.line-color": "#151C26", "gu-dim.fill-color": "#0B0F14", "gu-sel.line-color": "#9DBBFF", "stn-dim.fill-color": "#0B0F14", "stn-ring.line-color": "#9DBBFF", "hov-fill.fill-color": "#9fb3ff", "hov-line.line-color": "#9fb3ff", "hov-pt.circle-stroke-color": "#9fb3ff", "hov-pt.circle-color": "rgba(0,0,0,0)", "foc-mask.fill-color": "#0B1016", "foc-line.line-color": "#9DB8FF", "sel-case.line-color": "#151C26", "sel-line.line-color": "#C7D6FF", "stn.circle-color": "#151B23", "stn-mj.circle-color": "#151B23", "stn-mj.circle-stroke-color": "#8A95A5", "stn-mid.circle-color": "#151B23", "stn-mid.circle-stroke-color": "#8A95A5", "ly-biz-heat.heatmap-color": "rgba(236,150,60,.22)", "ly-biz-heat.heatmap-color~2": "rgba(236,150,60,.45)", "ly-biz-heat.heatmap-color~3": "rgba(245,170,90,.62)", "ly-biz-heat.heatmap-color~4": "rgba(255,190,120,.75)", "ly-biz.circle-color": "rgba(236,150,60,.16)", "ly-biz.circle-stroke-color": "rgba(236,150,60,.7)", "ly-biz-lab.text-color": "#F2B37A", "ly-acad.circle-color": "rgba(190,150,240,.3)", "ly-acad.circle-stroke-color": "#C9A0F0", "ly-acad-lab.text-color": "#D8B8F6", "ly-hj-lab.text-color": "#AAB3C0", "ly-hi.circle-color": "#FF8A75", "spt-c.circle-color": "#151B23", "spt-c.circle-stroke-color": "#9DBBFF", "spt-rlab.text-color": "#C7D6FF", "spt-lab.text-color": "#C7D6FF", "hov-lab.text-color": "#9fb3ff", "ly-biz-heat.heatmap-color~0": "rgba(232,140,40,0)", "zone-lab.name-on": "#FFFFFF", "poi.ring": "#11161D", "poi.glyph": "#FFFFFF", "dot.navy-line": "#9DB8FF", "dot.far": "#6B7787", "dot.na": "#8E99A8", "dot.halo": "#10161E", "dot.ok-fill": "#3A60D0", "label.halo": "#10161E", "stn.line-default": "#7A8594", "zone.fill-ok": "#7FA6FF", "zone.line-ok": "#9DB8FF", "zone.line-far": "#5C6878", "zone.line-na": "#8E99A8", "zone.line-moa": "#AAB4C2", "zone.fill-far": "#96A0AF", "zone.pattern": "rgba(200,212,235,.55)", "card.lite-top": "#273041", "card.lite-edge": "#3B4656", "card.shadow": "rgba(0,0,0,.35)", "zone.case": "#0B1016", "label.text": "#AEB8C6", "card.hi": "#FF9C8A", "card.top": "#3E6AE0", "card.bot": "#1A2130", "card.ink": "#E8EDF5", "card.name-lite": "#C3CCD8", "zone.outline-none": "rgba(0,0,0,0)"} };
-      const ov = window.ZP_MXT_OVR; if (ov) ["font", "light", "dark"].forEach((k) => { if (ov[k]) Object.assign(o[k], ov[k]); });
+      const o = { font: { glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", regular: ["Noto Sans Regular"], bold: ["Noto Sans Regular"], italic: ["Noto Sans Italic"], wait: "400 12px 'Pretendard Variable'", localIdeo: "'Pretendard Variable','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif", dom: "'Pretendard Variable',Pretendard,'Apple SD Gothic Neo','Noto Sans KR',sans-serif" },
+        light: {"base": {"bg": "#F1F2F4", "res": "#ECEEF1", "park": "#DFE8DD", "wood": "#DCE6D9", "water": "#C8D8E8", "wline": "#A9C0D8", "bld": "#E3E6EA", "bldl": "#D5D9DF", "mn": "#FFFFFF", "mnc": "#DADDE3", "sec": "#FFFFFF", "secc": "#C9CED6", "art": "#E2E6EB", "artc": "#B7BEC8", "rail": "#A9B1BC", "txt": "#4A5463", "halo": "#F1F2F4", "wtxt": "#1D4E7A"}, "poi": {"edu": ["#0B8070", "#0A6F61"], "med": ["#D0343A", "#B4232A"], "mart": ["#B0327F", "#9A2470"]}, "mask.fill-color": "#FFFFFF", "gu-line.line-color": "#8C96A3", "pick-dim.fill-color": "#FFFFFF", "gu-fill.fill-color": "#D5DCEF", "gu-fill.fill-color~2": "#F7F8FA", "zone-fav-o.line-color": "#1F3A87", "zone-fav-i.line-color": "#FFFFFF", "gu-dim.fill-color": "#F3F4F6", "gu-sel.line-color": "#1F3A87", "stn-dim.fill-color": "#F3F4F6", "stn-ring.line-color": "#1F3A87", "hov-fill.fill-color": "#1f3a87", "hov-line.line-color": "#1f3a87", "hov-pt.circle-stroke-color": "#1f3a87", "hov-pt.circle-color": "rgba(0,0,0,0)", "foc-mask.fill-color": "#F4F5F7", "foc-line.line-color": "#1F3A87", "sel-case.line-color": "#FFFFFF", "sel-line.line-color": "#1F3A87", "stn.circle-color": "#FFFFFF", "stn-mj.circle-color": "#FFFFFF", "stn-mj.circle-stroke-color": "#4A5463", "stn-mid.circle-color": "#FFFFFF", "stn-mid.circle-stroke-color": "#4A5463", "ly-biz-heat.heatmap-color": "rgba(240,160,70,.22)", "ly-biz-heat.heatmap-color~2": "rgba(226,128,32,.42)", "ly-biz-heat.heatmap-color~3": "rgba(205,105,15,.56)", "ly-biz-heat.heatmap-color~4": "rgba(180,85,5,.68)", "ly-biz.circle-color": "rgba(232,140,40,.12)", "ly-biz.circle-stroke-color": "rgba(200,110,20,.6)", "ly-biz-lab.text-color": "#9A4E0C", "ly-acad.circle-color": "rgba(122,63,184,.2)", "ly-acad.circle-stroke-color": "#7A3FB8", "ly-acad-lab.text-color": "#5E2A96", "ly-hj-lab.text-color": "#5B6472", "ly-hi.circle-color": "#D92D20", "spt-c.circle-color": "#FFFFFF", "spt-c.circle-stroke-color": "#1F3A87", "spt-rlab.text-color": "#1F3A87", "spt-lab.text-color": "#1F3A87", "hov-lab.text-color": "#1f3a87", "ly-biz-heat.heatmap-color~0": "rgba(232,140,40,0)", "zone-lab.name-on": "#FFFFFF", "poi.ring": "#FFFFFF", "poi.glyph": "#FFFFFF", "dot.navy-line": "#1F3A87", "dot.far": "#7A8492", "dot.na": "#8B95A1", "dot.halo": "#FFFFFF", "dot.ok-fill": "#1F3A87", "label.halo": "#F1F2F4", "stn.line-default": "#7A8594", "zone.fill-ok": "#1F3A87", "zone.line-ok": "#1F3A87", "zone.line-far": "#A3ABB6", "zone.line-na": "#8B95A1", "zone.line-moa": "#8B95A1", "zone.fill-far": "#5F6B7A", "zone.pattern": "rgba(31,58,135,.42)", "card.lite-top": "#E8ECF4", "card.lite-edge": "#B8C2D6", "card.shadow": "rgba(15,30,70,.16)", "zone.case": "#FFFFFF", "label.text": "#4A5463", "card.hi": "#C0261B", "card.top": "#1F3A87", "card.bot": "#FFFFFF", "card.ink": "#191F28", "card.name-lite": "#2E3A55", "zone.outline-none": "rgba(0,0,0,0)", "stn.ring": "#4A5463", "op": {"ok": 0.3, "near": 0.08, "far": 0.12, "no": 0.12, "moa": 0.05, "dim": 0.38, "mask": 0.62, "case": 0.85, "gusel": 0.7}},
+        dark: {"base": {"bg": "#111318", "res": "#15181E", "park": "#16201B", "wood": "#17231C", "water": "#13263A", "wline": "#1A3550", "bld": "#1A1E25", "bldl": "#222731", "mn": "#1E222A", "mnc": "#15181E", "sec": "#262B34", "secc": "#15181E", "art": "#2E3440", "artc": "#15181E", "rail": "#353B46", "txt": "#A3ABB8", "halo": "#111318", "wtxt": "#8FB8DA"}, "poi": {"edu": ["#2BA894", "#6FD8C6"], "med": ["#E0484E", "#F59A9A"], "mart": ["#C2479A", "#F09ACD"]}, "mask.fill-color": "#0B0D11", "gu-line.line-color": "#5A6372", "pick-dim.fill-color": "#0B0D11", "gu-fill.fill-color": "#253353", "gu-fill.fill-color~2": "#161A20", "zone-fav-o.line-color": "#C7D6FF", "zone-fav-i.line-color": "#111318", "gu-dim.fill-color": "#0B0F14", "gu-sel.line-color": "#7F9BE0", "stn-dim.fill-color": "#0B0F14", "stn-ring.line-color": "#9DBBFF", "hov-fill.fill-color": "#9fb3ff", "hov-line.line-color": "#9fb3ff", "hov-pt.circle-stroke-color": "#9fb3ff", "hov-pt.circle-color": "rgba(0,0,0,0)", "foc-mask.fill-color": "#0B1016", "foc-line.line-color": "#9DB8FF", "sel-case.line-color": "#111318", "sel-line.line-color": "#C7D6FF", "stn.circle-color": "#111318", "stn-mj.circle-color": "#111318", "stn-mj.circle-stroke-color": "#A3ABB8", "stn-mid.circle-color": "#111318", "stn-mid.circle-stroke-color": "#A3ABB8", "ly-biz-heat.heatmap-color": "rgba(236,150,60,.22)", "ly-biz-heat.heatmap-color~2": "rgba(236,150,60,.45)", "ly-biz-heat.heatmap-color~3": "rgba(245,170,90,.62)", "ly-biz-heat.heatmap-color~4": "rgba(255,190,120,.75)", "ly-biz.circle-color": "rgba(236,150,60,.16)", "ly-biz.circle-stroke-color": "rgba(236,150,60,.7)", "ly-biz-lab.text-color": "#F2B37A", "ly-acad.circle-color": "rgba(190,150,240,.3)", "ly-acad.circle-stroke-color": "#C9A0F0", "ly-acad-lab.text-color": "#D8B8F6", "ly-hj-lab.text-color": "#AAB3C0", "ly-hi.circle-color": "#FF8A75", "spt-c.circle-color": "#151B23", "spt-c.circle-stroke-color": "#9DBBFF", "spt-rlab.text-color": "#C7D6FF", "spt-lab.text-color": "#C7D6FF", "hov-lab.text-color": "#9fb3ff", "ly-biz-heat.heatmap-color~0": "rgba(232,140,40,0)", "zone-lab.name-on": "#FFFFFF", "poi.ring": "#11161D", "poi.glyph": "#FFFFFF", "dot.navy-line": "#9DB3F0", "dot.far": "#6B7380", "dot.na": "#6B7380", "dot.halo": "#111318", "dot.ok-fill": "#2D4BA0", "label.halo": "#111318", "stn.line-default": "#7A8594", "zone.fill-ok": "#7896EB", "zone.line-ok": "#9DB3F0", "zone.line-far": "#545D6B", "zone.line-na": "#6B7380", "zone.line-moa": "#6B7380", "zone.fill-far": "#96A0AF", "zone.pattern": "rgba(200,212,235,.55)", "card.lite-top": "#273041", "card.lite-edge": "#3B4656", "card.shadow": "rgba(0,0,0,.35)", "zone.case": "#0F1115", "label.text": "#A3ABB8", "card.hi": "#FF9C8A", "card.top": "#3E6AE0", "card.bot": "#1A2130", "card.ink": "#E8EDF5", "card.name-lite": "#C3CCD8", "zone.outline-none": "rgba(0,0,0,0)", "stn.ring": "#A3ABB8", "op": {"ok": 0.3, "near": 0.1, "far": 0.1, "no": 0.1, "moa": 0.05, "dim": 0.34, "mask": 0.6, "case": 0.85, "gusel": 0.7}},
+        // 모양(테마 공통): 태그 크기(CSS --mxt-tag-*와 같은 값) · 선 굵기 · 바탕 도로 굵기 배수 · 점 반지름 · 글자 크기·후광
+        tag: { h: 26, hSm: 22, fs: 13, fsSm: 12, pad: 19, padSm: 15, ck: 14, ckSm: 12 },
+        w: { road: 1.15, guLine: 1.2, gusel: 1.6, sel: 2.6, selCase: 7, favO: 5, favI: 1.6, hot: [1.8, 2.2, 2.6], cold: [1.1, 1.5, 1.8], caseAdd: 2.8, stnRing: 2 },
+        dot: { far: 3.3, no: 4.6, ok: 5.2, okIn: 1.8, near: 4.6 },
+        text: { size: 12, halo: 2.6 } };
+      const ov = window.ZP_MXT_OVR; if (ov) ["font", "light", "dark", "tag", "w", "dot", "text"].forEach((k) => { if (ov[k]) Object.assign(o[k], ov[k]); });
       return o;
     })();
     window.ZP_MXT = MXT;
@@ -118,14 +125,14 @@
       // 사이클 4(M): 부족 점 #768190(라이트 3.6:1)·#6B7787(다크) · 조건 밖 = ✕(모양으로 구분) · 계산 보류 = 점선 고리
       const k = 3, NV = XT("dot.navy-line"), GR = XT("dot.far"), NA = XT("dot.na"), HL = XT("dot.halo");
       const put = (id, S, draw) => { if (map.hasImage(id)) map.removeImage(id); const c = document.createElement("canvas"); c.width = c.height = S * k; const x = c.getContext("2d"); x.scale(k, k); draw(x, S / 2); map.addImage(id, x.getImageData(0, 0, S * k, S * k), { pixelRatio: k }); };
-      put("zd-far", 10, (x, c) => { x.beginPath(); x.arc(c, c, 3.6, 0, 7); x.fillStyle = GR; x.fill(); x.lineWidth = 1.2; x.strokeStyle = HL; x.stroke(); });
-      put("zd-no", 12, (x, c) => { x.lineCap = "round"; x.strokeStyle = HL; x.lineWidth = 4; x.beginPath(); x.moveTo(c - 3.4, c - 3.4); x.lineTo(c + 3.4, c + 3.4); x.moveTo(c + 3.4, c - 3.4); x.lineTo(c - 3.4, c + 3.4); x.stroke(); x.strokeStyle = GR; x.lineWidth = 2; x.stroke(); });
+      put("zd-far", 10, (x, c) => { x.beginPath(); x.arc(c, c, MXT.dot.far, 0, 7); x.fillStyle = GR; x.fill(); x.lineWidth = 1.4; x.strokeStyle = HL; x.stroke(); });
+      put("zd-no", 12, (x, c) => { x.lineCap = "round"; x.strokeStyle = HL; x.lineWidth = 4; const D0 = MXT.dot.no * 0.62; x.beginPath(); x.moveTo(c - D0, c - D0); x.lineTo(c + D0, c + D0); x.moveTo(c + D0, c - D0); x.lineTo(c - D0, c + D0); x.stroke(); x.strokeStyle = GR; x.lineWidth = 2; x.stroke(); });
       put("zd-na", 12, (x, c) => { x.beginPath(); x.arc(c, c, 3.9, 0, 7); x.fillStyle = HL; x.fill(); x.setLineDash([1.6, 1.3]); x.lineWidth = 1.6; x.strokeStyle = NA; x.stroke(); });
       put("zd-moa", 12, (x, c) => { x.beginPath(); x.rect(c - 3.4, c - 3.4, 6.8, 6.8); x.fillStyle = HL; x.fill(); x.setLineDash([1.6, 1.2]); x.lineWidth = 1.4; x.strokeStyle = NA; x.stroke(); });
       // 사이클 4 D+(SPEC J2-0): 자리를 못 잡은 표식은 상태를 지키는 점 — 갈 수 있음 = 남색 지름 10.4 + 표면 테두리 1.6 + 노란 가운데 지름 3.6(골라 줌) · 조금 부족 = 표면 채움 + 남색 2px 고리. 관심은 점이 아니라 구역 남색 이중선(zd-fav 없음)
       const NVF = XT("dot.ok-fill"), PK = palette().pick;
-      put("zd-ok", 14, (x, c) => { x.beginPath(); x.arc(c, c, 5.2, 0, 7); x.fillStyle = NVF; x.fill(); x.lineWidth = 1.6; x.strokeStyle = HL; x.stroke(); x.beginPath(); x.arc(c, c, 1.8, 0, 7); x.fillStyle = PK; x.fill(); });
-      put("zd-near", 14, (x, c) => { x.beginPath(); x.arc(c, c, 4.6, 0, 7); x.fillStyle = HL; x.fill(); x.lineWidth = 2; x.strokeStyle = NV; x.stroke(); });
+      put("zd-ok", 14, (x, c) => { x.beginPath(); x.arc(c, c, MXT.dot.ok, 0, 7); x.fillStyle = NVF; x.fill(); x.lineWidth = 1.6; x.strokeStyle = HL; x.stroke(); x.beginPath(); x.arc(c, c, MXT.dot.okIn, 0, 7); x.fillStyle = PK; x.fill(); });
+      put("zd-near", 14, (x, c) => { x.beginPath(); x.arc(c, c, MXT.dot.near, 0, 7); x.fillStyle = HL; x.fill(); x.lineWidth = 2; x.strokeStyle = NV; x.stroke(); });
       if (map.hasImage("zd-fav")) map.removeImage("zd-fav");
     }
     // 19차: 서울 보기(줌 11 아래)에서는 그리는 레이어 수를 줄인다(땅 쓰임·숲·도로 테두리·철도·물길·노선 그림자·구역 테두리) —
@@ -136,7 +143,7 @@
       //   동·역 글자 12px(가장 불리한 바탕 위 4.5:1 이상 · 후광 2px), place 레이어 없음(동 이름은 우리 dong-lab 하나)
       const C = XT("base");   // 바탕지도 색 = 디자인 토큰(MXT.light/dark.base)
       const name = ["coalesce", ["get", "name:ko"], ["get", "name"]];
-      const WF = 1.25;   // 레벨 2 도로 굵기 배수
+      const WF = MXT.w.road;   // 도로 굵기 배수(토큰 · v2 1.15)
       const road = (id, cls, color, w, minz) => ({ id, type: "line", source: "omt", "source-layer": "transportation", minzoom: minz || 0, filter: ["in", ["get", "class"], ["literal", cls]], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": color, "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 10, w[0] * WF, 14, w[1] * WF, 17, w[2] * WF] } });
       const ST = {
         version: 8,
@@ -213,17 +220,19 @@
       map.getSource("stn").setData(FC(D.stations.map((s) => ({ type: "Feature", geometry: { type: "Point", coordinates: [s[2], s[1]] }, properties: { n: s[0].replace(/역$/, ""), c: LINE_COL[(s[3] || [])[0]] || XT("stn.line-default"), t: (s[3] || []).length } }))));
       await Y();
       const L = (o) => { if (map.getLayer(o.id)) return; if (STAGE && !(o.layout && o.layout.visibility === "none")) { o = Object.assign({}, o, { layout: Object.assign({}, o.layout, { visibility: "none" }) }); STG.push(o.id); } map.addLayer(o, undefined, { validate: false }); };   // 검증 생략(우리가 쓴 고정 레이어 · 지도 켜는 시간 줄이기)
-      L({ id: "mask", type: "fill", source: "mask", paint: { "fill-color": XT("mask.fill-color"), "fill-opacity": dk ? 0.7 : 0.75 } });
-      L({ id: "gu-line", type: "line", source: "gul", paint: { "line-color": XT("gu-line.line-color"), "line-width": 1.5, "line-dasharray": [2, 2] } });
+      L({ id: "mask", type: "fill", source: "mask", paint: { "fill-color": XT("mask.fill-color"), "fill-opacity": XT("op").mask } });
+      L({ id: "gu-line", type: "line", source: "gul", paint: { "line-color": XT("gu-line.line-color"), "line-width": MXT.w.guLine, "line-dasharray": [3, 2] } });
       L({ id: "seoul-line", type: "line", source: "seoul", paint: { "line-color": P.sub, "line-width": 1.6, "line-opacity": 0.7 } });
       L({ id: "subway-case", type: "line", source: "subway", minzoom: 12, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": halo, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.8, 14, 4], "line-opacity": 0.35 } });
       L({ id: "subway", type: "line", source: "subway", minzoom: 12, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 12, 1.2, 14, 2, 16, 2.6], "line-opacity": 0.35 } });
       // 사이클 4 D+(SPEC J2-3 pick-dim): 구 줌(11.2+)에서 서울 경계 안 바탕을 한 겹 눌러(라이트 흰 42% · 다크 #0B1016 38%) 고른 구역(면·태그)이 앞에 서게 — 동·역 이름은 이 위(불투명도 100%)
-      L({ id: "pick-dim", type: "fill", source: "pdim", minzoom: 11.2, paint: { "fill-color": XT("pick-dim.fill-color"), "fill-opacity": dk ? 0.38 : 0.42 } });
+      L({ id: "pick-dim", type: "fill", source: "pdim", minzoom: 11.2, paint: { "fill-color": XT("pick-dim.fill-color"), "fill-opacity": XT("op").dim } });
+      // 시각 언어 v2: 지도 글자(한글 = 브라우저 글꼴 TinySDF)는 Pretendard 조각이 도착한 뒤 붙인다(최대 1.5초 · 기다림은 비동기라 TBT 0)
+      await fontWait(); await Y();
       // 바탕 이름: 구(줌 9.5~13.6) → 동(11부터 · 27차: 구 화면(줌 11~13)에서 이름이 하나도 없던 것) → 큰 역(11부터, 환승역) · 나머지 역(11.5부터). 회색으로 작게, 구역 카드가 먼저 자리 잡는다
       const T1 = XT("label.text"), T2 = T1;   // 사이클 4(M · 레벨 2): 동·역 글자 4.5:1 이상(가장 불리한 바탕 위) · 후광 2px
       L({ id: "gu-lab", type: "symbol", source: "gun", minzoom: 8.8, maxzoom: 13.6, layout: { "text-field": ["get", "n"], "text-font": MXT.font.bold, "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10.5, 12.5, 12.5], "text-padding": 4, "text-letter-spacing": 0.04, "text-variable-anchor": ["center", "top", "bottom", "right", "left"], "text-radial-offset": 0.7, "text-justify": "auto" }, paint: { "text-color": T1, "text-opacity": ["interpolate", ["linear"], ["zoom"], 13.1, 0.95, 13.6, 0], "text-halo-color": halo, "text-halo-width": 1.6 } });
-      L({ id: "dong-lab", type: "symbol", source: "dong", minzoom: 11, layout: { "text-field": ["get", "n"], "text-font": MXT.font.regular, "text-size": 12, "text-padding": 6, "text-allow-overlap": false, "text-variable-anchor": ["center", "top", "bottom", "left", "right"], "text-radial-offset": 0.9, "symbol-sort-key": ["get", "k"] }, paint: { "text-color": T1, "text-opacity": 1, "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "dong-lab", type: "symbol", source: "dong", minzoom: 11, layout: { "text-field": ["get", "n"], "text-font": MXT.font.regular, "text-size": 12, "text-padding": 6, "text-allow-overlap": false, "text-variable-anchor": ["center", "top", "bottom", "left", "right"], "text-radial-offset": 0.9, "symbol-sort-key": ["get", "k"] }, paint: { "text-color": T1, "text-opacity": 1, "text-halo-color": halo, "text-halo-width": MXT.text.halo } });
       // 구역: 한 가지 색(브랜드 남색). 상태 4가지(feature-state k)는 남색 안에서 채움·테두리로만: 가능 = 면 45% + 진한 선 · 조금 모자람 = 면 없이 선만 · 더 필요·자료 없음 = 아주 옅게(8%)
       // 관심 구역(f) = 선을 굵게. 공식 경계 없는 추정 범위는 점선
       // 21차: 더 진하게 + 서울 전체(구 묶음 줌)에서도 바로 보이게 — 가능 = 남색 면 45%(다크 #9fb3ff 40%) + 1.5px 실선 · 조금 모자람 = 면 없이 2px 선(줌 11부터) · 나머지 8%
@@ -236,17 +245,18 @@
       const fo = (ok, near, far, na, no, moa) => ["match", K, 0, ok, 1, near, 2, far, 3, na, 4, no, 5, moa, 0];   // 9 = 지금 보기에서 숨김
       // 서울 보기(줌 11 아래)는 가능 구역만 진하게(45% · 자리 그림과 같은 면) → 구 안에서는 SPEC 농도(가능 30·34% · 조금 부족 12% · 부족·조건 밖 10%)
       // 사이클 4 D+(SPEC J2-3): 바탕을 누른 만큼 면을 진하게 — 가능 라이트 .46 · 다크 .32 · 조금 부족 .12/.14 · 부족·조건 밖 .16/.12('있다'가 보이게) · 모아 .06
-      const zop = (m) => ["interpolate", ["linear"], ["zoom"], 10.8, fo((dk ? 0.4 : 0.45) * m, 0.08 * m, 0.06 * m, 0, 0.06 * m, 0.03 * m), 11.2, fo((dk ? 0.32 : 0.46) * m, (dk ? 0.14 : 0.12) * m, (dk ? 0.12 : 0.16) * m, 0, (dk ? 0.12 : 0.16) * m, 0.06 * m)];
+      const zop = (m) => ["interpolate", ["linear"], ["zoom"], 10.8, fo((dk ? 0.4 : 0.45) * m, 0.08 * m, 0.06 * m, 0, 0.06 * m, 0.03 * m), 11.2, fo(XT("op").ok * m, XT("op").near * m, XT("op").far * m, 0, XT("op").no * m, XT("op").moa * m)];   // 시각 언어 v2(리드): 갈 수 있음 .30
       const FCOL = ["match", K, 0, ZC, 1, ZC, 2, GF, 4, GF, 5, GF, GF];
       const LCOL = ["match", K, 0, ZL, 1, ZL, 2, GL, 4, GL, 3, NL, 5, ML, GL];
       const hot = ["match", K, 0, 1, 1, 1, 0];
       // 선 굵기(SPEC I2 zlw): 최소 2.5px — [10, 2.5/1.6], [12, 2.5], [14, 3/2.5], [16, 3.4/2.6](앞 = 가능·조금 부족) · 관심 구역 +0.8
       const lw = (a, b) => ["+", ["case", ["==", hot, 1], a, b], ["case", FV, 0.8, 0]];
-      const zlw = ["interpolate", ["linear"], ["zoom"], 10, lw(2.5, 1.6), 12, lw(2.5, 2.5), 14, lw(3, 2.5), 16, lw(3.4, 2.6)];
+      const HW = MXT.w.hot, CW = MXT.w.cold;   // v2 선 굵기: 갈 수 있음·조금 부족 [11 1.8 · 14 2.2 · 16 2.6] · 그 밖 [1.1 · 1.5 · 1.8]
+      const zlw = ["interpolate", ["linear"], ["zoom"], 11, lw(HW[0], CW[0]), 14, lw(HW[1], CW[1]), 16, lw(HW[2], CW[2])];
       // 선 농도: 서울 보기는 가능 선만 · 구 안은 모두(대략 범위는 60%)
       const zloF = (k) => ["interpolate", ["linear"], ["zoom"], 10.8, ["case", FV, k, ["match", K, 0, 0.9 * k, 0]], 11.2, ["case", FV, k, ["match", K, 0, k, 1, k, 3, 0.9 * k, 5, 0.9 * k, 9, 0, 0.75 * k]]];
       const zlo = zloF(1), zloE = zloF(0.6), zloC = zloF(0.9), zloCE = zloF(0.55);
-      const zlwC = ["interpolate", ["linear"], ["zoom"], 10, ["+", lw(2.5, 1.6), 3], 12, ["+", lw(2.5, 2.5), 3], 14, ["+", lw(3, 2.5), 3], 16, ["+", lw(3.4, 2.6), 3]];
+      const zlwC = ["interpolate", ["linear"], ["zoom"], 11, ["+", lw(HW[0], CW[0]), MXT.w.caseAdd], 14, ["+", lw(HW[1], CW[1]), MXT.w.caseAdd], 16, ["+", lw(HW[2], CW[2]), MXT.w.caseAdd]];
       const OUT = ["match", K, 0, ZL, XT("zone.outline-none")];
       const TY = (t) => ["==", ["get", "ty"], t];
       // 무늬(구역 단계 13.8부터): 재건축 빗금 · 가로·소규모 점
@@ -263,12 +273,12 @@
         // 경계 아래 +3px 후광(SPEC I · 라이트 흰 · 다크 #0B1016) — 말풍선·경계가 바탕보다 늘 먼저 보이게
         L({ id: p + "-case", type: "line", source: src, minzoom: 11, filter: ["!", TY("moa")], layout: { "line-join": "round" }, paint: { "line-color": caseC, "line-width": zlwC, "line-opacity": e ? zloCE : zloC } });
         // 사이클 4 D+(SPEC J2-0 관심): 남색 이중선 = 바깥 6px 남색(경계선 아래) + 경계선 위 표면색 2px — 노랑을 쓰지 않는다
-        if (!e) L({ id: "zone-fav-o", type: "line", source: "zfav", minzoom: 10.8, layout: { "line-join": "round" }, paint: { "line-color": XT("zone-fav-o.line-color"), "line-width": 6, "line-opacity": 1 } });
+        if (!e) L({ id: "zone-fav-o", type: "line", source: "zfav", minzoom: 10.8, layout: { "line-join": "round" }, paint: { "line-color": XT("zone-fav-o.line-color"), "line-width": MXT.w.favO, "line-opacity": 1 } });
         L({ id: p + "-line", type: "line", source: src, minzoom: 11, filter: ["!", ["in", ["get", "ty"], ["literal", ["rb", "sm", "moa"]]]], layout: { "line-join": "round" }, paint: { "line-color": LCOL, "line-width": zlw, "line-opacity": e ? zloE : zlo } });
         L({ id: p + "-line-rb", type: "line", source: src, minzoom: 11, filter: TY("rb"), layout: { "line-join": "round" }, paint: { "line-color": LCOL, "line-width": zlw, "line-opacity": e ? zloE : zlo, "line-dasharray": [4, 1.6] } });
         L({ id: p + "-line-sm", type: "line", source: src, minzoom: 11, filter: TY("sm"), layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": LCOL, "line-width": zlw, "line-opacity": e ? zloE : zlo, "line-dasharray": [0.1, 1.9] } });
         L({ id: p + "-line-moa", type: "line", source: src, minzoom: 11, filter: TY("moa"), layout: { "line-join": "round" }, paint: { "line-color": ML, "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 15, 2.2], "line-opacity": 0.9, "line-dasharray": [2.5, 1.6] } });
-        if (!e) L({ id: "zone-fav-i", type: "line", source: "zfav", minzoom: 10.8, layout: { "line-join": "round" }, paint: { "line-color": XT("zone-fav-i.line-color"), "line-width": 2, "line-opacity": 1 } });
+        if (!e) L({ id: "zone-fav-i", type: "line", source: "zfav", minzoom: 10.8, layout: { "line-join": "round" }, paint: { "line-color": XT("zone-fav-i.line-color"), "line-width": MXT.w.favI, "line-opacity": 1 } });
       }
       // 다이얼(아이디어 A): 다이얼을 연 뒤 새로 갈 수 있게 된 곳 = 노란 테두리
       for (const src of ["zest", "zones"]) L({ id: src + "-nw", type: "line", source: src, minzoom: 10, layout: { "line-join": "round" }, paint: { "line-color": P.pick, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2, 14, 3], "line-opacity": ["case", ["boolean", ["feature-state", "nw"], false], 1, 0] } });
@@ -280,7 +290,7 @@
       // 구를 고르면(검색·구 누르기): 다른 구는 옅게 덮고 그 구 경계를 굵게
       L({ id: "gu-dim", type: "fill", source: "gudim", paint: { "fill-color": XT("gu-dim.fill-color"), "fill-opacity": dk ? 0.5 : 0.55 } });
       L({ id: "gu-sel-case", type: "line", source: "gusel", layout: { "line-join": "round" }, paint: { "line-color": halo, "line-width": 5, "line-opacity": 0.85 } });
-      L({ id: "gu-sel", type: "line", source: "gusel", layout: { "line-join": "round" }, paint: { "line-color": XT("gu-sel.line-color"), "line-width": 2.4 } });
+      L({ id: "gu-sel", type: "line", source: "gusel", layout: { "line-join": "round" }, paint: { "line-color": XT("gu-sel.line-color"), "line-width": MXT.w.gusel, "line-opacity": XT("op").gusel } });
       // 역으로 찾기: 걸어서 1km 밖은 옅게 덮고, 500m·1km 고리를 흐리게
       L({ id: "stn-dim", type: "fill", source: "sdim", paint: { "fill-color": XT("stn-dim.fill-color"), "fill-opacity": dk ? 0.55 : 0.6 } });
       L({ id: "stn-ring", type: "line", source: "sring", filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": XT("stn-ring.line-color"), "line-width": 1.4, "line-opacity": ["case", ["==", ["get", "m"], 515], 0.35, 0.55], "line-dasharray": [3, 2] } });
@@ -294,18 +304,18 @@
       L({ id: "foc-line", type: "line", source: "fline", layout: { "line-cap": "round" }, paint: { "line-color": XT("foc-line.line-color"), "line-width": 2.6, "line-dasharray": [1.6, 1.4] } });
       L({ id: "sel-fill", type: "fill", source: "sel", paint: { "fill-color": ZC, "fill-opacity": dk ? 0.34 : 0.3 } });
       // 사이클 4 D+(SPEC J2-0 선택): 고른 곳 = 남색 3px(다크 #C7D6FF) + 표면색 8px 후광 — 노랑은 '골라 줌(체크)'·'새로'에만
-      L({ id: "sel-case", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": XT("sel-case.line-color"), "line-width": 8, "line-blur": 1, "line-opacity": 0.95 } });
-      L({ id: "sel-line", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": XT("sel-line.line-color"), "line-width": 3 } });
-      L({ id: "stn", type: "circle", source: "stn", minzoom: 14, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 3.5, 16, 5.5], "circle-color": XT("stn.circle-color"), "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 14, 2, 16, 2.6] } });
+      L({ id: "sel-case", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": XT("sel-case.line-color"), "line-width": MXT.w.selCase, "line-opacity": 0.95 } });
+      L({ id: "sel-line", type: "line", source: "sel", layout: { "line-join": "round" }, paint: { "line-color": XT("sel-line.line-color"), "line-width": MXT.w.sel } });
+      L({ id: "stn", type: "circle", source: "stn", minzoom: 14, paint: { "circle-radius": 3.5, "circle-color": XT("stn.circle-color"), "circle-stroke-color": XT("stn.ring"), "circle-stroke-width": MXT.w.stnRing } });   // v2: 노선색 원 대신 회색 고리 하나(9px)
       // 큰 역(환승역)은 12부터 작은 점 + '○○역'
       L({ id: "stn-mj", type: "circle", source: "stn", minzoom: 11, maxzoom: 14, filter: [">=", ["get", "t"], 2], paint: { "circle-radius": 2.6, "circle-color": XT("stn-mj.circle-color"), "circle-stroke-color": XT("stn-mj.circle-stroke-color"), "circle-stroke-width": 1.4 } });
-      L({ id: "stn-mj-lab", type: "symbol", source: "stn", minzoom: 11, maxzoom: 14, filter: [">=", ["get", "t"], 2], layout: { "text-field": ["concat", ["get", "n"], "역"], "text-font": MXT.font.regular, "text-size": 12, "text-allow-overlap": false, "text-variable-anchor": ["top", "bottom", "left", "right"], "text-radial-offset": 0.9, "text-padding": 4, "text-optional": true }, paint: { "text-color": T1, "text-opacity": 1, "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "stn-mj-lab", type: "symbol", source: "stn", minzoom: 11, maxzoom: 14, filter: [">=", ["get", "t"], 2], layout: { "text-field": ["concat", ["get", "n"], "역"], "text-font": MXT.font.regular, "text-size": 12, "text-allow-overlap": false, "text-variable-anchor": ["top", "bottom", "left", "right"], "text-radial-offset": 0.9, "text-padding": 4, "text-optional": true }, paint: { "text-color": T1, "text-opacity": 1, "text-halo-color": halo, "text-halo-width": MXT.text.halo } });
       // 27차: 환승역이 아닌 역도 구 화면(줌 12.3~14)에서 이름이 보이게 — 알약·구역 카드가 먼저 자리 잡고, 남는 자리에만(text-optional · 충돌 검사)
       L({ id: "stn-mid", type: "circle", source: "stn", minzoom: 11.5, maxzoom: 14, filter: ["<", ["get", "t"], 2], paint: { "circle-radius": 2.2, "circle-color": XT("stn-mid.circle-color"), "circle-stroke-color": XT("stn-mid.circle-stroke-color"), "circle-stroke-width": 1.2 } });
-      L({ id: "stn-mid-lab", type: "symbol", source: "stn", minzoom: 11.5, maxzoom: 14, filter: ["<", ["get", "t"], 2], layout: { "text-field": ["concat", ["get", "n"], "역"], "text-font": MXT.font.regular, "text-size": 12, "text-allow-overlap": false, "text-variable-anchor": ["top", "bottom", "left", "right"], "text-radial-offset": 0.9, "text-padding": 3, "text-optional": true }, paint: { "text-color": T2, "text-opacity": 1, "text-halo-color": halo, "text-halo-width": 2 } });
-      L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 14, layout: { "text-field": ["get", "n"], "text-font": MXT.font.regular, "text-size": 12, "text-allow-overlap": false, "text-variable-anchor": ["top", "bottom", "left", "right"], "text-radial-offset": 1.1, "text-optional": true }, paint: { "text-color": T1, "text-opacity": 1, "text-halo-color": halo, "text-halo-width": 2 } });
+      L({ id: "stn-mid-lab", type: "symbol", source: "stn", minzoom: 11.5, maxzoom: 14, filter: ["<", ["get", "t"], 2], layout: { "text-field": ["concat", ["get", "n"], "역"], "text-font": MXT.font.regular, "text-size": 12, "text-allow-overlap": false, "text-variable-anchor": ["top", "bottom", "left", "right"], "text-radial-offset": 0.9, "text-padding": 3, "text-optional": true }, paint: { "text-color": T2, "text-opacity": 1, "text-halo-color": halo, "text-halo-width": MXT.text.halo } });
+      L({ id: "stn-lab", type: "symbol", source: "stn", minzoom: 14, layout: { "text-field": ["get", "n"], "text-font": MXT.font.regular, "text-size": 12, "text-allow-overlap": false, "text-variable-anchor": ["top", "bottom", "left", "right"], "text-radial-offset": 1.1, "text-optional": true }, paint: { "text-color": T1, "text-opacity": 1, "text-halo-color": halo, "text-halo-width": MXT.text.halo } });
       // 사이클 4 D+(SPEC J2-1 · J2-3 점 ↔ 이름): 자리 못 잡은 표식 점은 동·역 이름 레이어보다 위(먼저 자리 잡음) · 점은 늘 보이고(allow-overlap) 자리를 차지해(ignore-placement false) 이름이 점을 피한다
-      L({ id: "zdot", type: "symbol", source: "zdot", layout: { "icon-image": ["concat", "zd-", ["get", "t"]], "icon-allow-overlap": true, "icon-ignore-placement": false, "icon-padding": 1, "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.9, 15, 1.1], "symbol-sort-key": ["-", 10, ["get", "k"]] }, paint: {} });
+      L({ id: "zdot", type: "symbol", source: "zdot", layout: { "icon-image": ["concat", "zd-", ["get", "t"]], "icon-allow-overlap": true, "icon-ignore-placement": false, "icon-padding": 3, "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.9, 15, 1.1], "symbol-sort-key": ["-", 10, ["get", "k"]] }, paint: {} });
       await Y();
       // ---- 겹쳐 보기 레이어 ----
       const nm = ["coalesce", ["get", "name:ko"], ["get", "name"], ""];
@@ -389,6 +399,16 @@
       if (STG.length) reveal(); else fadeSoon();
     }
     // 구 이름 자리: 가장 큰 고리의 면적 중심. 동 이름 자리: 그 동(지번 주소 첫 낱말) 구역들의 평균 위치
+    // 지도 이름에 쓰는 한글(동·역·구)만 모아 그 조각만 받는다(동적 나눔 · 실측 +41KB woff2) — MXT.font.localIdeo가 false(서버 PBF)면 기다리지 않음
+    let FW = null;
+    const fontWait = () => FW || (FW = (async () => {
+      try {
+        if (!document.fonts || !MXT.font.wait || MXT.font.localIdeo === false) return;
+        const S = new Set(), add = (t) => String(t || "").replace(/[가-힣]/g, (c) => S.add(c));
+        (D.stations || []).forEach((x) => add(x[0])); dongLabels().features.forEach((f) => add(f.properties.n)); guGeo().forEach((g) => add(g.n)); add("역구동가");
+        await Promise.race([document.fonts.load(MXT.font.wait, [...S].join("")), new Promise((r) => setTimeout(r, 1500))]);
+      } catch (e) {}
+    })());
     function guLabels() {
       // 지도 자리 그림(ghost.js)과 같은 자리(빌드가 같은 식으로 미리 계산) — 경계 파일을 받기 전에도 쓸 수 있다
       if (window.ZP_G && ZP_G.GD) return FC(ZP_G.GD.gu.map((g) => ({ type: "Feature", geometry: { type: "Point", coordinates: [g[1], g[2]] }, properties: { n: g[0] } })));
@@ -908,7 +928,7 @@
       const nm = s.st === "moa" ? cardName(r) : mapName(r);
       const tyw = s.st === "moa" ? "" : TYW[ty] || "";
       const chips = big ? [stg, tk === "y" ? "입주권 ✓" : tk === "n" ? "입주권 ✕" : "", est ? "대략 범위" : ""].filter(Boolean) : [];
-      const w1 = measure(nm, 13.5, 700) + (tyw ? measure(tyw, 11, 500) + 6 : 0), w2 = chips.reduce((a, c) => a + measure(c, 12, 600) + 18, 0), w3 = measure(SCHIP[s.st], 12, 700) + 14 + measure(amt, s.st === "ok" || s.st === "near" ? 14.5 : 12.5, 800) + 6;
+      const w1 = measure(nm, 14, 600) + (tyw ? measure(tyw, 11.5, 400) + 6 : 0), w2 = chips.reduce((a, c) => a + measure(c, 11.5, 500) + 16, 0), w3 = measure(SCHIP[s.st], 11, 600) + 14 + measure(amt, s.st === "ok" || s.st === "near" ? 14.5 : 12.5, 800) + 6;
       const w = Math.min(220, Math.max(w1, w2, w3) + 22), h = big ? 76 : 50;
       return { nm, tyw, chips, amt, big, w, h, tk, est };
     }
@@ -946,9 +966,10 @@
         let t, w, h, ci = null;
         // 사이클 4 D+(SPEC J2-1): 꼬리 없는 금액 태그(높이 28 · 반경 9) — 갈 수 있음은 [노란 체크 18][금액] · 관심 하트는 오른쪽 위 미니 배지(폭에 안 듦)
         const ck = s.st === "ok" && !yr, nm = !cards || yr ? (yr || MX.names ? mapName(r) : "") : "";
-        const tagW = (sm) => Math.ceil(((nm ? measure(nm, sm ? 11.5 : 12.5, 600) + 5 : 0) + measure(t, sm ? 12.5 : 14, 800) + (sm ? 16 : 22) + (ck ? (sm ? 16 : 19) : 0)) * WK);
+        // 폭 = 이름 + 금액(숫자 700) + 좌우 여백·테두리 + 체크(시각 언어 v2: 태그 26/22 · 글자 13/12 · 체크 14/12) — 크기는 CSS 토큰과 같은 값(MXT.tag)
+        const TG = MXT.tag, tagW = (sm) => Math.ceil(((nm ? measure(nm, sm ? TG.fsSm - 1 : TG.fs - 0.5, 500) + 5 : 0) + measure(t, sm ? TG.fsSm : TG.fs, 700) + (sm ? TG.padSm : TG.pad) + (ck ? (sm ? TG.ckSm : TG.ck) + 2 : 0)) * WK);
         if (cards && !yr) { ci = cardInfo(r, s); w = Math.ceil(ci.w * WK); h = Math.ceil(ci.h * WK); t = ci.amt; }
-        else { t = yr ? yr[2] : pillText(s); w = tagW(false); h = Math.ceil(28 * WK); ci = nm ? { nm } : null; }
+        else { t = yr ? yr[2] : pillText(s); w = tagW(false); h = Math.ceil(MXT.tag.h * WK); ci = nm ? { nm } : null; }
         const pt = [q.x - 2, q.y - 2, q.x + 2, q.y + 2], under = !isSel && obs.some((o) => hitB(o, pt));
         // 놓아 보기: 상자(왼쪽 위 ox,oy · 폭 w · 높이 h)가 지도 칸·조작부·다른 표식과 안 겹치면 그 자리 · 가장자리는 라벨 점을 덮는 한 안쪽으로 당긴다
         const fit = (ox0, oy, ww, hh, cl) => {
@@ -974,7 +995,7 @@
           } else {
             for (const [ox, oy] of CEN(w, h)) { if ((got = fit(ox, oy, w, h, 1))) break; }
             // 자리가 없으면 작은 태그(높이 24 · 12.5px)로 한 번 더 → 그래도 없으면 상태를 지키는 점
-            if (!got) { const w2 = tagW(true), h2 = Math.ceil(24 * WK); for (const [ox, oy] of CEN(w2, h2)) { if ((got = fit(ox, oy, w2, h2, 1))) { sm = true; w = w2; h = h2; break; } } }
+            if (!got) { const w2 = tagW(true), h2 = Math.ceil(MXT.tag.hSm * WK); for (const [ox, oy] of CEN(w2, h2)) { if ((got = fit(ox, oy, w2, h2, 1))) { sm = true; w = w2; h = h2; break; } } }
           }
         }
         if (!got && isSel) got = { bx: [q.x - w / 2, q.y - h / 2, q.x + w / 2, q.y + h / 2], ox: Math.round(-w / 2), oy: Math.round(-h / 2), tail: -1 };
@@ -1026,7 +1047,10 @@
       else if (MX.yr) { h = `<span>${KEYI.ok}${MX.yr}년이면 입주 범위</span><span>${KEYI.near}아직 범위 전</span>`; lab = `범례: 채운 꼬리표는 ${MX.yr}년이면 '언제 입주' 추정 범위에 든 곳, 테두리 꼬리표는 아직 범위 전`; }
       else {
         const ks = ["ok", "near", "far", "no", "na", "moa", "okdot", "sel", "fav", "nw"].filter((k) => o[k]);
-        h = ks.map((k) => `<span>${KEYI[k]}${KEYT[k]}</span>`).join("") + (o.est ? `<span><i class="k-dash"></i>대략 범위</span>` : "") + (MX.ok ? `<span class="k-hid">부족·보류 숨김</span>` : "");
+        // 시각 언어 v2(리드 결정): 한 줄 3칸 + '기호 전체'(누르면 나머지 펼침) — 나머지 칸은 접힌 동안 숨김(.k-x2)
+        const ext = (o.est ? [`<i class="k-dash"></i>대략 범위`] : []).concat(MX.ok ? ["부족·보류 숨김"] : []), all = ks.map((k) => `${KEYI[k]}${KEYT[k]}`).concat(ext);
+        const kall = $("lmKey") && $("lmKey").classList.contains("k-all");
+        h = all.map((x, i) => `<span${i >= 3 ? ' class="k-x2"' : ""}>${x}</span>`).join("") + (all.length > 3 ? `<button type="button" class="mx-kall" aria-expanded="${kall}">${kall ? "접기" : "기호 전체"}</button>` : "");
         lab = ks.length ? `범례: ${ks.map((k) => KEYL[k]).join(", ")}${o.est ? ", 옅은 선은 공식 경계가 없어 면적으로 잡은 대략 범위" : ""}` : "";
       }
       if (el.dataset.h === h) return;
@@ -1066,8 +1090,8 @@
             : `zpill st-${yrK || v.s.st}${v.yr ? " yr" : ""}${v.sm ? " sm" : ""}${v.fav ? " fav" : ""}${v.sel ? " sel" : ""}${v.nm ? " nm" : ""}${v.nw ? " nw" : ""}${hovId === id ? " hov" : ""}`;
           p.el.style.setProperty("--zl", c && v.out ? LCOL_CSS(v.s.st) : "");
           p.el.style.zIndex = v.sel ? 5 : v.fav ? 4 : v.s.st === "ok" ? 3 : v.s.st === "near" ? 2 : 1;
-          if (c) p.el.innerHTML = `<span class="zc-in"><span class="zc-t"><b class="zc-n">${esc(c.nm)}</b>${c.tyw ? `<small>${esc(c.tyw)}</small>` : ""}</span>${c.chips.length ? `<span class="zc-c">${c.chips.map((x) => `<em${/✓/.test(x) ? ' class="y"' : /✕/.test(x) ? ' class="n"' : ""}>${esc(x)}</em>`).join("")}</span>` : ""}<span class="zc-m"><em class="zc-g">${esc(SCHIP[v.s.st])}</em><b class="zp-v">${esc(v.t)}</b>${v.nw ? '<em class="zp-new">새로</em>' : ""}</span>${okT ? `<i class="zc-ck" aria-hidden="true">${CHECK_S}</i>` : ""}${favB}${more}</span>`;
-          else p.el.innerHTML = `<span class="zp-in">${v.nm ? `<i class="zp-n">${esc(v.nm)}</i>` : ""}${okT ? `<span class="zp-ck" aria-hidden="true">${CHECK_S}</span>` : ""}<b class="zp-v">${esc(v.t)}</b>${v.nw ? '<em class="zp-new">새로</em>' : ""}${favB}${more}</span>`;
+          if (c) p.el.innerHTML = `<span class="zc-in"><span class="zc-t"><b class="zc-n">${esc(c.nm)}</b>${c.tyw ? `<small>${esc(c.tyw)}</small>` : ""}</span>${c.chips.length ? `<span class="zc-c">${c.chips.map((x) => `<em${/✓/.test(x) ? ' class="y"' : /✕/.test(x) ? ' class="n"' : ""}>${esc(x)}</em>`).join("")}</span>` : ""}<span class="zc-m"><em class="zc-g">${esc(SCHIP[v.s.st])}</em><b class="zp-v">${ZF.mnu(v.t)}</b>${v.nw ? '<em class="zp-new">새로</em>' : ""}</span>${okT ? `<i class="zc-ck" aria-hidden="true">${CHECK_S}</i>` : ""}${favB}${more}</span>`;
+          else p.el.innerHTML = `<span class="zp-in">${v.nm ? `<i class="zp-n">${esc(v.nm)}</i>` : ""}${okT ? `<span class="zp-ck" aria-hidden="true">${CHECK_S}</span>` : ""}<b class="zp-v">${ZF.mnu(v.t)}</b>${v.nw ? '<em class="zp-new">새로</em>' : ""}${favB}${more}</span>`;
           p.el.setAttribute("aria-label", (v.yr ? `${fullName(v.r)}, 준공 예상 범위 ${v.yr[2]}(추정)` : pillLabel(v.r, v.s, v.fav, v.nw) + (c && c.chips.length ? `, ${c.chips.join(", ")}` : "")) + (v.more ? `, 근처 갈 수 있는 곳 ${v.more}곳 더(확대하면 보여요)` : ""));
           p.el.setAttribute("aria-pressed", String(!!v.sel));
           p.mk.setOffset([v.ox, v.oy]);
@@ -1145,7 +1169,7 @@
       return `<div class="mx-grab" aria-hidden="true"></div>`
         + `<div class="pk-h"><a href="#${r.id}" class="pk-a" data-zopen="${r.id}" aria-label="${esc(lab)} · 눌러서 전체 시트"><b class="pk-n">${esc(nm)}</b>${mine ? `<i class="pk-ck" aria-hidden="true">${HEART_S}</i>` : ""}</a><span class="pk-up" aria-hidden="true">위로 끌면 전체</span><button type="button" class="lm-pick-x" aria-label="고른 구역 닫기"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`
         + `<p class="pk-sub"><span>${esc(r.g || "")} ${esc(dong)}</span>${stg ? `<em class="c st">${esc(stg)}</em>` : ""}<em class="c">${esc(TYW[tyOf(r)] || "")}</em>${wk ? `<em class="c">${esc(wk)}</em>` : ""}</p>`
-        + `<div class="pk-band st-${s.st}"><span class="pk-bl"><small>지금 필요한 돈 · ${modeT} <i class="pk-est">추정</i></small><b class="zp-v">${esc(amt)}</b></span><b class="pk-vd">${esc(vd)}</b></div>`
+        + `<div class="pk-band st-${s.st}"><span class="pk-bl"><small>지금 필요한 돈 · ${modeT} <i class="pk-est">추정</i></small><b class="zp-v">${ZF.mnu(amt)}</b></span><b class="pk-vd">${esc(vd)}</b></div>`
         + `<div class="pk-3"><div><small>입주권</small><b>${esc(tkT)}</b><span>${esc((w && w.t) || "")}</span></div><div><small>다음 단계</small><b>${esc(nxT)}</b><span>${esc(nxS)}</span></div><div><small>입주까지 현금</small><b>${esc(tot)}</b><span>${esc(eta)}</span></div></div>`
         + `<div class="pk-act">${r.src === "moa" ? "" : `<button type="button" class="btn primary pk-cmp" data-cx-add="${r.id}" aria-pressed="false">비교에 담기</button>`}<button type="button" class="btn secondary pk-fav" data-heart="${r.id}" aria-pressed="${isFav(r.id)}" aria-label="${esc(nm)} ${isFav(r.id) ? "관심 구역에서 빼기" : "관심 구역에 추가"}">관심</button><button type="button" class="btn secondary pk-sh" data-pkshare="${r.id}" aria-label="${esc(nm)} 공유">공유</button></div>`;
     }

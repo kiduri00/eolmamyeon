@@ -137,6 +137,8 @@
     const walkMin = (d) => Math.max(1, Math.round((d * 1.3) / 67));
     // 사이클 4 D+(진단 6): 구역의 역 도보는 이 한 함수 — 목록 카드·지도 미리보기·칩·시트·카드 줄이 같은 글자('한성대입구역 3분' · 20분 넘으면 '역에서 멀어요')
     const WALK_FAR = 20;
+    // 시각 언어 v2: 금액·곳 수 글자를 숫자(.mn · 고정폭 700)와 단위(.mu · 한 단계 작게)로 나눈 HTML — 글자(textContent)는 그대로
+    const mnu = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])).replace(/([+\-]?[\d][\d,.]*)(\s?)(억|만|곳|원|분)/g, '<span class="mn">$1</span>$2<span class="mu">$3</span>');
     const walk = (r) => (r && r.st && r.st.n && isFinite(r.st.d) ? { n: stN(r.st.n), d: r.st.d, min: walkMin(r.st.d), far: walkMin(r.st.d) > WALK_FAR } : null);
     const walkTxt = (r, pre) => { const w = walk(r); return !w ? "" : w.far ? "역에서 멀어요" : `${w.n}역 ${pre || ""}${w.min}분`; };
     const walkLbl = (name, n) => `${name ? stN(name) + "역 " : ""}걸어서 15분 안 · ${Number(n).toLocaleString("ko-KR")}곳`;
@@ -169,7 +171,7 @@
     const aucAmt = (v) => (v == null || !isFinite(v) || v <= 0 ? "–" : v >= 1e8 ? `${(Math.round(v / 1e7) / 10).toLocaleString("ko-KR")}억` : `${Math.round(v / 1e4).toLocaleString("ko-KR")}만`);
     // 26차: 경계가 없을 때 이유는 자료로 — 구역지정 이후(면적·인가가 있는 곳)는 '경계 도면 자료가 아직 없어', 그 전은 '공식 경계가 없는 곳(후보지 등)'
     const bndTxt = (r, what) => { const a = r && r.sm && r.sm.area; return (r && (r.s >= 2 || a)) ? `구역 면적${a ? `(${Math.round(a).toLocaleString("ko-KR")}㎡)` : ""}은 정보몽땅에 등록돼 있지만 경계 도면(서울도시공간포털)을 아직 받지 못해 ${what}` : `아직 공식 경계가 없는 곳(후보지 등)이라 ${what}`; };
-    return { EXCL: "추정 신뢰 낮아 목록에서 뺐어요", consent, bndTxt, aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, left, short, gap, shown, yrsSince, dur, stageStat, stageStatTxt, durS, exact, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope, WALK_FAR, walk, walkTxt };
+    return { EXCL: "추정 신뢰 낮아 목록에서 뺐어요", consent, bndTxt, aucAmt, noCalcTxt, aucUse, aucUses, aucJb, eok, manT, num, cash, left, short, gap, shown, yrsSince, dur, stageStat, stageStatTxt, durS, exact, smpTxt, sample, headline, u33, cashToMoveIn, evText, LBL, W10, W15, walkD, walkNear, walkMin, walkLbl, slope, WALK_FAR, walk, walkTxt, mnu };
   })();
   // 정적 HTML(shell.html)의 방식 버튼 글자도 LBL에서: data-lbl="gap|loan|cashToMoveIn"
   { const lbl = () => document.querySelectorAll("[data-lbl]").forEach((e) => { const t = LBL[e.dataset.lbl]; if (t && e.textContent !== t) e.textContent = t; }); document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", lbl) : lbl(); }

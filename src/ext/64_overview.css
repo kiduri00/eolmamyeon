@@ -32,7 +32,7 @@
 .ov-g.ok .fg{stroke:#16a34a}.ov-g.mid .fg{stroke:#f59e0b}
 .ov-g .tk{stroke:var(--text-1);stroke-width:2}
 .ov-g .tl{font:600 9px var(--font);fill:var(--text-3)}
-.ov-g .v{font:800 26px var(--font);fill:var(--text-1);text-anchor:middle;letter-spacing:-.04em}
+.ov-g .v{font:700 26px var(--font);fill:var(--text-1);text-anchor:middle;letter-spacing:-.04em}
 .ov-g .v tspan{font-size:14px;font-weight:700}
 .ov-gs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;min-width:0}
 .ov-gs li{display:flex;flex-direction:column}
@@ -55,14 +55,14 @@ html.simple #report .rep-acts{flex-wrap:nowrap}
 html.simple #report .rep-acts .btn{white-space:nowrap}
 .ov-big{display:flex;align-items:baseline;gap:8px}
 .ov-big span{font-size:13px;color:var(--text-3);font-weight:500}
-.ov-big b{font-size:28px;font-weight:800;letter-spacing:-.04em;color:var(--brand);font-variant-numeric:tabular-nums}
+.ov-big b{font-size:28px;font-weight:700;letter-spacing:-.04em;color:var(--brand);font-variant-numeric:tabular-nums}
 .ov-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .ov-chips span{padding:4px 9px;border-radius:999px;background:var(--surface-2);font-size:12.5px;font-weight:600;color:var(--text-2);font-variant-numeric:tabular-nums}
 .ov-g.hi .fg{stroke:var(--brand)}.ov-g.ok .fg{stroke:#f59e0b}.ov-g.lo .fg{stroke:#94a3b8}
 .ov-g .t2{stroke:var(--text-3);stroke-width:1.5}
 .ov-gs{display:flex;flex-direction:column;gap:2px}
 .ov-gs h3{margin:0 0 2px}
-.ov-gs b{font-size:20px;font-weight:800;letter-spacing:-.03em}
+.ov-gs b{font-size:20px;font-weight:700;letter-spacing:-.03em}
 .ov-gs b.ok{color:var(--brand)}.ov-gs b.no{color:var(--text-3)}
 .ov-gs span{font-size:13px;color:var(--text-2)}
 .ov-row>div:empty{display:none}
@@ -102,7 +102,7 @@ html.simple #report .rep-acts .lb-risk{flex:1 1 100%;margin:0;order:-1}
 :root[data-theme="dark"] .maplibregl-ctrl-attrib-button{filter:invert(1) hue-rotate(180deg);opacity:.7}
 html.simple #pane .gj-f label small{display:none}
 @media (max-width:640px){html.s-full #mapZoom,html.s-full .mapzoom{top:84px!important}}
-#report .gblock .gb-alt{display:block;margin:4px 0 2px;font-size:18px;font-weight:800;color:var(--brand);letter-spacing:-.02em}
+#report .gblock .gb-alt{display:block;margin:4px 0 2px;font-size:18px;font-weight:700;color:var(--brand);letter-spacing:-.02em}
 #report .gblock span .gb-t{font-size:inherit;color:var(--danger,#c2410c)}
 .ov-msg{margin:0 0 12px;font-size:15px;line-height:1.6}
 .ov-msg span,.ov-msg small{display:block}
@@ -144,7 +144,7 @@ html.simple .s-nm small em:not(.s-tag){font-style:normal;color:var(--text-3)}
 .ov-tl li.on i{border-color:var(--brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 22%,transparent);background:var(--surface)}
 .ov-tl li b{font-size:11px;font-weight:600;color:var(--text-3);white-space:nowrap;letter-spacing:-.03em}
 .ov-tl li.dn b{color:var(--text-2)}
-.ov-tl li.on b{color:var(--brand);font-weight:800}
+.ov-tl li.on b{color:var(--brand);font-weight:700}
 .ov-tl li small{font-size:10.5px;color:var(--text-3);font-variant-numeric:tabular-nums;min-height:13px}
 .ov-tl li.on small{color:var(--text-1);font-weight:700}
 /* 출처 줄 */
@@ -175,12 +175,12 @@ svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 .ov-wl{display:inline-flex;align-items:center;min-height:32px;padding:0;border:0;background:none;color:var(--brand);font:700 13px var(--font);cursor:pointer}
 .ov-tl-now.ov-stl{padding:2px 8px;border-radius:999px;color:var(--warn-ink);background:var(--warn-soft);font-weight:700}
 .ov-calc{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;margin-top:8px;padding:8px 12px;border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--text-2)}
-.ov-calc b{font-size:17px;font-weight:800;color:var(--text-1);font-variant-numeric:tabular-nums}
+.ov-calc b{font-size:17px;font-weight:700;color:var(--text-1);font-variant-numeric:tabular-nums}
 .ov-calc small{font-size:12px;color:var(--text-3)}
 .ov-tl li small .ov-chg{font-style:normal;font-size:10px;color:var(--warn,#b45309);font-weight:600}
 /* 입주 현금 탭: 입주까지 계산이 안 될 때 이유 한 장 */
 .big.nocalc{display:flex;flex-direction:column;gap:6px;margin:0 0 12px;padding:16px;border-radius:16px;background:color-mix(in srgb,var(--brand) 6%,var(--surface-2))}
-.big.nocalc b.t{font-size:20px;line-height:28px;font-weight:800;color:var(--text-1)}
+.big.nocalc b.t{font-size:20px;line-height:28px;font-weight:700;color:var(--text-1)}
 .big.nocalc small{display:block!important;font-size:14px;line-height:21px;color:var(--text-2)}
 .big.nocalc small b{font-size:inherit;color:var(--brand)}
 .big.nocalc .nc-a{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
@@ -195,7 +195,7 @@ svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 .ov-trust{padding:12px 14px}
 .ov-trh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .ov-trust .ov-trh h3{margin:0;font-size:14px}
-.ov-lv{padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:800;background:var(--surface-2);color:var(--text-2)}
+.ov-lv{padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:700;background:var(--surface-2);color:var(--text-2)}
 .ov-trust.hi .ov-lv{background:var(--ok-soft);color:var(--ok-ink)}
 .ov-trust.md .ov-lv{background:var(--warn-soft);color:var(--warn-ink)}
 .ov-trust.lo .ov-lv{background:color-mix(in srgb,#dc2626 12%,transparent);color:#b91c1c}
@@ -223,7 +223,7 @@ svg.ov-bar rect.on.lo{fill:color-mix(in srgb,var(--brand) 55%,transparent)}
 .ov-altl div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 12px;border-radius:12px;background:var(--surface-2)}
 .ov-altl dt{font-size:13px;font-weight:600;color:var(--text-2);min-width:0}
 .ov-altl dt small{display:block;font-size:11.5px;font-weight:500;color:var(--text-3)}
-.ov-altl dd{margin:0;font-size:15px;font-weight:800;color:var(--text-1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ov-altl dd{margin:0;font-size:15px;font-weight:700;color:var(--text-1);font-variant-numeric:tabular-nums;white-space:nowrap}
 .ov-alt .ov-ch{margin-top:4px}
 svg.ov-bar .bq{font:500 9.5px var(--font);fill:var(--text-3);text-anchor:middle}
 svg.ov-bar .bn{fill:var(--text-1);font-weight:700}
@@ -257,7 +257,7 @@ button.ov-chip[aria-expanded="true"]{box-shadow:inset 0 0 0 1px currentColor}
 .ov-why.ov-wa{margin:0 0 10px}
 .ov-why.warn{background:var(--warn-soft);color:var(--text-1)}
 .ov-noip{display:flex;flex-direction:column;gap:3px;margin:10px 0 0;padding:10px 12px;border-radius:12px;background:var(--risk-soft);border-left:3px solid var(--risk)}
-.ov-noip b{font-size:14px;font-weight:800;color:var(--risk-ink);letter-spacing:-.01em}
+.ov-noip b{font-size:14px;font-weight:700;color:var(--risk-ink);letter-spacing:-.01em}
 .ov-noip span{font-size:13px;line-height:1.5;color:var(--text-2)}
 .ov-ref{margin-left:6px;padding:2px 8px;border-radius:999px;background:var(--surface-2);font-size:11.5px;font-weight:700;font-style:normal;color:var(--text-3);vertical-align:2px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ov-chip.w{color:#fbbf24}}

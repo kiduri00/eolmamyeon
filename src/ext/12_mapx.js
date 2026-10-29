@@ -57,11 +57,11 @@
     function paintBar() {
       if (!cashB || !cntB) return;
       const v = ($("sMiniV") && $("sMiniV").textContent) || "", n = ($("sMiniN") && $("sMiniN").textContent) || "0";
-      const h1 = `<small>내 돈</small><b>${esc2(v)}${IC.down}</b>`;
+      const h1 = `<small>내 돈</small><b>${ZF.mnu(v)}${IC.down}</b>`;
       if (cashB.dataset.h !== h1) { cashB.dataset.h = h1; cashB.innerHTML = h1; cashB.setAttribute("aria-label", `내 돈 ${v} · 눌러서 다이얼로 바꾸기`); }
       // 세는 범위를 이름으로 밝힌다(SPEC D5 · 목록 머리와 같은 숫자 #sMiniN): 구 안이면 'OO구 갈 수 있는 곳'
       const g = guNow(), sc = g || "서울";
-      const h2 = g ? `<small>${esc2(g)}</small><b>${esc2(n)}곳</b>` : `<small>서울 갈 수 있는 곳</small><b>${esc2(n)}곳</b>`;
+      const h2 = g ? `<small>${esc2(g)}</small><b>${ZF.mnu(n + "곳")}</b>` : `<small>서울 갈 수 있는 곳</small><b>${ZF.mnu(n + "곳")}</b>`;
       if (cntB.dataset.h !== h2 || cntB.dataset.o !== String(stripOn)) { cntB.dataset.h = h2; cntB.dataset.o = String(stripOn); cntB.innerHTML = h2; cntB.setAttribute("aria-label", `${sc} 갈 수 있는 곳 ${n}곳 · 눌러서 카드 줄 ${stripOn ? "닫기" : "열기"}`); }
       cntB.setAttribute("aria-expanded", String(stripOn));
       if (stripOn && strip && strip.dataset.k !== stripKey()) stripPaint();
@@ -101,7 +101,7 @@
         if (!sw.some(([k]) => k === sortK)) sortK = "left";
         head = `${esc2(g)} ${fmtN(L.length)}곳`;
         cards = L.map(({ r, z }) => { const left = Math.max(0, Math.round((CASH - up(z.need)) * 100) / 100), stg = (() => { try { return window.ZP_stgShort ? ZP_stgShort(r) : ""; } catch (e) { return ""; } })(), wk = ZF.walkTxt ? ZF.walkTxt(r) : "", tk = (() => { try { return buyWindow(r).cls === "ok" ? "입주권 ✓" : ""; } catch (e) { return ""; } })(); const sub = [stg, tk, wk].filter(Boolean).join(" · ");
-          return `<button type="button" class="ms-c" data-zid="${r.id}" aria-current="${r.id === sel}" aria-label="${esc2(shortName(r.n))}, 지금 필요한 돈 ${ZF.cash(z.need)}${left > 0 ? `, 남는 돈 ${ZF.cash(left)}` : ""}${sub ? ", " + esc2(sub) : ""}"><span class="ms-n">${esc2(shortName(r.n))}</span><span class="ms-a">${ZF.cash(z.need)}${left > 0 ? ` <small>남는 돈 ${ZF.cash(left)}</small>` : ""}</span><span class="ms-s">${esc2(sub)}</span></button>`; }).join("");
+          return `<button type="button" class="ms-c" data-zid="${r.id}" aria-current="${r.id === sel}" aria-label="${esc2(shortName(r.n))}, 지금 필요한 돈 ${ZF.cash(z.need)}${left > 0 ? `, 남는 돈 ${ZF.cash(left)}` : ""}${sub ? ", " + esc2(sub) : ""}"><span class="ms-n">${esc2(shortName(r.n))}</span><span class="ms-a">${ZF.mnu(ZF.cash(z.need))}${left > 0 ? ` <small>남는 돈 ${ZF.cash(left)}</small>` : ""}</span><span class="ms-s">${esc2(sub)}</span></button>`; }).join("");
       } else {
         let cnt = {}, mn = {}; try { cnt = SIMPLE.guCounts(); mn = SIMPLE.guMins(); } catch (e) {}
         const G = Object.keys(cnt).filter((k) => cnt[k] > 0).map((k) => ({ n: k, c: cnt[k], m: mn[k] != null ? mn[k] : null }));
@@ -161,6 +161,8 @@
     }
     // 사이클 4 통합: '+N곳' 칩은 범례의 실제 높이 위에(큰 글씨에서 범례가 두 줄로 자라 칩과 겹치던 것 · CSS는 --mx-keyh)
     const lgbHTML = (k) => { const o = k.classList.contains("k-open"); return `<button type="button" class="mx-lgb" aria-expanded="${o}">${o ? "범례 닫기 ▾" : "범례 ▴"}</button>`; };
+    // 범례 '기호 전체'(시각 언어 v2 · 한 줄 3칸 + 나머지 접기)
+    document.addEventListener("click", (e) => { const a = e.target.closest && e.target.closest(".mx-kall"); if (!a) return; const k = a.parentNode, o = !k.classList.contains("k-all"); k.classList.toggle("k-all", o); a.setAttribute("aria-expanded", String(o)); a.textContent = o ? "접기" : "기호 전체"; keyH(); try { if (LMX.on && LMX.on()) LMX.states(); } catch (er) {} });
     document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".mx-lgb"); if (!b) return; const k = b.parentNode, o = !k.classList.contains("k-open"); k.classList.toggle("k-open", o); b.setAttribute("aria-expanded", String(o)); b.textContent = o ? "범례 닫기 ▾" : "범례 ▴"; keyH(); try { if (LMX.on && LMX.on()) LMX.states(); } catch (er) {} });
     function keyH() { try { const k = [$("mxGKey"), $("lmKey")].find((e) => e && !e.hidden && e.offsetHeight), v = (k ? k.offsetHeight : 30) + "px"; if (document.documentElement.style.getPropertyValue("--mx-keyh") !== v) document.documentElement.style.setProperty("--mx-keyh", v); } catch (e) {} }
     try { const ro = new ResizeObserver(() => keyH()); setTimeout(() => { [$("mxGKey"), $("lmKey")].forEach((e) => e && ro.observe(e)); }, 0); } catch (e) {}
