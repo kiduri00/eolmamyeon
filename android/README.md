@@ -115,8 +115,12 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt NODE_PATH=$(npm root -g) node android/assets-src/shots/capture.js <빌드 폴더> [--out DIR] [--dry]
 ```
 
-결과: `store/01_home.png`~`06_news.png`(Play 휴대전화 스크린샷, 1080×1920, 24비트 RGB), `manifest/screenshot-{home,map,wide}.png`
-(사이트 `public/`에 넣을 파일), `raw/`(문구 없는 원본), `report.json`(장면별 검사). 장면·문구는 파일 위쪽 `SCENES`에서 고칩니다.
+이미 띄운 서버를 쓰려면 `--base http://127.0.0.1:8995`(예: `python3 -m http.server 8995 -d <빌드 폴더>`)를 붙입니다.
+
+결과: `store/01_home.png`~`06_alert.png`(Play 휴대전화 스크린샷, 1080×1920, 24비트 RGB), `manifest/screenshot-{home,map,wide}.png`
+(사이트 `public/`에 넣을 파일), `raw/`(문구 없는 원본), `report.json`(장면별 검사: 앱 모드, 옛 이름, 빈 화면, 지도 타일, 로딩 표시, 글꼴).
+장면(사이클 4 화면): 01 홈 첫 화면 · 02 구 줌 금액 태그 · 03 구역 시트 · 04 목록 카드 · 05 구역 비교 · 06 조건 알림, 매니페스트는 홈 · 서울 줌 · 넓은 화면.
+장면·문구는 파일 위쪽 `SCENES`에서 고칩니다(`--gu`·`--pick`·`--cmp`로 구·구역을 바꿀 수 있음).
 
 ## 스플래시 / 다크 모드
 

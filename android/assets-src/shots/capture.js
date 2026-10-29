@@ -12,7 +12,14 @@
  *   --dry        모든 장면을 찍고 검사하지만, 결과 폴더 이름에 _dry를 붙이고 manifest/ 파일은 "dry-" 접두사로 저장합니다.
  *                (실수로 public/에 복사하지 않도록. 최종 촬영은 UI가 굳은 뒤 --dry 없이)
  *   --only       일부 장면만(예: --only s04_diag,m_wide)
- *   --zone       구역 화면에 쓸 구역 id(기본 o694 공덕6구역)
+ *   --zone       관심 구역 첫 자리에 넣을 구역 id(기본 o694 공덕6구역)
+ *   --base URL   이 스크립트 안의 서버 대신 이미 띄운 서버(예: http://127.0.0.1:8995, 빌드 폴더와 같은 내용)
+ *   --gu 성북구  지도 구 줌·목록 장면의 구 · --pick 동소문2구역 시트 장면 구역 · --cmp 동소문2구역,성북2구역,장위11-8구역 비교 장면 구역
+ *
+ * 장면(사이클 4 D+ 지도·디자인 v2): 01 홈 첫 화면(내 돈 → 갈 수 있는 곳 N곳) · 02 구 줌 금액 태그+노란 체크 · 03 구역 시트(판정 띠+3칸)
+ *   · 04 목록 카드 · 05 구역 비교 · 06 조건 알림(홈 '갈 수 있는 곳 생기면 알려 드려요' → 알림 저장 시트)
+ *   매니페스트: home(홈) · map(서울 줌 '✓ 구 N') · wide(넓은 화면 홈: 왼쪽 목록·오른쪽 지도)
+ *   기기 상태로 넣는 것은 내 돈 3억·전세 끼고(jg-cond)와 관심 구역 5곳뿐. 알림 조건은 화면에서 실제로 눌러 저장(꾸민 '새 구역' 없음).
  *
  * 외부: 지도(MapLibre, cdnjs)와 지도 타일(openfreemap)은 실제 앱처럼 받아야 지도가 그려집니다. HTTPS_PROXY가 있으면 Node 쪽 요청으로
  *       받아 넘겨 줍니다(사내 프록시 CA는 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt). 없으면 막고, 지도 장면은 실패로 표시합니다.
@@ -33,39 +40,51 @@ const { chromium, request } = require("playwright");
 // ---------------------------------------------------------------- 인자
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
-const ROOT = argv.find((a, i) => !a.startsWith("--") && !["--out", "--only", "--zone", "--tzone"].includes(argv[i - 1]));
+const ROOT = argv.find((a, i) => !a.startsWith("--") && !["--out", "--only", "--zone", "--base", "--gu", "--cmp", "--pick"].includes(argv[i - 1]));
 if (!ROOT || !fs.existsSync(path.join(ROOT, "index.html"))) { console.error("usage: capture.js <build folder with index.html> [--out DIR] [--dry] [--only ids] [--zone oNNN]"); process.exit(2); }
 const DRY = argv.includes("--dry");
 const ZONE = opt("--zone", "o694");
 const ONLY = (opt("--only", "") || "").split(",").filter(Boolean);
 const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
 const OUT = path.resolve(opt("--out", path.join(path.dirname(path.resolve(ROOT)), `shots_jp_${stamp}${DRY ? "_dry" : ""}`)));
+const EXT_BASE = opt("--base", "");   // 이미 띄운 정적 서버(예: python3 -m http.server 8995 -d <빌드 폴더>)를 쓸 때
 const EXE = process.env.SHOT_CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 
 // ---------------------------------------------------------------- 장면
 // kind store: Play 휴대전화 스크린샷(문구 띠 합성) · manifest: 웹 매니페스트(앱 화면 그대로)
-// steps: {hash} 주소 # 바꾸기 · {tab} 구역 시트 탭(money|biz|tx|loc) · {fill:[sel,val]} · {click: sel} · {wait: ms} · {scroll: sel} · {top:true}
-const TZONES = opt("--tzone", "") ? [opt("--tzone")] : ["o913", "o960", "o836", "o380", "o1176", "o957", ZONE];
+// steps: {nav:"지도"} 아래 탭 누르기 · {js:"…"} 페이지에서 실행(await 가능) · {mapIdle:true} 지도 타일·라벨이 다 그려질 때까지
+//        {tab} 구역 시트 탭(money|biz|tx|loc) · {fill:[sel,val]} · {click: sel} · {wait: ms} · {scroll: sel} · {top:true}
+// check: {gl:true} MapLibre 지도(구 줌 이하) · {city:true} 서울 줌 구 태그(.zgu) · {sel:"…"} 보여야 하는 요소
+// 사이클 4 화면(D+ 지도·v2 디자인) 기준. 숫자는 모두 빌드 자료 그대로(내 돈 3억·전세 끼고만 정해 둠).
+const GU = opt("--gu", "성북구");
+const CMPZ = (opt("--cmp", "동소문2구역,성북2구역,장위11-8구역") || "").split(",");
+const PICK = opt("--pick", "동소문2구역");
+const GO_GU = `const b=[...document.querySelectorAll(".zgu")].find((x)=>x.dataset.gu===${JSON.stringify(GU)}&&x.offsetWidth); if(b) b.click(); else ZP_lmx.attach();`;
+const idOf = (n) => `(()=>{const c=ZP_feat.ctx(),r=c.R.find((q)=>c.shortName(q.n)===${JSON.stringify(n)});if(!r)throw new Error("no zone ${n}");return r.id;})()`;
 const FAV = [ZONE, "o913", "o960", "o836", "o380"];
 const SCENES = [
-  { id: "s01_home", kind: "store", vp: "phone", path: "/", ready: "#hdr", steps: [{ top: true }],
-    cap: ["내 돈으로 갈 수 있는", "서울 재개발"] },
-  { id: "s02_map", kind: "store", vp: "phone", path: "/#map", ready: "#hdr", steps: [{ wait: 1500 }],
-    cap: ["갈 수 있는 구역을", "지도에서 한눈에"] },
-  { id: "s03_zone", kind: "store", vp: "phone", path: `/#${ZONE}`, ready: "#report [role=tab]", steps: [{ tab: "money" }],
-    cap: ["지금 필요한 돈, 입주까지 현금,", "언제 입주를 한 화면에"] },
-  { id: "s04_diag", kind: "store", vp: "phone", path: "/#diagTop", ready: "#dgQ",
-    steps: [{ fill: ["#dgQ", "공덕6구역"] }, { wait: 1500 }, { click: "#dgS [data-d]" }, { wait: 2500 }, { scroll: "#dgQ" }],
-    cap: ["매수 전 진단으로", "입주권·거래 규정 먼저 확인"] },
-  // 타임라인은 인가일 기록이 있는 구역에만 나옴 → TZONES를 차례로 열어 .ztl이 있는 첫 구역을 씀(--tzone으로 지정 가능)
-  { id: "s05_timeline", kind: "store", vp: "phone", path: "/", zones: TZONES, need: ".ztl", ready: "#hdr",
-    steps: [{ tab: "biz" }, { wait: 1500 }, { scroll: ".ztl", offset: 64 }],
-    cap: ["단계 타임라인과", "다음 단계 예상 범위"] },
-  { id: "s06_news", kind: "store", vp: "phone", path: "/#news", ready: "#hdr", steps: [{ wait: 1500 }],
-    cap: ["관심 구역 소식과", "알림을 구역·조건별로"] },
-  { id: "m_home", kind: "manifest", file: "screenshot-home.png", vp: "phone", path: "/", ready: "#hdr", steps: [{ top: true }] },
-  { id: "m_map", kind: "manifest", file: "screenshot-map.png", vp: "phone", path: "/#map", ready: "#hdr", steps: [{ wait: 1500 }] },
-  { id: "m_wide", kind: "manifest", file: "screenshot-wide.png", vp: "wide", path: "/", ready: "#hdr", steps: [{ top: true }] },
+  { id: "s01_home", kind: "store", vp: "phone", path: "/", ready: "#sHero", steps: [{ top: true }, { wait: 800 }],
+    check: { sel: "#sHero" }, cap: ["내 돈을 넣으면", "갈 수 있는 구역이 몇 곳인지"] },
+  { id: "s02_map", kind: "store", vp: "phone", path: "/", ready: "#sHero",
+    steps: [{ nav: "지도" }, { wait: 3000 }, { js: GO_GU }, { mapIdle: true, min: 3 }, { wait: 1500 }],
+    check: { gl: true, sel: ".zpill" }, cap: ["갈 수 있는 구역은", "지도에 금액과 체크로"] },
+  { id: "s03_sheet", kind: "store", vp: "phone", path: "/", ready: "#sHero",
+    steps: [{ nav: "지도" }, { wait: 3000 }, { js: GO_GU }, { mapIdle: true }, { js: `const id=${idOf(PICK)}; ZP_lmx.pick(id);` }, { wait: 2500 },
+      // 360×640에서는 시트 위 지도 띠가 좁아 고른 구역 카드가 머리 칩 밑에 반쯤 걸림 → 카드가 시트 뒤로 가도록 지도만 살짝 내림
+      { js: `ZP_lmx.map().panBy([0,-45],{duration:0});` }, { mapIdle: true }, { wait: 1200 }],
+    check: { gl: true, sel: ".pk-n" }, cap: ["구역을 누르면", "지금 필요한 돈과 판정이 바로"] },
+  { id: "s04_list", kind: "store", vp: "phone", path: "/", ready: "#sHero",
+    steps: [{ nav: "지도" }, { wait: 3000 }, { js: GO_GU }, { mapIdle: true }, { js: `ZP_lmx.pick(null); const x=document.getElementById("sFullX"); if(x) x.click();` }, { wait: 2500 }],
+    check: { sel: "#sList .s-card" }, cap: ["목록으로 보면", "입주까지 현금과 남는 돈까지"] },
+  { id: "s05_compare", kind: "store", vp: "phone", path: "/", ready: "#sHero",
+    steps: [{ js: `const ids=[${CMPZ.map(idOf).join(",")}]; const X=await ZP_feat.loadX(); X.cmpSet(ids); X.cmpOpen(ZP_feat.ctx(), ids);` }, { wait: 2500 }],
+    check: {}, cap: ["고민되는 구역은", "나란히 놓고 비교"] },
+  { id: "s06_alert", kind: "store", vp: "phone", path: "/", ready: "#pcSave .pc-al",
+    steps: [{ js: `document.querySelector("#pcSave .pc-al").scrollIntoView({block:"center"});` }, { wait: 600 }, { click: "#pcSave .pc-al" }, { wait: 1500 }],
+    check: {}, cap: ["이 돈으로 갈 수 있는 곳이", "새로 생기면 알림으로"] },
+  { id: "m_home", kind: "manifest", file: "screenshot-home.png", vp: "phone", path: "/", ready: "#sHero", steps: [{ top: true }, { wait: 800 }], check: { sel: "#sHero" } },
+  { id: "m_map", kind: "manifest", file: "screenshot-map.png", vp: "phone", path: "/", ready: "#sHero", steps: [{ nav: "지도" }, { wait: 4000 }], check: { city: true } },
+  { id: "m_wide", kind: "manifest", file: "screenshot-wide.png", vp: "wide", path: "/", ready: "#sHero", steps: [{ top: true }, { wait: 2500 }], check: {} },
 ].filter((s) => !ONLY.length || ONLY.includes(s.id));
 
 const VP = {
@@ -105,8 +124,8 @@ const FONT_CSS = W.map(([w, n]) => `@font-face{font-family:"Pretendard Variable"
 const compose = (png, cap) => `<!doctype html><html><head><meta charset="utf-8"><style>${FONT_CSS}
 html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:#EEF2FB;font-family:"Pretendard Variable",Pretendard,"Noto Sans CJK KR",sans-serif}
 .band{position:absolute;left:0;top:0;width:1080px;height:400px;background:#1F3A87;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.dot{width:18px;height:18px;border-radius:50%;background:#F5B82E;margin-bottom:34px}
-h1{margin:0;font-weight:800;font-size:64px;line-height:1.32;letter-spacing:-1.5px;text-align:center}
+.dot{width:18px;height:18px;border-radius:50%;background:#F5C33B;margin-bottom:34px}
+h1{margin:0;font-weight:700;font-size:64px;line-height:1.32;letter-spacing:-1.5px;text-align:center}
 .frame{position:absolute;left:140px;top:450px;width:800px;border-radius:44px 44px 0 0;overflow:hidden;background:#fff;box-shadow:0 10px 40px rgba(31,58,135,.18);border:2px solid #E3E8F4;border-bottom:0;line-height:0}
 .frame img{display:block;width:800px;height:auto}
 </style></head><body><div class="band"><i class="dot"></i><h1>${cap.map((l) => l.replace(/&/g, "&amp;").replace(/</g, "&lt;")).join("<br>")}</h1></div>
@@ -115,8 +134,8 @@ h1{margin:0;font-weight:800;font-size:64px;line-height:1.32;letter-spacing:-1.5p
 // ---------------------------------------------------------------- 실행
 (async () => {
   for (const d of ["raw", "store", "manifest"]) fs.mkdirSync(path.join(OUT, d), { recursive: true });
-  const srv = await serve(ROOT);
-  const BASE = `http://127.0.0.1:${srv.address().port}`;
+  const srv = EXT_BASE ? null : await serve(ROOT);
+  const BASE = EXT_BASE ? EXT_BASE.replace(/\/$/, "") : `http://127.0.0.1:${srv.address().port}`;
   // 브라우저는 프록시 없이(로컬 서버 직접), 외부 요청만 Node 쪽 요청 컨텍스트가 프록시로 받아 넘겨 줌
   const EXT = PROXY ? await request.newContext({ proxy: PROXY }) : null;
   const browser = await chromium.launch({ executablePath: EXE, args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--font-render-hinting=none"] });
@@ -134,6 +153,9 @@ h1{margin:0;font-weight:800;font-size:64px;line-height:1.32;letter-spacing:-1.5p
         if (!EXT) return r.abort();   // 프록시가 없으면 외부(지도 라이브러리 등)는 막고 report에 남김
         try { return r.fulfill({ response: await EXT.fetch(r.request(), { timeout: 20000 }) }); } catch (e) { res.errors.push("ext " + u.slice(0, 60) + " " + String(e).slice(0, 60)); return r.abort(); }
       }
+      // 바깥 서버(--base, python http.server)는 깨끗한 주소(/report/2026-10 → .html)를 모름 → 사이트(Cloudflare)처럼 여기서 .html을 내 줌
+      if (EXT_BASE) { const pn = decodeURIComponent(new URL(u).pathname), f = path.join(path.resolve(ROOT), pn);
+        if (!path.extname(pn) && !pn.endsWith("/") && f.startsWith(path.resolve(ROOT)) && fs.existsSync(f + ".html")) return r.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: fs.readFileSync(f + ".html") }); }
       return r.continue();
     });
     await ctx.addInitScript(([FAV]) => {
@@ -144,7 +166,6 @@ h1{margin:0;font-weight:800;font-size:64px;line-height:1.32;letter-spacing:-1.5p
           localStorage.setItem("__shotSeed", "1");
           localStorage.setItem("jg-fav", JSON.stringify(FAV));
           localStorage.setItem("jg-cond", "cash=3&mode=jeonse");
-          localStorage.setItem("zp-cond", JSON.stringify([{ id: "cshot1", name: "3억 전세 끼고", cash: 3, mode: "gap", base: [], at: Date.now() - 30 * 864e5, seen: "", asOf: "" }]));
         }
         localStorage.setItem("zp.onb", "1"); localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp-pwa-hint", String(Date.now()));
       } catch (e) {}
@@ -156,35 +177,38 @@ h1{margin:0;font-weight:800;font-size:64px;line-height:1.32;letter-spacing:-1.5p
       await page.goto(BASE + sc.path, { waitUntil: "load", timeout: 30000 });
       await page.waitForFunction(() => { const H = document.documentElement.classList; return H.contains("is-tapp") && !H.contains("tapp-cover") && !H.contains("tapp-wait"); }, null, { timeout: 20000 });
       await page.waitForSelector(sc.ready, { state: "attached", timeout: 20000 });
-      if (sc.zones) {   // 구역 후보를 차례로: need 선택자가 생기는 첫 구역
-        let hit = "";
-        for (const z of sc.zones) {
-          await page.evaluate((h) => { location.hash = h; }, "#" + z);
-          await page.waitForSelector("#report [role=tab]", { timeout: 10000 }).catch(() => {});
-          await page.click('#report [role=tab][data-tab="biz"]', { timeout: 5000 }).catch(() => {});
-          if (await page.waitForSelector(sc.need, { state: "attached", timeout: 4000 }).then(() => true, () => false)) { hit = z; break; }
-        }
-        res.zone = hit || "none";
-        if (!hit) throw new Error(`no zone in [${sc.zones}] shows ${sc.need}`);
-      }
       for (const s of sc.steps) {
         if (s.top) await page.evaluate(() => scrollTo(0, 0));
+        if (s.nav) { const ok = await page.evaluate((n) => { const b = [...document.querySelectorAll("#sNav a, #sNav button, .zp-tabs a, nav a, nav button")].find((e) => e.innerText.trim() === n && e.offsetWidth); if (b) b.click(); return !!b; }, s.nav); if (!ok) throw new Error("no tab " + s.nav); }
+        if (s.js) await page.evaluate(`(async()=>{${s.js}})()`);
+        if (s.mapIdle) {   // 지도: 움직임이 멈추고 타일이 다 오고 태그(라벨)가 min개 이상 · 두 번 연속 확인
+          await page.waitForFunction((min) => { const L = window.ZP_lmx, m = L && L.map && L.map(); if (!m || !m.loaded() || m.isMoving() || !m.areTilesLoaded()) { window.__idl = 0; return false; } if (L.labels && L.labels().length < min) return false; window.__idl = (window.__idl || 0) + 1; return window.__idl > 3; }, s.min || 0, { timeout: 45000, polling: 250 });
+        }
         if (s.wait) await page.waitForTimeout(s.wait);
         if (s.hash) await page.evaluate((h) => { location.hash = h; }, s.hash);
         if (s.tab) { await page.click(`#report [role=tab][data-tab="${s.tab}"]`, { timeout: 8000 }); await page.waitForTimeout(1200); }
         if (s.fill) { await page.fill(s.fill[0], ""); await page.type(s.fill[0], s.fill[1], { delay: 30 }); }
         if (s.click) await page.click(s.click, { timeout: 8000 });
-        if (s.scroll) await page.evaluate(([q, off]) => { const e = document.querySelector(q); if (!e) return; e.scrollIntoView({ block: "start" }); if (off) { let p = e.parentElement; while (p && p !== document.body) { const o = getComputedStyle(p).overflowY; if ((o === "auto" || o === "scroll") && p.scrollHeight > p.clientHeight) { p.scrollTop -= off; return; } p = p.parentElement; } scrollBy(0, -off); } }, [s.scroll, s.offset || 0]);
+        if (s.scroll) await page.evaluate(([q, off]) => { const e = document.querySelector(q); if (!e) return; e.scrollIntoView({ block: "start" }); if (off) scrollBy(0, -off); }, [s.scroll, s.offset || 0]);
       }
       await page.evaluate(() => document.fonts && document.fonts.ready);
       await page.addStyleTag({ content: ".zp-off{display:none!important} *{caret-color:transparent!important}" });
       await page.waitForTimeout(900);
+      if (sc.check && sc.check.gl) await page.waitForFunction(() => { const m = window.ZP_lmx && ZP_lmx.map(); return m && m.areTilesLoaded() && !m.isMoving(); }, null, { timeout: 30000 }).catch(() => {});
       const png = await page.screenshot({ type: "png" });
-      const info = await page.evaluate((re) => {
+      const info = await page.evaluate(([re, ck]) => {
         const H = document.documentElement, txt = document.body.innerText || "";
         const m = txt.match(new RegExp(re));
-        return { gl: !!window.maplibregl, tapp: H.classList.contains("is-tapp"), tabs: document.querySelectorAll(".zp-tabs a, #sNav a, #sNav button").length, oldName: m ? m[0] : "", hash: location.hash, title: document.title.slice(0, 40) };
-      }, OLD_NAME.source);
+        const vis = (e) => { const r = e.getBoundingClientRect(), c = getComputedStyle(e); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight && c.visibility !== "hidden" && +c.opacity > 0.05; };
+        // 화면 안에 보이는 '불러오는 중'·스피너·뼈대
+        const load = [...document.querySelectorAll("body *")].filter((e) => !e.children.length && /불러오는 중|로딩|계산하는 중|잠시만/.test(e.textContent) && vis(e)).map((e) => e.textContent.trim().slice(0, 30))
+          .concat([...document.querySelectorAll('[class*="spin"],[class*="skel"],[aria-busy="true"]')].filter(vis).map((e) => "." + String(e.className).slice(0, 30)));
+        const m2 = window.ZP_lmx && ZP_lmx.map && ZP_lmx.map();
+        return { gl: !!window.maplibregl, tiles: m2 ? m2.areTilesLoaded() : null, tier: window.ZP_lmx && ZP_lmx.tier ? ZP_lmx.tier() : null, labels: window.ZP_lmx && ZP_lmx.labels ? ZP_lmx.labels().length : null,
+          city: [...document.querySelectorAll(".zgu")].filter(vis).length, sel: ck.sel ? [...document.querySelectorAll(ck.sel)].filter(vis).length : null,
+          loading: load.slice(0, 5), fontsOk: document.fonts ? document.fonts.status === "loaded" : true,
+          tapp: H.classList.contains("is-tapp"), tabs: document.querySelectorAll(".zp-tabs a, #sNav a, #sNav button").length, oldName: m ? m[0] : "", hash: location.hash, title: document.title.slice(0, 40) };
+      }, [OLD_NAME.source, sc.check || {}]);
       Object.assign(res, info);
       const rawFile = path.join(OUT, "raw", sc.id + ".png");
       fs.writeFileSync(rawFile, png);
@@ -203,7 +227,12 @@ h1{margin:0;font-weight:800;font-size:64px;line-height:1.32;letter-spacing:-1.5p
       if (!info.tapp) problems.push("not in app mode");
       if (info.oldName) problems.push(`old name on screen: ${info.oldName}`);
       if (probe.colors < 12) problems.push(`looks blank (${probe.colors} colours)`);
-      if (/#map/.test(sc.path) && !info.gl) problems.push("map library (MapLibre) not loaded: map drawn as fallback");
+      const ck = sc.check || {};
+      if (ck.gl && !(info.gl && info.tiles)) problems.push(`map not ready (maplibre=${info.gl} tiles=${info.tiles})`);
+      if (ck.city && info.city < 3) problems.push(`Seoul zoom gu tags missing (${info.city})`);
+      if (ck.sel && !info.sel) problems.push(`not on screen: ${ck.sel}`);
+      if (info.loading.length) problems.push(`loading shown: ${info.loading.join(", ")}`);
+      if (!info.fontsOk) problems.push("fonts still loading");
       // 저장
       if (sc.kind === "manifest") {
         const name = (DRY ? "dry-" : "") + sc.file;
@@ -232,7 +261,7 @@ h1{margin:0;font-weight:800;font-size:64px;line-height:1.32;letter-spacing:-1.5p
   }
   await browser.close();
   if (EXT) await EXT.dispose();
-  srv.close();
+  if (srv) srv.close();
   // 스토어 PNG는 알파 없는 24비트여야 Play가 받음: 합성 페이지는 불투명 배경이라 알파 255지만, 파일 형식도 RGB로 바꾼다(sharp가 있으면)
   try {
     const sharp = require("sharp");
