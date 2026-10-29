@@ -69,6 +69,15 @@ function sameRules(id, f, S, bad, where) {
   if (f.next && S.head && /다음 단계\n/.test(S.head)) { const m = /다음 단계\n([^\n]+)/.exec(S.head); if (m && m[1].trim() !== f.next.toName) E(`머리 다음 단계 '${m[1]}' ≠ ${f.next.toName}`); }
   // 권리산정기준일 '?'·'추정' 겹침
   if (/\d{4}\.\d\d\.\d\d\?/.test(S.all)) E("권리산정기준일 '?' 표기");
+  // ⑦ 사이클 4 D+(진단 6): 역 도보 분 = ZoneFacts walk(ZF.walkMin 한 함수) — 시트 안 그 역 'N분'이 모두 같은 값 · 목록 카드 글자 = ZF.walkTxt
+  walkRule(f, S.all, E, "시트");
+  if (S.cw != null && f.walk) { const want = f.walk.far ? "역에서 멀어요" : `${f.walk.n}역 ${f.walk.min}분`; if (norm(S.cw) !== want) E(`목록 카드 역 도보 '${S.cw}' ≠ '${want}'`); }
+}
+function walkRule(f, t, E, where) {
+  const w = f.walk; if (!w || !t) return;
+  const re = new RegExp(w.n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "역[^\\n\\d]{0,24}?(\\d+)분", "g"); let m, L = [];
+  while ((m = re.exec(t))) L.push(+m[1]);
+  const odd = uniqs(L).filter((v) => v !== w.min); if (odd.length) E(`${where} ${w.n}역 도보 ${odd.join("/")}분 ≠ ${w.min}분(ZF.walkMin)`);
 }
 // /z 한 쪽 안: 참고 시세(ZoneFacts num.ref) · 면적 · 빌라 전세 · 보류면 '살 수 없' 금지 · 범위 파생
 function sameZ(id, f, t, bad) {
@@ -80,6 +89,7 @@ function sameZ(id, f, t, bad) {
   const hn = f.hold.now; if (hn && hn.code !== "gapBlock" && hn.code !== "nt" && /살 수 없/.test(t.replace(/토지거래허가[^.]{0,80}살 수 없/g, ""))) E(`보류(${hn.code})인데 '살 수 없' 문구`);
   if (f.eta.rng) { const m = /(\d{4})~(\d{4})년 준공 예상 범위|준공 예상 범위\(추정\)[^\d]{0,20}(\d{4})\.\d+~(\d{4})/.exec(t); if (m) { const a = m[1] || m[3], b = m[2] || m[4]; if (a !== f.eta.rng.eLo.slice(0, 4) || b !== f.eta.rng.eHi.slice(0, 4)) E(`준공 예상 범위 ${a}~${b} ≠ ${f.eta.rng.txt}`); } }
   if (/\d{4}\.\d\d\.\d\d\?/.test(t)) E("권리산정기준일 '?' 표기");
+  walkRule(f, t, E, "/z");
 }
 (async () => {
   const C = JSON.parse(fs.readFileSync(path.join(ROOT, "pipeline/calc.json"), "utf8"));
@@ -138,7 +148,8 @@ function sameZ(id, f, t, bad) {
       o.gtw = [...document.querySelectorAll("#pane .gtl .gt-w")].map((e) => e.textContent.trim());   // 돈 탭 시간표 칸 이름(지금 · 이주 · 입주)
       // 사이클 4: 같은 화면 정합 — 거래 탭 글자 · 구역 자료(12개월 표본)
       if (SAME) { const tx = document.getElementById("tab-tx"); if (tx) { tx.click(); await wait(() => { const pn = document.getElementById("pane"); return ctx.tab() === "tx" && pn && pn.querySelector(".ov-tx, .sect") ? 1 : null; }, 2500); await wait(() => { const pn = document.getElementById("pane"); return pn && pn.querySelector(".zpx") ? 1 : null; }, 600); o.tx = (document.getElementById("pane") || {}).innerText || ""; }
-        const rr = ctx.R.find((q) => q.id === id) || {}; o.n12 = rr.tx ? rr.tx.n12 : null; }
+        const rr = ctx.R.find((q) => q.id === id) || {}; o.n12 = rr.tx ? rr.tx.n12 : null;
+        try { const d = document.createElement("div"); d.innerHTML = SIMPLE.cardHTML(rr); const wk = d.querySelector(".s-wk"); o.cw = wk ? wk.textContent : ""; } catch (e) { o.cw = null; } }
       out[id] = o;
     }
     return out;
@@ -164,7 +175,7 @@ function sameZ(id, f, t, bad) {
     if (SAME) { const sb = []; let sn = 0;
       for (const id of sheetIds) { const f = F[id], s = SH[id]; if (!s || s.head == null || s.tx == null) continue; sn++;
         const all = [s.head, s.money, s.biz, s.tx].join("\n");
-        sameRules(id, f, { head: s.head, money: s.money, biz: s.biz, tx: s.tx, all, n12: s.n12, gtw: s.gtw || [] }, sb, "시트");
+        sameRules(id, f, { head: s.head, money: s.money, biz: s.biz, tx: s.tx, all, n12: s.n12, gtw: s.gtw || [], cw: s.cw }, sb, "시트");
       }
       check(!sb.length && sn > MIN, "facts.same", `${sb.length} 불일치 · ${sb.slice(0, 8).join(" ; ")}`, sn); res["facts.same"].bad = sb; }
     // ---------- 3) /z ----------

@@ -15,7 +15,7 @@
       back: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>',
       check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
     };
-    let built = false, top = null, chips = null, fabs = null, dial = null, gus = null, cashB = null, cntB = null;
+    let built = false, top = null, chips = null, fabs = null, dial = null, gus = null, cashB = null, cntB = null, strip = null, stripOn = false, sortK = "left";
     const view = () => { try { return { v: mapView, g: mapGu || "" }; } catch (e) { return { v: "seoul", g: "" }; } };
     const guNow = () => { const g = (LMX.gu && LMX.gu()) || (view().v === "gu" ? view().g : ""); return g || ""; };
     const cntAll = (c) => { try { return window.ZP_count(c); } catch (e) { return 0; } };
@@ -42,7 +42,9 @@
         cashB = document.createElement("button"); cashB.type = "button"; cashB.className = "mx-cash"; cashB.setAttribute("aria-haspopup", "dialog");
         cashB.onclick = () => dialOpen("cash");
         cntB = document.createElement("button"); cntB.type = "button"; cntB.className = "mx-cnt";
-        cntB.onclick = () => { const x = $("sFullX"); if (x) x.click(); };
+        // 사이클 4 D+(SPEC J2-2): 곳 수 단추 = 카드 줄 열고 닫기(처음 닫힘 · aria-expanded) · 목록 화면은 카드 줄 머리 '목록 전체'로
+        cntB.setAttribute("aria-expanded", "false"); cntB.setAttribute("aria-controls", "mxStrip");
+        cntB.onclick = () => stripSet(!stripOn);
         mini.insertBefore(cashB, mini.firstChild); mini.appendChild(cntB);
         try { new MutationObserver(() => paintBar()).observe(mini, { subtree: true, childList: true, characterData: true }); } catch (e) {}
       }
@@ -60,14 +62,68 @@
       // 세는 범위를 이름으로 밝힌다(SPEC D5 · 목록 머리와 같은 숫자 #sMiniN): 구 안이면 'OO구 갈 수 있는 곳'
       const g = guNow(), sc = g || "서울";
       const h2 = g ? `<small>${esc2(g)}</small><b>${esc2(n)}곳</b>` : `<small>서울 갈 수 있는 곳</small><b>${esc2(n)}곳</b>`;
-      if (cntB.dataset.h !== h2) { cntB.dataset.h = h2; cntB.innerHTML = h2; cntB.setAttribute("aria-label", `${sc} 갈 수 있는 곳 ${n}곳 · 눌러서 목록 보기`); }
+      if (cntB.dataset.h !== h2 || cntB.dataset.o !== String(stripOn)) { cntB.dataset.h = h2; cntB.dataset.o = String(stripOn); cntB.innerHTML = h2; cntB.setAttribute("aria-label", `${sc} 갈 수 있는 곳 ${n}곳 · 눌러서 카드 줄 ${stripOn ? "닫기" : "열기"}`); }
+      cntB.setAttribute("aria-expanded", String(stripOn));
+      if (stripOn && strip && strip.dataset.k !== stripKey()) stripPaint();
+    }
+    // ---------- 카드 줄(선택형 · 번호 없음 · SPEC J2-2) ----------
+    //   구 안: 그 구 갈 수 있는 곳(목록과 같은 셈 SIMPLE.guRows · 판정 SIMPLE.zstate · 금액 ZF.cash) — '남는 돈 많은 순'(지금 필요한 돈 적은 순) · '내 돈에 꽉 맞는 순'(|내 돈 − 지금 필요한 돈| 적은 순)
+    //   서울: 구별 카드(SIMPLE.guCounts · guMins) — '적게 드는 순' · '곳 많은 순'. 지도를 손으로 끌면 닫힌다
+    const stripKey = () => [guNow(), CASH, sortK, (LMX.peek && LMX.peek()) || "", ($("sMiniN") || {}).textContent || ""].join("|");
+    function stripSet(on) {
+      stripOn = !!on;
+      if (stripOn && !strip) {
+        strip = document.createElement("div"); strip.className = "mx-strip"; strip.id = "mxStrip"; strip.setAttribute("role", "region"); strip.setAttribute("aria-label", "갈 수 있는 곳 카드 줄"); strip.hidden = true;
+        $("mapbox").appendChild(strip);
+        strip.addEventListener("click", (e) => {
+          const sb = e.target.closest("[data-s]"); if (sb) { sortK = sb.dataset.s; stripPaint(); return; }
+          if (e.target.closest(".ms-all")) { e.preventDefault(); stripSet(false); const x = $("sFullX"); if (x) x.click(); return; }
+          const g = e.target.closest("[data-gu]"); if (g) { stripSet(false); try { enterGu(g.dataset.gu, { hist: true }); } catch (er) {} return; }
+          const c = e.target.closest("[data-zid]"); if (c) { try { LMX.pick(c.dataset.zid, true); } catch (er) {} stripPaint(); }
+        });
+      }
+      if (strip) { strip.hidden = !stripOn; if (stripOn) stripPaint(); }
+      H.classList.toggle("mx-stripon", stripOn);
+      paintBar();
+      try { if (LMX.on && LMX.on()) LMX.states(); else if (window.ZP_G && ZP_G.redraw) ZP_G.redraw(); } catch (e) {}
+    }
+    function stripPaint() {
+      if (!strip) return;
+      const g = guNow(), sel = (LMX.peek && LMX.peek()) || "";
+      strip.dataset.k = stripKey();
+      let head = "", cards = "", sw;
+      if (g) {
+        let ids = []; try { ids = SIMPLE.guRows(g); } catch (e) {}
+        const L = ids.map((id) => byId[id]).filter(Boolean).map((r) => { let z = null; try { z = SIMPLE.zstate(r); } catch (e) {} return { r, z }; }).filter((x) => x.z && x.z.st === "ok" && x.z.need != null);
+        const up = (v) => Math.ceil(v * 100 - 1e-6) / 100;
+        L.sort(sortK === "fit" ? (a, b) => Math.abs(CASH - a.z.need) - Math.abs(CASH - b.z.need) : (a, b) => a.z.need - b.z.need);
+        sw = [["left", "남는 돈 많은 순"], ["fit", "내 돈에 꽉 맞는 순"]];
+        if (!sw.some(([k]) => k === sortK)) sortK = "left";
+        head = `${esc2(g)} ${fmtN(L.length)}곳`;
+        cards = L.map(({ r, z }) => { const left = Math.max(0, Math.round((CASH - up(z.need)) * 100) / 100), stg = (() => { try { return window.ZP_stgShort ? ZP_stgShort(r) : ""; } catch (e) { return ""; } })(), wk = ZF.walkTxt ? ZF.walkTxt(r) : "", tk = (() => { try { return buyWindow(r).cls === "ok" ? "입주권 ✓" : ""; } catch (e) { return ""; } })(); const sub = [stg, tk, wk].filter(Boolean).join(" · ");
+          return `<button type="button" class="ms-c" data-zid="${r.id}" aria-current="${r.id === sel}" aria-label="${esc2(shortName(r.n))}, 지금 필요한 돈 ${ZF.cash(z.need)}${left > 0 ? `, 남는 돈 ${ZF.cash(left)}` : ""}${sub ? ", " + esc2(sub) : ""}"><span class="ms-n">${esc2(shortName(r.n))}</span><span class="ms-a">${ZF.cash(z.need)}${left > 0 ? ` <small>남는 돈 ${ZF.cash(left)}</small>` : ""}</span><span class="ms-s">${esc2(sub)}</span></button>`; }).join("");
+      } else {
+        let cnt = {}, mn = {}; try { cnt = SIMPLE.guCounts(); mn = SIMPLE.guMins(); } catch (e) {}
+        const G = Object.keys(cnt).filter((k) => cnt[k] > 0).map((k) => ({ n: k, c: cnt[k], m: mn[k] != null ? mn[k] : null }));
+        G.sort(sortK === "cnt" ? (a, b) => b.c - a.c || (a.m ?? 99) - (b.m ?? 99) : (a, b) => (a.m ?? 99) - (b.m ?? 99) || b.c - a.c);
+        sw = [["left", "적게 드는 순"], ["cnt", "곳 많은 순"]];
+        if (!sw.some(([k]) => k === sortK)) sortK = "left";
+        const n = G.reduce((a, x) => a + x.c, 0);
+        head = `서울 ${fmtN(n)}곳 · 구별`;
+        cards = G.map((x) => `<button type="button" class="ms-c" data-gu="${esc2(x.n)}" aria-label="${esc2(x.n)} 갈 수 있는 곳 ${fmtN(x.c)}곳${x.m != null ? `, 가장 적게 드는 곳 ${ZF.cash(x.m)}` : ""}, 눌러서 ${esc2(x.n)} 보기"><span class="ms-n">${esc2(x.n)} ${fmtN(x.c)}곳</span><span class="ms-a">${x.m != null ? `${ZF.cash(x.m)}부터` : "–"}</span><span class="ms-s">지금 필요한 돈이 가장 적은 곳 기준</span></button>`).join("");
+      }
+      strip.innerHTML = `<div class="ms-h"><b>${head}</b><a href="#" class="ms-all">목록 전체</a><div class="ms-sw" role="group" aria-label="카드 줄 정렬">${sw.map(([k, t]) => `<button type="button" data-s="${k}" aria-pressed="${sortK === k}">${t}</button>`).join("")}</div></div><div class="ms-row">${cards}</div>`;
     }
     // 칩 줄: 지금 단계(서울·구·고른 곳)에 따라
+    // 큰 글씨(SPEC J2-2): 글자 120% 이상(뿌리 글자 크기 비율 · 앱 html.t-big) — 내 돈 막대 2줄 · 범례 '범례' 단추로 접기
+    const bigNow = () => { try { return H.classList.contains("t-big") || parseFloat(getComputedStyle(H).fontSize) / 16 >= 1.2; } catch (e) { return false; } };
     function paint() {
       if (!built) return;
+      { const bg = bigNow(); if (bg !== H.classList.contains("fs-big")) H.classList.toggle("fs-big", bg); }
+      { const m = LMX.map && LMX.map(); if (m && !m.__mxS) { m.__mxS = 1; m.on("dragstart", () => { if (stripOn) stripSet(false); }); } }   // 지도를 손으로 끌면 카드 줄 닫힘
       paintBar();
       const full = H.classList.contains("s-full");
-      if (!full) return;
+      if (!full) { if (stripOn) stripSet(false); return; }
       { const nv = $("sNav"), hN = nv && nv.offsetHeight && getComputedStyle(nv).position === "fixed" && nv.getBoundingClientRect().top > innerHeight / 2 ? Math.round(innerHeight - nv.getBoundingClientRect().top) : 0; const hv = hN + "px"; if (H.style.getPropertyValue("--mx-nav") !== hv) H.style.setProperty("--mx-nav", hv); }   // 아래 탭바 실제 높이(앱·웹이 다름)
       { const mb = $("mapbox"); if (mb) { const r = mb.getBoundingClientRect(), ml = Math.max(0, Math.round(r.left)) + "px", mr = Math.max(0, Math.round(innerWidth - r.right)) + "px"; if (H.style.getPropertyValue("--mx-ml") !== ml) H.style.setProperty("--mx-ml", ml); if (H.style.getPropertyValue("--mx-mr") !== mr) H.style.setProperty("--mx-mr", mr); } }   // PC: 지도 칸 좌우 가장자리
       const g = guNow(), pk = (LMX.peek && LMX.peek()) || null, foc = H.classList.contains("mx-focus"), mx = (LMX.mx && LMX.mx()) || {};
@@ -79,7 +135,7 @@
         if (a || o) h += `<span class="mx-c mx-scope" role="note">${a ? `경계 ${fmtN(Math.round(a))}㎡` : ""}${a && o ? " · " : ""}${o ? `소유자 ${fmtN(o)}명` : ""}</span>`;
         const fl = LMX.map && LMX.map(), src = fl && fl.getSource && fl.getSource("fline");
         const sd = src && src._data && src._data.properties;
-        if (sd && sd.n && isFinite(sd.d)) h += `<span class="mx-c mx-stn" role="note">${esc2(String(sd.n).replace(/역$/, ""))}역 · ${ZF.walkMin(sd.d) > 30 ? "역에서 멀어요" : `걸어서 ${ZF.walkMin(sd.d)}분`}</span>`;
+        if (sd && sd.n && isFinite(sd.d)) h += `<span class="mx-c mx-stn" role="note">${esc2(String(sd.n).replace(/역$/, ""))}역 · ${ZF.walkMin(sd.d) > ZF.WALK_FAR ? "역에서 멀어요" : `걸어서 ${ZF.walkMin(sd.d)}분`}</span>`;
       } else if (g) {
         h += `<button type="button" class="mx-c mx-back" data-c="seoul">${IC.back}서울</button><span class="mx-c mx-scope" role="status">${esc2(g)} · 갈 수 있는 곳 ${fmtN(cntGu(g))}곳</span>`;
       } else {
@@ -100,10 +156,12 @@
       }
       if (chips.dataset.h !== h) { chips.dataset.h = h; chips.innerHTML = h; }
       // 서울 단계(자리 그림 SVG)의 범례: 자리 그림 안 범례는 화면 고정이 안 돼(변환된 칸) 조작부 쪽에 같은 글을 둔다
-      { const gh = !!document.querySelector(".zp-ph") && ZP_G.on && ZP_G.on(); let k = $("mxGKey"); if (!k) { k = document.createElement("p"); k.id = "mxGKey"; k.className = "lm-key mx-gkey"; $("mapbox").appendChild(k); } if (gh && ZP_G.KEY2) { if (k.dataset.h !== ZP_G.KEY2) { k.dataset.h = ZP_G.KEY2; k.innerHTML = ZP_G.KEY2; k.setAttribute("aria-label", ZP_G.KEY2_L); } } k.hidden = !gh; }
+      { const gh = !!document.querySelector(".zp-ph") && ZP_G.on && ZP_G.on(); let k = $("mxGKey"); if (!k) { k = document.createElement("p"); k.id = "mxGKey"; k.className = "lm-key mx-gkey"; $("mapbox").appendChild(k); } if (gh && ZP_G.KEY2) { if (k.dataset.h !== ZP_G.KEY2) { k.dataset.h = ZP_G.KEY2; k.classList.add("k-fold"); k.innerHTML = lgbHTML(k) + ZP_G.KEY2; k.setAttribute("aria-label", ZP_G.KEY2_L); } } k.hidden = !gh; }
       keyH();
     }
     // 사이클 4 통합: '+N곳' 칩은 범례의 실제 높이 위에(큰 글씨에서 범례가 두 줄로 자라 칩과 겹치던 것 · CSS는 --mx-keyh)
+    const lgbHTML = (k) => { const o = k.classList.contains("k-open"); return `<button type="button" class="mx-lgb" aria-expanded="${o}">${o ? "범례 닫기 ▾" : "범례 ▴"}</button>`; };
+    document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".mx-lgb"); if (!b) return; const k = b.parentNode, o = !k.classList.contains("k-open"); k.classList.toggle("k-open", o); b.setAttribute("aria-expanded", String(o)); b.textContent = o ? "범례 닫기 ▾" : "범례 ▴"; keyH(); try { if (LMX.on && LMX.on()) LMX.states(); } catch (er) {} });
     function keyH() { try { const k = [$("mxGKey"), $("lmKey")].find((e) => e && !e.hidden && e.offsetHeight), v = (k ? k.offsetHeight : 30) + "px"; if (document.documentElement.style.getPropertyValue("--mx-keyh") !== v) document.documentElement.style.setProperty("--mx-keyh", v); } catch (e) {} }
     try { const ro = new ResizeObserver(() => keyH()); setTimeout(() => { [$("mxGKey"), $("lmKey")].forEach((e) => e && ro.observe(e)); }, 0); } catch (e) {}
     function onChip(e) {
@@ -144,6 +202,7 @@
         dial.querySelector(".mx-ticks").innerHTML = "<span>5,000만</span><span>2억</span><span>5억</span><span>15억+</span>";
         dStart = CASH;
         try { LMX.dialStart(); } catch (e) {}
+        dialFitSoon();
       } else {
         dial.setAttribute("aria-label", "N년 뒤 지도");
         dial.querySelector(".mx-dk").textContent = "몇 년 뒤";
@@ -191,10 +250,12 @@
       });
     }
     function dialCommit(pos) {
-      if (dMode === "cash") { const v = SIMPLE.toCash(pos); try { SIMPLE.setCash(v); } catch (e) {} try { LMX.dialEnd(); } catch (e) {} }
+      if (dMode === "cash") { const v = SIMPLE.toCash(pos); try { SIMPLE.setCash(v); } catch (e) {} try { LMX.dialEnd(); } catch (e) {} dialFitSoon(); }
       else LMX.mode({ yr: Math.round(pos) });
       paint();
     }
+    // 사이클 4 D+(SPEC J2-2): 다이얼을 열면(그리고 금액을 정할 때마다) 갈 수 있는 곳이 다이얼 위에 다 보이게 지도를 맞춘다
+    const dialFitSoon = () => requestAnimationFrame(() => requestAnimationFrame(() => { try { if (!dial || dial.hidden) return; LMX.dialFit(dial.getBoundingClientRect().top); } catch (e) {} }));
     function dialClose(pop) {
       if (!dial || dial.hidden) return;
       dial.hidden = true; H.classList.remove("mx-dialon");
@@ -222,7 +283,7 @@
       b.classList.add("busy");
       navigator.geolocation.getCurrentPosition((p) => { b.classList.remove("busy"); try { LMX.flyTo(p.coords.longitude, p.coords.latitude, 14.5, "현재 위치"); } catch (e) {} }, () => b.classList.remove("busy"), { timeout: 8000, maximumAge: 60000 });
     }
-    return { build, paint, dialOpen, dialClose, gusOpen };
+    return { build, paint, dialOpen, dialClose, gusOpen, strip: (on) => (on == null ? stripOn : stripSet(on)) };
   })();
   window.ZP_mx = MXU;
   // 전체 지도가 처음 열릴 때 만든다(홈 첫 화면에는 0 — 홈 TBT 그대로)

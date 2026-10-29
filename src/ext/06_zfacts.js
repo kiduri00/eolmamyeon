@@ -277,7 +277,7 @@
       const eta = etaOf(r);
       let num = null; try { num = numOf(r, eta); } catch (e) { num = { err: String(e && e.message) }; }
       let buy = null; try { buy = buyOf(r); } catch (e) {}
-      return { id: r.id, s: r.s, stage, kind: { g: g0, t: SHAPE[shapeOf(r)] || "" }, eta, stall, next: nextOf(r), hold: holdOf(r, gap), jr, win, mode: gap ? "gap" : "cash", num, buy, notice: r.notice || null };
+      return { id: r.id, s: r.s, stage, kind: { g: g0, t: SHAPE[shapeOf(r)] || "" }, eta, stall, next: nextOf(r), hold: holdOf(r, gap), jr, win, mode: gap ? "gap" : "cash", num, buy, notice: r.notice || null, walk: ZF.walk ? ZF.walk(r) : null };   // 사이클 4 D+: 역 도보(ZF.walkMin 한 함수 · 카드·시트·지도·카드 줄이 이 값)
     }
     function of(r) {
       if (!r) return null;

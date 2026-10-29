@@ -1790,7 +1790,7 @@
     }
     return (r._ns = b ? { s: b, d: bd } : null);
   }
-  const walkM = (d) => Math.max(1, Math.round((d * 1.3) / 67));
+  const walkM = (d) => ZF.walkMin(d);   // 사이클 4 D+: 역 도보 분 = ZF.walkMin 한 함수
   function stnInfo(r) {
     if (r._si !== undefined) return r._si;
     let o = null;
@@ -4218,7 +4218,7 @@
     const rankGu = sameGu.findIndex((x) => x.id === r.id) + 1;
     const rankAll = scored.length - scored.filter((v) => v < r.score).length - scored.filter((v) => v === r.score).length + 1;
     const inf = infraOf(r),
-      walk2 = (d) => Math.max(1, Math.round((d * 1.3) / 67));
+      walk2 = (d) => ZF.walkMin(d);
     const irow = (k, lab) => {
       const o = inf && inf[k];
       if (!o) return "";
@@ -4784,11 +4784,12 @@
       .slice(0, 20);
     sIdx = -1;
     $("q").removeAttribute("aria-activedescendant");
-    const walkT = (r) => (r.st ? (Math.round((r.st.d * 1.3) / 67) > 20 ? "역에서 멀어요" : esc(r.st.n.replace(/역$/, "")) + "역 " + Math.max(1, Math.round((r.st.d * 1.3) / 67)) + "분") : "");
+    const walkT = (r) => esc(ZF.walkTxt(r));
     const okZ = (r) => { try { return !!(window.ZP_ok && window.ZP_ok(r)); } catch (e) { return false; } };
     const row = (r, i, near) => {
       const n = needS(r), ok = okZ(r);
-      const wt = near || moaIn.has(r.id) ? `${esc(stn[0].replace(/역$/, ""))}역 ${ZF.walkMin(stnW(r))}분${moaIn.has(r.id) ? " · 15분 안" : ""}` : r.st ? walkT(r) : "";
+      const same = r.st && r.st.n && r.st.n.replace(/역$/, "") === stn[0].replace(/역$/, "");   // 그 역이 구역의 가장 가까운 역이면 시트와 같은 글자(ZF.walkTxt)
+      const wt = near || moaIn.has(r.id) ? (same && !moaIn.has(r.id) ? walkT(r) : `${esc(stn[0].replace(/역$/, ""))}역 ${ZF.walkMin(stnW(r))}분${moaIn.has(r.id) ? " · 15분 안" : ""}`) : r.st ? walkT(r) : "";
       // 27차: 보이는 이름에는 없고 공식 이름에만 검색어가 있으면(강북2구역 ← '미아중심재정비촉진지구…') 공식 이름을 한 줄 더
       const qn = String(q || "").replace(/\s+/g, ""), sn = shortName(r.n), offi = qn.length >= 2 && !near && !sn.replace(/\s+/g, "").includes(qn) && String(r.n || "").replace(/\s+/g, "").includes(qn) ? `<small class="sg-off">공식 이름: ${esc(String(r.n).trim())}</small>` : "";
       return `<button type="button" role="option" id="sg${i}" aria-selected="false" data-id="${r.id}" tabindex="-1"><span>${esc(sn)}${r.s >= 9 ? " <i class=\"sg-done\">완료</i>" : ""}${offi}<small>${esc(r.g)} ${esc(r.j)} · ${esc(stageName(r))}${r.src !== "moa" && r.j && moaJ.has(pk(r)) ? " · 모아타운" : ""}${wt ? " · " + wt : ""}</small></span><em class="sg-c">${n ? `<b><i class="sg-l">${n.l === "입주까지" ? "입주까지" : "지금"}</i> ${e1S(n.v)}</b>${ok ? '<i class="sg-ok">내 돈으로 가능</i>' : n.v > CASH + 1e-9 ? `<i class="sg-ok sg-no">내 돈 ${esc(ZF.gap(n.v, CASH))} 부족</i>` : (r.lc || estHide(r)) ? `<i class="sg-ok sg-no sg-na">${ZF.EXCL}</i>` : '<i class="sg-ok sg-no sg-na">조건 밖</i>'}` : r.s >= 9 ? "" : `<i class="sg-ok sg-no sg-na">${r.src === "moa" ? "사업구역별" : "계산 보류"}</i>`}</em></button>`;   // 20차: 금액이 없는 줄도 빈칸 대신 '계산 보류'
@@ -6365,7 +6366,7 @@
     const why = `<details class="why"><summary>계산 근거${notes.length ? ` · 참고 ${notes.length}` : ""}</summary><div class="why-in">\n      ${notes.length ? `<ul class="why-notes">${notes.map(([t, d]) => `<li><b>${esc(t)}</b>${esc(d)}</li>`).join("")}</ul>` : ""}\n      ${x.price != null ? `<dl>\n        <dt>매수가</dt><dd>${ZF.cash(x.price)} <small>${x.priceSrc === "user" ? "직접 입력" : x.priceSrc === "complex" ? `${esc(en.name)} 실거래 ${en.n}건 가운데 값 (전용 ${en.area_med}㎡ · 계약 2025.10~2026.9)` : x.priceSrc === "villa" ? `${en.scope ? esc(en.scope) : `반경 ${fmt(en.radius)}m 구축 빌라`} 실거래 ${en.n}건 가운데 값 (전용 ${en.area_med}㎡ · 계약 2025.10~2026.9)` : ""}</small></dd>\n        <dt>취득세</dt><dd>${won(x.tax)} <small>${taxDesc(x)} · '지금'에 포함</small></dd>\n        ${x.ok ? `<dt>매수 대출</dt><dd>${loanWhy(x)}</dd>` : ""}\n        <dt>감정가 추정</dt><dd>${ZF.cash(x.appr)} <small>${esc(x.apprWhy)}</small></dd>\n        <dt>내 지분 값(권리가액) · 웃돈(프리미엄)</dt><dd>${won(x.right)} · ${won(x.prem)} <small>비례율 ${Math.round(x.ratio * 100)}% 가정</small></dd>\n        ${x.ok ? `<dt>조합원 분양가</dt><dd>${ZF.cash(x.unitPrice)} <small>${x.unitArea}㎡ · 신축 시세의 ${Math.round((x.unitPrice / x.nv) * 100)}% (${x.unitArea}㎡ 원가 하한 ${ZF.cash(x.floor)} · 비율은 작성자 가정값)</small></dd>\n        <dt>신축 시세</dt><dd>${ZF.cash(x.nv)} <small>${x.nvFix ? "구축 ㎡단가 × 1.15로 보정 · " : ""}${x.same ? `같은 평형(${x.unitArea}㎡) 환산 · ` : ""}${esc(x.ref?.scope || "")} 2016년 이후 준공 ${x.ref?.n || ""}건${x.ref?.complexes ? " · " + x.ref.complexes.slice(0, 2).map(esc).join(", ") : ""}</small></dd>\n        <dt>세금·이자 (입주까지)</dt><dd>${ZF.cash(ti)} <small>${tiParts(x)}</small></dd>\n        <dt>입주까지 들어가는 돈 합계(잔금대출 빼기 전)</dt><dd>${ZF.cash(x.total)} <small>매수가 + 취득세 + 분담금 + 세금·이자 (각 값은 반올림 전 합계)</small></dd>` : ""}\n      </dl>` : ""}\n      <div class="ov">\n        <label>매수가<span class="inp"><input inputmode="decimal" data-ov="price" data-id="${r.id}" value="${OV[r.id]?.price ?? ""}" placeholder="${x.price != null ? e2(x.price) : "예: 5"}"><span>억</span></span></label>\n        ${x.land != null ? `<label>대지지분${x.landDef ? ' <small class="lab-def">가정값 · 입력으로 수정</small>' : ""}<span class="inp"><input inputmode="decimal" data-ov="land" data-id="${r.id}" value="${OV[r.id]?.land ?? ""}" placeholder="${x.land}"><span>㎡</span></span></label>` : x.price != null ? `<label>감정가<span class="inp"><input inputmode="decimal" data-ov="appr" data-id="${r.id}" value="${OV[r.id]?.appr ?? ""}" placeholder="${e2(x.appr)}"><span>억</span></span></label>` : ""}\n      </div>\n    </div></details>`;
     const cap = `${esc(r.g)} ${esc(DUPN.has(shortName(r.n)) ? r.bj || r.j : (r.bj || r.j).split(" ")[0])} · ${esc(r.k.replace("(모아주택)", ""))}${(() => {
       const x = r.st ? stnInfo(r) : null;
-      return !x ? "" : x.min > 20 ? ` · ${esc(x.n)}역 ${(x.d / 1e3).toFixed(1)}km` : ` · ${esc(x.n)}역 ${fmt(x.d)}m·도보 ${x.min}분`;
+      return !x ? "" : x.min > ZF.WALK_FAR ? ` · ${esc(x.n)}역 ${(x.d / 1e3).toFixed(1)}km` : ` · ${esc(x.n)}역 ${fmt(x.d)}m·도보 ${x.min}분`;
     })()}`;
     const keep =
       (lowPrem
@@ -6724,7 +6725,7 @@
         ? '<span class="zb warn" title="10년 안 준공 가능성이 20% 미만인 초기 단계 구역이에요. 순서가 위라고 추천하는 뜻은 아니에요.">초기 단계·불확실</span>'
         : "";
     const meta = [
-      si ? (si.min > 25 ? `${esc(si.n)}역 ${(si.d / 1e3).toFixed(1)}km` : `${esc(si.n)}역 도보 ${si.min}분`) : "역 정보 없음",
+      si ? (si.min > ZF.WALK_FAR ? `${esc(si.n)}역 ${(si.d / 1e3).toFixed(1)}km` : `${esc(si.n)}역 도보 ${si.min}분`) : "역 정보 없음",
       `호재 ${hj}`,
       p != null ? `10년 준공 ${probTxt(p)}` : "준공 확률 산정 전",
     ].join(" · ");
@@ -7356,7 +7357,7 @@
     const gap = gapMode();
     const rowOf = (r) => {
       const si = r.st || r.ll ? stnInfo(r) : null;
-      const stn = si ? (si.min > 25 ? `${si.n}역 ${(si.d / 1e3).toFixed(1)}km` : `${si.n}역 도보 ${si.min}분`) : "–";
+      const stn = si ? (si.min > ZF.WALK_FAR ? `${si.n}역 ${(si.d / 1e3).toFixed(1)}km` : `${si.n}역 도보 ${si.min}분`) : "–";
       let now, tot;
       if (gap) {
         const g = gapOf(r);

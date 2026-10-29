@@ -2182,7 +2182,7 @@ async function r19Lane(browser, api, errs) {
         if (x) {
           await page.evaluate((id) => { const b = document.querySelector(`#sugg button[data-id="${id}"]`); b && b.click(); }, x.id); await page.waitForTimeout(1200);
           const d = await page.evaluate(() => { const e = document.querySelector("#report .dt-vd.no b"); return e ? e.textContent.trim() : ""; });
-          const a = (/내 돈 (.+?) 부족/.exec(x.t) || [])[1], b2 = (/^(.+?) 더 필요해요/.exec(d) || [])[1];
+          const a = (/내 돈 (.+?) 부족/.exec(x.t) || [])[1], b2 = (/^\+?(.+?) 더 필요해요/.exec(d) || [])[1];   /* 사이클 4 D+: 판정 문장은 '+1.6억 더 필요해요'(SPEC J2-2) */
           if (d) expect(a && b2 && a === b2, "search.noZeroShort", TZ, `'${q}' ${x.id}: badge "${x.t}" vs detail "${d}"`);
         } else skip("search.noZeroShort", TZ, `'${q}': no 부족 rows`);
       }
@@ -2262,7 +2262,7 @@ async function r19Lane(browser, api, errs) {
 async function r21Lane(browser, api, errs) {
   const mob = (w, h, cs) => ({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, colorScheme: cs });
   const idle = (page) => page.waitForFunction(() => { const m = window.ZP_lmx && ZP_lmx.map && ZP_lmx.map(); return m && m.loaded() && !m.isMoving() && !(window.ZP_G && ZP_G.on()); }, null, { timeout: 30000, polling: 200 }).catch(() => {});
-  const TP = "구 화면: 화면 안(떠 있는 버튼 밑이 아닌) '가능' 구역은 모두 가격 알약이 있거나 이웃 알약의 '+N'에 셈 · 성북구 1억 정릉3구역 알약(레일 모서리 옆으로 옮겨도)";
+  const TP = "구 화면: 화면 안(떠 있는 버튼 밑이 아닌) '가능' 구역은 모두 가격 태그가 있거나 상태를 지키는 점(남색 + 노란 가운데) · '+N' 숫자 없음 · 성북구 1억 정릉3구역 태그(레일 모서리 옆으로 옮겨도)";
   const TK = "범례 = 지금 화면에 그려진 것만(견본 알약 글자 == 지도 알약 · '멀다'·'정보 부족' 없음 · 서울 보기 '숫자 = 내 돈으로 갈 수 있는 곳 · 금액 = 가장 적게 드는 곳')";
   for (const [w, h] of [[360, 740], [390, 844]]) for (const cs of ["light", "dark"]) {
     const { ctx, page } = await newPage(browser, mob(w, h, cs), errs);
@@ -2274,9 +2274,9 @@ async function r21Lane(browser, api, errs) {
       await page.evaluate(() => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 70); try { ZP_lmx.attach && 0; } catch (e) {} });
       await idle(page); await page.waitForTimeout(700);
       const chk = async (tag) => {
-        const r = await page.evaluate(() => { const P = ZP_lmx.pills(), ok = ZP_lmx.okVis(); const okP = P.filter((p) => p.st === "ok"); return { ok, okP: okP.map((p) => p.id), more: P.reduce((a, p) => a + p.more, 0), key: (document.getElementById("lmKey") || {}).textContent || "", keyS: [...document.querySelectorAll("#lmKey .k-p")].map((e) => e.textContent), pt: P.map((p) => p.t), view: document.getElementById("mapbox").dataset.view }; });
+        const r = await page.evaluate(() => { const P = ZP_lmx.pills(), ok = ZP_lmx.okVis(); const okP = P.filter((p) => p.st === "ok"); return { ok, okP: okP.map((p) => p.id), more: P.reduce((a, p) => a + p.more, 0), dk: ZP_lmx.dots ? ZP_lmx.dots().filter((d) => d.t === "ok").map((d) => d.id) : [], key: (document.getElementById("lmKey") || {}).textContent || "", keyS: [...document.querySelectorAll("#lmKey .k-p")].map((e) => e.textContent), pt: P.map((p) => p.t), view: document.getElementById("mapbox").dataset.view }; });
         const missing = r.ok.filter((id) => !r.okP.includes(id));
-        expect(r.view === "gu" && r.ok.length > 0 && missing.length <= r.more && r.ok.includes("o430") === r.okP.includes("o430"), "map.pillVisible", TP, `${where} ${tag}: ok in view ${r.ok.length} · pills ${r.okP.length} · +N ${r.more} · no pill ${missing.join(",")}`);
+        expect(r.view === "gu" && r.ok.length > 0 && missing.every((id) => r.dk.includes(id)) && !r.more && r.ok.includes("o430") === r.okP.includes("o430"), "map.pillVisible", /* 사이클 4 D+: 태그를 못 단 갈 수 있는 곳은 '+N' 대신 상태를 지키는 점(zd-ok) */ TP, `${where} ${tag}: ok in view ${r.ok.length} · pills ${r.okP.length} · +N ${r.more} · no pill ${missing.join(",")}`);
         expect(!/멀다|정보 부족/.test(r.key) && r.keyS.every((t) => r.pt.includes(t)) && (r.okP.length ? /갈 수 있음/.test(r.key) : !/갈 수 있음/.test(r.key)) && !/더 필요해요/.test(r.key), "map.legend", TK, `${where} ${tag}: key "${r.key}" samples ${JSON.stringify(r.keyS)} pills ${JSON.stringify(r.pt.slice(0, 6))}`);
         return r;
       };
@@ -3296,9 +3296,9 @@ async function tappLane(browser, api, errs) {
         const fb = [...document.querySelectorAll(".mx-fab")].map((b) => [Math.round(R(b).width), Math.round(R(b).height)]);
         const ctl = [key, bar, fab, ar, zr].filter((x) => x && x.width);
         let ovN = 0; for (let i = 0; i < ctl.length; i++) for (let j = i + 1; j < ctl.length; j++) if (ov(ctl[i], ctl[j])) ovN++;
-        return { rep: as && as.backgroundRepeat, aw: ar && [Math.round(ar.width), Math.round(ar.height)], zgap: zr && zr.height && ar ? Math.round(zr.top - ar.bottom) : 99, before: ch.filter((b) => { const c = getComputedStyle(b, "::before").content; return c && c !== "none" && c !== "normal"; }).length, hs: [...new Set(ch.map((b) => Math.round(R(b).height)))], labels: ch.map((b) => b.textContent.trim()).filter(Boolean).length, lastIn: last.right <= innerWidth && w.scrollWidth <= w.clientWidth + 1, rows: [...new Set(ch.map((b) => Math.round(R(b).top)))].length, keyFx: ov(key, fx), gmKey: ov(gm, key), barH: bar && Math.round(bar.height), fb, ovN, cntOk: !!(cnt && cnt.width && cash && cash.width), sqH: sq && Math.round(sq.height), barIn: bar && bar.bottom <= innerHeight && bar.left >= 0 && bar.right <= innerWidth };
+        return { rep: as && as.backgroundRepeat, aw: ar && [Math.round(ar.width), Math.round(ar.height)], zgap: zr && zr.height && ar ? Math.round(zr.top - ar.bottom) : 99, before: ch.filter((b) => { const c = getComputedStyle(b, "::before").content; return c && c !== "none" && c !== "normal"; }).length, hs: [...new Set(ch.map((b) => Math.round(R(b).height)))], labels: ch.map((b) => b.textContent.trim()).filter(Boolean).length, lastIn: last.right <= innerWidth && w.scrollWidth <= w.clientWidth + 1, rows: [...new Set(ch.map((b) => Math.round(R(b).top)))].length, keyFx: ov(key, fx), gmKey: ov(gm, key), barH: bar && Math.round(bar.height), fb, ovN, cntOk: !!(cnt && cnt.width && cash && cash.width), sqH: sq && Math.round(sq.height), barIn: bar && bar.bottom <= innerHeight && bar.left >= 0 && bar.right <= innerWidth, kt: ([...document.querySelectorAll("#mapbox .lm-key")].find((e) => e.offsetWidth && getComputedStyle(e).visibility !== "hidden") || {}).textContent || "", cx: (document.querySelector(".mx-cnt") || { getAttribute: () => null }).getAttribute("aria-expanded") };   /* 사이클 4 D+: 서울 줌 범례 '✓ 숫자 = 갈 수 있는 곳' · 곳 수 단추 = 카드 줄(처음 닫힘) */
       });
-      expect(mc.rep === "no-repeat" && mc.aw && mc.aw[0] === 44 && mc.aw[1] === 44 && mc.zgap >= 8 && mc.before === 0 && mc.hs.length === 1 && mc.hs[0] === 46 && mc.rows === 1 && mc.labels === 6 && mc.lastIn && !mc.keyFx && !mc.gmKey && mc.barH === 64 && mc.barIn && mc.cntOk && mc.sqH === 48 && mc.fb.length === 2 && mc.fb.every((x) => x[0] === 48 && x[1] === 48) && !mc.ovN, "tapp.mapCtl", "설치 앱 지도 탭(사이클 4 새 조작부): ⓘ 한 번(no-repeat)·44×44·확대 버튼과 8px 이상 · 레이어 6칸 격자 46px·한 줄·이름표 6개·넘김 없음 · 검색 48px · 아래 내 돈 막대 64px(금액·곳 수 단추) · 둥근 단추 48×48 둘 · 범례·막대·단추·ⓘ·확대 버튼 안 겹침", JSON.stringify(mc));
+      expect(mc.rep === "no-repeat" && mc.aw && mc.aw[0] === 44 && mc.aw[1] === 44 && mc.zgap >= 8 && mc.before === 0 && mc.hs.length === 1 && mc.hs[0] === 46 && mc.rows === 1 && mc.labels === 6 && mc.lastIn && !mc.keyFx && !mc.gmKey && mc.barH === 64 && mc.barIn && mc.cntOk && mc.sqH === 48 && mc.fb.length === 2 && mc.fb.every((x) => x[0] === 48 && x[1] === 48) && !mc.ovN && /✓ 숫자 = (내 돈으로 )?갈 수 있는 곳/.test(mc.kt) && !/굵은 테두리|노란 테두리/.test(mc.kt) && mc.cx === "false", "tapp.mapCtl", "설치 앱 지도 탭(사이클 4 새 조작부): ⓘ 한 번(no-repeat)·44×44·확대 버튼과 8px 이상 · 레이어 6칸 격자 46px·한 줄·이름표 6개·넘김 없음 · 검색 48px · 아래 내 돈 막대 64px(금액·곳 수 단추) · 둥근 단추 48×48 둘 · 범례·막대·단추·ⓘ·확대 버튼 안 겹침", JSON.stringify(mc));
       // tapp.mapList(13): 지도 탭 '목록 보기' = 아래 탭 '지도' 그대로 · 목록에서 연 구역을 닫으면 목록(지도 탭)
       await page.click((await page.$(".mx-cnt:visible")) ? ".mx-cnt" : "#sFullX"); await page.waitForTimeout(900);   // 사이클 4: 떠 있는 '목록 보기'를 아래 막대 곳 수에 합침
       const l1 = await page.evaluate(() => ({ cur: (document.querySelector('#sNav [aria-current="page"]') || {}).dataset?.nav, full: document.documentElement.classList.contains("s-full") }));

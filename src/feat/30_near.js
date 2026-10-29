@@ -26,7 +26,7 @@
       const L = F.near(r, ctx), esc = ctx.esc;
       if (!L.length) { F.put(pane, "near", ""); return; }
       const cash = ctx.cash(), me = needOf(r, ctx);
-      const walk = (d) => Math.max(1, Math.round((d * 1.3) / 67));
+      const walk = (d) => (ctx.ZF && ctx.ZF.walkMin ? ctx.ZF.walkMin(d) : Math.max(1, Math.round((d * 1.3) / 67)));
       const li = ({ q, d, n, hold }) => {
         if (!n) { const ev = ctx.news ? ctx.news(q.id) : ""; return `<li><button type="button" class="znr-i znr-h" data-zid="${esc(q.id)}"><span class="znr-n"><b>${esc(ctx.shortName(q.n))}</b><small>${esc(ctx.stageName(q))} · ${ctx.fmt(Math.round(d / 10) * 10)}m · 걸어서 약 ${walk(d)}분${ev ? ` · ${esc(ev)}` : ""}</small></span><span class="znr-v"><b class="znr-hb">${esc(hold)}</b><small>돈은 계산하지 않아요</small></span></button></li>`; }
         const short = n.v > cash + 1e-9 ? `내 돈 ${ctx.ZF.gap(n.v, cash)} 부족` : ctx.ok(q) ? "내 돈으로 가능" : "";

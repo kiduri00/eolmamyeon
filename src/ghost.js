@@ -126,7 +126,48 @@
   var tier = function () { return 2; };
   // 구 묶음 자리 잡기(실제 지도 guLayout과 같은 함수): 겹치면 ① 둘레로 비켜 ② 작게 ③ 안 되면(또는 화면 밖) '+N곳' 칩으로
   var CC = { k: "", m: {}, n: 0 };
+  // 사이클 4 D+(SPEC J2-1 서울 줌): 새 전체 지도는 한 줄 태그 '✓ 은평 8' — 갈 수 있는 구는 숫자를 절대 잃지 않는다(물러남 4단계)
+  //   ① 같은 태그(높이 28 · 13.5px · 체크 17)를 가운데 → 위아래 ±12 → 좌우 ±16 → 대각 ② 작은 태그(높이 24 · 12.5px · 체크 15) ③ 숫자 원(22px 노란 원 + 남색 숫자)
+  //   ④ 구 중심에 숫자 원을 겹쳐서라도(force). 화면 밖 구만 '+N곳' 칩(left)으로. 갈 수 있는 곳 없이 조금 부족만 있는 구 = 테두리 태그 '동작 조금 부족 3'(자리 없으면 생략)
+  var NUDGE = [[0, 0], [0, -12], [0, 12], [-16, 0], [16, 0], [-12, -10], [12, -10], [-12, 10], [12, 10]];
+  // 숫자 원(③)은 작아서 한 겹 더 바깥(20·28px · 8방향)까지 본 뒤에야 겹쳐 놓는다(④)
+  var NUDGE3 = NUDGE.concat([20, 28].reduce(function (a, r) { for (var k = 0; k < 8; k++) a.push([Math.round(r * Math.cos(k * Math.PI / 4)), Math.round(r * Math.sin(k * Math.PI / 4))]); return a; }, []));
+  function placeMx(o) {
+    var w = o.W, h = o.H, obs = o.obs || [], TB = bigK(), EX = 7, GAP = 3;
+    var L = o.gus.slice().sort(function (a, b) { return (a.m == null ? 1e9 : a.m) - (b.m == null ? 1e9 : b.m) || b.c - a.c; });
+    var placed = [], keep = [], left = [], steps = [0, 0, 0, 0];
+    var free = function (bx) { if (bx[0] < EX || bx[2] > w - EX || bx[1] < 2 || bx[3] > h - 2) return false; if (obs.some(function (q) { return hit(q, bx); })) return false; var gx = [bx[0] - GAP, bx[1] - GAP, bx[2] + GAP, bx[3] + GAP]; return !placed.some(function (p) { return hit(p, gx); }); };
+    var sizeOf = function (g, k) {
+      var l1 = g.c ? g.sn + " " + fmt(g.c) : g.sn + " 조금 부족 " + fmt(g.nr);
+      if (k === 2) { var d = Math.ceil(Math.max(22, tw(fmt(g.c), 12.5) + 8) * TB); return { l1: l1, w: d, h: Math.ceil(22 * TB), bw: d + 4, bh: Math.ceil(22 * TB) + 4 }; }
+      var fs = k ? 12.5 : 13.5, ck = g.c ? (k ? 15 : 17) + 4 : 0, ww = Math.ceil((tw(l1, fs) + ck + (k ? 14 : 18)) * 1.04 * TB), hh = Math.ceil((k ? 24 : 28) * TB);
+      return { l1: l1, w: ww, h: hh, bw: ww, bh: hh };
+    };
+    L.forEach(function (g0) {
+      if (!g0.c && !g0.nr) return;
+      var g = { n: g0.n, ll: g0.ll, c: g0.c, m: g0.m, nr: g0.c ? 0 : g0.nr || 0 }, q = o.proj(g.ll);
+      g.sn = g.n.length > 2 ? g.n.replace(/구$/, "") : g.n;
+      if (q.x < -8 || q.x > w + 8 || q.y < -8 || q.y > h + 8) { if (g.c) left.push(g); return; }
+      var got = null, k, j;
+      for (k = 0; k < (g.c ? 3 : 1) && !got; k++) {
+        var S0 = sizeOf(g, k);
+        var NU = k === 2 ? NUDGE3 : NUDGE;
+        for (j = 0; j < NU.length && !got; j++) {
+          var x = q.x + NU[j][0], y = q.y + NU[j][1], bx = [x - S0.bw / 2, y - S0.bh / 2, x + S0.bw / 2, y + S0.bh / 2];
+          if (free(bx)) got = { S: S0, k: k, dx: NU[j][0], dy: NU[j][1], bx: bx };
+        }
+      }
+      if (!got && g.c) { var S3 = sizeOf(g, 2), x3 = Math.max(EX + S3.bw / 2, Math.min(w - EX - S3.bw / 2, q.x)), y3 = Math.max(2 + S3.bh / 2, Math.min(h - 2 - S3.bh / 2, q.y)); got = { S: S3, k: 3, dx: x3 - q.x, dy: y3 - q.y, bx: [x3 - S3.bw / 2, y3 - S3.bh / 2, x3 + S3.bw / 2, y3 + S3.bh / 2] }; }   // ④ 겹쳐서라도
+      if (!got) return;
+      if (g.c) steps[got.k]++;
+      g.l1 = got.S.l1; g.l2 = ""; g.t = 2; g.q = q; g.w = got.S.w; g.h = got.S.h; g.sm = got.k === 1; g.xs = false; g.tt = false; g.num = got.k >= 2; g.frc = got.k === 3; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy);
+      placed.push(got.bx); keep.push(g);
+    });
+    placeMx.steps = steps;
+    return { keep: keep, left: left, steps: steps };
+  }
   function place(o) {
+    if (Dc.documentElement.classList.contains("mx") && Dc.documentElement.classList.contains("s-full")) return placeMx(o);
     var w = o.W, h = o.H, obs = o.obs || [], phone = o.phone;
     // 7차: 자리 잡는 차례 = 가장 적게 드는 구부터(같으면 곳 수 많은 구) — 구로 6,900만~·종로 1.2억~가 '+N'에 숨고 관악 5.2억~·서초가 남던 것 · 노원 18곳(1.4억~)이 숨고 광진 3곳(2.8억~)이 남던 것
     var L = o.gus.slice().sort(function (a, b) { return (a.m == null ? 1e9 : a.m) - (b.m == null ? 1e9 : b.m) || b.c - a.c; });
@@ -236,8 +277,8 @@
   var KEY = '<span><i class="k-gu"></i>점·숫자 = <span class="k-x">내 돈으로 </span>갈 수 있는 곳</span><span class="k-s">금액 = 가장 적게 드는 곳</span>';
   var KEY_L = "범례: 구 묶음의 숫자는 그 구에서 내 돈으로 갈 수 있는 곳 수, 금액은 그중 지금 필요한 돈이 가장 적은 곳, 남색으로 칠한 구역은 내 돈으로 가능한 곳";
   // 사이클 4(M): 새 전체 지도 서울 단계(한 줄 라벨 · 구 채움 4단계 · 조금 부족만 있는 구 테두리 라벨)
-  var KEY2 = '<span><i class="k-gu"></i>N곳 = <span class="k-x">내 돈으로 </span>갈 수 있는 곳</span><span class="k-s"><i class="k-gun"></i>조금 부족만 있는 구</span>';
-  var KEY2_L = "범례: 구 이름 옆 숫자는 그 구에서 내 돈으로 갈 수 있는 곳 수, 구 색이 진할수록 많음, 테두리 라벨은 갈 수 있는 곳 없이 조금 부족한 곳만 있는 구, 남색으로 칠한 구역은 내 돈으로 갈 수 있는 곳";
+  var KEY2 = '<span><i class="k-gu"><b>' + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' + '</b></i>✓ 숫자 = <span class="k-x">내 돈으로 </span>갈 수 있는 곳</span><span class="k-s"><i class="k-gun"></i>조금 부족만 있는 구</span>';
+  var KEY2_L = "범례: 체크와 구 이름 옆 숫자는 그 구에서 내 돈으로 갈 수 있는 곳 수, 자리가 좁으면 노란 원 숫자, 남색으로 칠한 구는 갈 수 있는 곳이 있는 구, 테두리 라벨은 갈 수 있는 곳 없이 조금 부족한 곳만 있는 구";
   var mxf = function () { var c = Dc.documentElement.classList; return c.contains("mx") && c.contains("s-full"); };
   var fmt = function (n) { try { return Number(n).toLocaleString("ko-KR"); } catch (e) { return String(n); } };
   // 금액 꼴 = 앱 ZF.cash와 같은 규칙(1억 아래 100만 단위 '7,400만' · 1억부터 '1.2억' · 올림) — 섬(앱 전)도 같은 글자
@@ -254,12 +295,15 @@
   var ZOOM = '<button type="button" data-z="full" class="lm-fs" aria-label="지도 크게 보기" aria-pressed="false" title="지도 크게 보기"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" data-z="1" aria-label="확대"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button><button type="button" data-z="-1" aria-label="축소"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>';
   var GU_LBL = function (n, c, m) { return n + ", 내 돈으로 갈 수 있는 곳 " + fmt(c) + "곳" + (m != null ? ", 가장 적게 드는 곳 " + cash(m) : "") + ", 눌러서 " + n + " 보기"; };
   // 구 묶음 한 개의 마크업(실제 지도 gusSet도 이 함수) — 두 줄: '강북 1곳' / '7,400만~'
+  var CK17 = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function guEl(el, g) {
-    el.className = "zgu t" + g.t + (g.sm ? " sm" : "") + (g.xs ? " xs" : "") + (g.tt ? " tt" : "") + (g.l2 ? "" : " one") + (g.c ? "" : " nr");
+    el.className = "zgu t" + g.t + (g.sm ? " sm" : "") + (g.xs ? " xs" : "") + (g.tt ? " tt" : "") + (g.l2 ? "" : " one") + (g.c ? "" : " nr") + (g.num ? " num" : "") + (g.frc ? " frc" : "");
     el.dataset.n = String(g.c); el.dataset.gu = g.n;
     if (g.m != null) el.dataset.m = String(g.m); else delete el.dataset.m;   // 사이클 4 통합: 한 줄 라벨이라 최저 금액은 이름표(접근 이름)와 data-m(실제 지도 gusSet과 같음)
     el.style.setProperty("--w", g.w + "px"); el.style.setProperty("--h", g.h + "px");
-    el.innerHTML = "<b>" + esc(g.l1) + "</b>" + (g.l2 ? "<span>" + esc(g.l2) + "</span>" : "");
+    // 사이클 4 D+: 새 전체 지도 서울 줌 = '✓ 은평 8'(노란 체크 + 남색 태그) · 자리가 없으면 숫자 원(노란 원 + 남색 숫자) — 접근 이름은 그대로 '…곳'
+    if (mxf() && !g.l2 && g.c) el.innerHTML = g.num ? '<b class="zg-num">' + fmt(g.c) + "</b>" : '<i class="zg-ck">' + CK17 + "</i><b>" + esc(g.l1) + "</b>";
+    else el.innerHTML = "<b>" + esc(g.l1) + "</b>" + (g.l2 ? "<span>" + esc(g.l2) + "</span>" : "");
     el.setAttribute("aria-label", g.c ? GU_LBL(g.n, g.c, g.m) : g.n + ", 갈 수 있는 곳은 없고 조금 부족한 곳 " + fmt(g.nr || 0) + "곳, 눌러서 " + g.n + " 보기");
   }
   // ---------------------------------------------------------------- 자리 그림 DOM
@@ -305,7 +349,7 @@
     el.querySelectorAll(".lm-zoom, .lm-key, .zg-attr").forEach(function (e) { if (e.offsetWidth) add(e.getBoundingClientRect()); });   // 숨긴 확대 단추도 장애물(실제 지도는 그 자리에 단추가 보임 · 자리 그림 = 실제 지도 같은 자리)
     var full = Dc.documentElement.classList.contains("s-full");
     Dc.querySelectorAll(".s-mini, .s-fullx").forEach(function (e) { if (e.classList.contains("s-mini") && !full) return; if (e.offsetWidth && !e.hidden) add(e.getBoundingClientRect()); });
-    if (mxf()) Dc.querySelectorAll(".mx-top, .mx-chips .mx-c, .mx-fabs, #mxGKey:not([hidden]), .lm-gumore:not([hidden]), #mapbox .lm-zoom").forEach(function (e) { if (e.offsetWidth && !e.closest(".zp-ph")) add(e.getBoundingClientRect()); });   // 사이클 4(M): 새 조작부 밑에 라벨을 두지 않는다
+    if (mxf()) Dc.querySelectorAll(".mx-top, .mx-chips .mx-c, .mx-fabs, #mxGKey:not([hidden]), .lm-gumore:not([hidden]), #mapbox .lm-zoom, .mx-strip:not([hidden]), .mx-dial:not([hidden])").forEach(function (e) { if (e.offsetWidth && !e.closest(".zp-ph")) add(e.getBoundingClientRect()); });   // 사이클 4(M): 새 조작부 밑에 라벨을 두지 않는다
     return out;
   }
   // 8차: 폰 서울 보기 카메라 위 여백에 12px 더(아래 범례 쪽 여백은 그만큼 덜) — 맨 북쪽 구 중심(도봉)이 겹쳐 보기 띠 바로 밑에 서서 그 묶음이 띠에 걸려 '+N곳'으로 빠지던 것(390) · 10_lmap.js fitPad도 같은 값
@@ -315,7 +359,7 @@
     var c = Dc.documentElement.classList; if (!c.contains("mx") || !c.contains("s-full")) return null;
     var P = { top: 14, bottom: 14, left: 16, right: 16 }, q = function (s) { var e = Dc.querySelector(s); return e && e.offsetWidth && !e.hidden ? e.getBoundingClientRect() : null; };
     var t = q(".mx-chips") || q("#mapbox .s-rail") || q(".mx-top"); if (t && t.bottom > cv.top && t.top < cv.top + cv.height / 2) P.top = Math.round(t.bottom - cv.top) + 10;
-    var bs = [q("#lmKey:not([hidden])"), q("#mxGKey:not([hidden])"), q("#sMini")].filter(function (b) { return b && b.top > cv.top + cv.height / 2 && b.top < cv.bottom; });
+    var bs = [q("#lmKey:not([hidden])"), q("#mxGKey:not([hidden])"), q("#sMini"), q(".mx-dial:not([hidden])"), q(".mx-strip:not([hidden])")].filter(function (b) { return b && b.top > cv.top + cv.height / 2 && b.top < cv.bottom; });
     if (bs.length) P.bottom = Math.round(cv.bottom - Math.min.apply(null, bs.map(function (b) { return b.top; }))) + 8;
     if (phoneQ()) { var f = q(".mx-fabs"); if (f) P.right = Math.max(P.right, 0); }
     else { var rl = q("#mapbox .s-rail"); if (rl) P.top = Math.max(P.top, Math.round(rl.bottom - cv.top) + 10); }
@@ -366,8 +410,10 @@
   function guFill(svg, cnt) {
     var g = svg.querySelector(".zg-gf"); if (!g || !GD.gpl) return;
     if (!(Dc.documentElement.classList.contains("mx") && Dc.documentElement.classList.contains("s-full"))) cnt = {};   // 구 채움은 새 전체 지도만(홈 지도는 예전 그대로)
-    var t = function (c) { return c >= 6 ? 3 : c >= 3 ? 2 : c >= 1 ? 1 : 0; }, h = "", th = Dc.documentElement.dataset.theme, dk = th === "dark" || (th !== "light" && W.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches), col = dk ? "#7FA6FF" : "#1F3A87", k = dk ? "d" : "l";
-    GD.gu.forEach(function (x, i) { var v = t((cnt && cnt[x[0]]) || 0); k += v; if (v && GD.gpl[i]) h += '<path class="gf' + v + '" fill="' + col + '" fill-opacity="' + [0, 0.1, 0.18, 0.28][v] + '" d="' + GD.gpl[i] + '"/>'; });
+    // 사이클 4 D+(SPEC J2-1): 2단계 — 갈 수 있는 곳이 있는 구 = 남색(라이트 #6F87C8 · 다크 #4A6FD6) · 없는 구 = 옅은 바탕(#F4F5F7 · #141A22) · 색은 CSS(--gu-has · --gu-none)
+    var mx2 = mxf(), t = function (c) { return c >= 1 ? 1 : 0; }, h = "", k = mx2 ? "m" : "h";
+    // 색은 디자인 토큰(--gu-has · --gu-none · 99zzzzzzzzzz_c4map.css) — 인라인 style의 var()라 테마가 바뀌어도 그대로 따라간다
+    if (mx2) GD.gu.forEach(function (x, i) { var v = t((cnt && cnt[x[0]]) || 0); k += v; if (GD.gpl[i]) h += '<path class="gf' + (v ? "1" : "0") + '" style="fill:var(' + (v ? "--gu-has" : "--gu-none") + ')" d="' + GD.gpl[i] + '"/>'; });
     if (g.dataset.k !== k) { g.dataset.k = k; g.innerHTML = h; }
   }
   function draw(st, keep) {
@@ -427,12 +473,12 @@
     if (svg.dataset.k !== bk || !svg.querySelector(".zg-t")) {
       svg.dataset.k = bk;
       svg.innerHTML = '<rect class="zg-land" width="100%" height="100%"/><g transform="matrix(' + mtx + ')">'
-        + (GD.rv ? '<path class="zg-river" d="' + GD.rv + '" vector-effect="non-scaling-stroke" style="stroke-width:' + Math.max(6, Math.min(80, 950 / mpp)).toFixed(1) + 'px"/>' : "")
-        + '<g class="zg-gf"></g><path class="zg-gu" d="' + GD.gp + '" vector-effect="non-scaling-stroke"/>'
+        + '<g class="zg-gf"></g>' + (GD.rv ? '<path class="zg-river" d="' + GD.rv + '" vector-effect="non-scaling-stroke" style="stroke-width:' + Math.max(6, Math.min(80, 950 / mpp)).toFixed(1) + 'px"/>' : "")
+        + '<path class="zg-gu" d="' + GD.gp + '" vector-effect="non-scaling-stroke"/>'
         + (GD.za ? '<path class="zg-zall" d="' + GD.za + '"/><g class="zg-z"></g>' : "")
         + '<path class="zg-mask" fill-rule="evenodd" d="' + M + GD.sp + '"/>'
         + '<path class="zg-seoul" d="' + GD.sp + '" vector-effect="non-scaling-stroke"/>'
-        + (gi >= 0 && GD.gpl ? '<path class="zg-dim" fill="#0B1530" fill-opacity=".3" fill-rule="evenodd" d="' + M + GD.gpl[gi] + '"/><path class="zg-sel" fill="none" stroke="#1F3A87" stroke-width="2.2" d="' + GD.gpl[gi] + '" vector-effect="non-scaling-stroke"/>' : "")
+        + (gi >= 0 && GD.gpl ? '<path class="zg-dim" style="fill:var(--mxt-gu-dim)" fill-rule="evenodd" d="' + M + GD.gpl[gi] + '"/><path class="zg-sel" fill="none" style="stroke:var(--mxt-navy)" stroke-width="2.2" d="' + GD.gpl[gi] + '" vector-effect="non-scaling-stroke"/>' : "")
         + '</g><g class="zg-zd"></g><g class="zg-t">' + txt + "</g>";
     } else { var tg = svg.querySelector(".zg-t"); if (tg.innerHTML !== txt) tg.innerHTML = txt; }
     zoneDraw(svg, (S.st && S.st.ids) || st.ids, C.z, [k, tx, ty]);
@@ -452,7 +498,7 @@
     if (+b.dataset.n === c && b.dataset.m === String(mn)) return;
     b.dataset.n = String(c); b.dataset.m = String(mn);
     var n = b.dataset.gu, sn = n.length > 2 ? n.replace(/구$/, "") : n, x = b.querySelector("b"), sp = b.querySelector("span");
-    if (x && (c || !b.classList.contains("nr"))) x.textContent = sn + " " + fmt(c) + "곳";
+    if (x && (c || !b.classList.contains("nr"))) x.textContent = x.classList.contains("zg-num") ? fmt(c) : sn + " " + fmt(c) + (mxf() && b.classList.contains("one") ? "" : "곳");
     if (sp) sp.textContent = mn != null ? MT(mn) : "";
     b.classList.remove("t1", "t2", "t3"); b.classList.add("t" + tier(c, mx)); b.classList.toggle("z0", !c);
     var sv = S.el && S.el.querySelector(".zg-bg"); if (sv && S.st && S.st.cnt) { S.st.cnt[n] = c; guFill(sv, S.st.cnt); }
@@ -487,7 +533,7 @@
   function drop() { if (S.el) { S.out = true; if (S.ro) { S.ro.disconnect(); S.ro = null; } S.el.remove(); unhide(); } }
   W.ZP_G = {
     GD: GD, PADB: PADB, mxPad: mxPad, KEY2: KEY2, KEY2_L: KEY2_L, mxf: mxf, appFull: appFull, APAD: APAD, tw: tw, bb: bb, cam: cam, proj: proj, place: place, tier: tier, KEY: KEY, KEY_L: KEY_L, guEl: guEl, guLite: guLite, cash: cash, MT: MT, ZOOM: ZOOM, chipHTML: chipHTML, GU_LBL: GU_LBL,
-    mount: mount, draw: draw, lite: lite, fade: fade, drop: drop, guCam: guCam, guPad: guPad, zoomGu: zoomGu, dimGu: function () { return S.dim; },
+    mount: mount, draw: draw, lite: lite, redraw: function () { if (S.st && !S.out) draw(S.st); }, steps: function () { return (placeMx.steps || []).slice(); }, fade: fade, drop: drop, guCam: guCam, guPad: guPad, zoomGu: zoomGu, dimGu: function () { return S.dim; },
     on: function () { return !!(S.el && S.el.isConnected && !S.out); },
     el: function () { return S.el && S.el.isConnected ? S.el : null; },
     last: function () { return S.last; },
