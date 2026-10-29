@@ -19,7 +19,8 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    # ubuntu-latest가 26.04로 바뀐 뒤 playwright 1.56.0이 chromium 설치를 거부(ubuntu26.04-x64 미지원)해 10.26부터 매일 실패 — 24.04로 고정
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
