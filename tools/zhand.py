@@ -539,18 +539,25 @@ def gu_vals(X, g, L):
     return v
 
 _FLOW = None
+def tho_today():
+    """(구역별 [7일, 30일] 주거용 허가, 가장 최근 허가일) — tools/today.py와 같은 함수로(오늘 카드·시트 한 줄·/gu 숫자가 같게)"""
+    import today as _TD
+    ch, au, st, tho = _TD.load()
+    asof = os.environ.get('CHANGES_TODAY') or ch.get('asOf') or datetime.date.today().isoformat()
+    o = _TD.build(asof, ch, au, st, tho)
+    return o.get('tho') or {}, o.get('tho_d')
 def gu_flow(X, L):
     """사이클 5 C: /gu '이번 달 흐름' 값 — 시트·오늘 카드와 같은 자료에서만 센다(지어내지 않음)
-    토지거래허가 = public/data/toheo.json z[id].n30(시트 '최근 30일'과 같은 값 · 취소·취하 포함) · 거래 = changes.json trade 사건 cnt 합(최근 30일, 신고 등록일)
+    토지거래허가 = 오늘 카드(today.json tho)와 같은 셈: tools/today.py build()의 구역별 30일 주거용 허가(허가만) · 기준일 = 가장 최근 허가일(tho_d) · 거래 = changes.json trade 사건 cnt 합(최근 30일, 신고 등록일)
     경매 = auction.json 매각기일이 기준일 이후이고 목록에서 빠지지 않은(st != gone) 구역 안 물건 · 고시 = changes.json notice 사건 수"""
     global _FLOW
     if _FLOW is None:
         J_ = lambda p: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else {}
-        _FLOW = (J_('public/data/toheo.json') or {}, J_('public/data/changes.json') or {}, J_('public/data/auction.json') or {})
-    TH, CH, AU = _FLOW; ids = {x['id'] for x in L}; nm = {x['id']: X.short(x['n']) for x in L}; v = {}
+        _FLOW = (tho_today(), J_('public/data/changes.json') or {}, J_('public/data/auction.json') or {})
+    (TZ, TD_), CH, AU = _FLOW; ids = {x['id'] for x in L}; nm = {x['id']: X.short(x['n']) for x in L}; v = {}
     top = lambda c: max(sorted(c.items()), key=lambda z: z[1]) if c else None   # 같은 수면 이름 순 앞
-    t = {i: (TH.get('z') or {})[i]['n30'] for i in ids if ((TH.get('z') or {}).get(i) or {}).get('n30')}
-    v['thoAsOf'] = ymd(TH.get('asOf')) if TH.get('asOf') else None; v['thoSince'] = ymd(TH.get('since')) if TH.get('since') else None
+    t = {i: TZ[i][1] for i in ids if (TZ.get(i) or [0, 0])[1]}
+    v['thoAsOf'] = ymd(TD_) if TD_ else None
     n = sum(t.values()); v['tho30'] = f"{n:,}"; v['thoZ'] = f"{len(t)}"
     tp = top(t); v['thoTop'] = f"{nm[tp[0]]}({tp[1]}건)" if tp else None; v['thoTopPct'] = f"{round(tp[1] / n * 100)}%" if tp else None
     tr, nt = collections.Counter(), 0
@@ -561,7 +568,7 @@ def gu_flow(X, L):
     v['txAsOf'] = ymd(CH.get('asOf')) if CH.get('asOf') else None
     m = sum(tr.values()); v['tx30'] = f"{m:,}"; v['txZ'] = f"{len(tr)}"; tp = top(dict(tr)); v['tx30Top'] = f"{nm[tp[0]]}({tp[1]}건)" if tp else None
     v['nt30'] = f"{nt}"
-    v['thoVsTx'] = '허가 내역이 새로 올라온 거래 신고보다 많아요' if n > m * 1.2 else '허가 내역이 새로 올라온 거래 신고보다 적어요' if n < m * 0.8 else '허가 내역과 새로 올라온 거래 신고가 비슷해요'
+    v['thoVsTx'] = '주거용 허가가 새로 올라온 거래 신고보다 많아요' if n > m * 1.2 else '주거용 허가가 새로 올라온 거래 신고보다 적어요' if n < m * 0.8 else '주거용 허가와 새로 올라온 거래 신고가 비슷해요'
     a0 = AU.get('asOf') or ''
     au = [(i, x) for i in ids for x in (AU.get('byZone') or {}).get(i, []) if x.get('date', '') >= a0 and x.get('st') != 'gone']
     v['aucAsOf'] = ymd(a0) if a0 else None
