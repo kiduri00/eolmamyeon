@@ -2510,7 +2510,7 @@ async function r17bLane(browser, api, errs) {
           const ctas = [...document.querySelectorAll(".pc-al, .ib-push:not(.on), [data-wson]")].filter(vis).length;
           for (const e of document.querySelectorAll("body *")) {
             if (!vis(e)) continue;
-            if (e.matches(".zg-ck, .zg-num, .zp-ck, .zc-ck, .hm-n .hm-in") && e.getBoundingClientRect().height <= 30) continue;   // c4 최종: 서울 표기 D+의 '갈 수 있음' 체크·숫자 원(노랑 = 갈 수 있음 한 뜻 · design.yellowOnly가 쓰임새를 따로 봄)
+            if (e.matches(".zg-ck, .zg-num, .zp-ck, .zc-ck, .hm-n .hm-in, .k-gu > b, .k-ok > b") && e.getBoundingClientRect().height <= 30) continue;   // c4 최종: 서울 표기 D+의 '갈 수 있음' 체크·숫자 원(노랑 = 갈 수 있음 한 뜻 · design.yellowOnly가 쓰임새를 따로 봄)
             // 통합: 브랜드 v7 노란 점(::before 12px 이하 장식 · 홈 소개 블록 머리표)은 '노랑 바탕'이 아님
             const bf = getComputedStyle(e, "::before"), tiny = parseFloat(bf.width) <= 16 && parseFloat(bf.height) <= 16;   /* 사이클 4 통합: 시각 언어 v2 '갈 수 있음' 체크 배지 14px(노랑 = 갈 수 있음 체크 한 뜻)도 장식 — 바탕이 아님 */
             for (const c of [getComputedStyle(e).backgroundColor, tiny ? "" : bf.backgroundColor]) {

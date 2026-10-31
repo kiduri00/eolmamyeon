@@ -149,7 +149,14 @@
     // c4 최종: 폰에서 태그·숫자 원(겹쳐 놓기 ④ 말고)의 가운데 점은 제 구 땅이나 서울 밖에만(이웃 구 땅 위에 서던 것 · 옛 place의 okAt과 같은 고리)
     var RS = o.phone ? rings() : null, P1 = o.proj([126.9, 37.5]), P2 = o.proj([127.1, 37.6]), X1 = mx(126.9), Y1 = my(37.5), KX = (P2.x - P1.x) / (mx(127.1) - X1), KY = (P2.y - P1.y) / (my(37.6) - Y1), GI = {};
     if (GD) GD.gu.forEach(function (g, i) { GI[g[0]] = i; });
-    var own = function (n, x, y) { if (!RS || !KX || !KY) return true; var X = X1 + (x - P1.x) / KX, Y = Y1 + (y - P1.y) / KY; for (var i = 0; i < RS.length; i++) if (inRings(RS[i], X, Y)) return i === GI[n]; return true; };
+    var ANC = o.phone ? o.gus.map(function (g) { return { n: g.n, q: o.proj(g.ll) }; }) : [];
+    var own = function (n, x, y) {
+      if (!RS || !KX || !KY) return true; var X = X1 + (x - P1.x) / KX, Y = Y1 + (y - P1.y) / KY, me = null;
+      for (var i = 0; i < RS.length; i++) if (inRings(RS[i], X, Y)) { if (i !== GI[n]) return false; break; }
+      // 옛 place의 mine과 같은 잣대: 비킨 자리가 다른 구 중심에 (10px 넘게) 더 가깝지 않게
+      ANC.forEach(function (a) { if (a.n === n) me = a.q; }); if (!me) return true; var d0 = Math.hypot(x - me.x, y - me.y);
+      return ANC.every(function (a) { return a.n === n || d0 <= Math.hypot(x - a.q.x, y - a.q.y) + 10; });
+    };
     L.forEach(function (g0) {
       if (!g0.c && !(full && g0.nr)) return;
       var g = { n: g0.n, ll: g0.ll, c: g0.c, m: g0.m, nr: g0.c ? 0 : g0.nr || 0 }, q = o.proj(g.ll);
