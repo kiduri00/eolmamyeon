@@ -1,0 +1,35 @@
+/* ===================== 사이클 4 최종 레드팀(ux_re) 수정 — CSS 마지막 파일 =====================
+   ① 다이얼(내 돈 시트 #bSheet) 금액 칩 '5,000만'이 '5,000 / 만'으로 꺾이던 것 → 줄바꿈 금지 · 큰 글씨면 3칸
+   ② 지도 범례가 오른쪽 둥근 단추('구 이동')에 가려 '조금 부족만 있는…'이 잘리던 것 → 좁으면 두 줄(한 줄 nowrap + overflow hidden이던 것)
+   ③ 홈 미니 지도 구 표기 = 지도 서울 줌과 같은 '✓ 은평 8' 태그 · 자리가 없으면 노란 숫자 원(src/hmini.js) */
+#bSheet .bs-chips button{white-space:nowrap}
+html.t-big #bSheet .bs-chips{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+html.t-big #bSheet .bs-chips button{padding:0 2px!important;min-width:0}
+html.mx.mx.mx.s-full #lmKey.lm-key,html.mx.mx.mx.s-full #mxGKey.mx-gkey{flex-wrap:wrap!important;row-gap:2px!important}
+@media (max-width:460px){html.mx.s-full .lm-key .k-x{display:none}}
+/* ③ 미니 지도 태그: 지도 서울 줌 .zgu.one과 같은 색·체크·숫자 원 — 크기만 미니 지도 칸에 맞게(작은 태그 24 · 숫자 원 22) */
+.hm-gb.hm-t{width:auto;min-width:44px;height:44px;border-radius:0;background:none;color:inherit;transform:translate(-50%,-50%)}
+.hm-gb.hm-t::before{content:none}
+.hm-gb.hm-t>.hm-in{display:inline-flex;align-items:center;gap:3px;height:24px;padding:0 7px 0 4px;border-radius:var(--mxt-gu-r,8px);background:var(--mx-ok);color:var(--mxt-on);box-shadow:0 0 0 1.5px var(--mx-ring),var(--mx-sh);font:700 12px/1 var(--mxt-label-font,var(--font));letter-spacing:-.02em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hm-gb.hm-t .zg-ck{flex:none;display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:var(--mx-pick);color:var(--mx-pick-ink);font-style:normal}
+.hm-gb.hm-t .zg-ck svg{width:9px;height:9px}
+.hm-gb.hm-t .gn{font-weight:500}
+.hm-gb.hm-n>.hm-in{display:grid;place-items:center;min-width:22px;height:22px;padding:0 4px;box-sizing:border-box;border-radius:11px;background:var(--mx-pick);color:var(--mx-pick-ink);font:700 12.5px/1 var(--mxt-label-font,var(--font));box-shadow:0 0 0 1.5px var(--brand-fill),0 0 0 3px var(--mx-ring)}
+.hm-gb.hm-t.is-picked>.hm-in{box-shadow:0 0 0 2px var(--mx-ring),0 0 0 4px var(--brand-fill)}
+:root[data-theme="dark"] .hm-gb.hm-t:not(.hm-n)>.hm-in{box-shadow:0 0 0 1.5px var(--mxt-navy-lt),var(--mx-sh)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hm-gb.hm-t:not(.hm-n)>.hm-in{box-shadow:0 0 0 1.5px var(--mxt-navy-lt),var(--mx-sh)}}
+/* 미니 지도 구 채움 = 지도 서울 줌과 같은 2단계(있음 = 남색 · 없음 = 옅은 바탕) */
+.hm-mw .hm-g[data-b]:not([data-b="0"]){fill:var(--gu-has)}
+.hm-mw .hm-g[data-b="0"]{fill:var(--gu-none)}
+/* 홈 지도 범례 견본(새 지도 #mxGKey와 같은 '✓ 숫자' 칸) */
+.lm-key i.k-gu:has(>b){display:inline-flex;align-items:center;justify-content:flex-start;width:26px;height:14px;border-radius:4px;padding-left:2px;background:var(--mx-ok);border:0;margin-right:2px;vertical-align:-2px;box-sizing:border-box}
+.lm-key i.k-gu>b{display:grid;place-items:center;width:10px;height:10px;border-radius:50%;background:var(--mx-pick);color:var(--mx-pick-ink)}
+.lm-key i.k-gu>b svg{width:7px;height:7px}
+/* 서울 줌 좁은 태그(ghost.js placeMx 3단계 · 숫자 원 앞에서 구 이름을 한 번 더 살림) */
+.zgu.one.xs:not(.num){padding:0 5px!important;gap:3px}
+.zgu.one.xs:not(.num) b{font-size:11.5px!important}
+.zgu.one.xs .zg-ck{width:13px;height:13px}
+.zgu.one.xs .zg-ck svg{width:8px;height:8px}
+.hm-gb.hm-x>.hm-in{height:22px;padding:0 5px 0 3px;gap:2px;font-size:11px}
+.hm-gb.hm-x .zg-ck{width:13px;height:13px}
+.hm-gb.hm-x .zg-ck svg{width:8px;height:8px}

@@ -18,6 +18,7 @@ J = lambda p, d=None: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) i
 D = J('pipeline/data.enriched.json') or J('src/data.json'); P = J('public/premium.json', {}); C = J('pipeline/calc.json', {})
 from stfix import st_fix; from jsnum import walk_min; st_fix(D)   # 가까운 역·노선: 앱 화면·/z와 같은 값(예전엔 고치기 전 자료를 써서 도보 분이 1분씩 어긋난 곳이 있었다)
 set_dup(D)
+__import__('zsample').rights_inherit(D['recs'], P)   # c4 최종: 모아타운 안 사업구역 권리산정기준일 물려받기(시트 rights0와 같은 규칙 · 표시만)
 TX = J('public/data/tx.json', {}); TH = J('public/data/toheo.json', {}) or {}; S = J('public/data/sang.json'); NT = J('public/data/notice.json', {}) or {}
 RB = J('pipeline/rebuild.json', {}) or {}
 OUT = os.path.join(ROOT, 'public/api/v1'); SITE = 'https://jaegaebal.alwaysquestions.kr'

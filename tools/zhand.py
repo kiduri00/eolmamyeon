@@ -207,6 +207,8 @@ def vals(X, r):
     v['jrUse'] = f"{jr['v']:g}%" if jr.get('v') is not None and not jr.get('hold') else None   # 계산에 쓴 전세가율(구역 실측이면 실측)
     v['jrZone'] = f"{jz['v']:g}%" if jz.get('v') is not None else None; v['jrZoneN'] = f"{jz['n']:,}" if jz.get('n') else None   # 구역 안 전세 실측과 비교 표본 수
     v['nextTo'] = nx.get('toName'); v['etaFx'] = et.get('txt')
+    # c4 최종: 손글 '…년을 기다릴 사람' 기간 = ZoneFacts 입주 글자의 범위('9~17년 뒤' → '9~17년') — 카드 '언제 입주'와 같은 값(예전 손글 '10~15년' 10쪽)
+    _m = re.match(r'^(\d+~\d+년) 뒤$', str(et.get('txt') or '')); v['etaSpan'] = _m.group(1) if _m else None
     return v
 
 def fill(text, V, rid, plain=False):
@@ -283,6 +285,16 @@ def timeline(X, r, src):
 def checklist(items, V, rid, title='사기 전에 이것 3가지만 확인하세요'):
     return f'<div class="zh-card zh-ck"><p class="zh-ct">{esc(title)}</p><ol>' + ''.join(f'<li>{josa_fix(fill(x, V, rid))}</li>' for x in items) + '</ol></div>'
 
+def _fx_why(r):
+    """입주 범위를 내지 않는 이유(정체가 아닌 곳) — ZoneFacts eta.why·next와 같은 말. 정체(stall)면 None(위 stall 문장)."""
+    f = __import__('zsample').facts(r.get('id')) or {}; e = f.get('eta') or {}; nx = f.get('next') or {}
+    if f.get('stall') or e.get('txt') != '산정 불가' or not e.get('why'): return None
+    fd = str(nx.get('fromD') or '')[:10]; at = f"{nx['fromName']}({int(fd[:4])}.{int(fd[5:7])}.{int(fd[8:10])}) 뒤 " if nx.get('fromName') and len(fd) == 10 else ''
+    if nx.get('state') == 'nostat' and nx.get('txt'):   # '이주·착공 · 가로·소규모 사업장의 서울 기록이 적어 예상 시점을 내지 않아요'
+        a, _, b = nx['txt'].partition(' · ')
+        return f"{at}다음 단계({a})까지 {b}" if b else f"{at}{nx['txt']}"
+    return f"{at}{e['why']}이라 예상 범위를 싣지 않아요"
+
 def gap_no(k3): return (k3.get('basis') or '').startswith('전세를 안고는 살 수 없')   # 전세 끼고 '불가'(토허 등) — 아니면 '보류'
 
 def carousel(X, r, src, V):
@@ -298,6 +310,7 @@ def carousel(X, r, src, V):
     if stl: m2 = ('산정 불가', f'{stl}년째 같은 단계라 서울 통계로 견줄 곳이 거의 없어 예상 범위를 싣지 않아요(8년 이상이면 생략)')
     elif e.get('eLo') and e.get('eHi') and not r.get('stale') and r.get('s', 0) < 9 and not stalled(X, r) and not __import__('zsample').eta_hidden(r):
         m2 = (f'{e["eLo"][:4]}~{e["eHi"][:4]}년', f'준공 예상 범위(추정) · 가운데 {ym(e.get("eMid"))}' + (f' · 10년 안 준공 가능성 {V["p10"]}' if V.get('p10') and r.get('s', 0) < 8 else '') + (' · 지금 사면 입주권은 없어요' if k3.get('elab') == '입주권' and not k3.get('im') else ''))
+    elif _fx_why(r): m2 = ('산정 불가', _fx_why(r))   # c4 최종: 이유는 ZoneFacts 하나(o27: 사업시행인가 뒤 가로·소규모 기록 부족 · 정체 아님)
     elif stalled(X, r): m2 = ('산정 불가', '같은 단계에 8년 넘게 머물러 준공 통계를 싣지 않았어요')
     else: m2 = (k3.get('eta') or '산정 불가', k3.get('esub') or '입주 시기는 범위로만 봐요')
     cards = [('지금 필요한 돈', m1[0], m1[1], 'm'), ('입주 시기 범위', m2[0], m2[1], 'm'), ('핵심 위험', None, src['cards']['risk'], 'r'), ('이런 사람에게 맞아요', None, src['cards']['fit'], 'f')]
@@ -660,6 +673,10 @@ def enhance_hand(X, r, h):
             if V.get(k) is None: FAILED.append(f'{r["id"]}: {{{{{k}}}}} 값 없음(어제 글자 유지)'); return mm.group(0)
             return f'<b class="zv" data-zv="{k}">{esc(V[k])}</b>'
         body = re.sub(r'<b class="zv" data-zv="(\w+)">[^<]*</b>', _zv, body)
+    # c4 최종: 사업 개요 표의 세대수 칸 이름 = ZoneFacts num.units.lab(시트 uL과 같은 이름 · o448·o511 '계획 세대수' → '분양 세대')
+    _u = (((X.C.get(r['id']) or {}).get('f') or {}).get('num') or {}).get('units') or {}
+    if _u.get('lab') and _u.get('txt'):
+        body = re.sub(r'<th scope="row">(?:계획|분양|총) 세대(?:수)?</th>(<td>' + re.escape(_u['txt']) + ')', lambda mm: f'<th scope="row">{esc(_u["lab"])}</th>{mm.group(1)}', body)
         lede = old_lede(X, r, V, body)
         if lede: body = re.sub(r'<p class="lede">.*?</p>', lambda _: lede, body, count=1, flags=re.S)
     if cd and cd.get('h'):   # 이야기 제목을 질문형으로(content/z_cards.json · 손으로 씀)

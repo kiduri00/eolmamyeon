@@ -294,4 +294,5 @@
     const jrShort = (r) => { const j = jrInfo(r); return `${String(Math.round(j.v * 10) / 10)}% · ${JRS[j.src] || ""}`; };
     return { of, clear, jrInfo, jrShort, JRS, nextOf, smallNostat, ym, ymd, yr, condQ, NM, refOf, spanTxt, rngOf, tgjSegs, tgjTxt, buyOf, fmt, ro };
   })();
-  window.ZP_facts = (id) => { try { return ZFX.of(byId[id]); } catch (e) { return null; } };   // 점검(QA): 문장 대조
+  window.ZP_facts = (id) => { try { return ZFX.of(byId[id]); } catch (e) { return null; } };
+  window.ZP_tgj = { txt: (gu) => { try { return ZFX.tgjTxt(gu); } catch (e) { return ""; } }, buy: (r) => { try { return ZFX.buyOf(r); } catch (e) { return null; } } };   // c4 최종: 기능 묶음(feat · 다른 클로저)의 '이미 가진 집이면'이 투기과열지구 기간 문장을 실제로 쓰게(ZFX는 앱 안에서만 보임)   // 점검(QA): 문장 대조

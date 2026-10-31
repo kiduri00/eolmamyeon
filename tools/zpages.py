@@ -105,6 +105,7 @@ DTK = [('구역지정', '정비구역 지정'), ('추진위', '추진위원회 �
 SKEY = {2: ('구역지정',), 3: ('추진위',), 4: ('조합설립', '시행자지정'), 5: ('사업시행',), 6: ('관리처분',), 7: ('관리처분',), 8: ('착공',)}
 PSRC = {'villa': '빌라 실거래 가운데 값', 'complex': '단지 실거래 가운데 값', 'apt': '단지 실거래 가운데 값', 'est': '구 평균 시세로 추정'}
 from zsample import ro, isEst, cash, manT, smpTxt, trust, short, headline, noTicket, LBL, josa, auc_use, auc_uses, auc_jb, auc_amt, key3, set_dup, stall_yrs
+__import__('zsample').rights_inherit(D['recs'], P)   # c4 최종: 모아타운 안 사업구역 권리산정기준일 물려받기(시트 rights0와 같은 규칙 · 표시만)
 set_dup(D)  # 22차: '언제 입주' 가로·소규모 보정(화면과 같은 값)   # 계산 매수가 표본 한 문장·신뢰도(api.py와 같은 함수)
 def gapWhy(c):   # 전세 끼고 계산이 안 되는 이유(화면 gapBlock과 같은 문구에서) → (표 칸 짧은 말, 설명)
     b = str(c.get('gapBlock') or '')

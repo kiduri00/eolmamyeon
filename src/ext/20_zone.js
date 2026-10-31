@@ -22,17 +22,19 @@
       if (v.k === "set" && v.c !== "high" && v.d && v.d < "2010.07.16") Object.assign(v, { c: "low", old: 1 });
       return v;
     }
+    // c4 최종: 모아타운 고시일 글자('’25.05.1.' · '‘24.05.01.' · '’24.8.28.')를 한 꼴 'YYYY.MM.DD'로 — 날짜가 둘 이상이면 null(원문 그대로 · 하위 구역은 물려받지 않음) · tools/zsample.py rd_norm과 같은 규칙
+    function rdNorm(t) { const M = [...String(t || "").matchAll(/[’‘']?(\d{4}|\d{2})\.\s?(\d{1,2})\.\s?(\d{1,2})/g)]; if (M.length !== 1) return null; const m = M[0], y = m[1].length === 2 ? "20" + m[1] : m[1]; return `${y}.${m[2].padStart(2, "0")}.${m[3].padStart(2, "0")}`; }
     function rights0(r) {
       const x = r.rdx;
       if (x && x.c === "chg") return { k: "chg", b: x.b, u: x.u };   // 구역지정일이 변경 지정일 → 날짜를 추정하지 않음(tools/enrich.py)
       if (x && x.d) return { d: x.d.replaceAll("-", "."), b: x.b, u: x.u, c: x.c, k: "set" };
-      if (typeof r.rd === "string" && r.rd.trim()) return { d: r.rd.trim().replace(/^’/, "20").replace(/\.$/, ""), b: "서울시 모아타운 대상지 권리산정기준일 고시", u: "https://news.seoul.go.kr/citybuild/archives/525003", c: "high", k: "set" };
+      if (typeof r.rd === "string" && r.rd.trim()) { const nd = rdNorm(r.rd); return { d: nd || r.rd.trim().replace(/^[’‘]/, "20").replace(/\.$/, ""), multi: !nd, b: "서울시 모아타운 대상지 권리산정기준일 고시", u: "https://news.seoul.go.kr/citybuild/archives/525003", c: "high", k: "set" }; }
       const dt0 = r.dt || {}, dz = dt0["구역지정"];
       const zEarly = dz && ["조합설립", "시행자지정", "사업시행", "관리처분", "착공"].find((k) => dt0[k] && dt0[k] < dz);
       if (zEarly) return { k: "chg", b: `등록된 구역지정일(${dz.replaceAll("-", ".")})이 ${zEarly}(${dt0[zEarly].slice(0, 7).replace("-", ".")})보다 늦어 변경 지정일로 보여요. 최초 지정 고시일이나 따로 고시된 기준일을 구청에 확인하세요.`, u: "https://www.law.go.kr/법령/도시및주거환경정비법/제77조" };
       if (dz && r.s >= 2) return { d: dz.replaceAll("-", "."), b: "정비구역 지정 고시일(도시정비법 제77조 원칙) · 별도 고시가 있었다면 그 날짜", u: "https://www.law.go.kr/법령/도시및주거환경정비법/제77조", c: "mid", k: "set" };
       // 사이클 4: 모아타운 안의 사업구역(가로주택·모아주택)은 소속 모아타운 관리지역의 권리산정기준일 고시를 물려받는다(상위 시트 2022.01.20 · 하위 시트 '확인 필요'로 갈리던 것 · o27)
-      if (r.src !== "moa" && /가로|모아/.test(r.k || "") && r.parent && byId[r.parent] && byId[r.parent] !== r) { const pr = byId[r.parent], pv = rights0(pr); if (pv && pv.k === "set") return { ...pv, b: `소속 모아타운(${shortName(pr.n)})의 권리산정기준일 · ${pv.b}`, inh: pr.id }; }
+      if (r.src !== "moa" && /가로|모아/.test(r.k || "") && r.parent && byId[r.parent] && byId[r.parent] !== r) { const pr = byId[r.parent], pv = rights0(pr); if (pv && pv.k === "set" && !pv.multi) return { ...pv, b: `소속 모아타운(${shortName(pr.n)})의 권리산정기준일 · ${pv.b}`, inh: pr.id }; }
       if (r.src === "moa" || /가로|모아/.test(r.k))
         return { k: "moa", b: "모아타운은 대상지 선정 뒤 서울시가 권리산정기준일을 따로 고시해요(2026.10.12부터 구역계 공개일로 앞당김). 가로주택·모아주택 개별 사업의 기준일은 소규모주택정비법과 서울시 기준에 따라 정해져 구청 확인이 필요해요.", u: "https://news.seoul.go.kr/citybuild/archives/525003" };
       if ((r.pg || []).some((p) => p.startsWith("신속통합기획")) || r.src === "sintong")

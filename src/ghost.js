@@ -125,7 +125,7 @@
   // 23차: 묶음 색은 한 가지(중간 남색) — 곳 수는 숫자가 말한다. 범례에 없는 '진함 세 단계'를 없앰(뜻 모를 색 없음)
   var tier = function () { return 2; };
   // 구 묶음 자리 잡기(실제 지도 guLayout과 같은 함수): 겹치면 ① 둘레로 비켜 ② 작게 ③ 안 되면(또는 화면 밖) '+N곳' 칩으로
-  var CC = { k: "", m: {}, n: 0 };
+  var CC = { k: "", m: {}, n: 0 }, DPL = true;
   // 사이클 4 D+(SPEC J2-1 서울 줌): 새 전체 지도는 한 줄 태그 '✓ 은평 8' — 갈 수 있는 구는 숫자를 절대 잃지 않는다(물러남 4단계)
   //   ① 같은 태그(높이 28 · 13.5px · 체크 17)를 가운데 → 위아래 ±12 → 좌우 ±16 → 대각 ② 작은 태그(높이 24 · 12.5px · 체크 15) ③ 숫자 원(22px 노란 원 + 남색 숫자)
   //   ④ 구 중심에 숫자 원을 겹쳐서라도(force). 화면 밖 구만 '+N곳' 칩(left)으로. 갈 수 있는 곳 없이 조금 부족만 있는 구 = 테두리 태그 '동작 조금 부족 3'(자리 없으면 생략)
@@ -135,44 +135,60 @@
   function placeMx(o) {
     var w = o.W, h = o.H, obs = o.obs || [], TB = bigK(), EX = 7, GAP = 3;
     var L = o.gus.slice().sort(function (a, b) { return (a.m == null ? 1e9 : a.m) - (b.m == null ? 1e9 : b.m) || b.c - a.c; });
-    var placed = [], keep = [], left = [], steps = [0, 0, 0, 0];
+    var placed = [], keep = [], left = [], steps = [0, 0, 0, 0, 0];
     var free = function (bx) { if (bx[0] < EX || bx[2] > w - EX || bx[1] < 2 || bx[3] > h - 2) return false; if (obs.some(function (q) { return hit(q, bx); })) return false; var gx = [bx[0] - GAP, bx[1] - GAP, bx[2] + GAP, bx[3] + GAP]; return !placed.some(function (p) { return hit(p, gx); }); };
     var sizeOf = function (g, k) {
       var l1 = g.c ? g.sn + " " + fmt(g.c) : g.sn + " 조금 부족 " + fmt(g.nr);
-      if (k === 2) { var d = Math.ceil(Math.max(22, tw(fmt(g.c), 12.5) + 8) * TB); return { l1: l1, w: d, h: Math.ceil(22 * TB), bw: d + 4, bh: Math.ceil(22 * TB) + 4 }; }
+      if (k === 3) { var d = Math.ceil(Math.max(22, tw(fmt(g.c), 12.5) + 8) * TB); return { l1: l1, w: d, h: Math.ceil(22 * TB), bw: d + 4, bh: Math.ceil(22 * TB) + 4 }; }
+      // c4 최종(ux_re 14 · 가능한 만큼 구 이름): 숫자 원으로 가기 전에 한 번 더 — 좁은 태그(11.5px · 체크 13 · 여백 좁게 · 높이 22)
+      if (k === 2) { var w2 = Math.ceil((tw(l1, 11.5) + (g.c ? 13 + 3 : 0) + 10) * 1.04 * TB); return { l1: l1, w: w2, h: Math.ceil(22 * TB), bw: w2, bh: Math.ceil(22 * TB) }; }
       var fs = k ? 12.5 : 13.5, ck = g.c ? (k ? 15 : 17) + 4 : 0, ww = Math.ceil((tw(l1, fs) + ck + (k ? 14 : 18)) * 1.04 * TB), hh = Math.ceil((k ? 24 : 28) * TB);
       return { l1: l1, w: ww, h: hh, bw: ww, bh: hh };
     };
+    var full = mxf();
+    // c4 최종: 폰에서 태그·숫자 원(겹쳐 놓기 ④ 말고)의 가운데 점은 제 구 땅이나 서울 밖에만(이웃 구 땅 위에 서던 것 · 옛 place의 okAt과 같은 고리)
+    var RS = o.phone ? rings() : null, P1 = o.proj([126.9, 37.5]), P2 = o.proj([127.1, 37.6]), X1 = mx(126.9), Y1 = my(37.5), KX = (P2.x - P1.x) / (mx(127.1) - X1), KY = (P2.y - P1.y) / (my(37.6) - Y1), GI = {};
+    if (GD) GD.gu.forEach(function (g, i) { GI[g[0]] = i; });
+    var ANC = o.phone ? o.gus.map(function (g) { return { n: g.n, q: o.proj(g.ll) }; }) : [];
+    var own = function (n, x, y) {
+      if (!RS || !KX || !KY) return true; var X = X1 + (x - P1.x) / KX, Y = Y1 + (y - P1.y) / KY, me = null;
+      for (var i = 0; i < RS.length; i++) if (inRings(RS[i], X, Y)) { if (i !== GI[n]) return false; break; }
+      // 옛 place의 mine과 같은 잣대: 비킨 자리가 다른 구 중심에 (10px 넘게) 더 가깝지 않게
+      ANC.forEach(function (a) { if (a.n === n) me = a.q; }); if (!me) return true; var d0 = Math.hypot(x - me.x, y - me.y);
+      return ANC.every(function (a) { return a.n === n || d0 <= Math.hypot(x - a.q.x, y - a.q.y) + 10; });
+    };
     L.forEach(function (g0) {
-      if (!g0.c && !g0.nr) return;
+      if (!g0.c && !(full && g0.nr)) return;
       var g = { n: g0.n, ll: g0.ll, c: g0.c, m: g0.m, nr: g0.c ? 0 : g0.nr || 0 }, q = o.proj(g.ll);
       g.sn = g.n.length > 2 ? g.n.replace(/구$/, "") : g.n;
       if (q.x < -8 || q.x > w + 8 || q.y < -8 || q.y > h + 8) { if (g.c) left.push(g); return; }
       var got = null, k, j;
-      for (k = 0; k < (g.c ? 3 : 1) && !got; k++) {
+      for (k = 0; k < (g.c ? 4 : 1) && !got; k++) {
         var S0 = sizeOf(g, k);
-        var NU = k === 2 ? NUDGE3 : NUDGE;
+        var NU = k === 3 ? NUDGE3 : NUDGE;
         for (j = 0; j < NU.length && !got; j++) {
           var x = q.x + NU[j][0], y = q.y + NU[j][1], bx = [x - S0.bw / 2, y - S0.bh / 2, x + S0.bw / 2, y + S0.bh / 2];
-          if (free(bx)) got = { S: S0, k: k, dx: NU[j][0], dy: NU[j][1], bx: bx };
+          if (free(bx) && (!NU[j][0] && !NU[j][1] || own(g.n, x, y))) got = { S: S0, k: k, dx: NU[j][0], dy: NU[j][1], bx: bx };
         }
       }
       if (!got && g.c) {   // ④ 겹쳐서라도 — 사이클 4 통합: 가운데 고정 대신 둘레(NUDGE3 + 한 겹 더 36·44px) 가운데 이미 놓인 태그와 가장 적게 겹치는 자리(큰 글씨 360에서 '⑦'이 '양천 4'의 숫자를 덮던 것)
-        var S3 = sizeOf(g, 2), best = null, ov = function (bx) { var a = 0; placed.forEach(function (p) { var ox = Math.min(p[2], bx[2]) - Math.max(p[0], bx[0]), oy = Math.min(p[3], bx[3]) - Math.max(p[1], bx[1]); if (ox > 0 && oy > 0) a += ox * oy; }); obs.forEach(function (p) { var ox = Math.min(p[2], bx[2]) - Math.max(p[0], bx[0]), oy = Math.min(p[3], bx[3]) - Math.max(p[1], bx[1]); if (ox > 0 && oy > 0) a += 4 * ox * oy; }); return a; };
+        var S3 = sizeOf(g, 3), best = null, ov = function (bx) { var a = 0; placed.forEach(function (p) { var ox = Math.min(p[2], bx[2]) - Math.max(p[0], bx[0]), oy = Math.min(p[3], bx[3]) - Math.max(p[1], bx[1]); if (ox > 0 && oy > 0) a += ox * oy; }); obs.forEach(function (p) { var ox = Math.min(p[2], bx[2]) - Math.max(p[0], bx[0]), oy = Math.min(p[3], bx[3]) - Math.max(p[1], bx[1]); if (ox > 0 && oy > 0) a += 4 * ox * oy; }); return a; };
         var NU4 = NUDGE3.concat([36, 44].reduce(function (a, r) { for (var k = 0; k < 8; k++) a.push([Math.round(r * Math.cos(k * Math.PI / 4)), Math.round(r * Math.sin(k * Math.PI / 4))]); return a; }, []));
         NU4.forEach(function (d, i) { var x3 = Math.max(EX + S3.bw / 2, Math.min(w - EX - S3.bw / 2, q.x + d[0])), y3 = Math.max(2 + S3.bh / 2, Math.min(h - 2 - S3.bh / 2, q.y + d[1])), bx = [x3 - S3.bw / 2, y3 - S3.bh / 2, x3 + S3.bw / 2, y3 + S3.bh / 2], a = ov(bx) + i * 0.01; if (!best || a < best.a) best = { a: a, x3: x3, y3: y3, bx: bx }; });
-        got = { S: S3, k: 3, dx: best.x3 - q.x, dy: best.y3 - q.y, bx: best.bx };
+        got = { S: S3, k: 4, dx: best.x3 - q.x, dy: best.y3 - q.y, bx: best.bx };
       }
       if (!got) return;
       if (g.c) steps[got.k]++;
-      g.l1 = got.S.l1; g.l2 = ""; g.t = 2; g.q = q; g.w = got.S.w; g.h = got.S.h; g.sm = got.k === 1; g.xs = false; g.tt = false; g.num = got.k >= 2; g.frc = got.k === 3; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy);
+      g.l1 = got.S.l1; g.l2 = ""; g.t = 2; g.q = q; g.w = got.S.w; g.h = got.S.h; g.sm = got.k === 1; g.xs = got.k === 2; g.tt = false; g.num = got.k >= 3; g.frc = got.k === 4; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy);
       placed.push(got.bx); keep.push(g);
     });
     placeMx.steps = steps;
     return { keep: keep, left: left, steps: steps };
   }
   function place(o) {
-    if (Dc.documentElement.classList.contains("mx") && Dc.documentElement.classList.contains("s-full")) return placeMx(o);
+    // c4 최종(ux_re 결함 1): 서울 보기 구 표기는 어디서나 D+ 하나 — 웹 홈 지도(자리 그림·실제 지도)도 '✓ 은평 8' · 숫자 보장 · '+N곳' 배지 없음(#map·앱 미니 지도와 같은 표기)
+    //   아래 옛 두 줄 묶음('은평 8곳 / 9,800만~') 자리 잡기는 쓰지 않는다(남겨 둔 것은 되돌릴 때 참고용)
+    if (DPL) return placeMx(o);
     var w = o.W, h = o.H, obs = o.obs || [], phone = o.phone;
     // 7차: 자리 잡는 차례 = 가장 적게 드는 구부터(같으면 곳 수 많은 구) — 구로 6,900만~·종로 1.2억~가 '+N'에 숨고 관악 5.2억~·서초가 남던 것 · 노원 18곳(1.4억~)이 숨고 광진 3곳(2.8억~)이 남던 것
     var L = o.gus.slice().sort(function (a, b) { return (a.m == null ? 1e9 : a.m) - (b.m == null ? 1e9 : b.m) || b.c - a.c; });
@@ -285,6 +301,10 @@
   var KEY2 = '<span><i class="k-gu"><b>' + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' + '</b></i>✓ 숫자 = <span class="k-x">내 돈으로 </span>갈 수 있는 곳</span><span class="k-s"><i class="k-gun"></i>조금 부족만 있는 구</span>';
   var KEY2_L = "범례: 체크와 구 이름 옆 숫자는 그 구에서 내 돈으로 갈 수 있는 곳 수, 자리가 좁으면 노란 원 숫자, 남색으로 칠한 구는 갈 수 있는 곳이 있는 구, 테두리 라벨은 갈 수 있는 곳 없이 조금 부족한 곳만 있는 구";
   var mxf = function () { var c = Dc.documentElement.classList; return c.contains("mx") && c.contains("s-full"); };
+  // c4 최종: 홈 지도 범례 = 새 지도와 같은 견본('✓ 숫자') · 조금 부족 테두리 태그는 전체 지도에서만 그리므로 그 칸은 뺀다
+  var KEYH = KEY2.slice(0, KEY2.indexOf('<span class="k-s">'));
+  var KEYH_L = "범례: 체크와 구 이름 옆 숫자는 그 구에서 내 돈으로 갈 수 있는 곳 수, 자리가 좁으면 노란 원 숫자, 남색으로 칠한 구는 갈 수 있는 곳이 있는 구";
+  var keyOf = function () { return mxf() ? { h: KEY2, l: KEY2_L } : DPL ? { h: KEYH, l: KEYH_L } : { h: KEY, l: KEY_L }; };
   var fmt = function (n) { try { return Number(n).toLocaleString("ko-KR"); } catch (e) { return String(n); } };
   // 금액 꼴 = 앱 ZF.cash와 같은 규칙(1억 아래 100만 단위 '7,400만' · 1억부터 '1.2억' · 올림) — 섬(앱 전)도 같은 글자
   var up = function (x, k) { return Math.ceil(x * k - 1e-6) / k; };
@@ -307,7 +327,7 @@
     if (g.m != null) el.dataset.m = String(g.m); else delete el.dataset.m;   // 사이클 4 통합: 한 줄 라벨이라 최저 금액은 이름표(접근 이름)와 data-m(실제 지도 gusSet과 같음)
     el.style.setProperty("--w", g.w + "px"); el.style.setProperty("--h", g.h + "px");
     // 사이클 4 D+: 새 전체 지도 서울 줌 = '✓ 은평 8'(노란 체크 + 남색 태그) · 자리가 없으면 숫자 원(노란 원 + 남색 숫자) — 접근 이름은 그대로 '…곳'
-    if (mxf() && !g.l2 && g.c) el.innerHTML = g.num ? '<b class="zg-num">' + fmt(g.c) + "</b>" : '<i class="zg-ck">' + CK17 + '</i><b><span class="gn">' + esc(g.sn || g.l1.replace(/\s[\d,]+$/, "")) + '</span> <span class="mn">' + fmt(g.c) + "</span></b>";   // 시각 언어 v2: 이름 500 + 숫자 700
+    if ((DPL || mxf()) && !g.l2 && g.c) el.innerHTML = g.num ? '<b class="zg-num">' + fmt(g.c) + "</b>" : '<i class="zg-ck">' + CK17 + '</i><b><span class="gn">' + esc(g.sn || g.l1.replace(/\s[\d,]+$/, "")) + '</span> <span class="mn">' + fmt(g.c) + "</span></b>";   // 시각 언어 v2: 이름 500 + 숫자 700
     else el.innerHTML = "<b>" + esc(g.l1) + "</b>" + (g.l2 ? "<span>" + esc(g.l2) + "</span>" : "");
     el.setAttribute("aria-label", g.c ? GU_LBL(g.n, g.c, g.m) : g.n + ", 갈 수 있는 곳은 없고 조금 부족한 곳 " + fmt(g.nr || 0) + "곳, 눌러서 " + g.n + " 보기");
   }
@@ -324,7 +344,7 @@
     S.box = box;
     var d = Dc.createElement("div");
     d.className = "zp-ph"; d.setAttribute("role", "group"); d.setAttribute("aria-label", "서울 지도 · 구 묶음을 누르면 그 구로 확대");
-    d.innerHTML = '<svg class="zg-bg" aria-hidden="true" width="100%" height="100%"></svg><div class="zg-mk"></div><div class="lm-gumore" hidden></div><p class="lm-key" aria-label="' + KEY_L + '">' + KEY + '</p><div class="lm-zoom" role="group" aria-label="지도 확대·축소">' + ZOOM + '</div><span class="zg-attr" aria-hidden="true"></span>';
+    d.innerHTML = '<svg class="zg-bg" aria-hidden="true" width="100%" height="100%"></svg><div class="zg-mk"></div><div class="lm-gumore" hidden></div><p class="lm-key" aria-label="' + keyOf().l + '" data-h="' + esc(keyOf().h) + '">' + keyOf().h + '</p><div class="lm-zoom" role="group" aria-label="지도 확대·축소">' + ZOOM + '</div><span class="zg-attr" aria-hidden="true"></span>';
     box.insertBefore(d, box.firstChild);
     S.el = d; S.out = false;
     // 옛 SVG 구 지도(#map · 구 25개 누르기 자리)는 자리 그림 밑에서 보이지도 눌리지도 않게(20차 A4 · 실제 지도가 붙으면 lm-on이 숨김)
@@ -415,9 +435,9 @@
   // 사이클 4(M · SPEC C1): 구 채움 4단계(0 · 1~2 · 3~5 · 6곳 이상) — 실제 지도 gu-fill과 같은 단계
   function guFill(svg, cnt) {
     var g = svg.querySelector(".zg-gf"); if (!g || !GD.gpl) return;
-    if (!(Dc.documentElement.classList.contains("mx") && Dc.documentElement.classList.contains("s-full"))) cnt = {};   // 구 채움은 새 전체 지도만(홈 지도는 예전 그대로)
+    if (!DPL && !mxf()) cnt = {};   // c4 최종: 구 채움 2단계도 홈 지도·미니 지도·전체 지도 같은 표기
     // 사이클 4 D+(SPEC J2-1): 2단계 — 갈 수 있는 곳이 있는 구 = 남색(라이트 #6F87C8 · 다크 #4A6FD6) · 없는 구 = 옅은 바탕(#F4F5F7 · #141A22) · 색은 CSS(--gu-has · --gu-none)
-    var mx2 = mxf(), t = function (c) { return c >= 1 ? 1 : 0; }, h = "", k = mx2 ? "m" : "h";
+    var mx2 = DPL || mxf(), t = function (c) { return c >= 1 ? 1 : 0; }, h = "", k = mx2 ? "m" : "h";
     // 색은 디자인 토큰(--gu-has · --gu-none · 99zzzzzzzzzz_c4map.css) — 인라인 style의 var()라 테마가 바뀌어도 그대로 따라간다
     if (mx2) GD.gu.forEach(function (x, i) { var v = t((cnt && cnt[x[0]]) || 0); k += v; if (GD.gpl[i]) h += '<path class="gf' + (v ? "1" : "0") + '" style="fill:var(' + (v ? "--gu-has" : "--gu-none") + ')" d="' + GD.gpl[i] + '"/>'; });
     if (g.dataset.k !== k) { g.dataset.k = k; g.innerHTML = h; }
@@ -443,7 +463,7 @@
     // 구를 눌러 확대한 동안: 그 구 묶음 하나만(실제 지도가 알약을 그릴 때까지 '불러오는 중' 반짝임) · 칩 없음
     if (S.dim) gus = gus.filter(function (g) { return g.n === S.dim; }).map(function (g) { g.c = g.c || 0; return g; });
     var key = el.querySelector(".lm-key"), cb = el.getBoundingClientRect(), ky = h - 40;
-    { var kh = mxf() ? KEY2 : KEY; if (key && key.dataset.h !== kh) { key.dataset.h = kh; key.innerHTML = kh; key.setAttribute("aria-label", mxf() ? KEY2_L : KEY_L); } }
+    { var KO = keyOf(), kh = KO.h; if (key && key.dataset.h !== kh) { key.dataset.h = kh; key.innerHTML = kh; key.setAttribute("aria-label", KO.l); } }
     try { if (key.offsetWidth) ky = key.getBoundingClientRect().top - cb.top - 6; } catch (e) {}
     // 27차: 폰 서울 보기는 '+N곳' 칩을 왼쪽 위(서울 밖 고양 쪽 빈 자리)에 — 왼쪽 아래에 두면 구로·양천 묶음 자리를 칩이 차지했다(10_lmap.js chipBox와 같은 규칙)
     var ctop = phone && !Dc.documentElement.classList.contains("s-full");
@@ -513,7 +533,7 @@
     if (+b.dataset.n === c && b.dataset.m === String(mn)) return;
     b.dataset.n = String(c); b.dataset.m = String(mn);
     var n = b.dataset.gu, sn = n.length > 2 ? n.replace(/구$/, "") : n, x = b.querySelector("b"), sp = b.querySelector("span");
-    if (x && (c || !b.classList.contains("nr"))) { if (x.classList.contains("zg-num")) x.textContent = fmt(c); else if (mxf() && b.classList.contains("one")) x.innerHTML = '<span class="gn">' + esc(sn) + '</span> <span class="mn">' + fmt(c) + "</span>"; else x.textContent = sn + " " + fmt(c) + "곳"; }
+    if (x && (c || !b.classList.contains("nr"))) { if (x.classList.contains("zg-num")) x.textContent = fmt(c); else if ((DPL || mxf()) && b.classList.contains("one")) x.innerHTML = '<span class="gn">' + esc(sn) + '</span> <span class="mn">' + fmt(c) + "</span>"; else x.textContent = sn + " " + fmt(c) + "곳"; }
     if (sp) sp.textContent = mn != null ? MT(mn) : "";
     b.classList.remove("t1", "t2", "t3"); b.classList.add("t" + tier(c, mx)); b.classList.toggle("z0", !c);
     var sv = S.el && S.el.querySelector(".zg-bg"); if (sv && S.st && S.st.cnt) { S.st.cnt[n] = c; guFill(sv, S.st.cnt); }
@@ -548,7 +568,7 @@
   function unhide() { var om = Dc.getElementById("map"); if (om) { om.style.visibility = ""; om.removeAttribute("aria-hidden"); } }
   function drop() { if (S.el) { S.out = true; if (S.ro) { S.ro.disconnect(); S.ro = null; } S.el.remove(); unhide(); } }
   W.ZP_G = {
-    GD: GD, PADB: PADB, mxPad: mxPad, KEY2: KEY2, KEY2_L: KEY2_L, mxf: mxf, appFull: appFull, APAD: APAD, tw: tw, bb: bb, cam: cam, proj: proj, place: place, tier: tier, KEY: KEY, KEY_L: KEY_L, guEl: guEl, guLite: guLite, cash: cash, MT: MT, ZOOM: ZOOM, chipHTML: chipHTML, GU_LBL: GU_LBL,
+    GD: GD, PADB: PADB, mxPad: mxPad, KEY2: KEY2, KEY2_L: KEY2_L, mxf: mxf, keyOf: keyOf, dpl: function () { return DPL; }, appFull: appFull, APAD: APAD, tw: tw, bb: bb, cam: cam, proj: proj, place: place, tier: tier, KEY: KEY, KEY_L: KEY_L, guEl: guEl, guLite: guLite, cash: cash, MT: MT, ZOOM: ZOOM, chipHTML: chipHTML, GU_LBL: GU_LBL,
     mount: mount, draw: draw, lite: lite, redraw: function () { if (S.st && !S.out) draw(S.st); }, steps: function () { return (placeMx.steps || []).slice(); }, fade: fade, drop: drop, guCam: guCam, guPad: guPad, zoomGu: zoomGu, dimGu: function () { return S.dim; },
     on: function () { return !!(S.el && S.el.isConnected && !S.out); },
     el: function () { return S.el && S.el.isConnected ? S.el : null; },
