@@ -161,7 +161,7 @@
     //   이름 없는 숫자 원(③·④)이 가장 적은 배치를 쓴다(같으면 앞 배치 = 큰 태그). 숫자는 어느 배치에서도 잃지 않는다(④ 그대로)
     var best = null;
     for (var k0 = 0; k0 < 3; k0++) {
-      if (best && !(best.steps[3] + best.steps[4])) break;
+      if (best && (!(best.steps[3] + best.steps[4]) || TB < 1.05)) break;   // 다시 놓기는 큰 글씨(130% 등)만 — 100%에서는 첫 페인트 전 자리 잡기 비용(#map LCP)이 이득(이름 없는 원 5→4)보다 커서
       placed = []; keep = []; left = []; steps = [0, 0, 0, 0, 0];
       pass(k0);
       var nn = steps[3] + steps[4];

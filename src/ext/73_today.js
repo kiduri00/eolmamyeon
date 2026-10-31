@@ -24,7 +24,8 @@ const TDAY = (() => {
     const n = $("news"); if (n && n.classList.contains("s-on")) run((Y, c) => Y.enter(c));
     // 오늘 카드: 화면에 보이거나 쉴 때(최대 3초)·첫 손길에 개인 줄(사이클 5 M ZP_lazy.when)
     const card = $("tdCard");
-    if (card) ZP_lazy.when("today", { el: card, idle: 3000, touch: true }).then(() => run((Y, c) => Y.home(c), yLoad)).catch(() => {});
+    // 통합(홈 TBT): requestIdleCallback(timeout 3000)은 첫 한가한 틈에 바로 돌아 홈 첫 9초 안에 오늘 묶음·today.json을 받았다 → 카드가 화면 가까이 오거나(300px) 첫 손길 때, 아니면 10초 뒤
+    if (card) Promise.race([ZP_lazy.when("today", { el: card, margin: "300px 0px", touch: true }), new Promise((r) => setTimeout(r, 10000)).then(() => ZP_lazy.load("today"))]).then(() => run((Y, c) => Y.home(c), yLoad)).catch(() => {});
     // 첫 방문 금액을 고른 뒤 결과 카드(섬에서 이미 골랐으면 붙은 뒤에)
     addEventListener("zp:onboarded", () => run((Y, c) => Y.onb(c), wLoad));
     try { if (sessionStorage.getItem("zp.onbR") === "1") run((Y, c) => Y.onb(c), wLoad); } catch (e) {}
