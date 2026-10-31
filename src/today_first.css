@@ -42,3 +42,5 @@ html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>#tdCard{order:2;margin:0 0
 /* 사이클 5 D axe: 새 소식 줄(노란 바탕) 위 거래·신고가 꼬리표 · 관심 '새 소식 N곳'(다크) 글자 대비 4.5:1 미달 — 원래 있던 것(새 소식이 있을 때만 보임) */
 .ib-it.new .ib-tg.tr,.ib-it.new .ib-tg.hi{background:var(--surface);color:var(--text-1)}
 .pn-nwn{background:var(--pick,#F5C33B);color:var(--pick-ink,#13265E)}
+/* 사이클 5 통합: 웹 폰은 지도(order 1) → 가장 맞는 곳(1) → 오늘 카드(2) → 목록(3) — 첫 화면에 지도 머리·구역 이름 줄(home.namesFold) · 지도 칸이 보여야 실제 지도가 붙음 */
+@media (max-width:980px){html.simple:not(.is-tapp) #mapTop>#tdCard{order:2}}

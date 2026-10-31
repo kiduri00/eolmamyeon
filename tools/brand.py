@@ -23,6 +23,8 @@ LEGACY_PKG = 'kr.alwaysquestions.zippin'   # 이미 설치된 예전 시험 앱(
 OLD_PKGS = (LEGACY_PKG,)   # QA brand.residual 허용 예외: assetlinks의 이 패키지 식별자만
 # assetlinks 서명 지문(두 패키지 공통) — 지금은 업로드 키 · Play 앱 서명 지문이 나오면 이 목록에 더한다
 SIGNING_SHA256 = ['CA:7E:87:4A:C9:9C:A4:AD:53:2F:24:4C:17:43:7A:5F:F2:03:B3:97:4F:01:78:C8:44:98:38:C7:54:15:0F:9B']
+# Play 앱 서명 키(Play Console 앱 무결성 · 2026-11-01 jp3 내부 테스트 업로드 뒤 받음) — Play가 설치한 새 앱(APP_PKG)만 이 키로 서명된다. 예전 시험 앱(LEGACY_PKG)에는 넣지 않는다
+PLAY_SIGNING_SHA256 = ['11:6B:37:DB:24:DB:61:E8:75:0A:C8:3F:06:02:25:28:0C:6B:51:25:83:00:FC:33:6D:F0:24:D1:F0:D1:33:82']
 ALT_NAMES = (BRAND_EN,)   # JSON-LD alternateName — 사이클 4 통합(오너): 예전 이름 없이 영문 이름만
 APP_NAME = BRAND                          # 설치 앱 이름(manifest name)
 import json as _json

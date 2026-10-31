@@ -1,7 +1,7 @@
 /* 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "6362cc4f"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "f609069e"; // tools/build.py가 빌드 해시로 바꿔 씀
 const BRAND = "재개픽", BRAND_EN = "JaegaePick"; // 서비스 이름 — tools/build.py가 tools/brand.py 값으로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
@@ -85,16 +85,35 @@ const offlinePage = async () => {
   return new Response(`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark"><title>오프라인 | ${BRAND}</title><style>${css}</style><body><header><a href="/" aria-label="${BRAND} 처음으로"><img src="/icons/favicon.svg" width="26" height="26" alt="">${BRAND} <small lang="en">${BRAND_EN}</small></a></header><main><span class="off">오프라인</span><h1>이 페이지는 아직 저장돼 있지 않아요</h1><p>연결되면 다시 열어 주세요. 이 기기에 저장된 화면은 바로 볼 수 있어요.</p>${li ? `<h2>이 기기에 저장된 페이지</h2><ul>${li}</ul>` : ""}<a class="home" href="/"><span class="w">찾기(저장된 첫 화면)로</span><span class="a">홈(저장된 첫 화면)으로</span></a></main><nav aria-label="주요 메뉴">${nav}</nav><script>(function(){var a=false;try{a=sessionStorage.getItem("zp.tapp")==="1"}catch(e){}try{a=a||matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches}catch(e){}if(a)document.documentElement.classList.add("app")})()</script></body></html>`, { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } });
 };
 // HTML: 네트워크 우선, 실패하면 같은 주소 저장본 → (구역·리포트 페이지면 저장 목록) → 첫 화면 저장본
+// 사이클 5(M · 앱 요청): 설치 앱이 여는 첫 화면(/?src=app · TWA 시작 주소 · android-app:// 에서 온 이동)은 망이 3.5초 안에 답하지 않으면 저장된 첫 화면을 먼저 보인다
+//   (신호가 약할 때 스플래시가 길어지던 것). 망 응답은 뒤에서 계속 받아 저장본을 새로 한다(다음 실행에 반영). 웹 방문(그 밖의 주소·src 없음)은 예전 그대로 망 우선.
+const APP_NAV_MS = 3500;
+const appNav = (e, path) => isApp(path) && (new URL(e.request.url).searchParams.get("src") === "app" || /^android-app:\/\//.test(e.request.referrer || ""));
 const page = async (e) => {
   const c = await caches.open(SHELL), pc = await caches.open(PAGES);
   const path = new URL(e.request.url).pathname, doc = isDoc(path);
   try {
-    const r = (await e.preloadResponse) || (await fetch(e.request));
-    if (okToCache(r)) {
-      const tc = doc ? pc : c, nm = doc ? PAGES : SHELL, cp = r.clone();
-      e.waitUntil((async () => { await tc.put(keyOf(e.request.url), cp.clone()); if (r.url && keyOf(r.url) !== keyOf(e.request.url)) await tc.put(keyOf(r.url), cp); await trim(nm); })());
+    const net = (async () => {
+      const r = (await e.preloadResponse) || (await fetch(e.request));
+      if (okToCache(r)) {
+        const tc = doc ? pc : c, nm = doc ? PAGES : SHELL, cp = r.clone();
+        e.waitUntil((async () => { await tc.put(keyOf(e.request.url), cp.clone()); if (r.url && keyOf(r.url) !== keyOf(e.request.url)) await tc.put(keyOf(r.url), cp); await trim(nm); })());
+      }
+      return r;
+    })();
+    if (appNav(e, path)) {
+      const home = (await c.match(keyOf(e.request.url))) || (await c.match(keyOf(new URL("/", e.request.url).href)));
+      if (home) {
+        let tm = 0;
+        const late = new Promise((ok) => { tm = setTimeout(() => ok(null), APP_NAV_MS); });
+        const r = await Promise.race([net, late]);
+        clearTimeout(tm);
+        if (r) return r;
+        e.waitUntil(net.catch(() => {}));   // 늦은 망 응답은 저장만(위 net이 저장)
+        return home;
+      }
     }
-    return r;
+    return await net;
   } catch (err) {
     const k = keyOf(e.request.url);
     const hit = (await pc.match(k)) || (await c.match(k)) || (await c.match(e.request, { ignoreSearch: true }));

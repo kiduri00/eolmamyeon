@@ -685,6 +685,6 @@ if os.path.exists(_MF):
 _AL = os.path.join(R, 'public', '.well-known', 'assetlinks.json')
 if os.path.exists(_AL):
     a0 = open(_AL, encoding='utf-8').read()
-    # 사이클 2: 새 앱(APP_PKG) + 이미 설치된 예전 앱(LEGACY_PKG) 두 항목 · 지문은 brand.SIGNING_SHA256(두 항목 공통)
-    a1 = json.dumps([{"relation": ["delegate_permission/common.handle_all_urls"], "target": {"namespace": "android_app", "package_name": p, "sha256_cert_fingerprints": list(brand.SIGNING_SHA256)}} for p in (brand.APP_PKG, brand.LEGACY_PKG)], indent=2) + '\n'
+    # 사이클 2: 새 앱(APP_PKG) + 이미 설치된 예전 앱(LEGACY_PKG) 두 항목 · 지문은 brand.SIGNING_SHA256(두 항목 공통) + 새 앱만 Play 앱 서명 키(brand.PLAY_SIGNING_SHA256, 사이클 5 통합)
+    a1 = json.dumps([{"relation": ["delegate_permission/common.handle_all_urls"], "target": {"namespace": "android_app", "package_name": p, "sha256_cert_fingerprints": list(brand.SIGNING_SHA256) + (list(getattr(brand, "PLAY_SIGNING_SHA256", [])) if p == brand.APP_PKG else [])}} for p in (brand.APP_PKG, brand.LEGACY_PKG)], indent=2) + '\n'
     if a1 != a0: open(_AL, 'w', encoding='utf-8').write(a1); print('assetlinks packages', brand.APP_PKG, brand.LEGACY_PKG)

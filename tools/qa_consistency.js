@@ -3466,7 +3466,7 @@ async function tappLane(browser, api, errs) {
     const { ctx, page } = await appPage(mob(390, 844, cs));
     try {
       await appHome(page);
-      const SEL = ".s-mode, .my-seg, .hub-tabs, .seg, .tf-seg";
+      const SEL = ".s-mode, .my-seg, .hub-tabs, .seg, .tf-seg, .nw-seg";   // 사이클 5 통합: 소식 칸 고르기는 tf-seg(2칸) → nw-seg(4칸, D)
       const scan = (tag) => page.evaluate(([tag, SEL]) => [...document.querySelectorAll(SEL)].filter((g) => g.getClientRects().length && g.getBoundingClientRect().width > 0).map((g) => { const s = g.querySelector('[aria-pressed="true"], [aria-checked="true"], [aria-selected="true"]'); if (!s) return null; const c = getComputedStyle(s); return [tag + ":" + (g.id || g.className.split(" ")[0]), getComputedStyle(g).backgroundColor, c.backgroundColor, c.color]; }).filter(Boolean), [tag, SEL]);
       const L = [...await scan("home")];
       await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1200); L.push(...await scan("map"));

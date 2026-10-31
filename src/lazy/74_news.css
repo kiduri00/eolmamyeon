@@ -14,7 +14,7 @@
 .nt-list,.nt-list ul,.wk-th,.cl-my,.rd-g ul{list-style:none;margin:0;padding:0}
 .nt-dh{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;margin:14px 0 4px;font-size:14px;font-weight:600;color:var(--text-1)}
 .nt-dh small{font-size:12.5px;font-weight:400;color:var(--text-3);font-variant-numeric:tabular-nums}
-.nt-td{font-size:11.5px;font-weight:600;color:var(--brand-ink)}
+.nt-td{font-size:12px;font-weight:600;color:var(--brand-ink)}
 .nt-it{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:8px 2px;border:0;border-bottom:1px solid var(--border);background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
 .nt-empty{margin:16px 0;padding:16px;border-radius:12px;background:var(--surface-2);font-size:14px;color:var(--text-2)}
 .nt-more{margin:12px 0 0;width:100%}
@@ -47,7 +47,7 @@
 .cl-u{font-size:12px;font-weight:500;color:var(--text-3)}
 .cl-m b{font-size:13px;font-weight:700;color:var(--text-1);white-space:nowrap}
 .cl-tags{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;margin-top:2px}
-.cl-t{font-size:11.5px;font-weight:500;padding:1px 6px;border-radius:6px;background:var(--surface-2);color:var(--text-2)}
+.cl-t{font-size:12px;font-weight:500;padding:1px 6px;border-radius:6px;background:var(--surface-2);color:var(--text-2)}
 .cl-t.in{background:var(--brand-soft);color:var(--brand-ink)}
 .cl-t.fv{background:var(--brand-soft);color:var(--brand-ink)}
 li.gone .td-rt b{text-decoration:line-through;color:var(--text-3)}

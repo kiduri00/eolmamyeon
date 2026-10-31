@@ -7,7 +7,8 @@
       "namespace": "android_app",
       "package_name": "kr.alwaysquestions.jaegaepick",
       "sha256_cert_fingerprints": [
-        "CA:7E:87:4A:C9:9C:A4:AD:53:2F:24:4C:17:43:7A:5F:F2:03:B3:97:4F:01:78:C8:44:98:38:C7:54:15:0F:9B"
+        "CA:7E:87:4A:C9:9C:A4:AD:53:2F:24:4C:17:43:7A:5F:F2:03:B3:97:4F:01:78:C8:44:98:38:C7:54:15:0F:9B",
+        "11:6B:37:DB:24:DB:61:E8:75:0A:C8:3F:06:02:25:28:0C:6B:51:25:83:00:FC:33:6D:F0:24:D1:F0:D1:33:82"
       ]
     }
   },

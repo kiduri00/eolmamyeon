@@ -177,6 +177,15 @@ for dp, _, fs in os.walk(PUB):
 import glob as _g
 for f in sorted(_g.glob(os.path.join(ROOT, 'content', '**', '*.json'), recursive=True)):
     chk('살 수 있' not in open(f, encoding='utf-8').read(), f'{os.path.relpath(f, ROOT)}: 원본에 \'살 수 있\' — 용어 통일이 \'갈 수 있\'으로 바꿔 문장이 깨져요')
+# 사이클 5 통합: assetlinks.json = JSON · 새 앱(APP_PKG)에 업로드 키 + Play 앱 서명 키 둘 다 · 예전 시험 앱(LEGACY_PKG) 항목 유지(값은 tools/brand.py 한 곳)
+sys.path.insert(0, os.path.join(ROOT, 'tools')); import brand as _B
+try: _al = json.load(open(os.path.join(PUB, '.well-known', 'assetlinks.json'), encoding='utf-8')); _alok = isinstance(_al, list)
+except Exception as _e: _al, _alok = [], False
+chk(_alok, 'assetlinks.json: JSON 목록이 아님')
+_fp = {x.get('target', {}).get('package_name'): x.get('target', {}).get('sha256_cert_fingerprints') or [] for x in (_al if _alok else [])}
+for _k in list(_B.SIGNING_SHA256) + list(getattr(_B, 'PLAY_SIGNING_SHA256', [])): chk(_k in _fp.get(_B.APP_PKG, []), f'assetlinks.json: {_B.APP_PKG}에 지문 {_k[:8]}… 없음')
+chk(len(getattr(_B, 'PLAY_SIGNING_SHA256', [])) >= 1, 'brand.PLAY_SIGNING_SHA256 비어 있음')
+chk(_B.LEGACY_PKG in _fp, f'assetlinks.json: 예전 시험 앱 {_B.LEGACY_PKG} 항목 없음')
 for x in rep: print('%-14s 글자 %6d · 고유 %3d%% · zthin 점수 %s · 고유 본문 %s' % x)
 print(f'zhand_check: ok {okn} · fail {len(bad)}')
 for b in bad[:60]: print('  FAIL', b)

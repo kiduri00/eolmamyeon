@@ -125,6 +125,10 @@
   .tf-seg button{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border:0;border-radius:11px;background:none;color:var(--t-sub);font:700 15px var(--font);letter-spacing:-.02em;cursor:pointer}
   .tf-seg button[aria-selected="true"]{background:var(--t-pg);color:var(--t-ink);box-shadow:0 1px 2px rgba(15,23,42,.08)}
   .tf-seg button:focus-visible{outline:2px solid var(--focus,var(--brand));outline-offset:-2px}
+  /* 사이클 5 통합: 소식 4칸(.nw-seg)도 앱 단일 선택 모양 하나(tf-seg와 같은 트랙·thumb·글자) — QA tapp.segAll */
+  html.is-tapp .nw-seg{background:var(--t-fill)}
+  html.is-tapp .nw-seg button{color:var(--t-sub)}
+  html.is-tapp .nw-seg button[aria-selected="true"]{background:var(--t-pg);color:var(--t-ink);box-shadow:0 1px 2px rgba(15,23,42,.08)}
   .tf-n{display:inline-block;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#D33A2C;color:#fff;font:700 11px/18px var(--font);font-style:normal}
   .tf-n[hidden]{display:none}
   html.is-tapp #news[data-tseg="all"] #tFeed{display:block}
