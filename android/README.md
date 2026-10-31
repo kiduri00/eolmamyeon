@@ -39,7 +39,10 @@ https://jaegaebal.alwaysquestions.kr 를 그대로 띄우는 TWA 래퍼입니다
   결과물과 확인 기록은 운영 폴더 `android_out/old_jp2/`에 있고 git에는 넣지 않습니다.
 - 1.0.0 jp3 (10.31, 사이클 5): 바로가기 첫째를 '오늘의 재개발'(`/?src=app#news?today`, 소식 탭 '서울 오늘')로. '소식' 바로가기는 오늘에 합침.
   알림 채널 이름을 '관심 구역·조건 소식'으로 고정(`DelegationService.java`). Play 첫 업로드 전이라 versionCode 1 그대로. gradle로만 빌드.
-  결과물은 `android_out/`(`jaegaepick-1.0.0-jp3.aab`, `-jp3-signed.apk`, `CHANGES-1.0.0-jp3.txt`). jp3만 올립니다.
+  결과물은 `android_out/`(`jaegaepick-1.0.0-jp3.aab`, `-jp3-signed.apk`, `CHANGES-1.0.0-jp3.txt`). jp3는 내부 테스트로 올라갑니다.
+- 1.0.0 jp4 (10.31, 사이클 5 통합): 지도 바로가기 아이콘을 핀 없는 'mapk'(접힌 지도 + 노란 체크, 웹 `/sc-mapk-*.png`와 같은 그림)로.
+  jp3(versionCode 1)가 내부 테스트에 먼저 올라가므로 **versionCode 2**, versionName은 1.0.0 그대로(아직 공개 출시 전 · 스토어 문서·파일 이름이 1.0.0 기준).
+  결과물은 `android_out/`(`jaegaepick-1.0.0-jp4.aab`, `-jp4-signed.apk`, `CHANGES-1.0.0-jp4.txt`).
 
 ## 다시 빌드하기
 
@@ -96,7 +99,7 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
   - 내비바: TWA 내비바 색은 기존(#FFFFFF / #15181D) 그대로입니다. Chrome은 웹 쪽 색으로 내비바를 바꾸지 않으므로 남색으로 두면 웹 사용 중에도
     남색이 됩니다. Android 12+ 시스템 스플래시와 Chrome이 edge-to-edge로 그릴 때(Android 15+)는 남색 바탕이 그대로 보입니다.
   - 다시 그리기: `NODE_PATH=$(npm root -g) node android/assets-src/splash/render-splash.js [resDir] [preview.png]`
-- 바로가기 4개(1.0.0 jp3 순서): `shortcut_0`=오늘의 재개발(소식 아이콘, `/?src=app#news?today`), `shortcut_1`=지도(map, `#map`),
+- 바로가기 4개(1.0.0 jp3 순서 · jp4 아이콘): `shortcut_0`=오늘의 재개발(소식 아이콘, `/?src=app#news?today`), `shortcut_1`=지도(mapk 핀 없음, `#map`),
   `shortcut_2`=관심 구역(favorites, `#favTop`), `shortcut_3`=입주 계산(planner, `#planner`). 아이콘은 디자인 킷 `app_kit/png/shortcuts`,
   원본은 `assets-src/shortcut_*_192.png`, SVG는 `assets-src/shortcuts/`. `res/drawable-{mdpi..xxxhdpi}/shortcut_N.png` = 48/72/96/144/192px.
   - 1.0.0 r5: 예전 3·4번(월간 리포트 `/report/`, 구역별 페이지 `/z/`)은 정적 페이지라 뒤로 한 번에 앱이 닫혀서 SPA 화면으로 바꿨습니다.

@@ -21,7 +21,7 @@
     "path": "/home/claude/zippin-keys/zippin-upload.jks",
     "alias": "upload"
   },
-  "appVersionCode": 1,
+  "appVersionCode": 2,
   "shortcuts": [
     {
       "name": "오늘의 재개발",
@@ -33,7 +33,7 @@
       "name": "지도로 보기",
       "shortName": "지도",
       "url": "https://jaegaebal.alwaysquestions.kr/?src=app#map",
-      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-map-192.png"
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-mapk-192.png"
     },
     {
       "name": "관심 구역",

@@ -36,7 +36,7 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
     iconUrl: LOCAL + '/icon-512.png',
     maskableIconUrl: LOCAL + '/icon-maskable-512.png',
     monochromeIconUrl: LOCAL + '/icon-monochrome-512.png',
-    appVersionCode: 1,
+    appVersionCode: 2,   // jp4: 내부 테스트에 jp3(versionCode 1)가 올라가므로 2
     appVersion: '1.0.0',
     signingKey: { path: '/home/claude/zippin-keys/zippin-upload.jks', alias: 'upload' },
     enableSiteSettingsShortcut: true,
@@ -48,7 +48,7 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   // 1.0.0 r5: the app's shortcuts are SPA views (back closed the app on the static /report/ and /z/ pages).
   // 1.0.0 jp3 (cycle 5): first = '오늘' (소식 탭 '서울 오늘', #news?today) with the news icon; the old '소식' entry
   // is merged into it. Order: 오늘 · 지도 · 관심 구역 · 입주 계산 (= res/drawable-*/shortcut_0..3.png).
-  const SC = ['news', 'map', 'favorites', 'planner'];
+  const SC = ['news', 'mapk', 'favorites', 'planner'];   // jp4: 지도 = 'mapk'(접힌 지도 + 노란 체크, 핀 없음 · 웹 /sc-mapk-*.png)
   const APP_SC = [
     { name: '오늘의 재개발', shortName: '오늘', url: REAL + '/?src=app#news?today' },
     { name: '지도로 보기', shortName: '지도', url: REAL + '/?src=app#map' },
@@ -72,7 +72,7 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   //   are NOT on the site yet (r5): copy assets-src/shortcut_news|planner_192.png there before `bubblewrap update`.
   //   the notification icon is generated from assets-src/icon-monochrome-512.png (local copy, v7)
   out.monochromeIconUrl = REAL + '/icons/icon-monochrome-512.png';
-  const SCPUB = { map: 'map', favorites: 'fav', news: 'news', planner: 'planner' };
+  const SCPUB = { mapk: 'mapk', map: 'map', favorites: 'fav', news: 'news', planner: 'planner' };
   out.shortcuts = (out.shortcuts || []).map((s, i) => ({ ...s, url: fix(s.url), chosenIconUrl: REAL + '/sc-' + SCPUB[SC[i]] + '-192.png' }));
   require('fs').writeFileSync(path.join(target, 'twa-manifest.json'), JSON.stringify(out, null, 2) + '\n');
   console.log(JSON.stringify(out, null, 2));

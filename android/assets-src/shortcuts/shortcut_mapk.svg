@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+ <defs>
+  <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3ED1B4"/><stop offset="1" stop-color="#17A88C"/></linearGradient>
+  <linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FE3CF"/><stop offset="1" stop-color="#48C7AE"/></linearGradient>
+ </defs>
+ <!-- 접힌 지도 세 쪽 -->
+ <path d="M44 60 L76 50 L76 140 L44 150 Z" fill="url(#a)"/>
+ <path d="M76 50 L116 62 L116 152 L76 140 Z" fill="url(#b)"/>
+ <path d="M116 62 L148 52 L148 142 L116 152 Z" fill="url(#a)"/>
+ <path d="M44 118 C64 108 84 124 104 114 S136 104 148 110" fill="none" stroke="#E6FBF6" stroke-width="5" stroke-linecap="round" opacity=".9"/>
+ <!-- 골라 줌 체크(노랑 · 남색 획) -->
+ <circle cx="96" cy="86" r="27" fill="#F5C33B" stroke="#FFFFFF" stroke-width="5"/>
+ <path d="M83 87 L92.5 96.5 L110 78" fill="none" stroke="#13265E" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

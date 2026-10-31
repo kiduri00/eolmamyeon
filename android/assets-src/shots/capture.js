@@ -6,7 +6,7 @@
  *   <빌드 폴더>  사이트 빌드 결과(public/ 또는 c1_public 같은 사본). 이 스크립트가 로컬 정적 서버로 띄웁니다.
  *   --out DIR    결과 폴더(기본: <빌드 폴더>/../shots_jp_<날짜>). 아래 3개 하위 폴더를 만듭니다.
  *                  raw/       앱 화면 그대로 1080×1920 (360×640 CSS px, DPR 3)
- *                  store/     Play 휴대전화 스크린샷 6장 1080×1920(위 남색 띠 + 문구 + 앱 화면 틀), 24비트 RGB PNG
+ *                  store/     Play 휴대전화 스크린샷 8장 1080×1920(위 남색 띠 + 문구 + 앱 화면 틀), 24비트 RGB PNG
  *                  manifest/  웹 매니페스트용 screenshot-home.png·screenshot-map.png(1080×1920)·screenshot-wide.png(1920×1080)
  *                  report.json  장면별 검사 결과(크기, 앱 모드, 옛 이름 잔존, 빈 화면, 콘솔 오류, 외부 요청)
  *   --dry        모든 장면을 찍고 검사하지만, 결과 폴더 이름에 _dry를 붙이고 manifest/ 파일은 "dry-" 접두사로 저장합니다.
@@ -16,8 +16,8 @@
  *   --base URL   이 스크립트 안의 서버 대신 이미 띄운 서버(예: http://127.0.0.1:8995, 빌드 폴더와 같은 내용)
  *   --gu 성북구  지도 구 줌·목록 장면의 구 · --pick 동소문2구역 시트 장면 구역 · --cmp 동소문2구역,성북2구역,장위11-8구역 비교 장면 구역
  *
- * 장면(사이클 4 D+ 지도·디자인 v2): 01 홈 첫 화면(내 돈 → 갈 수 있는 곳 N곳) · 02 구 줌 금액 태그+노란 체크 · 03 구역 시트(판정 띠+3칸)
- *   · 04 목록 카드 · 05 구역 비교 · 06 조건 알림(홈 '갈 수 있는 곳 생기면 알려 드려요' → 알림 저장 시트)
+ * 장면(사이클 5 통합 · jp4 8장): 01 홈 오늘의 재개발 카드 · 02 지도 서울 줌 D+('✓ 구 N') · 03 구역 시트(판정 띠+3칸)
+ *   · 04 소식 '서울 오늘' · 05 일정(매각기일·D-day·내 일정) · 06 내 돈 레이더 · 07 입주 계산 · 08 관심 구역
  *   매니페스트: home(홈) · map(서울 줌 '✓ 구 N') · wide(넓은 화면 홈: 왼쪽 목록·오른쪽 지도)
  *   기기 상태로 넣는 것은 내 돈 3억·전세 끼고(jg-cond)와 관심 구역 5곳뿐. 알림 조건은 화면에서 실제로 눌러 저장(꾸민 '새 구역' 없음).
  *
@@ -63,25 +63,34 @@ const GO_GU = `const b=[...document.querySelectorAll(".zgu")].find((x)=>x.datase
 const idOf = (n) => `(()=>{const c=ZP_feat.ctx(),r=c.R.find((q)=>c.shortName(q.n)===${JSON.stringify(n)});if(!r)throw new Error("no zone ${n}");return r.id;})()`;
 const FAV = [ZONE, "o913", "o960", "o836", "o380"];
 const SCENES = [
-  { id: "s01_home", kind: "store", vp: "phone", path: "/", ready: "#sHero", steps: [{ top: true }, { wait: 800 }],
-    check: { sel: "#sHero" }, cap: ["내 돈을 넣으면", "갈 수 있는 구역이 몇 곳인지"] },
+  // 사이클 5 통합(jp4 · 8장 · 트랙 G shots_plan.md/shots_spec.json): raw만 찍고 합성은 G의 compose.py(점 = 연한 남색)
+  //   피할 것: 신고가 칩·꼬리표, 핀 모양, 개인 이름, 0건·로딩·토스트·설치 띠·광고 칸
+  { id: "s01_today", kind: "store", vp: "phone", path: "/", ready: "#sHero",
+    steps: [{ top: true }, { wait: 3500 }, { scroll: "[data-zp-today]", offset: 72 }, { wait: 1800 }],   // 통합: 앱 홈 오늘 카드는 '가장 맞는 곳' 밑(첫 화면 제목 규칙) → 카드 전체가 보이게
+    check: { sel: "[data-zp-today]" }, cap: ["내 돈으로 갈 수 있는", "서울 재개발, 매일 아침"] },
   { id: "s02_map", kind: "store", vp: "phone", path: "/", ready: "#sHero",
-    steps: [{ nav: "지도" }, { wait: 3000 }, { js: GO_GU }, { mapIdle: true, min: 3 }, { wait: 1500 }],
-    check: { gl: true, sel: ".zpill" }, cap: ["갈 수 있는 구역은", "지도에 금액과 체크로"] },
+    steps: [{ nav: "지도" }, { wait: 3000 }, { js: GO_GU }, { mapIdle: true, min: 3 }, { wait: 1500 }, { js: `const b=[...document.querySelectorAll("button,a")].find((x)=>/신고가/.test(x.textContent)&&x.offsetWidth); let r=b&&b.parentElement; while(r&&!(r.scrollWidth>r.clientWidth+4&&/(auto|scroll)/.test(getComputedStyle(r).overflowX))) r=r.parentElement; if(r){ r.scrollLeft=b.getBoundingClientRect().right-r.getBoundingClientRect().left+r.scrollLeft+6; }` }, { wait: 400 }],
+    check: { gl: true, sel: ".zpill" }, cap: ["갈 수 있는 구역만", "지도에 체크로"] },
   { id: "s03_sheet", kind: "store", vp: "phone", path: "/", ready: "#sHero",
     steps: [{ nav: "지도" }, { wait: 3000 }, { js: GO_GU }, { mapIdle: true }, { js: `const id=${idOf(PICK)}; ZP_lmx.pick(id);` }, { wait: 2500 },
       // 360×640에서는 시트 위 지도 띠가 좁아 고른 구역 카드가 머리 칩 밑에 반쯤 걸림 → 카드가 시트 뒤로 가도록 지도만 살짝 내림
-      { js: `ZP_lmx.map().panBy([0,-45],{duration:0});` }, { mapIdle: true }, { wait: 1200 }],
-    check: { gl: true, sel: ".pk-n" }, cap: ["구역을 누르면", "지금 필요한 돈과 판정이 바로"] },
-  { id: "s04_list", kind: "store", vp: "phone", path: "/", ready: "#sHero",
-    steps: [{ nav: "지도" }, { wait: 3000 }, { js: GO_GU }, { mapIdle: true }, { js: `ZP_lmx.pick(null); const x=document.getElementById("sFullX"); if(x) x.click();` }, { wait: 2500 }],
-    check: { sel: "#sList .s-card" }, cap: ["목록으로 보면", "입주까지 현금과 남는 돈까지"] },
-  { id: "s05_compare", kind: "store", vp: "phone", path: "/", ready: "#sHero",
-    steps: [{ js: `const ids=[${CMPZ.map(idOf).join(",")}]; const X=await ZP_feat.loadX(); X.cmpSet(ids); X.cmpOpen(ZP_feat.ctx(), ids);` }, { wait: 2500 }],
-    check: {}, cap: ["고민되는 구역은", "나란히 놓고 비교"] },
-  { id: "s06_alert", kind: "store", vp: "phone", path: "/", ready: "#pcSave .pc-al",
-    steps: [{ js: `document.querySelector("#pcSave .pc-al").scrollIntoView({block:"center"});` }, { wait: 600 }, { click: "#pcSave .pc-al" }, { wait: 1500 }],
-    check: {}, cap: ["이 돈으로 갈 수 있는 곳이", "새로 생기면 알림으로"] },
+      { js: `ZP_lmx.map().panBy([0,-45],{duration:0});` }, { mapIdle: true }, { wait: 1200 }, { js: `const b=[...document.querySelectorAll("button,a")].find((x)=>/신고가/.test(x.textContent)&&x.offsetWidth); let r=b&&b.parentElement; while(r&&!(r.scrollWidth>r.clientWidth+4&&/(auto|scroll)/.test(getComputedStyle(r).overflowX))) r=r.parentElement; if(r){ r.scrollLeft=b.getBoundingClientRect().right-r.getBoundingClientRect().left+r.scrollLeft+6; }` }],
+    check: { gl: true, sel: ".pk-n" }, cap: ["구역을 누르면", "입주까지 드는 현금까지"] },
+  { id: "s04_radar", kind: "store", vp: "phone", path: "/", ready: "#sHero",
+    steps: [{ nav: "소식" }, { wait: 2500 }, { click: '#nwSeg [data-nseg="mine"]' }, { wait: 3000 }, { scroll: "#nwRad", offset: 64 }, { wait: 1200 }],
+    check: { sel: "#nwRad" }, cap: ["이번 주 내 돈으로", "새로 닿은 곳과 이유"] },
+  { id: "s05_seoul", kind: "store", vp: "phone", path: "/", ready: "#sHero",
+    steps: [{ nav: "소식" }, { wait: 2500 }, { click: '#nwSeg [data-nseg="today"]' }, { wait: 3000 }, { top: true }, { wait: 600 }],
+    check: { sel: "#nwSeg" }, cap: ["오늘 서울 재개발에", "새로 올라온 소식"] },
+  { id: "s06_sched", kind: "store", vp: "phone", path: "/", ready: "#sHero",
+    steps: [{ nav: "소식" }, { wait: 2500 }, { click: '#nwSeg [data-nseg="cal"]' }, { wait: 3000 }, { js: `const h=[...document.querySelectorAll("#news h3,#news h4,#news b,#news strong")].find((x)=>/^경매 매각기일/.test(x.textContent.trim())&&x.offsetWidth); if(h){ h.scrollIntoView({block:"start"}); scrollBy(0,-64); }` }, { wait: 800 }],
+    check: {}, cap: ["경매 매각기일과", "내 일정을 D-day로"] },
+  { id: "s07_planner", kind: "store", vp: "phone", path: "/", ready: "#sHero",
+    steps: [{ nav: "홈" }, { wait: 1500 }, { click: '#tHome .th-grid a[data-tile="calc"]' }, { wait: 3500 }, { top: true }, { wait: 800 }],
+    check: {}, cap: ["분담금·이자까지 넣어", "입주까지 현금 계산"] },
+  { id: "s08_watch", kind: "store", vp: "phone", path: "/", ready: "#sHero",
+    steps: [{ nav: "관심" }, { wait: 3500 }, { top: true }, { wait: 800 }],
+    check: {}, cap: ["관심 구역 소식은", "아침에 한 번만"] },
   { id: "m_home", kind: "manifest", file: "screenshot-home.png", vp: "phone", path: "/", ready: "#sHero", steps: [{ top: true }, { wait: 800 }], check: { sel: "#sHero" } },
   { id: "m_map", kind: "manifest", file: "screenshot-map.png", vp: "phone", path: "/", ready: "#sHero", steps: [{ nav: "지도" }, { wait: 4000 }], check: { city: true } },
   { id: "m_wide", kind: "manifest", file: "screenshot-wide.png", vp: "wide", path: "/", ready: "#sHero", steps: [{ top: true }, { wait: 2500 }], check: {} },
@@ -166,6 +175,7 @@ h1{margin:0;font-weight:700;font-size:64px;line-height:1.32;letter-spacing:-1.5p
           localStorage.setItem("__shotSeed", "1");
           localStorage.setItem("jg-fav", JSON.stringify(FAV));
           localStorage.setItem("jg-cond", "cash=3&mode=jeonse");
+          localStorage.setItem("zp-seen-t", JSON.stringify(Date.parse("2026-10-20T09:00:00+09:00"))); localStorage.setItem("zp-inbox-seen", JSON.stringify({ at: "2026-10-20", k: [] }));   // 지난번 본 날 = 자료 기준일 며칠 전(트랙 G 계획)
         }
         localStorage.setItem("zp.onb", "1"); localStorage.setItem("zp.tonb", "1"); localStorage.setItem("zp-pwa-hint", String(Date.now()));
       } catch (e) {}
@@ -179,7 +189,7 @@ h1{margin:0;font-weight:700;font-size:64px;line-height:1.32;letter-spacing:-1.5p
       await page.waitForSelector(sc.ready, { state: "attached", timeout: 20000 });
       for (const s of sc.steps) {
         if (s.top) await page.evaluate(() => scrollTo(0, 0));
-        if (s.nav) { const ok = await page.evaluate((n) => { const b = [...document.querySelectorAll("#sNav a, #sNav button, .zp-tabs a, nav a, nav button")].find((e) => e.innerText.trim() === n && e.offsetWidth); if (b) b.click(); return !!b; }, s.nav); if (!ok) throw new Error("no tab " + s.nav); }
+        if (s.nav) { const ok = await page.evaluate((n) => { const b = [...document.querySelectorAll("#sNav a, #sNav button, .zp-tabs a, nav a, nav button")].find((e) => e.innerText.trim().replace(/\s*N$/, "") === n && e.offsetWidth); if (b) b.click(); return !!b; }, s.nav); if (!ok) throw new Error("no tab " + s.nav); }
         if (s.js) await page.evaluate(`(async()=>{${s.js}})()`);
         if (s.mapIdle) {   // 지도: 움직임이 멈추고 타일이 다 오고 태그(라벨)가 min개 이상 · 두 번 연속 확인
           await page.waitForFunction((min) => { const L = window.ZP_lmx, m = L && L.map && L.map(); if (!m || !m.loaded() || m.isMoving() || !m.areTilesLoaded()) { window.__idl = 0; return false; } if (L.labels && L.labels().length < min) return false; window.__idl = (window.__idl || 0) + 1; return window.__idl > 3; }, s.min || 0, { timeout: 45000, polling: 250 });
