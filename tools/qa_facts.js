@@ -186,7 +186,7 @@ function sameZ(id, f, t, bad) {
         const fp = path.join(ROOT, "public/z", id + ".html");
         if (fs.existsSync(fp)) { const zt = fs.readFileSync(fp, "utf8").replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
           // /z 안 '권리산정기준일 … 날짜'(40자 안 · YYYY.MM.DD · YYYY-MM-DD · YYYY년 M월 D일)가 있으면 api 날짜와 같아야
-          const re = /권리산정기준일[^.\d]{0,40}?(\d{4})(?:[.-]\s?|년\s)(\d{1,2})(?:[.-]\s?|월\s)(\d{1,2})/g; let m;
+          const re = /권리산정기준일(?! 확인 필요)[^.\d·()]{0,40}?(\d{4})(?:[.-]\s?|년\s)(\d{1,2})(?:[.-]\s?|월\s)(\d{1,2})/g; let m;
           while ((m = re.exec(zt))) { const z = `${m[1]}.${m[2].padStart(2, "0")}.${m[3].padStart(2, "0")}`; if (z !== d) { rb.push(`${id} /z 권리산정기준일 ${z} ≠ ${d || "없음"}`); break; } } }
       }
       // 고정 표본: 면목역1(o27) = 소속 모아타운 면목동 86-3(m10)의 2022.01.20
