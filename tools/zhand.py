@@ -361,6 +361,7 @@ CSS = ('<style>'
        '.zh-toc{margin:16px 0;padding:12px 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2)}.zh-toc p{margin:0 0 6px;font-weight:700;font-size:14px}'
        '.zh-toc ol{margin:0;padding-left:1.3em}.zh-toc li{margin:4px 0;line-height:1.5}.zh-toc a{color:var(--text-1)}'
        '.zh-body h2{scroll-margin-top:72px}.zh-body p{font-size:15.5px;line-height:1.8;margin:0 0 12px;word-break:keep-all}'
+       '.zh-app{display:block;margin:18px 0;padding:10px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);font-size:14.5px;line-height:1.6}.zh-app a{display:inline-flex;align-items:center;min-height:44px;font-weight:700}'
        '.zh-card{margin:16px 0;padding:14px 16px;border:1px solid var(--border);border-radius:16px;background:var(--surface);min-width:0}.zh-ct{margin:0 0 8px!important;font-weight:700;font-size:14.5px!important}'
        '.zh-tl ol{list-style:none;margin:0;padding:0}.zh-tl li{display:grid;grid-template-columns:7.2em 1fr;gap:2px 10px;padding:7px 0 7px 14px;border-left:2px solid var(--border);position:relative}'
        '.zh-tl li::before{content:"";position:absolute;left:-5px;top:13px;width:8px;height:8px;border-radius:50%;background:var(--surface);border:2px solid var(--text-3)}'
@@ -456,6 +457,7 @@ def page(X, r, src):
     o.append(nextcards(X, r, src, cap=False))
     o.append(HOWTO)
     o.append(srcs)
+    o.append(app_line(rid))
     o.append(f'<p class="disc">출처: 정비사업 정보몽땅 추진경과·사업개요, 국토교통부 실거래가, 서울부동산정보광장 토지거래허가, 위 기사·고시. 금액은 기본 가정(무주택·84㎡·비례율 100%)으로 낸 추정이고 실제 분담금은 감정평가·관리처분계획으로 정해져요. 투자 권유가 아니에요. 서울시·국토교통부 등 정부·공공기관과 무관한 비공식 정보 서비스예요.</p>')
     o.append('<!--zr--><!--/zr-->')
     o.append(X.FOOT.format(upd=X.UPD))
@@ -533,6 +535,40 @@ def gu_vals(X, g, L):
     v['nRedev'] = f"{kc.get('재개발', 0)}"; v['nRebuild'] = f"{kc.get('재건축', 0)}"; v['nSmall'] = f"{kc.get('가로·소규모', 0)}"
     hand = [x for x in L if x['id'] in X._HANDSET]
     v['handN'] = f"{len(hand)}"
+    v.update(gu_flow(X, L))
+    return v
+
+_FLOW = None
+def gu_flow(X, L):
+    """사이클 5 C: /gu '이번 달 흐름' 값 — 시트·오늘 카드와 같은 자료에서만 센다(지어내지 않음)
+    토지거래허가 = public/data/toheo.json z[id].n30(시트 '최근 30일'과 같은 값 · 취소·취하 포함) · 거래 = changes.json trade 사건 cnt 합(최근 30일, 신고 등록일)
+    경매 = auction.json 매각기일이 기준일 이후이고 목록에서 빠지지 않은(st != gone) 구역 안 물건 · 고시 = changes.json notice 사건 수"""
+    global _FLOW
+    if _FLOW is None:
+        J_ = lambda p: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else {}
+        _FLOW = (J_('public/data/toheo.json') or {}, J_('public/data/changes.json') or {}, J_('public/data/auction.json') or {})
+    TH, CH, AU = _FLOW; ids = {x['id'] for x in L}; nm = {x['id']: X.short(x['n']) for x in L}; v = {}
+    top = lambda c: max(sorted(c.items()), key=lambda z: z[1]) if c else None   # 같은 수면 이름 순 앞
+    t = {i: (TH.get('z') or {})[i]['n30'] for i in ids if ((TH.get('z') or {}).get(i) or {}).get('n30')}
+    v['thoAsOf'] = ymd(TH.get('asOf')) if TH.get('asOf') else None; v['thoSince'] = ymd(TH.get('since')) if TH.get('since') else None
+    n = sum(t.values()); v['tho30'] = f"{n:,}"; v['thoZ'] = f"{len(t)}"
+    tp = top(t); v['thoTop'] = f"{nm[tp[0]]}({tp[1]}건)" if tp else None; v['thoTopPct'] = f"{round(tp[1] / n * 100)}%" if tp else None
+    tr, nt = collections.Counter(), 0
+    for e in CH.get('items') or []:
+        if e.get('id') not in ids: continue
+        if e.get('type') == 'trade' and not e.get('x'): tr[e['id']] += e.get('cnt') or 1   # x = 해제 표시(A 트랙) — 해제된 신고는 세지 않는다
+        if e.get('type') == 'notice': nt += 1
+    v['txAsOf'] = ymd(CH.get('asOf')) if CH.get('asOf') else None
+    m = sum(tr.values()); v['tx30'] = f"{m:,}"; v['txZ'] = f"{len(tr)}"; tp = top(dict(tr)); v['tx30Top'] = f"{nm[tp[0]]}({tp[1]}건)" if tp else None
+    v['nt30'] = f"{nt}"
+    v['thoVsTx'] = '허가 내역이 새로 올라온 거래 신고보다 많아요' if n > m * 1.2 else '허가 내역이 새로 올라온 거래 신고보다 적어요' if n < m * 0.8 else '허가 내역과 새로 올라온 거래 신고가 비슷해요'
+    a0 = AU.get('asOf') or ''
+    au = [(i, x) for i in ids for x in (AU.get('byZone') or {}).get(i, []) if x.get('date', '') >= a0 and x.get('st') != 'gone']
+    v['aucAsOf'] = ymd(a0) if a0 else None
+    v['auc'] = f"{len(au)}"; v['aucZ'] = f"{len({i for i, _ in au})}"
+    v['aucFail'] = f"{sum(1 for _, x in au if (x.get('fail') or 0) >= 1)}"; v['aucFail2'] = f"{sum(1 for _, x in au if (x.get('fail') or 0) >= 2)}"
+    ac = collections.Counter(i for i, _ in au); tp = top(dict(ac)); v['aucTop'] = f"{nm[tp[0]]}({tp[1]}건)" if tp else None
+    rs = [x['rate'] for _, x in au if x.get('rate')]; v['aucLow'] = f"{min(rs)}%" if rs else None
     return v
 
 def gu_prose(g, L, gl):
@@ -548,7 +584,11 @@ def _gu_html(X, g, src, V):
     o = [f'<!--gx--><section class="gx" aria-labelledby="gx-h"><h2 id="gx-h">{esc(src["h"])}</h2><p class="meta">정리: <a href="/about#principles">{_OP}</a> · 글 기준 {src["written"].replace("-", ".")} · 굵은 숫자는 데이터 기준 {X.UPD} 값으로 매일 다시 써요</p>']
     for s in src['blocks']:
         if s.get('h'): o.append(f'<h3>{esc(s["h"])}</h3>')
-        for p_ in s['p']: o.append('<p>' + josa_fix(fill(p_, V, g)) + '</p>')
+        for p_ in s['p']:
+            if isinstance(p_, dict):   # 사이클 5: {"t": 본문, "alt": 그날 값이 없을 때(예: 경매 0건이라 가장 많은 구역 이름 없음) 쓸 문장} — 매일 바뀌는 흐름 문단용
+                try: p_ = fill(p_['t'], V, g) and p_['t']
+                except ValueError: p_ = p_['alt']
+            o.append('<p>' + josa_fix(fill(p_, V, g)) + '</p>')
     o.append('</section><!--/gx-->')
     return ''.join(o)
 
@@ -582,6 +622,10 @@ def old_lede(X, r, V, body):
     rel = (f'{to}까지 서울 가운데 값이 {md:.1f}년이라 아직 초반이에요.' if y < md * 0.5 else f'{to}까지 서울 가운데 값 {md:.1f}년에 가까워지고 있어요.' if y < md else f'{to}까지 서울 가운데 값 {md:.1f}년을 이미 넘겼어요.')
     return f'<p class="lede">{head}들어선 지 {age}째이고 {rel} <a href="../years">단계별 실제 기간 →</a></p>'
 
+def app_line(rid):
+    """사이클 5 C5: /z 손글에는 매일 바뀌는 소식 덩이를 넣지 않고 앱으로 가는 한 줄만 둔다(숫자·날짜 없음 → 글 고친 날이 자동으로 바뀌지 않음)"""
+    return f'<!--zapp--><nav class="zh-app" aria-label="이 구역 오늘 소식">이 구역의 오늘 소식(새 실거래 신고·토지거래허가·경매 매각기일)은 앱에서 매일 아침 갱신해요. <a href="/#{rid}">앱에서 이 구역 소식 보기 →</a></nav><!--/zapp-->'
+
 def enhance_hand(X, r, h):
     """content/z 원본이 없는 예전 손글: 본문은 그대로 두고 ① 목차(본문 h2로) ② 다음에 볼 구역 카드 ③ 같은 CSS만 끼운다.
     표시 주석(<!--zt-->·<!--zx-->·id="zh-css") 사이를 통째로 바꿔 몇 번 돌려도 같다 · 본문 글자는 줄이지 않는다."""
@@ -597,7 +641,7 @@ def enhance_hand(X, r, h):
             hid = f'zh-s{next(k)}'; tag = tag.replace('<h2>', f'<h2 id="{hid}">', 1)
         if hid != 'zh-nx': hs.append((hid, txt))
         return tag
-    body = re.sub(r'<!--zt-->.*?<!--/zt-->|<!--zx-->.*?<!--/zx-->|<!--zh-hook-->.*?<!--/zh-hook-->|<!--zcar-->.*?<!--/zcar-->', '', m.group(1), flags=re.S)
+    body = re.sub(r'<!--zapp-->.*?<!--/zapp-->|<!--zt-->.*?<!--/zt-->|<!--zx-->.*?<!--/zx-->|<!--zh-hook-->.*?<!--/zh-hook-->|<!--zcar-->.*?<!--/zcar-->', '', m.group(1), flags=re.S)
     cd = (CARDS or {}).get(r['id'])
     try: V = vals(X, r)
     except Exception as ex: V = None; FAILED.append(f'{r["id"]} 값: {ex}')
@@ -635,6 +679,9 @@ def enhance_hand(X, r, h):
         at = body.find('<p class="disc">')
         if at < 0: at = body.find('<!--zr-->')
         body = body[:at] + nx + body[at:] if at >= 0 else body + nx
+    at = body.find('<p class="disc">')   # 앱 한 줄(다음 구역 카드 뒤 · 면책 문단 앞)
+    if at < 0: at = body.find('<!--zr-->')
+    body = body[:at] + app_line(r['id']) + body[at:] if at >= 0 else body + app_line(r['id'])
     h = h[:m.start(1)] + body + h[m.end(1):]
     # ③ CSS
     css = CSS.replace('<style>', '<style id="zh-css">', 1)
