@@ -26,7 +26,7 @@
   // 사이클 5 D: 안내 띠 그리기는 지연 묶음(src/todayd 60_inst.js · 같은 동작)으로 — 첫 묶음 무게를 늘리지 않게
   function show(why) {
     if (shown || !allowed()) return; shown = true;
-    try { TDAY.yLoad().then((Y) => Y.inst(why, { ios, BRAND, put, prompt: () => window.ZP_INSTALL.prompt() })).catch(() => {}); } catch (e) {}
+    try { TDAY.wLoad().then((Y) => Y.inst(why, { ios, BRAND, put, prompt: () => window.ZP_INSTALL.prompt() })).catch(() => {}); } catch (e) {}
   }
   // 다른 화면(알림 시트)에서 쓰는 설치 도우미: can() 설치를 권할 수 있나 · prompt() 안드로이드 설치 창(true=설치함) · ios
   window.ZP_INSTALL = {

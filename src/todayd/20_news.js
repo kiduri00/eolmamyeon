@@ -62,9 +62,10 @@
       g(e(`${W.rad.near} ${N.n}곳`) + " <small>가까운 순 5곳</small>", N.top, (x) => row(x.id, `지금 ${e(Y.cashT(ctx, x.need))} · ${e(Y.f(W.rad.near_t, { gap: ctx.ZF.gap(x.need, c) }))}`));
   }
   const bound = {};
-  Y.rad = (ctx) => { const el = document.getElementById("nwRad"); if (!el) return; Y.css(); const T = Y.T(); el.innerHTML = T ? radHTML(ctx, T) : ""; };
+  // 폰 알림이 켜져 있으면 레이더 아래에 빈도 바꾸기(중요한 것만·매일·주 1회 · 고르기만 하면 서버 구독에 반영)
+  Y.rad = (ctx) => { const el = document.getElementById("nwRad"); if (!el) return; Y.css(); Y.css2(); const T = Y.T(); let on = false; try { on = ctx.inbox.st().on; } catch (er) {} el.innerHTML = T ? radHTML(ctx, T) + (on ? Y.mornBox(ctx, "news") : "") : ""; Y.mornBind(ctx, el); };
   Y.news = (ctx, seg) => {
-    Y.css();
+    Y.css(); Y.css2();
     if (seg === "mine") return Y.rad(ctx);
     if (seg === "cal") return Y.cal(ctx);
     const el = document.getElementById(seg === "wk" ? "nwWk" : "nwToday"); if (!el) return;

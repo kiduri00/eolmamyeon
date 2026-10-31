@@ -2,9 +2,11 @@
 (function () {
   "use strict";
   const Y = window.ZPT;
+  const CSS2 = "__ZCSS__";
+  Object.assign(Y.U, "__ZUI__");   // 소식 칸만 쓰는 화면 말(feed_words.json ui)
+  Y.css2 = () => { if (document.getElementById("zptCss2")) return; const s = document.createElement("style"); s.id = "zptCss2"; s.textContent = CSS2; document.head.appendChild(s); };
   const SEGS = ["mine", "today", "cal", "wk"];
   let NSEG = "", USER = false, HQ = true;
-  Y.tapp = () => document.documentElement.classList.contains("is-tapp");
   const news = () => document.getElementById("news");
   // 설치 앱: 예전 두 칸(전체 소식 tseg=all · 관심 구역 tseg=mine)을 이 칸에 맞춘다(30일 전체 소식은 '서울 오늘' 칸 아래)
   const want = () => (NSEG === "mine" ? "mine" : "all");
@@ -34,6 +36,9 @@
   Y.enter = (ctx) => {
     const n = news(), s = document.getElementById("nwSeg"), h = n && n.querySelector(":scope > .sec-h");
     if (s && h && h.nextElementSibling !== s) h.after(s);   // 앱이 나중에 끼우는 예전 칸(tf-seg) 위로
+    // 설치 앱: 30일 전체 소식(tFeed)은 '서울 오늘' 7일 요약 아래로, 머리 한 줄을 붙여
+    const tf = document.getElementById("tFeed"), td = document.getElementById("nwToday");
+    if (tf && td && td.nextElementSibling !== tf && td.nextElementSibling?.id !== "nwT30") { let hh = document.getElementById("nwT30"); if (!hh) { hh = document.createElement("h3"); hh.className = "nw-h"; hh.id = "nwT30"; hh.textContent = "최근 30일 전체 기록"; } td.after(hh); hh.after(tf); }
     let v = NSEG;
     const hs = hashSeg();
     if (hs) { v = hs; USER = true; }
@@ -50,4 +55,5 @@
   };
   // 다른 화면에서 소식 칸으로(오늘 카드 줄 누름)
   Y.go = (ctx, v) => { USER = true; try { if (ctx.simple.open("news")) { Y.seg(ctx, v, true); return; } } catch (e) {} location.hash = "#news"; setTimeout(() => Y.seg(ctx, v, true), 50); };
+  window.ZPTz = 1;
 })();

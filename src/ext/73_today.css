@@ -39,3 +39,6 @@ html.is-tapp #news #tPerM{display:none!important}
 .nw-rad:empty{display:none}
 /* 설치 앱: 예산 카드 바로 밑(미니 지도·아이콘 위) · 앱 면 색(t-sec)과 같은 결 */
 html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>#tdCard{order:2;margin:0 0 32px;border-radius:20px;box-shadow:none;background:var(--t-sec,var(--surface))}
+/* 사이클 5 D axe: 새 소식 줄(노란 바탕) 위 거래·신고가 꼬리표 · 관심 '새 소식 N곳'(다크) 글자 대비 4.5:1 미달 — 원래 있던 것(새 소식이 있을 때만 보임) */
+.ib-it.new .ib-tg.tr,.ib-it.new .ib-tg.hi{background:var(--surface);color:var(--text-1)}
+.pn-nwn{background:var(--pick,#F5C33B);color:var(--pick-ink,#13265E)}

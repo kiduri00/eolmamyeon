@@ -7,12 +7,13 @@
   Y.v = 1;
   const CSS = "__YCSS__";
   Y.css = () => { if (document.getElementById("zptCss")) return; const s = document.createElement("style"); s.id = "zptCss"; s.textContent = CSS; document.head.appendChild(s); };
-  const Z = window.ZP_today, W = (Y.W = Z.W), U = (Y.U = W.ui);
+  const Z = window.ZP_today, W = (Y.W = Z.W), U = (Y.U = "__YUI__");   // 화면 말 = tools/feed_words.json ui(빌드가 넣음)
   Y.Z = Z;
   Y.f = Z.fill;
   Y.esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   Y.n = (v) => Number(v || 0).toLocaleString("ko-KR");
   Y.T = () => Z.get();
+  Y.tapp = () => document.documentElement.classList.contains("is-tapp");
   // 날짜: 기기 서울 날짜(내 일정 입력 최소값) · 표시 'M.D(요)'
   Y.day = (t) => new Date((t || Date.now()) + 9 * 36e5).toISOString().slice(0, 10);
   Y.add = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };

@@ -364,24 +364,30 @@ for _p, _b in ((os.path.join(R, 'pipeline', 'feed_words.json'), _fws), (os.path.
 _ND = os.path.join(R, 'src', 'today')
 n_js = ''.join(open(os.path.join(_ND, f), encoding='utf-8').read() for f in sorted(os.listdir(_ND)) if f.endswith('.js')) if os.path.isdir(_ND) else ''
 assert n_js.count('"__FEED_WORD__"') == 1, 'src/today: "__FEED_WORD__" 자리 하나'
-_fwn = json.dumps({k: v for k, v in _fw.items() if k not in ('_', 'banned', 'banned_ok', 'banned_head')}, ensure_ascii=False, separators=(',', ':'))   # 묶음에는 화면 문장만(금지어 목록은 QA·파이프라인용)
+_fwn = json.dumps({k: v for k, v in _fw.items() if k not in ('_', 'banned', 'banned_ok', 'banned_head', 'ui')}, ensure_ascii=False, separators=(',', ':'))   # 묶음에는 화면 문장만(금지어 목록은 QA·파이프라인용)
 n_js = n_js.replace('"__FEED_WORD__"', _fwn.replace('</', '<\\/'))
 if ESB and not os.environ.get('NO_MINIFY'): n_js = mini(n_js, 'js')
 n_url = emit('n', n_js)
 assert js.count('__TODAY__') == 1 and js_y.count('__TODAY__') == 1, 'app.js: __TODAY__ 자리 하나(72_inbox.js INBOX.today)'
 js = js.replace('__TODAY__', n_url); js_y = js_y.replace('__TODAY__', n_url)
 print('today', n_url, len(n_js.encode()), 'bytes')
-# 사이클 5 D: 화면 지연 묶음(src/todayd → /b/y.*.js · A 트랙 자료·문구 묶음 src/today → /b/n.*.js와 따로) — 오늘 카드 개인 줄·소식 서울 오늘·일정·주간·레이더·아침에 받기(카드가 보이거나 소식을 열 때만 받음)
+# 사이클 5 D: 화면 지연 묶음 셋(src/todayd · A 자료·문구 묶음 src/today → /b/n과 따로) — 첫 묶음(a·ta)에 넣지 않는다
+#   y = 오늘 카드 개인 줄·아침에 받기(카드가 보이거나 쉴 때) · z = 소식 4칸(서울 오늘·일정·주간·레이더, 소식을 열 때) · w = 알림 받을 준비 시트·홈 화면 추가 띠(그때만)
 _YD = os.path.join(R, 'src', 'todayd')
-y_js = ''.join(open(os.path.join(_YD, f), encoding='utf-8').read() for f in sorted(os.listdir(_YD)) if f.endswith('.js'))
-y_css = ''.join(open(os.path.join(_YD, f), encoding='utf-8').read() for f in sorted(os.listdir(_YD)) if f.endswith('.css'))
-if ESB and not os.environ.get('NO_MINIFY'): y_js = mini(y_js, 'js'); y_css = mini(y_css, 'css')
-assert y_js.count('"__YCSS__"') == 1, 'src/todayd: "__YCSS__" 자리 하나'   # 문구는 A 묶음(ZP_today.W · tools/feed_words.json ui)에서
-y_js = y_js.replace('"__YCSS__"', json.dumps(y_css, ensure_ascii=False).replace('</', '<\\/'))
-y_url = emit('y', y_js)
-assert js.count('__TODAYD__') == 1 and js_y.count('__TODAYD__') == 1, 'app: __TODAYD__ 자리 하나(73_today.js)'
-js = js.replace('__TODAYD__', y_url); js_y = js_y.replace('__TODAYD__', y_url)
-print('todayd', y_url, len(y_js.encode()), 'bytes')
+_YR = lambda fs: ''.join(open(os.path.join(_YD, f), encoding='utf-8').read() for f in fs)
+_YG = {'y': (('00_core.js', '10_home.js', '40_morn.js'), ('a_home.css',), '"__YCSS__"'), 'z': (('05_seg.js', '20_news.js', '30_cal.js'), ('b_news.css',), '"__ZCSS__"'), 'w': (('45_onb.js', '50_watch.js', '60_inst.js'), ('c_onb.css',), '"__WCSS__"')}
+assert sorted(f for g in _YG.values() for f in g[0] + g[1]) == sorted(f for f in os.listdir(_YD) if f.endswith(('.js', '.css'))), 'src/todayd: 묶음 표(_YG)에 없는 파일'
+for _k, (_fj, _fc, _ph) in _YG.items():
+    _j, _c = _YR(_fj), _YR(_fc)
+    if ESB and not os.environ.get('NO_MINIFY'): _j = mini(_j, 'js'); _c = mini(_c, 'css') if _c else _c
+    if _ph: assert _j.count(_ph) == 1, f'src/todayd {_k}: {_ph} 자리 하나'; _j = _j.replace(_ph, json.dumps(_c, ensure_ascii=False).replace('</', '<\\/'))
+    _ZU = ('few_list', 'tho_note', 'wk_head')   # 소식 칸(z)만 쓰는 화면 말
+    if _k == 'y': assert _j.count('"__YUI__"') == 1; _j = _j.replace('"__YUI__"', json.dumps({k: v for k, v in _fw['ui'].items() if k not in _ZU and k != '_'}, ensure_ascii=False).replace('</', '<\\/'))   # 화면 말(feed_words.json ui)만 · 자료 문장은 A 묶음
+    if _k == 'z': assert _j.count('"__ZUI__"') == 1; _j = _j.replace('"__ZUI__"', json.dumps({k: _fw['ui'][k] for k in _ZU}, ensure_ascii=False).replace('</', '<\\/'))
+    _u = emit(_k, _j); _ph2 = f'__TODAY{_k.upper()}__'
+    assert js.count(_ph2) == 1 and js_y.count(_ph2) == 1, f'73_today.js: {_ph2} 자리 하나'
+    js = js.replace(_ph2, _u); js_y = js_y.replace(_ph2, _u)
+    print('today-d', _k, _u, len(_j.encode()), 'bytes')
 a_url = emit('a', js)
 aa_url = emit('ta', js_y)   # pre-adsense 5: 설치 앱 전용(덩이로 나눠 실행) — 이름이 't'로 시작해 웹 서비스 워커의 미리 받기(/b/[a-su-z].*)에 안 걸린다(웹 방문자는 받지 않음)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)

@@ -1,0 +1,8 @@
+/* 첫 방문 결과 카드(웹) */
+.onr{margin:12px 0 0;padding:16px;background:var(--surface);border-radius:16px;box-shadow:var(--sh-1)}
+.onr-h{display:flex;align-items:center;justify-content:space-between}
+.onr-k{margin:0;font-size:12px;font-weight:500;color:var(--text-3)}
+.onr-x{min-height:44px;min-width:44px;border:0;background:none;font:inherit;font-size:13.5px;color:var(--text-2);cursor:pointer}
+.onr-t{margin:0;font-size:19px;font-weight:700;letter-spacing:-.025em;color:var(--text-1);word-break:keep-all}
+.onr-t b{color:var(--brand-ink);font-variant-numeric:tabular-nums}
+.onr-s{margin:6px 0 0;font-size:13.5px;color:var(--text-2);word-break:keep-all}

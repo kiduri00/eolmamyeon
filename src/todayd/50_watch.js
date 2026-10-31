@@ -62,4 +62,5 @@
     ZL.open("ws", () => close(false, true));
     pushKey().then((k) => { if (k && ov.isConnected && Notification.permission !== "denied") draw(true); });
   };
+  window.ZPTw = 1;
 })();

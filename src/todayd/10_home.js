@@ -65,8 +65,8 @@
     me.addEventListener("click", (ev) => {
       const g = ev.target.closest("[data-tdgo]"); if (!g) return;
       if (g.dataset.tdgo === "map") { const m = document.getElementById("mapTop"); if (m) m.scrollIntoView({ block: "start" }); return; }
-      Y.go(ctx, "mine");
-      if (g.dataset.tdgo === "rad") setTimeout(() => { const r = document.getElementById("nwRad"); if (r) r.scrollIntoView({ block: "start" }); }, 400);
+      const rad = g.dataset.tdgo === "rad";
+      ctx.z().then(() => { Y.go(ctx, "mine"); if (rad) setTimeout(() => { const r = document.getElementById("nwRad"); if (r) r.scrollIntoView({ block: "start" }); }, 400); }).catch(() => {});
     });
     // 금액·방식·관심 구역이 바뀌면 개인 줄만 다시(오늘 한 줄 차례는 그대로) — 앱에 금액 바뀜 알림이 따로 없어 예산 카드 글자·눌림을 본다
     const re = () => { const a = me.querySelector('[data-tdgo="rad"]'), b = me.querySelector('[data-tdgo="mine"],[data-tdgo="map"]'); if (a) a.outerHTML = rowMoney(ctx); if (b) b.outerHTML = rowFav(ctx); };

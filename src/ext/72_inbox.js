@@ -255,7 +255,7 @@ const INBOX = (() => {
     if (lsR(K, 0) || $("wsSheet")) return;
     lsW(K, 1);
     if (isOn() && Notification.permission === "granted") return;   // 이미 폰 알림을 받는 기기
-    try { TDAY.yLoad().then((Y) => Y.watch(TDAY.ctx(), kind, id, { subscribe, pushKey, tst, bellSvg, P_FAIL: () => P_FAIL })).catch(() => {}); } catch (e) {}
+    try { TDAY.wLoad().then((Y) => Y.watch(TDAY.ctx(), kind, id, { subscribe, pushKey, tst, bellSvg, P_FAIL: () => P_FAIL })).catch(() => {}); } catch (e) {}
   }
   function onPins(ids) {
     const n = ids.length, was = prevN; prevN = n;
