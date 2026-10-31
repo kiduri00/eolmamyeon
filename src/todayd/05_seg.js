@@ -6,21 +6,6 @@
   let NSEG = "", USER = false, HQ = true;
   Y.tapp = () => document.documentElement.classList.contains("is-tapp");
   const news = () => document.getElementById("news");
-  // 레이더(같은 금액·방식·자료면 다시 세지 않음): nw 새로 가능(목록 칩과 같은 TDAY.isNew) · far 멀어짐(7일 전엔 내 돈 안 → 지금 밖) — 원인 없는·계산 방식 변경(cv) 구역은 뺀다
-  let RC = null;
-  Y.radar = (ctx) => {
-    const T = ctx.today.data(), c = ctx.cash(), g = ctx.gap(), k = `${c}|${g}|${T ? T.asOf : ""}`;
-    if (RC && RC.k === k) return RC;
-    const R = T && T.rad && T.rad[g ? "g" : "c"], nw = [], far = [];
-    if (R) for (const id in R) {
-      const r = ctx.byId[id], a = R[id]; if (!r || !Array.isArray(a) || !a[2] || a[2] === "cv") continue;
-      let z = null; try { z = ctx.zst(r); } catch (e) {}
-      if (!z) continue;
-      if (z.st === "ok" && ctx.today.isNew(id, z.need)) nw.push(id);
-      else if (a[0] <= c + 1e-9 && a[1] > c + 1e-9 && z.st !== "ok") far.push(id);
-    }
-    return (RC = { k, nw, far });
-  };
   // 설치 앱: 예전 두 칸(전체 소식 tseg=all · 관심 구역 tseg=mine)을 이 칸에 맞춘다(30일 전체 소식은 '서울 오늘' 칸 아래)
   const want = () => (NSEG === "mine" ? "mine" : "all");
   function syncT() {

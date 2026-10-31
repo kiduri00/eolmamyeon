@@ -766,12 +766,15 @@ const PINS = (() => {
   const sameCond = () => { const k = ckey(curCond()); return CONDS.find((c) => ckey(c) === k) || null; };
   const BELL_D = '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>';
   const bellI = (s2 = 20) => `<svg width="${s2}" height="${s2}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${BELL_D}</svg>`;
-  function quickCond() {
-    if (!isMember()) { try { mbOpen("fav"); } catch (e) {} return; }
+  // q = 사이클 5 '아침에 받기'(조용히: 같은 조건이 있으면 그것 · 꽉 찼으면 저장 안 함 · 토스트·시트 없음 — 누른 단추가 이어서 권한을 묻는다)
+  function quickCond(q) {
+    if (q) { const o = sameCond(); if (o || CONDS.length >= CMAX) return o; }
+    else if (!isMember()) { try { mbOpen("fav"); } catch (e) {} return; }
     if (CONDS.length >= CMAX) return condSheet();   // 3개 꽉 참: 하나 지우고 저장하는 시트
     const c = curCond(), ids = evalCond(c), nm = autoName(c);
     const x = Object.assign({}, c, { id: "c" + Date.now().toString(36), name: nm, base: ids, sv: snapVals(c, ids), at: Date.now(), seen: "", asOf: D.upd || D.asOf });
     CONDS.push(x); saveC(); renderFav(); badges(); emit();
+    if (q) return x;
     try { navigator.vibrate && navigator.vibrate(10); } catch (e) {}
     toast("알림 조건 저장했어요", "조건 바꾸기", () => condSheet(CONDS.find((y) => y.id === x.id)), `${nm} · 지금 ${fmt(ids.length)}곳`);
     try { if (typeof INBOX !== "undefined") setTimeout(() => INBOX.watch("cond"), 900); } catch (e) {}
@@ -925,15 +928,7 @@ const PINS = (() => {
   const cmpShown = () => CMPON;
   // MY > 관심 구역 내보내기: 관심 구역 화면의 '링크 복사'와 같은 링크·같은 복사/공유
   const move = (fb) => moveURL().then((u) => shareLink(u, fb));
-  // 사이클 5 D: '아침에 받기' — 지금 게이지 조건을 알림 조건으로(같은 조건이 있으면 그것) · 토스트·시트 없이(누른 단추 흐름이 이어서 권한을 묻는다)
-  function condSave() {
-    const o = sameCond(); if (o) return o;
-    if (CONDS.length >= CMAX) return null;
-    const c = curCond(), ids = evalCond(c);
-    const x = Object.assign({}, c, { id: "c" + Date.now().toString(36), name: autoName(c), base: ids, sv: snapVals(c, ids), at: Date.now(), seen: "", asOf: D.upd || D.asOf });
-    CONDS.push(x); saveC(); renderFav(); badges(); emit(); return x;
-  }
-  return { condSave, sameCond: () => sameCond(), move, moveURL, init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), condsOn, cname: (c) => c.name || autoName(c), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
+    return { condSave: () => quickCond(1), move, moveURL, init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), condsOn, cname: (c) => c.name || autoName(c), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
 })();
 window.PINS = { list: PINS.list, has: PINS.has, on: PINS.on, newIds: PINS.newIds };
 window.ZP_ok = PINS.zpOk;   // 홈 '갈 수 있는 곳' 숫자와 같은 판정(지도 핀·게이지 토스트용)

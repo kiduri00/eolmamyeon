@@ -354,13 +354,30 @@ g_url = emit('g', x_js)
 assert js.count('__FEATX__') == 1 and js_y.count('__FEATX__') == 1, 'app.js: __FEATX__ 자리 하나'
 js = js.replace('__FEATX__', g_url); js_y = js_y.replace('__FEATX__', g_url)
 print('featx', g_url, len(x_js.encode()), 'bytes')
+# 사이클 5(A): 오늘 묶음(src/today → /b/n.*.js) — 홈 오늘 카드·소식 '서울 오늘'·일정·레이더가 화면에 보일 때만 받는다(INBOX.today · 첫 화면 a·ta에 안 넣음)
+# 문구 사전(tools/feed_words.json) 한 곳 → 묶음 안 FW · pipeline/feed_words.json(파이프라인) · worker/feed_words.js(푸시 워커)
+_FWP = os.path.join(R, 'tools', 'feed_words.json')
+_fw = json.load(open(_FWP, encoding='utf-8'))
+_fws = json.dumps(_fw, ensure_ascii=False, separators=(',', ':'))
+for _p, _b in ((os.path.join(R, 'pipeline', 'feed_words.json'), _fws), (os.path.join(R, 'worker', 'feed_words.js'), '// 만든 곳: tools/build.py ← tools/feed_words.json (직접 고치지 말 것)\nexport default ' + _fws + ';\n')):
+    if not os.path.exists(_p) or open(_p, encoding='utf-8').read() != _b: open(_p, 'w', encoding='utf-8').write(_b)
+_ND = os.path.join(R, 'src', 'today')
+n_js = ''.join(open(os.path.join(_ND, f), encoding='utf-8').read() for f in sorted(os.listdir(_ND)) if f.endswith('.js')) if os.path.isdir(_ND) else ''
+assert n_js.count('"__FEED_WORD__"') == 1, 'src/today: "__FEED_WORD__" 자리 하나'
+_fwn = json.dumps({k: v for k, v in _fw.items() if k not in ('_', 'banned', 'banned_ok', 'banned_head')}, ensure_ascii=False, separators=(',', ':'))   # 묶음에는 화면 문장만(금지어 목록은 QA·파이프라인용)
+n_js = n_js.replace('"__FEED_WORD__"', _fwn.replace('</', '<\\/'))
+if ESB and not os.environ.get('NO_MINIFY'): n_js = mini(n_js, 'js')
+n_url = emit('n', n_js)
+assert js.count('__TODAY__') == 1 and js_y.count('__TODAY__') == 1, 'app.js: __TODAY__ 자리 하나(72_inbox.js INBOX.today)'
+js = js.replace('__TODAY__', n_url); js_y = js_y.replace('__TODAY__', n_url)
+print('today', n_url, len(n_js.encode()), 'bytes')
 # 사이클 5 D: 화면 지연 묶음(src/todayd → /b/y.*.js · A 트랙 자료·문구 묶음 src/today → /b/n.*.js와 따로) — 오늘 카드 개인 줄·소식 서울 오늘·일정·주간·레이더·아침에 받기(카드가 보이거나 소식을 열 때만 받음)
 _YD = os.path.join(R, 'src', 'todayd')
 y_js = ''.join(open(os.path.join(_YD, f), encoding='utf-8').read() for f in sorted(os.listdir(_YD)) if f.endswith('.js'))
 y_css = ''.join(open(os.path.join(_YD, f), encoding='utf-8').read() for f in sorted(os.listdir(_YD)) if f.endswith('.css'))
 if ESB and not os.environ.get('NO_MINIFY'): y_js = mini(y_js, 'js'); y_css = mini(y_css, 'css')
-assert y_js.count('"__YCSS__"') == 1 and y_js.count('"__YWORDS__"') == 1, 'src/todayd: "__YCSS__"·"__YWORDS__" 자리 하나'
-y_js = y_js.replace('"__YCSS__"', json.dumps(y_css, ensure_ascii=False).replace('</', '<\\/')).replace('"__YWORDS__"', json.dumps(json.dumps(td_card.WD, ensure_ascii=False), ensure_ascii=False).replace('</', '<\\/'))
+assert y_js.count('"__YCSS__"') == 1, 'src/todayd: "__YCSS__" 자리 하나'   # 문구는 A 묶음(ZP_today.W · tools/feed_words.json ui)에서
+y_js = y_js.replace('"__YCSS__"', json.dumps(y_css, ensure_ascii=False).replace('</', '<\\/'))
 y_url = emit('y', y_js)
 assert js.count('__TODAYD__') == 1 and js_y.count('__TODAYD__') == 1, 'app: __TODAYD__ 자리 하나(73_today.js)'
 js = js.replace('__TODAYD__', y_url); js_y = js_y.replace('__TODAYD__', y_url)

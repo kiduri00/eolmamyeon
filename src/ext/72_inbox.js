@@ -49,11 +49,11 @@ const INBOX = (() => {
   function uniq(L) { const s = new Set(); return L.filter((e) => { const k = `${e.id}|${e.date}|${e.type}|${e.text}`; if (s.has(k)) return false; s.add(k); return true; }); }
   function unread(e) {
     const s = seen(), pd = day(PINS.snapT(e.id) || 0);
-    if (e.date < pd) return false;   // 핀 꽂기 전 일은 목록에만
+    if (e.date < pd || e.bf) return false;   // 핀 꽂기 전 일·밀린 자료(bf · 사이클 5)는 목록에만(배지·푸시 숫자와 같게)
     return e.date > s.at || (e.date === s.at && !s.k.includes(e.k));
   }
   const freshN = () => { if (isOff("price")) return 0; try { return PINS.freshIds().length; } catch (e) { return 0; } };
-  const unreadC = (e) => { const s = seen(); return e.date > s.at || (e.date === s.at && !s.k.includes(e.k)); };
+  const unreadC = (e) => { const s = seen(); return !e.bf && (e.date > s.at || (e.date === s.at && !s.k.includes(e.k))); };
   // 알림 조건에 맞는 구역의 경매(핀 꽂은 구역은 핀 소식으로 이미 셈)
   // all = true: 꺼 둔 설정(종류·조건)을 무시한 셈(미리 보기 '꺼 둔 설정으로 N건 빠져요'의 기준) · 서버 match(worker/push.js)와 같은 규칙: 관심 구역(끈 구역 포함)은 조건 경로에서 빼고, 최저가 ≤ 조건 현금 × 1.1
   const condAuc = (all) => { if (!CH || (!all && isOff("auction"))) return []; const P = new Set(pinIds()), out = new Map(); (all ? (() => { try { return PINS.condsAll(); } catch (e) { return []; } })() : conds()).forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0 && !(e.mn > n.c.cash * 1.1 + 1e-9)) out.set(e.k, e); }); /* 경매: 대표 물건 최저가가 조건 현금(+10%) 안일 때만 */ }); return [...out.values()]; };
@@ -159,7 +159,7 @@ const INBOX = (() => {
   function pushBox() {
     if (!KEY || !canPush()) return "";
     const perm = Notification.permission;
-    if (isOn() && perm === "granted") return `<div class="ib-push on" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림 켜짐 · ${FQN[freq()]}</b><small>${FQT[freq()]}</small></span><button type="button" class="btn text sm" data-iboff>끄기</button></div>`;
+    if (isOn() && perm === "granted") return `<div class="ib-push on" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림 켜짐</b><small>아침에 관심 구역·알림 조건 새 소식이 있으면 알려 드려요</small></span><button type="button" class="btn text sm" data-iboff>끄기</button></div>`;
     if (perm === "denied") return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>알림이 막혀 있어요</b><small>${TAPP() ? `폰 ${TSET()}에서 허용한 뒤 다시 열어 주세요` : "주소창 왼쪽 자물쇠(사이트 설정) → 알림 허용 뒤 다시 열어 주세요"}</small></span></div>`;
     if (PMSG === P_FAIL) return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>폰 알림을 켤 수 없어요</b><small>${TAPP() ? "이 기기에선 안 돼요" : "이 브라우저에선 안 돼요"} · 새 소식은 여기 소식 탭에 모아 드려요</small></span></div>`;
     return `<div class="ib-push" role="group" aria-label="폰 알림">${bellSvg(18)}<span><b>새 소식을 폰 알림으로 받기</b><small>${PMSG ? esc(PMSG) : "새 실거래·단계·경매, 갈 수 있게 된 곳"}</small></span><button type="button" class="btn primary sm" data-ibon>알림 받기</button></div>`;
@@ -168,12 +168,11 @@ const INBOX = (() => {
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const swReady = (ms = 8000) => Promise.race([navigator.serviceWorker.getRegistration("/").then((r) => r || navigator.serviceWorker.register("/sw.js", { scope: "/" })).then(() => navigator.serviceWorker.ready), new Promise((_, no) => setTimeout(() => no(new Error("sw")), ms))]);
   // 사이클 4: mz = 끈 구역(서버가 조건·경매·필요한 돈(price) 경로에서도 그 구역을 빼게 · worker/push.js match)
+  // 사이클 5(A): 알림 빈도 f = i 중요한 것만(기본) · d 매일 · w 주 1회 — localStorage zp-push-freq · 서버(worker/push.js)가 거른다
+  const FQK = "zp-push-freq", freq = () => { const v = lsR(FQK, "i"); return v === "d" || v === "w" ? v : "i"; };
+  const setFreq = (f) => { lsW(FQK, f === "d" || f === "w" ? f : "i"); sync(true); };
   const payload = (sub) => { const muteZ = new Set(mute().z); return { sub: sub.toJSON(), f: freq(), o: off(), zones: pinOn().slice(0, 20), mz: [...muteZ].slice(0, 200), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: condZ(n.ids, muteZ) })) }; };
   // 사이클 3(F9): 조건 구역은 경매 소식이 있는 구역 먼저, 상한 500(worker/push.js MAXCZ와 같음) — 150에서 잘려 앱 소식(condAuc)에는 있는데 폰 알림이 오지 않던 것
-  // 사이클 5: 알림 빈도 i 중요한 것만(기본 · 리드 결정) · d 매일 · w 주 1회(월요일 주간 요약) — 기기 저장 zp-push-f, 구독 본문 f(worker/push.js가 거른다)
-  const FK = "zp-push-f";
-  const FQN = { i: "중요한 것만", d: "매일", w: "주 1회" }, FQT = { i: "단계 변경·인가 고시·내 돈 진입·관심 구역 새 경매가 있는 날 아침에 알려 드려요", d: "매일 아침 관심 구역·알림 조건에 새 소식이 있으면 알려 드려요", w: "월요일 아침에 지난주 요약을 보내 드려요" };
-  const freq = (v) => { if (v === undefined) { const x = lsR(FK, "i"); return ["i", "d", "w"].includes(x) ? x : "i"; } if (!["i", "d", "w"].includes(v) || v === freq()) return v; lsW(FK, v); sync(true); return v; };
   const CZMAX = 500;
   const condZ = (ids, muteZ) => { const A = new Set(CH ? CH.items.filter((e) => e.type === "auction").map((e) => e.id) : []), L = ids.filter((id) => !muteZ.has(id)); return L.filter((id) => A.has(id)).concat(L.filter((id) => !A.has(id))).slice(0, CZMAX); };   // 사이클 2: 끈 구역은 조건 경로(conds[].z)에서도 뺀다(서버가 조건 경매로 보내던 누수)
   // 시간 제한: 구독·서버 저장이 멈춰도 '켜는 중…'에 갇히지 않게(8초)
@@ -221,7 +220,7 @@ const INBOX = (() => {
     } catch (e) { res = { ok: false, msg: navigator.onLine === false || KNET ? P_OFF : P_FAIL }; }
     PMSG = res.ok ? "" : res.msg;
     if (btn && btn.isConnected && !res.ok) { btn.disabled = false; btn.removeAttribute("aria-busy"); btn.innerHTML = lbl; }
-    if (res.ok) { tst("폰 알림 켰어요", FQT[freq()]); setTimeout(() => { try { window.ZP_INSTALL && ZP_INSTALL.offer("push"); } catch (e) {} }, 3600); }
+    if (res.ok) { tst("폰 알림 켰어요", "아침에 새 소식이 있으면 알려 드려요"); setTimeout(() => { try { window.ZP_INSTALL && ZP_INSTALL.offer("push"); } catch (e) {} }, 3600); }
     rerender();
     return res;
   }
@@ -298,7 +297,9 @@ const INBOX = (() => {
   function setMute(t, id, on) { const m = mute(), L = new Set(m[t]); if (on) L.delete(id); else L.add(id); m[t] = [...L]; lsW(MUK, m); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
   const isMuted = (t, id) => mute()[t].includes(id);
   function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
-  return { freq, brk: () => { const P = pinEvents().filter(unread), c = freshN() + condAuc().filter(unreadC).length; return { n: P.length + c, pin: P.length, zones: new Set(P.map((e) => e.id)).size, cond: c, ev: P }; }, unreadOf: (id) => pinEvents().filter((e) => e.id === id && unread(e)), priceSince: (id, gap) => { if (!CH) return null; const s0 = seen(), m = gap ? "g" : "c", L = CH.items.filter((e) => e.type === "price" && e.id === id && e.v && Array.isArray(e.v[m]) && (e.date > s0.at || (e.date === s0.at && !s0.k.includes(e.k)))).sort((a, b) => (a.date < b.date ? -1 : 1)); return L.length ? L[L.length - 1].v[m][1] - L[0].v[m][0] : null; }, init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind, setMute, isMuted, d0: () => addDay(day(), -6), asOf: () => (CH ? CH.asOf || "" : ""), pinEvents: () => pinEvents(), condAuc: (all) => condAuc(all), payloadOf: () => payload({ toJSON: () => ({}) }) };
+  // 사이클 5(A): 오늘 묶음(/b/n.*.js · window.ZP_today) — 화면에 보일 때 부른다. 부르는 코드는 73_today.js 한 곳(D 화면 묶음과 같은 로더 · 첫 묶음 무게)
+  const today = () => TDAY.nLoad();
+  return { brk: () => { const P = pinEvents().filter(unread), c = freshN() + condAuc().filter(unreadC).length; return { n: P.length + c, pin: P.length, zones: new Set(P.map((e) => e.id)).size, cond: c, ev: P }; }, unreadOf: (id) => pinEvents().filter((e) => e.id === id && unread(e)), priceSince: (id, gap) => { if (!CH) return null; const s0 = seen(), m = gap ? "g" : "c", L = CH.items.filter((e) => e.type === "price" && e.id === id && e.v && !e.bf && Array.isArray(e.v[m]) && (e.date > s0.at || (e.date === s0.at && !s0.k.includes(e.k)))).sort((a, b) => (a.date < b.date ? -1 : 1)); return L.length ? L[L.length - 1].v[m][1] - L[0].v[m][0] : null; }, init, paint, open, count, load, today, freq, setFreq, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind, setMute, isMuted, d0: () => addDay(day(), -6), asOf: () => (CH ? CH.asOf || "" : ""), pinEvents: () => pinEvents(), condAuc: (all) => condAuc(all), payloadOf: () => payload({ toJSON: () => ({}) }) };
 })();
 window.ZP_INBOX = INBOX;   // 점검(QA): 폰 알림 상태·종류 끄기
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", INBOX.init) : setTimeout(INBOX.init, 0);

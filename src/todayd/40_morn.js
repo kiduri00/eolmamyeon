@@ -2,7 +2,7 @@
    권한 창은 이 단추를 누를 때만 뜬다. 거부됐으면 다시 묻지 않고 폰 설정 안내만. */
 (function () {
   "use strict";
-  const Y = window.ZPT, W = Y.W, e = Y.esc;
+  const Y = window.ZPT, W = Y.W, U = Y.U, e = Y.esc;
   let N = 0;
   const st = (ctx) => { try { return ctx.inbox.st(); } catch (er) { return null; } };
   // 받을 수 있는 기기인지(서버 키가 왔고 막히지 않음) — 아니면 단추를 보이지 않는다
@@ -10,11 +10,11 @@
   function boxHTML(ctx, where) {
     const s = st(ctx); if (!s) return "";
     const f = ctx.inbox.freq(), id = "mo" + ++N;
-    if (s.on) return `<div class="mo-box on" data-mo="${where}"><p class="mo-t"><b>아침 알림 켜짐 · ${e(W.freq[f])}</b><small>${e(W.freqH[f])}</small></p><div class="mo-f" role="radiogroup" aria-label="알림 빈도">${["i", "d", "w"].map((k) => `<button type="button" role="radio" aria-checked="${k === f}" data-mof="${k}">${e(W.freq[k])}</button>`).join("")}</div></div>`;
+    if (s.on) return `<div class="mo-box on" data-mo="${where}"><p class="mo-t"><b>${e(Y.f(U.morning_on, { f: W.freq[f] }))}</b><small>${e(W.freq_note[f])}</small></p><div class="mo-f" role="radiogroup" aria-label="알림 빈도">${["i", "d", "w"].map((k) => `<button type="button" role="radio" aria-checked="${k === f}" data-mof="${k}">${e(W.freq[k])}</button>`).join("")}</div></div>`;
     if (!can(s)) return s && s.perm === "denied" ? `<div class="mo-box" data-mo="${where}"><p class="mo-t"><b>알림이 막혀 있어요</b><small>${e(Y.tapp() ? `폰 설정 → 애플리케이션(또는 앱) → ${ctx.BRAND} → 알림에서 허용할 수 있어요` : "주소창 왼쪽 자물쇠(사이트 설정)에서 알림을 허용할 수 있어요")}</small></p></div>` : "";
-    return `<div class="mo-box" data-mo="${where}"><p class="mo-t" id="${id}"><b>${e(W.morning)}</b><small>${e(`내 돈 ${Y.cashT(ctx, ctx.cash())}·${Y.modeT(ctx)} 조건 · 관심 구역`)}</small></p>` +
+    return `<div class="mo-box" data-mo="${where}"><p class="mo-t" id="${id}"><b>${e(U.morning)}</b><small>${e(`내 돈 ${Y.cashT(ctx, ctx.cash())}·${Y.modeT(ctx)} 조건 · 관심 구역`)}</small></p>` +
       `<div class="mo-f" role="radiogroup" aria-labelledby="${id}">${["i", "d", "w"].map((k) => `<button type="button" role="radio" aria-checked="${k === f}" data-mof="${k}">${e(W.freq[k])}</button>`).join("")}</div>` +
-      `<p class="mo-h" data-moh>${e(W.freqH[f])}</p><button type="button" class="btn primary mo-go" data-mogo>아침에 받기</button><p class="mo-m" role="status" data-mom></p></div>`;
+      `<p class="mo-h" data-moh>${e(W.freq_note[f])}</p><button type="button" class="btn primary mo-go" data-mogo>아침에 받기</button><p class="mo-m" role="status" data-mom></p></div>`;
   }
   Y.mornBox = (ctx, where) => boxHTML(ctx, where);
   Y.mornBind = (ctx, root) => {
@@ -25,15 +25,15 @@
       if (t.hasAttribute("data-mof")) {
         const v = t.dataset.mof, on = box.classList.contains("on");
         // 고르기만(권한 창 없음) · 이미 켜져 있으면 바로 서버 구독에 반영(72_inbox freq → sync)
-        if (on) ctx.inbox.freq(v); else box.dataset.f = v;
+        if (on) ctx.inbox.setFreq(v); else box.dataset.f = v;
         box.querySelectorAll("[data-mof]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.mof === v)));
-        const h = box.querySelector("[data-moh]") || box.querySelector(".mo-t small"); if (h) h.textContent = W.freqH[v];
-        if (on) { const b = box.querySelector(".mo-t b"); if (b) b.textContent = `아침 알림 켜짐 · ${W.freq[v]}`; }
+        const h = box.querySelector("[data-moh]") || box.querySelector(".mo-t small"); if (h) h.textContent = W.freq_note[v];
+        if (on) { const b = box.querySelector(".mo-t b"); if (b) b.textContent = Y.f(U.morning_on, { f: W.freq[v] }); }
         return;
       }
       // 누름: 빈도 저장 → 지금 조건을 알림 조건으로(이미 같은 조건이면 그대로) → 권한(이때만) → 구독
       const f = box.dataset.f || ctx.inbox.freq();
-      try { localStorage.setItem("zp-push-f", JSON.stringify(f)); } catch (er) {}
+      ctx.inbox.setFreq(f);
       try { ctx.pins.condSave(); } catch (er) {}
       const r = await ctx.inbox.subscribe(t);
       const m = box.querySelector("[data-mom]");

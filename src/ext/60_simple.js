@@ -136,15 +136,16 @@ const SIMPLE = (() => {
   window.ZP_stgShort = stgShort;   // 사이클 4(M): 지도 구역 카드 단계 칩도 목록 카드와 같은 짧은 이름
   const walkTxt = (r) => ZF.walkTxt(r);   // 사이클 4 D+: 역 도보 = ZF.walkTxt 한 함수(시트·지도와 같은 글자)
   const tkOf = (r) => { try { const c = buyWindow(r).cls; return c === "ok" ? "y" : c === "no" ? "n" : ""; } catch (e) { return ""; } };
-  // NEW '이번 주 새로 가능' = 레이더와 같은 정의(73_today.js TODAY.isNew · data/today.json rad: 7일 전 > 내 돈 ≥ 지금 · 원인 있음 · 계산 방식 변경 아님)
-  //   사이클 5 D: 예전엔 changes.json(145KB) price 사건을 따로 읽었다 → 오늘 카드·소식 레이더와 같은 today.json 한 자료
+  // NEW '이번 주 새로 가능' — 사이클 5 D: 예전엔 changes.json(145KB) price 사건을 따로 읽었다 → 오늘 카드·소식 레이더와 같은 today.json 한 자료(A ZP_today)
   let newAsk = false;
   function newLoad() {
     if (newAsk) return; newAsk = true;
-    const go = () => (window.ZP_TODAY ? ZP_TODAY.load() : Promise.resolve(null)).then((j) => { if (j && j.rad) { render(); try { LMX.paint(); } catch (er) {} } }).catch(() => {});
+    // 오늘 묶음(A · /b/n.*.js window.ZP_today)과 today.json을 한가할 때 받아 둔다 — 홈 첫 화면 다 뜬 한참 뒤
+    const go = () => INBOX.today().then((Z) => Z.load(Z.url)).then((t) => { if (t && t.rad) { render(); try { LMX.paint(); } catch (er) {} } }).catch(() => {});
     setTimeout(() => (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 6000 }) : (f) => setTimeout(f, 1500))(go), 5000);
   }
-  const isNew = (r, need) => { const T = window.ZP_TODAY; return !!(T && T.isNew(r.id, need)); };   // 73_today는 이 모듈 뒤에 정의된다(TDZ) → window로
+  // = ZP_today.isNew(7일 전 > 내 돈 ≥ 지금 · 원인 있음 · 계산 방식 변경 날 뺌) + 앱 판정 '갈 수 있음' — 레이더(ZP_today.radar nw)와 같은 셈 → 칩 수 = 레이더 수
+  const isNew = (r, need) => { const Z = window.ZP_today; return !!(Z && Z.get() && Z.isNew(null, r.id, { cash: CASH, gap: gapMode(), need }) && okR(r)); };
   const HEART = (on) => `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.4 7.2 4.4c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.5 3.1 4.4 6.5-1.6 4.8-9.2 9.4-9.2 9.4z" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
   const heartLbl = (r, on) => `${shortName(r.n)} ${on ? "관심 구역에서 빼기" : "관심 구역에 추가"}`;
   // 목록 카드 한 장(지도 알약을 눌렀을 때 뜨는 미리보기도 같은 카드): 1줄 이름 + 단계 칩 · 2줄 구·동 · 역 도보 N분 · 오른쪽 '지금 X' / '입주까지 Y' · ♡

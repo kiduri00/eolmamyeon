@@ -1,16 +1,14 @@
 /* ===================== 사이클 5 D: 오늘 카드 · 소식 4칸 · '이번 주 새로 가능' 정의(붙임 코드 — 첫 묶음 무게를 늘리지 않게 최소만) =====================
-   그리기·칸 바꾸기·레이더 묶음은 지연 묶음(src/todayd → /b/y.*.js). 여기엔 목록 칩·지도 '새로'가 같이 쓰는 정의와 묶음을 부르는 자리만.
-   이번 주 새로 가능 = today.json rad의 7일 전 필요한 돈 > 내 돈 ≥ 지금 필요한 돈 · 원인이 있고(계산 방식 변경 cv 아님) · 앱 판정도 '갈 수 있음'(목록 칩 = 레이더 = 주간 = 지도 '새로'). */
+   그리기·칸 바꾸기는 지연 묶음(src/todayd → /b/y.*.js). 여기엔 묶음을 부르는 자리만.
+   자료·문구·레이더 셈은 A 묶음(window.ZP_today · INBOX.today) — '이번 주 새로 가능' 칩은 60_simple isNew = ZP_today.isNew + 앱 판정(레이더 nw와 같은 셈). */
 const TDAY = (() => {
-  let TJ = null, TP = null, YP = null;
-  // 주소는 changes.json과 같은 버전 규칙(서비스 워커 DATA 캐시를 탐) · 오프라인이면 캐시된 판 → 기준일은 그 판의 asOf
-  const load = () => (TJ ? Promise.resolve(TJ) : TP || (TP = fetch(`data/today.json?v=${D.upd || D.asOf || ""}-${(D.dv && D.dv.today) || ""}`).then((r) => (r.ok ? r.json() : null)).then((j) => (TJ = j && j.asOf ? j : null)).catch(() => (TP = null))));
-  function isNew(id, need) {
-    const R = TJ && TJ.rad && TJ.rad[gapMode() ? "g" : "c"], a = R && R[id];
-    return !!(Array.isArray(a) && a[2] && a[2] !== "cv" && need != null && a[0] > CASH + 1e-9 && a[1] <= CASH + 1e-9 && need <= CASH + 1e-9);
-  }
-  const yLoad = () => YP || (YP = new Promise((res, rej) => { const s = document.createElement("script"); s.src = "__TODAYD__"; s.async = true; s.onload = () => (window.ZPT ? res(window.ZPT) : rej()); s.onerror = () => { YP = null; rej(); }; document.head.appendChild(s); }));
-  const ctx = () => ({ D, byId, esc, shortName, stageName, ZF, BRAND, CASH: () => CASH, cash: () => CASH, gap: () => gapMode(), zst: (r) => SIMPLE.zstate(r), inbox: INBOX, pins: PINS, today: API, $, ZL: typeof ZL !== "undefined" ? ZL : null, open: (id) => { curTab = "money"; select(id, true, false, { scroll: true }); }, simple: SIMPLE });
+  let NP = null, YP = null;
+  const js = (src, k) => new Promise((res, rej) => { if (window[k]) return res(window[k]); const s = document.createElement("script"); s.src = src; s.async = true; s.onload = () => (window[k] ? res(window[k]) : rej()); s.onerror = rej; document.head.appendChild(s); });
+  // A 자료·문구 묶음(/b/n · window.ZP_today = INBOX.today) — today.json 주소는 changes.json과 같은 버전 규칙(서비스 워커 DATA 캐시)
+  const nLoad = () => NP || (NP = js("__TODAY__", "ZP_today").then((Z) => { Z.url = `data/today.json?v=${D.upd || D.asOf || ""}-${(D.dv && D.dv.today) || ""}`; return Z; }).catch((e) => { NP = null; throw e; }));
+  // D 화면 묶음(/b/y · window.ZPT)은 A 묶음과 today.json을 연 뒤에(오프라인·자료 없음이면 그 문구를 그린다)
+  const yLoad = () => YP || (YP = nLoad().then((Z) => Promise.all([Z.load(Z.url).catch(() => null), js("__TODAYD__", "ZPT")])).then(() => window.ZPT).catch((e) => { YP = null; throw e; }));
+  const ctx = () => ({ byId, esc, shortName, ZF, BRAND, cash: () => CASH, gap: () => gapMode(), zst: (r) => SIMPLE.zstate(r), inbox: INBOX, pins: PINS, ZL: typeof ZL !== "undefined" ? ZL : null, simple: SIMPLE });
   const run = (f) => yLoad().then((Y) => f(Y, ctx())).catch(() => {});
   function init() {
     const s = $("nwSeg");
@@ -26,8 +24,7 @@ const TDAY = (() => {
     addEventListener("zp:onboarded", () => run((Y, c) => Y.onb(c)));
     try { if (sessionStorage.getItem("zp.onbR") === "1") run((Y, c) => Y.onb(c)); } catch (e) {}
   }
-  const API = { init, load, isNew, data: () => TJ, yLoad, ctx };
-  return API;
+  return { init, nLoad, yLoad, ctx };
 })();
 window.ZP_TODAY = TDAY;   // 점검(QA) · 설치 앱 처음 안내(src/tapp)가 '아침에 받기' 칸을 부를 때
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", TDAY.init) : setTimeout(TDAY.init, 0);

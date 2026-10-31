@@ -5,7 +5,7 @@
 사용: python3 tools/auction_match.py [raw=pipeline/raw/auction_raw.json] [out=public/data/auction.json] [오늘=YYYY-MM-DD] [상태=pipeline/cache/auction_state.json]
 수집기(tools/auction.js)는 날마다 새로 들어온 날·가까운 날만 검색한다 → 여기서 상태(auction_state.json)에 쌓고 auction.json은 상태에서 만든다.
 상태 물건: firstSeen·lastSeen·status(up=예정 / gone=끝까지 받은 검색 범위인데 빠짐 / chk=기일 지남·다음 기일 확인 중, 45일 뒤 뺌).
-auction.json 물건: fs·ls·st(없음=예정)·est(chk일 때 유찰 시 다음 최저가 80% 추정)·ll(경위도, 지도 표시)."""
+auction.json 물건: fs·ls·st(없음=예정)·est(chk일 때 유찰 시 다음 최저가 80% 추정)·ll(경위도, 지도 표시)·mh(최저가 이력 [처음 본 날, 매각기일, 최저가, 유찰], 두 점 이상일 때)."""
 import json, math, os, re, sys, datetime
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 P = lambda *a: os.path.join(ROOT, *a)
@@ -212,6 +212,7 @@ def update(state, raw, idx, polys, day):
         if z and not (old and old.get('zones')): stat['zone_new'] += 1
         stat['seen' if old else 'new'] += 1
         S[k] = rec
+        if z: mh_add(state, rec, a)
     # 끝까지 받은 검색 범위 안인데 오늘 안 보인 예정 물건 → gone(건너뛴 검색이면 그대로 있는 것으로)
     C = state.setdefault('courts', {})
     for sc in searches_of(raw):
@@ -238,6 +239,17 @@ def update(state, raw, idx, polys, day):
     return stat
 
 
+MH_MAX = 8   # 사건·물건번호별 최저가 이력 점 수
+def mh_add(state, o, seen):
+    """사이클 5(A): 최저가 이력 — 같은 사건·물건번호(cs#no)의 (매각기일, 최저가)가 바뀔 때마다 [처음 본 날, 매각기일, 최저가, 유찰 횟수]를 더한다.
+    값은 모두 법원 공고(최저가·최저가율로 낸 유찰 횟수) 그대로 · 추정(est)은 넣지 않는다. 기일이 바뀌어 문서 번호(docid)가 달라져도 이어진다."""
+    if not o.get('date') or not isinstance(o.get('min'), (int, float)): return
+    H = state.setdefault('mh', {}); h = H.setdefault(akey(o), [])
+    if h and h[-1][1] == o['date'] and h[-1][2] == o['min']: return
+    h.append([seen, o['date'], o['min'], o.get('fail')])
+    del h[:-MH_MAX]
+
+
 def derive(state, day):
     """상태 → 화면용 auction.json(구역 안 물건: 예정 · 목록에서 빠짐 · 기일 지남 45일까지)"""
     by = {}
@@ -248,6 +260,8 @@ def derive(state, day):
         st = o.get('status') or 'up'
         if st != 'up': x['st'] = st
         if st == 'chk' and isinstance(o.get('min'), (int, float)) and o['min'] > 0: x['est'] = int(round(o['min'] * 0.8, -5))
+        h = (state.get('mh') or {}).get(akey(o))
+        if h and len(h) > 1: x['mh'] = h   # 최저가 이력(두 점 이상일 때만)
         for z in o['zones']:
             m = by.setdefault(z, {}); k = akey(x)   # 같은 사건·물건번호(목록 여러 줄)는 한 번만: 예정 · 최근 확인 우선
             if k not in m or ((not x.get('st'), x.get('ls') or '') > (not m[k].get('st'), m[k].get('ls') or '')): m[k] = x
@@ -281,6 +295,9 @@ def main(raw_p=None, out_p=None, day=None, state_p=None):
     if not isinstance(state, dict) or not isinstance(state.get('items'), dict): state = bootstrap_state(prev); print('경매 상태 새로 시작(이전 auction.json 구역 물건', len(state['items']), '건)')
     ok_k = set(KEEP) | {'zones', 'docid', 'firstSeen', 'lastSeen', 'status'}
     for k, o in list(state['items'].items()): state['items'][k] = {kk: vv for kk, vv in o.items() if kk in ok_k}   # 예전 상태의 원문(면적·비고) 지우기
+    if 'mh' not in state:   # 이력 시작: 지금 상태의 구역 안 물건 한 점씩(처음 본 날 기준)
+        for o in sorted(state['items'].values(), key=lambda o: (o.get('firstSeen') or '', o.get('date') or '')):
+            if o.get('zones'): mh_add(state, o, o.get('firstSeen') or day)
     raw = json.load(open(raw_p, encoding='utf-8')) if os.path.exists(raw_p) else {'ok': False, 'err': 'no-raw', 'items': []}
     if 'data' in raw and 'dlt_srchResult' in (raw.get('data') or {}):   # 사이트 응답 원형(fixture): 법원마다 2주 전체를 다 받은 것으로
         its = raw['data']['dlt_srchResult']
@@ -290,6 +307,8 @@ def main(raw_p=None, out_p=None, day=None, state_p=None):
     idx, polys = load_zones() if raw.get('items') else (None, None)
     stat = update(state, raw, idx, polys, day)
     state['v'] = 1
+    live = {akey(o) for o in state['items'].values()}
+    state['mh'] = {k: v for k, v in (state.get('mh') or {}).items() if k in live}   # 상태에서 빠진 물건의 이력은 지운다
     out = derive(state, day) if state['items'] or state.get('asOf') else {'asOf': day, 'ok': False, 'src': '법원경매정보', 'byZone': {}}
     out['n'] = len(raw.get('items') or [])
     if not any(sc.get('complete') for sc in searches_of(raw)): out['stale'] = 1

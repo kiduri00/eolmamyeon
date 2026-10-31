@@ -132,42 +132,84 @@ const CH = {
   items: [
     { id: "o354", date: "2026-10-19", type: "stage", text: "조합설립인가 → 사업시행인가", n: "목동4단지", g: "양천구", s: 5, k: "a" },
     { id: "o134", date: "2026-10-19", type: "trade", text: "새 실거래 1건 · 입주권 84.9㎡ 15.5억(10.17 계약)", n: "대조제1", g: "은평구", k: "b" },
-    { id: "o1129", date: "2026-10-19", type: "price", text: "필요한 돈 ▼0.5억 · 전세 끼고 2.2억→1.7억", n: "고덕강일1", g: "강동구", v: { g: [2.16, 1.66] }, kd: "redev", s: 1, k: "c" },
+    { id: "o1129", date: "2026-10-19", type: "price", text: "필요한 돈 ▼0.5억 · 전세 끼고 2.2억→1.7억", n: "고덕강일1", g: "강동구", v: { g: [2.16, 1.66] }, kd: "redev", s: 1, why: ["jr"], k: "c" },
     { id: "o9", date: "2026-10-18", type: "trade", text: "old", n: "옛", g: "중구", k: "d" },
   ],
 };
+const D = (s) => `/?src=push&k=${s}`;
 {
   const sub = { z: ["o354", "o9"], c: [{ n: "2억 전세", cash: 2, mode: "gap", gu: "", kind: "", minS: 0 }] };
-  const m = match(sub, CH.items.filter((e) => e.date > "2026-10-18"));
+  const m = match(sub, CH.items.filter((e) => e.date > "2026-10-18"), { f: "d" });
   assert.deepEqual(m.zone.map((e) => e.id), ["o354"]); assert.deepEqual(m.cond.map((x) => x.e.id), ["o1129"]);
   assert.equal(match({ z: [], c: [{ cash: 2, mode: "cash" }] }, CH.items).cond.length, 0, "방식이 다르면 아님");
   assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", gu: "중구" }] }, CH.items).cond.length, 0, "구가 다르면 아님");
   assert.equal(match({ z: [], c: [{ cash: 1.5, mode: "gap" }] }, CH.items).cond.length, 0, "아직 모자라면 아님");
   assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", minS: 4 }] }, CH.items).cond.length, 0, "단계 조건");
   const one = compose(match({ z: ["o354"], c: [] }, CH.items), "2026-10-19");
-  assert.deepEqual(one, { title: "목동4단지 · 단계", body: "조합설립인가 → 사업시행인가", url: "/#o354", tag: "jp-2026-10-19" });
-  const many = compose(m, "2026-10-19");
-  assert.match(many.title, /관심 구역 1곳에 새 소식 · 알림 조건 1곳/); assert.equal(many.url, "/#inbox"); assert.match(many.body, /고덕강일1 · 전세 끼고 1\.7억 → 내 돈으로 살 수 있게 됐어요/);
-  // 경매: 핀 구역이면 zone, 조건에 맞는 구역(c.z)이면 cond
-  const AU = { id: "o337", date: "2026-10-19", type: "auction", text: "경매 물건 등장 · 다세대 최저 2.6억 · 입찰 10.28", n: "신정1-3", g: "양천구", k: "e" };
+  assert.deepEqual(one, { title: "관심 구역 1곳에 새 소식", body: "10.19 기준\n목동4단지 · 조합설립인가 → 사업시행인가", url: D("i") + "&d=2026-10-19#o354", tag: "jp-2026-10-19" });
+  assert.ok(!/신고가/.test(one.title), "제목에 신고가 없음");
+  const many = compose(m, "2026-10-19", { f: "d" });
+  assert.equal(many.title, "관심 구역 1곳 · 내 돈 조건 1곳에 새 소식"); assert.equal(many.url, D("d") + "&d=2026-10-19#inbox"); assert.match(many.body, /^10\.19 기준\n/); assert.match(many.body, /고덕강일1 · 전세 끼고 1\.7억 · 계산상 내 돈 안으로 들어왔어요/);
+  // 경매: 핀 구역이면 zone, 조건에 맞는 구역(c.z)이면 cond(매일만 · '중요한 것만'은 관심 구역 경매 새 물건만)
+  const AU = { id: "o337", date: "2026-10-19", type: "auction", ak: "new", text: "경매 1건 · 다세대 · 최저 2.6억 · 입찰 10.28", n: "신정1-3", g: "양천구", k: "e" };
   assert.deepEqual(match({ z: ["o337"], c: [] }, [AU]).zone.map((e) => e.id), ["o337"]);
-  const ca = match({ z: [], c: [{ n: "x", cash: 2, mode: "gap", z: ["o337"] }] }, [AU]);
-  assert.equal(ca.cond.length, 1); assert.deepEqual(compose(ca, "2026-10-19"), { title: "신정1-3 · 경매 물건 등장", body: "신정1-3 · 경매 물건 등장 · 다세대 최저 2.6억 · 입찰 10.28", url: "/#o337", tag: "jp-2026-10-19" });
-  assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o1"] }] }, [AU]).cond.length, 0);
-  assert.equal(compose(match({ z: ["o337"], c: [] }, [AU]), "d").title, "신정1-3 · 경매");
+  const ca = match({ z: [], c: [{ n: "x", cash: 2, mode: "gap", z: ["o337"] }] }, [AU], { f: "d" });
+  assert.equal(ca.cond.length, 1); assert.deepEqual(compose(ca, "2026-10-19", { f: "d" }), { title: "내 돈 조건 1곳에 새 소식", body: "10.19 기준\n신정1-3 · 경매 1건 · 다세대 · 최저 2.6억 · 입찰 10.28", url: D("d") + "&d=2026-10-19#o337", tag: "jp-2026-10-19" });
+  assert.equal(match({ z: [], c: [{ n: "x", cash: 2, mode: "gap", z: ["o337"] }] }, [AU], { f: "i" }).cond.length, 0, "중요한 것만: 조건 구역 경매는 빠짐");
+  assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o1"] }] }, [AU], { f: "d" }).cond.length, 0);
   assert.equal(compose(match({ z: ["zzz"], c: [] }, CH.items), "x"), null);
   // 사이클 4: 끈 구역(mz) = 그 구역 알림 전부 끔 — 조건 price 경로·조건 경매 경로·핀 경로 모두
   assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap" }], mz: ["o1129"] }, CH.items).cond.length, 0, "끈 구역은 price 조건 경로에서도 빠짐");
-  assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o337"] }], mz: ["o337"] }, [AU]).cond.length, 0, "끈 구역은 조건 경매에서도 빠짐");
+  assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o337"] }], mz: ["o337"] }, [AU], { f: "d" }).cond.length, 0, "끈 구역은 조건 경매에서도 빠짐");
   assert.equal(match({ z: ["o354"], c: [], mz: ["o354"] }, CH.items).zone.length, 0, "끈 구역은 핀 경로에서도 빠짐");
   assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap" }], mz: ["o9"] }, CH.items).cond.length, 1, "다른 구역을 끈 건 영향 없음");
-  ok("match + compose · 끈 구역(mz) 전 경로 제외");
+  ok("match + compose · 끈 구역(mz) 전 경로 제외 · 제목은 숫자와 범위만 · 본문 첫 줄 기준일 · 측정 주소");
+}
+{
+  // 사이클 5: 빈도 3단계 · 밀린 자료(bf) · 계산 버전(cv)·원인 모름(na) · 끈 종류(o) · 내일 매각기일(D-1) · 정정
+  const EV = [
+    { id: "z1", date: "2026-11-03", type: "trade", text: "새 실거래 1건 · 빌라·주택 대지 33㎡ 3.2억(10.30 계약) · 신고가", hi: 1, n: "가", g: "중구", k: "t1" },
+    { id: "z1", date: "2026-11-03", type: "notice", cat: "req", text: "정비계획 공람", n: "가", g: "중구", k: "n1" },
+    { id: "z1", date: "2026-11-03", type: "notice", cat: "ok", text: "사업시행인가 인가고시", n: "가", g: "중구", k: "n2" },
+    { id: "z2", date: "2026-11-03", type: "auction", ak: "drop", text: "경매 유찰 1회 · 최저가 2.7억 → 2.2억", n: "나", g: "중구", k: "a1" },
+    { id: "z2", date: "2026-11-03", type: "auction", ak: "new", bf: 1, text: "경매 1건 · 다세대 · 최저 2억", n: "나", g: "중구", k: "a2" },
+    { id: "z3", date: "2026-11-03", type: "price", text: "필요한 돈 ▼0.5억", v: { g: [2.4, 1.9] }, why: ["cv"], bf: 1, n: "다", g: "중구", k: "p1" },
+    { id: "z4", date: "2026-11-03", type: "price", text: "필요한 돈 ▼0.5억", v: { g: [2.4, 1.9] }, why: ["na"], n: "라", g: "중구", k: "p2" },
+    { id: "z5", date: "2026-11-03", type: "price", text: "필요한 돈 ▼0.5억", v: { g: [2.4, 1.9] }, why: ["jr"], n: "마", g: "중구", k: "p3" },
+    { id: "z1", date: "2026-10-28", type: "trade", text: "새 실거래 1건 · 아파트 84㎡ 9억(10.20 계약) · 신고가", hi: 1, x: 1, xd: "2026-11-03", xc: "2026-11-01", n: "가", g: "중구", k: "t0" },
+  ];
+  const sub = { z: ["z1", "z2"], c: [{ cash: 2, mode: "gap" }] };
+  const mi = match(sub, EV.filter((e) => e.date === "2026-11-03"), { f: "i" });
+  assert.deepEqual(mi.zone.map((e) => e.k), ["n2"], "중요한 것만: 인가 고시만(거래·공람·유찰 하락 빠짐)"); assert.deepEqual(mi.cond.map((x) => x.e.id), ["z5"], "중요한 것만: 내 돈 진입(원인 있는 것만)");
+  const md_ = match(sub, EV.filter((e) => e.date === "2026-11-03"), { f: "d" });
+  assert.deepEqual(md_.zone.map((e) => e.k), ["t1", "n1", "n2", "a1"], "매일: 관심 구역 소식 모두 · 밀린 자료(a2) 빠짐");
+  assert.ok(!md_.cond.some((x) => ["z3", "z4"].includes(x.e.id)), "계산 버전 바뀐 날(cv)·원인 모름(na) 변화는 푸시 0");
+  assert.equal(match({ z: ["z1"], c: [], o: ["notice"] }, EV, { f: "i" }).zone.length, 0, "끈 종류(고시) 존중");
+  const AUC = [["z2", "2026타경1", 1, "2026-11-05", "10:00", 220000000, 343750000, 2, 64, "서울남부지방법원", "다세대", "", 275000000], ["z9", "2026타경2", 1, "2026-11-05", "10:00", 1e8, 1e8, 0, 100, "서울남부지방법원", "다세대", "", null]];
+  const ms = match(sub, [], { f: "i", sched: AUC });
+  assert.deepEqual(ms.sched.map((a) => a[0]), ["z2"], "D-1은 관심 구역 물건만");
+  assert.equal(match({ ...sub, mz: ["z2"] }, [], { sched: AUC }).sched.length, 0, "끈 구역은 D-1도 빠짐");
+  const cs = compose(ms, "2026-11-04", { f: "i", name: (id) => ({ z2: "나구역" })[id] });
+  assert.equal(cs.title, "관심 구역 경매 매각기일 내일 1건"); assert.match(cs.body, /나구역 · 경매 매각기일 내일\(11\.5 10:00\) · 최저가 2\.2억/);
+  // 정정: 이번 창(from, to]에 해제가 확인된 관심 구역 거래 → 다음 다이제스트에 '지난 소식 정정 1건'
+  const mf = match(sub, EV.filter((e) => e.date === "2026-11-03"), { f: "d", all: EV, from: "2026-11-02", to: "2026-11-03" });
+  assert.equal(mf.fix, 1); assert.match(compose(mf, "2026-11-04", { f: "d" }).body, /지난 소식 정정 1건\(거래 해제\)$/);
+  // 주 1회: 서울 이번 주 숫자 + 관심 구역 줄
+  const mw = match(sub, EV, { f: "w" });
+  const cw = compose(mw, "2026-11-09", { f: "w", asOf: "2026-11-09", wk: { trade: 312, notice: 5, auc_sale: 120 } });
+  assert.match(cw.title, /^이번 주 요약 · 관심 구역 2곳 · 소식 \d+건$/); assert.match(cw.body, /^11\.9 기준\n서울 이번 주 · 거래 312 · 고시·인가 5 · 경매 매각 120\n/); assert.match(cw.url, /k=w/);
+  assert.equal(compose(match({ z: [], c: [] }, [], { f: "w" }), "2026-11-09", { f: "w", wk: { trade: 1, notice: 0, auc_sale: 0 } }).title, "이번 주 요약 · 서울 재개발 소식");
+  // 금지어: 사전에서 만든 제목·본문
+  const BAN = /추천|사세요|기회|놓치지|급매|확정|보장|수익|낙찰 가능|무조건|대박/;
+  for (const x of [cs, cw, compose(mf, "2026-11-04", { f: "d" })]) { assert.ok(!BAN.test(x.title + x.body), "금지어 0"); assert.ok(!/신고가/.test(x.title), "제목에 신고가 없음"); }
+  ok("빈도 3단계(중요한 것만·매일·주 1회) · 밀린 자료·계산 버전 변화 푸시 0 · 끈 종류·구역 · 내일 매각기일 · 정정 줄 · 금지어");
 }
 {
   const E = env(CH), sent = [];
   const uaA = uaKeys(), uaB = uaKeys(), uaC = uaKeys(), uaD = uaKeys();
-  const subs = [[uaA, "https://fcm.googleapis.com/fcm/send/A", ["o354"]], [uaB, "https://fcm.googleapis.com/fcm/send/B", ["o999"]], [uaC, "https://fcm.googleapis.com/fcm/send/GONE", ["o134"]], [uaD, "https://web.push.apple.com/D", ["o134", "o354"]]];
-  for (const [ua, ep, z] of subs) assert.equal((await worker.fetch(post("/api/push/sub", { sub: mkSub(ua, ep), zones: z }), E)).status, 200);
+  const subs = [[uaA, "https://fcm.googleapis.com/fcm/send/A", ["o354"], "i"], [uaB, "https://fcm.googleapis.com/fcm/send/B", ["o999"], "d"], [uaC, "https://fcm.googleapis.com/fcm/send/GONE", ["o134"], "d"], [uaD, "https://web.push.apple.com/D", ["o134", "o354"], "d"]];
+  for (const [ua, ep, z, f] of subs) assert.equal((await worker.fetch(post("/api/push/sub", { sub: mkSub(ua, ep), zones: z, f }), E)).status, 200);
+  assert.deepEqual([...E.PUSH.m.entries()].filter(([k]) => k.startsWith("sub:")).map(([, v]) => JSON.parse(v).f).sort(), ["d", "d", "d", "i"], "빈도 저장");
   const keyPub = (await (await worker.fetch(new Request(ORIGIN + "/api/push/key"), E)).json()).key;
   const fakeFetch = async (url, init) => {
     const ua = subs.find((s) => s[1] === url)[0];
@@ -175,36 +217,73 @@ const CH = {
     sent.push({ url, msg: JSON.parse(decrypt(init.body, ua)) });
     return new Response(null, { status: /GONE/.test(url) ? 410 : 201 });
   };
-  let r = await runCron(E, { fetch: fakeFetch });
-  assert.deepEqual([r.sent, r.gone, r.events, r.done], [2, 1, 3, 1 && true]);
+  const NOW = Date.parse("2026-10-19T22:30:00Z");   // 10.20(화) 07:30 KST
+  let r = await runCron(E, { fetch: fakeFetch, now: NOW });
+  assert.deepEqual([r.sent, r.gone, r.events, r.done], [2, 1, 3, true]);
   const byUrl = Object.fromEntries(sent.map((s) => [s.url.split("/").pop(), s.msg]));
-  assert.equal(byUrl.A.title, "목동4단지 · 단계"); assert.equal(byUrl.A.url, "/#o354");
-  assert.equal(byUrl.D.title, "관심 구역 2곳에 새 소식"); assert.ok(!byUrl.B, "핀이 안 맞으면 안 보냄"); assert.ok(!sent.some((s) => s.msg.body === "old"), "처음엔 가장 최근 날만");
+  assert.equal(byUrl.A.title, "관심 구역 1곳에 새 소식"); assert.equal(byUrl.A.url, "/?src=push&k=i&d=2026-10-20#o354"); assert.equal(byUrl.A.tag, "jp-2026-10-20");
+  assert.equal(byUrl.D.title, "관심 구역 2곳에 새 소식"); assert.ok(!byUrl.B, "핀이 안 맞으면 안 보냄"); assert.ok(!sent.some((s) => /old/.test(s.msg.body)), "처음엔 가장 최근 날만");
   assert.equal([...E.PUSH.m.keys()].filter((k) => k.startsWith("sub:")).length, 3, "410이면 구독 지움");
   assert.equal(JSON.parse(E.PUSH.m.get("state")).last, "2026-10-19");
-  sent.length = 0; r = await runCron(E, { fetch: fakeFetch });
-  assert.equal(sent.length, 0, "같은 날 다시 돌면 안 보냄"); assert.equal(r.skipped, "no new");
-  ok("cron: decrypted payloads per subscription, 410 cleanup, idempotent state");
+  sent.length = 0; r = await runCron(E, { fetch: fakeFetch, now: NOW + 3600e3 });
+  assert.equal(sent.length, 0, "같은 날 다시 돌면 안 보냄(하루 최대 1통)"); assert.equal(r.skipped, "done today");
+  // 다음 날: 새 사건이 같은 날짜에 더 붙어도(자료 갱신 없음) 새로 보낼 것이 없으면 0
+  sent.length = 0; r = await runCron(E, { fetch: fakeFetch, now: NOW + 86400e3 });
+  assert.equal(sent.length, 0); assert.equal(r.skipped, "no new");
+  ok("cron: decrypted payloads per subscription, 410 cleanup, 하루 최대 1통, idempotent state");
+}
+{
+  // 주 1회 구독은 월요일에만 · 같은 날 여러 번 돌아도 1통 · 밀린 자료만 있는 날은 0통
+  const CHW = { asOf: "2026-11-09", items: [
+    { id: "o354", date: "2026-11-08", type: "stage", text: "조합설립인가 → 사업시행인가", n: "목동4단지", g: "양천구", k: "w1" },
+    { id: "o354", date: "2026-11-09", type: "auction", ak: "new", bf: 1, text: "경매 3건 · 다세대", n: "목동4단지", g: "양천구", k: "w2" },
+  ] };
+  const TD = { asOf: "2026-11-09", seoul: { w: { trade: 300, notice: 4, auc_sale: 90 } }, auc: [] };
+  const E = env(CHW); E.ASSETS.fetch = ((f0) => async (rq) => { const u = new URL(typeof rq === "string" ? rq : rq.url); return u.pathname === "/data/today.json" ? new Response(JSON.stringify(TD)) : f0(rq); })(E.ASSETS.fetch);
+  const ua1 = uaKeys(), ua2 = uaKeys(), got = [];
+  await worker.fetch(post("/api/push/sub", { sub: mkSub(ua1, "https://fcm.googleapis.com/fcm/send/W"), zones: ["o354"], f: "w" }), E);
+  await worker.fetch(post("/api/push/sub", { sub: mkSub(ua2, "https://fcm.googleapis.com/fcm/send/I"), zones: ["o354"], f: "i" }), E);
+  const ff = async (url, init) => { got.push({ url, msg: JSON.parse(decrypt(init.body, /W$/.test(url) ? ua1 : ua2)) }); return new Response(null, { status: 201 }); };
+  E.PUSH.m.set("state", JSON.stringify({ last: "2026-11-08", day: "2026-11-08" }));
+  let r = await runCron(E, { fetch: ff, now: Date.parse("2026-11-08T22:30:00Z") });   // 11.9(월) 07:30
+  const w = got.find((g) => /W$/.test(g.url));
+  assert.ok(w, "월요일 주간 요약"); assert.match(w.msg.title, /^이번 주 요약 · 관심 구역 1곳/); assert.match(w.msg.body, /서울 이번 주 · 거래 300 · 고시·인가 4 · 경매 매각 90/); assert.ok(!/경매 3건/.test(w.msg.body), "밀린 자료는 주간에도 빠짐");
+  assert.ok(!got.some((g) => /I$/.test(g.url)), "중요한 것만: 밀린 자료만 있는 날은 0통");
+  got.length = 0; r = await runCron(E, { fetch: ff, now: Date.parse("2026-11-09T01:00:00Z") }); assert.equal(got.length, 0, "같은 날 두 번째 실행 0통");
+  E.PUSH.m.set("state", JSON.stringify({ last: "2026-11-09", day: "2026-11-09" }));
+  CHW.items.push({ id: "o354", date: "2026-11-10", type: "stage", text: "사업시행인가 → 관리처분인가", n: "목동4단지", g: "양천구", k: "w3" });
+  got.length = 0; r = await runCron(E, { fetch: ff, now: Date.parse("2026-11-09T22:30:00Z") });   // 11.10(화)
+  assert.ok(!got.some((g) => /W$/.test(g.url)), "주 1회 구독은 화요일에 안 보냄"); assert.ok(got.some((g) => /I$/.test(g.url)), "중요한 것만은 단계 변경을 보냄");
+  ok("주 1회(월요일 요약) · 같은 날 1통 · 밀린 자료만 있는 날 0통");
 }
 {
   // 이어 보내기: batch=2, 구독 5개 → 3번에 나눠 모두 한 번씩
   const E = env(CH), got = [];
   for (let i = 0; i < 5; i++) { const ua = uaKeys(); await worker.fetch(post("/api/push/sub", { sub: mkSub(ua, `https://fcm.googleapis.com/fcm/send/S${i}`), zones: ["o354"] }), E); }
   const ff = async (url) => { got.push(url); return new Response(null, { status: 201 }); };
-  const r1 = await runCron(E, { fetch: ff, batch: 2 }), r2 = await runCron(E, { fetch: ff, batch: 2 }), r3 = await runCron(E, { fetch: ff, batch: 2 }), r4 = await runCron(E, { fetch: ff, batch: 2 });
-  assert.deepEqual([r1.done, r2.done, r3.done], [false, false, true]); assert.equal(r4.skipped, "no new");
+  const now = Date.parse("2026-10-19T22:30:00Z");
+  const r1 = await runCron(E, { fetch: ff, batch: 2, now }), r2 = await runCron(E, { fetch: ff, batch: 2, now }), r3 = await runCron(E, { fetch: ff, batch: 2, now }), r4 = await runCron(E, { fetch: ff, batch: 2, now });
+  assert.deepEqual([r1.done, r2.done, r3.done], [false, false, true]); assert.equal(r4.skipped, "done today");
   assert.equal(got.length, 5); assert.equal(new Set(got).size, 5);
   ok("cron batching resumes across runs without duplicates");
 }
-// changes.json 실제 파일 형식도 매칭에 넣어 본다
+// changes.json·today.json 실제 파일 형식도 매칭에 넣어 본다
 {
   const f = path.join(DIR, "../public/data/changes.json");
   if (fs.existsSync(f)) {
     const ch = JSON.parse(fs.readFileSync(f, "utf8"));
     assert.ok(Array.isArray(ch.items) && ch.items.every((e) => e.id && e.date && e.type && e.text && e.k));
-    const z = ch.items.slice(0, 3).map((e) => e.id), m = match({ z, c: [] }, ch.items.filter((e) => e.date === ch.items[0].date));
-    const msg = compose(m, ch.items[0].date); assert.ok(msg && msg.title && new TextEncoder().encode(JSON.stringify(msg)).length < 3000);
+    const z = ch.items.slice(0, 3).map((e) => e.id), m = match({ z, c: [] }, ch.items.filter((e) => e.date === ch.items[0].date), { f: "d" });
+    const msg = compose(m, ch.items[0].date, { f: "d" }); assert.ok(!msg || (msg.title && new TextEncoder().encode(JSON.stringify(msg)).length < 3000));
     ok("real public/data/changes.json shape + payload size");
+  }
+  const t = path.join(DIR, "../public/data/today.json");
+  if (fs.existsSync(t)) {
+    const td = JSON.parse(fs.readFileSync(t, "utf8"));
+    assert.ok(td.seoul && td.seoul.w && Array.isArray(td.auc) && td.auc.every((a) => /^\d{4}-\d\d-\d\d$/.test(a[3])), "today.json 일정 줄은 날짜가 있는 것만");
+    const z = [...new Set(td.auc.map((a) => a[0]))].slice(0, 5), m = match({ z, c: [] }, [], { sched: td.auc.slice(0, 5) });
+    const msg = compose(m, td.asOf, { f: "i" }); assert.ok(!msg || new TextEncoder().encode(JSON.stringify(msg)).length < 3000);
+    ok("real public/data/today.json shape (D-1 줄)");
   }
 }
 
