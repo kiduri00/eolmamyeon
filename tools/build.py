@@ -351,6 +351,23 @@ g_url = emit('g', x_js)
 assert js.count('__FEATX__') == 1 and js_y.count('__FEATX__') == 1, 'app.js: __FEATX__ 자리 하나'
 js = js.replace('__FEATX__', g_url); js_y = js_y.replace('__FEATX__', g_url)
 print('featx', g_url, len(x_js.encode()), 'bytes')
+# 사이클 5(A): 오늘 묶음(src/today → /b/n.*.js) — 홈 오늘 카드·소식 '서울 오늘'·일정·레이더가 화면에 보일 때만 받는다(INBOX.today · 첫 화면 a·ta에 안 넣음)
+# 문구 사전(tools/feed_words.json) 한 곳 → 묶음 안 FW · pipeline/feed_words.json(파이프라인) · worker/feed_words.js(푸시 워커)
+_FWP = os.path.join(R, 'tools', 'feed_words.json')
+_fw = json.load(open(_FWP, encoding='utf-8'))
+_fws = json.dumps(_fw, ensure_ascii=False, separators=(',', ':'))
+for _p, _b in ((os.path.join(R, 'pipeline', 'feed_words.json'), _fws), (os.path.join(R, 'worker', 'feed_words.js'), '// 만든 곳: tools/build.py ← tools/feed_words.json (직접 고치지 말 것)\nexport default ' + _fws + ';\n')):
+    if not os.path.exists(_p) or open(_p, encoding='utf-8').read() != _b: open(_p, 'w', encoding='utf-8').write(_b)
+_ND = os.path.join(R, 'src', 'today')
+n_js = ''.join(open(os.path.join(_ND, f), encoding='utf-8').read() for f in sorted(os.listdir(_ND)) if f.endswith('.js')) if os.path.isdir(_ND) else ''
+assert n_js.count('"__FEED_WORD__"') == 1, 'src/today: "__FEED_WORD__" 자리 하나'
+_fwn = json.dumps({k: v for k, v in _fw.items() if k not in ('_', 'banned', 'banned_ok', 'banned_head')}, ensure_ascii=False, separators=(',', ':'))   # 묶음에는 화면 문장만(금지어 목록은 QA·파이프라인용)
+n_js = n_js.replace('"__FEED_WORD__"', _fwn.replace('</', '<\\/'))
+if ESB and not os.environ.get('NO_MINIFY'): n_js = mini(n_js, 'js')
+n_url = emit('n', n_js)
+assert js.count('__TODAY__') == 1 and js_y.count('__TODAY__') == 1, 'app.js: __TODAY__ 자리 하나(72_inbox.js INBOX.today)'
+js = js.replace('__TODAY__', n_url); js_y = js_y.replace('__TODAY__', n_url)
+print('today', n_url, len(n_js.encode()), 'bytes')
 a_url = emit('a', js)
 aa_url = emit('ta', js_y)   # pre-adsense 5: 설치 앱 전용(덩이로 나눠 실행) — 이름이 't'로 시작해 웹 서비스 워커의 미리 받기(/b/[a-su-z].*)에 안 걸린다(웹 방문자는 받지 않음)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
