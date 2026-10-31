@@ -157,13 +157,24 @@
       ANC.forEach(function (a) { if (a.n === n) me = a.q; }); if (!me) return true; var d0 = Math.hypot(x - me.x, y - me.y);
       return ANC.every(function (a) { return a.n === n || d0 <= Math.hypot(x - a.q.x, y - a.q.y) + 10; });
     };
-    L.forEach(function (g0) {
+    // 사이클 5 통합(130% 서울 줌 이름 없는 숫자 원): 앞 구가 큰 태그로 자리를 다 쓰면 뒤 구가 숫자 원만 남는다 → 갈 수 있는 구의 시작 단계를 ①·②·좁은 태그로 바꿔 다시 놓아 보고
+    //   이름 없는 숫자 원(③·④)이 가장 적은 배치를 쓴다(같으면 앞 배치 = 큰 태그). 숫자는 어느 배치에서도 잃지 않는다(④ 그대로)
+    var best = null;
+    for (var k0 = 0; k0 < 3; k0++) {
+      if (best && !(best.steps[3] + best.steps[4])) break;
+      placed = []; keep = []; left = []; steps = [0, 0, 0, 0, 0];
+      pass(k0);
+      var nn = steps[3] + steps[4];
+      if (!best || nn < best.nn) best = { nn: nn, placed: placed, keep: keep, left: left, steps: steps };
+    }
+    placed = best.placed; keep = best.keep; left = best.left; steps = best.steps;
+    function pass(k0) { L.forEach(function (g0) {
       if (!g0.c && !(full && g0.nr)) return;
       var g = { n: g0.n, ll: g0.ll, c: g0.c, m: g0.m, nr: g0.c ? 0 : g0.nr || 0 }, q = o.proj(g.ll);
       g.sn = g.n.length > 2 ? g.n.replace(/구$/, "") : g.n;
       if (q.x < -8 || q.x > w + 8 || q.y < -8 || q.y > h + 8) { if (g.c) left.push(g); return; }
       var got = null, k, j;
-      for (k = 0; k < (g.c ? 4 : 1) && !got; k++) {
+      for (k = g.c ? k0 : 0; k < (g.c ? 4 : 1) && !got; k++) {
         var S0 = sizeOf(g, k);
         var NU = k === 3 ? NUDGE3 : NUDGE;
         for (j = 0; j < NU.length && !got; j++) {
@@ -181,7 +192,7 @@
       if (g.c) steps[got.k]++;
       g.l1 = got.S.l1; g.l2 = ""; g.t = 2; g.q = q; g.w = got.S.w; g.h = got.S.h; g.sm = got.k === 1; g.xs = got.k === 2; g.tt = false; g.num = got.k >= 3; g.frc = got.k === 4; g.dx = Math.round(got.dx); g.dy = Math.round(got.dy);
       placed.push(got.bx); keep.push(g);
-    });
+    }); }
     placeMx.steps = steps;
     return { keep: keep, left: left, steps: steps };
   }

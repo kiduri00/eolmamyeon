@@ -1,7 +1,7 @@
 /* 서비스 워커 — 보수적으로:
    HTML은 네트워크 우선(오프라인이면 저장본), 데이터·API·아이콘은 저장본을 먼저 보여 주고 뒤에서 갱신,
    지도 타일은 작은 상한을 둔 런타임 캐시만. 버전을 올리면 옛 캐시는 지운다. */
-const V = "46897785"; // tools/build.py가 빌드 해시로 바꿔 씀
+const V = "6362cc4f"; // tools/build.py가 빌드 해시로 바꿔 씀
 const BRAND = "재개픽", BRAND_EN = "JaegaePick"; // 서비스 이름 — tools/build.py가 tools/brand.py 값으로 바꿔 씀
 const SHELL = "eolma-shell-" + V;
 const DATA = "eolma-data-" + V;
