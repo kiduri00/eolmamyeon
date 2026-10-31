@@ -634,6 +634,9 @@
         await idleT(1500);
         await loadLib(); try { performance.mark("zp-lib"); } catch (e) {} await idleT(1500);
         await loadGeo(); try { performance.mark("zp-geo"); } catch (e) {} await idleT(1500);
+        // 사이클 5(M · map.attachJank): 첫 칠하기(paint → zfOf → ZoneFacts 1,000여 곳 · 1배 CPU ~110ms)가 레이어 붙이기 한 덩이에 들어가 300ms 가까운 긴 작업이 되던 것 →
+        //   구역 사실(같은 캐시 zfOf)을 지도 만들기 전에 80곳씩 쉬며 미리 만든다(결과는 같은 값 · 조건이 바뀌면 캐시가 알아서 비움)
+        for (let i = 0; i < R.length; i += 80) { for (let j = i; j < Math.min(R.length, i + 80); j++) { try { zfOf(R[j]); } catch (e) {} } await yieldT(); }
         if (!init()) throw new Error("init");
         try { performance.mark("zp-init"); } catch (e) {}
       })();
