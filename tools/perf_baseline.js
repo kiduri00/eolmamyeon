@@ -8,7 +8,8 @@
            또는 재면서 바로:  node tools/perf_baseline.js http://localhost:8790 --against tools/fixtures/perf_main.json
            회귀 한도(스펙): JS KB +10% · 가장 긴 작업 +100ms → 넘으면 exit 1. LCP·TBT는 참고(+20%·+300ms 넘으면 경고만).
    JS KB = 받은 스크립트 내용을 gzip -6 한 크기(로컬·라이브 같은 잣대) · jsWireKb = 실제 받은 바이트.
-   TBT = 관찰 9초 안 긴 작업(50ms 넘는 부분) 합 — 바쁜 공용 기계에서는 출렁이므로 판정에 쓰지 않는다. */
+   TBT = 관찰 9초 안 긴 작업(50ms 넘는 부분) 합 — 바쁜 공용 기계에서는 출렁이므로 판정에 쓰지 않는다.
+   사이클 5(M): 장면 today(홈 → 오늘 카드 자리 스크롤)·news(홈 → 소식 탭 누름 · INP) — 기본 실행에 들어감. --only today,news 로 따로. */
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -18,7 +19,11 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf("--" + k); return i >= 0 ? argv[i + 1] : d; };
 const has = (k) => argv.includes("--" + k);
 const EXE = process.env.QA_CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const PAGES = [["home", "/"], ["map", "/#map"], ["z", opt("z", "/z/o1176")], ["drag", "/?cash=2&mode=jeonse#map"]].filter(([k]) => (opt("only", "") ? opt("only", "").split(",").includes(k) : k !== "drag"));   // drag(사이클 4 D+): 구 줌에서 지도 끌기 5번 → 손을 뗀 뒤 라벨 다시 배치(layout) 시간 · 그 뒤 긴 작업 — --only drag로만   // --only map,home : 일부만 재기(빠른 실험)
+const PAGES = [["home", "/"], ["map", "/#map"], ["z", opt("z", "/z/o1176")], ["today", "/"], ["news", "/"], ["drag", "/?cash=2&mode=jeonse#map"]].filter(([k]) => (opt("only", "") ? opt("only", "").split(",").includes(k) : k !== "drag"));
+// 사이클 5(M) 장면 2개:
+//   today: 홈을 9초 본 뒤 '오늘 카드' 자리까지 스크롤(카드 [data-zp-today]·#hmToday·#today가 없으면 그 자리 = 홈 '가장 맞는 곳' #hmBest 앞) → 4초 동안 긴 작업(지연 묶음 받기·채우기 포함) · card = 카드가 있었는지
+//   news:  홈을 9초 본 뒤 아래 탭 '소식'을 누름 → INP(누르기 이벤트 처리~다음 그림 · Event Timing 가장 긴 것) · 그 뒤 3초 긴 작업 · 소식 화면이 보일 때까지 ms
+const TODAY_SEL = "[data-zp-today], #hmToday, #today";   // drag(사이클 4 D+): 구 줌에서 지도 끌기 5번 → 손을 뗀 뒤 라벨 다시 배치(layout) 시간 · 그 뒤 긴 작업 — --only drag로만   // --only map,home : 일부만 재기(빠른 실험)
 const LIMIT = { jsPct: 10, longMs: 100, lcpPct: 20, tbtMs: 300 };
 
 const median = (a) => { const s = a.filter((x) => x != null).sort((x, y) => x - y); return s.length ? s[(s.length - 1) >> 1] : null; };
@@ -29,6 +34,7 @@ function compare(base, cur) {
     const b = base.pages[k], c = cur.pages[k];
     if (!b || !c) { warns.push(`${k}: 한쪽에 없음`); continue; }
     const d = (f) => c[f] - b[f];
+    if (k === "today" || k === "news") { rows.push(`${k.padEnd(5)} 그 뒤 TBT ${b.tbtAfter}→${c.tbtAfter}ms · 긴 작업 ${b.longAfter}→${c.longAfter}ms` + (k === "news" ? ` · INP ${b.inp}→${c.inp}ms` : "")); if (k === "news" && c.inp > 200) warns.push(`news: INP ${c.inp}ms > 200`); continue; }
     const jsPct = b.jsKb ? (d("jsKb") / b.jsKb) * 100 : 0;
     rows.push(`${k.padEnd(5)} JS ${b.jsKb}→${c.jsKb}KB (${jsPct >= 0 ? "+" : ""}${jsPct.toFixed(1)}%) · 긴 작업 ${b.longMs}→${c.longMs}ms (${d("longMs") >= 0 ? "+" : ""}${d("longMs")}) · LCP ${b.lcp}→${c.lcp}ms · TBT ${b.tbt}→${c.tbt}ms`);
     if (jsPct > LIMIT.jsPct) fails.push(`${k}: JS +${jsPct.toFixed(1)}% > +${LIMIT.jsPct}%`);
@@ -65,7 +71,8 @@ async function measure(BASE, RUNS, CPU) {
       cdp.on("Network.responseReceived", (e) => { types[e.requestId] = e.type; });
       cdp.on("Network.loadingFinished", (e) => { bytes += e.encodedDataLength; reqs++; if (types[e.requestId] === "Script") { js += e.encodedDataLength; pend.push(cdp.send("Network.getResponseBody", { requestId: e.requestId }).then((b) => { jsGz += zlib.gzipSync(Buffer.from(b.body, b.base64Encoded ? "base64" : "utf8"), { level: 6 }).length; }).catch(() => {})); } });
       await pg.addInitScript(() => {
-        window.__lt = []; window.__lcp = 0;
+        window.__lt = []; window.__lcp = 0; window.__ev = [];
+        try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__ev.push([e.name, Math.round(e.startTime), Math.round(e.duration), e.interactionId || 0]))).observe({ type: "event", durationThreshold: 16, buffered: true }); } catch (e) {}
         new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt.push([Math.round(e.startTime), Math.round(e.duration)]))).observe({ type: "longtask", buffered: true });
         new PerformanceObserver((l) => l.getEntries().forEach((e) => (window.__lcp = Math.round(e.startTime)))).observe({ type: "largest-contentful-paint", buffered: true });
       });
@@ -91,6 +98,25 @@ async function measure(BASE, RUNS, CPU) {
         const row = { layMs: median(lay), layMax: Math.max(...lay), longAfter: median(lg), longAfterMax: Math.max(...lg), raw: D };
         runs[k].push(row); console.log(`drag  #${i + 1} ${JSON.stringify({ lay, lg })}`); await ctx.close(); continue;
       }
+      if (k === "today" || k === "news") {
+        const t0 = await pg.evaluate(() => performance.now());
+        let ex = {};
+        if (k === "today") {
+          ex = await pg.evaluate((sel) => { const c = document.querySelector(sel), el = c || document.getElementById("hmBest") || document.getElementById("sListW"); if (el) window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + scrollY - 120), behavior: "instant" }); return { card: !!c }; }, TODAY_SEL);
+          await pg.waitForTimeout(4000);
+        } else {
+          const bx = await pg.evaluate(() => { const b = document.querySelector('#sNav [data-nav="news"]'); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+          if (bx) await pg.touchscreen.tap(bx.x, bx.y);
+          const shown = await pg.waitForFunction(() => { const h = document.documentElement; return h.classList.contains("s-view") && document.querySelector(".s-on") ? performance.now() : null; }, null, { timeout: 8000, polling: 16 }).then((x) => x.jsonValue()).catch(() => null);
+          await pg.waitForTimeout(3000);
+          ex = { tapped: !!bx, showMs: shown ? Math.round(shown - t0) : null };
+        }
+        const r2 = await pg.evaluate((t0) => { const lt = window.__lt.filter((x) => x[0] >= t0 - 5), ev = (window.__ev || []).filter((x) => x[1] >= t0 - 5 && x[3]); return { tbtAfter: lt.reduce((s, x) => s + Math.max(0, x[1] - 50), 0), longAfter: lt.reduce((m, x) => Math.max(m, x[1]), 0), inp: ev.length ? Math.max(...ev.map((x) => x[2])) : null, tbt: window.__lt.reduce((s, x) => s + Math.max(0, x[1] - 50), 0) }; }, t0);
+        await Promise.all(pend);
+        const row = { ...r2, ...ex, jsKb: Math.round(jsGz / 1024), reqs };
+        if (k === "today") delete row.inp;
+        runs[k].push(row); console.log(`${k.padEnd(5)} #${i + 1} ${JSON.stringify(row)}`); await ctx.close(); continue;
+      }
       const r = await pg.evaluate(() => { const lt = window.__lt; return { lcp: window.__lcp, fcp: Math.round((performance.getEntriesByName("first-contentful-paint")[0] || {}).startTime || 0), longMs: lt.reduce((m, x) => Math.max(m, x[1]), 0), tbt: lt.reduce((s, x) => s + Math.max(0, x[1] - 50), 0), nLong: lt.length }; }).catch(() => ({}));
       await Promise.all(pend);
       const row = { ...r, kb: Math.round(bytes / 1024), jsWireKb: Math.round(js / 1024), jsKb: Math.round(jsGz / 1024), reqs };
@@ -101,7 +127,7 @@ async function measure(BASE, RUNS, CPU) {
   }
   await b.close();
   const pages = {};
-  for (const [k, p] of PAGES) { const R = runs[k]; pages[k] = { path: p }; for (const f of (k === "drag" ? ["layMs", "layMax", "longAfter", "longAfterMax"] : ["lcp", "fcp", "tbt", "longMs", "nLong", "kb", "jsKb", "jsWireKb", "reqs"])) pages[k][f] = median(R.map((x) => x[f])); }
+  for (const [k, p] of PAGES) { const R = runs[k]; pages[k] = { path: p }; for (const f of (k === "drag" ? ["layMs", "layMax", "longAfter", "longAfterMax"] : k === "today" || k === "news" ? ["tbtAfter", "longAfter", "inp", "showMs", "tbt", "jsKb", "reqs"] : ["lcp", "fcp", "tbt", "longMs", "nLong", "kb", "jsKb", "jsWireKb", "reqs"])) pages[k][f] = median(R.map((x) => x[f])); }
   let load = null; try { load = require("os").loadavg().map((x) => +x.toFixed(2)); } catch (e) {}
   return { base: BASE, at: new Date().toISOString(), runs: RUNS, cpu: CPU, viewport: "390x844@2", observeMs: 9000, loadavg: load, pages, raw: runs };
 }
@@ -115,7 +141,7 @@ async function measure(BASE, RUNS, CPU) {
   const BASE = (argv.find((a, i) => !a.startsWith("--") && !(i && argv[i - 1].startsWith("--"))) || "http://localhost:8765").replace(/\/+$/, "");
   const res = await measure(BASE, +opt("runs", 3), +opt("cpu", 4));
   console.log("\nmedian of " + res.runs + " · load " + (res.loadavg || []).join(" "));
-  for (const [k, v] of Object.entries(res.pages)) if (k === "drag") console.log(`  drag  끌기 뒤 라벨 다시 배치 가운데 ${v.layMs}ms(최대 ${v.layMax}) · 그 뒤 긴 작업 가운데 ${v.longAfter}ms(최대 ${v.longAfterMax})`); else console.log(`  ${k.padEnd(5)} ${v.path.padEnd(10)} LCP ${v.lcp}ms · TBT ${v.tbt}ms · 가장 긴 작업 ${v.longMs}ms · JS ${v.jsKb}KB(gzip) / 받은 ${v.jsWireKb}KB · 전체 ${v.kb}KB`);
+  for (const [k, v] of Object.entries(res.pages)) if (k === "today" || k === "news") console.log(`  ${k.padEnd(5)} ${k === "today" ? "홈 → 오늘 카드 자리 스크롤(카드 " + (res.raw[k].some((x) => x.card) ? "있음" : "아직 없음 · 자리만") + ")" : "홈 → 소식 탭 · INP " + v.inp + "ms · 화면까지 " + v.showMs + "ms"} · 그 뒤 TBT ${v.tbtAfter}ms · 가장 긴 작업 ${v.longAfter}ms`); else if (k === "drag") console.log(`  drag  끌기 뒤 라벨 다시 배치 가운데 ${v.layMs}ms(최대 ${v.layMax}) · 그 뒤 긴 작업 가운데 ${v.longAfter}ms(최대 ${v.longAfterMax})`); else console.log(`  ${k.padEnd(5)} ${v.path.padEnd(10)} LCP ${v.lcp}ms · TBT ${v.tbt}ms · 가장 긴 작업 ${v.longMs}ms · JS ${v.jsKb}KB(gzip) / 받은 ${v.jsWireKb}KB · 전체 ${v.kb}KB`);
   const out = opt("out", "/tmp/claude-0/-home-claude/887bff60-b663-5701-90e9-e402cebc9114/scratchpad/perf_last.json");
   fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, JSON.stringify(res, null, 1)); console.log("JSON " + out);
   const ag = opt("against", null);

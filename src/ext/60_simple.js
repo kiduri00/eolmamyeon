@@ -700,12 +700,13 @@ const SIMPLE = (() => {
     const H = [], G = [];
     const step = (i) => new Promise((res) => (window.requestIdleCallback ? requestIdleCallback(() => res(i), { timeout: 400 }) : setTimeout(() => res(i), 0)));
     const run = async () => {
-      for (let i = 0; i < STOPS.length; i += 6) {
+      const HS_N = 3;   // 사이클 5(M · 성능): 한가할 때 한 칸에 금액 6개(4×CPU 60~70ms 긴 작업 3개) → 3개(30ms 안팎 · 긴 작업 아님) · 같은 반복·같은 표
+      for (let i = 0; i < STOPS.length; i += HS_N) {
         await step(i);
         if (condK() !== k || kind !== kd || (hist && histK === k && GK === kd)) return;
         const save = CASH;
         try {
-          for (const c of STOPS.slice(i, i + 6)) {
+          for (const c of STOPS.slice(i, i + HS_N)) {
             CASH = +c; let n = 0; const cnt = {}, min = {};
             R.forEach((r) => {
               if (!okR(r)) return; n++;
@@ -1213,7 +1214,8 @@ const SIMPLE = (() => {
     // 메뉴(⋯)는 shell.html에 도구·자료·사이트로 묶어 둔다
     try { mapTopLazy(); } catch (e) {}   // 사이클 4(M): 옛 SVG 지도는 필요할 때(app.js mapTopLazy)
     // 첫 지도도 실제 지도(구역 경계·지하철)로 — 앱이 먼저 #map-구 주소로 구 화면에 들어갔으면 그 구 그대로(20차 G2: 새로 열기·새로고침)
-    try { if (mapView === "gu" && mapGu) LMX.enter(mapGu); else LMX.seoul(); } catch (e) {}
+    // 사이클 5(M · 성능): 홈 첫 화면(주소 # 없음)은 섬이 이미 같은 자리 그림을 그려 두었다 → 서울 지도 다시 맞추기(4×CPU ~140ms)는 다음 작업으로(이 init 한 덩이 330ms를 나눔)
+    { const go = () => { try { if (mapView === "gu" && mapGu) LMX.enter(mapGu); else LMX.seoul(); } catch (e) {} }; if (location.hash.length > 1 || mapView === "gu") go(); else setTimeout(go, 0); }
     if (location.hash === "#map") fullMap(true);   // /#map 링크 = 전체 지도로 바로
     // 기존 '바로가기'(메뉴·다음 단계·히어로 링크)는 해당 기능 화면을 연다
     document.addEventListener("click", (e) => {
@@ -1297,7 +1299,8 @@ const SIMPLE = (() => {
     zero();
     // 지도 레이어 기본값: 아무것도 켜지 않음(잔글씨 방지). 사용자가 켠 적이 있으면 그대로
     // (레이어 기본값은 10_lmap.js가 '없으면 빈 목록'으로 읽는다 — 미리 써 두지 않는다: 모두 지우기 뒤 키가 되살아나 보이지 않게)
-    render();
+    // 사이클 5(M · 성능): 첫 목록 그리기(4×CPU ~130ms)도 따로 된 작업으로 — 섬이 같은 줄을 미리 그려 두었으므로 화면은 그대로(끝 상태 같음)
+    if (location.hash.length > 1) render(); else setTimeout(() => { try { render(); } catch (e) {} }, 0);
     // 키보드: '/' 검색, Esc 열린 화면 닫기(입력 중·대화상자·메뉴가 열려 있으면 그쪽에 맡긴다)
     document.addEventListener("keydown", (e) => {
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;

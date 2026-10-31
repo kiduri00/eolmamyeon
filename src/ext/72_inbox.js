@@ -248,7 +248,7 @@ const INBOX = (() => {
   const tst = (a, b) => { try { const t = document.createElement("div"); t.className = "ib-toast"; t.setAttribute("role", "status"); t.innerHTML = `${bellSvg(18)}<span><b>${esc(a)}</b><small>${esc(b)}</small></span>`; document.body.appendChild(t); requestAnimationFrame(() => t.classList.add("on")); setTimeout(() => { t.classList.remove("on"); setTimeout(() => t.remove(), 300); }, 3200); } catch (e) {} };
 
   // ---------- '알림 받을 준비' 시트: 첫 핀·첫 알림 조건 뒤에 한 번 ----------
-  // 사이클 5 D: 시트 그리기는 지연 묶음(src/todayd 50_watch.js · 같은 동작)으로 옮겼다 — 첫 묶음(a) 무게를 늘리지 않게. 한 번만 뜨는 표시(zp-watch-*)는 여기서
+  // 사이클 5 D: 시트 그리기는 지연 묶음(src/lazy/75_sheet.js · 같은 동작)으로 옮겼다 — 첫 묶음(a) 무게를 늘리지 않게. 한 번만 뜨는 표시(zp-watch-*)는 여기서
   let prevN = -1;
   function watch(kind, id) {
     const K = kind === "cond" ? "zp-watch-cond" : "zp-watch-pin";

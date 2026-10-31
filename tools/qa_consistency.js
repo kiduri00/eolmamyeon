@@ -322,6 +322,21 @@ async function staticLane(api) {
     try { walk(PUBD); } catch (e) { bad.push("walk: " + e.message); }
     expect(!bad.length, "brand.static", T, `${bad.length} files · ${bad.slice(0, 3).join(" ; ")}`);
   }
+  // --- bundle.initial (사이클 5 M): 첫 화면 묶음(웹 a · 설치 앱 ta · 섬 h · 전체 CSS c · 앱 화면 t·tc) gzip -6 크기 ≤ tools/fixtures/bundle_budget.json 상한
+  //     상한은 사이클 5 시작 빌드(M 트랙 끝) 값으로 고정 — 새 기능(오늘 카드 개인 줄·레이더 등)은 src/lazy 지연 묶음(/b/z*)으로. 지연 묶음도 각자 상한(lazy.이름)
+  {
+    const P = require("path"), zlib = require("zlib"), PUBD = P.join(__dirname, "..", "public");
+    const T = "첫 화면 묶음(a·ta·h·c·t·tc) gzip 크기가 상한(사이클 5 고정) 이하 = 초기 묶음 증가 0 · 지연 묶음(/b/z*)은 각자 상한 이하 · 앱 코드에 지연 로더(ZP_lazy)";
+    let bud = {}; try { bud = JSON.parse(fs.readFileSync(P.join(__dirname, "fixtures", "bundle_budget.json"), "utf8")); } catch (e) {}
+    const html = fs.readFileSync(P.join(PUBD, "index.html"), "utf8"), gz = (f) => { const fp = P.join(PUBD, "b", f); try { return +require("child_process").execFileSync("python3", ["-c", "import gzip,sys;b=open(sys.argv[1],'rb').read();b=b.split(b'\\n',1)[-1] if sys.argv[2]=='1' else b;print(len(gzip.compress(b,6,mtime=0)))", fp, /^h\./.test(f) ? "1" : "0"]).toString().trim(); } catch (e) { let b = fs.readFileSync(fp); if (/^h\./.test(f)) b = b.subarray(b.indexOf(10) + 1); return zlib.gzipSync(b, { level: 6 }).length; } };   // build.py bundle_report와 같은 잣대(파이썬 gzip -6) · 섬 h는 첫 줄(매일 자료) 빼고 코드만
+    const RX = { a: /\/b\/(a\.[0-9a-f]{10}\.js)/, ta: /\/b\/(ta\.[0-9a-f]{10}\.js)/, h: /\/b\/(h\.[0-9a-f]{10}\.js)/, c: /\/b\/(c\.[0-9a-f]{10}\.css)/, t: /\/b\/(t\.[0-9a-f]{10}\.js)/, tc: /\/b\/(t\.[0-9a-f]{10}\.css)/ };
+    const cur = {}, over = [], miss = [];
+    for (const [k, rx] of Object.entries(RX)) { const m = html.match(rx); if (!m) { miss.push(k); continue; } cur[k] = gz(m[1]); const cap = (bud.initial || {})[k]; if (cap == null) miss.push(k + " 상한"); else if (cur[k] > cap) over.push(`${k} ${cur[k]} > ${cap} (+${cur[k] - cap})`); }
+    const am = html.match(RX.a), aj = am ? fs.readFileSync(P.join(PUBD, "b", am[1]), "utf8") : "", lz = [];
+    if (!/ZP_lazy/.test(aj)) miss.push("a.js에 ZP_lazy 없음");
+    for (const m of aj.matchAll(/\/b\/(z([a-z]+)\.[0-9a-f]{10}\.js)/g)) { const n = gz(m[1]), cap = (bud.lazy || {})[m[2]] ?? bud.lazyDefault; lz.push(`${m[2]} ${n}${cap ? "/" + cap : ""}`); if (cap && n > cap) over.push(`지연 ${m[2]} ${n} > ${cap}`); }
+    expect(!over.length && !miss.length, "bundle.initial", T, `${Object.entries(cur).map(([k, v]) => `${k} ${v}/${(bud.initial || {})[k]}`).join(" · ")}${lz.length ? " · 지연 " + lz.join(", ") : ""}${over.length ? " · 넘침 " + over.join(", ") : ""}${miss.length ? " · 없음 " + miss.join(", ") : ""}`);
+  }
   const T = (id, t) => [id, t];
   // --- 매니페스트·첫 화면 HTML
   const idx = await get(BASE + "/");
@@ -1953,24 +1968,47 @@ async function r19Lane(browser, api, errs) {
   }
   // --- map.attachJank: 붙이기(zp-att) ~ 자리 그림 걷힘(zp-fade) 사이 가장 긴 작업 ≤ 300ms (이 기계 · CPU 1배) · 붙는 동안 끈 막대 숫자 지연 중앙 ≤ 100 · 최대 ≤ 200
   await flaky("map.attachJank", "map.attachJank", async () => {
-    const TJ = "실제 지도를 붙이는 동안 가장 긴 작업 ≤ 300ms(이 기계 1배) · 붙는 중 막대 끌기 숫자 지연 중앙값 ≤ 100ms · 최대 ≤ 200ms";
+    const TJ = "실제 지도를 붙이는 동안 가장 긴 작업 ≤ 300ms(이 기계 1배 · 소프트웨어 WebGL이면 합성 Commit 기다림 뺌) · 붙는 중 막대 끌기 숫자 지연 중앙값 ≤ 100ms · 최대 ≤ 200ms";
     // 27차: 이 기계가 바쁘면(다른 검사·브라우저가 같이 돌면) 한 번 더 재고, 바쁜 배수(loadFactor)만큼 기준을 늘린다 — 공유 기계에서의 거짓 실패
+    // 사이클 5(M) 측정 바로잡기: 이 기계는 GPU가 없어 WebGL을 SwiftShader(CPU)로 그리고 화면 합성도 소프트웨어다. 그러면 지도 캔버스가 처음 보이는 프레임의
+    //   'Commit'(합성기에 넘기기)이 GPU 대신 CPU가 지도를 다 그릴 때까지 주 스레드를 묶어 1.4~1.9초 긴 작업이 된다(트레이스: 그 작업의 99%가 Commit · 앱 JS 0ms).
+    //   폰·PC의 GPU 합성에서는 생기지 않는 기다림이므로, 소프트웨어 WebGL일 때만 긴 작업마다 Commit 시간을 빼고(앱 JS·스타일·배치·그리기 기록은 그대로 셈) 같은 300ms로 본다.
+    //   GPU가 있으면 예전 그대로(작업 전체). Commit 최대값은 결과 글에 함께 적는다. 기준(300ms·바쁜 배수 최대 2배)과 끌기 지연 검사는 바꾸지 않음.
     const once = async () => {
       const { ctx, page } = await newPage(browser, mob(390, 844), errs);
       try {
-        await ctx.addInitScript(() => { window.__lt19 = []; try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt19.push([Math.round(e.startTime), Math.round(e.duration)]))).observe({ type: "longtask", buffered: true }); } catch (e) {} });
+        await ctx.addInitScript(() => { window.__lt19 = []; try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt19.push([Math.round(e.startTime), Math.round(e.duration)]))).observe({ type: "longtask", buffered: true }); } catch (e) {} try { performance.mark("qa-t0"); } catch (e) {} });
         page.__where = "/?cash=2 attach";
+        const cdp = await ctx.newCDPSession(page), ev = [];
+        cdp.on("Tracing.dataCollected", (d) => { for (const e of d.value) if (e.ph === "X" || e.name === "thread_name" || (e.cat || "").includes("user_timing")) ev.push(e); });
+        const tdone = new Promise((r) => cdp.once("Tracing.tracingComplete", r));
+        await cdp.send("Tracing.start", { traceConfig: { includedCategories: ["toplevel", "devtools.timeline", "disabled-by-default-devtools.timeline", "blink.user_timing"] }, transferMode: "ReportEvents" });
         await page.goto(BASE + `/?cash=2&mode=jeonse&qac=${++LOADS}`, { waitUntil: "domcontentloaded", timeout: 30000 });
         await page.waitForFunction(() => performance.getEntriesByName("zp-fade").length, null, { timeout: 60000, polling: 200 }).catch(() => {});
-        return await page.evaluate(() => { const a = (performance.getEntriesByName("zp-att")[0] || {}).startTime, f = (performance.getEntriesByName("zp-fade")[0] || {}).startTime; const L = (window.__lt19 || []).filter((x) => a != null && x[0] >= a - 5 && x[0] <= (f || 1e9) + 300); return { a, f, max: Math.max(0, ...L.map((x) => x[1])), n: L.length }; });
+        await page.waitForTimeout(400);
+        const r = await page.evaluate(() => { const a = (performance.getEntriesByName("zp-att")[0] || {}).startTime, f = (performance.getEntriesByName("zp-fade")[0] || {}).startTime, t0 = (performance.getEntriesByName("qa-t0")[0] || {}).startTime; const L = (window.__lt19 || []).filter((x) => a != null && x[0] >= a - 5 && x[0] <= (f || 1e9) + 300); let gl = ""; try { const g = document.createElement("canvas").getContext("webgl"), x = g && g.getExtension("WEBGL_debug_renderer_info"); gl = x ? String(g.getParameter(x.UNMASKED_RENDERER_WEBGL) || "") : ""; } catch (e) {} return { a, f, t0, L, max: Math.max(0, ...L.map((x) => x[1])), n: L.length, gl }; });
+        await cdp.send("Tracing.end").catch(() => {}); await Promise.race([tdone, new Promise((z) => setTimeout(z, 15000))]);
+        r.sw = /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(r.gl);
+        r.app = r.max; r.commit = 0;
+        if (r.sw && r.a != null) {
+          const mk = ev.find((e) => e.name === "qa-t0" && (e.cat || "").includes("user_timing"));
+          const tn = mk && ev.find((e) => e.name === "thread_name" && e.pid === mk.pid && e.args && e.args.name === "CrRendererMain");
+          if (mk && tn && r.t0 != null) {
+            const T0 = mk.ts - r.t0 * 1000, M = ev.filter((e) => e.pid === mk.pid && e.tid === tn.tid && e.ph === "X" && e.dur);
+            const tasks = M.filter((e) => e.name === "RunTask" && e.dur > 50000).map((t) => ({ st: (t.ts - T0) / 1000, du: t.dur / 1000, cm: M.filter((e) => e.name === "Commit" && e.ts >= t.ts && e.ts + e.dur <= t.ts + t.dur).reduce((s, e) => s + e.dur, 0) / 1000 }))
+              .filter((t) => t.st >= r.a - 5 && t.st <= (r.f || 1e9) + 300);
+            r.app = Math.round(Math.max(0, ...tasks.map((t) => t.du - t.cm))); r.commit = Math.round(Math.max(0, ...tasks.map((t) => t.cm)));
+          } else r.sw = false;   // 트레이스를 못 읽으면 예전 잣대(작업 전체)
+        }
+        return r;
       } finally { await ctx.close().catch(() => {}); }
     };
     try {
       let r = await once(), lf = 1, tries = 1;
-      if (r.a != null && r.f != null && r.max > 300) { lf = await loadFactor(browser); r = await once(); tries = 2; if (r.max > 300 * Math.min(2, lf)) lf = Math.max(lf, await loadFactor(browser)); }
+      if (r.a != null && r.f != null && r.app > 300) { lf = await loadFactor(browser); r = await once(); tries = 2; if (r.app > 300 * Math.min(2, lf)) lf = Math.max(lf, await loadFactor(browser)); }
       const lim = Math.round(300 * Math.min(2, lf));
       if (r.a == null || r.f == null) bad("map.attachJank", TJ, `붙이기 표시 없음 zp-att ${r.a} zp-fade ${r.f}`);
-      else expect(r.max <= lim, "map.attachJank", TJ, `attach ${Math.round(r.a)}→${Math.round(r.f)}ms · longest task ${r.max}ms (${r.n} long tasks) · limit ${lim} (load ×${lf.toFixed(2)}, tries ${tries})`);
+      else expect(r.app <= lim, "map.attachJank", TJ, `attach ${Math.round(r.a)}→${Math.round(r.f)}ms · longest task ${r.sw ? `app ${r.app}ms (software GL '${r.gl.slice(0, 40)}': Commit wait excluded, max Commit ${r.commit}ms · raw ${r.max}ms)` : `${r.max}ms`} (${r.n} long tasks) · limit ${lim} (load ×${lf.toFixed(2)}, tries ${tries})`);
     } catch (e) { bad("runtime", "검사 실행", "attachJank crashed: " + String(e.message || e).split("\n")[0]); }
     // 붙는 동안(첫 화면 2.5초) 손가락으로 끌기 — 27차: 넘으면 바쁜 배수를 재고 한 번 더(기준 × 배수, 최대 2배)
     const drag1 = async () => {
@@ -4839,6 +4877,8 @@ const UNITS = {
   mapx: { est: 300, limit: 900, solo: true, browser: false, ext: ["node", "tools/qa_mapx.js", "$BASE"], files: [/^src\/ext\/(10_lmap|11_ghost|12_mapx|65_pills|60_simple|99zzzzzzzzzz_c4map)\./, /^src\/(ghost|island|boot)\.js$/, /^src\/tapp\//, /^tools\/qa_mapx\.js$/] },
   // 사이클 5(A): 오늘 묶음(today.* · tools/qa_today.js) — 30일 하루씩 재생 · 홈=소식=원자료=푸시 숫자 · 밀린 자료 분리 · 금지어·법적 표현 · 개인 이름 0 · 계산 버전 바뀐 날 가짜 변화 0 · ICS · 크기
   today: { est: 15, limit: 300, browser: false, ext: ["node", "tools/qa_today.js"], files: [/^src\/today\//, /^src\/ext\/(60_simple|72_inbox)\./, /^worker\//, /^tools\/(today|changes|auction_match|tx|calc|qa_today|build)\./, /^tools\/feed_words\.json$/, /^public\/data\/(today|changes|auction)\.json$/] },
+  // 사이클 5(M): 서비스 워커 설치 앱 첫 화면 시간 제한(sw.appNav · tools/qa_swapp.js · 자체 느린 서버)
+  swapp: { est: 40, limit: 240, browser: false, ext: ["node", "tools/qa_swapp.js"], files: [/^public\/sw\.js$/, /^tools\/qa_swapp\.js$/] },
   r22: { est: 590, limit: 1500, deps: ["core"], files: [/^src\/(app\.js|data\.json|premium\.json)$/, /^src\/ext\/68_app\./, /^tools\/(enrich|calc|api)\./] },
 };
 const NHF_N = Math.min(5, +process.env.QAC_NHF_RUNS || 5);
@@ -4876,7 +4916,7 @@ async function runUnit(name, api, shortSrc, zoneIds, errs) {
       case "r30": await guard("r30Lane", r30Lane(browser, api, errs)); break;
       case "r31": await guard("r31Lane", Promise.all([r31Lane(browser, api, errs), r31Static(api)])); break;
       case "r22": { const lm = getShared("listMap"); if (lm) shared.listMap = new Map(lm); await guard("r22Lane", r22Lane(browser, api, errs, shared)); break; }
-      case "feat": case "facts": case "sync": case "brand": case "zhand": case "mapx": case "today": extUnit(name, u); break;   // 사이클 4 통합: mapx 단위 실행기가 빠져 있던 것(no runner)
+      case "feat": case "facts": case "sync": case "brand": case "zhand": case "mapx": case "today": case "swapp": extUnit(name, u); break;   // 사이클 4 통합: mapx 단위 실행기가 빠져 있던 것(no runner)
       default: if (/^(tapp|nhf)\d+$/.test(name)) { await guard("tappLane", tappLane(browser, api, errs)); break; } throw new Error("no runner for " + name);
     }
   } finally { if (browser) await browser.close().catch(() => {}); }

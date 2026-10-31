@@ -330,6 +330,7 @@
     // 옛 SVG 구 지도(#map · 구 25개 누르기 자리)는 자리 그림 밑에서 보이지도 눌리지도 않게(20차 A4 · 실제 지도가 붙으면 lm-on이 숨김)
     var om = Dc.getElementById("map"); if (om) { om.style.visibility = "hidden"; om.setAttribute("aria-hidden", "true"); }
     d.addEventListener("click", function (e) {
+      S.mk = null;
       var t = e.target, b = t.closest && t.closest("button");
       if (b && b.closest(".lm-gumore") && b.classList.contains("lm-gumore-b")) { var ch = b.parentNode, on = ch.classList.toggle("open"); b.setAttribute("aria-expanded", String(on)); go({ chip: 1 }); return; }
       var a = b && (b.dataset.gu ? { gu: b.dataset.gu } : b.dataset.z ? { zoom: b.dataset.z } : null);
@@ -447,8 +448,15 @@
     // 27차: 폰 서울 보기는 '+N곳' 칩을 왼쪽 위(서울 밖 고양 쪽 빈 자리)에 — 왼쪽 아래에 두면 구로·양천 묶음 자리를 칩이 차지했다(10_lmap.js chipBox와 같은 규칙)
     var ctop = phone && !Dc.documentElement.classList.contains("s-full");
     var CHH = bigK() > 1 ? 54 : 40;   // 사이클 4 통합: 큰 글씨면 '+N곳' 칩이 40px보다 커서 범례에 겹치던 것
-    var R = place({ W: w, H: h, obs: obsOf(el, box), gus: gus, proj: P, phone: phone, chip: ctop ? [4, 6, 120, 6 + CHH] : [4, ky - CHH, 120, ky] });
-    var mk = el.querySelector(".zg-mk"), have = {};
+    var obs = obsOf(el, box);
+    // 사이클 5(M · 성능): 같은 입력이면 다시 그리지 않는다 — 섬이 그린 자리 그림을 앱이 붙으며 같은 값으로 2~3번 다시 그리던 것(4×CPU 한 번 60~150ms)
+    //   열쇠 = 그림을 정하는 값 전부(카메라·칸 크기·구 숫자·최저가·부족 수·고른 구·범례·칩 자리·장애물·글자 배율·새 지도 모드·면 id) · 그려 둔 DOM이 그대로일 때만
+    var mk = el.querySelector(".zg-mk"), sv0 = el.querySelector(".zg-bg");
+    var mkey = JSON.stringify([C, w, h, st.cnt || null, mins, nrs, S.dim, key && key.dataset.h, ky, ctop, CHH, obs, phone, mxf(), appFull(), bigK(), ((S.st && S.st.ids) || st.ids || []).join(",")]);
+    if (S.mk === mkey && S.mr && mk && mk.children.length && sv0 && sv0.querySelector(".zg-t") && S.mel === el) return S.mr;
+    S.mk = null;
+    var R = place({ W: w, H: h, obs: obs, gus: gus, proj: P, phone: phone, chip: ctop ? [4, 6, 120, 6 + CHH] : [4, ky - CHH, 120, ky] });
+    var have = {};
     [].forEach.call(mk.children, function (b) { have[b.dataset.gu] = b; });
     R.keep.forEach(function (g) {
       var b = have[g.n]; delete have[g.n];
@@ -488,7 +496,8 @@
     } else { var tg = svg.querySelector(".zg-t"); if (tg.innerHTML !== txt) tg.innerHTML = txt; }
     zoneDraw(svg, (S.st && S.st.ids) || st.ids, C.z, [k, tx, ty]);
     guFill(svg, st.cnt);
-    return { cam: C, keep: R.keep, left: R.left, more: c };
+    S.mr = { cam: C, keep: R.keep, left: R.left, more: c }; S.mk = mkey; S.mel = el;
+    return S.mr;
   }
   // 구를 누르면 바로: 같은 투영으로 그 구에 맞춰 확대하고 다른 구는 어둡게(실제 지도가 붙기 전에도 누른 반응이 즉시 · 20차 A1)
   function zoomGu(n) {
@@ -500,6 +509,7 @@
   // 끄는 동안: 자리는 그대로 숫자·농도만(실제 지도 dragLite와 같음)
   // 끄는 동안 묶음 한 개의 글자·농도만(자리·크기는 손을 뗄 때) — 실제 지도 dragLite도 이 함수
   function guLite(b, c, mn, mx) {
+    S.mk = null;   // 끄는 동안 바뀐 글자 → 다음 draw는 꼭 다시
     if (+b.dataset.n === c && b.dataset.m === String(mn)) return;
     b.dataset.n = String(c); b.dataset.m = String(mn);
     var n = b.dataset.gu, sn = n.length > 2 ? n.replace(/구$/, "") : n, x = b.querySelector("b"), sp = b.querySelector("span");
@@ -511,6 +521,7 @@
   }
   function lite(cnt, ids, mins) {
     if (!S.el || S.out) return;
+    S.mk = null;
     if (ids && S.st) S.st.ids = ids;
     if (mins && S.st) S.st.min = mins;
     if (S.last && !S.dim) { draw({ cnt: cnt, min: mins, ok: (S.st && S.st.ok) || [], ids: ids, cam: S.last }, 1); return; }

@@ -245,7 +245,18 @@ HMINI_JS = S('hmini.js')
 js = HMINI_JS + js; js_y = HMINI_JS + js_y
 # 문의하기 양식(src/contact.js): 앱 묶음에 넣고, 정적 페이지(/contact · /faq · /z)용으로 public/cf.js 로도 낸다(같은 코드)
 CONTACT_JS = S('contact.js')
-js = CONTACT_JS + js; js_y = CONTACT_JS + js_y
+# 사이클 5(M · 초기 묶음): 문의 양식 전체(gzip ~6KB)는 앱 첫 화면에 필요 없다 → 앱 묶음에는 대리(ZP_contact.lazy)만 넣고, 처음 열 때(open · [data-zp-contact] 누름) /cf.js(같은 코드)를 받아 바꿔 낀다.
+#   ZP_CONTACT_INLINE=1 이면 예전처럼 통째로
+CONTACT_STUB = ('(function(){if(window.ZP_contact)return;var W=window,D=document,P=null,U="/cf.js?v=__CFV__";'
+    'function L(){return P||(P=new Promise(function(ok,no){var s=D.createElement("script");s.src=U;s.async=true;s.onload=function(){var c=W.ZP_contact;if(c&&!c.lazy)ok(c);else{P=null;no(new Error("contact"))}};s.onerror=function(){P=null;no(new Error("contact load"))};D.head.appendChild(s)}))}'
+    'var st=W.ZP_contact={lazy:1,load:L,open:function(o){return L().then(function(c){c.open(o)})},close:function(){var c=W.ZP_contact;if(c&&c!==st)c.close()},mount:function(e,o){return L().then(function(c){return c.mount(e,o)})}};'
+    # [data-zp-contact] 링크: 받기 전에는 막고(페이지 이동 대신 시트) 받은 뒤 같은 요소를 다시 누른다(진짜 코드의 문서 click이 시트를 연다) · 못 받으면 링크대로
+    'D.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("[data-zp-contact]");if(!a||W.ZP_contact!==st||e.defaultPrevented||e.metaKey||e.ctrlKey||e.shiftKey)return;e.preventDefault();L().then(function(){a.click()},function(){var h=a.getAttribute("href");if(h)location.href=h})});'
+    # 붙은 뒤 한가할 때(8초 뒤 쉬는 틈) 미리 받아 둔다 — 첫 누름에 기다림 없게(첫 화면 긴 작업 밖)
+    'W.addEventListener("zp:hydrated",function(){setTimeout(function(){(W.requestIdleCallback||setTimeout)(function(){L().catch(function(){})},{timeout:4000})},8000)});'
+    'if(D.querySelector("[data-zp-contact-here]"))L()})();')
+_CJ = CONTACT_JS if os.environ.get('ZP_CONTACT_INLINE') == '1' else CONTACT_STUB
+js = _CJ + js; js_y = _CJ + js_y
 # 22차: 자료 받기 시간 제한·다시 받기 + 잡히지 않은 오류 알림(src/net.js) — 앱 묶음 맨 앞
 js = S('net.js') + js; js_y = S('net.js') + js_y
 css = S('app.css') + ext_css
@@ -254,7 +265,7 @@ css = S('app.css') + ext_css
 def prune_css(css):
     # 사이클 4 통합: src/tapp·src/feat·src/featx 안에서만 쓰는 클래스(.tob-cash 등)도 살린다 — 예전엔 스캔 밖이라 규칙이 지워졌다
     import glob
-    src = ''.join(open(f, encoding='utf-8').read() for f in [os.path.join(R, 'src', p) for p in ('app.js', 'shell.html', 'island.js', 'boot.js', 'ghost.js', 'hmini.js', 'contact.js', 'net.js')] + sorted(glob.glob(os.path.join(R, 'src', 'ext', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'tapp', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'feat', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'featx', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'todayd', '*.js'))) + sorted(glob.glob(os.path.join(R, 'tools', '*.py'))) + [os.path.join(R, 'tools', 'prerender.js')] if os.path.exists(f))
+    src = ''.join(open(f, encoding='utf-8').read() for f in [os.path.join(R, 'src', p) for p in ('app.js', 'shell.html', 'island.js', 'boot.js', 'ghost.js', 'hmini.js', 'contact.js', 'net.js')] + sorted(glob.glob(os.path.join(R, 'src', 'ext', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'tapp', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'feat', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'featx', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'lazy', '*.js'))) + sorted(glob.glob(os.path.join(R, 'tools', '*.py'))) + [os.path.join(R, 'tools', 'prerender.js')] if os.path.exists(f))
     words = set(re.findall(r'[\w-]+', src))
     pre = set(re.findall(r'(?<![\w-])([\w-]+-)(?=["\'`]|\$\{)', src))
     def alive(t):
@@ -309,6 +320,9 @@ if ESB and not os.environ.get('NO_MINIFY'):
 B = os.path.join(R, 'public', 'b'); os.makedirs(B, exist_ok=True)
 _cf = os.path.join(R, 'public', 'cf.js')
 if not os.path.exists(_cf) or open(_cf, encoding='utf-8').read() != CONTACT_JS: open(_cf, 'w', encoding='utf-8').write(CONTACT_JS)
+_cfv = hashlib.md5(CONTACT_JS.encode()).hexdigest()[:8]
+assert js.count('__CFV__') <= 1 and js_y.count('__CFV__') <= 1
+js = js.replace('__CFV__', _cfv); js_y = js_y.replace('__CFV__', _cfv)
 def emit(prefix, body, ext='js'):
     body = brand.sub(body)
     h = hashlib.md5(body.encode()).hexdigest()[:10]; fn = f'{prefix}.{h}.{ext}'
@@ -371,23 +385,24 @@ n_url = emit('n', n_js)
 assert js.count('__TODAY__') == 1 and js_y.count('__TODAY__') == 1, 'app.js: __TODAY__ 자리 하나(72_inbox.js INBOX.today)'
 js = js.replace('__TODAY__', n_url); js_y = js_y.replace('__TODAY__', n_url)
 print('today', n_url, len(n_js.encode()), 'bytes')
-# 사이클 5 D: 화면 지연 묶음 셋(src/todayd · A 자료·문구 묶음 src/today → /b/n과 따로) — 첫 묶음(a·ta)에 넣지 않는다
-#   y = 오늘 카드 개인 줄·아침에 받기(카드가 보이거나 쉴 때) · z = 소식 4칸(서울 오늘·일정·주간·레이더, 소식을 열 때) · w = 알림 받을 준비 시트·홈 화면 추가 띠(그때만)
-_YD = os.path.join(R, 'src', 'todayd')
-_YR = lambda fs: ''.join(open(os.path.join(_YD, f), encoding='utf-8').read() for f in fs)
-_YG = {'y': (('00_core.js', '10_home.js', '40_morn.js'), ('a_home.css',), '"__YCSS__"'), 'z': (('05_seg.js', '20_news.js', '30_cal.js'), ('b_news.css',), '"__ZCSS__"'), 'w': (('45_onb.js', '50_watch.js', '60_inst.js'), ('c_onb.css',), '"__WCSS__"')}
-assert sorted(f for g in _YG.values() for f in g[0] + g[1]) == sorted(f for f in os.listdir(_YD) if f.endswith(('.js', '.css'))), 'src/todayd: 묶음 표(_YG)에 없는 파일'
-for _k, (_fj, _fc, _ph) in _YG.items():
-    _j, _c = _YR(_fj), _YR(_fc)
-    if ESB and not os.environ.get('NO_MINIFY'): _j = mini(_j, 'js'); _c = mini(_c, 'css') if _c else _c
-    if _ph: assert _j.count(_ph) == 1, f'src/todayd {_k}: {_ph} 자리 하나'; _j = _j.replace(_ph, json.dumps(_c, ensure_ascii=False).replace('</', '<\\/'))
-    _ZU = ('few_list', 'tho_note', 'wk_head')   # 소식 칸(z)만 쓰는 화면 말
-    if _k == 'y': assert _j.count('"__YUI__"') == 1; _j = _j.replace('"__YUI__"', json.dumps({k: v for k, v in _fw['ui'].items() if k not in _ZU and k != '_'}, ensure_ascii=False).replace('</', '<\\/'))   # 화면 말(feed_words.json ui)만 · 자료 문장은 A 묶음
-    if _k == 'z': assert _j.count('"__ZUI__"') == 1; _j = _j.replace('"__ZUI__"', json.dumps({k: _fw['ui'][k] for k in _ZU}, ensure_ascii=False).replace('</', '<\\/'))
-    _u = emit(_k, _j); _ph2 = f'__TODAY{_k.upper()}__'
-    assert js.count(_ph2) == 1 and js_y.count(_ph2) == 1, f'73_today.js: {_ph2} 자리 하나'
-    js = js.replace(_ph2, _u); js_y = js_y.replace(_ph2, _u)
-    print('today-d', _k, _u, len(_j.encode()), 'bytes')
+# 사이클 5(M): 지연 묶음(src/lazy/<NN_>이름.js + 같은 이름 .css) → /b/z이름.<해시>.js — 앱 코드(a·ta)의 ZP_lazy가 화면 진입·쉴 때·첫 손길에 받는다(첫 화면 무게 0)
+#   CSS는 같은 파일 안 <style>로(앱 CSS 정리와 섞이지 않게) · 이름은 영문 소문자만(파일 정리 규칙 /b/[a-z]+.해시)
+_LD = os.path.join(R, 'src', 'lazy'); LAZY = {}
+if os.path.isdir(_LD):
+    for f in sorted(os.listdir(_LD)):
+        if not f.endswith('.js'): continue
+        nm = re.sub(r'^\d+_', '', f[:-3]); assert re.fullmatch(r'[a-z]+', nm), f'src/lazy/{f}: 이름은 영문 소문자'
+        lj = open(os.path.join(_LD, f), encoding='utf-8').read()
+        cf = os.path.join(_LD, f[:-3] + '.css'); lc = open(cf, encoding='utf-8').read() if os.path.exists(cf) else ''
+        if ESB and not os.environ.get('NO_MINIFY'): lj = mini(lj, 'js'); lc = mini(lc, 'css') if lc else ''
+        # 사이클 5 D: 화면 말(tools/feed_words.json ui) — 오늘 카드 묶음엔 소식 칸 전용 말을 빼고(6KB 상한) 소식 묶음엔 그것만
+        _ZU = ('few_list', 'tho_note', 'wk_head')
+        lj = lj.replace('"__FWUI__"', json.dumps({k: v for k, v in _fw['ui'].items() if k not in _ZU and k != '_'}, ensure_ascii=False).replace('</', '<\\/')).replace('"__FWUIZ__"', json.dumps({k: _fw['ui'][k] for k in _ZU}, ensure_ascii=False).replace('</', '<\\/'))
+        if lc: lj = '(function(){var s=document.createElement("style");s.setAttribute("data-lazy",' + json.dumps(nm) + ');s.textContent=' + json.dumps(lc, ensure_ascii=False).replace('</', '<\\/') + ';document.head.appendChild(s)})();' + lj
+        LAZY[nm] = emit('z' + nm, lj)
+        print('lazy', nm, LAZY[nm], len(lj.encode()), 'bytes')
+assert js.count('"__LAZYMAP__"') == 1 and js_y.count('"__LAZYMAP__"') == 1, 'app.js: "__LAZYMAP__" 자리 하나'
+js = js.replace('"__LAZYMAP__"', json.dumps(LAZY)); js_y = js_y.replace('"__LAZYMAP__"', json.dumps(LAZY))
 a_url = emit('a', js)
 aa_url = emit('ta', js_y)   # pre-adsense 5: 설치 앱 전용(덩이로 나눠 실행) — 이름이 't'로 시작해 웹 서비스 워커의 미리 받기(/b/[a-su-z].*)에 안 걸린다(웹 방문자는 받지 않음)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
@@ -627,6 +642,32 @@ except Exception as e: print('static tabs 건너뜀:', e)
 out = brand.sub(out)
 open(os.path.join(R, 'public', 'index.html'), 'w', encoding='utf-8').write(out)
 print('public/index.html', len(out.encode()), 'bytes', '(island)' if out is not full else '(full)')
+# 사이클 5(M): 첫 화면 묶음 무게 보고 — 첫 화면이 받는 JS·CSS(gzip -6)를 tools/fixtures/bundle_budget.json 상한과 견준다('initial +0' = 늘지 않음)
+#   새 기능은 지연 묶음(src/lazy → /b/z*)으로 · 지연 묶음도 각자 상한(lazy.이름) · 넘어도 빌드는 계속(매일 갱신을 막지 않음) — 판정은 QA(qa_consistency bundle.initial)
+def bundle_report(html):
+    import gzip
+    BJ = os.path.join(R, 'tools', 'fixtures', 'bundle_budget.json')
+    try: bud = json.load(open(BJ, encoding='utf-8'))
+    except Exception: bud = {}
+    gz = lambda b: len(gzip.compress(b, 6, mtime=0))
+    cur = {}
+    for k, rx in (('a', r'/b/(a\.[0-9a-f]{10}\.js)'), ('ta', r'/b/(ta\.[0-9a-f]{10}\.js)'), ('h', r'/b/(h\.[0-9a-f]{10}\.js)'), ('c', r'/b/(c\.[0-9a-f]{10}\.css)'), ('t', r'/b/(t\.[0-9a-f]{10}\.js)'), ('tc', r'/b/(t\.[0-9a-f]{10}\.css)')):
+        m = re.search(rx, html)
+        if m and os.path.exists(os.path.join(B, m.group(1))):
+            body = open(os.path.join(B, m.group(1)), 'rb').read()
+            if k == 'h': body = body.split(b'\n', 1)[-1]   # 섬: 첫 줄(미리 그린 숫자 window.__ZPH = 매일 자료)은 빼고 코드만
+            cur[k] = gz(body)
+    cur['html'] = gz(html.encode())
+    cap = bud.get('initial') or {}
+    over = {k: cur[k] - cap[k] for k in cur if k in cap and cur[k] > cap[k]}
+    print('bundle gzip ' + ' · '.join(f'{k} {v}' + (f'/{cap[k]}' if k in cap else '') for k, v in cur.items()))
+    print('initial +0' if not over else 'initial +' + str(sum(over.values())) + ' (' + ' · '.join(f'{k} +{v}' for k, v in over.items()) + ') — 새 기능은 src/lazy 지연 묶음으로')
+    for nm, u in LAZY.items():
+        n = gz(open(os.path.join(B, u.split('/')[-1]), 'rb').read()); c = (bud.get('lazy') or {}).get(nm)
+        print(f'lazy {nm} gzip {n}' + (f'/{c}' + (' OVER' if n > c else '') if c else ''))
+    return cur
+try: bundle_report(out)
+except Exception as e: print('bundle report 건너뜀:', e)
 # 서비스 워커 캐시 이름 = 이번 빌드 내용 해시(배포마다 옛 캐시를 비운다)
 SW = os.path.join(R, 'public', 'sw.js')
 if os.path.exists(SW):

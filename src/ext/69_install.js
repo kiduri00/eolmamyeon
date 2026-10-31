@@ -23,7 +23,7 @@
     if (s.no && Date.now() - s.no < 30 * 864e5) return false;
     return ios || !!deferred;
   };
-  // 사이클 5 D: 안내 띠 그리기는 지연 묶음(src/todayd 60_inst.js · 같은 동작)으로 — 첫 묶음 무게를 늘리지 않게
+  // 사이클 5 D: 안내 띠 그리기는 지연 묶음(src/lazy/75_sheet.js · 같은 동작)으로 — 첫 묶음 무게를 늘리지 않게
   function show(why) {
     if (shown || !allowed()) return; shown = true;
     try { TDAY.wLoad().then((Y) => Y.inst(why, { ios, BRAND, put, prompt: () => window.ZP_INSTALL.prompt() })).catch(() => {}); } catch (e) {}

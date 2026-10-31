@@ -503,7 +503,7 @@ function feedBuild() {
   (h || n.firstElementChild).after(seg); seg.after(p);
   // 관심 구역 칸: 기간이 다른 두 묶음(관심 구역 소식 30일 · 그 밖 소식 90일)임을 밝힌다
   const per = document.createElement("p"); per.className = "tf-per"; per.id = "tPerM";
-  per.textContent = `위 '내 소식'은 최근 ${30}일, 아래 '고시·단계 기록'은 최근 90일이에요 · 서울 오늘 칸은 최근 7일과 30일 전체 기록`;
+  per.textContent = `위 '내 소식'은 최근 ${30}일, 아래 '고시·단계 기록'은 최근 90일 기록이에요`;
   p.after(per);
   seg.addEventListener("click", (e) => { const b = e.target.closest("[data-seg]"); if (b) segSet(b.dataset.seg, true); });
   seg.addEventListener("keydown", (e) => { if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return; const v = n.dataset.tseg === "all" ? "mine" : "all"; segSet(v, true); seg.querySelector(`[data-seg="${v}"]`).focus(); e.preventDefault(); });
@@ -564,7 +564,7 @@ function onbHTML() {
     // 키를 아직 받는 중이고 온라인이면 켤 수 있는 쪽으로 본다(받기가 끝나면 다시 그림) · 막혔거나 지원 안 하는 기기만 '켤 수 없어요'
     const st = T(() => X0.inbox().st(), null), can = st && st.perm !== "denied" && st.perm !== "unsupported" && (st.can || (obKey === "pending" && navigator.onLine !== false));
     body = `<span class="tob-art${tKit("onb-3") ? " k" : ""}">${tIcon("bell", 68, "", "onb-3")}</span><p class="tob-k">3 / 3 · 알림</p><h2 id="tobT" tabindex="-1">이 조건 소식을 아침에 받을까요?</h2><p class="tob-p">새로 갈 수 있게 된 곳·관심 구역 소식을 아침에 한 번 알려 드려요. 빈도를 고르고 아래 단추를 누르면 그때 알림 허용을 물어요.</p>` +
-      (st && st.on ? `<p class="tob-ok" role="status">알림이 켜져 있어요</p>` : can ? `<div id="tobMorn" class="tob-morn"></div><p class="tob-ok" id="tobMsg" role="status" hidden></p>` : `<p class="tob-ok" role="status">${st && st.perm === "denied" ? `알림이 막혀 있어요 · 폰 설정 → 애플리케이션(또는 앱) → ${BRAND} → 알림에서 허용할 수 있어요` : "지금은 이 기기에서 폰 알림을 켤 수 없어요 · 새 소식은 소식 탭에 모아 드려요"}</p>`);
+      (st && st.on ? `<p class="tob-ok" role="status">알림이 켜져 있어요</p>` : can ? `<div id="tobMorn"></div>` : `<p class="tob-ok" role="status">${st && st.perm === "denied" ? `알림이 막혀 있어요 · 폰 설정 → 애플리케이션(또는 앱) → ${BRAND} → 알림에서 허용할 수 있어요` : "지금은 이 기기에서 폰 알림을 켤 수 없어요 · 새 소식은 소식 탭에 모아 드려요"}</p>`);
     foot = (can && !(st && st.on) ? `<button type="button" class="tob-sub" data-odone>나중에</button>` : `<button type="button" class="tob-go" data-odone>시작하기</button>`);
   }
   return `${top}<div class="tob-body">${body}</div><div class="tob-foot">${foot}</div>`;
@@ -572,9 +572,8 @@ function onbHTML() {
 function onbPaint(focus) {
   if (!ob) return;
   ob.innerHTML = onbHTML();
-  // 사이클 5 D: 3/3 '아침에 받기'(빈도 중요한 것만 기본 · 매일 · 주 1회) — 권한은 그 칸의 단추를 누를 때만(src/today 40_morn.js)
-  const mo = $("tobMorn");
-  if (mo && window.ZP_TODAY) T(() => ZP_TODAY.yLoad().then((Y) => { if (!$("tobMorn")) return; Y.morning($("tobMorn"), ZP_TODAY.ctx(), "tonb"); $("tobMorn").addEventListener("click", (e) => { if (e.target.closest("[data-mogo]")) setTimeout(() => { if (ob && obStep === 2 && T(() => X().inbox().st().on, false)) { const f = ob.querySelector(".tob-foot"); if (f) f.innerHTML = '<button type="button" class="tob-go" data-odone>시작하기</button>'; } }, 1500); }); }).catch(() => {}));
+  // 사이클 5 D: 3/3 아침에 받기(빈도·권한은 그 칸 단추에서만 · src/lazy/73_today.js)
+  const mo = $("tobMorn"); if (mo) T(() => ZP_TODAY.yLoad().then((Y) => Y.morning(mo, ZP_TODAY.ctx(), "tonb")));
   if (focus) { const h = $("tobT"); if (h) h.focus({ preventScroll: true }); }
 }
 function onbOpen() {
@@ -603,15 +602,6 @@ function onbOpen() {
       return;
     }
     if (t.hasAttribute("data-onext")) { obStep = Math.min(2, obStep + 1); onbPaint(true); return; }
-    if (t.hasAttribute("data-oalert")) {
-      const ib = T(() => X().inbox(), null); if (!ib) return;
-      Promise.resolve(ib.subscribe(t)).then((r) => {
-        if (!ob) return;
-        if (r && r.ok) { onbClose(true); return; }
-        const m = $("tobMsg"); if (m) { m.hidden = false; m.textContent = (r && r.msg) || "알림을 켜지 못했어요 · MY › 알림 설정에서 다시 켤 수 있어요"; }
-        t.disabled = false; t.removeAttribute("aria-busy"); t.textContent = "다시 해 보기";
-      }).catch(() => {});
-    }
   });
   ob.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { onbClose(true); return; }
