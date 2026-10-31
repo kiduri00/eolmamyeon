@@ -20,8 +20,8 @@
     { "src": "/icons/icon-monochrome-512.png", "sizes": "512x512", "type": "image/png", "purpose": "monochrome" }
   ],
   "screenshots": [
-    { "src": "/screenshot-home.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "내 돈으로 갈 수 있는 서울 재개발 구역" },
-    { "src": "/screenshot-map.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "구 묶음으로 보는 갈 수 있는 곳 지도" },
+    { "src": "/screenshot-home.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "내 돈으로 갈 수 있는 서울 재개발 구역 · 매일 아침 갱신" },
+    { "src": "/screenshot-map.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "구마다 갈 수 있는 곳 수를 보여 주는 지도" },
     { "src": "/screenshot-wide.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide", "label": "넓은 화면: 왼쪽 목록 · 오른쪽 지도" }
   ],
   "shortcuts": [
