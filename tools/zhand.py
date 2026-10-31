@@ -227,7 +227,17 @@ def josa_fix(h):
         if a == '(으)로': return m.group(1) + ro(w)
         pairs = {'(이)가': ('이', '가'), '(은)는': ('은', '는'), '(을)를': ('을', '를'), '(과)와': ('과', '와'), '(이)에요': ('이에요', '예요'), '(이)고': ('이고', '고'), '(이)라': ('이라', '라')}
         x, y = pairs[a]; return m.group(1) + josa(w, x, y)
-    return re.sub(r'(<b class="zv"[^>]*>[^<]*</b>)(\(이\)가|\(은\)는|\(을\)를|\(으\)로|\(과\)와|\(이\)에요|\(이\)고|\(이\)라)', f, h)
+    h = re.sub(r'(<b class="zv"[^>]*>[^<]*</b>)(\(이\)가|\(은\)는|\(을\)를|\(으\)로|\(과\)와|\(이\)에요|\(이\)고|\(이\)라)', f, h)
+    return josa_paren(h)
+# 사이클 5 fix A: '이름(N건)' 값(thoTop·tx30Top·aucTop) 뒤 조사는 괄호 앞 이름 받침에 맞춘다 — '번동주공1단지(10건)가' · '잠실5단지(15건)예요'(글에는 '이'·'이에요'·'이고'로 적어 둠)
+_PAREN_K = ('thoTop', 'tx30Top', 'aucTop')
+def josa_paren(h):
+    from zsample import josa
+    def g(m):
+        w = re.sub(r'\(.*$', '', m.group(3)).strip(); a = m.group(4)
+        x = {'이에요': ('이에요', '예요'), '이고': ('이고', '고'), '이': ('이', '가')}[a]
+        return m.group(1) + josa(w, *x)
+    return re.sub(r'(<b class="zv" data-zv="(' + '|'.join(_PAREN_K) + r')">([^<]*)</b>)(이에요|이고|이(?=[\s,.]))', g, h)
 
 # ------------------------------------------------------------------ 그림
 def chart(X, r):
@@ -558,7 +568,7 @@ def tho_today():
     ch, au, st, tho = _TD.load()
     asof = os.environ.get('CHANGES_TODAY') or ch.get('asOf') or datetime.date.today().isoformat()
     o = _TD.build(asof, ch, au, st, tho)
-    return o.get('tho') or {}, o.get('tho_d')
+    return o.get('tho') or {}, o.get('tho_d'), tho
 def gu_flow(X, L):
     """사이클 5 C: /gu '이번 달 흐름' 값 — 시트·오늘 카드와 같은 자료에서만 센다(지어내지 않음)
     토지거래허가 = 오늘 카드(today.json tho)와 같은 셈: tools/today.py build()의 구역별 30일 주거용 허가(허가만) · 기준일 = 가장 최근 허가일(tho_d) · 거래 = changes.json trade 사건 cnt 합(최근 30일, 신고 등록일)
@@ -567,19 +577,22 @@ def gu_flow(X, L):
     if _FLOW is None:
         J_ = lambda p: json.load(open(os.path.join(ROOT, p), encoding='utf-8')) if os.path.exists(os.path.join(ROOT, p)) else {}
         _FLOW = (tho_today(), J_('public/data/changes.json') or {}, J_('public/data/auction.json') or {})
-    (TZ, TD_), CH, AU = _FLOW; ids = {x['id'] for x in L}; nm = {x['id']: X.short(x['n']) for x in L}; v = {}
+    (TZ, TD_, THL), CH, AU = _FLOW; ids = {x['id'] for x in L}; nm = {x['id']: X.short(x['n']) for x in L}; v = {}
+    import today as _TD
     top = lambda c: max(sorted(c.items()), key=lambda z: z[1]) if c else None   # 같은 수면 이름 순 앞
     t = {i: TZ[i][1] for i in ids if (TZ.get(i) or [0, 0])[1]}
     v['thoAsOf'] = ymd(TD_) if TD_ else None
-    n = sum(t.values()); v['tho30'] = f"{n:,}"; v['thoZ'] = f"{len(t)}"
+    # 사이클 5 fix A: 구 합계는 겹치는 구역(모아 상위·하위 등)을 접수번호로 한 번만 — 오늘 카드 서울 숫자·월간 리포트와 같은 셈(today.tho_uniq) · 구역별 숫자(가장 많은 곳)는 그 구역 값
+    n = _TD.tho_uniq(THL, ids, _TD.add(TD_, -30), TD_) if TD_ else 0; v['tho30'] = f"{n:,}"; v['thoZ'] = f"{len(t)}"
     tp = top(t); v['thoTop'] = f"{nm[tp[0]]}({tp[1]}건)" if tp else None; v['thoTopPct'] = f"{round(tp[1] / n * 100)}%" if tp else None
-    tr, nt = collections.Counter(), 0
+    tr, nt, TE = collections.Counter(), 0, []
     for e in CH.get('items') or []:
         if e.get('id') not in ids: continue
-        if e.get('type') == 'trade' and not e.get('x'): tr[e['id']] += e.get('cnt') or 1   # x = 해제 표시(A 트랙) — 해제된 신고는 세지 않는다
+        if e.get('type') == 'trade' and not e.get('x'): tr[e['id']] += e.get('cnt') or 1; TE.append(e)   # x = 해제 표시(A 트랙) — 해제된 신고는 세지 않는다
         if e.get('type') == 'notice': nt += 1
+    nt = _TD.uniq_n([e for e in CH.get('items') or [] if e.get('id') in ids and e.get('type') == 'notice'])   # 같은 날 같은 고시 두 줄은 하나
     v['txAsOf'] = ymd(CH.get('asOf')) if CH.get('asOf') else None
-    m = sum(tr.values()); v['tx30'] = f"{m:,}"; v['txZ'] = f"{len(tr)}"; tp = top(dict(tr)); v['tx30Top'] = f"{nm[tp[0]]}({tp[1]}건)" if tp else None
+    m = _TD.uniq_n(TE); v['tx30'] = f"{m:,}"; v['txZ'] = f"{len(tr)}"; tp = top(dict(tr)); v['tx30Top'] = f"{nm[tp[0]]}({tp[1]}건)" if tp else None
     v['nt30'] = f"{nt}"
     v['thoVsTx'] = '주거용 허가가 새로 올라온 거래 신고보다 많아요' if n > m * 1.2 else '주거용 허가가 새로 올라온 거래 신고보다 적어요' if n < m * 0.8 else '주거용 허가와 새로 올라온 거래 신고가 비슷해요'
     a0 = AU.get('asOf') or ''

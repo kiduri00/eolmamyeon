@@ -11,11 +11,14 @@ STATE = os.path.join(ROOT, 'pipeline/cache/sitemap_state.json')
 st = json.load(open(STATE)) if os.path.exists(STATE) else {}
 today = datetime.date.today().isoformat()
 DATE_RX = [r'\d{4}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*일?\.?', r'\d{1,2}\.\d{2}\s*(?:갱신|기준|신고분)', r'\d+\s*일\s*전', r'(?:데이터|자료) 기준[^<\n]{0,20}']
-def mainhash(s):
+def mainhash(s, v=2):
     """본문만(<main> 안 · 없으면 <body>) · 매일 다시 쓰는 덩이(<!--zk-->최신 숫자 상자 · <!--zc-->오늘 숫자 계산 · <!--zr-->신고 링크 · <!--zn-->)·스크립트·스타일 빼고 · 날짜 표시 빼고"""
     m = re.search(r'<main\b[^>]*>(.*)</main>', s, re.S)
     b = m.group(1) if m else re.sub(r'^.*?<body[^>]*>', '', s, flags=re.S)
     b = re.sub(r'<!--(z[kcrn])-->.*?<!--/\1-->', '', b, flags=re.S)
+    # 사이클 5 fix A: 틀만 바뀌는 줄(앱 안내 <!--zapp--> 덩이 · class에 app이 든 안내 줄)은 본문이 아니다 — 틀을 고쳐도 dateModified가 오르지 않게(이미 오른 날짜는 그대로 둔다)
+    if v >= 2: b = re.sub(r'<!--zapp-->.*?<!--/zapp-->', '', b, flags=re.S)
+    if v >= 2: b = re.sub(r'<(p|div|aside|section)\b[^>]*class="[^"]*\b[a-z]*-?app\b[^"]*"[^>]*>.*?</\1>', '', b, flags=re.S)
     b = re.sub(r'<!--(zd|gx)-->.*?<!--/\1-->', lambda m: re.sub(r'<b class="zv"[^>]*>[^<]*</b>', '', m.group(0)) if m.group(1) == 'gx' else '', b, flags=re.S)   # 리뉴얼 A1·A2: 손글의 매일 바뀌는 그림·카드(zd) 빼고, 구 해설(gx)·손글 글 속 숫자(data-zv)는 숫자만 뺀다
     b = re.sub(r'<b class="zv"[^>]*>[^<]*</b>', '', b)
     b = re.sub(r'<(script|style|svg|nav|footer|header)\b[^>]*>.*?</\1>', '', b, flags=re.S)
@@ -51,6 +54,7 @@ urls = []
 for rel, loc, s in pages():
     h = mainhash(s); o = st.get(rel)
     if BF: o = st[rel] = {'m': h, 'd': backfill(rel, h)}
+    elif o and o.get('m') != h and o.get('m') == mainhash(s, 1): o['m'] = h   # 해시 셈법만 바뀜(v1 → v2): 날짜는 그대로
     elif not o or o.get('m') != h: o = st[rel] = {'m': h, 'd': today}
     urls.append((loc, o['d']))
     # 28차: 구조화 데이터 dateModified = 사이트맵 lastmod(본문 해시가 바뀐 날) — /z 손글 페이지가 10-10, 사이트맵은 10-25로 엇갈리던 것.

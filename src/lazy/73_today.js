@@ -64,10 +64,11 @@
     const seen = new Set(), out = [];
     L.forEach((x) => { const k = x.type + x.id; if (seen.has(k) || out.length >= 8) return; seen.add(k); out.push(x); });
     let fav = []; try { fav = ctx.pins.list(); } catch (er) {}
-    Z.sched(T, { ids: new Set(fav) }).forEach((g) => { const n = Z.dday(g.date, T.asOf); if (!n || (n !== W.sched.d0 && +n.slice(2) > 3)) return; g.items.slice(0, 1).forEach((r) => out.unshift({ id: r.id, type: "auc_d", text: `${W.type.auction} 매각기일 ${g.dateT} ${n} · 최저가 ${r.minT}(${U.auc_tag})` })); });
+    // 맨 앞: 내 일정 3일 안 → 관심 구역 매각기일 3일 안(ZP_today.homeFirst · D-day = max(기기 날짜, asOf) · 법원 확인 3일 넘은 물건 뺌)
+    out.unshift(...Z.homeFirst(T, new Set(fav), ctx.gap(), U.auc_tag, (id) => ctx.byId[id]));
     return out;
   }
-  const TAG = { stage: "단계", notice: "고시", auction: "경매", tho: "허가", trade: "거래", auc_d: "일정" };
+  const TAG = { stage: "단계", notice: "고시", auction: "경매", tho: "허가", trade: "거래", auc_d: "일정", mine: "내 일정" };
   const clean = (t) => String(t).replace(/\s*·\s*신고가\s*$/, "");
   function rowSpot(ctx, T) {
     const L = picks(ctx, T);
@@ -100,6 +101,10 @@
     const as = document.getElementById("tdAs"); if (!as || !T) return;
     const off = navigator.onLine === false;
     as.textContent = off ? Z.offLine(T) : Z.asOfT(T); as.classList.toggle("off", off);
+    // 자료가 기기 날짜보다 이르면 'N일 전 자료' · 계산 방식 고친 날 안내(ZP_today.note)
+    const t = Z.note(T), h = document.querySelector("#tdCard .td-h"); let p = document.getElementById("tdNt");
+    if (!p && t && h) { h.insertAdjacentHTML("afterend", '<p class="td-nt" id="tdNt" role="note"></p>'); p = h.nextSibling; }
+    if (p) { p.textContent = t; p.hidden = !t; }
   }
   let bound = false;
   Y.home = (ctx) => {

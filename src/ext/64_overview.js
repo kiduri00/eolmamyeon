@@ -38,7 +38,7 @@ const OVX = (() => {
     if (!fin) {
       try {
         const w = buyWindow(r), rt = (() => { try { return ZX.rights(r); } catch (e) { return {}; } })();
-        const [c, v] = w.cls === "ok" ? ["ok", "✓ 나와요"] : w.cls === "no" ? ["no", "✕ 안 나와요"] : ["warn", "! 확인 필요"];
+        const [c, v] = w.cls === "ok" ? ["ok", "✓ 나올 수 있어요"] : w.cls === "no" ? ["no", "✕ 안 나와요"] : ["warn", "! 확인 필요"];
         noIp = c === "no";
         // c4 최종: 매수 시점 규칙의 투기과열지구 기간(ZoneFacts buy) — 안 나와요·확인 필요면 '지정이 풀려 있던 기간에 산 집은 다를 수 있음'까지
         let by = null; try { by = ZFX.buyOf(r); } catch (e) {}

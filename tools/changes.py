@@ -124,6 +124,10 @@ def auc_text(items):   # 구역 리포트 경매 블록과 같은 말: '경매 1
     if isinstance(mn, (int, float)) and mn > 0: t += f" · 최저 {auc_amt(mn)}"
     if re.match(r'\d{4}-\d\d-\d\d', d): t += f" · 입찰 {int(d[5:7])}.{int(d[8:10])}"
     return t
+def auc_risk(items):   # 대표 물건이 유찰 3회 이상이거나 최저가가 감정가의 50% 아래 → '권리 인수 가능성 확인'(푸시·소식 꼬리)
+    x = auc_head(items); f, mn, ap = x.get('fail'), x.get('min'), x.get('appr')
+    return 1 if (isinstance(f, int) and f >= 3) or (isinstance(mn, (int, float)) and isinstance(ap, (int, float)) and ap > 0 and 0 < mn < ap * 0.5) else None
+auc_ck = lambda items: sorted({akey(y) for y in items})   # 사건·물건번호(겹치는 구역은 서울 숫자에서 한 번만 · today.py)
 def auc_mn(items):   # 알림 조건(현금) 비교용: 대표 물건 최저가(억)
     v = auc_head(items).get('min')
     return round(v / 1e8, 2) if isinstance(v, (int, float)) and v > 0 else None
@@ -179,9 +183,9 @@ def diff(prev, cur, date, fl=None):
             old_cs = {k.split('#')[0] for k in old_a}
             na = [x for x in auc_items(i) if auc_new(x) and akey(x) not in old_a and x.get('cs') not in old_cs]
             if na:
-                out.append(ev(i, date, 'auction', auc_text(na), cnt=len(na), mn=auc_mn(na), ak='new', bf=1 if fl.get('abf') or 'a' not in p else None))
+                out.append(ev(i, date, 'auction', auc_text(na), cnt=len(na), mn=auc_mn(na), ak='new', ck=auc_ck(na), rk=auc_risk(na), bf=1 if fl.get('abf') or 'a' not in p else None))
             dr = auc_drops(i, date)
-            if dr: out.append(ev(i, date, 'auction', auc_drop_text(dr), cnt=len(dr), mn=auc_mn(dr), ak='drop', bf=1 if fl.get('abf') else None))
+            if dr: out.append(ev(i, date, 'auction', auc_drop_text(dr), cnt=len(dr), mn=auc_mn(dr), ak='drop', ck=auc_ck(dr), rk=auc_risk(dr), bf=1 if fl.get('abf') else None))
         # 필요한 돈: 구역별 변화 기록(작은 변화까지 · today.json 레이더) + 큰 변화(0.1억 이상이면서 3% 이상)만 사건
         if r.get('dn'): continue
         dv = [None, None]
@@ -236,13 +240,15 @@ def bootstrap(cur):
             out.append(ev(i, date, 'trade', trade_text(rs, h), hi=1 if h else None, cnt=len(rs), tk=[tkey(x) for x in rs]))
         na = [x for x in auc_items(i) if not x.get('st') and str(x.get('date') or '9') >= TODAY]
         if na:   # 처음 모은 날 한꺼번에 '등장' = 밀린 자료
-            out.append(ev(i, TODAY, 'auction', auc_text(na), cnt=len(na), mn=auc_mn(na), ak='new', bf=1))
+            out.append(ev(i, TODAY, 'auction', auc_text(na), cnt=len(na), mn=auc_mn(na), ak='new', ck=auc_ck(na), rk=auc_risk(na), bf=1))
     return out
 
 def notices():
     """고시·공고: 인가·고시(ok/chg)·신청·공람(req)·시공자 선정(con). 법인등기·용역 계약(etc)은 소식으로 치지 않는다."""
-    out, seen = [], set()
+    out, seen = [], {}
     LAB = {'ok': '', 'chg': '변경 ', 'req': '', 'con': ''}
+    # 같은 날 같은 고시(예: '(변경)인가고시'와 '(변경)인가' 두 줄)는 하나로: 꼬리 '고시·공고'와 띄어쓰기를 뗀 이름이 같으면 긴 쪽 하나만
+    norm = lambda x: re.sub(r'(고시|공고)$', '', re.sub(r'\s+', '', x))
     for it in NT.get('items') or []:
         if not isinstance(it, list) or len(it) < 5: continue
         d, i, sec, t, cat = it[:5]
@@ -250,8 +256,11 @@ def notices():
         tag = re.match(r'\[([^\]]*)\]', t or '')
         tag = tag.group(1) if tag else (t or '')[:20]
         txt = f"{sec} {tag}".strip()
-        if (i, d, txt) in seen: continue
-        seen.add((i, d, txt))
+        key = (i, d, cat, norm(txt))
+        if key in seen:
+            if len(txt) > len(out[seen[key]]['text']): out[seen[key]] = ev(i, d, 'notice', txt, cat=cat)
+            continue
+        seen[key] = len(out)
         out.append(ev(i, d, 'notice', txt, cat=cat))
     return out
 
@@ -328,6 +337,12 @@ def main():
         seenk.add(e['k']); evs.append(e)
     evs.sort(key=lambda e: (e['date'], {'stage': 5, 'auction': 4, 'notice': 3, 'price': 2, 'trade': 1}.get(e['type'], 0), e['id']), reverse=True)
     pub = [{k: v for k, v in e.items() if k != 'boot'} for e in evs]
+    # 사이클 5 fix A: 겹치는 구역(모아 상위·하위 · 마포로1 지구)의 같은 실제 거래·물건 = 같은 ek(거래 지문 tk · 사건번호 ck · 없으면 날짜·구·문구) — 앱 내 소식·배지·푸시가 한 번만 센다(tools/today.py ev_keys와 같은 셈)
+    for e in pub:
+        if e.get('type') in ('trade', 'auction'):
+            t = e['type']; ks = e.get('tk') if t == 'trade' else e.get('ck')
+            raw = (t[0] + (e.get('ak') or '') + '|' + ','.join(sorted(ks))) if ks else f"{t}|{e.get('ak') or ''}|{e.get('date')}|{e.get('g') or ''}|{e.get('text')}"
+            e['ek'] = hashlib.md5(raw.encode()).hexdigest()[:8]
     body = json.dumps({'asOf': TODAY, 'days': DAYS, 'ver': VER, 'items': pub}, ensure_ascii=False, separators=(',', ':'))
     if not os.path.exists(P(OUT)) or open(P(OUT), encoding='utf-8').read() != body:
         open(P(OUT), 'w', encoding='utf-8').write(body)

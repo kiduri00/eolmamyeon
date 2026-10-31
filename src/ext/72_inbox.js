@@ -46,7 +46,10 @@ const INBOX = (() => {
     return uniq(CH.items.filter((e) => P.has(e.id) && TY[e.type] && byId[e.id] && !O.includes(e.type)));
   }
   // 같은 구역·같은 날·같은 글(경매 두 건이 요약이 똑같은 경우 등)은 한 줄로(17차: 소식에 같은 줄이 두 번 보이던 것)
-  function uniq(L) { const s = new Set(); return L.filter((e) => { const k = `${e.id}|${e.date}|${e.type}|${e.text}`; if (s.has(k)) return false; s.add(k); return true; }); }
+  // 사이클 5 fix A: 겹치는 관심 구역(모아 상위·하위)의 같은 실제 거래·물건(changes.json ek = 거래 지문·사건번호)도 한 줄 — 내 소식·배지·'새 소식 N건' 같은 셈(worker/push.js evKey)
+  //   z: 구역 안에서만(조건 경매 — 조건마다 구역이 달라서) · 같은 소식이 함께 온 다른 구역은 INBOX.evKey로 changes.json에서 찾는다(화면 '외 N곳')
+  const evKey = (e, z) => (!z && e.ek) || `${e.id}|${e.date}|${e.type}|${e.text}`;
+  function uniq(L, z) { const s = new Set(); return L.filter((e) => { const k = evKey(e, z); if (s.has(k)) return false; s.add(k); return true; }); }
   function unread(e) {
     const s = seen(), pd = day(PINS.snapT(e.id) || 0);
     if (e.date < pd || e.bf) return false;   // 핀 꽂기 전 일·밀린 자료(bf · 사이클 5)는 목록에만(배지·푸시 숫자와 같게)
@@ -89,7 +92,7 @@ const INBOX = (() => {
   // ---------- 소식 목록(내 조건에 맞는 소식) ----------
   const dLabel = (d) => { const t = day(); if (d === t) return "오늘"; if (d === addDay(t, -1)) return "어제"; const x = new Date(d + "T00:00:00Z"); return `${x.getUTCMonth() + 1}.${x.getUTCDate()} (${"일월화수목금토"[x.getUTCDay()]})`; };
   function condHTML() {
-    const A = CH ? uniq(CH.items.filter((e) => e.type === "auction" && byId[e.id])) : [], P = new Set(pinIds());
+    const A = CH ? uniq(CH.items.filter((e) => e.type === "auction" && byId[e.id]), 1) : [], P = new Set(pinIds());
     const noAu = isOff("auction"), noAdd = isOff("price");
     const MZ = new Set(mute().z);   // 사이클 4: 끈 구역 = 그 구역 알림 전부 끔(조건 '새로 갈 수 있게 된 곳'·경매 경로 포함 · 워커 match와 같은 규칙)
     const L = conds().map((n) => { const I = new Set(n.ids.filter((id) => !MZ.has(id))); n = Object.assign({}, n, { add: noAdd ? [] : (n.add || []).filter((id) => !MZ.has(id)) }); return Object.assign(n, { au: noAu ? [] : A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0) && !(e.mn > n.c.cash + 1e-9)) })   /* 경매: 조건 현금을 넘는 물건은 넣지 않는다(condAuc·푸시와 같은 기준 · '최저가가 내 돈 안') */; }).filter((n) => n.add.length || n.au.length);
@@ -299,7 +302,7 @@ const INBOX = (() => {
   function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
   // 사이클 5(A): 오늘 묶음(/b/n.*.js · window.ZP_today) — 화면에 보일 때 부른다. 부르는 코드는 73_today.js 한 곳(D 화면 묶음과 같은 로더 · 첫 묶음 무게)
   const today = () => TDAY.nLoad();
-  return { brk: () => { const P = pinEvents().filter(unread), c = freshN() + condAuc().filter(unreadC).length; return { n: P.length + c, pin: P.length, zones: new Set(P.map((e) => e.id)).size, cond: c, ev: P }; }, unreadOf: (id) => pinEvents().filter((e) => e.id === id && unread(e)), priceSince: (id, gap) => { if (!CH) return null; const s0 = seen(), m = gap ? "g" : "c", L = CH.items.filter((e) => e.type === "price" && e.id === id && e.v && !e.bf && Array.isArray(e.v[m]) && (e.date > s0.at || (e.date === s0.at && !s0.k.includes(e.k)))).sort((a, b) => (a.date < b.date ? -1 : 1)); return L.length ? L[L.length - 1].v[m][1] - L[0].v[m][0] : null; }, init, paint, open, count, load, today, freq, setFreq, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind, setMute, isMuted, d0: () => addDay(day(), -6), asOf: () => (CH ? CH.asOf || "" : ""), pinEvents: () => pinEvents(), condAuc: (all) => condAuc(all), payloadOf: () => payload({ toJSON: () => ({}) }) };
+  return { evKey, brk: () => { const P = pinEvents().filter(unread), c = freshN() + condAuc().filter(unreadC).length; return { n: P.length + c, pin: P.length, zones: new Set(P.map((e) => e.id)).size, cond: c, ev: P }; }, unreadOf: (id) => pinEvents().filter((e) => e.id === id && unread(e)), priceSince: (id, gap) => { if (!CH) return null; const s0 = seen(), m = gap ? "g" : "c", L = CH.items.filter((e) => e.type === "price" && e.id === id && e.v && !e.bf && Array.isArray(e.v[m]) && (e.date > s0.at || (e.date === s0.at && !s0.k.includes(e.k)))).sort((a, b) => (a.date < b.date ? -1 : 1)); return L.length ? L[L.length - 1].v[m][1] - L[0].v[m][0] : null; }, init, paint, open, count, load, today, freq, setFreq, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind, setMute, isMuted, d0: () => addDay(day(), -6), asOf: () => (CH ? CH.asOf || "" : ""), pinEvents: () => pinEvents(), condAuc: (all) => condAuc(all), payloadOf: () => payload({ toJSON: () => ({}) }) };
 })();
 window.ZP_INBOX = INBOX;   // 점검(QA): 폰 알림 상태·종류 끄기
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", INBOX.init) : setTimeout(INBOX.init, 0);

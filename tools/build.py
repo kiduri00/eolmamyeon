@@ -378,7 +378,14 @@ for _p, _b in ((os.path.join(R, 'pipeline', 'feed_words.json'), _fws), (os.path.
 _ND = os.path.join(R, 'src', 'today')
 n_js = ''.join(open(os.path.join(_ND, f), encoding='utf-8').read() for f in sorted(os.listdir(_ND)) if f.endswith('.js')) if os.path.isdir(_ND) else ''
 assert n_js.count('"__FEED_WORD__"') == 1, 'src/today: "__FEED_WORD__" 자리 하나'
-_fwn = json.dumps({k: v for k, v in _fw.items() if k not in ('_', 'banned', 'banned_ok', 'banned_head', 'ui')}, ensure_ascii=False, separators=(',', ':'))   # 묶음에는 화면 문장만(금지어 목록은 QA·파이프라인용)
+_fwn = {k: v for k, v in _fw.items() if k not in ('_', '_tj', 'banned', 'banned_ok', 'banned_head', 'ui')}   # 묶음에는 화면 문장만(금지어 목록은 QA·파이프라인용)
+# 사이클 5 fix A: 6KB 상한 — 푸시 전용 말(워커가 worker/feed_words.js로 따로 씀)·원인 문구 틀(today.py가 문장으로 만들어 넣음)은 묶음에서 뺀다(묶음은 push.wk만 · weekLine)
+_fwn = dict(_fwn, push={'wk': _fw['push']['wk']}, rad={k: v for k, v in _fw['rad'].items() if k != 'why'}, auc={k: v for k, v in _fw['auc'].items() if k != 'push'})
+for _k, _ks in (_fw.get('_tj') or {}).items():   # today.json w로 옮겨 싣는 긴 문장(tools/today.py tj_words)은 묶음에서 뺀다
+    if _k == '_' or _k not in _fwn: continue
+    if isinstance(_ks, list): _fwn[_k] = {x: y for x, y in _fwn[_k].items() if x not in _ks}
+    else: del _fwn[_k]
+_fwn = json.dumps(_fwn, ensure_ascii=False, separators=(',', ':'))
 n_js = n_js.replace('"__FEED_WORD__"', _fwn.replace('</', '<\\/'))
 if ESB and not os.environ.get('NO_MINIFY'): n_js = mini(n_js, 'js')
 n_url = emit('n', n_js)
@@ -396,7 +403,7 @@ if os.path.isdir(_LD):
         cf = os.path.join(_LD, f[:-3] + '.css'); lc = open(cf, encoding='utf-8').read() if os.path.exists(cf) else ''
         if ESB and not os.environ.get('NO_MINIFY'): lj = mini(lj, 'js'); lc = mini(lc, 'css') if lc else ''
         # 사이클 5 D: 화면 말(tools/feed_words.json ui) — 오늘 카드 묶음엔 소식 칸 전용 말을 빼고(6KB 상한) 소식 묶음엔 그것만
-        _ZU = ('few_list', 'tho_note', 'wk_head')
+        _ZU = ('few_list', 'tho_note', 'wk_head', 'mine_sub', 'cv_tail')
         lj = lj.replace('"__FWUI__"', json.dumps({k: v for k, v in _fw['ui'].items() if k not in _ZU and k != '_'}, ensure_ascii=False).replace('</', '<\\/')).replace('"__FWUIZ__"', json.dumps({k: _fw['ui'][k] for k in _ZU}, ensure_ascii=False).replace('</', '<\\/'))
         if lc: lj = '(function(){var s=document.createElement("style");s.setAttribute("data-lazy",' + json.dumps(nm) + ');s.textContent=' + json.dumps(lc, ensure_ascii=False).replace('</', '<\\/') + ';document.head.appendChild(s)})();' + lj
         LAZY[nm] = emit('z' + nm, lj)

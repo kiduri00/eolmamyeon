@@ -28,7 +28,7 @@ VAPID 키쌍은 Worker가 처음 `/api/push/key` 요청을 받을 때 만들어 
        "run_worker_first": ["/api/push/*"]
      },
      "kv_namespaces": [{ "binding": "PUSH", "id": "97677fe6952f47158d738a96a480f443" }],
-     "triggers": { "crons": ["30 22 * * *"] },
+     "triggers": { "crons": ["30,40,50 22 * * *", "0,10,20,30 23 * * *"] },
      "observability": { "enabled": true }
    }
    ```
@@ -49,10 +49,21 @@ VAPID 키쌍은 Worker가 처음 `/api/push/key` 요청을 받을 때 만들어 
 | `GET /api/push/key` | VAPID 공개키 `{key}` |
 | `POST /api/push/sub` | `{sub, zones, conds}` 저장(KV `sub:<엔드포인트 해시>`). 푸시 서비스 주소(FCM·Mozilla·Apple·Windows)만 받고, 다른 출처(Origin)는 거절 |
 | `POST /api/push/unsub` | `{endpoint}` 지움 |
-| cron `30 22 * * *` | `/data/changes.json`에서 지난번 뒤로 새로 생긴 날의 사건을 골라 구독마다 하루 한 통 보낸다. 핀 구역의 단계·실거래·고시, 조건 핀의 금액 안으로 새로 들어온 구역(`price`, 기본 가정). 404·410이 오면 그 구독은 지운다 |
+| cron 07:30~08:30(10분마다) | `/data/changes.json`에서 지난번 뒤로 새로 생긴 날의 사건을 골라 구독마다 하루 한 통 보낸다. 핀 구역의 단계·실거래·고시, 조건 핀의 금액 안으로 새로 들어온 구역(`price`, 기본 가정). 404·410이 오면 그 구독은 지운다 |
 
-- 한 번 실행에 최대 45통(`PUSH_BATCH`, 무료 플랜 외부 요청 50개 한도). 구독이 더 많으면 KV `state.pend`에 위치를 남기고 다음 실행에서 이어 보낸다.
-  구독이 45개를 넘으면 cron을 `["30 22 * * *", "*/10 23 * * *"]`처럼 늘리면 같은 날 안에 모두 나간다.
+- 한 번 실행에 최대 45통(`PUSH_BATCH`, 무료 플랜 외부 요청 50개 한도). 구독이 더 많으면 KV `state.pend.after`에 **마지막으로 처리한 구독 키 이름**을 남기고 다음 실행이 그 뒤 키부터 잇는다
+  (사이에 새 구독이 끼거나 410으로 지워져도 중복·누락 없음 · 사이클 5 fix A).
+- cron은 아침 창 07:30~08:30(서울)에 10분마다 7번 돈다: `["30,40,50 22 * * *", "0,10,20,30 23 * * *"]`(루트 `wrangler.jsonc`가 실제 배포 설정). 그날 창을 다 보내면 `state.day`가 오늘이 되어 남은 실행은 0통 — 구독마다 하루 최대 1통.
+  - 무료 플랜: 7번 × 45통 = 아침 315통까지. **구독이 300을 넘기 전에** Workers 유료 플랜으로 바꾸고 `vars`에 `"PUSH_BATCH": "400"`을 넣는다(7번 × 400 = 2,800통).
+  - 그날 창을 다 못 보내면, 다음 날 아침 아직 못 받은 구독(키가 `pend.lag` 기록 뒤)에는 어제 창 시작부터 합쳐 한 통을 보낸다(최대 7일 · 하루 1통은 그대로).
+  - 실행이 겹치지 않게 `state.run`(시작 시각)이 5분 안이면 그 실행은 쉰다.
+- 법원 자료가 3일 넘게 묵은 매각기일(today.json `cts` 법원 수집일 · 줄 끝 마지막 확인일 중 늦은 날)은 D-1을 보내지 않는다(앱 일정 D-day 숨김과 같은 규칙).
+- 주 1회 요약은 끈 종류 숫자를 빼고(거래·고시·인가·매각기일), 종류를 모두 껐거나 개인 소식도 받을 관심 구역(끈 구역 뺌)도 없으면 보내지 않는다.
+
+### 배포 방법(소유자 확인)
+- 푸시 Worker는 **따로 배포하지 않는다**. 루트 `wrangler.jsonc`(main `worker/index.js` · cron · KV)가 사이트와 한 Worker이고, **main 브랜치에 푸시하면 Cloudflare Git 연동(Workers Builds)이 배포**한다. GitHub Actions(daily.yml)는 데이터만 커밋하고 배포 명령은 없다.
+- 그래서 cron 변경은 renew → main 병합·배포 때 함께 적용된다. 배포 뒤 Cloudflare 대시보드 → Workers → eolmamyeon → Settings → Triggers에서 Cron 7개 시각이 보이는지 확인한다(무료 플랜은 계정당 Cron Trigger 5개 한도 — 표현식은 2개라 괜찮다).
+- 유료 플랜으로 바꾸면 `wrangler.jsonc`에 `"vars": { "PUSH_BATCH": "400" }`를 더해 main에 푸시한다.
 - 데이터 갱신이 07:30 뒤에 끝난 날은 그 소식이 다음 날 아침에 함께 나간다(빠지는 것은 없다).
 - 키를 환경 비밀값으로 고정하고 싶으면 `VAPID_PUBLIC_KEY`·`VAPID_PRIVATE_KEY`(base64url 원시값)·`VAPID_SUBJECT`를 넣으면 KV 키보다 먼저 쓴다. 키를 바꾸면 앱이 다음 방문 때 구독을 새 키로 다시 만든다.
 
@@ -61,7 +72,7 @@ VAPID 키쌍은 Worker가 처음 `/api/push/key` 요청을 받을 때 만들어 
 - `node worker/test.mjs`: RFC 8291 부록 A 벡터, 독립 구현 복호화 왕복, VAPID JWT 서명 검증, 라우트·검증, cron 매칭·410 정리·이어 보내기.
 - 로컬 Worker: `npx wrangler dev -c worker/wrangler.push.jsonc --test-scheduled --var PUSH_TEST_HOSTS:127.0.0.1`
   (`PUSH_TEST_HOSTS`는 로컬 수신기로 보내 보는 시험용이라 배포 설정에는 넣지 않는다.)
-  cron 실행: `curl "http://127.0.0.1:8787/cdn-cgi/handler/scheduled?cron=30+22+*+*+*"`
+  cron 실행: `curl "http://127.0.0.1:8787/cdn-cgi/handler/scheduled?cron=30,40,50+22+*+*+*"`
 
 ## 문의 양식(/api/contact) · 운영자 문의함(/admin.html) — 20차
 

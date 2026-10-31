@@ -67,12 +67,13 @@
   const FT = ["", "trade", "notice", "tho", "auction", "stage"];
   const CK = { trade: "trade", notice: "notice", stage: "stage", tho: "tho", auction: "auc_new" };
   let ft = "", mine = false, shown = 60;
-  // 내 돈 안만: 구역 판정이 '갈 수 있음'(앱 zstate) · 경매 줄은 그 구역 14일 일정 물건 최저가가 내 돈 안이어도(최저가 기준 · 낙찰가 아님)
+  // 내 돈 안만: 경매 줄은 물건 단위(그 줄 대표 최저가 mn ≤ 내 돈 — worker/push.js match·72_inbox condAuc와 같은 규칙 · 최저가 기준 · 낙찰가 아님) · 다른 줄은 구역 판정 '갈 수 있음'(앱 zstate)
   function okOf(ctx, T) {
-    const c = ctx.cash(), au = new Set(); (T.auc || []).forEach((a) => { if (a[5] > 0 && a[5] <= c * 1e8 + 1) au.add(a[0]); });
-    const memo = new Map();
-    return (id, type) => { if (type === "auction" && au.has(id)) return true; if (!memo.has(id)) { const r = ctx.byId[id]; let ok = false; try { ok = !!r && ctx.zst(r).st === "ok"; } catch (er) {} memo.set(id, ok); } return memo.get(id); };
+    const c = ctx.cash(), memo = new Map();
+    return (x) => { if (x.type === "auction") return x.mn != null && x.mn > 0 && x.mn <= c + 1e-9; const id = x.id; if (!memo.has(id)) { const r = ctx.byId[id]; let ok = false; try { ok = !!r && ctx.zst(r).st === "ok"; } catch (er) {} memo.set(id, ok); } return memo.get(id); };
   }
+  Y.aucTag = (ctx) => (ctx.gap() ? W.auc.gap : U.auc_tag);   // 전세 끼고 모드: 경매는 잔금을 한 번에 내야 해서 '최저가 기준 · 잔금은 한 번에'
+  Y.note = (T) => { const t = Z.stale(T); return t ? `<p class="td-nt" role="note">${e(t)}</p>` : ""; };   // .td-nt = 오늘 묶음 CSS
   function dayHead(T, d) {
     const c = Z.feedCount(T, d), ks = [["trade", c.trade], ["notice", c.notice + c.stage], ["tho", c.tho], ["auction", c.auc_new + c.auc_drop]].filter((x) => x[1] > 0);
     return `<h4 class="nt-dh">${e(Z.mdw(d))}${d === T.asOf ? ' <span class="nt-td">기준일</span>' : ""}<small>${ks.map(([k, n]) => `${e(W.chip[k])} ${Y.n(n)}`).join(" · ")}</small></h4>`;
@@ -80,19 +81,20 @@
   function todayHTML(ctx, T) {
     const ok = okOf(ctx, T);
     const all = Z.feed(T, { week: true }), bf = Z.feed(T, { week: true, bf: true }).length;
-    const L0 = mine ? all.filter((x) => ok(x.id, x.type)) : all;
-    const cnt = (t) => L0.filter((x) => !t || x.type === t).reduce((s, x) => s + (x.type === "trade" || x.type === "auction" || x.type === "tho" ? x.n : 1), 0);
+    const L0 = mine ? all.filter(ok) : all;
+    // 칩 숫자: 서울 전체는 겹치는 구역을 한 번만(u = 서울 줄 숫자와 같은 셈) · '내 돈 안만'은 보이는 줄 그대로
+    const cnt = (t) => L0.filter((x) => !t || x.type === t).reduce((s, x) => s + (x.type === "trade" || x.type === "auction" || x.type === "tho" ? (mine ? x.n : x.u) : 1), 0);
     const L = L0.filter((x) => !ft || x.type === ft).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     const sh = L.slice(0, shown), by = new Map(); sh.forEach((x) => { if (!by.has(x.date)) by.set(x.date, []); by.get(x.date).push(x); });
     const row = (x) => `<li><button type="button" class="nt-it" data-open="${e(x.id)}"><i class="td-tg t-${x.type}">${e(W.chip[x.type] || "")}</i><span class="td-rt"><b>${e(Y.name(ctx, x.id))}</b><small>${e(x.text)}${x.tag ? ` · ${e(x.tag)}` : ""}</small></span></button></li>`;
     const off = navigator.onLine === false;
-    return `<div class="nt-h"><h3>${e(U.seg.today)}</h3><span class="td-as${off ? " off" : ""}">${e(off ? Z.offLine(T) : Z.asOfT(T))}</span></div>` +
+    return `<div class="nt-h"><h3>${e(U.seg.today)}</h3><span class="td-as${off ? " off" : ""}">${e(off ? Z.offLine(T) : Z.asOfT(T))}</span></div>` + Y.note(T) +
       `<div class="nt-tiles">${Y.tiles(T, false)}</div>` +
       `<div class="nt-chips" role="group" aria-label="소식 종류">${FT.map((t) => { const l = t ? W.chip[t] : "전체"; return `<button type="button" data-ntf="${t}" aria-pressed="${t === ft}" aria-label="${l} ${Y.n(cnt(t))}건">${l} <small>${Y.n(cnt(t))}</small></button>`; }).join("")}<button type="button" class="nt-mine" data-ntm aria-pressed="${mine}">${e(W.chip.mine)}</button></div>` +
-      (mine ? `<p class="nt-sub">${e(`내 돈 ${Y.cashT(ctx, ctx.cash())}·${Y.modeT(ctx)}으로 갈 수 있는 구역(경매는 ${U.auc_tag})만`)}</p>` : "") +
+      (mine ? `<p class="nt-sub">${e(Y.f(U.mine_sub, { c: Y.cashT(ctx, ctx.cash()), m: Y.modeT(ctx), t: Y.aucTag(ctx) }))}</p>` : "") +
       (sh.length ? `<ol class="nt-list">${[...by].map(([d, rs]) => `<li>${mine || ft ? `<h4 class="nt-dh">${e(Z.mdw(d))}</h4>` : dayHead(T, d)}<ul>${rs.map(row).join("")}</ul></li>`).join("")}</ol>` : `<p class="nt-empty">${e(U.few_list)}</p>`) +
       (L.length > sh.length ? `<button type="button" class="btn secondary nt-more" data-ntmore>더 보기 (${Y.n(L.length - sh.length)}줄)</button>` : "") +
-      `<p class="nt-foot">${e(W.dates)} · ${e(U.tho_note)}${bf ? `<br>${e(Y.f(W.home.bf, { n: bf }))} · ${e(W.home.bf_note)}` : ""}</p>`;
+      `<p class="nt-foot">${e(W.dates)} · ${e(U.tho_note)}${bf ? `<br>${e(Y.f(W.home.bf, { n: bf }))} · ${e(W.home.bf_note)}` : ""}${T.ver ? `<br><a href="/method#calc-ver">${e(Y.f(U.cv_tail, { v: T.ver }))}</a>` : ""}</p>`;
   }
   function weekHTML(ctx, T) {
     const S = T.seoul || {}, w = S.w || {}, d1 = Y.add(T.asOf, -6);
@@ -119,7 +121,7 @@
     const chg = (x) => `필요한 돈 ${e(Y.cashT(ctx, x.old))} → ${e(Y.cashT(ctx, x.now))} · ${e(x.why)}`;
     const g = (h, L, f) => (L.length ? `<section class="rd-g"><h4>${h}</h4><ul>${L.map(f).join("")}</ul></section>` : "");
     return `<div class="rd-h"><h4 class="rd-t">${e(`내 돈 ${Y.cashT(ctx, c)}·${Y.modeT(ctx)} · 최근 7일`)}</h4><p class="nt-sub">${e(W.rad.head)} · ${e(Z.asOfT(T))}</p></div>` +
-      (R.nw.length || R.far.length ? "" : `<p class="rd-none">${e(W.rad.none)}</p>`) +
+      (R.nw.length || R.far.length ? "" : `<p class="rd-none">${e(W.rad.none)}</p>`) + (R.cv ? `<p class="nt-sub">${e(R.cv)}</p>` : "") +
       g(`<em class="td-new">${e(W.rad.nw)} ${R.nw.length}곳</em>`, R.nw, (x) => row(x.id, chg(x))) +
       g(e(`${W.rad.far} ${R.far.length}곳`), R.far, (x) => row(x.id, chg(x))) +
       g(e(`${W.rad.near} ${N.n}곳`) + " <small>가까운 순 5곳</small>", N.top, (x) => row(x.id, `지금 ${e(Y.cashT(ctx, x.need))} · ${e(Y.f(W.rad.near_t, { gap: ctx.ZF.gap(x.need, c) }))}`));
@@ -162,25 +164,27 @@
     return G;
   }
   function html(ctx, T) {
-    const G = groups(ctx, T), all = G.flatMap((g) => g.items), M = Z.mySched.get().filter((m) => m.d >= T.asOf).sort((a, b) => (a.d < b.d ? -1 : 1));
+    const G = groups(ctx, T), all = G.flatMap((g) => g.items), kd = Z.kd(), M = Z.mySched.get().filter((m) => m.d >= kd).sort((a, b) => (a.d < b.d ? -1 : 1));   // 내 일정은 기기 날짜만
     const keep = (r) => (flt === "fav" ? r.fav : flt === "in" ? r.inC : true);
     let fav = []; try { fav = ctx.pins.list(); } catch (er) {}
     const row = (r) => {
-      const tags = `<span class="cl-t">${e(U.auc_tag)}</span>${r.inC ? `<span class="cl-t in">${e(W.auc.in)}</span>` : ""}${r.fav ? '<span class="cl-t fv">관심 구역</span>' : ""}${r.jb ? '<span class="cl-t">지분</span>' : ""}${(r.fav || r.inC) && r.dday ? `<b class="cl-dd">${e(r.dday)}</b>` : ""}`;
-      return `<li><button type="button" class="nt-it cl-it" data-open="${e(r.id)}"><span class="td-rt"><b>${e(Y.name(ctx, r.id))}${r.use ? ` <small class="cl-u">${e(r.use)}</small>` : ""}</b><small>${e([r.cs + (r.no > 1 ? `(${r.no})` : ""), COURT(r.court), r.time].filter(Boolean).join(" · "))}</small><small class="cl-m">감정 ${e(Z.aucAmt(r.appr))} · 최저 <b>${e(r.minT)}</b>${r.rateT ? ` (${e(r.rateT)})` : ""}${r.failT ? ` · ${e(r.failT)}` : ""}${r.dropT ? ` · ${e(r.dropT)}` : ""}</small><span class="cl-tags">${tags}</span></span></button></li>`;
+      // 법원 확인일이 3일 넘으면(r.old) D-day·일정 칩을 숨기고 '법원 자료를 N일 전에 확인했어요'
+      const tags = `<span class="cl-t">${e(Y.aucTag(ctx))}</span>${r.riskT ? `<b class="cl-t">${e(r.riskT)}</b>` : ""}${r.inC ? `<span class="cl-t in">${e(W.auc.in)}</span>` : ""}${r.fav ? '<span class="cl-t fv">관심 구역</span>' : ""}${r.jb ? '<span class="cl-t">지분</span>' : ""}${r.sm ? '<span class="cl-t">소규모주택정비법</span>' : ""}${(r.fav || r.inC) && r.dday ? `<b class="cl-dd">${e(r.dday)}</b>` : ""}`;
+      return `<li><button type="button" class="nt-it cl-it" data-open="${e(r.id)}"><span class="td-rt"><b>${e(Y.name(ctx, r.id))}${r.use ? ` <small class="cl-u">${e(r.use)}</small>` : ""}</b><small>${e([r.cs + (r.no > 1 ? `(${r.no})` : ""), COURT(r.court), r.time, r.chkT].filter(Boolean).join(" · "))}</small><small class="cl-m">감정 ${e(Z.aucAmt(r.appr))} · 최저 <b>${e(r.minT)}</b>${r.rateT ? ` (${e(r.rateT)})` : ""}${r.failT ? ` · ${e(r.failT)}` : ""}${r.dropT ? ` · ${e(r.dropT)}` : ""}</small>${r.oldT ? `<small class="cl-m">${e(r.oldT)}</small>` : ""}<span class="cl-tags">${tags}</span></span></button></li>`;
     };
-    const myRow = (m) => `<li><span class="td-rt"><b>${e(m.title)}</b><small>${e(Z.mdw(m.d))}${m.t ? ` ${e(m.t)}` : ""}${m.z && ctx.byId[m.z] ? ` · ${e(Y.name(ctx, m.z))}` : ""} · ${e(W.sched.mine)}</small></span><b class="cl-dd">${e(Z.dday(m.d, T.asOf))}</b><button type="button" class="cl-x" data-cldel="${e(m.k)}" aria-label="${e(m.title)} 일정 지우기">지우기</button></li>`;
+    const myRow = (m) => `<li><span class="td-rt"><b>${e(m.title)}</b><small>${e(Z.mdw(m.d))}${m.t ? ` ${e(m.t)}` : ""}${m.z && ctx.byId[m.z] ? ` · ${e(Y.name(ctx, m.z))}` : ""} · ${e(W.sched.mine)}</small></span><b class="cl-dd">${e(Z.dday(m.d, kd))}</b><button type="button" class="cl-x" data-cldel="${e(m.k)}" aria-label="${e(m.title)} 일정 지우기">지우기</button></li>`;
     const shown = G.map((g) => ({ g, L: g.items.filter(keep) })).filter((x) => x.L.length);
-    const exp = all.filter((r) => r.fav || r.inC);
-    return `<div class="nt-h"><h3>${e(W.sched.head)}</h3><span class="td-as">${e(Z.asOfT(T))}</span></div>` +
+    const exp = all.filter((r) => r.fav);   // 캘린더 기본 범위 = 내 일정 + 관심 구역 경매(icsFor "mf")
+    const anySm = all.some((r) => r.sm);   // 사업 종류별 고지: 도시정비법(auc.note) + 소규모주택정비법 물건이 있으면 auc.small
+    return `<div class="nt-h"><h3>${e(W.sched.head)}</h3><span class="td-as">${e(Z.asOfT(T))}</span></div>` + Y.note(T) +
       `<section class="wk-c"><div class="cl-h"><h4>${e(W.sched.mine)}</h4><button type="button" class="btn text sm" data-cladd aria-expanded="${form}">${form ? "닫기" : "일정 넣기"}</button></div>` +
       (form ? `<form class="cl-f" data-clform><label>날짜<input type="date" name="d" required min="${Y.day()}"></label><label>내용<input type="text" name="t" required maxlength="30" placeholder="예: 조합 총회 · 분양신청 마감"></label>${fav.length ? `<label>구역(선택)<select name="z"><option value="">고르지 않음</option>${fav.filter((id) => ctx.byId[id]).map((id) => `<option value="${e(id)}">${e(Y.name(ctx, id))}</option>`).join("")}</select></label>` : ""}<button type="submit" class="btn primary sm">넣기</button><p class="nt-sub">${e(W.sched.mine_note)}</p></form>` : "") +
       (M.length ? `<ul class="cl-my">${M.map(myRow).join("")}</ul>` : `<p class="nt-sub">조합 문자로 받은 총회·감정평가·분양신청 날짜를 넣어 두면 D-day로 보여 드려요</p>`) + `</section>` +
-      `<section class="wk-c"><h4>경매 매각기일 <small>${e(W.sched.sub)}</small></h4><p class="cl-warn">${e(W.auc.note)}</p>` +
+      `<section class="wk-c"><h4>경매 매각기일 <small>${e(W.sched.sub)}</small></h4><p class="cl-warn">${e(W.auc.note)}</p>${anySm ? `<p class="cl-warn">${e(W.auc.small)}</p>` : ""}` +
       `<div class="nt-chips" role="group" aria-label="경매 거르기">${[["", "전체", all.length], ["fav", "관심 구역", all.filter((r) => r.fav).length], ["in", W.auc.in, all.filter((r) => r.inC).length]].map(([k, l, n]) => `<button type="button" data-clf="${k}" aria-pressed="${k === flt}">${e(l)} <small>${Y.n(n)}</small></button>`).join("")}</div>` +
-      (shown.length ? `<ol class="nt-list">${shown.map(({ g, L }) => `<li><h4 class="nt-dh">${e(g.dateT)} <span class="nt-td">${e(g.dday)}</span><small>${e(Y.f(W.sched.auc, { n: L.length }))}</small></h4><ul>${L.map(row).join("")}</ul></li>`).join("")}</ol>` : `<p class="nt-empty">${flt ? "이 조건의 매각기일이 14일 안에 없어요" : "14일 안에 잡힌 구역 안 매각기일이 없어요"}</p>`) +
+      (shown.length ? `<ol class="nt-list">${shown.map(({ g, L }) => `<li><h4 class="nt-dh">${e(g.dateT)}${g.dday ? ` <span class="nt-td">${e(g.dday)}</span>` : ""}<small>${e(Y.f(W.sched.auc, { n: L.length }))}</small></h4><ul>${L.map(row).join("")}</ul></li>`).join("")}</ol>` : `<p class="nt-empty">${flt ? "이 조건의 매각기일이 14일 안에 없어요" : "14일 안에 잡힌 구역 안 매각기일이 없어요"}</p>`) +
       `<p class="nt-sub">${e(W.auc.src)}</p></section>` +
-      `<section class="wk-c cl-exp"><h4>${e(W.sched.ics)}</h4><p class="nt-sub">${e(W.sched.mine)} ${M.length}건 · 관심 구역·${e(W.auc.in)} 경매 ${exp.length}건 · ${e(W.sched.ics_note)}</p><button type="button" class="btn secondary sm" data-clics${M.length + exp.length ? "" : " disabled"}>캘린더 파일 만들기</button><span class="share-fb" role="status" data-clfb></span></section>`;
+      `<section class="wk-c cl-exp"><h4>${e(W.sched.ics)}</h4><p class="nt-sub">${e(W.sched.mine)} ${M.length}건 · 관심 구역 경매 ${exp.length}건 · ${e(W.sched.ics_note)}</p><button type="button" class="btn secondary sm" data-clics${M.length + exp.length ? "" : " disabled"}>캘린더 파일 만들기</button><span class="share-fb" role="status" data-clfb></span></section>`;
   }
   let bound = false;
   Y.cal = (ctx) => {
@@ -195,8 +199,9 @@
       else if (t.hasAttribute("data-cladd")) { form = !form; draw(); const i = el.querySelector('[name="d"]'); if (i) i.focus(); else { const b = el.querySelector("[data-cladd]"); b && b.focus(); } }
       else if (t.hasAttribute("data-cldel")) { Z.mySched.remove(t.dataset.cldel); draw(); const b = el.querySelector("[data-cladd]"); b && b.focus(); }
       else if (t.hasAttribute("data-clics")) {
-        const rows = groups(ctx, T).flatMap((g) => g.items).filter((r) => r.fav || r.inC);
-        const evs = Z.icsAuc(rows, (id) => Y.name(ctx, id)).concat(Z.icsMine().filter((x) => x.date >= T.asOf));
+        // 범위(ZP_today.icsFor): 기본 '내 일정 + 관심 구역 경매' · B1 고르기 칸이 생기면 el.dataset.ics(mine·fav·all)로 · 지난 기일 뺌 = 기준 날짜(max(기기 날짜, asOf)) · 내 일정은 기기 날짜
+        let fv = []; try { fv = ctx.pins.list(); } catch (er) {}
+        const evs = Z.icsFor(T, el.dataset.ics || "mf", { fav: new Set(fv), cash: ctx.cash(), name: (id) => Y.name(ctx, id) }).evs;
         Z.icsDownload(evs, `jaegaepick-${T.asOf}.ics`);
         const fb = el.querySelector("[data-clfb]"); if (fb) fb.textContent = `캘린더 파일을 만들었어요 · ${evs.length}건`;
       }

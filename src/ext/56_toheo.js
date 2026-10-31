@@ -12,10 +12,10 @@ const TOH = (() => {
     const guTxt = gu ? `${esc(r.g)} 전체로는 최근 62일 ${fmt(gu[0])}건(주거용 ${fmt(gu[1])}건)이 허가됐어요.` : "";
     if (!z) return `<div class="sect toh">${head}<p class="note">이 기간에 구역 경계 안 필지로 허가된 기록이 없어요. ${guTxt} ${geoHas(r) ? "" : esc(ZF.bndTxt(r, "필지를 맞출 수 없어 비어 보일 수 있어요")) + "."}</p></div>`;
     const rows = z.r.map(([d, jb, jm, use, res]) => `<li${res !== "허가" ? ' class="no"' : ""}><span class="mono">${ymd(d)}</span><b>${esc(jb)}</b><span>${esc(jm)} · ${esc(use)}${res !== "허가" ? ` · <em>${esc(res)}</em>` : ""}</span></li>`).join("");
-    return `<div class="sect toh">${head}<p class="note toh-1" data-th1 hidden></p><dl class="sg-k"><div><dt>구역 안 허가</dt><dd><b>${fmt(z.n)}</b>건</dd></div><div><dt>주거용</dt><dd><b>${fmt(z.res)}</b>건</dd></div></dl>
+    return `<div class="sect toh">${head}<p class="note toh-1" data-th1 hidden></p><dl class="sg-k"><div><dt>구역 안 허가 <small>${yy(T.since)}~${yy(T.asOf)}</small></dt><dd><b>${fmt(z.n)}</b>건</dd></div><div><dt>주거용</dt><dd><b>${fmt(z.res)}</b>건</dd></div></dl>
       <ul class="toh-l">${rows}</ul><p class="note">허가 1건 = 접수번호별 대표 지번 1개라 여러 필지를 함께 산 거래도 1건으로 보여요. 주거용 허가를 받으면 2년 실거주 의무가 붙어 전세를 끼고 살 수 없어요. ${guTxt}</p></div>`;
   }
-  // 사이클 5: 첫 줄 = 오늘 카드·/gu와 같은 셈(today.json tho[구역][1] 최근 30일 주거용 허가 · 문구 feed_words.json tho.sheet/none) — 예전 '최근 30일 n30'은 모든 용도·취소까지 세어 숫자가 달랐다
+  // 사이클 5 fix A: 아래 숫자 칸은 기간(since~asOf)을 붙이고 '허가'만 센다(toheo.py · 예전엔 취소·취하까지 셈) · 첫 줄 = 오늘 카드·/gu와 같은 셈(today.json tho[구역][1] 최근 30일 주거용 허가 · 문구 feed_words.json tho.sheet/none) — 예전 '최근 30일 n30'은 모든 용도·취소까지 세어 숫자가 달랐다
   const th1 = (r, T, slot) => TDAY.yLoad().then((Y) => Y.th1(r.id, ymd(T.since), slot.querySelector("[data-th1]"))).catch(() => {});
   const geoHas = (r) => { const g = ZX.geoZ(); return !!(g && g[r.id] && !g[r.id].e); };
   {

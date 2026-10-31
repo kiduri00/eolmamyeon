@@ -126,7 +126,8 @@ for rid, vals in sorted(V.get('old', {}).items()):
 # /gu 해설은 '한눈에' 자동 문단이 이미 말한 숫자(곳 수·방식별 수·관리처분 뒤 곳 수·계산된 곳 수·가운데 값·토지거래허가 곳 수·거래 건수·가장 오래 머문 곳·가장 많은 단계)를 다시 쓰지 않는다(애드센스 레드팀 c1: 영등포 6 vs 9)
 _J0 = lambda p: J(p) if os.path.exists(os.path.join(ROOT, p)) else {}
 CHG, AUC, TDJ = _J0('public/data/changes.json'), _J0('public/data/auction.json'), _J0('public/data/today.json')
-from zhand import tho_today; THZ = tho_today()[0]   # 오늘 카드와 같은 셈(주거용 허가 30일)
+from zhand import tho_today; THZ, THD, THL = tho_today()   # 오늘 카드와 같은 셈(주거용 허가 30일 · 구역별 값 · 기준 허가일 · 허가 목록 [허가일, 구역, 접수번호])
+import today as _TD
 GUZ = collections.defaultdict(set)   # /gu 목록과 같은 '진행 중' 기준(tools/zpages.py R)
 for r in _J0('pipeline/data.enriched.json').get('recs') or []:
     if not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n'): GUZ[r['g']].add(r['id'])
@@ -155,9 +156,14 @@ for g, vals in sorted(V.get('gu', {}).items()):
         chk(sum(1 for m in ms if m <= cap + 1e-9) == int(vals[k]), f'/gu/{g}: {cap}억 이하 곳 수 목록 {sum(1 for m in ms if m <= cap + 1e-9)} ≠ {vals[k]}')
     if 'tho30' in vals:   # 사이클 5 C: '이번 달 흐름' 숫자 == 시트(toheo n30)·소식(changes trade cnt)·일정(auction 매각기일 남은 물건)에서 다시 센 값
         ids = GUZ.get(g, set())
-        chk(vals['tho30'] == f"{sum((THZ.get(i) or [0, 0])[1] for i in ids):,}", f'/gu/{g}: tho30 {vals["tho30"]} ≠ 오늘 묶음(today.py) 다시 센 값')
-        if TDJ.get('asOf') == CHG.get('asOf') and TDJ.get('tho') is not None: chk(vals['tho30'] == f"{sum(((TDJ.get('tho') or {}).get(i) or [0, 0])[1] for i in ids):,}", f'/gu/{g}: tho30 {vals["tho30"]} ≠ public/data/today.json tho')
-        chk(vals['tx30'] == f"{sum(e.get('cnt') or 1 for e in CHG.get('items') or [] if e.get('type') == 'trade' and e.get('id') in ids and not e.get('x')):,}", f'/gu/{g}: tx30 {vals["tx30"]} ≠ changes.json 다시 센 값')
+        # 사이클 5 fix A: 구 합계는 겹치는 구역을 한 번만(허가 = 접수번호 · 거래 = 거래 지문 tk) — 따로 다시 센 값과 같아야 하고, 구역 값을 그냥 더한 합보다 클 수 없다
+        THK = {k for d, rid, k in THL if rid in ids and _TD.add(THD, -30) < d <= THD} if THD else set()
+        chk(vals['tho30'] == f"{len(THK):,}", f'/gu/{g}: tho30 {vals["tho30"]} ≠ 접수번호로 다시 센 값 {len(THK)}')
+        chk(int(vals['tho30'].replace(',', '')) <= sum((THZ.get(i) or [0, 0])[1] for i in ids), f'/gu/{g}: tho30 {vals["tho30"]} > 구역 합')
+        TK = set()
+        for e in CHG.get('items') or []:
+            if e.get('type') == 'trade' and e.get('id') in ids and not e.get('x'): TK |= set(_TD.ev_keys(e))
+        chk(vals['tx30'] == f"{len(TK):,}", f'/gu/{g}: tx30 {vals["tx30"]} ≠ changes.json 거래 지문으로 다시 센 값 {len(TK)}')
         chk(vals['auc'] == f"{sum(1 for i in ids for x in (AUC.get('byZone') or {}).get(i, []) if x.get('date', '') >= (AUC.get('asOf') or '') and x.get('st') != 'gone')}", f'/gu/{g}: auc {vals["auc"]} ≠ auction.json 다시 센 값')
     t = TXT[os.path.join('gu', g + '.html')]; ss = sents(t); tot = sum(len(x) for x in ss) or 1; u = sum(len(x) for x in ss if freq[norm(x)] <= 2)
     rep.append(('gu:' + g, len(t), round(100 * u / tot), '', ''))

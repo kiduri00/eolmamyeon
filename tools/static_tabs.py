@@ -299,6 +299,23 @@ AD_TAG = 'pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='
 AD_NO_H = re.compile(r'함께 보면|다음에 읽을|관련|참고|출처|원문|문의|지금까지 낸|용어 찾기')
 
 
+# 사이클 5 fix A(R9 결함 1): 앱(TWA·홈 화면 앱) 안에서 연 정적 페이지는 광고 스크립트를 받지 않게 — 준비만 하고 꺼 둔다.
+#   승인 전에는 head의 리터럴 태그가 origin/main과 바이트가 같아야 한다(심사 확인용) → ADS_APP_GUARD는 승인 뒤, 칸을 열 때(자동 광고를 켜기 전) ZP_ADS_APP_GUARD=1로 켠다.
+#   켜면 리터럴 태그를 index와 같은 판정(display-mode standalone·fullscreen·minimal-ui · navigator.standalone · android-app 리퍼러 · 이 탭의 zp.tapp)의 가드 로더로 바꾼다. 메모: renew/ad_placements.md '승인 뒤'
+ADS_APP_GUARD = os.environ.get('ZP_ADS_APP_GUARD') == '1'
+ADS_LIT = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648" crossorigin="anonymous"></script>'
+ADS_GUARDED = ('<script>/* 앱(설치 앱·TWA) 안 정적 페이지는 광고 스크립트를 받지 않는다 */(function(){var m=function(q){try{return matchMedia(q).matches}catch(e){return false}},a=m("(display-mode: standalone)")||m("(display-mode: fullscreen)")||m("(display-mode: minimal-ui)")||navigator.standalone===true||/^android-app:\\/\\//.test(document.referrer||"");'
+               'try{a=a||sessionStorage.getItem("zp.tapp")==="1"}catch(e){}if(a)return;var s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";s.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9772652926977648";document.head.appendChild(s)})()</script>')
+def ads_guard(h, on=None):
+    return h.replace(ADS_LIT, ADS_GUARDED, 1) if (ADS_APP_GUARD if on is None else on) and ADS_LIT in h else h
+
+
+def calc_ver(h):
+    try: v = json.load(open(os.path.join(PUB, 'data', 'today.json'), encoding='utf-8')).get('ver') or ''
+    except Exception: v = ''
+    return re.sub(r'(<code data-cv>)[^<]*(</code>)', lambda m: m.group(1) + v + m.group(2), h) if re.fullmatch(r'calc-[0-9a-f]{8}', v) else h
+
+
 def ad_slot(k, kind):
     return f'<!--zp-ad:{k}--><aside class="ad-slot" data-slot="{kind}-{k}" aria-label="광고" hidden></aside><!--/zp-ad-->'
 
@@ -406,6 +423,8 @@ def main():
             h1 = op_line(h1, rel)
             h1 = glossary_link(h1, rel)
             h1 = ad_slots(h1, rel)
+            h1 = ads_guard(h1)   # 꺼 둠(ADS_APP_GUARD) — 끈 동안은 아무것도 바꾸지 않는다
+            if rel == 'method.html': h1 = calc_ver(h1)   # 사이클 5 fix A: 계산 버전 = today.json ver(소식 탭 꼬리와 같은 이름)
             if rel.startswith('report/'): h1 = report_links(h1)
             import condlink; h1 = condlink.fix(h1)   # 사이클 3: 앱 링크의 계산 조건(금액·연소득)은 # 뒤로(서버 요청에 실리지 않게)
             if re.match(r'report/\d{4}-\d{2}\.html$', rel):   # 리뉴얼 사이클 2: 이미 낸 호도 질문형 소제목 + 도입부 훅(tools/report_copy.py)
