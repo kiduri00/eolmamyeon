@@ -50,6 +50,7 @@ APIMAP = {   # 글 키 → /api/v1 값(그 키의 글자 꼴로)
     # 사이클 3 통합: ZoneFacts 값(/api/v1 facts)
     'jrUse': lambda a: {f"{a['facts']['jeonseRatio']['pct']:g}%"} if ((a.get('facts') or {}).get('jeonseRatio') or {}).get('pct') is not None and not a['facts']['jeonseRatio'].get('held') else {None},
     'nextTo': lambda a: {((a.get('facts') or {}).get('next') or {}).get('to')}, 'etaFx': lambda a: {(a.get('facts') or {}).get('eta')},
+    'etaSpan': lambda a: {re.sub(r' 뒤$', '', str((a.get('facts') or {}).get('eta') or '')) or None},   # c4 최종: 손글 '…년을 기다릴' = ZoneFacts 입주 범위
 }
 # 고유 문장 비율(textstats.py와 같은 셈)
 def text(s):

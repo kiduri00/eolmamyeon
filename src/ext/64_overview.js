@@ -40,7 +40,9 @@ const OVX = (() => {
         const w = buyWindow(r), rt = (() => { try { return ZX.rights(r); } catch (e) { return {}; } })();
         const [c, v] = w.cls === "ok" ? ["ok", "✓ 나와요"] : w.cls === "no" ? ["no", "✕ 안 나와요"] : ["warn", "! 확인 필요"];
         noIp = c === "no";
-        out.push({ k: "지금 사면 입주권", c, v, w, why: () => [w.due || w.t, rt.k === "set" ? (rt.old ? `권리산정기준일 ${rt.d}(추정 · 조례 부칙 확인 필요)` : `권리산정기준일 ${rt.d} 전 건물만`) : ""].filter(Boolean).join(" · ") });
+        // c4 최종: 매수 시점 규칙의 투기과열지구 기간(ZoneFacts buy) — 안 나와요·확인 필요면 '지정이 풀려 있던 기간에 산 집은 다를 수 있음'까지
+        let by = null; try { by = ZFX.buyOf(r); } catch (e) {}
+        out.push({ k: "지금 사면 입주권", c, v, w, why: () => [w.due || w.t, rt.k === "set" ? (rt.old ? `권리산정기준일 ${rt.d}(추정 · 조례 부칙 확인 필요)` : `권리산정기준일 ${rt.d} 전 건물만`) : "", by && c !== "ok" ? `${by.txt} · ${by.tg}` : ""].filter(Boolean).join(" · ") });
       } catch (e) {}
       if (!noIp) try {
         const lp = landPermit(r);

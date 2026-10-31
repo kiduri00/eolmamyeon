@@ -25,6 +25,9 @@
    map.stripDefault  처음 로드 때 카드 줄 닫힘 · 곳 수 단추 aria-expanded=false · 열면 카드에 숫자 번호 0 · 정렬 단추 2개
    design.weight800  (시각 언어 v2) 홈·지도·시트 계산 굵기 800 이상 0 · GL text-font에 Bold 0
    design.text3Contrast (시각 언어 v2) 보조 글자(--text-2·--text-3·--mx-sub) 대비 ≥ 4.5:1(라이트·다크·130%)
+   design.yellowOnly (c4 최종) 홈·첫 방문(칩 고름)·미니 지도·목록·시트 전체 노랑 = '갈 수 있음' 체크·숫자 원·'새로'·브랜드 마크뿐(고른 칩 노란 체크 0)
+   map.homeDplus     (c4 최종) 웹 홈 지도·앱 미니 지도 서울 표기 = #map 서울 줌과 같은 '✓ 은평 8'·숫자 원 · '…곳'/'~' 옛 글자·'+N곳' 배지 0 · 숫자 합 = 홈 곳 수
+   design.big360     (c4 최종) 큰 글씨 130% 360: 첫 방문 가로 넘침 0 · 웹도 html.t-big · 앱 목록 이름과 금액 칸 겹침 0
    map.contrast      부족 칩 ≥ 4.5 · 다크 가능 태그 테두리 대 채움 ≥ 3 · 빈 구 이름 ≥ 4.5 · axe serious·critical 0(지도 · 라이트·다크·130%) */
 "use strict";
 const { chromium } = require("playwright");
@@ -350,6 +353,62 @@ const LAB = () => {
         await scr("지도 구 줌");
         const tid = await p.evaluate(() => { const e = document.querySelector("#lmap .zpill.st-ok"); if (!e) return null; e.querySelector(".zp-in").click(); return e.dataset.zid; }); if (tid) { await p.waitForTimeout(1500); await scr("미리보기 시트"); }
       } catch (e) { bad("design.weight800", `${where} crashed: ${String(e.message || e).split("\n")[0]}`); }
+      await ctx.close();
+    }
+    // ---------------- c4 최종(ux_re): 노랑 한 뜻 · 세 화면 서울 표기 · 큰 글씨 360 ----------------
+    // design.yellowOnly: 홈·첫 방문·목록·미니 지도·시트·다이얼 전체에서 노랑(#F5C33B) 계산 색 = '갈 수 있음' 체크·숫자 원 · '새로'(이번 주 새로 가능·새로 갈 수 있음) · 브랜드 마크 그림뿐
+    const YALL = () => {
+      const Y = /rgb\(245, 195, 59\)/, OK = ".zp-ck,.zc-ck,.zg-ck,.zg-num,.hm-n .hm-in,.zp-new,.mx-newk,.k-nw,.k-ok,.k-gu,.s-stc,.zp-soft,.s-b-new,.wm,.wm-a,.wm-b,.mx-mark,.brand,.logo,.logo-wm,svg.mk,.hdr-logo,[class*=brand-mark],[class*=wordmark],picture,img";
+      const bad = [];
+      const isY = (cs) => Y.test(cs.backgroundColor) || ["Top", "Right", "Bottom", "Left"].some((k) => parseFloat(cs["border" + k + "Width"]) > 0 && Y.test(cs["border" + k + "Color"])) || Y.test(cs.boxShadow) || Y.test(cs.color) || (parseFloat(cs.outlineWidth) > 0 && cs.outlineStyle !== "none" && Y.test(cs.outlineColor)) || Y.test(cs.fill) || Y.test(cs.stroke);
+      document.querySelectorAll("body *").forEach((e) => {
+        if (!e.getClientRects().length || e.closest("svg.wm, .wm, header .logo, #hdr .hdr-l, .hdr-brand, a[aria-label*='재개픽'] svg")) return;
+        const cs = getComputedStyle(e); if (cs.visibility === "hidden" || +cs.opacity === 0) return;
+        const nm = () => `${e.tagName.toLowerCase()}.${String(e.className && e.className.baseVal != null ? e.className.baseVal : e.className).trim().split(/\s+/).slice(0, 3).join(".")}`;
+        if (isY(cs) && !e.closest(OK)) { if (!(e.matches(".zp-in,.zc-in") && e.parentElement && e.parentElement.classList.contains("nw"))) bad.push(nm()); }
+        ["::before", "::after"].forEach((ps) => { const c2 = getComputedStyle(e, ps); if (c2.content && c2.content !== "none" && c2.display !== "none" && isY(c2) && !e.closest(OK) && !e.matches(".s-stc,.st-ok .s-stc")) bad.push(nm() + ps); });
+      });
+      return [...new Set(bad)];
+    };
+    const fresh = async (o) => { const ctx = await b.newContext({ viewport: { width: o.w, height: o.h || 800 }, deviceScaleFactor: 1, colorScheme: o.dark ? "dark" : "light", isMobile: true, hasTouch: true, serviceWorkers: "block" }); if (o.tapp) await ctx.addInitScript(TAPP); if (o.fs) await ctx.addInitScript((k) => { const f = () => { const s = document.createElement("style"); s.textContent = `html{-webkit-text-size-adjust:${k}%!important;text-size-adjust:${k}%!important}`; (document.head || document.documentElement).appendChild(s); }; if (document.documentElement) f(); else document.addEventListener("DOMContentLoaded", f); }, o.fs); await ctx.route(BLOCK, (r) => r.abort()); const p = await ctx.newPage(); return { ctx, p }; };
+    for (const [w, tapp, dark, fs] of [[390, 0, 0, 0], [390, 1, 0, 0], [360, 1, 1, 130], [360, 0, 0, 130]]) {
+      const where = `${w}${tapp ? " 앱" : " 웹"}${dark ? " 다크" : ""}${fs ? " 큰 글씨" : ""}`;
+      const { ctx, p } = await fresh({ w, h: w === 360 ? 740 : 844, tapp, dark, fs });
+      try {
+        await p.goto(`${BASE}/`, { waitUntil: "load", timeout: 60000 }); await p.waitForTimeout(2500);
+        // 첫 방문: 금액 칩 하나 고른 상태(앱 tob · 웹 onb)
+        const fv = await p.evaluate(() => { const b = document.querySelector('.tob-cash [data-oc="1"], #onb:not([hidden]) [data-oc="2"]'); if (b) b.click(); return !!b; });
+        await p.waitForTimeout(500);
+        if (fv) { const y = await p.evaluate(YALL); expect(!y.length, "design.yellowOnly", `${where} 첫 방문(칩 고름): 노랑 ${y.slice(0, 8).join(", ")}`); }
+        // 큰 글씨 360: 첫 방문 가로 넘침 0 · 웹에서도 html.t-big
+        if (fs) { const o = await p.evaluate(() => ({ sw: document.documentElement.scrollWidth, big: document.documentElement.classList.contains("t-big"), far: [...document.querySelectorAll("body *")].filter((e) => { if (!e.getClientRects().length || e.getBoundingClientRect().right <= innerWidth + 0.5 || e.closest("svg")) return false; for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) if (getComputedStyle(a).overflowX !== "visible") return false; return true; }).slice(0, 4).map((e) => e.tagName + "." + String(e.className).slice(0, 20)) })); expect(o.sw <= w && o.big && !o.far.length, "design.big360", `${where} 첫 방문: scrollWidth ${o.sw} · t-big ${o.big} · 넘친 요소 ${o.far.join(",")}`); }
+        for (let i = 0; i < 5; i++) { const n = await p.$('button:visible:has-text("건너뛰기"), button:visible:has-text("시작하기"), button:visible:has-text("나중에")'); if (n) { await n.click().catch(() => {}); await p.waitForTimeout(500); } else break; }
+        await p.waitForTimeout(1500);
+        const y2 = await p.evaluate(YALL); expect(!y2.length, "design.yellowOnly", `${where} 홈: 노랑 ${y2.slice(0, 8).join(", ")}`);
+        // 서울 표기 D+: 웹 홈 지도(자리 그림·실제 지도) · 앱 미니 지도 — 갈 수 있는 구마다 '✓ 이름 숫자' 태그 또는 노란 숫자 원 · '…곳' 글자·'+N곳' 배지 0 · 숫자 합 = 홈 곳 수
+        const dp = await p.evaluate(() => {
+          const H = document.documentElement, o = { bad: [], sum: 0, n: 0, cnt: null };
+          try { o.cnt = window.ZP_count ? ZP_count() : null; } catch (e) {}
+          if (o.cnt == null) { const t = (document.querySelector("#sNum, .s-num b, #sGauge .bc-n b") || {}).textContent; o.cnt = t ? +String(t).replace(/[^\d]/g, "") : null; }
+          if (H.classList.contains("is-tapp")) {
+            [...document.querySelectorAll("#hmMw .hm-gb")].filter((b) => !b.hidden && b.offsetWidth).forEach((b) => { o.n++; const v = +(b.querySelector(".mn,.hm-in") || b).textContent.replace(/[^\d]/g, "").slice(-4); o.sum += +((b.querySelector(".mn") || b.querySelector(".hm-in") || {}).textContent || "0").replace(/[^\d]/g, ""); if (!b.querySelector(".zg-ck") && !b.classList.contains("hm-n")) o.bad.push("미니 지도 " + b.dataset.gu + " 체크·숫자 원 아님"); if (/곳/.test(b.textContent)) o.bad.push("미니 지도 '곳' 글자"); });
+          } else {
+            const box = document.querySelector("#mapbox"); if (!box) { o.bad.push("지도 칸 없음"); return o; }
+            [...box.querySelectorAll(".zgu")].filter((b) => b.offsetWidth && +b.dataset.n > 0).forEach((b) => { o.n++; o.sum += +b.dataset.n; if (!b.querySelector(".zg-ck") && !b.querySelector(".zg-num")) o.bad.push(b.dataset.gu + " 태그 '" + b.textContent.trim() + "'"); if (/곳|~/.test(b.textContent)) o.bad.push(b.dataset.gu + " 옛 글자 '" + b.textContent.trim() + "'"); });
+            const more = [...box.querySelectorAll(".lm-gumore")].filter((c) => !c.hidden && c.offsetWidth); if (more.length) o.bad.push("'+N곳' 배지 " + more.map((c) => c.textContent.trim().slice(0, 12)).join("/"));
+          }
+          return o;
+        });
+        expect(!dp.bad.length && dp.n > 0 && (dp.cnt == null || dp.sum === dp.cnt), "map.homeDplus", `${where} 홈 지도: ${dp.bad.slice(0, 5).join(" · ")} · 구 ${dp.n} 합 ${dp.sum} vs 곳 수 ${dp.cnt}`);
+        // 큰 글씨 앱 360: 목록·'가장 맞는 곳' 카드 이름 글자 ↔ 금액 칸('지금 ⓘ 9,800만') 겹침 0
+        if (fs && tapp) {
+          const ov = await p.evaluate(() => { const out = []; document.querySelectorAll("#sList li.s-card:not(.s-peek), #hmBestL li.s-card:not(.s-peek)").forEach((li) => { const nb = li.querySelector(".s-nm b"), am = li.querySelector(".s-amt .s-av") || li.querySelector(".s-amt"); if (!nb || !am || !nb.getClientRects().length) return; const a = am.getBoundingClientRect(); const rg = document.createRange(); rg.selectNodeContents(nb); [...rg.getClientRects()].forEach((r) => { if (r.width && r.right > a.left + 0.5 && r.left < a.right && r.bottom > a.top + 0.5 && r.top < a.bottom - 0.5) out.push(nb.textContent.trim().slice(0, 14)); }); }); return [...new Set(out)]; });
+          expect(!ov.length, "design.big360", `${where} 목록 이름·금액 겹침 ${ov.join(", ")}`);
+        }
+        // 시트(돈 탭)와 다이얼(내 돈 시트)
+        await p.evaluate(() => { try { (window.ZP_feat && ZP_feat.ctx ? ZP_feat.ctx() : null).open("o61"); } catch (e) { location.hash = "#o61"; } }); await p.waitForTimeout(2500);
+        const y3 = await p.evaluate(YALL); expect(!y3.length, "design.yellowOnly", `${where} 시트: 노랑 ${y3.slice(0, 8).join(", ")}`);
+      } catch (e) { bad("design.yellowOnly", `${where} crashed: ${String(e.message || e).split("\n")[0]}`); }
       await ctx.close();
     }
   } finally { await b.close(); }

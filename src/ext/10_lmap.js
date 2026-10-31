@@ -898,7 +898,7 @@
     function guFillSet() {
       if (!map || !map.getSource("gufill")) return;
       let cnt = {}; try { cnt = SIMPLE.guCounts(); } catch (e) {}
-      const t = (c) => (c >= 1 ? 1 : 0), on = !!(ZP_G.mxf && ZP_G.mxf());   // 구 채움은 새 전체 지도만(2단계)
+      const t = (c) => (c >= 1 ? 1 : 0), on = !!((ZP_G.dpl && ZP_G.dpl()) || (ZP_G.mxf && ZP_G.mxf()));   // 구 채움 2단계 — c4 최종: 홈 지도도 같은 표기(ghost.js DPL)
       const k = on ? "m" + guGeo().map((g) => t(cnt[g.n] || 0)).join("") : "off";
       if (k === gfK) return; gfK = k;
       try { map.getSource("gufill").setData(FC(on ? guGeo().map((g) => ({ type: "Feature", geometry: { type: "Polygon", coordinates: g.r }, properties: { n: g.n, t: t(cnt[g.n] || 0) } })) : [])); } catch (e) {}
@@ -1043,7 +1043,7 @@
       let el = $("lmKey");
       if (!el) { el = document.createElement("p"); el.id = "lmKey"; el.className = "lm-key"; $("lmap").appendChild(el); }
       let h, lab;
-      if (city) { const m2 = ZP_G.mxf && ZP_G.mxf(); h = m2 ? ZP_G.KEY2 : ZP_G.KEY; lab = m2 ? ZP_G.KEY2_L : ZP_G.KEY_L; }
+      if (city) { const K = ZP_G.keyOf ? ZP_G.keyOf() : null, m2 = ZP_G.mxf && ZP_G.mxf(); h = K ? K.h : m2 ? ZP_G.KEY2 : ZP_G.KEY; lab = K ? K.l : m2 ? ZP_G.KEY2_L : ZP_G.KEY_L; }   // c4 최종: 홈 지도도 D+ 견본(자리 그림과 같은 함수)
       else if (MX.yr) { h = `<span>${KEYI.ok}${MX.yr}년이면 입주 범위</span><span>${KEYI.near}아직 범위 전</span>`; lab = `범례: 채운 꼬리표는 ${MX.yr}년이면 '언제 입주' 추정 범위에 든 곳, 테두리 꼬리표는 아직 범위 전`; }
       else {
         const ks = ["ok", "near", "far", "no", "na", "moa", "okdot", "sel", "fav", "nw"].filter((k) => o[k]);
@@ -1149,7 +1149,9 @@
     }
     function pickPan(id) { pickFit(id); }
     // 고른 카드도 겹 하나(뒤로 가기 = 카드만 닫기) · 닫으면 Promise(기록 정리가 끝난 뒤 상세를 열도록)
-    function pickClear(pop) { if (!pickId) return Promise.resolve(false); pickId = null; try { SIMPLE.pick(null); } catch (e) {} const hp = pickCard(null, pop); selPaint(); layout(); return hp; }
+    // c4 최종: 미리보기를 닫으면 마우스 말풍선(구역 이름·단계·금액)과 목록 강조도 지운다(닫은 뒤 서울 줌에 말풍선이 남던 것)
+    var tipOff;   // var: 지도 붙이기(아래)가 이 줄보다 먼저 돌아도 TDZ 없음
+    function pickClear(pop) { try { if (tipOff) tipOff(); } catch (e) {} if (!pickId) return Promise.resolve(false); pickId = null; try { SIMPLE.pick(null); } catch (e) {} const hp = pickCard(null, pop); selPaint(); layout(); return hp; }
     // 미리보기 내용: 숫자·판정은 모두 목록 판정(zstate)·ZoneFacts(ZFX.of)·ZF 꼴에서
     function peekHTML(r) {
       const s = ZS.get(r.id) || zsOf(r); let f = null; try { f = ZFX.of(r); } catch (e) {}
@@ -1162,7 +1164,7 @@
       const vd = s.st === "ok" ? `내 돈 ${ZF.cash(CASH)}으로 ${ST_VERB.ok}` : (s.st === "near" || s.st === "far") && s.need != null ? `${SIMPLE.shortTxt(s.need)} 더 필요해요` : s.st === "far" ? "지금은 금액을 낼 수 없어요" : s.st === "no" ? `${ST_WORD.no} · 지금 사면 입주권이 안 나와요` : s.st === "na" ? `${ST_WORD.na}${hold ? " · " + hold : ""}` : s.st === "moa" ? "사업구역마다 따로 봐요" : "";   // 사이클 4 통합: 시트 판정 띠(76_detail)와 같은 문장 꼴 · 상태 말은 ST_WORD/ST_VERB
       const w = f && f.win, tkT = w ? (w.cls === "ok" ? "나와요" : w.cls === "no" ? "안 나와요" : "확인 필요") : "–";
       const nx = f && f.next, nxT = nx ? (ZFX.NM[nx.to] || nx.to || "–") : (r.s >= 9 ? "준공" : "–");
-      const nxS = nx && nx.txt ? String(nx.txt).replace(/^[^·]*·\s*/, "") : "";
+      const nxS = nx && nx.txt ? String(nx.txt).replace(/^[^·]*·\s*/, "") : !nx && r.s < 9 ? (r.src === "moa" ? "사업구역마다 달라요" : "인가일 기록이 부족해 예상을 내지 않아요") : "";   // c4 최종: '다음 단계 —'만 남던 빈칸에 이유('이미 가진 집이면'과 같은 말)
       const eta = f && f.eta && f.eta.txt ? `입주 ${f.eta.txt}` : "";
       const tot = nowK && s.total != null ? ZF.cash(s.total) : nowK ? "계산 보류" : amt;
       const nm = shortName(r.n), lab = `${nm}, ${SW[s.st]}, 지금 필요한 돈 ${amt}`;
@@ -1286,7 +1288,7 @@
           p = { el, key: "", mk: new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(g.ll).addTo(map) };
           GUS.set(n, p);
         }
-        const key = [g.c, g.m, g.t, g.w, g.h, g.dx, g.dy, g.sm, g.tt].join("|");
+        const key = [g.c, g.m, g.t, g.w, g.h, g.dx, g.dy, g.sm, g.tt, g.xs, g.num, g.frc].join("|");
         if (p.key === key) return;
         p.key = key;
         p.mk.setOffset([g.dx || 0, g.dy || 0]);
@@ -1789,10 +1791,12 @@
       map.getCanvasContainer().addEventListener("pointermove", (e) => { tipPT = e.pointerType || "mouse"; }, { capture: true, passive: true });
       map.getCanvasContainer().addEventListener("pointerdown", (e) => { tipPT = e.pointerType || "mouse"; if (tipPT !== "mouse") pop.remove(); }, { capture: true, passive: true });
       map.on("movestart", () => { if (tipPT !== "mouse") pop.remove(); });
+      map.on("zoomstart", () => { pop.remove(); rowMark(null); });   // c4 최종: 줌이 바뀌면(미리보기를 닫고 서울로 돌아갈 때 등) 구역 말풍선을 남기지 않는다
+      tipOff = () => { pop.remove(); rowMark(null); };
       const tipOf = (r) => `<b>${esc(fullName(r))}</b><small>${esc([SHAPE[shapeOf(r)], r.src === "moa" ? srLabel(r) : stageName(r)].join(" · "))}</small><small>${esc(labelOf(r))}${geo && geo.z[r.id] && geo.z[r.id].e ? " · 경계 추정" : ""}</small>`;
       hit.forEach((l) => {
         // 26차: 손가락으로 누른 뒤 남는 마우스 흉내(mousemove)로는 띄우지 않는다(남아서 붙어 있던 것) · 겹쳐 보기 단추 밑으로 들어가면 띄우지 않는다
-        map.on("mousemove", l, (e) => { if (tipPT !== "mouse") return; const r = byId[e.features[0].properties.id]; if (!r) return; map.getCanvas().style.cursor = "pointer"; pop.setLngLat(e.lngLat).setHTML(tipOf(r)).addTo(map); rowMark(r.id); try { const pe = pop.getElement(), rl = document.querySelector("#mapbox .s-rail"); if (pe && rl) { const a = pe.getBoundingClientRect(), b = rl.getBoundingClientRect(); if (b.width && a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom) pop.remove(); } } catch (er) {} });
+        map.on("mousemove", l, (e) => { if (tipPT !== "mouse") return; const r = byId[e.features[0].properties.id]; if (!r) return; map.getCanvas().style.cursor = "pointer"; pop.setLngLat(e.lngLat).setHTML(tipOf(r)).addTo(map); rowMark(r.id); try { const pe = pop.getElement(), rl = [...document.querySelectorAll("#mapbox .s-rail, .mx-top, .mx-chips .mx-c, .mx-fabs, #lmPick:not([hidden]), .mx-strip:not([hidden])")]; if (pe) { const a = pe.getBoundingClientRect(); if (rl.some((x) => { const b = x.getBoundingClientRect(); return b.width && a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom; })) pop.remove(); } } catch (er) {} });   // c4 최종: 위 검색·칩 줄·둥근 단추·미리보기와 겹치면 띄우지 않는다(웹 360 큰 글씨에서 머리 칩을 덮던 것)
         map.on("mouseleave", l, () => { map.getCanvas().style.cursor = ""; pop.remove(); rowMark(null); });
       });
       let lastPT = "touch";

@@ -28,13 +28,15 @@
   const L39 = "https://www.law.go.kr/법령/도시및주거환경정비법/제39조", L24 = "https://www.law.go.kr/법령/빈집및소규모주택정비에관한특례법/제24조";
   // 사이클 4: 투기과열지구 기간은 구별 이력(ZoneFacts buy · tools/tgj.json 출처·확인일) — '2025.10.16 전에 산 집은 다를 수 있어요' 한 줄이
   //   다른 21개 구도 2017.8.3~2023.1.4에 지정돼 있었다는 점을 빠뜨리던 것. 인가일이 있으면 그 뒤 지정이 풀려 있던 구간을 날짜로 쓴다
-  const TGL = (r) => { let b = null; try { b = ZFX.buyOf(r); } catch (e) {} if (b) return `${b.txt} · ${b.tg}`; let t = ""; try { t = ZFX.tgjTxt(r.g); } catch (e) {} return t ? `매수일이 ${t}에 들면 이 제한을 받아요` : "매수일이 투기과열지구 지정 기간에 들면 이 제한을 받아요"; };
+  //   c4 최종: ZFX는 앱 클로저 안이라 여기(feat 묶음)서는 늘 ReferenceError → 기본 문장만 나오던 것. 앱이 내놓은 window.ZP_tgj로 읽는다
+  const TJ = () => window.ZP_tgj || null;
+  const TGL = (r) => { let b = null; try { b = TJ().buy(r); } catch (e) {} if (b) return `${b.txt} · ${b.tg}`; let t = ""; try { t = TJ().txt(r.g); } catch (e) {} return t ? `매수일이 ${t}에 들면 이 제한을 받아요` : "매수일이 투기과열지구 지정 기간에 들면 이 제한을 받아요"; };
   F.buyRule = (r, ctx) => {
     const dt = r.dt || {}, d = (k) => (dt[k] ? F.ymd(dt[k]) : "");
     let f = null; try { f = ctx.facts(r); } catch (e) {}
     const g = f && f.kind ? f.kind.g : "";
     const ex = "매도인이 10년 보유·5년 거주한 1세대 1주택 같은 예외가 있어요";
-    if (g === "moa") return { law: "소규모주택정비법 제24조②", u: L24, t: `안의 사업구역(가로주택·모아주택 조합)마다 따로예요 · 그 조합의 설립인가 뒤에 산 집은 조합원이 될 수 없어요 · ${ex} · ${(() => { let t = ""; try { t = ZFX.tgjTxt(r.g); } catch (e) {} return t ? `매수일이 ${t}에 들면 이 제한을 받아요` : ""; })()}` };
+    if (g === "moa") return { law: "소규모주택정비법 제24조②", u: L24, t: `안의 사업구역(가로주택·모아주택 조합)마다 따로예요 · 그 조합의 설립인가 뒤에 산 집은 조합원이 될 수 없어요 · ${ex} · ${(() => { let t = ""; try { t = TJ().txt(r.g); } catch (e) {} return t ? `매수일이 ${t}에 들면 이 제한을 받아요` : ""; })()}` };
     const when = (lab, cd) => (cd ? ` · 이 구역 ${lab} ${cd}` : r.s >= 4 && lab === "조합설립인가" ? ` · 이 구역은 ${lab} 단계인데 인가일 기록이 없어요` : ` · 이 구역은 아직 ${lab} 전이에요`);
     if (g === "small") return { law: "소규모주택정비법 제24조②", u: L24, t: `조합설립인가 뒤에 산 집은 조합원이 될 수 없어요${when("조합설립인가", d("조합설립"))} · ${TGL(r)} · ${ex}` };
     if (g === "rebuild") return { law: "도시정비법 제39조②", u: L39, t: `조합설립인가 뒤에 산 집은 조합원 지위를 넘겨받지 못해 입주권 대신 현금청산될 수 있어요${when("조합설립인가", d("조합설립") || d("시행자지정"))} · ${TGL(r)} · ${ex}` };

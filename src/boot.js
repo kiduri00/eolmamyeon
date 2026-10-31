@@ -7,6 +7,11 @@
 (function () {
   var B = (window.ZP_boot = { a: "__A__", d: "__D__", c: "__C__", f: "__F__", st: 0, hyd: 0 });
   var H = document.documentElement, W = window;
+  // c4 최종: 큰 글씨(안드로이드 글꼴 크게 · text-size-adjust) 알아채기를 첫 페인트 전에 — 웹은 지도 자리 그림(ghost.js bigK)이 그려질 때에야 html.t-big이 붙어
+  //   첫 방문 카드·칩이 큰 글씨 배치를 못 받고 360에서 가로로 넘치던 것. 100px 글자의 계산 크기·실제 폭이 1.15배 넘으면 t-big(앱 10_tapp bigCheck·ghost.js bigK와 같은 잣대)
+  var bigChk = function () { try { var bp = document.createElement("i"); bp.setAttribute("aria-hidden", "true"); bp.style.cssText = "position:absolute;left:-999px;top:0;visibility:hidden;white-space:nowrap;font-size:100px;line-height:1;font-style:normal"; bp.textContent = "가가가가"; var pa = document.body || H; pa.appendChild(bp); var bk1 = (parseFloat(getComputedStyle(bp).fontSize) || 100) / 100, bk2 = bp.getBoundingClientRect().width / 400; pa.removeChild(bp); if (Math.max(bk1, bk2 >= 1.15 ? bk2 : 1) >= 1.15) H.classList.add("t-big"); } catch (e) {} };
+  //   머리(head)에서는 글자 배율이 아직 안 먹어(크로미움) <body> 바로 뒤 한 줄(shell.html)이 다시 부른다 · DOMContentLoaded에 한 번 더
+  B.big = bigChk; bigChk(); document.addEventListener("DOMContentLoaded", bigChk);
   // pre-adsense 5: 설치 앱(html.is-tapp · scheduler.yield 있음)은 같은 앱 코드를 몇 덩이로 나눠 도는 판(ta.*.js)을 받는다 — 웹은 예전 a.*.js 그대로(받을 때 고른다: 앱 표시는 머리 스크립트가 붙임)
   var isApp = function () { if (H.classList.contains("is-tapp")) return true; var m = function (q) { try { return W.matchMedia(q).matches; } catch (e) { return false; } }; if (m("(display-mode: standalone)") || m("(display-mode: fullscreen)") || m("(display-mode: minimal-ui)") || navigator.standalone === true || /^android-app:\/\//.test(document.referrer || "")) return true; try { return sessionStorage.getItem("zp.tapp") === "1"; } catch (e) { return false; } };   // 머리 스크립트(shell.html 설치 앱 알아채기)와 같은 규칙 — 주소 #로 바로 받을 때는 그 스크립트보다 먼저 돈다
   var aPick = function () { try { if (isApp() && W.scheduler && typeof W.scheduler.yield === "function" && /^\/b\/ta\./.test("__AA__")) B.a = "__AA__"; } catch (e) {} };

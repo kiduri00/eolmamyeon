@@ -378,6 +378,8 @@ async function staticLane(api) {
       expect(/문의하기 양식|문의 양식/.test(pv) && /180일/.test(pv) && /IP 주소는 저장하지 않/.test(pv) && /이메일은 선택/.test(pv), "seo.legal", T2, "privacy does not describe the contact form (stored items · 180 days · no IP · email optional)");
       // 사이클 4 통합(2026-10-29 오너 대시보드 확인): Cloudflare Web Analytics는 자동 설정(엣지 주입)이라 저장소·HTML에 비컨이 없어도 사용 중 — 개인정보처리방침 3항 문장이 있어야 한다(지우지 말 것)
       expect(/Cloudflare Web Analytics/.test(pv) && /쿠키를 쓰지 않고/.test(pv), "seo.legal", T2, "privacy 3항: Cloudflare Web Analytics(엣지 자동 설정) 문장 없음");
+      //   (c4 최종: 이 메모는 예전에 privacy.html 안 HTML 주석으로도 있었는데 소스 보기로 나가 여기 한 곳으로 옮김 — 공개 HTML에 내부 메모 주석 0)
+      expect(!/<!--(?:(?!-->)[^])*?(지우지 말 것|오너|QA )(?:(?!-->)[^])*?-->/.test((pg["/privacy"] || {}).text || ""), "seo.legal", T2, "privacy.html에 내부 메모 HTML 주석이 남음");
     }
     const bn = api.zones.filter((z) => /^\s*\d{1,3}\.\s/.test(z.name || ""));
     expect(!bn.length, "name.listNo", "구역 이름에 목록 번호('43. 문래동1·2가') 없음(api·/z·검색 같은 shortName)", `${bn.length}: ${bn.slice(0, 4).map((z) => z.id + " " + z.name).join(", ")}`);

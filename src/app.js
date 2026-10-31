@@ -383,6 +383,8 @@
         const all = await premAll();
         if (!all) return "err";
         premApply(r, all[r.id]);
+        // c4 최종: 모아타운 안 사업구역은 소속 모아타운의 권리산정기준일(premium rd)을 물려받는다 — 상위 시트를 열지 않았어도 그 날짜가 오게(o27 · m10 2022.01.20)
+        if (r.parent && byId[r.parent] && !byId[r.parent]._prem && all[r.parent]) premApply(byId[r.parent], all[r.parent]);
         hjApply(all._hojae);
         return "ok";
       }
@@ -4477,13 +4479,15 @@
   function ruleById(id) {
     return (D.rules || []).find((x) => x.id === id);
   }
+  // c4 최종: 서울 투기과열지구 이력 한 줄(tools/tgj.json과 같은 사실 · 2023년 해제 효력일은 공식 출처로 확인 못 해 날짜를 쓰지 않음)
+  const TGJ_HIST = "서울 투기과열지구는 2017.8.3 25개 구 전역 지정 → 2023년 초 강남·서초·송파·용산 밖 21개 구 해제(해제일 확인 필요) → 2025.10.16 다시 전역 지정(강남·서초·송파·용산은 2017.8.3부터 계속) · 매수 시점의 지정 여부로 갈린다고 봐요(추정·확인 필요).";
   function paneReq(r) {
     const p = $("pane");
     const isRb = r.k === "재건축";
     const isMoaT = r.src === "moa" || isSmall(r);
     const w = buyWindow(r),
       lp = landPermit(r);
-    let body = `<p class="note ${w.cls === "no" ? "riskbox" : ""}"><b>${esc(w.t)}</b> ${esc(w.d)} 서울 전역 투기과열지구 효력 2025.10.16 (강남·서초·송파·용산은 2017.8.3부터 연속 지정).</p>`;
+    let body = `<p class="note ${w.cls === "no" ? "riskbox" : ""}"><b>${esc(w.t)}</b> ${esc(w.d)} ${esc((() => { let t = ""; try { t = ZFX.tgjTxt(r.g); } catch (e) {} return t ? t + "." : ""; })())} ${TGJ_HIST}</p>`;   // c4 최종: 21개 구의 2017.8.3~2023년 초 지정 이력까지(ZoneFacts tgj · 추정·확인 필요)
     if (lp) body += `<p class="note"><b>${esc(lp.t)}</b> ${esc(lp.d)}</p>`;
     if (r.src === "moa" || r.parent)
       body += `<p class="note"><b>모아타운 토지거래허가</b> 토지거래허가로 지정된 모아타운이라도 대상은 지목 '도로'인 토지뿐이라 빌라·단독 매수는 허가·실거주 의무가 없어요. 이 관리지역의 지정 여부는 구청에서 확인하세요.</p>`;
@@ -5316,7 +5320,7 @@
             "<b>재건축</b>: 조합설립인가(신탁은 사업시행자 지정) 뒤 매수 → 조합원 불가 (도시정비법 §39②)",
             "<b>재개발</b>: 관리처분계획인가 뒤 매수 → 조합원 불가 · 2018.1.25 시행 뒤 최초로 사업시행인가를 신청한 구역부터 (도시정비법 부칙 〈제14943호〉 제2조 · 기준은 신청일)",
             "<b>가로·소규모·모아주택</b>: 조합설립인가 뒤 매수 → 조합원 불가 (소규모주택정비법 §24②)",
-            "<b>효력</b>: 서울 전역 투기과열지구 2025.10.16~ (강남·서초·송파·용산은 2017.8.3부터 연속 지정)",
+            `<b>효력</b>: ${TGJ_HIST}`,
           ],
           dl: [
             ["매도인 예외", "1세대1주택 <b>매도인</b>이 10년 보유 + 5년 거주 (매수자 요건이 아님)"],

@@ -89,6 +89,12 @@ function sameZ(id, f, t, bad) {
   const hn = f.hold.now; if (hn && hn.code !== "gapBlock" && hn.code !== "nt" && /살 수 없/.test(t.replace(/토지거래허가[^.]{0,80}살 수 없/g, ""))) E(`보류(${hn.code})인데 '살 수 없' 문구`);
   if (f.eta.rng) { const m = /(\d{4})~(\d{4})년 준공 예상 범위|준공 예상 범위\(추정\)[^\d]{0,20}(\d{4})\.\d+~(\d{4})/.exec(t); if (m) { const a = m[1] || m[3], b = m[2] || m[4]; if (a !== f.eta.rng.eLo.slice(0, 4) || b !== f.eta.rng.eHi.slice(0, 4)) E(`준공 예상 범위 ${a}~${b} ≠ ${f.eta.rng.txt}`); } }
   if (/\d{4}\.\d\d\.\d\d\?/.test(t)) E("권리산정기준일 '?' 표기");
+  // c4 최종: 손글 '이런 사람에게 맞아요'의 기다릴 기간 = ZoneFacts 입주 글자 범위('9~17년 뒤' → '9~17년을 기다릴') · 범위가 없으면 기간 문장 금지
+  { const want = (/^(\d+~\d+년) 뒤$/.exec(f.eta.txt || "") || [])[1]; const re = /(\d+(?:~\d+)?년)(?: 넘게| 안팎)?(?:을|를)? 기다릴/g; let m;
+    while ((m = re.exec(t))) if (m[1] !== want) E(`'${m[0]}' ≠ 언제 입주 ${f.eta.txt}`); }
+  // c4 최종: 세대수 라벨 = ZoneFacts num.units.lab(분양 세대·계획 세대·총 세대) — '계획 세대수 2,000세대'(o448)·'계획은 311세대'(o27)처럼 /z가 다른 이름을 쓰던 것
+  if (N.units && N.units.v) { const ds = N.units.txt.replace(/세대$/, ""), lw = N.units.lab.replace(/ 세대$/, ""), re = new RegExp(`(계획|분양|총)(?: 세대수| 세대| 가구|은|는)?\\s?(?:[^\\d\\s]{0,4}\\s)?${ds.replace(/,/g, ",")}\\s?세대`, "g"); let m;
+    while ((m = re.exec(t))) if (m[1] !== lw) E(`세대수 '${m[0]}' ≠ ${N.units.lab}`); }
   walkRule(f, t, E, "/z");
 }
 (async () => {
@@ -171,6 +177,19 @@ function sameZ(id, f, t, bad) {
       for (const t of [s.head, s.biz, s.money]) GLUE.forEach((re) => { const m = re.exec(t || ""); if (m) glue.push(`${id} '${String(t).slice(Math.max(0, m.index - 20), m.index + 20).replace(/\n/g, " ")}'`); });
     }
     check(!bad.length && sheetIds.length > MIN, "facts.sheet", `${bad.length} 불일치 · ${bad.slice(0, 6).join(" ; ")}`, sheetIds.length); res["facts.sheet"].bad = bad;
+    // c4 최종(회귀 · c3 users 9 · c4 ux_re 결함 7): 권리산정기준일 = /api/v1 rightsDate(모아타운 안 사업구역은 소속 모아타운 날짜를 물려받음 — 시트·api·/z 같은 날짜)
+    { const rb = []; let rn = 0;
+      for (const id of sheetIds) { const s = SH[id], a = A[id]; if (!s || !a || s.owner == null) continue;
+        const d = a.rightsDate ? a.rightsDate.slice(0, 10).replace(/-/g, ".") : null;
+        if (d) { rn++; if (!s.owner.includes(d)) rb.push(`${id} 시트 '이미 가진 집이면'에 ${d} 없음`); }
+        else if (/권리산정기준일 \d{4}\.\d\d\.\d\d/.test(s.owner)) rb.push(`${id} api rightsDate 없음인데 시트에 날짜`);
+        const fp = path.join(ROOT, "public/z", id + ".html");
+        if (d && fs.existsSync(fp)) { const zh = fs.readFileSync(fp, "utf8"); if (/권리산정기준일/.test(zh.replace(/<script[\s\S]*?<\/script>/g, "")) && !zh.includes(d) && !zh.includes(a.rightsDate.slice(0, 10)) && !/권리산정기준일[^<]{0,40}<\/h2><p><b>확인 필요/.test(zh)) rb.push(`${id} /z 권리산정기준일 ≠ ${d}`); }
+      }
+      // 고정 표본: 면목역1(o27) = 소속 모아타운 면목동 86-3(m10)의 2022.01.20
+      if (A.o27 && (A.o27.rightsDate || "").slice(0, 10) !== "2022-01-20") rb.push(`o27 api rightsDate ${A.o27.rightsDate} ≠ 2022-01-20(m10 물려받기)`);
+      if (SH.o27 && SH.o27.owner != null && !SH.o27.owner.includes("2022.01.20")) rb.push("o27 시트에 2022.01.20 없음");
+      check(!rb.length && rn > 50, "facts.rights", `${rb.length} 불일치 · ${rb.slice(0, 6).join(" ; ")}`, rn); res["facts.rights"].bad = rb; }
     // ---------- 2b) 사이클 4 · 같은 화면 정합(시트 한 장 안) ----------
     if (SAME) { const sb = []; let sn = 0;
       for (const id of sheetIds) { const f = F[id], s = SH[id]; if (!s || s.head == null || s.tx == null) continue; sn++;

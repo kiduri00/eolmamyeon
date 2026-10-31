@@ -265,3 +265,43 @@ def key3(r, c, dt=None, as_of=None, upd=None):
         why = h['short'] if h else ('모아타운은 사업구역마다 달라요' if r.get('src') == 'moa' else '새 아파트 계산 대상이 아니에요' if nt else '이주·철거가 시작됐어요' if 7 <= s < 9 else '매수가로 쓸 거래가 없어요')
         o['trust'] = None if nt else ('계산 보류', f'{why} · 이유 보기', '', 'na')   # 입주권 없는 곳은 이유를 셋째 칸에서 한 번만(20차 G3)
     return o
+# ---------- c4 최종: 모아타운 안 사업구역의 권리산정기준일 물려받기(화면 20_zone.js rights0 · app.js 부모 찾기와 같은 규칙) ----------
+#   가로·모아 사업구역(공식 등록 · 경위도 있음 · 이름/종류에 모아·가로주택·소규모)은 같은 구 모아타운 중 가장 가까운 곳(반경 √(면적/π)+150m 안)이 부모.
+#   제 기준일(rdx·premium rd·구역지정일)이 없을 때만 부모의 기준일(premium rd '’22.01.20.' · rdx · 구역지정일)을 물려받아 r['rdx']에 넣는다(inh = 부모 id).
+#   zpages(→ zhand)·api가 같은 레코드를 쓰도록 읽은 직후 한 번 부른다. 판정(calc.json)에는 쓰지 않는다(곳 수 그대로).
+def _hav(a, b):
+    t = math.pi / 180; dl = (b[0] - a[0]) * t; dn = (b[1] - a[1]) * t
+    x = math.sin(dl / 2) ** 2 + math.cos(a[0] * t) * math.cos(b[0] * t) * math.sin(dn / 2) ** 2
+    return 12742e3 * math.asin(math.sqrt(x))
+def _rd_of(x, P):
+    p = (P or {}).get(x['id']) or {}; rx = x.get('rdx') or {}
+    if rx.get('c') == 'chg': return None
+    if rx.get('d'): return {'d': rx['d'], 'b': rx.get('b'), 'u': rx.get('u')}
+    rd = p.get('rd') if p.get('rd') is not None else x.get('rd')
+    if isinstance(rd, str) and rd.strip():
+        m = re.match(r'^[’\']?(\d{2,4})\.(\d{1,2})\.(\d{1,2})\.?$', rd.strip())
+        if m:
+            y = m.group(1); y = ('20' + y) if len(y) == 2 else y
+            return {'d': f'{y}-{int(m.group(2)):02d}-{int(m.group(3)):02d}', 'b': '서울시 모아타운 대상지 권리산정기준일 고시', 'u': 'https://news.seoul.go.kr/citybuild/archives/525003'}
+    dz = ((p.get('dt') or x.get('dt') or {}).get('구역지정'))
+    if dz and (x.get('s') or 0) >= 2: return {'d': dz[:10], 'b': '정비구역 지정 고시일(도시정비법 제77조 원칙) · 별도 고시가 있었다면 그 날짜', 'u': 'https://www.law.go.kr/법령/도시및주거환경정비법/제77조'}
+    return None
+def rights_inherit(recs, P):
+    moas = [m for m in recs if m.get('src') == 'moa' and m.get('ll')]
+    n = 0
+    for c in recs:
+        if c.get('src') != 'official' or not c.get('ll') or not re.search(r'모아|가로주택|소규모', (c.get('n') or '') + (c.get('k') or '')): continue
+        best, bd = None, 1e9
+        for m in moas:
+            if m.get('g') != c.get('g'): continue
+            d = _hav(m['ll'], c['ll']); lim = math.sqrt(((m.get('sm') or {}).get('area') or 6e4) / math.pi) + 150
+            if d < lim and d < bd: bd, best = d, m
+        if not best: continue
+        c['parent'] = best['id']
+        p = (P or {}).get(c['id']) or {}
+        if c.get('rdx') or (p.get('rd') or c.get('rd')) or ((p.get('dt') or c.get('dt') or {}).get('구역지정')) or not re.search(r'가로|모아', c.get('k') or ''): continue
+        pv = _rd_of(best, P)
+        if not pv: continue
+        c['rdx'] = {'d': pv['d'], 'b': f"소속 모아타운({short(best['n'])})의 권리산정기준일 · {pv['b']}", 'u': pv['u'], 'c': 'high' if 'news.seoul' in (pv.get('u') or '') else 'mid', 'inh': best['id']}
+        n += 1
+    return n

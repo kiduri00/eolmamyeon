@@ -71,39 +71,78 @@ if __name__ == '__main__':
 
 
 # ---- 첫 페인트(빌드가 기본 금액으로 채움) — src/hmini.js와 같은 식 ----
-OFF = [[0, 0], [0, -1], [0, 1], [1, 0], [-1, 0], [1, -1], [-1, -1], [1, 1], [-1, 1], [0, -1.6], [0, 1.6], [1.6, 0], [-1.6, 0]]
+# c4 최종: 지도 서울 줌과 같은 표기('✓ 은평 8' 태그 → 노란 숫자 원 → 가장 덜 겹치는 둘레) · 자리는 픽셀(미니 지도 칸 폭 290 기준)
 DT = {0.5: '5,000만', 1: '1억', 1.5: '1.5억', 2: '2억', 3: '3억', 5: '5억'}
+CK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+import math
 
 
-def place(W, H, L):
-    put, r, out = [], W * 0.044, []
-    step = r * 1.45
-    for name, px, py in L:
-        x0, y0, best = px / 100 * W, py / 100 * H, None
-        for ox, oy in OFF:
-            x, y = x0 + ox * step, y0 + oy * step
-            if x < r or x > W - r or y < r or y > H - r: continue
-            if all((q[0] - x) ** 2 + (q[1] - y) ** 2 >= 4.4 * r * r for q in put): best = (x, y); break
-        if best is None: best = (x0, y0)
-        put.append(best)
-        out.append((name, f'{best[0] / W * 100:.2f}%', f'{best[1] / H * 100:.2f}%'))
+def tw(t, px):
+    w = 0.0
+    for ch in str(t):
+        c = ord(ch); w += 0.95 if 0xac00 <= c <= 0xd7a3 else 0.28 if c == 32 else 0.6 if 48 <= c <= 57 else 0.62
+    return math.ceil(w * px)
+
+
+def sn(g): return g[:-1] if len(g) > 2 and g.endswith('구') else g
+
+
+def _ring(rs):
+    out = []
+    for r in rs:
+        for k in range(8): out.append([round(r * math.cos(k * math.pi / 4)), round(r * math.sin(k * math.pi / 4))])
+    return out
+
+
+NU = [[0, 0], [0, -12], [0, 12], [-16, 0], [16, 0], [-12, -10], [12, -10], [-12, 10], [12, 10]]
+NU3 = NU + _ring([16, 24]); NU4 = NU3 + _ring([32, 40])
+
+
+def jround(x): return math.floor(x + 0.5)   # JS Math.round
+
+
+def place(PW, PH, L, TB=1):
+    put, out, G = [], [], 2
+    hit = lambda a, b: a[0] < b[2] + G and b[0] < a[2] + G and a[1] < b[3] + G and b[1] < a[3] + G
+    inb = lambda b: b[0] >= 2 and b[2] <= PW - 2 and b[1] >= 2 and b[3] <= PH - 2
+    for g, px, py, n in L:
+        x0, y0, got = px / 100 * PW, py / 100 * PH, None
+        S = [(math.ceil((tw(sn(g) + ' ' + str(n), 12) + 15 + 3 + 11) * 1.04 * TB), math.ceil(24 * TB), NU, 'tag'), (math.ceil((tw(sn(g) + ' ' + str(n), 11) + 13 + 2 + 8) * 1.04 * TB), math.ceil(22 * TB), NU, 'tagx'), (math.ceil(max(22, tw(str(n), 12.5) + 8) * TB) + 4, math.ceil(22 * TB) + 4, NU3, 'num')]
+        for w, h, nu, kd in S:
+            for dx, dy in nu:
+                x, y = x0 + dx, y0 + dy; b = (x - w / 2, y - h / 2, x + w / 2, y + h / 2)
+                if inb(b) and not any(hit(q, b) for q in put): got = (x, y, b, kd); break
+            if got: break
+        if not got:
+            w, h, best = S[2][0], S[2][1], None
+            for i, (dx, dy) in enumerate(NU4):
+                x = max(2 + w / 2, min(PW - 2 - w / 2, x0 + dx)); y = max(2 + h / 2, min(PH - 2 - h / 2, y0 + dy)); b = (x - w / 2, y - h / 2, x + w / 2, y + h / 2); a = i * 0.01
+                for q in put:
+                    ox = min(q[2], b[2]) - max(q[0], b[0]); oy = min(q[3], b[3]) - max(q[1], b[1])
+                    if ox > 0 and oy > 0: a += ox * oy
+                if best is None or a < best[3]: best = (x, y, b, a)
+            got = (best[0], best[1], best[2], 'num')
+        put.append(got[2])
+        out.append((g, f'{got[0] / PW * 100:.2f}%', f'{got[1] / PH * 100:.2f}%', got[3]))
     return out
 
 
 def paint(html, cnt):
-    """빌드 때 미니 지도 HTML에 구별 곳 수를 넣는다(ZP_HM.paint와 같은 결과)."""
+    """빌드 때 미니 지도 HTML에 구별 곳 수를 넣는다(ZP_HM.paint와 같은 결과 · 칸 폭 290)."""
     bk = lambda n: 3 if n >= 6 else 2 if n >= 3 else 1 if n >= 1 else 0
     html = re.sub(r'<path class="hm-g" data-gu="([^"]+)"', lambda m: f'<path class="hm-g" data-gu="{m.group(1)}" data-b="{bk(cnt.get(m.group(1), 0))}"', html)
     vb = re.search(r'viewBox="0 0 (\d+) (\d+)"', html); W, H = int(vb.group(1)), int(vb.group(2))
+    PW = 290; PH = PW * H / W
     B = re.findall(r'<button type="button" class="hm-gb" data-gu="([^"]+)" data-x="([\d.]+)" data-y="([\d.]+)"', html)
-    on = [(g, float(x), float(y)) for g, x, y in B if cnt.get(g, 0) > 0]
-    on.sort(key=lambda t: -cnt[t[0]])
-    pos = {g: (l, t) for g, l, t in place(W, H, on)}
+    on = [(g, float(x), float(y), cnt[g]) for g, x, y in B if cnt.get(g, 0) > 0]
+    on.sort(key=lambda t: -t[3])   # 같은 곳 수는 원래 차례(JS sort도 안정 정렬)
+    pos = {g: (l, t, k) for g, l, t, k in place(PW, PH, on)}
     def rb(m):
         g = m.group(1); n = cnt.get(g, 0)
         if not n: return m.group(0)
-        l, t = pos[g]
-        return f'<button type="button" class="hm-gb" data-gu="{g}" data-x="{m.group(2)}" data-y="{m.group(3)}" style="left:{l};top:{t}" aria-label="{g} 갈 수 있는 곳 {n}곳, 그 구 지도 보기">{n}</button>'
+        l, t, k = pos[g]
+        inner = f'<span class="hm-in">{n:,}</span>' if k == 'num' else f'<span class="hm-in"><i class="zg-ck">{CK}</i><span class="gn">{sn(g)}</span> <b class="mn">{n:,}</b></span>'
+        return f'<button type="button" class="hm-gb hm-t{" hm-n" if k == "num" else " hm-x" if k == "tagx" else ""}" data-gu="{g}" data-x="{m.group(2)}" data-y="{m.group(3)}" style="left:{l};top:{t}" aria-label="{g} 갈 수 있는 곳 {n}곳, 그 구 지도 보기">{inner}</button>'
     return re.sub(r'<button type="button" class="hm-gb" data-gu="([^"]+)" data-x="([\d.]+)" data-y="([\d.]+)" style="[^"]*" hidden>0</button>', rb, html)
 
 
