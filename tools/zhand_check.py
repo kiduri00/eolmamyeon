@@ -123,6 +123,12 @@ for rid, vals in sorted(V.get('old', {}).items()):
         car = re.search(r'<section class="zh-car".*?</section>', h, re.S)
         chk(not car or not re.search(r'10년 안 준공 가능성 \d', car.group(0)), f'{rid}: 준공 통계 생략 구역인데 요약 카드에 가능성 숫자')
 # /gu 해설은 '한눈에' 자동 문단이 이미 말한 숫자(곳 수·방식별 수·관리처분 뒤 곳 수·계산된 곳 수·가운데 값·토지거래허가 곳 수·거래 건수·가장 오래 머문 곳·가장 많은 단계)를 다시 쓰지 않는다(애드센스 레드팀 c1: 영등포 6 vs 9)
+_J0 = lambda p: J(p) if os.path.exists(os.path.join(ROOT, p)) else {}
+CHG, AUC, TDJ = _J0('public/data/changes.json'), _J0('public/data/auction.json'), _J0('public/data/today.json')
+from zhand import tho_today; THZ = tho_today()[0]   # 오늘 카드와 같은 셈(주거용 허가 30일)
+GUZ = collections.defaultdict(set)   # /gu 목록과 같은 '진행 중' 기준(tools/zpages.py R)
+for r in _J0('pipeline/data.enriched.json').get('recs') or []:
+    if not (r.get('s', 0) >= 9 or (r.get('dn') and r.get('s', 0) < 7)) and r.get('src') != 'moa' and r.get('n'): GUZ[r['g']].add(r['id'])
 GU_DUP = {'n', 'nRedev', 'nRebuild', 'nSmall', 'late', 'listed', 'med', 'medVsSeoul', 'seoulMed', 'tx12', 'txTop', 'th', 'thPct', 'loanOnly', 'stallList'}
 for g, vals in sorted(V.get('gu', {}).items()):
     src = J(f'content/gu/{g}.json'); used = set(re.findall(r'\{\{(\w+)\}\}', json.dumps(src, ensure_ascii=False)))
@@ -146,6 +152,12 @@ for g, vals in sorted(V.get('gu', {}).items()):
     for cap, k in ((2, 'b2'), (3, 'b3'), (5, 'b5'), (8, 'b8')):
         # 목록 금액은 올림 꼴(ZF.cash) — 꼴이 cap 이하인 곳 수는 실제 값 cap 이하 곳 수와 같다(올림이라 cap 경계를 넘지 않음)
         chk(sum(1 for m in ms if m <= cap + 1e-9) == int(vals[k]), f'/gu/{g}: {cap}억 이하 곳 수 목록 {sum(1 for m in ms if m <= cap + 1e-9)} ≠ {vals[k]}')
+    if 'tho30' in vals:   # 사이클 5 C: '이번 달 흐름' 숫자 == 시트(toheo n30)·소식(changes trade cnt)·일정(auction 매각기일 남은 물건)에서 다시 센 값
+        ids = GUZ.get(g, set())
+        chk(vals['tho30'] == f"{sum((THZ.get(i) or [0, 0])[1] for i in ids):,}", f'/gu/{g}: tho30 {vals["tho30"]} ≠ 오늘 묶음(today.py) 다시 센 값')
+        if TDJ.get('asOf') == CHG.get('asOf') and TDJ.get('tho') is not None: chk(vals['tho30'] == f"{sum(((TDJ.get('tho') or {}).get(i) or [0, 0])[1] for i in ids):,}", f'/gu/{g}: tho30 {vals["tho30"]} ≠ public/data/today.json tho')
+        chk(vals['tx30'] == f"{sum(e.get('cnt') or 1 for e in CHG.get('items') or [] if e.get('type') == 'trade' and e.get('id') in ids and not e.get('x')):,}", f'/gu/{g}: tx30 {vals["tx30"]} ≠ changes.json 다시 센 값')
+        chk(vals['auc'] == f"{sum(1 for i in ids for x in (AUC.get('byZone') or {}).get(i, []) if x.get('date', '') >= (AUC.get('asOf') or '') and x.get('st') != 'gone')}", f'/gu/{g}: auc {vals["auc"]} ≠ auction.json 다시 센 값')
     t = TXT[os.path.join('gu', g + '.html')]; ss = sents(t); tot = sum(len(x) for x in ss) or 1; u = sum(len(x) for x in ss if freq[norm(x)] <= 2)
     rep.append(('gu:' + g, len(t), round(100 * u / tot), '', ''))
 # 사이클 3(애드센스 레드팀 c2): 광고 리터럴 태그가 있는 정적 페이지는 광고 칸이 1개 이상(태그만 있고 칸 0이던 손글 4편)

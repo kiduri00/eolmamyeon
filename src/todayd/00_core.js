@@ -42,4 +42,6 @@
   Y.radar = (ctx) => { const T = Y.T(), k = `${ctx.cash()}|${ctx.gap()}|${T && T.asOf}`; if (RC && RC.k === k) return RC; const r = T ? Z.radar(T, rctx(ctx)) : { nw: [], far: [], near: [] }; return (RC = Object.assign(r, { k })); };
   // 조금만 더(3,000만 안): ZP_today.radar near와 같은 거르기, 다 센 수(레이더는 가까운 5곳만 돌려줌) — 구역 1천여 곳이라 한 번 세고 금액·방식이 바뀔 때만 다시
   Y.near = (ctx) => { const T = Y.T(), c = ctx.cash(), k = `${c}|${ctx.gap()}|${T && T.asOf}`; if (NC && NC.k === k) return NC; const m = muteZ(ctx), L = []; for (const id in ctx.byId) { if (m.has(id)) continue; let z = null; try { z = ctx.zst(ctx.byId[id]); } catch (e) {} if (z && z.st === "near" && z.need != null && z.need - c <= 0.3 + 1e-9) L.push({ id, need: z.need, gap: z.need - c }); } L.sort((a, b) => a.gap - b.gap || a.need - b.need); return (NC = { k, n: L.length, top: L.slice(0, 5) }); };
+  // 구역 시트 '토지거래허가' 첫 줄(56_toheo): 오늘 카드·/gu와 같은 셈 — today.json tho[구역][1] 최근 30일 주거용 허가 · 문구 feed_words.json tho.sheet/none/note
+  Y.th1 = (id, since, el) => { const t = Y.T(), v = t && t.tho && t.tho[id], H = W.tho; if (!el || !t || !H) return; el.textContent = v && v[1] ? Y.f(H.sheet, { n: v[1], d: Z.md(t.tho_d || t.asOf) }) + " · " + H.note : Y.f(H.none, { since }); el.hidden = false; };
 })();
