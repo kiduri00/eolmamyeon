@@ -3092,7 +3092,7 @@ async function tappLane(browser, api, errs) {
       await page.click("#tFeed .tf-it[data-open]"); await page.waitForTimeout(1500);
       const z = await page.evaluate(() => { const r = document.getElementById("report").getBoundingClientRect(); return { sheet: document.getElementById("report").classList.contains("sheet") && r.height > innerHeight * 0.6 && r.width > innerWidth * 0.9 && !!document.getElementById("repTitle") && document.getElementById("repTitle").getBoundingClientRect().height > 0, h: location.hash.slice(1) }; });
       await page.goBack({ waitUntil: "commit" }).catch(() => {}); await page.waitForTimeout(800);
-      await page.click("#tSegM"); await page.waitForTimeout(400);
+      await page.click('#nwSeg [data-nseg="mine"]'); await page.waitForTimeout(400);
       const mine = await page.evaluate(() => ({ seg: document.getElementById("news").dataset.tseg, mineVis: getComputedStyle(document.querySelector("#news > .nw-mine")).display !== "none", feedVis: getComputedStyle(document.getElementById("tFeed")).display !== "none" }));
       expect(cntOk && f.rows > 0 && au.length > 0 && au.every((t) => t === "경매") && z.sheet && mine.seg === "mine" && mine.mineVis && !mine.feedVis, "tapp.feed", T, `chips ${JSON.stringify(f.ch)} expect all ${all} ${JSON.stringify(EXP)} (raw ${raw} ${JSON.stringify(RAW)} · 합친 소식 항목 합 ${sumN}) · rows ${f.rows} · auction tags ${au.length}/${au.filter((t) => t === "경매").length} · open ${id} ${JSON.stringify(z)} · mine ${JSON.stringify(mine)}`);
     } catch (e) { bad("runtime", "검사 실행", "tapp.feed crashed: " + String(e.message || e).split("\n")[0]); }
@@ -3424,8 +3424,10 @@ async function tappLane(browser, api, errs) {
       await appHome(page); await page.waitForTimeout(300);
       await page.click("#tOnb [data-onext]"); await page.waitForTimeout(200);
       await page.click("#tOnb [data-onext]"); await page.waitForTimeout(600);
-      const o = await page.evaluate(() => ({ cta: !!document.querySelector("#tOnb [data-oalert]"), txt: (document.querySelector("#tOnb .tob-body") || {}).textContent }));
-      expect(o.cta && keyReq >= 1, "tapp.onbPush", T, `key ${keyReq} ${JSON.stringify(o).slice(0, 200)}`);
+      // 사이클 5 D: 3/3은 '아침에 받기' 칸(지연 묶음 · 빈도 기본 '중요한 것만') — 단추는 [data-mogo], 권한은 누를 때만
+      await page.waitForSelector("#tOnb [data-mogo]", { timeout: 6000 }).catch(() => {});
+      const o = await page.evaluate(() => ({ cta: !!document.querySelector("#tOnb [data-oalert], #tOnb [data-mogo]"), f: (document.querySelector('#tOnb [data-mof][aria-checked="true"]') || {}).dataset?.mof || "", txt: (document.querySelector("#tOnb .tob-body") || {}).textContent }));
+      expect(o.cta && o.f === "i" && keyReq >= 1, "tapp.onbPush", T + " · 사이클 5: '아침에 받기' 단추 · 빈도 기본 '중요한 것만'", `key ${keyReq} ${JSON.stringify(o).slice(0, 200)}`);
     } catch (e) { bad("runtime", "검사 실행", "tapp.onbPush crashed: " + String(e.message || e).split("\n")[0]); }
     finally { await ctx.close().catch(() => {}); }
   }
@@ -3462,7 +3464,7 @@ async function tappLane(browser, api, errs) {
       const L = [...await scan("home")];
       await page.click('#sNav [data-nav="map"]'); await page.waitForTimeout(1200); L.push(...await scan("map"));
       await page.click('#sNav [data-nav="my"]'); await page.waitForTimeout(900); L.push(...await scan("my"));
-      await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(900); L.push(...await scan("news")); await page.click("#tSegM"); await page.waitForTimeout(500); L.push(...await scan("news-mine"));
+      await page.click('#sNav [data-nav="news"]'); await page.waitForTimeout(900); L.push(...await scan("news")); await page.click('#nwSeg [data-nseg="mine"]'); await page.waitForTimeout(500); L.push(...await scan("news-mine"));
       for (const k of ["rank", "calc", "save", "commute"]) { await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(500); await page.click(`#tHome .th-grid a[data-tile="${k}"]`); await page.waitForTimeout(1000); L.push(...await scan(k)); }
       const want = cs === "light" ? ["rgb(242, 244, 246)", "rgb(255, 255, 255)", "rgb(25, 31, 40)"] : ["rgb(27, 30, 36)", "rgb(58, 64, 75)", "rgb(229, 232, 235)"];
       const badL = L.filter((x) => x[1] !== want[0] || x[2] !== want[1] || x[3] !== want[2]);
@@ -3546,7 +3548,7 @@ async function tappLane(browser, api, errs) {
         await appHome(page);
         const AX = async (k) => { await page.addScriptTag({ content: AXE }).catch(() => {}); return (await page.evaluate(async () => { /* 색이 바뀌는 중(0.18초 전환)에 재면 중간 색으로 대비를 잼 — 돌고 있는 CSS 전환이 끝난 뒤(최대 1.5초) */ await new Promise((res) => { const t0 = performance.now(); (function f() { const a = (document.getAnimations ? document.getAnimations() : []).filter((x) => x.playState === "running" && x.constructor && x.constructor.name === "CSSTransition"); if (!a.length || performance.now() - t0 > 1500) return res(); setTimeout(f, 50); })(); }); const r = await window.axe.run(document, { resultTypes: ["violations"] }); return r.violations.filter((x) => x.impact === "serious" || x.impact === "critical").flatMap((x) => x.nodes.slice(0, 2).map((n) => x.id + " " + n.target.join(" "))); })).map((x) => k + " " + x); };
         const v = [...await AX("home")];
-        for (const k of ["map", "fav", "news", "my"]) { await page.click(`#sNav [data-nav="${k}"]`); await page.waitForTimeout(1100); v.push(...await AX(k)); if (k === "news") { await page.click("#tSegM"); await page.waitForTimeout(500); v.push(...await AX("news-mine")); } }
+        for (const k of ["map", "fav", "news", "my"]) { await page.click(`#sNav [data-nav="${k}"]`); await page.waitForTimeout(1100); v.push(...await AX(k)); if (k === "news") { for (const sg of ["mine", "today", "cal", "wk"]) { await page.click(`#nwSeg [data-nseg="${sg}"]`); await page.waitForTimeout(900); v.push(...await AX("news-" + sg)); } }   // 사이클 5 D: 소식 4칸(예전 tf-seg 두 칸) }
         for (const k of ["rank", "commute", "diag", "rules", "stats", "calc", "save"]) { await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(500); await page.click(`#tHome .th-grid a[data-tile="${k}"]`); await page.waitForTimeout(1100); v.push(...await AX(k)); }
         await page.click('#sNav [data-nav="home"]'); await page.waitForTimeout(500);
         await page.evaluate(() => { location.hash = "o497"; }); await page.waitForTimeout(1500); v.push(...await AX("sheet"));
@@ -3743,7 +3745,7 @@ async function tappLane(browser, api, errs) {
         await page.goto(BASE + "/#news", { waitUntil: "load" }); await page.waitForTimeout(2500);
         const ch = await page.evaluate(() => [...document.querySelectorAll("#tFeed .tf-chips button, #news .tf-chips button")].filter((b) => b.offsetParent).map((b) => b.getAttribute("aria-label") || ""));
         if (!ch.length || ch.some((l) => !/^\S.* [\d,]+건, 새 소식 [\d,]+건$/.test(l))) R.push("소식 칩 aria " + JSON.stringify(ch));
-        await page.click("#tSegM").catch(() => {}); await page.waitForTimeout(1200);
+        await page.click('#nwSeg [data-nseg="mine"]').catch(() => {}); await page.waitForTimeout(1200);
         const fc = await page.evaluate(() => { const c = document.querySelector('#ntcF [data-c="fav"]'); return c ? c.textContent.replace(/N$/, "").trim() : "none"; });
         if (fc !== "내 구역만" && fc !== "none") R.push("관심 구역 칩 " + fc);
         await page.goto(BASE + "/#statsTop", { waitUntil: "load" }); await page.waitForTimeout(2500);

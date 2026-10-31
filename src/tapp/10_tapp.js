@@ -573,7 +573,7 @@ function onbPaint(focus) {
   if (!ob) return;
   ob.innerHTML = onbHTML();
   // 사이클 5 D: 3/3 아침에 받기(빈도·권한은 그 칸 단추에서만 · src/lazy/73_today.js)
-  const mo = $("tobMorn"); if (mo) T(() => ZP_TODAY.yLoad().then((Y) => Y.morning(mo, ZP_TODAY.ctx(), "tonb")));
+  const mo = $("tobMorn"); if (mo) T(() => ZP_TODAY.wLoad().then((Y) => Y.morning(mo, ZP_TODAY.ctx())));
   if (focus) { const h = $("tobT"); if (h) h.focus({ preventScroll: true }); }
 }
 function onbOpen() {

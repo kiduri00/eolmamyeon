@@ -18,7 +18,9 @@ const TDAY = (() => {
     if (s) s.addEventListener("click", (e) => { const b = e.target.closest("[data-nseg]"); if (b) run((Y, c) => Y.seg(c, b.dataset.nseg, true)); });
     if (s) s.addEventListener("keydown", (e) => { if (/^(Arrow(Left|Right)|Home|End)$/.test(e.key)) { e.preventDefault(); run((Y, c) => Y.segKey(c, e)); } });
     addEventListener("zp:view", (e) => { if (e.detail === "news") run((Y, c) => Y.enter(c)); });
-    addEventListener("zp:alias", (e) => run((Y, c) => Y.alias(c, e.detail)));
+    // 빠른 메뉴 경공매·고시공고(예전 주소 #ntcTop 등): 고시·단계 기록이 있는 칸을 바로 보이게(묶음을 기다리지 않음 · 웹 '서울 오늘' · 앱 '내 소식') → 내용은 묶음이
+    const al = (d) => { if (!/^(ntc|auc|new|supply)Top$/.test(d || "")) return; window.__zpAlias = ""; const n = $("news"), v = document.documentElement.classList.contains("is-tapp") ? "mine" : "today"; window.__zpNseg = v; if (n) { n.dataset.nseg = v; n.querySelectorAll("#nwSeg [role=tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.nseg === v))); } run((Y, c) => Y.alias(c, d)); };
+    addEventListener("zp:alias", (e) => al(e.detail)); al(window.__zpAlias);
     const n = $("news"); if (n && n.classList.contains("s-on")) run((Y, c) => Y.enter(c));
     // 오늘 카드: 화면에 보이거나 쉴 때(최대 3초)·첫 손길에 개인 줄(사이클 5 M ZP_lazy.when)
     const card = $("tdCard");

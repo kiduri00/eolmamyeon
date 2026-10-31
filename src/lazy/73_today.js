@@ -44,6 +44,9 @@
   // 새로 가능 · 멀어짐(같은 금액·방식·자료면 다시 세지 않음) — nw 수 = 목록 '이번 주 새로 가능' 칩 수(60_simple isNew = ZP_today.isNew + 앱 판정)
   Y.radar = (ctx) => { const T = Y.T(), k = `${ctx.cash()}|${ctx.gap()}|${T && T.asOf}`; if (RC && RC.k === k) return RC; const r = T ? Z.radar(T, rctx(ctx)) : { nw: [], far: [], near: [] }; return (RC = Object.assign(r, { k })); };
   // 조금만 더(3,000만 안): ZP_today.radar near와 같은 거르기, 다 센 수(레이더는 가까운 5곳만 돌려줌) — 구역 1천여 곳이라 한 번 세고 금액·방식이 바뀔 때만 다시
+  // 이미 센 값만(없으면 null) · 세기는 쉴 때(Y.nearLater) — 소식 탭 열기·카드 채우기 한 덩이를 줄인다(INP·TBT)
+  Y.nearC = (ctx) => { const T = Y.T(); return NC && NC.k === `${ctx.cash()}|${ctx.gap()}|${T && T.asOf}` ? NC : null; };
+  Y.nearLater = (ctx, f) => (window.requestIdleCallback ? (g) => requestIdleCallback(g, { timeout: 1500 }) : (g) => setTimeout(g, 200))(() => { Y.near(ctx); f(); });
   Y.near = (ctx) => { const T = Y.T(), c = ctx.cash(), k = `${c}|${ctx.gap()}|${T && T.asOf}`; if (NC && NC.k === k) return NC; const m = muteZ(ctx), L = []; for (const id in ctx.byId) { if (m.has(id)) continue; let z = null; try { z = ctx.zst(ctx.byId[id]); } catch (e) {} if (z && z.st === "near" && z.need != null && z.need - c <= 0.3 + 1e-9) L.push({ id, need: z.need, gap: z.need - c }); } L.sort((a, b) => a.gap - b.gap || a.need - b.need); return (NC = { k, n: L.length, top: L.slice(0, 5) }); };
   // 구역 시트 '토지거래허가' 첫 줄(56_toheo): 오늘 카드·/gu와 같은 셈 — today.json tho[구역][1] 최근 30일 주거용 허가 · 문구 feed_words.json tho.sheet/none/note
   Y.th1 = (id, since, el) => { const t = Y.T(), v = t && t.tho && t.tho[id], H = W.tho; if (!el || !t || !H) return; el.textContent = v && v[1] ? Y.f(H.sheet, { n: v[1], d: Z.md(t.tho_d || t.asOf) }) + " · " + H.note : Y.f(H.none, { since }); el.hidden = false; };
@@ -75,7 +78,8 @@
     return `<button type="button" class="td-r td-spot" data-open="${e(x.id)}"><i class="td-tg t-${x.type}">${TAG[x.type]}</i><span class="td-rt"><b>${e(Y.name(ctx, x.id))}</b><small>${e(clean(x.text))}</small></span>${Y.chev}</button>`;
   }
   function rowMoney(ctx) {
-    const R = Y.radar(ctx), N = Y.near(ctx), P = [];
+    const R = Y.radar(ctx), N = Y.nearC(ctx) || { n: 0 }, P = [];
+    if (!Y.nearC(ctx)) Y.nearLater(ctx, () => { const a = document.querySelector('#tdMe [data-tdgo="rad"]'); if (a) a.outerHTML = rowMoney(ctx); });
     if (R.nw.length) P.push(`<em class="td-new">${e(Y.f(U.nw, { n: R.nw.length }))}</em>`);
     if (R.far.length) P.push(e(Y.f(U.far, { n: R.far.length })));
     const near = N.n ? e(Y.f(U.near, { n: N.n })) : "";
@@ -165,7 +169,7 @@
       try { ctx.pins.condSave(); } catch (er) {}
       const r = await ctx.inbox.subscribe(t);
       const m = box.querySelector("[data-mom]");
-      if (r && r.ok) { const w = box.dataset.mo; box.outerHTML = boxHTML(ctx, w); try { window.dispatchEvent(new Event("zp:alerts")); } catch (er) {} const f = w === "tonb" && document.querySelector("#tOnb .tob-foot"); if (f) f.innerHTML = '<button type="button" class="tob-go" data-odone>시작하기</button>'; }
+      if (r && r.ok) { box.outerHTML = boxHTML(ctx, box.dataset.mo); try { window.dispatchEvent(new Event("zp:alerts")); } catch (er) {} }
       else if (m) { m.textContent = (r && r.msg) || "알림을 켜지 못했어요 · MY › 알림 설정에서 다시 켤 수 있어요"; if (r && r.denied) t.hidden = true; }
     });
   };
@@ -187,8 +191,6 @@
       p = card.querySelector("#tdMo"); Y.mornBind(ctx, p); const g = p.querySelector("[data-mof]"); if (g) g.focus();
     });
   };
-  // 설치 앱 처음 안내 3/3 칸에 끼우기(src/tapp onbHTML이 자리 #tobMorn을 둠)
-  Y.morning = (el, ctx, where) => { if (!el) return; Y.css(); el.innerHTML = boxHTML(ctx, where || "tonb"); Y.mornBind(ctx, el); };
 })();
     this.Y = window.ZPT;
   }

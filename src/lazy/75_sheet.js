@@ -113,6 +113,8 @@
     el.hidden = false; requestAnimationFrame(() => el.classList.add("on"));
   };
 })();
+    // 설치 앱 처음 안내 3/3 칸(src/tapp onbHTML 자리 #tobMorn) — 켜지면 아래 단추를 '시작하기'로
+    window.ZPT.morning = (el, ctx) => { if (!el) return; el.innerHTML = window.ZPT.mornBox(ctx, "tonb"); window.ZPT.mornBind(ctx, el); addEventListener("zp:alerts", () => { const f = document.querySelector("#tOnb .tob-foot"); if (f && ctx.inbox.st().on) f.innerHTML = '<button type="button" class="tob-go" data-odone>시작하기</button>'; }, { once: true }); };
     this.Y = window.ZPT;
   }
   return this.Y;

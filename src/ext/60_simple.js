@@ -1149,6 +1149,7 @@ const SIMPLE = (() => {
     // 예전 주소(#txrTop 등) → 합친 화면 + 그 탭(66_tools.js ZP_HUB)
     const from = id, al = ALIAS[id];
     if (al) { id = al[0]; try { window.ZP_HUB && ZP_HUB.pick(al[0], al[1]); } catch (e) {} }
+    window.__zpAlias = from;   // 사이클 5 D: 콜드 진입(#aucTop 등)은 소식 칸 코드(73_today)가 붙기 전에 알림이 지나간다 → 기억해 둠
     try { window.dispatchEvent(new CustomEvent("zp:alias", { detail: from })); } catch (e) {}   // 21차: 빠른 메뉴 '경공매'(#aucTop)·'고시공고'(#ntcTop) → 소식 거르기 칩
     if (!IDS.includes(id)) return false;
     if (!cur && !noScroll) tileY = scrollY;   // 홈 화면이 숨기 전에(숨으면 문서가 짧아져 scrollY가 줄어든다)

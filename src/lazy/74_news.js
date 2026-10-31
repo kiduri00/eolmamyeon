@@ -33,7 +33,8 @@
     Y.seg(ctx, SEGS[j], true); const b = document.querySelector(`#nwSeg [data-nseg="${SEGS[j]}"]`); if (b) b.focus();
   };
   // 고시·단계 기록(빠른 메뉴 경공매·고시공고가 가는 곳)이 있는 칸: 웹 '서울 오늘' · 앱 '내 소식'(예전 자리)
-  Y.alias = (ctx, d) => { if (/^(ntc|auc|new|supply)Top$/.test(d)) Y.seg(ctx, Y.tapp() ? "mine" : "today", true); };
+  // 빠른 메뉴 경공매·고시공고: 그 칸을 열고 고시·단계 기록 머리가 보이게(서울 오늘 7일 목록 아래에 있어서)
+  Y.alias = (ctx, d) => { if (!/^(ntc|auc|new|supply)Top$/.test(d)) return; Y.seg(ctx, Y.tapp() ? "mine" : "today", true); const go = () => { const t = document.querySelector("#news .nw-oh"), hd = document.getElementById("hdr"); if (t) { const y = t.getBoundingClientRect().top + scrollY - ((hd && hd.offsetHeight) || 56) - 8; window.scrollTo({ top: y, behavior: "instant" }); if (Math.abs(scrollY - y) > 4) document.scrollingElement.scrollTop = y; } }; document.readyState === "complete" ? setTimeout(go, 120) : addEventListener("load", () => { setTimeout(go, 160); setTimeout(go, 900); }, { once: true }); };   // 첫 진입이면 앱의 load 뒤 맨 위 맞추기(60_simple) 다음에
   // 앱 바로가기 '오늘'(/?src=app#news?today)·알림(#news?from=today): 첫 스크립트가 # 뒤 ?를 떼어 ZP_CQ에 둔다 → 처음 한 번만 그 칸으로
   const hashSeg = () => { if (!HQ) return ""; HQ = false; try { const q = new URLSearchParams(window.ZP_CQ || ""), f = q.get("from") || q.get("seg") || ""; return q.has("today") || f === "today" ? "today" : q.has("cal") || f === "cal" ? "cal" : q.has("wk") || f === "wk" ? "wk" : ""; } catch (e) { return ""; } };
   Y.enter = (ctx) => {
@@ -43,7 +44,7 @@
     const tf = document.getElementById("tFeed"), td = document.getElementById("nwToday");
     if (tf && td && td.nextElementSibling !== tf && td.nextElementSibling?.id !== "nwT30") { let hh = document.getElementById("nwT30"); if (!hh) { hh = document.createElement("h3"); hh.className = "nw-h"; hh.id = "nwT30"; hh.textContent = "최근 30일 전체 기록"; } td.after(hh); hh.after(tf); }
     let v = NSEG;
-    const hs = hashSeg();
+    const hs = window.__zpNseg || hashSeg(); window.__zpNseg = "";   // 빠른 메뉴로 온 칸(73_today.js가 먼저 정함)이 먼저
     if (hs) { v = hs; USER = true; }
     else if (!USER) {
       let c = 0, has = false, ss = "";
@@ -112,7 +113,8 @@
   }
   // 내 돈 레이더(내 소식 칸) — ZP_today.radar 새로 가능 · 멀어짐(원인 문구 그대로) · 조금만 더(가까운 5곳)
   function radHTML(ctx, T) {
-    const R = Y.radar(ctx), N = Y.near(ctx), c = ctx.cash();
+    const R = Y.radar(ctx), N = Y.nearC(ctx) || { n: "…", top: [] }, c = ctx.cash();
+    if (!Y.nearC(ctx)) Y.nearLater(ctx, () => Y.rad(ctx));
     const row = (id, sub) => `<li><button type="button" class="nt-it" data-open="${e(id)}"><span class="td-rt"><b>${e(Y.name(ctx, id))}</b><small>${sub}</small></span></button></li>`;
     const chg = (x) => `필요한 돈 ${e(Y.cashT(ctx, x.old))} → ${e(Y.cashT(ctx, x.now))} · ${e(x.why)}`;
     const g = (h, L, f) => (L.length ? `<section class="rd-g"><h4>${h}</h4><ul>${L.map(f).join("")}</ul></section>` : "");
