@@ -136,21 +136,15 @@ const SIMPLE = (() => {
   window.ZP_stgShort = stgShort;   // 사이클 4(M): 지도 구역 카드 단계 칩도 목록 카드와 같은 짧은 이름
   const walkTxt = (r) => ZF.walkTxt(r);   // 사이클 4 D+: 역 도보 = ZF.walkTxt 한 함수(시트·지도와 같은 글자)
   const tkOf = (r) => { try { const c = buyWindow(r).cls; return c === "ok" ? "y" : c === "no" ? "n" : ""; } catch (e) { return ""; } };
-  // NEW: 이번 주(7일)에 '지금 필요한 돈'이 내려가 지금 내 돈으로 새로 갈 수 있게 된 곳(data/changes.json price 사건 · 없으면 표시 안 함)
-  let NEWP = null, newAsk = false;
+  // NEW '이번 주 새로 가능' = 레이더와 같은 정의(73_today.js TODAY.isNew · data/today.json rad: 7일 전 > 내 돈 ≥ 지금 · 원인 있음 · 계산 방식 변경 아님)
+  //   사이클 5 D: 예전엔 changes.json(145KB) price 사건을 따로 읽었다 → 오늘 카드·소식 레이더와 같은 today.json 한 자료
+  let newAsk = false;
   function newLoad() {
     if (newAsk) return; newAsk = true;
-    // 소식 탭과 같은 자료·같은 캐시(72_inbox INBOX.load) — 두 번 받지 않는다 · 첫 화면이 다 뜬 한참 뒤(한가할 때)
-    const go = () => (typeof INBOX !== "undefined" && INBOX.load ? INBOX.load() : Promise.resolve(null)).then((j) => {
-      const it = (j && Array.isArray(j.items) ? j.items : []).filter((e) => e && e.type === "price" && e.v);
-      if (!it.length) return;
-      const cut = new Date(new Date((j.asOf || D.asOf || "") + "T00:00:00+09:00").getTime() - 6 * 864e5).toISOString().slice(0, 10);
-      NEWP = new Map(); it.forEach((e) => { if (String(e.date || "") >= cut) NEWP.set(e.id, e.v); });
-      if (NEWP.size) { render(); try { LMX.paint(); } catch (er) {} }
-    }).catch(() => {});
+    const go = () => (window.ZP_TODAY ? ZP_TODAY.load() : Promise.resolve(null)).then((j) => { if (j && j.rad) { render(); try { LMX.paint(); } catch (er) {} } }).catch(() => {});
     setTimeout(() => (window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 6000 }) : (f) => setTimeout(f, 1500))(go), 5000);
   }
-  const isNew = (r, need) => { if (!NEWP || !NEWP.has(r.id) || need == null) return false; const v = NEWP.get(r.id), a = (gapMode() ? v.g : v.c) || []; return a.length === 2 && a[0] > CASH + 1e-9 && a[1] <= CASH + 1e-9 && need <= CASH + 1e-9; };
+  const isNew = (r, need) => { const T = window.ZP_TODAY; return !!(T && T.isNew(r.id, need)); };   // 73_today는 이 모듈 뒤에 정의된다(TDZ) → window로
   const HEART = (on) => `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.4 7.2 4.4c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.3 0 5.5 3.1 4.4 6.5-1.6 4.8-9.2 9.4-9.2 9.4z" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
   const heartLbl = (r, on) => `${shortName(r.n)} ${on ? "관심 구역에서 빼기" : "관심 구역에 추가"}`;
   // 목록 카드 한 장(지도 알약을 눌렀을 때 뜨는 미리보기도 같은 카드): 1줄 이름 + 단계 칩 · 2줄 구·동 · 역 도보 N분 · 오른쪽 '지금 X' / '입주까지 Y' · ♡
@@ -270,13 +264,16 @@ const SIMPLE = (() => {
     }
     // 예산 카드(#sGauge): PC는 왼쪽 목록 칸 맨 위, 폰은 검색 밑(지도 바로 위) — shell.html 첫 페인트 스크립트와 같은 규칙
     const gg = $("sGauge");
-    const place = () => {
+    let place = () => {
       // PC: 왼쪽 칸(예산 카드·목록)이 문서 순서로도 지도보다 먼저(Tab이 예산 카드 → 목록 → 지도 버튼 순)
       // 빠른 메뉴 한 줄(#sQuick, 21차): 폰은 지도 밑·목록 머리 위, PC는 왼쪽 칸 맨 아래(목록 밑)
       const qk = $("sQuick");
       if (matchMedia("(min-width:981px)").matches) { if (list.nextElementSibling !== $("report")) right.insertBefore(list, $("report")); const ob = $("onb"); if (ob && ob.parentNode !== list) list.insertBefore(ob, list.firstElementChild); if (gg && (ob ? ob.nextElementSibling : list.firstElementChild) !== gg) { if (ob) ob.after(gg); else list.insertBefore(gg, list.firstElementChild); } if (main.firstElementChild !== right) main.insertBefore(right, main.firstElementChild); const sd = $("sRd"), sh = $("sSite"); if (sh) { if (list.firstElementChild !== sh) list.insertBefore(sh, list.firstElementChild); if (sd && sh.nextElementSibling !== sd) sh.after(sd); } else if (sd && list.firstElementChild !== sd) list.insertBefore(sd, list.firstElementChild); const rd = $("sReads"), ft = document.querySelector("body > .site-foot, #sListW > .site-foot"); if (rd && rd.nextElementSibling !== ft && list.lastElementChild !== rd) list.appendChild(rd); if (qk && qk.nextElementSibling !== rd) list.insertBefore(qk, rd || null); ftPlace(); }
       else { if (main.lastElementChild !== right) main.appendChild(right); if (main.nextElementSibling !== list) main.after(list); const sen = map.querySelector(":scope > .s-sen"); if (gg && sen && sen.nextElementSibling !== gg) sen.after(gg); const ob = $("onb"); if (ob && ob.parentNode !== map && sen) sen.before(ob); const sd = $("sRd"), ss = $("sSearch"), sh = $("sSite"); if (sh && ss && sh.nextElementSibling !== ss) ss.before(sh); if (sd && ss && ss.nextElementSibling !== sd) ss.after(sd); ftPlace(); const lh = list.querySelector(":scope > .s-lh"); if (qk && lh && lh.previousElementSibling !== qk) lh.before(qk); }
     };
+    // 사이클 5 D: 오늘 카드(#tdCard)는 늘 예산 카드 바로 밑(PC 왼쪽 칸 · 폰 지도 위 · 앱 미니 지도 위)
+    const tdPlace = () => { const tc = $("tdCard"); if (tc && gg && gg.nextElementSibling !== tc) gg.after(tc); };
+    { const p0 = place; place = () => { p0(); tdPlace(); }; }
     // 26차: PC 첫 화면(목록 칸이 보일 때)은 웹 푸터를 목록 칸 맨 아래로(붙은 지도가 끝까지) · 도구 화면·폰은 본래 자리(본문 아래)
     function ftPlace() { const ft = document.querySelector(".site-foot"); if (!ft) return; const ab = document.getElementById("ftHome"); if (matchMedia("(min-width:981px)").matches && !document.documentElement.classList.contains("s-view") && getComputedStyle(list).display !== "none") { if (list.lastElementChild !== ft) list.appendChild(ft); } else if (ab && ab.nextElementSibling !== ft) ab.after(ft); }
     try { new MutationObserver(ftPlace).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}

@@ -11,6 +11,9 @@ D = json.load(open(EN, encoding='utf-8')) if os.path.exists(EN) else json.loads(
 import hm_map
 assert shell.count('/*HMMAP*/') == 1
 shell = shell.replace('/*HMMAP*/', hm_map.build(D), 1)
+# 사이클 5 D: 홈 '오늘의 재개발' 카드 서울 줄(today.json → HTML · tools/td_card.py)
+import td_card
+shell = td_card.inject(shell)
 # 사이클 2(부칙 판정 · app.js b18Of): 재개발 사업시행인가일이 2018.1.25~2020.1.24인데 신청일(b18p) 자료가 없는 구역 → b18a(인가일)
 #   첫 화면 엔진(목록·calc.json)과 시트가 같은 판정('신청일 확인 필요')을 내게 — premium.json(나중에 받음)의 날짜를 기다리지 않는다
 try:
@@ -251,7 +254,7 @@ css = S('app.css') + ext_css
 def prune_css(css):
     # 사이클 4 통합: src/tapp·src/feat·src/featx 안에서만 쓰는 클래스(.tob-cash 등)도 살린다 — 예전엔 스캔 밖이라 규칙이 지워졌다
     import glob
-    src = ''.join(open(f, encoding='utf-8').read() for f in [os.path.join(R, 'src', p) for p in ('app.js', 'shell.html', 'island.js', 'boot.js', 'ghost.js', 'hmini.js', 'contact.js', 'net.js')] + sorted(glob.glob(os.path.join(R, 'src', 'ext', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'tapp', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'feat', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'featx', '*.js'))) + sorted(glob.glob(os.path.join(R, 'tools', '*.py'))) + [os.path.join(R, 'tools', 'prerender.js')] if os.path.exists(f))
+    src = ''.join(open(f, encoding='utf-8').read() for f in [os.path.join(R, 'src', p) for p in ('app.js', 'shell.html', 'island.js', 'boot.js', 'ghost.js', 'hmini.js', 'contact.js', 'net.js')] + sorted(glob.glob(os.path.join(R, 'src', 'ext', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'tapp', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'feat', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'featx', '*.js'))) + sorted(glob.glob(os.path.join(R, 'src', 'todayd', '*.js'))) + sorted(glob.glob(os.path.join(R, 'tools', '*.py'))) + [os.path.join(R, 'tools', 'prerender.js')] if os.path.exists(f))
     words = set(re.findall(r'[\w-]+', src))
     pre = set(re.findall(r'(?<![\w-])([\w-]+-)(?=["\'`]|\$\{)', src))
     def alive(t):
@@ -351,6 +354,17 @@ g_url = emit('g', x_js)
 assert js.count('__FEATX__') == 1 and js_y.count('__FEATX__') == 1, 'app.js: __FEATX__ 자리 하나'
 js = js.replace('__FEATX__', g_url); js_y = js_y.replace('__FEATX__', g_url)
 print('featx', g_url, len(x_js.encode()), 'bytes')
+# 사이클 5 D: 화면 지연 묶음(src/todayd → /b/y.*.js · A 트랙 자료·문구 묶음 src/today → /b/n.*.js와 따로) — 오늘 카드 개인 줄·소식 서울 오늘·일정·주간·레이더·아침에 받기(카드가 보이거나 소식을 열 때만 받음)
+_YD = os.path.join(R, 'src', 'todayd')
+y_js = ''.join(open(os.path.join(_YD, f), encoding='utf-8').read() for f in sorted(os.listdir(_YD)) if f.endswith('.js'))
+y_css = ''.join(open(os.path.join(_YD, f), encoding='utf-8').read() for f in sorted(os.listdir(_YD)) if f.endswith('.css'))
+if ESB and not os.environ.get('NO_MINIFY'): y_js = mini(y_js, 'js'); y_css = mini(y_css, 'css')
+assert y_js.count('"__YCSS__"') == 1 and y_js.count('"__YWORDS__"') == 1, 'src/todayd: "__YCSS__"·"__YWORDS__" 자리 하나'
+y_js = y_js.replace('"__YCSS__"', json.dumps(y_css, ensure_ascii=False).replace('</', '<\\/')).replace('"__YWORDS__"', json.dumps(json.dumps(td_card.WD, ensure_ascii=False), ensure_ascii=False).replace('</', '<\\/'))
+y_url = emit('y', y_js)
+assert js.count('__TODAYD__') == 1 and js_y.count('__TODAYD__') == 1, 'app: __TODAYD__ 자리 하나(73_today.js)'
+js = js.replace('__TODAYD__', y_url); js_y = js_y.replace('__TODAYD__', y_url)
+print('todayd', y_url, len(y_js.encode()), 'bytes')
 a_url = emit('a', js)
 aa_url = emit('ta', js_y)   # pre-adsense 5: 설치 앱 전용(덩이로 나눠 실행) — 이름이 't'로 시작해 웹 서비스 워커의 미리 받기(/b/[a-su-z].*)에 안 걸린다(웹 방문자는 받지 않음)
 # MY > 앱 버전: 앱 코드 내용 해시(같은 코드면 같은 값 → 다시 빌드해도 첫 화면이 그대로)
