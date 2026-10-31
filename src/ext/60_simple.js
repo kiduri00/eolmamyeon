@@ -142,7 +142,7 @@ const SIMPLE = (() => {
     if (newAsk) return; newAsk = true;
     // 소식 탭과 같은 자료·같은 캐시(72_inbox INBOX.load) — 두 번 받지 않는다 · 첫 화면이 다 뜬 한참 뒤(한가할 때)
     const go = () => (typeof INBOX !== "undefined" && INBOX.load ? INBOX.load() : Promise.resolve(null)).then((j) => {
-      const it = (j && Array.isArray(j.items) ? j.items : []).filter((e) => e && e.type === "price" && e.v);
+      const it = (j && Array.isArray(j.items) ? j.items : []).filter((e) => e && e.type === "price" && e.v && !e.bf && !(e.why && e.why.includes("na")));   // 사이클 5(A): 계산 버전이 바뀐 날(bf)·원인 모름(na) 변화는 '새로 가능'이 아님
       if (!it.length) return;
       const cut = new Date(new Date((j.asOf || D.asOf || "") + "T00:00:00+09:00").getTime() - 6 * 864e5).toISOString().slice(0, 10);
       NEWP = new Map(); it.forEach((e) => { if (String(e.date || "") >= cut) NEWP.set(e.id, e.v); });

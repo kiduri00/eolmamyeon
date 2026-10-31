@@ -4837,6 +4837,8 @@ const UNITS = {
   zhand: { est: 60, limit: 400, browser: false, ext: ["python3", "tools/zhand_check.py"], files: [/^content\//, /^tools\/(zhand|zhand_check|zpages)\./, /^public\/(z|gu)\//] },
   // 사이클 4(M): 새 지도(mapx.* · tools/qa_mapx.js) — 줌별 이름표 상한·겹침 · 상태 5종 모양·글자 · 다이얼 색 시간 · 다크 대비 · 44px · 3탭 흐름 · 바탕 레벨 2 · 레이어 6칸
   mapx: { est: 300, limit: 900, solo: true, browser: false, ext: ["node", "tools/qa_mapx.js", "$BASE"], files: [/^src\/ext\/(10_lmap|11_ghost|12_mapx|65_pills|60_simple|99zzzzzzzzzz_c4map)\./, /^src\/(ghost|island|boot)\.js$/, /^src\/tapp\//, /^tools\/qa_mapx\.js$/] },
+  // 사이클 5(A): 오늘 묶음(today.* · tools/qa_today.js) — 30일 하루씩 재생 · 홈=소식=원자료=푸시 숫자 · 밀린 자료 분리 · 금지어·법적 표현 · 개인 이름 0 · 계산 버전 바뀐 날 가짜 변화 0 · ICS · 크기
+  today: { est: 15, limit: 300, browser: false, ext: ["node", "tools/qa_today.js"], files: [/^src\/today\//, /^src\/ext\/(60_simple|72_inbox)\./, /^worker\//, /^tools\/(today|changes|auction_match|tx|calc|qa_today|build)\./, /^tools\/feed_words\.json$/, /^public\/data\/(today|changes|auction)\.json$/] },
   r22: { est: 590, limit: 1500, deps: ["core"], files: [/^src\/(app\.js|data\.json|premium\.json)$/, /^src\/ext\/68_app\./, /^tools\/(enrich|calc|api)\./] },
 };
 const NHF_N = Math.min(5, +process.env.QAC_NHF_RUNS || 5);
@@ -4874,7 +4876,7 @@ async function runUnit(name, api, shortSrc, zoneIds, errs) {
       case "r30": await guard("r30Lane", r30Lane(browser, api, errs)); break;
       case "r31": await guard("r31Lane", Promise.all([r31Lane(browser, api, errs), r31Static(api)])); break;
       case "r22": { const lm = getShared("listMap"); if (lm) shared.listMap = new Map(lm); await guard("r22Lane", r22Lane(browser, api, errs, shared)); break; }
-      case "feat": case "facts": case "sync": case "brand": case "zhand": case "mapx": extUnit(name, u); break;   // 사이클 4 통합: mapx 단위 실행기가 빠져 있던 것(no runner)
+      case "feat": case "facts": case "sync": case "brand": case "zhand": case "mapx": case "today": extUnit(name, u); break;   // 사이클 4 통합: mapx 단위 실행기가 빠져 있던 것(no runner)
       default: if (/^(tapp|nhf)\d+$/.test(name)) { await guard("tappLane", tappLane(browser, api, errs)); break; } throw new Error("no runner for " + name);
     }
   } finally { if (browser) await browser.close().catch(() => {}); }

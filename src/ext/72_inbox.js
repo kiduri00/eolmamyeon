@@ -49,11 +49,11 @@ const INBOX = (() => {
   function uniq(L) { const s = new Set(); return L.filter((e) => { const k = `${e.id}|${e.date}|${e.type}|${e.text}`; if (s.has(k)) return false; s.add(k); return true; }); }
   function unread(e) {
     const s = seen(), pd = day(PINS.snapT(e.id) || 0);
-    if (e.date < pd) return false;   // 핀 꽂기 전 일은 목록에만
+    if (e.date < pd || e.bf) return false;   // 핀 꽂기 전 일·밀린 자료(bf · 사이클 5)는 목록에만(배지·푸시 숫자와 같게)
     return e.date > s.at || (e.date === s.at && !s.k.includes(e.k));
   }
   const freshN = () => { if (isOff("price")) return 0; try { return PINS.freshIds().length; } catch (e) { return 0; } };
-  const unreadC = (e) => { const s = seen(); return e.date > s.at || (e.date === s.at && !s.k.includes(e.k)); };
+  const unreadC = (e) => { const s = seen(); return !e.bf && (e.date > s.at || (e.date === s.at && !s.k.includes(e.k))); };
   // 알림 조건에 맞는 구역의 경매(핀 꽂은 구역은 핀 소식으로 이미 셈)
   // all = true: 꺼 둔 설정(종류·조건)을 무시한 셈(미리 보기 '꺼 둔 설정으로 N건 빠져요'의 기준) · 서버 match(worker/push.js)와 같은 규칙: 관심 구역(끈 구역 포함)은 조건 경로에서 빼고, 최저가 ≤ 조건 현금 × 1.1
   const condAuc = (all) => { if (!CH || (!all && isOff("auction"))) return []; const P = new Set(pinIds()), out = new Map(); (all ? (() => { try { return PINS.condsAll(); } catch (e) { return []; } })() : conds()).forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0 && !(e.mn > n.c.cash * 1.1 + 1e-9)) out.set(e.k, e); }); /* 경매: 대표 물건 최저가가 조건 현금(+10%) 안일 때만 */ }); return [...out.values()]; };
@@ -166,7 +166,10 @@ const INBOX = (() => {
   const b64 = (buf) => { const a = new Uint8Array(buf); let s = ""; for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const swReady = (ms = 8000) => Promise.race([navigator.serviceWorker.getRegistration("/").then((r) => r || navigator.serviceWorker.register("/sw.js", { scope: "/" })).then(() => navigator.serviceWorker.ready), new Promise((_, no) => setTimeout(() => no(new Error("sw")), ms))]);
   // 사이클 4: mz = 끈 구역(서버가 조건·경매·필요한 돈(price) 경로에서도 그 구역을 빼게 · worker/push.js match)
-  const payload = (sub) => { const muteZ = new Set(mute().z); return { sub: sub.toJSON(), o: off(), zones: pinOn().slice(0, 20), mz: [...muteZ].slice(0, 200), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: condZ(n.ids, muteZ) })) }; };
+  // 사이클 5(A): 알림 빈도 f = i 중요한 것만(기본) · d 매일 · w 주 1회 — localStorage zp-push-freq · 서버(worker/push.js)가 거른다
+  const FQK = "zp-push-freq", freq = () => { const v = lsR(FQK, "i"); return v === "d" || v === "w" ? v : "i"; };
+  const setFreq = (f) => { lsW(FQK, f === "d" || f === "w" ? f : "i"); sync(true); };
+  const payload = (sub) => { const muteZ = new Set(mute().z); return { sub: sub.toJSON(), f: freq(), o: off(), zones: pinOn().slice(0, 20), mz: [...muteZ].slice(0, 200), conds: conds().map((n) => ({ n: n.c.name, cash: n.c.cash, mode: n.c.mode, gu: n.c.gu || "", kind: n.c.kind || "", minS: n.c.minS || 0, z: condZ(n.ids, muteZ) })) }; };
   // 사이클 3(F9): 조건 구역은 경매 소식이 있는 구역 먼저, 상한 500(worker/push.js MAXCZ와 같음) — 150에서 잘려 앱 소식(condAuc)에는 있는데 폰 알림이 오지 않던 것
   const CZMAX = 500;
   const condZ = (ids, muteZ) => { const A = new Set(CH ? CH.items.filter((e) => e.type === "auction").map((e) => e.id) : []), L = ids.filter((id) => !muteZ.has(id)); return L.filter((id) => A.has(id)).concat(L.filter((id) => !A.has(id))).slice(0, CZMAX); };   // 사이클 2: 끈 구역은 조건 경로(conds[].z)에서도 뺀다(서버가 조건 경매로 보내던 누수)
@@ -346,7 +349,10 @@ const INBOX = (() => {
   function setMute(t, id, on) { const m = mute(), L = new Set(m[t]); if (on) L.delete(id); else L.add(id); m[t] = [...L]; lsW(MUK, m); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
   const isMuted = (t, id) => mute()[t].includes(id);
   function setKind(k, on) { const O = new Set(off()); if (on) O.delete(k); else O.add(k); lsW(OK_, [...O]); paint(); try { window.NEWB && NEWB.paint(); } catch (e) {} rerender(); sync(true); }
-  return { init, paint, open, count, load, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind, setMute, isMuted, d0: () => addDay(day(), -6), asOf: () => (CH ? CH.asOf || "" : ""), pinEvents: () => pinEvents(), condAuc: (all) => condAuc(all), payloadOf: () => payload({ toJSON: () => ({}) }) };
+  // 사이클 5(A): 오늘 묶음(/b/n.*.js · window.ZP_today) — 화면에 보일 때 부른다. 첫 화면 묶음에는 이 몇 줄만
+  let TDP = null;
+  const today = () => TDP || (TDP = new Promise((res, rej) => { if (window.ZP_today) return res(window.ZP_today); const s = document.createElement("script"); s.src = "__TODAY__"; s.async = true; s.onload = () => { if (!window.ZP_today) return rej(new Error("today")); window.ZP_today.url = `data/today.json?v=${D.upd || D.asOf || ""}-${(D.dv && D.dv.today) || ""}`; res(window.ZP_today); }; s.onerror = () => { TDP = null; rej(new Error("today load")); }; document.head.appendChild(s); }));
+  return { init, paint, open, count, load, today, freq, setFreq, pushKey, watch, evOf, week, ready: () => !!CH, TY, dLabel: (d) => dLabel(d), st, subscribe, unsubscribe, KINDS, isOff, setKind, setMute, isMuted, d0: () => addDay(day(), -6), asOf: () => (CH ? CH.asOf || "" : ""), pinEvents: () => pinEvents(), condAuc: (all) => condAuc(all), payloadOf: () => payload({ toJSON: () => ({}) }) };
 })();
 window.ZP_INBOX = INBOX;   // 점검(QA): 폰 알림 상태·종류 끄기
 document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", INBOX.init) : setTimeout(INBOX.init, 0);
