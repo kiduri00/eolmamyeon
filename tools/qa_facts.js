@@ -184,7 +184,10 @@ function sameZ(id, f, t, bad) {
         if (d) { rn++; if (!s.owner.includes(d)) rb.push(`${id} 시트 '이미 가진 집이면'에 ${d} 없음`); }
         else if (/권리산정기준일 \d{4}\.\d\d\.\d\d/.test(s.owner)) rb.push(`${id} api rightsDate 없음인데 시트에 날짜`);
         const fp = path.join(ROOT, "public/z", id + ".html");
-        if (d && fs.existsSync(fp)) { const zh = fs.readFileSync(fp, "utf8"); if (/권리산정기준일/.test(zh.replace(/<script[\s\S]*?<\/script>/g, "")) && !zh.includes(d) && !zh.includes(a.rightsDate.slice(0, 10)) && !/권리산정기준일[^<]{0,40}<\/h2><p><b>확인 필요/.test(zh)) rb.push(`${id} /z 권리산정기준일 ≠ ${d}`); }
+        if (fs.existsSync(fp)) { const zt = fs.readFileSync(fp, "utf8").replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+          // /z 안 '권리산정기준일 … 날짜'(40자 안 · YYYY.MM.DD · YYYY-MM-DD · YYYY년 M월 D일)가 있으면 api 날짜와 같아야
+          const re = /권리산정기준일[^.\d]{0,40}?(\d{4})(?:[.-]\s?|년\s)(\d{1,2})(?:[.-]\s?|월\s)(\d{1,2})/g; let m;
+          while ((m = re.exec(zt))) { const z = `${m[1]}.${m[2].padStart(2, "0")}.${m[3].padStart(2, "0")}`; if (z !== d) { rb.push(`${id} /z 권리산정기준일 ${z} ≠ ${d || "없음"}`); break; } } }
       }
       // 고정 표본: 면목역1(o27) = 소속 모아타운 면목동 86-3(m10)의 2022.01.20
       if (A.o27 && (A.o27.rightsDate || "").slice(0, 10) !== "2022-01-20") rb.push(`o27 api rightsDate ${A.o27.rightsDate} ≠ 2022-01-20(m10 물려받기)`);

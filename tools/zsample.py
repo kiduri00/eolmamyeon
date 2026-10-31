@@ -278,14 +278,19 @@ def _rd_of(x, P):
     if rx.get('c') == 'chg': return None
     if rx.get('d'): return {'d': rx['d'], 'b': rx.get('b'), 'u': rx.get('u')}
     rd = p.get('rd') if p.get('rd') is not None else x.get('rd')
-    if isinstance(rd, str) and rd.strip():
-        m = re.match(r'^[’\']?(\d{2,4})\.(\d{1,2})\.(\d{1,2})\.?$', rd.strip())
-        if m:
-            y = m.group(1); y = ('20' + y) if len(y) == 2 else y
-            return {'d': f'{y}-{int(m.group(2)):02d}-{int(m.group(3)):02d}', 'b': '서울시 모아타운 대상지 권리산정기준일 고시', 'u': 'https://news.seoul.go.kr/citybuild/archives/525003'}
-    dz = ((p.get('dt') or x.get('dt') or {}).get('구역지정'))
+    nd = rd_norm(rd)
+    if nd: return {'d': nd, 'b': '서울시 모아타운 대상지 권리산정기준일 고시', 'u': 'https://news.seoul.go.kr/citybuild/archives/525003'}
+    if isinstance(rd, str) and rd.strip(): return None   # 날짜가 둘 이상(원문 그대로 · 물려주지 않음)
+    dt0 = p.get('dt') or x.get('dt') or {}; dz = dt0.get('구역지정')
+    if dz and any(dt0.get(k) and dt0[k] < dz for k in ('조합설립', '시행자지정', '사업시행', '관리처분', '착공')): return None   # 변경 지정일로 보임(화면 'chg')
     if dz and (x.get('s') or 0) >= 2: return {'d': dz[:10], 'b': '정비구역 지정 고시일(도시정비법 제77조 원칙) · 별도 고시가 있었다면 그 날짜', 'u': 'https://www.law.go.kr/법령/도시및주거환경정비법/제77조'}
     return None
+def rd_norm(t):   # 화면 20_zone.js rdNorm과 같은 규칙: 날짜가 정확히 하나면 'YYYY-MM-DD'
+    if not isinstance(t, str): return None
+    M = re.findall(r"[’‘']?(\d{4}|\d{2})\.\s?(\d{1,2})\.\s?(\d{1,2})", t)
+    if len(M) != 1: return None
+    y, a, b = M[0]; y = '20' + y if len(y) == 2 else y
+    return f'{y}-{int(a):02d}-{int(b):02d}'
 def rights_inherit(recs, P):
     moas = [m for m in recs if m.get('src') == 'moa' and m.get('ll')]
     n = 0
@@ -296,10 +301,17 @@ def rights_inherit(recs, P):
             if m.get('g') != c.get('g'): continue
             d = _hav(m['ll'], c['ll']); lim = math.sqrt(((m.get('sm') or {}).get('area') or 6e4) / math.pi) + 150
             if d < lim and d < bd: bd, best = d, m
-        if not best: continue
-        c['parent'] = best['id']
+        if best: c['parent'] = best['id']
+    for c in recs:
+        if c.get('src') == 'moa' or c.get('rdx'): continue
         p = (P or {}).get(c['id']) or {}
-        if c.get('rdx') or (p.get('rd') or c.get('rd')) or ((p.get('dt') or c.get('dt') or {}).get('구역지정')) or not re.search(r'가로|모아', c.get('k') or ''): continue
+        own = _rd_of(c, P)
+        if own: c['rdx'] = dict(own, c='mid', own=1); n += 1; continue
+        dt0 = p.get('dt') or c.get('dt') or {}
+        dz = dt0.get('구역지정'); zEarly = dz and any(dt0.get(k) and dt0[k] < dz for k in ('조합설립', '시행자지정', '사업시행', '관리처분', '착공'))
+        if (p.get('rd') or c.get('rd')) or zEarly or not c.get('parent') or not re.search(r'가로|모아', c.get('k') or ''): continue
+        best = next((m for m in moas if m['id'] == c['parent']), None)
+        if not best: continue
         pv = _rd_of(best, P)
         if not pv: continue
         c['rdx'] = {'d': pv['d'], 'b': f"소속 모아타운({short(best['n'])})의 권리산정기준일 · {pv['b']}", 'u': pv['u'], 'c': 'high' if 'news.seoul' in (pv.get('u') or '') else 'mid', 'inh': best['id']}
