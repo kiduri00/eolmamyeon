@@ -116,6 +116,9 @@ const PINS = (() => {
       goal = now <= CASH + 1e-9 ? `<p class="pn-goal done">${pinY(14)}목표 금액에 닿았어요 · 이제 갈 수 있어요</p>` : `<p class="pn-goal"><span class="pn-gbar" aria-hidden="true"><i style="width:${Math.round(p * 100)}%"></i></span>여기까지 <b>${amt(now - CASH)}</b> 더</p>`;
     }
     const sub = `${esc(r.g)} · ${esc(stageName(r))}`;
+    // 사이클 5 D: '지난번 본 뒤' 변화 칩 — 종류별 안 읽은 소식 수(합 = 아래 탭 관심 배지의 관심 구역 몫 = 소식 '내 소식' 새 소식) + 그동안 필요한 돈 변화(배지에는 안 셈)
+    let since = "";
+    try { if (typeof INBOX !== "undefined" && INBOX.ready()) { const U = INBOX.unreadOf(r.id), c = {}; U.forEach((e) => { const t = INBOX.TY[e.type][0].replace("실거래", "거래").replace("고시·공고", "고시"); c[t] = (c[t] || 0) + 1; }); const pd = INBOX.priceSince(r.id, modeFor(r) === "gap"), P = Object.entries(c).map(([t, k]) => `${t} ${k}`); if (pd != null && Math.abs(pd) >= 0.05) P.push(`필요한 돈 ${pd > 0 ? "▲" : "▼"}${amt(Math.abs(pd))}`); if (P.length) since = `<small class="pn-since"><b>지난번 본 뒤</b> ${esc(P.join(" · "))}</small>`; } } catch (e) {}
     // 최근 소식 한 줄(data/changes.json: 실거래·단계·고시·경매)
     let ev = "";
     try { if (typeof INBOX !== "undefined") { const e = INBOX.evOf(r.id)[0]; if (e) { const [tl, tc] = INBOX.TY[e.type]; ev = `<small class="pn-ev"><i class="ib-tg ${e.hi ? "hi" : tc}">${e.hi ? "신고가" : tl}</i><span>${esc(INBOX.dLabel(e.date).replace(/ \(.\)$/, ""))} · ${esc(e.text)}</span></small>`; } } } catch (e) {}
@@ -126,7 +129,7 @@ const PINS = (() => {
     // 사이클 2: 입주까지 현금도 시트와 같은 판정(DTL.shown) — 계산 보류·입주권 없음이면 숫자를 내지 않는다
     let tot = null; try { const w = DTL.shown(r); if (w.kind === "need" && w.total != null && isFinite(w.total)) tot = w.total; } catch (e) {}
     const main = `<span class="pn-pin">${pinY(26)}${nw ? '<i class="pn-new" aria-hidden="true"></i>' : ""}</span>
-      <span class="pn-nm"><b>${esc(shortName(r.n))}</b><small>${sub}${nw ? '<span class="sr-only"> · 새 소식</span>' : ""}</small>${riskH(r) ? `<small class="pn-rk">${riskH(r)}</small>` : ""}${ev}${sp.memo ? `<small class="pn-memo">${esc(sp.memo)}</small>` : ""}</span>
+      <span class="pn-nm"><b>${esc(shortName(r.n))}</b><small>${sub}${nw ? '<span class="sr-only"> · 새 소식</span>' : ""}</small>${riskH(r) ? `<small class="pn-rk">${riskH(r)}</small>` : ""}${since}${ev}${sp.memo ? `<small class="pn-memo">${esc(sp.memo)}</small>` : ""}</span>
       <span class="pn-r"><span class="pn-now"><span class="sr-only">지금 필요한 돈 </span><i class="pn-l" aria-hidden="true">지금</i><b>${alt ? '<small class="pn-alt" title="전세 끼고 값을 내지 않는 구역(불가·보류)이라 대출 끼고 금액">대출로 계산</small> ' : ""}${now != null ? `${ZF.cash(now)}` : `<span class="pn-hold">${n.hold === "nt" ? "입주권 없음" : n.hold === "done" ? "사업 끝" : n.hold === "moa" ? "사업구역별" : "계산 보류"}</span>`}</b>${salt || now == null ? "" : chip}</span>${tot != null ? `<small class="pn-tot">입주까지 현금 <b>${ZF.cash(tot)}</b></small>` : ""}<small title="${salt ? `추가할 때와 같은 ${MODE_T[sm]} 기준 비교` : ""}">${then}</small></span>`;
     const head = SEL
       ? `<button type="button" class="pn-main sel" data-cmp="${r.id}" aria-pressed="${CMP.includes(r.id)}"><span class="pn-ck" aria-hidden="true"></span>${main}</button>`
@@ -763,12 +766,15 @@ const PINS = (() => {
   const sameCond = () => { const k = ckey(curCond()); return CONDS.find((c) => ckey(c) === k) || null; };
   const BELL_D = '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>';
   const bellI = (s2 = 20) => `<svg width="${s2}" height="${s2}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${BELL_D}</svg>`;
-  function quickCond() {
-    if (!isMember()) { try { mbOpen("fav"); } catch (e) {} return; }
+  // q = 사이클 5 '아침에 받기'(조용히: 같은 조건이 있으면 그것 · 꽉 찼으면 저장 안 함 · 토스트·시트 없음 — 누른 단추가 이어서 권한을 묻는다)
+  function quickCond(q) {
+    if (q) { const o = sameCond(); if (o || CONDS.length >= CMAX) return o; }
+    else if (!isMember()) { try { mbOpen("fav"); } catch (e) {} return; }
     if (CONDS.length >= CMAX) return condSheet();   // 3개 꽉 참: 하나 지우고 저장하는 시트
     const c = curCond(), ids = evalCond(c), nm = autoName(c);
     const x = Object.assign({}, c, { id: "c" + Date.now().toString(36), name: nm, base: ids, sv: snapVals(c, ids), at: Date.now(), seen: "", asOf: D.upd || D.asOf });
     CONDS.push(x); saveC(); renderFav(); badges(); emit();
+    if (q) return x;
     try { navigator.vibrate && navigator.vibrate(10); } catch (e) {}
     toast("알림 조건 저장했어요", "조건 바꾸기", () => condSheet(CONDS.find((y) => y.id === x.id)), `${nm} · 지금 ${fmt(ids.length)}곳`);
     try { if (typeof INBOX !== "undefined") setTimeout(() => INBOX.watch("cond"), 900); } catch (e) {}
@@ -819,7 +825,8 @@ const PINS = (() => {
     let perm = "default"; try { perm = typeof Notification !== "undefined" ? Notification.permission : "unsupported"; } catch (e) {}
     if (!condBtn.mq) { condBtn.mq = 1; try { matchMedia("(min-width:981px)").addEventListener("change", () => { try { condBtn(); } catch (e) {} }); } catch (e) {} }
     if (!condBtn.pw) { condBtn.pw = 1; try { navigator.permissions && navigator.permissions.query({ name: "notifications" }).then((st) => { st.onchange = () => { try { condBtn(); } catch (e) {} }; }).catch(() => {}); } catch (e) {} addEventListener("focus", () => { try { condBtn(); } catch (e) {} }); addEventListener("push:perm", () => { try { condBtn(); } catch (e) {} }); }
-    const onT = perm === "granted" ? "알림 켜짐" : perm === "denied" ? "알림함으로 받는 중 · 폰 알림 꺼짐" : "알림함으로 받는 중";
+    let pon = false; try { pon = typeof INBOX !== "undefined" && INBOX.st().on; } catch (e) {}   // 사이클 5: 권한만 있고 구독(폰 알림 켬)이 없으면 '켜짐'이 아니다
+    const onT = perm === "granted" && pon ? "알림 켜짐" : perm === "granted" ? "알림함으로 받는 중" : perm === "denied" ? "알림함으로 받는 중 · 폰 알림 꺼짐" : "알림함으로 받는 중";
     b.innerHTML = `<span class="pc-al-i">${bellI(20)}</span><span class="pc-al-t"><b>${onT}${N ? ` · 새 구역 ${N}곳` : ""}</b><small>${N ? `${esc(sc.name)} · ${f ? "아직 안 본 곳" : "새로 갈 수 있게 된 곳"}` : `지금 ${fmt(n.ids.length)}곳 · 새로 생기면 알려 드려요`}</small></span><span class="pc-al-go">${N ? "보기" : "알림 조건"} →</span>`;
     b.setAttribute("aria-label", `${onT}${N ? `, 새 구역 ${N}곳 보기` : ", 알림 조건 보기"}`);
   }
@@ -921,7 +928,7 @@ const PINS = (() => {
   const cmpShown = () => CMPON;
   // MY > 관심 구역 내보내기: 관심 구역 화면의 '링크 복사'와 같은 링크·같은 복사/공유
   const move = (fb) => moveURL().then((u) => shareLink(u, fb));
-  return { move, moveURL, init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), condsOn, cname: (c) => c.name || autoName(c), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
+    return { condSave: () => quickCond(1), move, moveURL, init, zpOk, list, has, on, emit, newIds, conds: () => CONDS.slice(), condsOn, cname: (c) => c.name || autoName(c), evalCond, condOk, add, drop, clear, room, feedback, badges, listHTML, emptyHTML, after, cmpShown, markSeen, news, mapCard, unreadN, MAX, condsAll, freshIds, whyNew, markCondSeen, snapT: (id) => (SNAP[id] ? SNAP[id].t : 0) };
 })();
 window.PINS = { list: PINS.list, has: PINS.has, on: PINS.on, newIds: PINS.newIds };
 window.ZP_ok = PINS.zpOk;   // 홈 '갈 수 있는 곳' 숫자와 같은 판정(지도 핀·게이지 토스트용)

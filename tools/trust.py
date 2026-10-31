@@ -112,7 +112,7 @@ def glossary():
     n = len(TERMS)
     body = f'''<p class="eyebrow">용어집</p>
 <h1>비례율, 권리산정기준일… 재개발 말이 막힐 때</h1>
-<p class="byline">정리: {OP} · 법 조항은 국가법령정보센터 원문과 맞춰 봤어요 · 글 고친 날 <time class="zp-mod" datetime="2026-10-27">2026년 10월 27일</time></p>
+<p class="byline">정리: {OP} · 법 조항은 국가법령정보센터 원문과 맞춰 봤어요 · 글 고친 날 <time class="zp-mod" datetime="2026-10-31">2026년 10월 31일</time></p>
 <p class="lede">기사에서 「관리처분 전 매수」나 「비례율 하락」이 나오면 그게 내 돈에 무슨 뜻인지 바로 와닿지 않아요. 재개발·재건축에서 자주 마주치는 말 {n}개를 골라 뜻과 함께 돈과 시기에 어떤 영향을 주는지 적었어요.</p>
 <p>항목마다 한 줄 뜻, 왜 신경 써야 하는지, 짧은 예, 근거 법 조항, 같이 보면 좋은 말 순서로 놓았어요. 예에 나오는 숫자는 계산을 보여 주려고 넣은 가상의 값이고 구역 이름이 나오는 예만 실제 자료예요.</p>
 <ul class="gl-nav" aria-label="용어집 묶음">{nav}</ul>
@@ -124,7 +124,7 @@ def glossary():
 <li><a href="/years">지금 단계에서 입주까지 몇 년 걸리나</a></li>
 <li><a href="/method">이 사이트 숫자는 어떻게 계산하나</a></li>
 </ul></section>'''
-    ld = {"@context": "https://schema.org", "@type": "DefinedTermSet", "name": "재개발 용어집", "url": f"{SITE}/glossary", "inLanguage": "ko", "dateModified": "2026-10-27",
+    ld = {"@context": "https://schema.org", "@type": "DefinedTermSet", "name": "재개발 용어집", "url": f"{SITE}/glossary", "inLanguage": "ko", "dateModified": "2026-10-31",
           "hasDefinedTerm": [{"@type": "DefinedTerm", "name": t['t'], "description": t['d'], "url": f"{SITE}/glossary#{t['id']}"} for t in TERMS]}
     desc = f'재개발·재건축에서 자주 쓰는 말 {n}개를 뜻, 돈·시기에 주는 영향, 예, 도시정비법·소규모주택정비법 근거 조항과 함께 정리했어요.'
     return page('glossary', f'재개발 용어집 {n}개 · 비례율·권리산정기준일·관리처분', desc, body, ld, ads=True)

@@ -5,7 +5,7 @@
    opts = { kind, title, meta, reasons:[[k, 제목, 설명]], ctx:{zone, url, asOf, nums} }
    정적 페이지: <a data-zp-contact data-kind="error" data-zone="o916" href="/contact?kind=error&zone=o916"> 를 누르면 시트로 연다(스크립트가 없으면 /contact로). */
 (function () {
-  if (window.ZP_contact) return;
+  if (window.ZP_contact && !window.ZP_contact.lazy) return;   // 사이클 5(M): 앱 묶음에는 작은 대리(lazy)만 — 처음 쓸 때 이 파일(/cf.js)을 받아 바꿔 낀다
   var W = window, D = document;
   var KINDS = [["general", "일반 문의"], ["error", "숫자 오류"], ["idea", "기능 제안"], ["etc", "기타"]];
   var MIN = 10, MAX = 2000, DK = "zp.cfDraft";

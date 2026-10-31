@@ -14,7 +14,7 @@ const HUB = window.ZP_HUB = (() => {
   function paint(h) {
     const el = document.getElementById(h); if (!el) return;
     const on = el.classList.contains("s-on"), t = get(h);
-    el.querySelectorAll('[role="tab"]:not(.tf-seg *)').forEach((b) => { const s = b.dataset.tab === t; b.setAttribute("aria-selected", String(s)); b.tabIndex = s ? 0 : -1; });
+    el.querySelectorAll('[role="tab"]:not(.tf-seg *):not(.nw-seg *)').forEach((b) => { const s = b.dataset.tab === t; b.setAttribute("aria-selected", String(s)); b.tabIndex = s ? 0 : -1; });
     T[h].forEach(([k, id]) => { const p = document.getElementById(id); if (!p) return; p.classList.remove("fold"); p.classList.toggle("s-on", on && k === t); });
     const ld = el.querySelector(".hub-lead"); if (ld) { ld.textContent = LEAD[t] || ""; ld.hidden = !LEAD[t]; }
     el.dataset.tab = t;

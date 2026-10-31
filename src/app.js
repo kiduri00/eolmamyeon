@@ -1366,7 +1366,17 @@
         ? `<span class="lt-f">내 돈 ${ZF.cash(CASH)}으로 지금 매수 가능한 구역 수 (입주까지는 부족)</span><span class="lt-s">${ZF.cash(CASH)} · 지금 매수 가능 (입주까지 부족)</span>`
         : `<span class="lt-f">내 돈 ${ZF.cash(CASH)}으로 ${P.basis === "total" ? "입주까지" : "지금 매수"} 가능한 구역 수</span><span class="lt-s">${ZF.cash(CASH)} · ${P.basis === "total" ? "입주까지" : "지금 매수"} 가능</span>`;
   }
+  // 사이클 5(M · 성능): 첫 계산(boot의 plan()) 동안 옛 SVG 지도가 아직 없으면 구 통계·구 목록(4×CPU ~110ms)은 다음 쉬는 자리 뒤로 —
+  //   판정 기준(MAP_MODE · effBasis)은 지금 같은 식으로 정해 둔다(확장 모듈이 바로 씀). 끝 상태는 예전과 같다.
+  let mapDefer = 0, mapPend = false;
   function refreshMap() {
+    if (mapDefer && !mapReady) {
+      mapPend = true;
+      const gs = new Set(D.map.gu.map((g) => g[0])), inG = POP.filter((r) => gs.has(r.g));
+      MAP_MODE = P.basis !== "total" ? "basis" : inG.some((r) => affOk(r)) ? "total" : inG.some((r) => affOk(r, "now")) ? "now" : "prog";
+      return;
+    }
+    mapPend = false;
     GU_STAT = guStats();
     {
       const m = Math.max(0, ...[...GU_STAT.keys()].map(guMetric));
@@ -2977,6 +2987,8 @@
     if (!mapReady) {
       pendingGu = n;
       pendingGuOpts = opts;
+      // 사이클 5(M): 옛 SVG 지도를 미뤄 둔 동안(mapTopLazy) 구로 들어가면 지금 그린다 — 그리고 나면 initMap이 이 구로 이어서 들어간다(누르기 없이 부른 click·키 이동도)
+      if (window.ZP_mapInit) { try { window.ZP_mapInit(); } catch (e) {} }
       return;
     }
     const from = mapView;
@@ -4178,6 +4190,32 @@
     document.head.appendChild(s);
   }));
   window.ZP_feat = { load: featLoad, ctx: featCtx, hook: featHook, loadX: featxLoad };
+  // 사이클 5(M): 지연 묶음 표준 진입점 — src/lazy/<이름>.js(+ <이름>.css) → /b/z<이름>.<해시>.js (tools/build.py · 첫 화면 a·ta·h·c 무게 0)
+  //   묶음은 (window.ZP_L || (window.ZP_L = {}))[이름] = { v: 1, ... } 로 자기를 알린다. 부르는 쪽:
+  //     ZP_lazy.when("today", { el: 카드 요소, idle: 3000, touch: true }).then((M) => M.init(ZP_lazy.ctx()))
+  //   = 그 요소가 화면 가까이 올 때(IntersectionObserver · 아래 200px) · 브라우저가 쉴 때(requestIdleCallback, 최대 idle ms) · 첫 손길(누르기·키) 중 먼저 오는 때 한 번 받는다.
+  //   전체 앱이 붙은 뒤(zp:hydrated)에만 부르므로 첫 화면 긴 작업과 겹치지 않는다. 받기 실패면 다음 부를 때 다시.
+  const LAZY_U = "__LAZYMAP__", LAZY_P = {};   // 빌드가 {이름: 주소}로 바꿔 넣는다
+  const lazyLoad = (n) => LAZY_P[n] || (LAZY_P[n] = new Promise((res, rej) => {
+    const L = window.ZP_L || {}; if (L[n] && L[n].v) return res(L[n]);
+    if (!LAZY_U[n]) { delete LAZY_P[n]; return rej(new Error("lazy: " + n)); }
+    const s = document.createElement("script"); s.src = LAZY_U[n]; s.async = true;
+    s.onload = () => { const M = (window.ZP_L || {})[n]; if (M && M.v) res(M); else { delete LAZY_P[n]; rej(new Error("lazy init: " + n)); } };
+    s.onerror = () => { delete LAZY_P[n]; rej(new Error("lazy load: " + n)); };
+    document.head.appendChild(s);
+  }));
+  const lazyWhen = (n, o = {}) => new Promise((res, rej) => {
+    let done = false, io = null, it = 0;
+    const EV = ["pointerdown", "keydown", "touchstart"];
+    const off = () => { if (io) io.disconnect(); if (it && window.cancelIdleCallback) cancelIdleCallback(it); clearTimeout(it); EV.forEach((k) => removeEventListener(k, go, true)); };
+    function go() { if (done) return; done = true; off(); lazyLoad(n).then(res, rej); }
+    const el = typeof o.el === "string" ? document.querySelector(o.el) : o.el;
+    if (el && window.IntersectionObserver) { io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) go(); }, { rootMargin: o.margin || "200px 0px" }); io.observe(el); }
+    if (o.touch) EV.forEach((k) => addEventListener(k, go, { capture: true, passive: true }));
+    if (o.idle != null) { const t = +o.idle || 3000; it = window.requestIdleCallback ? requestIdleCallback(go, { timeout: t }) : setTimeout(go, Math.min(t, 1500)); }
+    if (!el && !o.touch && o.idle == null) go();
+  });
+  window.ZP_lazy = { load: lazyLoad, when: lazyWhen, ctx: featCtx, has: (n) => !!LAZY_U[n] };
   function renderPane() {
     if (!$("pane")) return;
     if (PREM_TABS.has(curTab) && !cur._prem) {
@@ -8249,7 +8287,8 @@
       (es) =>
         es.forEach((e) => {
           if (e.isIntersecting) {
-            const f = SECT[e.target.id];
+            // 사이클 5(M · 성능): 지도 칸(#mapTop)은 첫 화면에 늘 보여서 이 관찰이 옛 SVG 지도(initMap · 4×CPU ~130ms)를 바로 그렸다 → mapTopLazy 규칙(첫 손길·조용한 12초 뒤)을 따른다
+            const f = e.target.id === "mapTop" ? mapTopLazy : SECT[e.target.id];
             if (f) window.requestIdleCallback ? requestIdleCallback(f, { timeout: 300 }) : setTimeout(f, 0);
             io.unobserve(e.target);
           }
@@ -9222,10 +9261,12 @@
     if (gapMode()) { const L = baseList(); for (let i = 0; i < L.length; i += 150) { for (let j = i; j < Math.min(L.length, i + 150); j++) try { gapOf(L[j]); } catch (e) {} await yieldT(); } }
     // 4라운드(설치 앱): 짧은 이름 표(1,300곳 · 첫 호출 ~130ms@4×CPU)를 plan() 앞의 따로 된 작업으로 — plan() 한 작업이 290~430ms이던 것을 나눔
     { try { if (R[0]) shortName(R[0].n); } catch (e) {} await yieldT(); }   // 사이클 2 성능(B): 웹도(예전엔 설치 앱만)
-    plan();
+    mapDefer = 1;
+    try { plan(); } finally { mapDefer = 0; }
     if (!hash0) initReveal();
     mbInit();
     await yieldT();
+    if (mapPend) { refreshMap(); await yieldT(); }
     mapTopLazy();
     await yieldT();
     // 간단 화면(홈): 순위·통계·규제 화면은 MY의 도구로 열 때 그린다(SIMPLE.open → SECT) — 첫 화면 긴 작업 줄이기(18차)

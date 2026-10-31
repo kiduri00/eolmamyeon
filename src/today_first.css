@@ -1,0 +1,44 @@
+/* 사이클 5 D: 홈 '오늘의 재개발' 카드(첫 페인트 = 서울 줄) · 소식 4칸 머리 — 시각 언어 v2 '정밀'(테두리 없음 · 그림자 sh-1 · 반경 16 · 숫자 700 tnum · 굵기 4단)
+   지연 묶음(src/today)이 그리는 칸 내용 CSS는 묶음 안 문자열(앱 CSS 정리에서 지워지지 않게) */
+.td-card{margin:12px 0;padding:16px 16px 6px;background:var(--surface);border-radius:16px;box-shadow:var(--sh-1)}
+.td-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.td-h h2{margin:0;font-size:17px;font-weight:700;letter-spacing:-.025em;color:var(--text-1)}
+.td-as{font-size:12px;font-weight:500;color:var(--text-3);font-variant-numeric:tabular-nums}
+.td-as.off{color:var(--text-2)}
+.td-s{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:4px 8px}
+.td-s li{display:flex;flex-direction:column;gap:2px;min-width:0}
+.td-s b{font-size:22px;font-weight:700;letter-spacing:-.03em;color:var(--text-1);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;line-height:1.15}
+.td-s span{font-size:12px;font-weight:500;color:var(--text-3);line-height:1.3;word-break:keep-all}
+.td-w{margin:10px 0 0;font-size:12.5px;color:var(--text-2);font-variant-numeric:tabular-nums;word-break:keep-all}
+.td-w span{font-weight:600;color:var(--text-1)}
+.td-few{margin:12px 0 0;font-size:14px;font-weight:600;color:var(--text-1)}
+.td-sw{margin-top:8px}
+.td-sw b{font-size:18px}
+.td-me{margin:12px 0 0;border-top:1px solid var(--border)}
+.td-r{display:flex;align-items:center;gap:10px;margin:0;min-height:56px;padding:8px 0;border-bottom:1px solid var(--border);box-sizing:border-box;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.td-r:last-child{border-bottom:0}
+.td-sk i{display:block;height:12px;width:62%;border-radius:6px;background:var(--surface-2)}
+.td-f{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:44px}
+.td-go{display:inline-flex;align-items:center;min-height:44px;padding:0 2px;font-size:14px;font-weight:600;color:var(--brand-ink);text-decoration:none}
+@media (min-width:981px){.td-card{margin:12px 0 8px}}
+/* 소식 4칸 머리 */
+.nw-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin:4px 0 14px;padding:3px;background:var(--border);border-radius:12px}
+.nw-seg button{min-height:44px;padding:4px 2px;border:0;border-radius:8px;background:none;font:inherit;font-size:14px;font-weight:500;color:var(--text-2);cursor:pointer;word-break:keep-all;line-height:1.2}
+.nw-seg button[aria-selected="true"]{background:var(--surface);color:var(--text-1);font-weight:600;box-shadow:var(--sh-1)}
+
+#news[data-nseg]>.nw-pane{display:none}
+#news[data-nseg="today"]>#nwToday,#news[data-nseg="cal"]>#nwCal,#news[data-nseg="wk"]>#nwWk{display:block}
+#news[data-nseg]:not([data-nseg="mine"])>.nw-mine{display:none!important}
+html:not(.is-tapp) #news[data-nseg]:not([data-nseg="today"])>:is(.nw-oh,.hub-tabs,.hub-lead,.hub-pane){display:none!important}
+html.is-tapp #news[data-nseg]:not([data-nseg="mine"])>:is(.nw-oh,.hub-tabs,.hub-lead,.hub-pane){display:none!important}
+html.is-tapp #news[data-nseg="mine"]>:is(.nw-oh,.hub-tabs){display:revert!important}
+html.is-tapp #news[data-nseg="mine"]>.hub-tabs{display:flex!important}
+html.is-tapp #news .tf-seg{display:none!important}
+html.is-tapp #news[data-nseg]:not([data-nseg="today"]) #tFeed{display:none!important}
+html.is-tapp #news #tPerM{display:none!important}
+.nw-rad:empty{display:none}
+/* 설치 앱: 예산 카드 바로 밑(미니 지도·아이콘 위) · 앱 면 색(t-sec)과 같은 결 */
+html.is-tapp.simple:not(.s-view):not(.s-full) #mapTop>#tdCard{order:2;margin:0 0 32px;border-radius:20px;box-shadow:none;background:var(--t-sec,var(--surface))}
+/* 사이클 5 D axe: 새 소식 줄(노란 바탕) 위 거래·신고가 꼬리표 · 관심 '새 소식 N곳'(다크) 글자 대비 4.5:1 미달 — 원래 있던 것(새 소식이 있을 때만 보임) */
+.ib-it.new .ib-tg.tr,.ib-it.new .ib-tg.hi{background:var(--surface);color:var(--text-1)}
+.pn-nwn{background:var(--pick,#F5C33B);color:var(--pick-ink,#13265E)}

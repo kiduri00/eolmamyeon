@@ -222,7 +222,7 @@ var cash=null;
 var save=function(){try{var p=new URLSearchParams(W.ZP_CQ||"");p.delete("fund");p.set("cash",String(cash));if(!p.has("mode"))p.set("mode","jeonse");W.ZP_CQ="?"+p.toString();var c=new URLSearchParams();["cash","mode","homes"].forEach(function(k){if(p.has(k))c.set(k,p.get(k))});put("jg-cond","?"+c.toString())}catch(e){}};
 var apply=function(){if(cash==null)return;var B=W.ZP_budget;if(B&&B.ready)B.set(cash);else if(W.ZP_island)try{W.ZP_island.set("gap",cash)}catch(e){}};
 W.addEventListener("zp:hydrated",function(){if(o.getAttribute("data-done"))apply()});
-var done=function(){if(o.getAttribute("data-done"))return;o.setAttribute("data-done","1");put("zp.onb","1");if(cash!=null)save();o.hidden=true;H.classList.remove("onb-on");apply();try{W.dispatchEvent(new CustomEvent("zp:onboarded",{detail:{cash:cash}}))}catch(e){}};
+var done=function(){if(o.getAttribute("data-done"))return;o.setAttribute("data-done","1");put("zp.onb","1");try{sessionStorage.setItem("zp.onbR","1")}catch(e){}if(cash!=null)save();o.hidden=true;H.classList.remove("onb-on");apply();try{W.dispatchEvent(new CustomEvent("zp:onboarded",{detail:{cash:cash}}))}catch(e){}};
 o.addEventListener("click",function(e){var t=e.target&&e.target.closest&&e.target.closest("button");if(!t)return;if(t.id==="onbMore"){var g=t.parentNode;g.classList.add("all");t.setAttribute("aria-expanded","true");var f=g.querySelector('[data-oc="5"]');if(f)f.focus();return}if(t.hasAttribute("data-oc"))cash=+t.getAttribute("data-oc");if(t.hasAttribute("data-oc")||t.hasAttribute("data-olater"))done()});
 /* 26차: 키보드·끌기·입력·시트 등 어떤 길로든 금액이 정해지면(앱 setCash → zp:cashpick) 칩과 똑같이: 카드를 닫고 조건·?cash= 저장 */
 W.addEventListener("zp:cashpick",function(e){if(o.getAttribute("data-done"))return;var v=+(e&&e.detail);if(isFinite(v)&&v>0)cash=v;done()});
@@ -240,6 +240,8 @@ document.addEventListener("click",function(e){if(o.getAttribute("data-done"))ret
       <div class="hm-next" id="hmNext"></div>
       <div class="s-sum" id="sSum"></div>
     </div>
+    <!-- 사이클 5 D: 오늘의 재개발 카드(서울 줄 = 빌드가 today.json으로 · tools/td_card.py · 개인 줄 = 지연 묶음 src/today) -->
+    <!--TODAY-->
     <div class="bsheet" id="bSheet" role="dialog" aria-modal="true" aria-labelledby="bT" hidden>
       <div class="bs-scr" data-bx aria-hidden="true"></div>
       <div class="bs-card">
@@ -293,7 +295,7 @@ document.addEventListener("click",function(e){if(o.getAttribute("data-done"))ret
         </ol>
         <p class="st-f">낯선 말은 <a href="glossary">재개발 용어집</a>에서 찾아보세요. 비례율·권리산정기준일처럼 돈과 시기를 가르는 말 68개를 모았어요.</p>
       </section></div>
-    <script>/* 넓은 화면: 목록을 지도 오른쪽 칸으로(첫 페인트 전에) · 예산 카드는 목록 칸 맨 위로(60_simple.js placeG와 같은 규칙) */try{if(matchMedia("(min-width:981px)").matches){var _r=document.getElementById("sRight"),_l=document.getElementById("sListW");_r.insertBefore(_l,document.getElementById("report"));_l.insertBefore(document.getElementById("sGauge"),_l.firstChild);var _o=document.getElementById("onb");if(_o)_l.insertBefore(_o,_l.firstChild);var _d=document.getElementById("sRd");if(_d)_l.insertBefore(_d,_l.firstChild);var _h=document.getElementById("sSite");if(_h)_l.insertBefore(_h,_l.firstChild);_r.parentNode.insertBefore(_r,_r.parentNode.firstElementChild);var _q=document.getElementById("sQuick");if(_q)_l.insertBefore(_q,document.getElementById("sReads"))}}catch(e){}</script>
+    <script>/* 넓은 화면: 목록을 지도 오른쪽 칸으로(첫 페인트 전에) · 예산 카드는 목록 칸 맨 위로(60_simple.js placeG와 같은 규칙) */try{if(matchMedia("(min-width:981px)").matches){var _r=document.getElementById("sRight"),_l=document.getElementById("sListW");_r.insertBefore(_l,document.getElementById("report"));_l.insertBefore(document.getElementById("sGauge"),_l.firstChild);var _o=document.getElementById("onb");if(_o)_l.insertBefore(_o,_l.firstChild);var _d=document.getElementById("sRd");if(_d)_l.insertBefore(_d,_l.firstChild);var _h=document.getElementById("sSite");if(_h)_l.insertBefore(_h,_l.firstChild);_r.parentNode.insertBefore(_r,_r.parentNode.firstElementChild);var _q=document.getElementById("sQuick");if(_q)_l.insertBefore(_q,document.getElementById("sReads"))}var _g=document.getElementById("sGauge"),_t=document.getElementById("tdCard");if(_g&&_t&&_g.nextElementSibling!==_t)_g.parentNode.insertBefore(_t,_g.nextSibling)}catch(e){}</script>
   </section>
 
   <section class="sec reads" id="readsTop" aria-labelledby="rdT">
@@ -355,16 +357,21 @@ document.addEventListener("click",function(e){if(o.getAttribute("data-done"))ret
     <div class="panel tpanel pn-panel"><div id="fvOut"></div><div id="pnCmpOut" aria-live="polite"></div></div>
   </section>
 
-  <section class="sec tool hub" id="news" aria-labelledby="newsT">
+  <section class="sec tool hub" id="news" aria-labelledby="newsT" data-nseg="mine">
     <div class="sec-h"><div><h2 id="newsT">소식</h2></div></div>
-    <section class="nw-sec nw-mine" aria-labelledby="nwMT"><h3 class="nw-h" id="nwMT">내 소식</h3><div class="panel tpanel" id="nwMine"><p class="mut">소식을 불러오는 중이에요.</p></div></section>
-    <h3 class="nw-h nw-oh" id="nwOT">그 밖 소식</h3>
+    <!-- 사이클 5 D: 소식 4칸(내 소식 · 서울 오늘 · 일정 · 주간) — 칸 바꾸기는 73_today.js, 칸 내용(서울 오늘·일정·주간·내 돈 레이더)은 지연 묶음(src/today) -->
+    <div class="nw-seg" id="nwSeg" role="tablist" aria-label="소식 보기"><button type="button" role="tab" id="nwsMine" data-nseg="mine" aria-controls="nwMineP" aria-selected="true">내 소식</button><button type="button" role="tab" id="nwsToday" data-nseg="today" aria-controls="nwToday" aria-selected="false" tabindex="-1">서울 오늘</button><button type="button" role="tab" id="nwsCal" data-nseg="cal" aria-controls="nwCal" aria-selected="false" tabindex="-1">일정</button><button type="button" role="tab" id="nwsWk" data-nseg="wk" aria-controls="nwWk" aria-selected="false" tabindex="-1">주간</button></div>
+    <section class="nw-sec nw-mine" id="nwMineP" aria-labelledby="nwMT"><h3 class="nw-h" id="nwMT">내 소식</h3><div class="panel tpanel" id="nwMine"><p class="mut">소식을 불러오는 중이에요.</p></div><div class="nw-rad" id="nwRad"></div></section>
+    <div class="nw-pane" id="nwToday" role="tabpanel" aria-labelledby="nwsToday"><p class="mut">서울 오늘 소식을 불러오는 중이에요.</p></div>
+    <h3 class="nw-h nw-oh" id="nwOT">고시·단계 기록</h3>
     <div class="hub-tabs" role="tablist" aria-label="그 밖 소식 종류"><button type="button" role="tab" id="hbt-feed" data-tab="feed" aria-controls="ntcTop" aria-selected="true">단계 소식</button><button type="button" role="tab" id="hbt-supply" data-tab="supply" aria-controls="supplyTop" aria-selected="false" tabindex="-1">입주 물량</button></div>
     <section class="sec tool hub-pane" id="ntcTop" role="tabpanel" aria-labelledby="hbt-feed">
       <div class="fchips tl-f" id="ntcF" role="group" aria-label="소식 거르기"><button type="button" class="ichip" data-c="" aria-pressed="true">전체</button><button type="button" class="ichip" data-c="ntc" aria-pressed="false">고시·공고<b class="nb-dot" data-newb="ntc" aria-hidden="true" hidden>N</b></button><button type="button" class="ichip" data-c="up" aria-pressed="false">단계 변경</button><button type="button" class="ichip" data-c="fav" aria-pressed="false">관심 구역</button><button type="button" class="ichip" data-c="auc" aria-pressed="false">경공매<b class="nb-dot" data-newb="auc" aria-hidden="true" hidden>N</b></button></div>
       <div class="panel tpanel"><div id="ntcOut"><p class="mut">소식을 불러오는 중이에요.</p></div></div>
     </section>
     <section class="sec tool hub-pane" id="supplyTop" role="tabpanel" aria-labelledby="hbt-supply"><div class="panel tpanel"><div class="t-out" id="supplyTopOut"></div></div></section>
+    <div class="nw-pane" id="nwCal" role="tabpanel" aria-labelledby="nwsCal"><p class="mut">일정을 불러오는 중이에요.</p></div>
+    <div class="nw-pane" id="nwWk" role="tabpanel" aria-labelledby="nwsWk"><p class="mut">이번 주 리포트를 불러오는 중이에요.</p></div>
   </section>
 
   <section class="sec tool my" id="my" aria-labelledby="myT">

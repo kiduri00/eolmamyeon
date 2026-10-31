@@ -58,11 +58,17 @@ ALLB = collections.defaultdict(list)       # PNU 본번(앞 15자리) → 매매
 APTR = collections.defaultdict(list)       # 지번 PNU → 아파트·입주권 매매 행(구역 거래 행 모양) — 경계·지번 없는 재건축 후보지의 단지 이름 매칭용
 APTN = collections.defaultdict(collections.Counter)   # 지번 PNU → 아파트 건물명 빈도
 last_sale = ''
+CX = {}   # 해제된 매매 지문(tools/changes.py tkey와 같은 셈) → 해제일
+import hashlib
+def cx_add(rec, cdate):
+    if str(rec[0]) < (datetime.date.today() - datetime.timedelta(days=200)).strftime('%Y%m%d'): return
+    k = hashlib.md5(f"{rec[0]}|{rec[1]}|{rec[3]}|{rec[4]}|{rec[5]}|{rec[6]}".encode()).hexdigest()[:8]
+    CX[k] = re.sub(r'\D', '', cdate)[:8] or cdate
 for fn in A.sale:
     rd, ix = opencsv(fn)
     for x in rd:
         try:
-            if x[ix['취소일']].strip(): continue
+            cdate = x[ix['취소일']].strip()   # 사이클 5(A): 해제된 거래는 집계에서 빼되 지문만 남긴다(이미 낸 소식 정정용)
             use = x[ix['건물용도']]
             rk = x[ix['권리구분']].strip() if ix.get('권리구분') is not None else ''
             if rk and not (rk == '입주권' and use == '아파트'): continue   # 분양권은 제외, 입주권은 구역 목록에만(유형 3)
@@ -73,7 +79,12 @@ for fn in A.sale:
         except Exception: continue
         g, dcode = x[ix['자치구코드']], x[ix['법정동코드']]
         p = pnu(g, dcode, x[ix['지번구분']], x[ix['본번']], x[ix['부번']])
-        d = x[ix['계약일']]; last_sale = max(last_sale, d)
+        d = x[ix['계약일']]
+        if cdate:
+            if use == '아파트': cx_add([d, 3 if rk else 2, yr, round(area, 1), 0, price, x[ix['층']]], cdate)
+            elif use in ('연립다세대', '단독다가구'): cx_add([d, 0 if use == '연립다세대' else 1, yr, round(area, 1), round(land, 1), price, x[ix['층']]], cdate)
+            continue
+        last_sale = max(last_sale, d)
         dongName[g + dcode] = (x[ix['자치구명']], x[ix['법정동명']])
         if use == '아파트':
             # 구역 거래 목록 유형: 0 연립다세대 · 1 단독다가구 · 2 아파트 · 3 아파트 입주권 (아파트·입주권은 대지 0)
@@ -93,6 +104,8 @@ for fn in A.sale:
             if yr <= 2010: dongV[g + dcode].append([price, area, land, d])
             if NOWY - yr >= 15: bldS[p].append(price/area)
 for k in list(SALE): SALE[k] = [list(t) for t in dict.fromkeys(tuple(x) for x in SALE[k])]
+json.dump(CX, open(os.path.join(ROOT, 'pipeline/cache/tx_cancel.json'), 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True)
+print('canceled sales (200d)', len(CX))
 print('sale zones', len(SALE), 'last', last_sale)
 if len(SALE) < 100 or not last_sale: raise SystemExit('매매 자료가 비정상적으로 적어요 — 집계 중단(어제 결과 유지)')
 
