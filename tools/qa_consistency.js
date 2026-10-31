@@ -250,7 +250,9 @@ const IN_PAGE = () => {
         if (cs.display === "inline" && el.tagName === "A") { const p = el.parentElement; if (p && [...p.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim().length > 1)) continue; }   // 문장 속 링크(WCAG 2.5.8 예외)
         if (cs.clip !== "auto" || /inset\(50%/.test(cs.clipPath)) continue;
         const r = el.getBoundingClientRect();
-        if (r.width < 40 || r.height < 40) out.push(`${sel(el)} "${(el.innerText || el.getAttribute("aria-label") || "").trim().slice(0, 18)}" ${Math.round(r.width)}×${Math.round(r.height)}`);
+        // c4 최종: 투명 둘레(::before/::after 절대 위치 상자)로 누르는 자리를 넓힌 표식(D+ 서울 태그 · a11y.tap44와 같은 셈)은 그 상자로 잰다
+        const ext = ["::after", "::before"].map((ps) => getComputedStyle(el, ps)).find((p) => p.content && p.content !== "none" && p.position === "absolute" && parseFloat(p.width) >= 40 && parseFloat(p.height) >= 40);
+        if ((r.width < 40 || r.height < 40) && !ext) out.push(`${sel(el)} "${(el.innerText || el.getAttribute("aria-label") || "").trim().slice(0, 18)}" ${Math.round(r.width)}×${Math.round(r.height)}`);
       }
       return [...new Set(out)];
     },
@@ -1570,7 +1572,7 @@ async function navLane(browser, api, errs) {
         await page.evaluate(() => { const m = document.getElementById("mapbox"); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 70); });
         await page.waitForFunction(() => window.ZP_lmx && window.ZP_lmx.gus && window.ZP_lmx.gus().length > 0, null, { timeout: 25000, polling: 200 }).catch(() => {});
         await mapIdle(page); await page.waitForTimeout(400);
-        const hit = await page.evaluate((g) => { const e = document.querySelector(`#lmap .zgu[data-gu="${g}"]`); if (!e) return null; const l2 = (e.querySelector("span") || {}).textContent || ""; e.click(); return { l2 }; }, gn);
+        const hit = await page.evaluate((g) => { const e = document.querySelector(`#lmap .zgu[data-gu="${g}"]`); if (!e) return null; const l2 = e.classList.contains("one") && e.dataset.m && e.dataset.m !== "null" ? window.ZP_G.MT(+e.dataset.m) : (e.querySelector("span") || {}).textContent || ""; e.click(); return { l2 }; }, gn);   // c4 최종: 한 줄 D+ 태그는 가장 적은 금액이 data-m(접근 이름과 같은 값)
         if (!hit) { wrn("map.guPills", TG, `${w}px ${gn}: 묶음이 화면에 없음(칩 안)`); continue; }
         await page.waitForTimeout(900); await mapIdle(page); await page.waitForTimeout(500);
         const r = await page.evaluate(() => ({ v: document.getElementById("mapbox").dataset.view, pills: document.querySelectorAll("#lmap button.zpill[data-zid]").length, gus: document.querySelectorAll("#lmap .zgu").length, chip: !!(document.getElementById("lmGuMore") && !document.getElementById("lmGuMore").hidden), z: window.ZP_lmx.map().getZoom() }));
@@ -1681,7 +1683,9 @@ async function r3Lane(browser, errs) {
       const g = await page.evaluate(() => { const M = window.ZP_simple.guMins(); return (window.ZP_lmx.gus ? window.ZP_lmx.gus() : []).map((x) => ({ ...x, want: window.ZP_simple.guCount(x.n), wm: M[x.n] != null ? window.ZP_G.MT(M[x.n]) : "", list: window.ZP_simple.guCount(x.n) })); });
       expect(g.length > 0, "map.guCluster", T, `no 구 clusters at zoom 10.4`);
       // 21차: 두 줄 '강북 1곳' / '7,400만~'(그 구 갈 수 있는 곳 중 가장 적은 지금 필요한 돈) · 사이클 4 새 전체 지도: 한 줄 '강북 1곳'이고 가장 적은 금액은 이름표(접근 이름)에 — 보이는 글자에 '~'가 없을 때만 그렇게 본다
-      for (const x of g) expect(x.c === x.want && x.c > 0 && new RegExp(`${x.c}곳`).test(x.t) && !!x.wm && (x.t.includes(x.wm) || (!/~/.test(x.t) && x.lab.includes("가장 적게 드는 곳 " + x.wm.replace(/~$/, "")))) && x.lab.includes(x.n), "map.guCluster", T, `${x.n}: cluster ${x.c} "${x.t}" vs list ${x.want} min ${x.wm}`);
+      //   c4 최종(D+ 한 표기): 홈 지도도 '✓ 성북 6' 태그 또는 숫자 원 '6' — 보이는 글자 끝 숫자 = 곳 수, 곳 수('…곳')·가장 적은 금액은 접근 이름에
+      const fmtC = (c) => Number(c).toLocaleString("ko-KR"), dpOk = (x) => !/곳|~/.test(x.t) && new RegExp(`(^|\\s)${fmtC(x.c)}$`).test(x.t.trim()) && x.lab.includes(`갈 수 있는 곳 ${fmtC(x.c)}곳`) && x.lab.includes("가장 적게 드는 곳 " + x.wm.replace(/~$/, ""));
+      for (const x of g) expect(x.c === x.want && x.c > 0 && !!x.wm && (dpOk(x) || (new RegExp(`${x.c}곳`).test(x.t) && (x.t.includes(x.wm) || (!/~/.test(x.t) && x.lab.includes("가장 적게 드는 곳 " + x.wm.replace(/~$/, "")))))) && x.lab.includes(x.n), "map.guCluster", T, `${x.n}: cluster ${x.c} "${x.t}" vs list ${x.want} min ${x.wm}`);
       if (g.length) {
         const pk = g[0];
         await page.evaluate((n) => { const b = document.querySelector(`.zgu[data-gu="${n}"]`); if (b) b.click(); }, pk.n); await page.waitForTimeout(1200); await settle(page, 300);
@@ -2303,7 +2307,7 @@ async function r21Lane(browser, api, errs) {
       await page.evaluate(() => { const x = document.getElementById("sGuX") || document.getElementById("mapBack"); if (x) x.click(); });
       await page.waitForTimeout(900); await idle(page); await page.waitForTimeout(500);
       const c = await page.evaluate(() => ({ key: (document.getElementById("lmKey") || {}).textContent || "", view: document.getElementById("mapbox").dataset.view, z: ZP_lmx.map().getZoom(), dots: ZP_lmx.okDots(), n: +document.getElementById("sN").textContent.replace(/\D/g, "") }));
-      expect(c.view !== "gu" && /숫자 = 내 돈으로 갈 수 있는 곳/.test(c.key) && /금액 = 가장 적게 드는 곳/.test(c.key) && c.key.length <= 40, "map.legend", TK, `${where} 서울 보기: key "${c.key}" view ${c.view}`);
+      expect(c.view !== "gu" && /숫자 = 내 돈으로 갈 수 있는 곳/.test(c.key) && (/금액 = 가장 적게 드는 곳/.test(c.key) || /✓ 숫자 = 내 돈으로 갈 수 있는 곳/.test(c.key)) && c.key.length <= 40, "map.legend",   /* c4 최종: 홈 지도도 D+ 범례('✓ 숫자' · 금액은 태그 접근 이름·구를 누르면) */ TK, `${where} 서울 보기: key "${c.key}" view ${c.view}`);
       expect(c.z > 11.01 || !c.n || c.dots > 0, "map.zoneShade", "서울 보기(줌 ≤ 11)에서 가능 구역이 바로 보임: 남색 면 45% + 작은 구역은 남색 원(자리 그림도 같은 면·원)", `${where}: zoom ${c.z.toFixed(2)} count ${c.n} small-zone dots ${c.dots}`);
       const op = await page.evaluate(() => { const m = ZP_lmx.map(); return JSON.stringify(m.getPaintProperty("zone-fill", "fill-opacity")); });
       expect(/,0,0\.(4|45),/.test(op), "map.zoneShade", "서울 보기(줌 ≤ 11)에서 가능 구역이 바로 보임: 남색 면 45% + 작은 구역은 남색 원(자리 그림도 같은 면·원)", `${where}: zone-fill opacity ${op.slice(0, 120)}`);
@@ -2506,6 +2510,7 @@ async function r17bLane(browser, api, errs) {
           const ctas = [...document.querySelectorAll(".pc-al, .ib-push:not(.on), [data-wson]")].filter(vis).length;
           for (const e of document.querySelectorAll("body *")) {
             if (!vis(e)) continue;
+            if (e.matches(".zg-ck, .zg-num, .zp-ck, .zc-ck, .hm-n .hm-in") && e.getBoundingClientRect().height <= 30) continue;   // c4 최종: 서울 표기 D+의 '갈 수 있음' 체크·숫자 원(노랑 = 갈 수 있음 한 뜻 · design.yellowOnly가 쓰임새를 따로 봄)
             // 통합: 브랜드 v7 노란 점(::before 12px 이하 장식 · 홈 소개 블록 머리표)은 '노랑 바탕'이 아님
             const bf = getComputedStyle(e, "::before"), tiny = parseFloat(bf.width) <= 16 && parseFloat(bf.height) <= 16;   /* 사이클 4 통합: 시각 언어 v2 '갈 수 있음' 체크 배지 14px(노랑 = 갈 수 있음 체크 한 뜻)도 장식 — 바탕이 아님 */
             for (const c of [getComputedStyle(e).backgroundColor, tiny ? "" : bf.backgroundColor]) {
@@ -4409,11 +4414,11 @@ async function r30Lane(browser, api, errs) {
           await page.waitForTimeout(2500);
           const r = await page.evaluate(() => {
             const fs = [...document.querySelectorAll(".zgu b, .zgu span")].filter((e) => e.getClientRects().length && e.textContent.trim()).map((e) => parseFloat(getComputedStyle(e).fontSize));
-            const offs = window.ZP_lmx && window.ZP_lmx.gus ? window.ZP_lmx.gus().map((g) => [g.n, g.off, g.dOther, g.other, g.at]) : [];
+            const offs = window.ZP_lmx && window.ZP_lmx.gus ? window.ZP_lmx.gus().filter((g) => !g.frc).map((g) => [g.n, g.off, g.dOther, g.other, g.at]) : [];   // c4 최종: D+ ④ '겹쳐서라도 숫자'(frc)는 자리 규칙 밖(숫자 보장이 먼저 · 자리는 가장 덜 겹치는 둘레)
             const vis = (e) => { const r = e.getBoundingClientRect(); if (!e.classList.contains("sm")) return r; const cs = getComputedStyle(e, "::before"), w = parseFloat(cs.width) || r.width, h = parseFloat(cs.height) || r.height, cx = r.left + r.width / 2, cy = r.top + r.height / 2; return { left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2 }; };
-            const P = [...document.querySelectorAll("#lmap .zgu")].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden").map((e) => ({ n: e.dataset.gu, r: vis(e), m: +e.dataset.m }));
+            const P = [...document.querySelectorAll("#lmap .zgu")].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden").map((e) => ({ n: e.dataset.gu, r: vis(e), m: +e.dataset.m, frc: e.classList.contains("frc") }));
             let gap = Infinity, gp = "";
-            for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { const a = P[i].r, b = P[j].r, sep = Math.max(b.left - a.right, a.left - b.right, b.top - a.bottom, a.top - b.bottom); if (sep < gap) { gap = sep; gp = P[i].n + "×" + P[j].n; } }
+            for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { if (P[i].frc || P[j].frc) continue; const a = P[i].r, b = P[j].r, sep = Math.max(b.left - a.right, a.left - b.right, b.top - a.bottom, a.top - b.bottom); if (sep < gap) { gap = sep; gp = P[i].n + "×" + P[j].n; } }
             const mapB = document.getElementById("lmap").getBoundingClientRect(), nav = document.getElementById("sNav"), vb = Math.min(mapB.bottom, innerHeight - (nav && nav.offsetHeight && getComputedStyle(nav).position === "fixed" ? nav.offsetHeight : 0));
             let fit = null;
             const ch = [...document.querySelectorAll(".lm-gumore")].find((e) => !e.hidden && e.getClientRects().length);
@@ -4461,10 +4466,10 @@ async function r30Lane(browser, api, errs) {
           const r = await page.evaluate(() => {
             const root = document.querySelector("#lmap .zgu") ? document.getElementById("lmap") : document.querySelector(".zp-ph");
             if (!root) return null;
-            const B = [...root.querySelectorAll(".zgu")].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden").map((e) => { const sp = e.querySelector("span"); return { n: e.dataset.gu, c: +e.dataset.n || 0, m: sp ? sp.textContent : "" }; });
+            const B = [...root.querySelectorAll(".zgu")].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden").map((e) => { const sp = e.querySelector("span"); return { n: e.dataset.gu, c: +e.dataset.n || 0, m: e.classList.contains("one") && e.dataset.m && e.dataset.m !== "null" ? window.ZP_G.MT(+e.dataset.m) : sp ? sp.textContent : "" }; });   // c4 최종: D+ 한 줄 태그의 금액은 data-m
             const ch = [...root.querySelectorAll(".lm-gumore")].find((e) => !e.hidden && e.getClientRects().length);
             const H = ch ? [...ch.querySelectorAll(".lm-gumore-l li button")].map((b) => ({ n: b.dataset.gu, m: (b.querySelector(".gm-m") || {}).textContent || "" })) : [];
-            const offs = window.ZP_lmx && window.ZP_lmx.gus && root.id === "lmap" ? window.ZP_lmx.gus().map((g) => [g.n, g.off, g.at]) : [];
+            const offs = window.ZP_lmx && window.ZP_lmx.gus && root.id === "lmap" ? window.ZP_lmx.gus().filter((g) => !g.frc).map((g) => [g.n, g.off, g.at]) : [];
             return { B, H, more: ch ? +ch.dataset.n || 0 : 0, sN: (document.getElementById("sN") || {}).textContent || "", offs, real: root.id === "lmap" };
           });
           if (!r) { wrn("ui.r30Layout", T, `${w} 대출 ${c}억: 지도 묶음 없음`); continue; }

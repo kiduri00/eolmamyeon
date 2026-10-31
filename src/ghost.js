@@ -146,6 +146,10 @@
       return { l1: l1, w: ww, h: hh, bw: ww, bh: hh };
     };
     var full = mxf();
+    // c4 최종: 폰에서 태그·숫자 원(겹쳐 놓기 ④ 말고)의 가운데 점은 제 구 땅이나 서울 밖에만(이웃 구 땅 위에 서던 것 · 옛 place의 okAt과 같은 고리)
+    var RS = o.phone ? rings() : null, P1 = o.proj([126.9, 37.5]), P2 = o.proj([127.1, 37.6]), X1 = mx(126.9), Y1 = my(37.5), KX = (P2.x - P1.x) / (mx(127.1) - X1), KY = (P2.y - P1.y) / (my(37.6) - Y1), GI = {};
+    if (GD) GD.gu.forEach(function (g, i) { GI[g[0]] = i; });
+    var own = function (n, x, y) { if (!RS || !KX || !KY) return true; var X = X1 + (x - P1.x) / KX, Y = Y1 + (y - P1.y) / KY; for (var i = 0; i < RS.length; i++) if (inRings(RS[i], X, Y)) return i === GI[n]; return true; };
     L.forEach(function (g0) {
       if (!g0.c && !(full && g0.nr)) return;
       var g = { n: g0.n, ll: g0.ll, c: g0.c, m: g0.m, nr: g0.c ? 0 : g0.nr || 0 }, q = o.proj(g.ll);
@@ -157,7 +161,7 @@
         var NU = k === 3 ? NUDGE3 : NUDGE;
         for (j = 0; j < NU.length && !got; j++) {
           var x = q.x + NU[j][0], y = q.y + NU[j][1], bx = [x - S0.bw / 2, y - S0.bh / 2, x + S0.bw / 2, y + S0.bh / 2];
-          if (free(bx)) got = { S: S0, k: k, dx: NU[j][0], dy: NU[j][1], bx: bx };
+          if (free(bx) && (!NU[j][0] && !NU[j][1] || own(g.n, x, y))) got = { S: S0, k: k, dx: NU[j][0], dy: NU[j][1], bx: bx };
         }
       }
       if (!got && g.c) {   // ④ 겹쳐서라도 — 사이클 4 통합: 가운데 고정 대신 둘레(NUDGE3 + 한 겹 더 36·44px) 가운데 이미 놓인 태그와 가장 적게 겹치는 자리(큰 글씨 360에서 '⑦'이 '양천 4'의 숫자를 덮던 것)
