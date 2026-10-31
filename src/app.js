@@ -7833,6 +7833,9 @@
       true,
     );
   }
+  // 사이클 5 통합(ui.alias): 웹 콜드 진입 #ntcTop·#aucTop·#newTop·#supplyTop은 소식 머리가 아니라 '고시·단계 기록'(#nwOT) 줄로 — 위에 '서울 오늘' 목록이 늦게 붙어 길어져도 jumpTo 다시 맞추기가 그 줄을 따라간다(머리로 맞추면 탭 칸이 화면 밖)
+  const ALIAS_OT = (h) => /^(ntc|auc|new|supply)Top$/.test(h || "") && !document.documentElement.classList.contains("is-tapp") && !!$("nwOT");
+  window.ZP_jumpTo = (id) => jumpTo(id);
   function jumpTo(id) {
     const t0 = $(id);
     if (t0 && unfold(t0.closest(".sec.fold") || (t0.classList.contains("fold") ? t0 : null))) {
@@ -9294,7 +9297,7 @@
     }
     // #report(구별 요약): 모바일에선 빈 리포트 칸이 숨겨지므로 같은 내용인 '지역 · 필요한 돈' 목록으로
     if (hash0 === "report" && !$("report").offsetParent && $("sListW")) setTimeout(() => $("sListW").scrollIntoView({ block: "start" }), 300);
-    else if (hash0 && !gu0 && $(hash0)) requestAnimationFrame(() => jumpTo(window.ZP_ALIAS && ZP_ALIAS[hash0] ? (ZP_ALIAS[hash0][1] === "save" ? "saveTop" : ZP_ALIAS[hash0][0]) : hash0));   // 예전 도구 주소는 합친 화면 머리로(60_simple.js ZP_ALIAS)
+    else if (hash0 && !gu0 && $(hash0)) requestAnimationFrame(() => jumpTo(window.ZP_ALIAS && ZP_ALIAS[hash0] ? (ZP_ALIAS[hash0][1] === "save" ? "saveTop" : ALIAS_OT(hash0) ? "nwOT" : ZP_ALIAS[hash0][0]) : hash0));   // 예전 도구 주소는 합친 화면 머리로(60_simple.js ZP_ALIAS)
     refreshFades();
     // 5라운드: 첫 계산·홈 그리기가 끝났다는 알림(설치 앱 시작 덮개가 이것과 첫 긴 작업이 끝난 뒤 걷힌다 · 웹은 듣는 곳 없음)
     window.ZP_booted = 1; try { performance.mark("zp-booted"); } catch (e) {} try { window.dispatchEvent(new Event("zp:booted")); } catch (e) {}

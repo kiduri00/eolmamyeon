@@ -1157,7 +1157,7 @@ const SIMPLE = (() => {
     document.documentElement.classList.add("s-view");
     // 홈 제목(h1)이 숨는 동안은 이 도구의 제목을 1단계 제목으로(화면 읽기·axe page-has-heading-one)
     lvl(id);
-    cur = id; curT = al && al[1] === "save" ? "saveTop" : id;
+    cur = id; curT = al && al[1] === "save" ? "saveTop" : al && /^(ntc|auc|new|supply)Top$/.test(from) && !document.documentElement.classList.contains("is-tapp") && $("nwOT") ? "nwOT" : id;   // 사이클 5 통합: 소식 예전 주소는 '고시·단계 기록' 줄로(load 뒤 fix도 같은 곳)
     navMark();
     const f = SECT[id]; if (f) f();
     try { window.dispatchEvent(new CustomEvent("zp:view", { detail: id })); } catch (e) {}
