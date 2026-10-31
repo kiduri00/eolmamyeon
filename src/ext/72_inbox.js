@@ -55,8 +55,8 @@ const INBOX = (() => {
   const freshN = () => { if (isOff("price")) return 0; try { return PINS.freshIds().length; } catch (e) { return 0; } };
   const unreadC = (e) => { const s = seen(); return !e.bf && (e.date > s.at || (e.date === s.at && !s.k.includes(e.k))); };
   // 알림 조건에 맞는 구역의 경매(핀 꽂은 구역은 핀 소식으로 이미 셈)
-  // all = true: 꺼 둔 설정(종류·조건)을 무시한 셈(미리 보기 '꺼 둔 설정으로 N건 빠져요'의 기준) · 서버 match(worker/push.js)와 같은 규칙: 관심 구역(끈 구역 포함)은 조건 경로에서 빼고, 최저가 ≤ 조건 현금 × 1.1
-  const condAuc = (all) => { if (!CH || (!all && isOff("auction"))) return []; const P = new Set(pinIds()), out = new Map(); (all ? (() => { try { return PINS.condsAll(); } catch (e) { return []; } })() : conds()).forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0 && !(e.mn > n.c.cash * 1.1 + 1e-9)) out.set(e.k, e); }); /* 경매: 대표 물건 최저가가 조건 현금(+10%) 안일 때만 */ }); return [...out.values()]; };
+  // all = true: 꺼 둔 설정(종류·조건)을 무시한 셈(미리 보기 '꺼 둔 설정으로 N건 빠져요'의 기준) · 서버 match(worker/push.js)와 같은 규칙: 관심 구역(끈 구역 포함)은 조건 경로에서 빼고, 최저가 ≤ 조건 현금(사이클 5: +10% 없앰)
+  const condAuc = (all) => { if (!CH || (!all && isOff("auction"))) return []; const P = new Set(pinIds()), out = new Map(); (all ? (() => { try { return PINS.condsAll(); } catch (e) { return []; } })() : conds()).forEach((n) => { const I = new Set(n.ids), d0 = day(n.c.at || 0); CH.items.forEach((e) => { if (e.type === "auction" && I.has(e.id) && !P.has(e.id) && byId[e.id] && e.date >= d0 && !(e.mn > n.c.cash + 1e-9)) out.set(e.k, e); }); /* 경매: 대표 물건 최저가가 조건 현금 안일 때만 */ }); return [...out.values()]; };
   const count = () => pinEvents().filter(unread).length + freshN() + condAuc().filter(unreadC).length;
   function markSeen() {
     if (!CH) return;
@@ -92,7 +92,7 @@ const INBOX = (() => {
     const A = CH ? uniq(CH.items.filter((e) => e.type === "auction" && byId[e.id])) : [], P = new Set(pinIds());
     const noAu = isOff("auction"), noAdd = isOff("price");
     const MZ = new Set(mute().z);   // 사이클 4: 끈 구역 = 그 구역 알림 전부 끔(조건 '새로 갈 수 있게 된 곳'·경매 경로 포함 · 워커 match와 같은 규칙)
-    const L = conds().map((n) => { const I = new Set(n.ids.filter((id) => !MZ.has(id))); n = Object.assign({}, n, { add: noAdd ? [] : (n.add || []).filter((id) => !MZ.has(id)) }); return Object.assign(n, { au: noAu ? [] : A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0) && !(e.mn > n.c.cash * 1.1 + 1e-9)) })   /* 경매: 조건 현금(+10%)을 넘는 물건은 '갈 수 있는 곳'에 넣지 않는다(condAuc·푸시와 같은 기준) */; }).filter((n) => n.add.length || n.au.length);
+    const L = conds().map((n) => { const I = new Set(n.ids.filter((id) => !MZ.has(id))); n = Object.assign({}, n, { add: noAdd ? [] : (n.add || []).filter((id) => !MZ.has(id)) }); return Object.assign(n, { au: noAu ? [] : A.filter((e) => I.has(e.id) && !P.has(e.id) && e.date >= day(n.c.at || 0) && !(e.mn > n.c.cash + 1e-9)) })   /* 경매: 조건 현금을 넘는 물건은 넣지 않는다(condAuc·푸시와 같은 기준 · '최저가가 내 돈 안') */; }).filter((n) => n.add.length || n.au.length);
     if (!L.length) return "";
     const F = new Set(freshN() ? PINS.freshIds() : []);
     return `<section class="ib-sec" aria-labelledby="ibCT"><h4 id="ibCT">내 돈으로 새로 갈 수 있게 된 곳</h4>${L.map((n) => {
@@ -110,8 +110,8 @@ const INBOX = (() => {
     const by = new Map(); E.slice(0, 80).forEach((e) => { if (!by.has(e.date)) by.set(e.date, []); by.get(e.date).push(e); });
     return `<section class="ib-sec" aria-labelledby="ibPT"><h4 id="ibPT">관심 구역 소식</h4>${[...by].map(([d, L]) => `<h5 class="ib-d">${dLabel(d)}</h5><ul>${L.map((e) => { const r = byId[e.id], [tl, tc] = TY[e.type], nw = unread(e); return `<li><button type="button" class="ib-it${nw ? " new" : ""}" data-open="${e.id}"><span class="ib-tg ${e.hi ? "hi" : tc}">${e.hi ? "신고가" : tl}</span><span class="ib-tx"><b>${esc(shortName(r.n))}</b><small>${esc(e.text)}${e.type === "auction" && overCash(e) ? " · 참고 · 내 돈 초과" : ""}</small></span>${nw ? '<i class="ib-dot" aria-label="새 소식"></i>' : ""}</button></li>`; }).join("")}</ul>`).join("")}</section>`;
   }
-  // 핀 구역 경매: 대표 최저가가 지금 내 돈(+10%)을 넘으면 '참고'로 표시
-  const overCash = (e) => { let c = null; try { c = CASH; } catch (er) {} return c != null && e.mn > c * 1.1 + 1e-9; };
+  // 핀 구역 경매: 대표 최저가가 지금 내 돈을 넘으면 '참고'로 표시
+  const overCash = (e) => { let c = null; try { c = CASH; } catch (er) {} return c != null && e.mn > c + 1e-9; };
   // 28차: 기준일은 앱 머리 'N.NN 갱신'과 같은 한 곳(D.upd)에서 — 알림 자료(changes.json asOf)가 하루 어긋나 '10.24 기준' vs '10.25 갱신'이던 것
   const asOfD = () => { let u = ""; try { u = String((typeof D !== "undefined" && (D.upd || D.asOf)) || (CH && CH.asOf) || ""); } catch (e) {} const m = /(\d{4})-?(\d\d)-?(\d\d)/.exec(u); return m ? `${+m[2]}.${m[3]}` : ""; };
   // 사이클 2: '새 소식'의 기준을 밝힌다 — 날짜 머리는 자료에 새로 올라온 날(실거래는 신고 등록일) · 실거래 줄의 'N.N 계약'은 계약일(넉 달 전 계약이 새 소식으로 보이던 혼동)

@@ -157,6 +157,9 @@ const D = (s) => `/?src=push&k=${s}`;
   assert.equal(ca.cond.length, 1); assert.deepEqual(compose(ca, "2026-10-19", { f: "d" }), { title: "내 돈 조건 1곳에 새 소식", body: "10.19 기준\n신정1-3 · 경매 1건 · 다세대 · 최저 2.6억 · 입찰 10.28", url: D("d") + "&d=2026-10-19#o337", tag: "jp-2026-10-19" });
   assert.equal(match({ z: [], c: [{ n: "x", cash: 2, mode: "gap", z: ["o337"] }] }, [AU], { f: "i" }).cond.length, 0, "중요한 것만: 조건 구역 경매는 빠짐");
   assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o1"] }] }, [AU], { f: "d" }).cond.length, 0);
+  // 사이클 5(C 결정): 조건 경매는 '최저가가 내 돈 안'(최저가 ≤ 조건 현금)일 때만 — 예전 +10% 여유 없음(화면 문구·72_inbox condAuc와 같은 기준)
+  assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o337"] }] }, [{ ...AU, mn: 2.1 }], { f: "d" }).cond.length, 0, "최저가 2.1억 > 내 돈 2억이면 아님(10% 안이어도)");
+  assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap", z: ["o337"] }] }, [{ ...AU, mn: 2 }], { f: "d" }).cond.length, 1, "최저가 = 내 돈이면 맞음");
   assert.equal(compose(match({ z: ["zzz"], c: [] }, CH.items), "x"), null);
   // 사이클 4: 끈 구역(mz) = 그 구역 알림 전부 끔 — 조건 price 경로·조건 경매 경로·핀 경로 모두
   assert.equal(match({ z: [], c: [{ cash: 2, mode: "gap" }], mz: ["o1129"] }, CH.items).cond.length, 0, "끈 구역은 price 조건 경로에서도 빠짐");

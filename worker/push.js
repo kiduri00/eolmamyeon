@@ -105,7 +105,7 @@ export function match(sub, items, opt = {}) {
     if (MZ.has(e.id)) continue;   // 사이클 4: 끈 구역 = 그 구역 알림 전부 끔(price 조건 경로도)
     if (Z.has(e.id) && e.type !== "price") { if (f !== "i" || important(e)) zone.push(e); }
     if (e.type === "auction" && !Z.has(e.id) && f !== "i") {
-      const c = (sub.c || []).find((x) => Array.isArray(x.z) && x.z.includes(e.id) && !(e.mn > x.cash * 1.1 + 1e-9));   // 대표 물건 최저가(억)가 조건 현금(+10%) 안일 때만
+      const c = (sub.c || []).find((x) => Array.isArray(x.z) && x.z.includes(e.id) && !(e.mn > x.cash + 1e-9));   // 대표 물건 최저가(억)가 조건 현금 안일 때만(사이클 5: +10% 여유 없앰 — 화면 문구 '최저가가 내 돈 안'과 같은 기준)
       if (c) cond.push({ e, c });
     }
     if (e.type === "price" && e.v) {
