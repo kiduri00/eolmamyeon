@@ -24,6 +24,12 @@
   "appVersionCode": 1,
   "shortcuts": [
     {
+      "name": "오늘의 재개발",
+      "shortName": "오늘",
+      "url": "https://jaegaebal.alwaysquestions.kr/?src=app#news?today",
+      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-news-192.png"
+    },
+    {
       "name": "지도로 보기",
       "shortName": "지도",
       "url": "https://jaegaebal.alwaysquestions.kr/?src=app#map",
@@ -34,12 +40,6 @@
       "shortName": "관심 구역",
       "url": "https://jaegaebal.alwaysquestions.kr/?src=app#favTop",
       "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-fav-192.png"
-    },
-    {
-      "name": "소식",
-      "shortName": "소식",
-      "url": "https://jaegaebal.alwaysquestions.kr/?src=app#news",
-      "chosenIconUrl": "https://jaegaebal.alwaysquestions.kr/sc-news-192.png"
     },
     {
       "name": "입주 계산",

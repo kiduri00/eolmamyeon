@@ -45,13 +45,14 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
     webManifestUrl: LOCAL + '/manifest.webmanifest',
   });
   // Distinct shortcut icons (design kit app_kit/png/shortcuts, copied into this folder).
-  // 1.0.0 r5: the app's shortcuts 3-4 are SPA views (소식 #news, 입주 계산 #planner) instead of the static
-  // /report/ and /z/ pages (back closed the app there). The web manifest still lists report/z, so set them here.
-  const SC = ['map', 'favorites', 'news', 'planner'];
+  // 1.0.0 r5: the app's shortcuts are SPA views (back closed the app on the static /report/ and /z/ pages).
+  // 1.0.0 jp3 (cycle 5): first = '오늘' (소식 탭 '서울 오늘', #news?today) with the news icon; the old '소식' entry
+  // is merged into it. Order: 오늘 · 지도 · 관심 구역 · 입주 계산 (= res/drawable-*/shortcut_0..3.png).
+  const SC = ['news', 'map', 'favorites', 'planner'];
   const APP_SC = [
+    { name: '오늘의 재개발', shortName: '오늘', url: REAL + '/?src=app#news?today' },
     { name: '지도로 보기', shortName: '지도', url: REAL + '/?src=app#map' },
     { name: '관심 구역', shortName: '관심 구역', url: REAL + '/?src=app#favTop' },
-    { name: '소식', shortName: '소식', url: REAL + '/?src=app#news' },
     { name: '입주 계산', shortName: '입주 계산', url: REAL + '/?src=app#planner' },
   ];
   j.shortcuts = APP_SC.map((s, i) => ({ ...s, chosenIconUrl: LOCAL + '/shortcut_' + SC[i] + '_192.png' }));
@@ -99,6 +100,9 @@ const REAL = 'https://jaegaebal.alwaysquestions.kr';
   for (const f of ['drawable/splash.xml', 'values/themes.xml', 'values-v31/themes.xml']) {
     fs.mkdirSync(path.dirname(path.join(DST_RES, f)), { recursive: true }); fs.copyFileSync(path.join(SRC_RES, f), path.join(DST_RES, f)); }
   for (const d of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) fs.rmSync(path.join(DST_RES, 'drawable-' + d, 'splash.png'), { force: true });
+  // 1.0.0 jp3: DelegationService names the notification channel '관심 구역·조건 소식' (Chrome passes a generic name).
+  { const J = 'app/src/main/java/kr/alwaysquestions/jaegaepick/DelegationService.java';
+    fs.copyFileSync(path.join(__dirname, '..', J), path.join(target, J)); }
   const MF = path.join(target, 'app/src/main/AndroidManifest.xml');
   let mf = fs.readFileSync(MF, 'utf8');
   if (!mf.includes('Theme.Jaegaepick.Launcher')) mf = mf.replace(/(<activity android:name="LauncherActivity"\n)/, '$1            android:theme="@style/Theme.Jaegaepick.Launcher"\n');

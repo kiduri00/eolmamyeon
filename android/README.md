@@ -5,7 +5,7 @@ https://jaegaebal.alwaysquestions.kr 를 그대로 띄우는 TWA 래퍼입니다
 - packageId: `kr.alwaysquestions.jaegaepick`
 - 시작 URL: `https://jaegaebal.alwaysquestions.kr/?src=app`
 - fallback: `customtabs` (WebView 금지 — AdSense는 TWA/Custom Tabs 프레임만 허용)
-- 알림 위임(notification delegation) 켜짐, Android 13+ POST_NOTIFICATIONS 권한 요청
+- 알림 위임(notification delegation) 켜짐, Android 13+ POST_NOTIFICATIONS 권한 요청(웹에서 '알림 받기'를 누를 때만, 아래 '알림' 참고)
 - 생성 도구: `@bubblewrap/core` 1.27.0 TwaGenerator (설정 원본은 `twa-manifest.json`)
 - compileSdk/targetSdk 36, minSdk 24 (androidbrowserhelper 2.7.4 요구), AGP 8.9.1, Gradle 8.11.1, JDK 17 (Temurin)
 
@@ -36,7 +36,10 @@ https://jaegaebal.alwaysquestions.kr 를 그대로 띄우는 TWA 래퍼입니다
 
 - 1.0.0 jp1 (10.27, 4ca562540): 패키지 `kr.alwaysquestions.jaegaepick`. 아이콘은 옛 핀 마크라 **올리지 않음**.
 - 1.0.0 jp2 (10.28, a057db1db): 런처·스플래시·알림 아이콘을 '픽' 마크로. Play 첫 업로드 전이라 versionCode 1 그대로. gradle로만 빌드(`bubblewrap update` 안 함: 라이브에 `/icons/*`가 아직 없음).
-  결과물과 확인 기록은 운영 폴더 `android_out/`(`jaegaepick-1.0.0-jp2.aab`, `-jp2-signed.apk`, `CHANGES-1.0.0-jp2.txt`)에 있고 git에는 넣지 않습니다.
+  결과물과 확인 기록은 운영 폴더 `android_out/old_jp2/`에 있고 git에는 넣지 않습니다.
+- 1.0.0 jp3 (10.31, 사이클 5): 바로가기 첫째를 '오늘의 재개발'(`/?src=app#news?today`, 소식 탭 '서울 오늘')로. '소식' 바로가기는 오늘에 합침.
+  알림 채널 이름을 '관심 구역·조건 소식'으로 고정(`DelegationService.java`). Play 첫 업로드 전이라 versionCode 1 그대로. gradle로만 빌드.
+  결과물은 `android_out/`(`jaegaepick-1.0.0-jp3.aab`, `-jp3-signed.apk`, `CHANGES-1.0.0-jp3.txt`). jp3만 올립니다.
 
 ## 다시 빌드하기
 
@@ -93,11 +96,13 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
   - 내비바: TWA 내비바 색은 기존(#FFFFFF / #15181D) 그대로입니다. Chrome은 웹 쪽 색으로 내비바를 바꾸지 않으므로 남색으로 두면 웹 사용 중에도
     남색이 됩니다. Android 12+ 시스템 스플래시와 Chrome이 edge-to-edge로 그릴 때(Android 15+)는 남색 바탕이 그대로 보입니다.
   - 다시 그리기: `NODE_PATH=$(npm root -g) node android/assets-src/splash/render-splash.js [resDir] [preview.png]`
-- 바로가기 4개는 각각 다른 아이콘(디자인 킷 `app_kit/png/shortcuts`): `shortcut_0`=지도(map), `shortcut_1`=관심 구역(favorites),
-  `shortcut_2`=소식(news, `/?src=app#news`), `shortcut_3`=입주 계산(planner, `/?src=app#planner`). 원본은 `assets-src/shortcut_*_192.png`, SVG는 `assets-src/shortcuts/`.
-  `res/drawable-{mdpi..xxxhdpi}/shortcut_N.png` = 48/72/96/144/192px.
+- 바로가기 4개(1.0.0 jp3 순서): `shortcut_0`=오늘의 재개발(소식 아이콘, `/?src=app#news?today`), `shortcut_1`=지도(map, `#map`),
+  `shortcut_2`=관심 구역(favorites, `#favTop`), `shortcut_3`=입주 계산(planner, `#planner`). 아이콘은 디자인 킷 `app_kit/png/shortcuts`,
+  원본은 `assets-src/shortcut_*_192.png`, SVG는 `assets-src/shortcuts/`. `res/drawable-{mdpi..xxxhdpi}/shortcut_N.png` = 48/72/96/144/192px.
   - 1.0.0 r5: 예전 3·4번(월간 리포트 `/report/`, 구역별 페이지 `/z/`)은 정적 페이지라 뒤로 한 번에 앱이 닫혀서 SPA 화면으로 바꿨습니다.
-    웹 매니페스트(`public/manifest.webmanifest`)의 shortcuts는 아직 report/z이므로 `generate.js`가 앱용 목록을 직접 넣습니다.
+  - 1.0.0 jp3: '소식'(#news)을 빼고 첫째에 '오늘'을 넣었습니다. `#news?today`를 '소식 탭 + 서울 오늘'로 여는 것은 웹(SPA 해시 처리) 몫입니다.
+    웹이 아직 `?today`를 모르면 해시가 알 수 없는 화면이라 홈이 열립니다(앱이 멈추거나 닫히지는 않음).
+    웹 매니페스트(`public/manifest.webmanifest`)의 shortcuts도 같은 순서로 맞춥니다(`res/raw/web_app_manifest.json`은 맞춘 뒤의 사본). `generate.js`가 앱용 목록을 직접 넣습니다.
 - `twa-manifest.json`의 아이콘 주소는 모두 사이트 공개 주소입니다(1.0.0 jp1, 재개픽 v7 아이콘).
   - `iconUrl` → `/icons/icon-512.png`, `maskableIconUrl` → `/icons/icon-maskable-512.png`, `monochromeIconUrl` → `/icons/icon-monochrome-512.png`
     (사이트의 옛 `/icon-512.png`·`/icon-maskable-512.png`·`/icon-mono-512.png`는 이전 마크라 쓰지 않습니다.)
@@ -106,6 +111,21 @@ Play App Signing 지문은 첫 업로드 후 Play Console → 테스트 및 출�
   - 런처·스플래시·알림 아이콘은 이미 v7 리소스로 커밋돼 있습니다. `bubblewrap update`로 다시 만들면 이 리소스가 덮어써지므로
     `generate.js`를 쓰거나 git에서 되살리세요.
 - 재생성 스크립트: `assets-src/generate.js` (@bubblewrap/core로 이 폴더를 다시 만듭니다. 서명 설정·gradle.properties 수정은 다시 적용해야 합니다).
+
+## 알림 (TWA 알림 위임)
+
+웹 푸시는 Chrome이 받아 이 앱의 `DelegationService`로 넘기고, 앱 이름·앱 아이콘(`ic_notification_icon`)으로 뜹니다.
+
+- 권한 흐름(androidbrowserhelper 2.7.4 `NotificationDelegationExtraCommandHandler`):
+  - Android 13+(targetSdk 36): 앱을 처음 열 때 권한 창이 뜨지 않습니다. 웹이 `Notification.requestPermission()`을 부를 때(사이트에서는 '알림 받기'·'아침에 받기'를 누를 때만)
+    Chrome이 `NotificationPermissionRequestActivity`를 띄우고, 그 안에서 시스템 POST_NOTIFICATIONS 창이 뜹니다.
+  - 상태: 알림 허용 = granted, 아직 안 물음 = default, **한 번이라도 물은 뒤 꺼져 있음 = denied**(앱이 '물었음'을 기록). 그래서 거부·창 닫기 뒤에는 다시 묻지 않고,
+    웹은 '폰 설정 → 애플리케이션 → 재개픽 → 알림에서 허용' 안내만 보여야 합니다.
+  - Android 12 이하: 알림이 기본으로 켜져 있어 웹에서 처음부터 granted로 보입니다(창 없음). 구독(알림 받기)을 누르기 전에는 서버에 아무것도 가지 않습니다.
+- 채널: 하나뿐이고 이름은 `관심 구역·조건 소식`(Chrome이 넘기는 기본 이름 대신, 1.0.0 jp3). 채널 ID는 이름에서 만들어지므로 출시 뒤에 이름을 바꾸지 않습니다.
+- 아이콘 점: Android에는 Badging API(`navigator.setAppBadge`)가 없습니다(데스크톱 설치 앱만). 런처 아이콘 점은 이 앱 알림이 서랍에 떠 있는 동안만 보이고,
+  알림이 닫히면 사라집니다(숫자 표시 여부는 런처마다 다름). 사이트 알림 태그가 하루 하나(`jp-날짜`)라 같은 날 알림은 덮어써져 점은 하나입니다.
+  웹이 소식을 본 뒤 `registration.getNotifications()`로 남은 알림을 닫으면 점도 사라집니다(Chrome이 `onCancelNotification`으로 넘김).
 
 ## 스토어·매니페스트 스크린샷
 
